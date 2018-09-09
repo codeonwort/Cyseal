@@ -21,15 +21,9 @@
     <ClCompile Include="src\app.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\d3d_util.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\app.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="src\d3d_util.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

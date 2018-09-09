@@ -6,7 +6,6 @@
 #include <assert.h>
 
 #define HR(x) if (FAILED(x)) assert(0);
-#define check(x) assert(x);
 
 using namespace Microsoft;
 
