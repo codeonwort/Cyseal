@@ -1,6 +1,7 @@
 #pragma once
 
 #include "render/render_device.h"
+#include "render/renderer.h"
 #include <stdint.h>
 
 enum class EEngineState : uint8_t
@@ -13,6 +14,7 @@ enum class EEngineState : uint8_t
 struct CysealEngineCreateParams
 {
 	RenderDeviceCreateParams renderDevice;
+	ERendererType rendererType;
 };
 
 class CysealEngine final
@@ -29,13 +31,16 @@ public:
 	void shutdown();
 
 	inline RenderDevice* getRenderDevice() const { return renderDevice; }
+	inline Renderer* getRenderer() const { return renderer; }
 
 private:
 	void createRenderDevice(const RenderDeviceCreateParams& createParams);
+	void createRenderer(ERendererType rendererType);
 
 private:
 	EEngineState state;
 
-	class RenderDevice* renderDevice;
+	RenderDevice* renderDevice;
+	Renderer* renderer;
 
 };

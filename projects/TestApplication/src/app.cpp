@@ -24,6 +24,7 @@ bool Application::onInitialize()
 	engineInit.renderDevice.windowType = EWindowType::WINDOWED;
 	engineInit.renderDevice.windowWidth = getWidth();
 	engineInit.renderDevice.windowHeight = getHeight();
+	engineInit.rendererType = ERendererType::Forward;
 
 	cysealEngine.startup(engineInit);
 	

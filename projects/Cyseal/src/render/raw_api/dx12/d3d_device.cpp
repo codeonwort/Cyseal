@@ -1,5 +1,4 @@
 #include "d3d_device.h"
-#include "d3d_util.h"
 #include "core/assertion.h"
 
 #pragma comment(lib, "dxgi.lib")
@@ -16,6 +15,11 @@
 // 7. Create a RTV for the backbuffer
 // 8. Create a depth/stencil buffer
 // 9. Set viewport and scissor rect
+
+D3DDevice::~D3DDevice()
+{
+	delete swapChain;
+}
 
 void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 {
@@ -78,6 +82,8 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	commandList->Close();
 
 	// 5. Create a swap chain.
+	d3dSwapChain = new D3DSwapChain;
+	swapChain = d3dSwapChain;
 	recreateSwapChain(createParams.hwnd, createParams.windowWidth, createParams.windowHeight);
 
 	// 9. Viewport
@@ -96,26 +102,10 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 void D3DDevice::recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height)
 {
-	swapChain.Reset();
+	screenWidth = width;
+	screenHeight = height;
 
-	DXGI_SWAP_CHAIN_DESC1 desc{};
-	desc.BufferCount = SWAP_CHAIN_BUFFER_COUNT;
-	desc.Width = width;
-	desc.Height = height;
-	desc.Format = backBufferFormat;
-	desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	// You can't create a MSAA swapchain.
-	// https://gamedev.stackexchange.com/questions/149822/direct3d-12-cant-create-a-swap-chain
-	desc.SampleDesc.Count = 1;
-	desc.SampleDesc.Quality = 0;
-
-	HR(dxgiFactory->CreateSwapChainForHwnd(
-		commandQueue.Get(),
-		hwnd,
-		&desc,
-		nullptr, nullptr,
-		&swapChain));
+	swapChain->initialize(this, hwnd, width, height);
 
 	// 6. Create descriptor heaps(ID3D12DescriptorHeap).
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
@@ -137,8 +127,8 @@ void D3DDevice::recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height)
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(heapRTV->GetCPUDescriptorHandleForHeapStart());
 	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{
-		HR(swapChain->GetBuffer(i, IID_PPV_ARGS(&swapChainBuffers[i])));
-		device->CreateRenderTargetView(swapChainBuffers[i].Get(), nullptr, rtvHeapHandle);
+		auto buffer = d3dSwapChain->getSwapChainBuffer(i);
+		device->CreateRenderTargetView(buffer, nullptr, rtvHeapHandle);
 		rtvHeapHandle.ptr += descSizeRTV;
 	}
 
@@ -230,13 +220,13 @@ void D3DDevice::draw()
 	ID3D12CommandList* cmdLists[] = { commandList.Get() };
 	commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
 
-	HR(swapChain->Present(0, 0));
-	currentBackBuffer = (currentBackBuffer + 1) % SWAP_CHAIN_BUFFER_COUNT;
+	swapChain->present();
+	swapChain->swapBackBuffer();
 
 	flushCommandQueue();
 }
 
-void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1 **outAdapter)
+void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter)
 {
 	WRL::ComPtr<IDXGIAdapter1> adapter;
 	*outAdapter = nullptr;

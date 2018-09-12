@@ -3,6 +3,8 @@
 #include <Windows.h>
 #include <stdint.h>
 
+class SwapChain;
+
 enum class ERenderDeviceRawAPI
 {
 	DirectX12,
@@ -31,11 +33,14 @@ class RenderDevice
 {
 	
 public:
+	RenderDevice();
+	virtual ~RenderDevice();
+
 	virtual void initialize(const RenderDeviceCreateParams& createParams) = 0;
 	virtual void recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height) = 0;
 	virtual void draw() = 0;
 
 protected:
-	//
+	SwapChain* swapChain;
 
 };

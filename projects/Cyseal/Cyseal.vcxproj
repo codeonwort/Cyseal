@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -118,18 +118,30 @@
     <ClInclude Include="src\core\assertion.h" />
     <ClInclude Include="src\core\engine.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
+    <ClInclude Include="src\render\forward_renderer.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_device.h" />
+    <ClInclude Include="src\render\raw_api\dx12\d3d_render_command.h" />
+    <ClInclude Include="src\render\raw_api\dx12\d3d_swap_chain.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_util.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_device.h" />
+    <ClInclude Include="src\render\renderer.h" />
+    <ClInclude Include="src\render\render_command.h" />
     <ClInclude Include="src\render\render_device.h" />
+    <ClInclude Include="src\render\swap_chain.h" />
     <ClInclude Include="src\util\profiling.h" />
     <ClInclude Include="src\util\unit_test.h" />
+    <ClInclude Include="src\world\camera.h" />
+    <ClInclude Include="src\world\scene.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\core\engine.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
+    <ClCompile Include="src\render\forward_renderer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_device.cpp" />
+    <ClCompile Include="src\render\raw_api\dx12\d3d_swap_chain.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_util.cpp" />
+    <ClCompile Include="src\render\render_device.cpp" />
+    <ClCompile Include="src\render\swap_chain.cpp" />
     <ClCompile Include="src\util\profiling.cpp" />
     <ClCompile Include="src\util\unit_test.cpp" />
   </ItemGroup>

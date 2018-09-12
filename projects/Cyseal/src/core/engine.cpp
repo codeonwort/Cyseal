@@ -3,6 +3,7 @@
 #include "util/unit_test.h"
 #include "render/raw_api/dx12/d3d_device.h"
 #include "render/raw_api/vulkan/vk_device.h"
+#include "render/forward_renderer.h"
 
 CysealEngine::CysealEngine()
 {
@@ -20,8 +21,9 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 {
 	CHECK(state == EEngineState::UNINITIALIZED);
 
-	// Renderer
+	// Rendering
 	createRenderDevice(createParams.renderDevice);
+	createRenderer(createParams.rendererType);
 
 	// Unit test
 	UnitTestValidator::runAllUnitTests();
@@ -34,7 +36,8 @@ void CysealEngine::shutdown()
 {
 	CHECK(state == EEngineState::RUNNING);
 
-	// Renderer
+	// Rendering
+	delete renderer;
 	delete renderDevice;
 
 	// Shutdown is finished.
@@ -58,4 +61,20 @@ void CysealEngine::createRenderDevice(const RenderDeviceCreateParams& createPara
 	default:
 		CHECK_NO_ENTRY();
 	}
+}
+
+void CysealEngine::createRenderer(ERendererType rendererType)
+{
+	switch (rendererType)
+	{
+	case ERendererType::Forward:
+		renderer = new ForwardRenderer;
+		break;
+
+	default:
+		// Not implemented yet.
+		CHECK_NO_ENTRY();
+	}
+
+	renderer->initialize(renderDevice);
 }
