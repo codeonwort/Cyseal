@@ -20,6 +20,7 @@ public:
 	virtual void draw() override;
 
 	inline IDXGIFactory4* getDXGIFactory() const { return dxgiFactory.Get(); }
+	inline ID3D12Device* getRawDevice() const { return device.Get(); }
 	inline ID3D12CommandQueue* getRawCommandQueue() const { return commandQueue.Get(); }
 
 private:
@@ -57,8 +58,8 @@ private:
 	UINT quality4xMSAA;
 
 	WRL::ComPtr<ID3D12CommandQueue> commandQueue;
-	WRL::ComPtr<ID3D12CommandAllocator> commandAlloc;
 	WRL::ComPtr<ID3D12GraphicsCommandList> commandList;
+	class D3DRenderCommandAllocator* d3dCommandAllocator;
 
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;

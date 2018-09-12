@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 class SwapChain;
+class RenderCommandAllocator;
 
 enum class ERenderDeviceRawAPI
 {
@@ -28,7 +29,8 @@ struct RenderDeviceCreateParams
 	uint32_t windowHeight;
 };
 
-// Encapsulates D3D device or Vulkan device.
+// ID3D12Device
+// VkDevice
 class RenderDevice
 {
 	
@@ -42,5 +44,6 @@ public:
 
 protected:
 	SwapChain* swapChain;
+	RenderCommandAllocator* commandAllocator;
 
 };

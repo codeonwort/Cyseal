@@ -6,6 +6,8 @@
 class RenderDevice;
 class SwapChain;
 
+// ID3D12SwapChain
+// VkSwapChainKHR
 class SwapChain
 {
 	

@@ -2,6 +2,7 @@
 
 RenderDevice::RenderDevice()
 	: swapChain(nullptr)
+	, commandAllocator(nullptr)
 {
 }
 

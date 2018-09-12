@@ -138,8 +138,10 @@
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\forward_renderer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_device.cpp" />
+    <ClCompile Include="src\render\raw_api\dx12\d3d_render_command.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_swap_chain.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_util.cpp" />
+    <ClCompile Include="src\render\render_command.cpp" />
     <ClCompile Include="src\render\render_device.cpp" />
     <ClCompile Include="src\render\swap_chain.cpp" />
     <ClCompile Include="src\util\profiling.cpp" />

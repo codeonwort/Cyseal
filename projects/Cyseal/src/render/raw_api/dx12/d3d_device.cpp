@@ -1,4 +1,5 @@
 #include "d3d_device.h"
+#include "d3d_render_command.h"
 #include "core/assertion.h"
 
 #pragma comment(lib, "dxgi.lib")
@@ -19,6 +20,7 @@
 D3DDevice::~D3DDevice()
 {
 	delete swapChain;
+	delete commandAllocator;
 }
 
 void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
@@ -28,23 +30,24 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	// 1. Create a device.
 #if _DEBUG
 	WRL::ComPtr<ID3D12Debug> debugController;
-	HR(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+	HR( D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)) );
 	debugController->EnableDebugLayer();
 	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-	HR(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
+	HR( CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory)) );
 
 	WRL::ComPtr<IDXGIAdapter1> hardwareAdapter;
 	getHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter);
 
-	HR(D3D12CreateDevice(
-		hardwareAdapter.Get(),
-		D3D_FEATURE_LEVEL_12_1,
-		IID_PPV_ARGS(&device)));
+	HR( D3D12CreateDevice(
+			hardwareAdapter.Get(),
+			D3D_FEATURE_LEVEL_12_1,
+			IID_PPV_ARGS(&device))
+	);
 
 	// 2. Create a ID3D12Fence and retrieve sizes of descriptors.
-	HR(device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+	HR( device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)) );
 	currentFence = 0;
 
 	descSizeRTV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -59,26 +62,31 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	msQualityLevels.SampleCount = 4;
 	msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 	msQualityLevels.NumQualityLevels = 0;
-	HR(device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msQualityLevels, sizeof(msQualityLevels)));
+	HR( device->CheckFeatureSupport(
+			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
+			&msQualityLevels,
+			sizeof(msQualityLevels))
+	);
 
 	quality4xMSAA = msQualityLevels.NumQualityLevels;
 	CHECK(quality4xMSAA > 0);
 
 	// 4. Create command queues, command list allocators, and main command queue.
-	// command queue: ID3D12CommandQueue
-	// command allocator: ID3D12CommandAllocator
-	// command list: ID3D12GraphicsCommandList
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	HR(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
-	HR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(commandAlloc.GetAddressOf())));
-	HR(device->CreateCommandList(
-		0,
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		commandAlloc.Get(),
-		nullptr,
-		IID_PPV_ARGS(commandList.GetAddressOf())));
+	HR( device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)) );
+
+	commandAllocator = ( d3dCommandAllocator = new D3DRenderCommandAllocator );
+	commandAllocator->initialize(this);
+
+	HR( device->CreateCommandList(
+			0,
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			d3dCommandAllocator->getRaw(),
+			nullptr,
+			IID_PPV_ARGS(commandList.GetAddressOf()))
+	);
 	commandList->Close();
 
 	// 5. Create a swap chain.
@@ -113,14 +121,14 @@ void D3DDevice::recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height)
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	rtvHeapDesc.NodeMask = 0;
-	HR(device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(heapRTV.GetAddressOf())));
+	HR( device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(heapRTV.GetAddressOf())) );
 
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
 	dsvHeapDesc.NumDescriptors = 1;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	dsvHeapDesc.NodeMask = 0;
-	HR(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(heapDSV.GetAddressOf())));
+	HR( device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(heapDSV.GetAddressOf())) );
 
 	// 7. Create RTV
 	// First, get the buffer resource stored in swap chain.
@@ -161,17 +169,19 @@ void D3DDevice::recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height)
 	dsHeapProps.CreationNodeMask = 0;
 	dsHeapProps.VisibleNodeMask = 0;
 
-	HR(device->CreateCommittedResource(&dsHeapProps,
-		D3D12_HEAP_FLAG_NONE, &dsDesc, D3D12_RESOURCE_STATE_COMMON, &optClear,
-		IID_PPV_ARGS(depthStencilBuffer.GetAddressOf())));
+	HR( device->CreateCommittedResource(
+			&dsHeapProps,
+			D3D12_HEAP_FLAG_NONE, &dsDesc, D3D12_RESOURCE_STATE_COMMON, &optClear,
+			IID_PPV_ARGS(depthStencilBuffer.GetAddressOf()))
+	);
 
 	device->CreateDepthStencilView(depthStencilBuffer.Get(), nullptr, getDepthStencilView());
 }
 
 void D3DDevice::draw()
 {
-	HR(commandAlloc->Reset());
-	HR(commandList->Reset(commandAlloc.Get(), nullptr));
+	commandAllocator->reset();
+	HR( commandList->Reset(d3dCommandAllocator->getRaw(), nullptr) );
 
 	commandList->ResourceBarrier(
 		1, &CD3DX12_RESOURCE_BARRIER::Transition(
@@ -215,7 +225,7 @@ void D3DDevice::draw()
 			D3D12_RESOURCE_STATE_DEPTH_WRITE,
 			D3D12_RESOURCE_STATE_COMMON));
 
-	HR(commandList->Close());
+	HR( commandList->Close() );
 
 	ID3D12CommandList* cmdLists[] = { commandList.Get() };
 	commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
@@ -262,7 +272,7 @@ void D3DDevice::flushCommandQueue()
 	// Add an instruction to the command queue to set a new fence point.  Because we 
 	// are on the GPU timeline, the new fence point won't be set until the GPU finishes
 	// processing all the commands prior to this Signal().
-	HR(commandQueue->Signal(fence.Get(), currentFence));
+	HR( commandQueue->Signal(fence.Get(), currentFence) );
 
 	// Wait until the GPU has completed commands up to this fence point.
 	if (fence->GetCompletedValue() < currentFence)
@@ -270,7 +280,7 @@ void D3DDevice::flushCommandQueue()
 		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
 
 		// Fire event when GPU hits current fence.  
-		HR(fence->SetEventOnCompletion(currentFence, eventHandle));
+		HR( fence->SetEventOnCompletion(currentFence, eventHandle) );
 
 		// Wait until the GPU hits current fence event is fired.
 		WaitForSingleObject(eventHandle, INFINITE);
