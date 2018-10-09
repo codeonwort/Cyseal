@@ -1,5 +1,6 @@
 #include "d3d_device.h"
 #include "d3d_render_command.h"
+#include "d3d_resource_view.h"
 #include "core/assertion.h"
 
 #pragma comment(lib, "dxgi.lib")
@@ -13,14 +14,25 @@
 // 4. Create a command queue, a command list allocator, and a command list
 // 5. Create a swap chain
 // 6. Create descriptor heaps
-// 7. Create a RTV for the backbuffer
+// 7. Create a RTV for the back buffer
 // 8. Create a depth/stencil buffer
 // 9. Set viewport and scissor rect
+
+D3DDevice::D3DDevice()
+{
+	defaultDepthStencilBuffer = new D3DResource;
+	defaultDSV = new D3DDepthStencilView;
+}
 
 D3DDevice::~D3DDevice()
 {
 	delete swapChain;
+	delete defaultDepthStencilBuffer;
+	delete defaultDSV;
+
 	delete commandAllocator;
+	delete commandQueue;
+	delete commandList;
 }
 
 void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
@@ -72,26 +84,23 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	CHECK(quality4xMSAA > 0);
 
 	// 4. Create command queues, command list allocators, and main command queue.
-	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	HR( device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)) );
+	commandQueue = new D3DRenderCommandQueue;
+	commandQueue->initialize(this);
 
 	commandAllocator = ( d3dCommandAllocator = new D3DRenderCommandAllocator );
 	commandAllocator->initialize(this);
 
-	HR( device->CreateCommandList(
-			0,
-			D3D12_COMMAND_LIST_TYPE_DIRECT,
-			d3dCommandAllocator->getRaw(),
-			nullptr,
-			IID_PPV_ARGS(commandList.GetAddressOf()))
-	);
-	commandList->Close();
+	commandList = new D3DRenderCommandList;
+	commandList->initialize(this);
+
+	// Get raw interfaces
+	rawCommandQueue = static_cast<D3DRenderCommandQueue*>(commandQueue)->getRaw();
+	rawCommandList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
+
+	rawCommandList->Close();
 
 	// 5. Create a swap chain.
-	d3dSwapChain = new D3DSwapChain;
-	swapChain = d3dSwapChain;
+	swapChain = (d3dSwapChain = new D3DSwapChain);
 	recreateSwapChain(createParams.hwnd, createParams.windowWidth, createParams.windowHeight);
 
 	// 9. Viewport
@@ -115,125 +124,55 @@ void D3DDevice::recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height)
 
 	swapChain->initialize(this, hwnd, width, height);
 
-	// 6. Create descriptor heaps(ID3D12DescriptorHeap).
-	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
-	rtvHeapDesc.NumDescriptors = SWAP_CHAIN_BUFFER_COUNT;
-	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	rtvHeapDesc.NodeMask = 0;
-	HR( device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(heapRTV.GetAddressOf())) );
-
-	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
-	dsvHeapDesc.NumDescriptors = 1;
-	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	dsvHeapDesc.NodeMask = 0;
-	HR( device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(heapDSV.GetAddressOf())) );
-
-	// 7. Create RTV
-	// First, get the buffer resource stored in swap chain.
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(heapRTV->GetCPUDescriptorHandleForHeapStart());
-	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
+	// 6. Create DSV heap.
 	{
-		auto buffer = d3dSwapChain->getSwapChainBuffer(i);
-		device->CreateRenderTargetView(buffer, nullptr, rtvHeapHandle);
-		rtvHeapHandle.ptr += descSizeRTV;
+		D3D12_DESCRIPTOR_HEAP_DESC desc;
+		desc.NumDescriptors = 1;
+		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		desc.NodeMask = 0;
+		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heapDSV.GetAddressOf())) );
+	}
+	{
+		D3D12_RESOURCE_DESC dsDesc;
+		dsDesc.Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		dsDesc.Alignment = 0;
+		dsDesc.Width = width;
+		dsDesc.Height = height;
+		dsDesc.DepthOrArraySize = 1;
+		dsDesc.MipLevels = 1;
+		dsDesc.Format = depthStencilFormat;
+		dsDesc.SampleDesc.Count = 1;
+		dsDesc.SampleDesc.Quality = 0;
+		dsDesc.Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		dsDesc.Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+		D3D12_CLEAR_VALUE optClear;
+		optClear.Format = depthStencilFormat;
+		optClear.DepthStencil.Depth = 1.0f;
+		optClear.DepthStencil.Stencil = 0;
+
+		D3D12_HEAP_PROPERTIES dsHeapProps;
+		dsHeapProps.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT;
+		dsHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		dsHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
+		dsHeapProps.CreationNodeMask = 0;
+		dsHeapProps.VisibleNodeMask = 0;
+
+		HR( device->CreateCommittedResource(
+				&dsHeapProps,
+				D3D12_HEAP_FLAG_NONE, &dsDesc, D3D12_RESOURCE_STATE_COMMON, &optClear,
+				IID_PPV_ARGS(rawDepthStencilBuffer.GetAddressOf()))
+		);
+
+		device->CreateDepthStencilView(
+			rawDepthStencilBuffer.Get(),
+			nullptr,
+			rawGetDepthStencilView());
 	}
 
-	// 8. Create D/S buffer and DSV.
-	// construct D3D12_RESOURCE_DESC
-	// ID3D12Device::CreateCommittedResource
-	// D3D12_HEAP_PROPERTIES
-	D3D12_RESOURCE_DESC dsDesc;
-	dsDesc.Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	dsDesc.Alignment = 0;
-	dsDesc.Width = width;
-	dsDesc.Height = height;
-	dsDesc.DepthOrArraySize = 1;
-	dsDesc.MipLevels = 1;
-	dsDesc.Format = depthStencilFormat;
-	dsDesc.SampleDesc.Count = 1;
-	dsDesc.SampleDesc.Quality = 0;
-	dsDesc.Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	dsDesc.Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-	D3D12_CLEAR_VALUE optClear;
-	optClear.Format = depthStencilFormat;
-	optClear.DepthStencil.Depth = 1.0f;
-	optClear.DepthStencil.Stencil = 0;
-
-	D3D12_HEAP_PROPERTIES dsHeapProps;
-	dsHeapProps.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT;
-	dsHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	dsHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
-	dsHeapProps.CreationNodeMask = 0;
-	dsHeapProps.VisibleNodeMask = 0;
-
-	HR( device->CreateCommittedResource(
-			&dsHeapProps,
-			D3D12_HEAP_FLAG_NONE, &dsDesc, D3D12_RESOURCE_STATE_COMMON, &optClear,
-			IID_PPV_ARGS(depthStencilBuffer.GetAddressOf()))
-	);
-
-	device->CreateDepthStencilView(depthStencilBuffer.Get(), nullptr, getDepthStencilView());
-}
-
-void D3DDevice::draw()
-{
-	commandAllocator->reset();
-	HR( commandList->Reset(d3dCommandAllocator->getRaw(), nullptr) );
-
-	commandList->ResourceBarrier(
-		1, &CD3DX12_RESOURCE_BARRIER::Transition(
-			getCurrentBackBuffer(),
-			D3D12_RESOURCE_STATE_PRESENT,
-			D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-	commandList->ResourceBarrier(
-		1, &CD3DX12_RESOURCE_BARRIER::Transition(
-			depthStencilBuffer.Get(),
-			D3D12_RESOURCE_STATE_COMMON,
-			D3D12_RESOURCE_STATE_DEPTH_WRITE));
-
-	commandList->RSSetViewports(1, &viewport);
-	commandList->RSSetScissorRects(1, &scissorRect);
-
-	float red = 0.5f;// +0.5f * sinf(getElapsedSecondsFromStart());
-	FLOAT clearColor[4] = { red, 0.0f, 0.0f, 1.0f };
-	commandList->ClearRenderTargetView(
-		getCurrentBackBufferView(),
-		clearColor,
-		0, nullptr);
-
-	commandList->ClearDepthStencilView(
-		getDepthStencilView(),
-		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-		1.0f, 0,
-		0, nullptr);
-
-	commandList->OMSetRenderTargets(1, &getCurrentBackBufferView(), true, &getDepthStencilView());
-
-	commandList->ResourceBarrier(
-		1, &CD3DX12_RESOURCE_BARRIER::Transition(
-			getCurrentBackBuffer(),
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_PRESENT));
-
-	commandList->ResourceBarrier(
-		1, &CD3DX12_RESOURCE_BARRIER::Transition(
-			depthStencilBuffer.Get(),
-			D3D12_RESOURCE_STATE_DEPTH_WRITE,
-			D3D12_RESOURCE_STATE_COMMON));
-
-	HR( commandList->Close() );
-
-	ID3D12CommandList* cmdLists[] = { commandList.Get() };
-	commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
-
-	swapChain->present();
-	swapChain->swapBackBuffer();
-
-	flushCommandQueue();
+	static_cast<D3DResource*>(defaultDepthStencilBuffer)->setRaw(rawDepthStencilBuffer.Get());
+	static_cast<D3DDepthStencilView*>(defaultDSV)->setRaw(rawGetDepthStencilView());
 }
 
 void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter)
@@ -269,10 +208,12 @@ void D3DDevice::flushCommandQueue()
 	// Advance the fence value to mark commands up to this fence point.
 	++currentFence;
 
+	auto queue = rawCommandQueue;
+
 	// Add an instruction to the command queue to set a new fence point.  Because we 
 	// are on the GPU timeline, the new fence point won't be set until the GPU finishes
 	// processing all the commands prior to this Signal().
-	HR( commandQueue->Signal(fence.Get(), currentFence) );
+	HR( queue->Signal(fence.Get(), currentFence) );
 
 	// Wait until the GPU has completed commands up to this fence point.
 	if (fence->GetCompletedValue() < currentFence)

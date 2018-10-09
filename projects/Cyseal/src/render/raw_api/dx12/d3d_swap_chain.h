@@ -1,9 +1,13 @@
 #pragma once
 
 #include "d3d_util.h"
+#include "d3d_resource.h"
 #include "render/swap_chain.h"
+#include <memory>
 
 class D3DDevice;
+class D3DResource;
+class D3DRenderTargetView;
 
 class D3DSwapChain : public SwapChain
 {
@@ -11,6 +15,8 @@ class D3DSwapChain : public SwapChain
 	static constexpr DXGI_FORMAT BACK_BUFFER_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 public:
+	D3DSwapChain();
+
 	virtual void initialize(
 		RenderDevice* renderDevice,
 		HWND          hwnd,
@@ -19,22 +25,27 @@ public:
 	virtual void present() override;
 	virtual void swapBackBuffer() override;
 
-	inline IDXGISwapChain* getRaw() const { return swapChain.Get(); }
-	inline ID3D12Resource* getSwapChainBuffer(int ix) const
-	{ return swapChainBuffers[ix].Get(); }
-	inline ID3D12Resource* getCurrentBackBuffer() const
-	{ return swapChainBuffers[currentBackBuffer].Get(); }
+	virtual GPUResource* getCurrentBackBuffer() const override;
+	virtual RenderTargetView* getCurrentBackBufferRTV() const override;
+
+	inline IDXGISwapChain* getRaw() const { return rawSwapChain.Get(); }
+	inline ID3D12Resource* getRawSwapChainBuffer(int ix) const
+	{ return rawSwapChainBuffers[ix].Get(); }
+	inline ID3D12Resource* d3d_getCurrentBackBuffer() const
+	{ return rawSwapChainBuffers[currentBackBuffer].Get(); }
 	inline UINT getCurrentBackBufferIndex() const
 	{ return currentBackBuffer; }
 
 private:
 	D3DDevice* device;
 
-	uint32_t backbufferWidth;
-	uint32_t backbufferHeight;
+	std::unique_ptr<D3DResource> swapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
+	std::unique_ptr<D3DRenderTargetView> backBufferRTVs[SWAP_CHAIN_BUFFER_COUNT];
 
-	WRL::ComPtr<IDXGISwapChain1> swapChain;
-	WRL::ComPtr<ID3D12Resource> swapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
+	WRL::ComPtr<IDXGISwapChain1> rawSwapChain;
+	WRL::ComPtr<ID3D12Resource> rawSwapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
 	UINT currentBackBuffer = 0;
+
+	WRL::ComPtr<ID3D12DescriptorHeap> heapRTV;
 
 };

@@ -5,6 +5,14 @@
 #include "memory/mem_alloc.h"
 #include "util/unit_test.h"
 
+/* -------------------------------------
+			CONFIGURATION
+--------------------------------------*/
+#define RAW_API			ERenderDeviceRawAPI::DirectX12
+#define WINDOW_TYPE		EWindowType::WINDOWED
+#define RENDERER_TYPE	ERendererType::Forward
+
+
 CysealEngine cysealEngine;
 
 class UnitTestHello : public UnitTest
@@ -19,12 +27,12 @@ DEFINE_UNIT_TEST(UnitTestHello);
 bool Application::onInitialize()
 {
 	CysealEngineCreateParams engineInit;
-	engineInit.renderDevice.rawAPI = ERenderDeviceRawAPI::DirectX12;
+	engineInit.renderDevice.rawAPI = RAW_API;
 	engineInit.renderDevice.hwnd = getHWND();
-	engineInit.renderDevice.windowType = EWindowType::WINDOWED;
+	engineInit.renderDevice.windowType = WINDOW_TYPE;
 	engineInit.renderDevice.windowWidth = getWidth();
 	engineInit.renderDevice.windowHeight = getHeight();
-	engineInit.rendererType = ERendererType::Forward;
+	engineInit.rendererType = RENDERER_TYPE;
 
 	cysealEngine.startup(engineInit);
 	
@@ -37,7 +45,7 @@ bool Application::onUpdate(float dt)
 	swprintf_s(buf, L"Hello World / FPS: %.2f", 1.0f / dt);
 	setTitle(std::wstring(buf));
 
-	cysealEngine.getRenderDevice()->draw();
+	cysealEngine.getRenderer()->render(&sceneProxy, &camera);
 
 	return true;
 }
