@@ -13,8 +13,14 @@ protected:
 	virtual bool onTerminate() override;
 
 private:
-	// TODO: dummies
-	SceneProxy sceneProxy;
+	void createResources();
+	void destroyResources();
+
+private:
+	// #todo: dummies
+	Scene scene;
 	Camera camera;
+
+	class StaticMesh* staticMesh;
 
 };

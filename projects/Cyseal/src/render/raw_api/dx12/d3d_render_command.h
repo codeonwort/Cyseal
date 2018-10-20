@@ -42,6 +42,13 @@ public:
 	virtual void reset() override;
 	virtual void close() override;
 
+	virtual void iaSetPrimitiveTopology(EPrimitiveTopology topology) override;
+	virtual void iaSetVertexBuffers(
+		int32_t startSlot,
+		uint32_t numViews,
+		VertexBuffer* const* vertexBuffers) override;
+	virtual void iaSetIndexBuffer(IndexBuffer* indexBuffer) override;
+
 	virtual void rsSetViewport(const Viewport& viewport) override;
 	virtual void rsSetScissorRect(const ScissorRect& scissorRect) override;
 
@@ -61,6 +68,16 @@ public:
 		uint8_t stencil) override;
 
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) override;
+
+	virtual void setPipelineState(PipelineState* state) override;
+	virtual void setGraphicsRootSignature(RootSignature* rootSignature) override;
+
+	virtual void drawIndexedInstanced(
+		uint32_t indexCountPerInstance,
+		uint32_t instanceCount,
+		uint32_t startIndexLocation,
+		int32_t baseVertexLocation,
+		uint32_t startInstanceLocation) override;
 
 	inline ID3D12GraphicsCommandList* getRaw() const { return commandList.Get(); }
 

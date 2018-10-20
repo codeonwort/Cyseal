@@ -1,9 +1,13 @@
 #include "engine.h"
 #include "assertion.h"
+
 #include "util/unit_test.h"
+#include "util/resource_finder.h"
+
 #include "render/raw_api/dx12/d3d_device.h"
 #include "render/raw_api/vulkan/vk_device.h"
 #include "render/forward_renderer.h"
+#include "render/raw_api/dx12/d3d_forward_renderer.h"
 
 CysealEngine::CysealEngine()
 {
@@ -21,9 +25,13 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 {
 	CHECK(state == EEngineState::UNINITIALIZED);
 
+	ResourceFinder::get().add(L"../");
+	ResourceFinder::get().add(L"../../");
+	ResourceFinder::get().add(L"../../shaders/");
+
 	// Rendering
 	createRenderDevice(createParams.renderDevice);
-	createRenderer(createParams.rendererType);
+	createRenderer(createParams.renderDevice.rawAPI, createParams.rendererType);
 
 	// Unit test
 	UnitTestValidator::runAllUnitTests();
@@ -61,14 +69,37 @@ void CysealEngine::createRenderDevice(const RenderDeviceCreateParams& createPara
 	default:
 		CHECK_NO_ENTRY();
 	}
+
+	gRenderDevice = renderDevice;
 }
 
-void CysealEngine::createRenderer(ERendererType rendererType)
+void CysealEngine::createRenderer(ERenderDeviceRawAPI rawAPI, ERendererType rendererType)
 {
+	switch (rawAPI)
+	{
+	case ERenderDeviceRawAPI::DirectX12:
+		renderer = createD3DRenderer(rendererType);
+		break;
+
+	case ERenderDeviceRawAPI::Vulkan:
+		renderer = createVulkanRenderer(rendererType);
+		break;
+
+	default:
+		CHECK_NO_ENTRY();
+	}
+
+	renderer->initialize(renderDevice);
+}
+
+Renderer* CysealEngine::createD3DRenderer(ERendererType rendererType)
+{
+	Renderer* renderer = nullptr;
+
 	switch (rendererType)
 	{
 	case ERendererType::Forward:
-		renderer = new ForwardRenderer;
+		renderer = new D3DForwardRenderer;
 		break;
 
 	default:
@@ -76,5 +107,13 @@ void CysealEngine::createRenderer(ERendererType rendererType)
 		CHECK_NO_ENTRY();
 	}
 
-	renderer->initialize(renderDevice);
+	return renderer;
+}
+
+Renderer* CysealEngine::createVulkanRenderer(ERendererType rendererType)
+{
+	// Not implemented yet.
+	CHECK_NO_ENTRY();
+
+	return nullptr;
 }

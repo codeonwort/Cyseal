@@ -1,5 +1,6 @@
 #pragma once
 
+#include "pixel_format.h"
 #include <Windows.h>
 #include <stdint.h>
 
@@ -9,6 +10,8 @@ class RenderCommandList;
 class RenderCommandQueue;
 class GPUResource;
 class DepthStencilView;
+class VertexBuffer;
+class IndexBuffer;
 
 enum class ERenderDeviceRawAPI
 {
@@ -46,6 +49,9 @@ public:
 	virtual void recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height) = 0;
 	virtual void flushCommandQueue() = 0;
 
+	virtual VertexBuffer* createVertexBuffer(void* data, uint32_t sizeInBytes, uint32_t strideInBytes) = 0;
+	virtual IndexBuffer* createIndexBuffer(void* data, uint32_t sizeInBytes, EPixelFormat format) = 0;
+
 	inline SwapChain* getSwapChain() const { return swapChain; }
 	inline GPUResource* getDefaultDepthStencilBuffer() const { return defaultDepthStencilBuffer; }
 	inline DepthStencilView* getDefaultDSV() const { return defaultDSV; }
@@ -64,3 +70,5 @@ protected:
 	RenderCommandList* commandList;
 
 };
+
+extern RenderDevice* gRenderDevice;

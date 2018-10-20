@@ -41,7 +41,7 @@ private:
 	std::wstring title;
 	unsigned int x, y;
 	unsigned int width, height;
-	//bool fullscreen; // TODO
+	//bool fullscreen; // #todo
 
 	// timer
 	LARGE_INTEGER time_curr;

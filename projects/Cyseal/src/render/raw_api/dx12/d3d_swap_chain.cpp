@@ -18,25 +18,26 @@ void D3DSwapChain::initialize(
 	uint32_t      height)
 {
 	device = static_cast<D3DDevice*>(renderDevice);
-	backBufferWidth = width;
+	backBufferWidth  = width;
 	backBufferHeight = height;
+	backBufferFormat = device->getBackBufferFormat();
 
-	auto dxgiFactory = device->getDXGIFactory();
+	auto dxgiFactory  = device->getDXGIFactory();
 	auto commandQueue = device->getRawCommandQueue();
-	auto rawDevice = device->getRawDevice();
+	auto rawDevice    = device->getRawDevice();
 
 	rawSwapChain.Reset();
 
 	DXGI_SWAP_CHAIN_DESC1 desc{};
-	desc.BufferCount = SWAP_CHAIN_BUFFER_COUNT;
-	desc.Width = width;
-	desc.Height = height;
-	desc.Format = BACK_BUFFER_FORMAT;
-	desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	desc.BufferCount        = SWAP_CHAIN_BUFFER_COUNT;
+	desc.Width              = width;
+	desc.Height             = height;
+	desc.Format             = backBufferFormat;
+	desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	desc.SwapEffect         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	// You can't create a MSAA swap chain.
 	// https://gamedev.stackexchange.com/questions/149822/direct3d-12-cant-create-a-swap-chain
-	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Count   = 1;
 	desc.SampleDesc.Quality = 0;
 
 	HR( dxgiFactory->CreateSwapChainForHwnd(

@@ -18,5 +18,5 @@ CycleCounter::~CycleCounter()
 	QueryPerformanceCounter(&end);
 
 	const float seconds = static_cast<float>(end.QuadPart - start.QuadPart) / static_cast<float>(CycleCounterParam::frequency.QuadPart);
-	// TODO: log elapsed seconds
+	// #todo: log elapsed seconds
 }

@@ -35,7 +35,10 @@ public:
 
 private:
 	void createRenderDevice(const RenderDeviceCreateParams& createParams);
-	void createRenderer(ERendererType rendererType);
+
+	void createRenderer(ERenderDeviceRawAPI rawAPI, ERendererType rendererType);
+	Renderer* createD3DRenderer(ERendererType rendererType);
+	Renderer* createVulkanRenderer(ERendererType rendererType);
 
 private:
 	EEngineState state;

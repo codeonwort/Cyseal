@@ -6,13 +6,8 @@
 #include <dxgi1_4.h>
 #include <assert.h>
 
-#define HR(x) if (FAILED(x)) assert(0);
-
 using namespace Microsoft;
 
-WRL::ComPtr<ID3D12Resource> createDefaultBuffer(
-	ID3D12Device*					device,
-	ID3D12GraphicsCommandList*		commandList,
-	const void*						initData,
-	UINT64							byteSize,
-	WRL::ComPtr<ID3D12Resource>&	uploadBuffer);
+#define HR(x) if (FAILED(x)) assert(0);
+
+class D3DDevice* getD3DDevice();

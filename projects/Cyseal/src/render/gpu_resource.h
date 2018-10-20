@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <util/enum_util.h>
 
+// GPU Resources = Buffers + Textures
+
 enum class EGPUResourceState : uint32_t
 {
 	COMMON = 0,

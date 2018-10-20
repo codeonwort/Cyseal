@@ -66,16 +66,10 @@
     <ClInclude Include="src\render\raw_api\dx12\d3d_swap_chain.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\vertex_buffer.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="src\render\input_layout.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\pixel_format.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="src\render\index_buffer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\static_mesh.h">
@@ -100,6 +94,48 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\raw_api\dx12\d3d_resource_view.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\buffer.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\raw_api\dx12\d3d_buffer.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\world\static_mesh.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\shader.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\raw_api\dx12\d3d_shader.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\base_pass.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\render_pass.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\raw_api\dx12\d3d_base_pass.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\raw_api\dx12\d3d_forward_renderer.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\pipeline_state.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\raw_api\dx12\d3d_pipeline_state.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\util\resource_finder.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\core_minimal.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\types.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
@@ -138,6 +174,27 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\render_command.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\raw_api\dx12\d3d_buffer.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\world\scene.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\raw_api\dx12\d3d_shader.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\raw_api\dx12\d3d_base_pass.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\raw_api\dx12\d3d_forward_renderer.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\util\resource_finder.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\static_mesh.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

@@ -2,11 +2,18 @@
 
 #include "viewport.h"
 #include "gpu_resource.h"
+#include "pipeline_state.h"
 
+// Forward Declarations
 class RenderDevice;
 class RenderTargetView;
 class DepthStencilView;
+class PipelineState;
+class RootSignature;
+class VertexBuffer;
+class IndexBuffer;
 
+// #todo: implement
 class RenderCommand
 {
 
@@ -53,7 +60,14 @@ public:
 	virtual void reset() = 0;
 	virtual void close() = 0;
 
-	// TODO: multiple viewports and scissor rects
+	virtual void iaSetPrimitiveTopology(EPrimitiveTopology topology) = 0;
+	virtual void iaSetVertexBuffers(
+		int32_t startSlot,
+		uint32_t numViews,
+		VertexBuffer* const* vertexBuffers) = 0;
+	virtual void iaSetIndexBuffer(IndexBuffer* indexBuffer) = 0;
+
+	// #todo: multiple viewports and scissor rects
 	virtual void rsSetViewport(const Viewport& viewport) = 0;
 	virtual void rsSetScissorRect(const ScissorRect& scissorRect) = 0;
 
@@ -72,7 +86,17 @@ public:
 		float depth,
 		uint8_t stencil) = 0;
 
-	// TODO: MRT
+	// #todo: MRT
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) = 0;
+
+	virtual void setPipelineState(PipelineState* state) = 0;
+	virtual void setGraphicsRootSignature(RootSignature* rootSignature) = 0;
+
+	virtual void drawIndexedInstanced(
+		uint32_t indexCountPerInstance,
+		uint32_t instanceCount,
+		uint32_t startIndexLocation,
+		int32_t baseVertexLocation,
+		uint32_t startInstanceLocation) = 0;
 
 };

@@ -1,6 +1,10 @@
 #include "d3d_render_command.h"
 #include "d3d_resource.h"
 #include "d3d_resource_view.h"
+#include "d3d_pipeline_state.h"
+#include "d3d_buffer.h"
+#include "core/assertion.h"
+#include <vector>
 
 void D3DRenderCommandAllocator::initialize(RenderDevice* renderDevice)
 {
@@ -43,6 +47,73 @@ void D3DRenderCommandList::reset()
 void D3DRenderCommandList::close()
 {
 	HR( commandList->Close() );
+}
+
+static D3D12_PRIMITIVE_TOPOLOGY getD3DPrimitiveTopology(EPrimitiveTopology topology)
+{
+	switch (topology)
+	{
+	case EPrimitiveTopology::UNDEFINED:
+		return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+		break;
+	case EPrimitiveTopology::POINTLIST:
+		return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+		break;
+	case EPrimitiveTopology::LINELIST:
+		return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+		break;
+	case EPrimitiveTopology::LINESTRIP:
+		return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+		break;
+	case EPrimitiveTopology::TRIANGLELIST:
+		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		break;
+	case EPrimitiveTopology::TRIANGLESTRIP:
+		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+		break;
+	case EPrimitiveTopology::LINELIST_ADJ:
+		return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
+		break;
+	case EPrimitiveTopology::LINESTRIP_ADJ:
+		return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ;
+		break;
+	case EPrimitiveTopology::TRIANGLELIST_ADJ:
+		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
+		break;
+	case EPrimitiveTopology::TRIANGLESTRIP_ADJ:
+		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
+		break;
+	default:
+		CHECK_NO_ENTRY();
+		break;
+	}
+	return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+}
+
+void D3DRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology topology)
+{
+	auto d3dTopology = getD3DPrimitiveTopology(topology);
+	commandList->IASetPrimitiveTopology(d3dTopology);
+}
+
+void D3DRenderCommandList::iaSetVertexBuffers(int32_t startSlot, uint32_t numViews, VertexBuffer* const* vertexBuffers)
+{
+	std::vector<D3D12_VERTEX_BUFFER_VIEW> views;
+	views.resize(numViews);
+
+	for (uint32_t i = 0; i < numViews; ++i)
+	{
+		auto buffer = static_cast<D3DVertexBuffer*>(vertexBuffers[i]);
+		views[i] = buffer->getView();
+	}
+
+	commandList->IASetVertexBuffers(startSlot, numViews, &views[0]);
+}
+
+void D3DRenderCommandList::iaSetIndexBuffer(IndexBuffer* indexBuffer)
+{
+	auto buffer = static_cast<D3DIndexBuffer*>(indexBuffer);
+	commandList->IASetIndexBuffer(&buffer->getView());
 }
 
 void D3DRenderCommandList::rsSetViewport(const Viewport& viewport)
@@ -115,6 +186,33 @@ void D3DRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthStencil
 	auto rawDSV = d3dDSV->getRaw();
 
 	commandList->OMSetRenderTargets(1, &rawRTV, true, &rawDSV);
+}
+
+void D3DRenderCommandList::setPipelineState(PipelineState* state)
+{
+	auto rawState = static_cast<D3DPipelineState*>(state)->getRaw();
+	commandList->SetPipelineState(rawState);
+}
+
+void D3DRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature)
+{
+	auto rawSignature = static_cast<D3DRootSignature*>(rootSignature)->getRaw();
+	commandList->SetGraphicsRootSignature(rawSignature);
+}
+
+void D3DRenderCommandList::drawIndexedInstanced(
+	uint32_t indexCountPerInstance,
+	uint32_t instanceCount,
+	uint32_t startIndexLocation,
+	int32_t baseVertexLocation,
+	uint32_t startInstanceLocation)
+{
+	commandList->DrawIndexedInstanced(
+		indexCountPerInstance,
+		instanceCount,
+		startIndexLocation,
+		baseVertexLocation,
+		startInstanceLocation);
 }
 
 void D3DRenderCommandQueue::initialize(RenderDevice* renderDevice)

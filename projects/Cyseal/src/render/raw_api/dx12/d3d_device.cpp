@@ -1,4 +1,5 @@
 #include "d3d_device.h"
+#include "d3d_buffer.h"
 #include "d3d_render_command.h"
 #include "d3d_resource_view.h"
 #include "core/assertion.h"
@@ -62,17 +63,17 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	HR( device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)) );
 	currentFence = 0;
 
-	descSizeRTV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	descSizeDSV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	descSizeRTV         = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	descSizeDSV         = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	descSizeCBV_SRV_UAV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	// 3. Check 4X MSAA support.
 	// It gives good result and the overload is not so big.
 	// All D3D11 level devices support 4X MSAA for all render target types.
 	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
-	msQualityLevels.Format = backBufferFormat;
-	msQualityLevels.SampleCount = 4;
-	msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+	msQualityLevels.Format           = backBufferFormat;
+	msQualityLevels.SampleCount      = 4;
+	msQualityLevels.Flags            = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 	msQualityLevels.NumQualityLevels = 0;
 	HR( device->CheckFeatureSupport(
 			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
@@ -97,8 +98,6 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	rawCommandQueue = static_cast<D3DRenderCommandQueue*>(commandQueue)->getRaw();
 	rawCommandList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
-	rawCommandList->Close();
-
 	// 5. Create a swap chain.
 	swapChain = (d3dSwapChain = new D3DSwapChain);
 	recreateSwapChain(createParams.hwnd, createParams.windowWidth, createParams.windowHeight);
@@ -106,14 +105,14 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	// 9. Viewport
 	viewport.TopLeftX = 0.0f;
 	viewport.TopLeftY = 0.0f;
-	viewport.Width = static_cast<float>(createParams.windowWidth);
-	viewport.Height = static_cast<float>(createParams.windowHeight);
+	viewport.Width    = static_cast<float>(createParams.windowWidth);
+	viewport.Height   = static_cast<float>(createParams.windowHeight);
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
 
 	// 10. Scissor rect
-	scissorRect.left = scissorRect.top = 0;
-	scissorRect.right = createParams.windowWidth;
+	scissorRect.left   = scissorRect.top = 0;
+	scissorRect.right  = createParams.windowWidth;
 	scissorRect.bottom = createParams.windowHeight;
 }
 
@@ -128,36 +127,36 @@ void D3DDevice::recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height)
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC desc;
 		desc.NumDescriptors = 1;
-		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		desc.NodeMask = 0;
+		desc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		desc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		desc.NodeMask       = 0;
 		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heapDSV.GetAddressOf())) );
 	}
 	{
 		D3D12_RESOURCE_DESC dsDesc;
-		dsDesc.Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		dsDesc.Alignment = 0;
-		dsDesc.Width = width;
-		dsDesc.Height = height;
-		dsDesc.DepthOrArraySize = 1;
-		dsDesc.MipLevels = 1;
-		dsDesc.Format = depthStencilFormat;
-		dsDesc.SampleDesc.Count = 1;
+		dsDesc.Dimension          = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		dsDesc.Alignment          = 0;
+		dsDesc.Width              = width;
+		dsDesc.Height             = height;
+		dsDesc.DepthOrArraySize   = 1;
+		dsDesc.MipLevels          = 1;
+		dsDesc.Format             = depthStencilFormat;
+		dsDesc.SampleDesc.Count   = 1;
 		dsDesc.SampleDesc.Quality = 0;
-		dsDesc.Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		dsDesc.Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		dsDesc.Layout             = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		dsDesc.Flags              = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
 		D3D12_CLEAR_VALUE optClear;
-		optClear.Format = depthStencilFormat;
-		optClear.DepthStencil.Depth = 1.0f;
+		optClear.Format               = depthStencilFormat;
+		optClear.DepthStencil.Depth   = 1.0f;
 		optClear.DepthStencil.Stencil = 0;
 
 		D3D12_HEAP_PROPERTIES dsHeapProps;
-		dsHeapProps.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT;
-		dsHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		dsHeapProps.Type                 = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT;
+		dsHeapProps.CPUPageProperty      = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 		dsHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
-		dsHeapProps.CreationNodeMask = 0;
-		dsHeapProps.VisibleNodeMask = 0;
+		dsHeapProps.CreationNodeMask     = 0;
+		dsHeapProps.VisibleNodeMask      = 0;
 
 		HR( device->CreateCommittedResource(
 				&dsHeapProps,
@@ -227,4 +226,18 @@ void D3DDevice::flushCommandQueue()
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
+}
+
+VertexBuffer* D3DDevice::createVertexBuffer(void* data, uint32_t sizeInBytes, uint32_t strideInBytes)
+{
+	D3DVertexBuffer* buffer = new D3DVertexBuffer;
+	buffer->initialize(data, sizeInBytes, strideInBytes);
+	return buffer;
+}
+
+IndexBuffer* D3DDevice::createIndexBuffer(void* data, uint32_t sizeInBytes, EPixelFormat format)
+{
+	D3DIndexBuffer* buffer = new D3DIndexBuffer;
+	buffer->initialize(data, sizeInBytes, format);
+	return buffer;
 }

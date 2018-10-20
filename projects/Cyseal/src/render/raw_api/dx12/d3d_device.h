@@ -4,10 +4,6 @@
 #include "d3d_util.h"
 #include "d3d_swap_chain.h"
 
-#include <d3dcompiler.h>
-#include <wrl.h>
-using namespace Microsoft;
-
 class D3DDevice : public RenderDevice
 {
 
@@ -19,9 +15,15 @@ public:
 	virtual void recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height) override;
 	virtual void flushCommandQueue() override;
 
+	virtual VertexBuffer* createVertexBuffer(void* data, uint32_t sizeInBytes, uint32_t strideInBytes) override;
+	virtual IndexBuffer* createIndexBuffer(void* data, uint32_t sizeInBytes, EPixelFormat format) override;
+
 	inline IDXGIFactory4* getDXGIFactory() const { return dxgiFactory.Get(); }
 	inline ID3D12Device* getRawDevice() const { return device.Get(); }
 	inline ID3D12CommandQueue* getRawCommandQueue() const { return rawCommandQueue; }
+
+	inline DXGI_FORMAT getBackBufferFormat() const { return backBufferFormat; }
+	inline DXGI_FORMAT getBackBufferDSVFormat() const { return depthStencilFormat; }
 
 private:
 	void getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter);

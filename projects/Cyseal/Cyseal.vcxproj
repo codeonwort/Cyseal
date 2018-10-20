@@ -116,16 +116,24 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="src\core\assertion.h" />
+    <ClInclude Include="src\core\core_minimal.h" />
     <ClInclude Include="src\core\engine.h" />
+    <ClInclude Include="src\core\types.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
+    <ClInclude Include="src\render\base_pass.h" />
     <ClInclude Include="src\render\forward_renderer.h" />
-    <ClInclude Include="src\render\index_buffer.h" />
     <ClInclude Include="src\render\input_layout.h" />
+    <ClInclude Include="src\render\pipeline_state.h" />
     <ClInclude Include="src\render\pixel_format.h" />
+    <ClInclude Include="src\render\raw_api\dx12\d3d_buffer.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_device.h" />
+    <ClInclude Include="src\render\raw_api\dx12\d3d_forward_renderer.h" />
+    <ClInclude Include="src\render\raw_api\dx12\d3d_pipeline_state.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_render_command.h" />
+    <ClInclude Include="src\render\raw_api\dx12\d3d_base_pass.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_resource.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_resource_view.h" />
+    <ClInclude Include="src\render\raw_api\dx12\d3d_shader.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_swap_chain.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_util.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_device.h" />
@@ -133,31 +141,42 @@
     <ClInclude Include="src\render\render_command.h" />
     <ClInclude Include="src\render\render_device.h" />
     <ClInclude Include="src\render\gpu_resource.h" />
+    <ClInclude Include="src\render\render_pass.h" />
     <ClInclude Include="src\render\resource_view.h" />
+    <ClInclude Include="src\render\shader.h" />
     <ClInclude Include="src\render\static_mesh.h" />
     <ClInclude Include="src\render\swap_chain.h" />
     <ClInclude Include="src\render\texture.h" />
-    <ClInclude Include="src\render\vertex_buffer.h" />
+    <ClInclude Include="src\render\buffer.h" />
     <ClInclude Include="src\render\viewport.h" />
     <ClInclude Include="src\util\enum_util.h" />
     <ClInclude Include="src\util\profiling.h" />
+    <ClInclude Include="src\util\resource_finder.h" />
     <ClInclude Include="src\util\unit_test.h" />
     <ClInclude Include="src\world\camera.h" />
     <ClInclude Include="src\world\scene.h" />
+    <ClInclude Include="src\world\static_mesh.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\core\engine.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\forward_renderer.cpp" />
+    <ClCompile Include="src\render\raw_api\dx12\d3d_buffer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_device.cpp" />
+    <ClCompile Include="src\render\raw_api\dx12\d3d_forward_renderer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_render_command.cpp" />
+    <ClCompile Include="src\render\raw_api\dx12\d3d_base_pass.cpp" />
+    <ClCompile Include="src\render\raw_api\dx12\d3d_shader.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_swap_chain.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_util.cpp" />
     <ClCompile Include="src\render\render_command.cpp" />
     <ClCompile Include="src\render\render_device.cpp" />
+    <ClCompile Include="src\render\static_mesh.cpp" />
     <ClCompile Include="src\render\swap_chain.cpp" />
     <ClCompile Include="src\util\profiling.cpp" />
+    <ClCompile Include="src\util\resource_finder.cpp" />
     <ClCompile Include="src\util\unit_test.cpp" />
+    <ClCompile Include="src\world\scene.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

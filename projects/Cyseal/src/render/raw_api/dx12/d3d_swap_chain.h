@@ -12,7 +12,6 @@ class D3DRenderTargetView;
 class D3DSwapChain : public SwapChain
 {
 	static constexpr UINT SWAP_CHAIN_BUFFER_COUNT = 2;
-	static constexpr DXGI_FORMAT BACK_BUFFER_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 public:
 	D3DSwapChain();
@@ -29,18 +28,33 @@ public:
 	virtual RenderTargetView* getCurrentBackBufferRTV() const override;
 
 	inline IDXGISwapChain* getRaw() const { return rawSwapChain.Get(); }
+
 	inline ID3D12Resource* getRawSwapChainBuffer(int ix) const
 	{ return rawSwapChainBuffers[ix].Get(); }
+
 	inline ID3D12Resource* d3d_getCurrentBackBuffer() const
 	{ return rawSwapChainBuffers[currentBackBuffer].Get(); }
+
 	inline UINT getCurrentBackBufferIndex() const
 	{ return currentBackBuffer; }
+
+	inline DXGI_FORMAT getBackBufferFormat() const
+	{ return backBufferFormat; }
+
+	// #todo: check 4xMSAA support
+	inline bool supports4xMSAA() const
+	{ return false; }
+
+	// #todo: check 4xMSAA quality
+	inline UINT get4xMSAAQuality() const
+	{ return 1; }
 
 private:
 	D3DDevice* device;
 
 	std::unique_ptr<D3DResource> swapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
 	std::unique_ptr<D3DRenderTargetView> backBufferRTVs[SWAP_CHAIN_BUFFER_COUNT];
+	DXGI_FORMAT backBufferFormat;
 
 	WRL::ComPtr<IDXGISwapChain1> rawSwapChain;
 	WRL::ComPtr<ID3D12Resource> rawSwapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
