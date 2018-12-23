@@ -34,34 +34,34 @@ private:
 	}
 
 private:
-	WRL::ComPtr<IDXGIFactory4> dxgiFactory;
-	WRL::ComPtr<ID3D12Device> device;
+	WRL::ComPtr<IDXGIFactory4>        dxgiFactory;
+	WRL::ComPtr<ID3D12Device>         device;
 
-	WRL::ComPtr<ID3D12Fence> fence;
-	UINT currentFence;
+	WRL::ComPtr<ID3D12Fence>          fence;
+	UINT                              currentFence;
 
-	UINT descSizeRTV;
-	UINT descSizeDSV;
-	UINT descSizeCBV_SRV_UAV;
-	UINT quality4xMSAA;
+	UINT                              descSizeRTV;
+	UINT                              descSizeDSV;
+	UINT                              descSizeCBV_SRV_UAV;
+	UINT                              quality4xMSAA;
 
 	// Raw interfaces
-	ID3D12CommandQueue* rawCommandQueue;
-	ID3D12GraphicsCommandList* rawCommandList;
-	class D3DRenderCommandAllocator* d3dCommandAllocator;
-	D3DSwapChain* d3dSwapChain;
+	ID3D12CommandQueue*               rawCommandQueue;
+	ID3D12GraphicsCommandList*        rawCommandList;
+	class D3DRenderCommandAllocator*  d3dCommandAllocator;
+	D3DSwapChain*                     d3dSwapChain;
 
-	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-	DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	DXGI_FORMAT                       backBufferFormat   = DXGI_FORMAT_R8G8B8A8_UNORM;
+	DXGI_FORMAT                       depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	WRL::ComPtr<ID3D12DescriptorHeap> heapDSV;
 
-	WRL::ComPtr<ID3D12Resource> rawDepthStencilBuffer;
+	WRL::ComPtr<ID3D12Resource>       rawDepthStencilBuffer;
 
-	D3D12_VIEWPORT viewport;
-	D3D12_RECT scissorRect;
+	D3D12_VIEWPORT                    viewport;
+	D3D12_RECT                        scissorRect;
 
-	uint32_t screenWidth;
-	uint32_t screenHeight;
+	uint32_t                          screenWidth;
+	uint32_t                          screenHeight;
 
 };

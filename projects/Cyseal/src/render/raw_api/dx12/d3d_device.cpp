@@ -53,11 +53,42 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	WRL::ComPtr<IDXGIAdapter1> hardwareAdapter;
 	getHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter);
 
-	HR( D3D12CreateDevice(
+	// Create a device with feature level 11.0 to verify the graphic card supports DX12.
+	const D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0;
+	if (FAILED(D3D12CreateDevice(
 			hardwareAdapter.Get(),
-			D3D_FEATURE_LEVEL_12_1,
-			IID_PPV_ARGS(&device))
-	);
+			minFeatureLevel,
+			IID_PPV_ARGS(&device))))
+	{
+		CHECK(0);
+	}
+
+	// Check the max supported feature level.
+	const D3D_FEATURE_LEVEL dx12FeatureLevels[] =
+	{
+		D3D_FEATURE_LEVEL_12_1,
+		D3D_FEATURE_LEVEL_12_0,
+		D3D_FEATURE_LEVEL_11_1,
+		D3D_FEATURE_LEVEL_11_0,
+	};
+
+	D3D12_FEATURE_DATA_FEATURE_LEVELS featureLevelCandidates =
+	{
+		_countof(dx12FeatureLevels), dx12FeatureLevels, D3D_FEATURE_LEVEL_11_0
+	};
+
+	HR( device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &featureLevelCandidates, sizeof(featureLevelCandidates)) );
+
+	// If possible, recreate the device with max feature level.
+	if(featureLevelCandidates.MaxSupportedFeatureLevel != minFeatureLevel)
+	{
+		device = nullptr;
+
+		HR( D3D12CreateDevice(
+				hardwareAdapter.Get(),
+				featureLevelCandidates.MaxSupportedFeatureLevel,
+				IID_PPV_ARGS(&device)) );
+	}
 
 	// 2. Create a ID3D12Fence and retrieve sizes of descriptors.
 	HR( device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)) );
@@ -191,7 +222,8 @@ void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAd
 
 		if (SUCCEEDED(D3D12CreateDevice(
 			adapter.Get(),
-			D3D_FEATURE_LEVEL_12_1,
+			D3D_FEATURE_LEVEL_11_0,
+			//D3D_FEATURE_LEVEL_12_1,
 			__uuidof(ID3D12Device),
 			nullptr)))
 		{
