@@ -150,6 +150,7 @@
     <ClInclude Include="src\render\buffer.h" />
     <ClInclude Include="src\render\viewport.h" />
     <ClInclude Include="src\util\enum_util.h" />
+    <ClInclude Include="src\util\logging.h" />
     <ClInclude Include="src\util\profiling.h" />
     <ClInclude Include="src\util\resource_finder.h" />
     <ClInclude Include="src\util\unit_test.h" />

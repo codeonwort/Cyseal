@@ -5,13 +5,13 @@
 
 enum class EShaderType : uint8_t
 {
-	VERTEX_SHADER = 0,
-	DOMAIN_SHADER = 1,
-	HULL_SHADER = 2,
+	VERTEX_SHADER   = 0,
+	DOMAIN_SHADER   = 1,
+	HULL_SHADER     = 2,
 	GEOMETRY_SHADER = 3,
-	PIXEL_SHADER = 4,
-	COMPUTE_SHADER = 5,
-	NUM_TYPES = 6
+	PIXEL_SHADER    = 4,
+	COMPUTE_SHADER  = 5,
+	NUM_TYPES       = 6
 };
 
 class Shader

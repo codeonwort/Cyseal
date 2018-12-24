@@ -11,3 +11,4 @@
 #include "util/profiling.h"
 #include "util/enum_util.h"
 #include "util/resource_finder.h"
+#include "util/logging.h"
