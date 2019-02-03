@@ -20,5 +20,6 @@ VertexOutput mainVS(VertexInput input)
 
 float4 mainPS(VertexOutput vout) : SV_TARGET
 {
-    return float4(1.0, 1.0, 0.0, 1.0);
+	float r = vout.posH.z;
+    return float4(r, r, r, 1.0);
 }

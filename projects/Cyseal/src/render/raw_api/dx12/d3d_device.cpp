@@ -147,7 +147,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	scissorRect.bottom = createParams.windowHeight;
 }
 
-void D3DDevice::recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height)
+void D3DDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
 {
 	screenWidth = width;
 	screenHeight = height;
@@ -260,14 +260,14 @@ void D3DDevice::flushCommandQueue()
 	}
 }
 
-VertexBuffer* D3DDevice::createVertexBuffer(void* data, uint32_t sizeInBytes, uint32_t strideInBytes)
+VertexBuffer* D3DDevice::createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes)
 {
 	D3DVertexBuffer* buffer = new D3DVertexBuffer;
 	buffer->initialize(data, sizeInBytes, strideInBytes);
 	return buffer;
 }
 
-IndexBuffer* D3DDevice::createIndexBuffer(void* data, uint32_t sizeInBytes, EPixelFormat format)
+IndexBuffer* D3DDevice::createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format)
 {
 	D3DIndexBuffer* buffer = new D3DIndexBuffer;
 	buffer->initialize(data, sizeInBytes, format);

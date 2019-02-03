@@ -1,8 +1,8 @@
 #pragma once
 
+#include "core/types.h"
 #include "pixel_format.h"
 #include <Windows.h>
-#include <stdint.h>
 
 class SwapChain;
 class RenderCommandAllocator;
@@ -46,11 +46,11 @@ public:
 	virtual ~RenderDevice();
 
 	virtual void initialize(const RenderDeviceCreateParams& createParams) = 0;
-	virtual void recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height) = 0;
+	virtual void recreateSwapChain(HWND hwnd, uint32 width, uint32 height) = 0;
 	virtual void flushCommandQueue() = 0;
 
-	virtual VertexBuffer* createVertexBuffer(void* data, uint32_t sizeInBytes, uint32_t strideInBytes) = 0;
-	virtual IndexBuffer* createIndexBuffer(void* data, uint32_t sizeInBytes, EPixelFormat format) = 0;
+	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes) = 0;
+	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) = 0;
 
 	inline SwapChain* getSwapChain() const { return swapChain; }
 	inline GPUResource* getDefaultDepthStencilBuffer() const { return defaultDepthStencilBuffer; }
@@ -61,13 +61,13 @@ public:
 	inline RenderCommandQueue* getCommandQueue() const { return commandQueue; }
 
 protected:
-	SwapChain* swapChain;
-	GPUResource* defaultDepthStencilBuffer;
-	DepthStencilView* defaultDSV;
+	SwapChain*              swapChain;
+	GPUResource*            defaultDepthStencilBuffer;
+	DepthStencilView*       defaultDSV;
 
 	RenderCommandAllocator* commandAllocator;
-	RenderCommandQueue* commandQueue;
-	RenderCommandList* commandList;
+	RenderCommandQueue*     commandQueue;
+	RenderCommandList*      commandList;
 
 };
 

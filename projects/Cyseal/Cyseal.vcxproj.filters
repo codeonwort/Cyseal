@@ -141,6 +141,15 @@
     <ClInclude Include="src\util\logging.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\geometry\primitive.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\vec3.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\int_types.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -198,6 +207,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\static_mesh.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geometry\primitive.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

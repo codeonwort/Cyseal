@@ -12,11 +12,11 @@ public:
 	~D3DDevice();
 
 	virtual void initialize(const RenderDeviceCreateParams& createParams) override;
-	virtual void recreateSwapChain(HWND hwnd, uint32_t width, uint32_t height) override;
+	virtual void recreateSwapChain(HWND hwnd, uint32 width, uint32 height) override;
 	virtual void flushCommandQueue() override;
 
-	virtual VertexBuffer* createVertexBuffer(void* data, uint32_t sizeInBytes, uint32_t strideInBytes) override;
-	virtual IndexBuffer* createIndexBuffer(void* data, uint32_t sizeInBytes, EPixelFormat format) override;
+	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes) override;
+	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) override;
 
 	inline IDXGIFactory4* getDXGIFactory() const { return dxgiFactory.Get(); }
 	inline ID3D12Device* getRawDevice() const { return device.Get(); }
@@ -61,7 +61,7 @@ private:
 	D3D12_VIEWPORT                    viewport;
 	D3D12_RECT                        scissorRect;
 
-	uint32_t                          screenWidth;
-	uint32_t                          screenHeight;
+	uint32                            screenWidth;
+	uint32                            screenHeight;
 
 };

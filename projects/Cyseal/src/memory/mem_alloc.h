@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdint.h>
 #include <stdlib.h>
+#include "core/types.h"
 #include "core/assertion.h"
 
 // Custom memory allocators.
@@ -10,17 +10,17 @@ class StackAllocator
 {
 
 public:
-	explicit StackAllocator(uint32_t bytes);
+	explicit StackAllocator(uint32 bytes);
 	~StackAllocator();
 
-	void* alloc(uint32_t bytes);
+	void* alloc(uint32 bytes);
 	void clear();
 
 private:
 	void* memblock;
 	void* current;
-	uint32_t totalBytes;
-	uint32_t usedBytes;
+	uint32 totalBytes;
+	uint32 usedBytes;
 
 };
 
@@ -34,7 +34,7 @@ class PoolAllocator
 	};
 	
 public:
-	explicit PoolAllocator(uint32_t numElements)
+	explicit PoolAllocator(uint32 numElements)
 	{
 		memblock = malloc(numElements * sizeof(FreeNode));
 		void* current = memblock;

@@ -1,11 +1,11 @@
 #pragma once
 
-#include <stdint.h>
-#include <util/enum_util.h>
+#include "core/types.h"
+#include "util/enum_util.h"
 
 // GPU Resources = Buffers + Textures
 
-enum class EGPUResourceState : uint32_t
+enum class EGPUResourceState : uint32
 {
 	COMMON                     = 0,
 	VERTEX_AND_CONSTANT_BUFFER = 0x1,
@@ -31,7 +31,7 @@ enum class EGPUResourceState : uint32_t
 	VIDEO_PROCESS_WRITE        = 0x80000
 };
 
-enum class EClearFlags : uint8_t
+enum class EClearFlags : uint8
 {
 	DEPTH   = 0x1,
 	STENCIL = 0x2

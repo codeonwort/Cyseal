@@ -1,7 +1,7 @@
 #include "mem_alloc.h"
 #include "core/assertion.h"
 
-StackAllocator::StackAllocator(uint32_t bytes)
+StackAllocator::StackAllocator(uint32 bytes)
 {
 	totalBytes = bytes;
 	memblock = malloc(bytes);
@@ -13,7 +13,7 @@ StackAllocator::~StackAllocator()
 	free(memblock);
 }
 
-void* StackAllocator::alloc(uint32_t bytes)
+void* StackAllocator::alloc(uint32 bytes)
 {
 	CHECK(bytes > 0);
 

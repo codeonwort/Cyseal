@@ -118,7 +118,10 @@
     <ClInclude Include="src\core\assertion.h" />
     <ClInclude Include="src\core\core_minimal.h" />
     <ClInclude Include="src\core\engine.h" />
+    <ClInclude Include="src\core\int_types.h" />
     <ClInclude Include="src\core\types.h" />
+    <ClInclude Include="src\core\vec3.h" />
+    <ClInclude Include="src\geometry\primitive.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
     <ClInclude Include="src\render\base_pass.h" />
     <ClInclude Include="src\render\forward_renderer.h" />
@@ -160,6 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\core\engine.cpp" />
+    <ClCompile Include="src\geometry\primitive.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\forward_renderer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_buffer.cpp" />

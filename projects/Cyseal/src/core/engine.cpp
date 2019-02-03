@@ -5,9 +5,10 @@
 #include "util/resource_finder.h"
 #include "util/logging.h"
 
+#include "render/forward_renderer.h"
+
 #include "render/raw_api/dx12/d3d_device.h"
 #include "render/raw_api/vulkan/vk_device.h"
-#include "render/forward_renderer.h"
 #include "render/raw_api/dx12/d3d_forward_renderer.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);

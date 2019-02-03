@@ -2,6 +2,7 @@
 #include "core/core_minimal.h"
 #include "render/static_mesh.h"
 #include "render/buffer.h"
+#include "geometry/primitive.h"
 
 // engine test
 #include "util/unit_test.h"
@@ -70,18 +71,23 @@ bool Application::onTerminate()
 
 void Application::createResources()
 {
-	float vertexData[] = {
-		0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f,
-		1.0f, 0.0f, 0.0f };
-	int32 indexData[] = { 0, 1, 2 };
+	Geometry icosphere;
+	GeometryGenerator::icosphere(3, icosphere);
+	for (auto& v : icosphere.positions)
+	{
+		v *= 0.5f;
+		v.z += 1.0f;
+	}
+
+	float* vertexData = reinterpret_cast<float*>(icosphere.positions.data());
+	uint32* indexData = icosphere.indices.data();
 
 	// #todo: don't deal with allocator, list, and queue here...
 	gRenderDevice->getCommandAllocator()->reset();
 	gRenderDevice->getCommandList()->reset();
 
-	VertexBuffer* vertexBuffer = gRenderDevice->createVertexBuffer(vertexData, sizeof(vertexData), sizeof(float) * 3);
-	IndexBuffer* indexBuffer = gRenderDevice->createIndexBuffer(indexData, sizeof(indexData), EPixelFormat::R32_UINT);
+	VertexBuffer* vertexBuffer = gRenderDevice->createVertexBuffer(vertexData, (uint32)(icosphere.positions.size() * 3 * sizeof(float)), sizeof(float) * 3);
+	IndexBuffer* indexBuffer = gRenderDevice->createIndexBuffer(indexData, (uint32)(icosphere.indices.size() * sizeof(uint32)), EPixelFormat::R32_UINT);
 
 	gRenderDevice->getCommandList()->close();
 	gRenderDevice->getCommandQueue()->executeCommandList(gRenderDevice->getCommandList());
