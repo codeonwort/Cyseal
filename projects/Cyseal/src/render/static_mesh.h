@@ -27,7 +27,11 @@ public:
 
 	inline const std::vector<StaticMeshSection>& getSections() const { return sections; }
 
+	inline Transform& getTransform() { return transform; }
+
 private:
 	std::vector<StaticMeshSection> sections;
+
+	Transform transform;
 
 };

@@ -65,6 +65,9 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 	//////////////////////////////////////////////////////////////////////////
 	// Draw static meshes
+	const Matrix cameraTransform = camera->getMatrix();
+	// #todo: Apply camera transform
+
 	commandList->setPipelineState(basePass->getPipelineState());
 	commandList->setGraphicsRootSignature(basePass->getRootSignature());
 	commandList->iaSetPrimitiveTopology(basePass->getPrimitiveTopology());
