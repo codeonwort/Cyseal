@@ -22,7 +22,7 @@
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{4EE5CD6A-0E26-4EEC-AD84-B3BD8E07B3C3}</ProjectGuid>
     <RootNamespace>Cyseal</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -117,9 +117,11 @@
   <ItemGroup>
     <ClInclude Include="src\core\assertion.h" />
     <ClInclude Include="src\core\core_minimal.h" />
+    <ClInclude Include="src\core\cymath.h" />
     <ClInclude Include="src\core\engine.h" />
     <ClInclude Include="src\core\int_types.h" />
     <ClInclude Include="src\core\matrix.h" />
+    <ClInclude Include="src\core\quaternion.h" />
     <ClInclude Include="src\core\types.h" />
     <ClInclude Include="src\core\vec3.h" />
     <ClInclude Include="src\geometry\primitive.h" />

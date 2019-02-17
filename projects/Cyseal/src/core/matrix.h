@@ -3,9 +3,15 @@
 #include "vec3.h"
 #include <memory.h>
 
+// #todo: SIMD
+
+// row-major
 class Matrix
 {
 	friend class Transform;
+
+public:
+	float m[4][4];
 
 public:
 	Matrix()
@@ -19,12 +25,32 @@ public:
 		memcpy_s(m, sizeof(m), I, sizeof(I));
 	}
 
-	// #todo: operators (+, -, *)
+	inline float trace() const
+	{
+		return m[0][0] + m[1][1] + m[2][2] + m[3][3];
+	}
 
-private:
-	float m[4][4];
+	inline Matrix& operator+=(const Matrix& other);
+	inline Matrix& operator-=(const Matrix& other);
+	inline Matrix& operator*=(const Matrix& other);
 
 };
+
+inline Matrix operator+(const Matrix& A, const Matrix& B)
+{
+	Matrix C = A;
+	C += B;
+	return C;
+}
+inline Matrix operator-(const Matrix& A, const Matrix& B)
+{
+	Matrix C = A;
+	C -= B;
+	return C;
+}
+inline Matrix operator*(const Matrix& A, const Matrix& B);
+
+//////////////////////////////////////////////////////////////////////////
 
 class Transform
 {
@@ -53,3 +79,4 @@ private:
 	mutable Matrix m;
 
 };
+
