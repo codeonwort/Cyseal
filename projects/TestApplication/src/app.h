@@ -17,7 +17,6 @@ private:
 	void destroyResources();
 
 private:
-	// #todo: dummies
 	Scene scene;
 	Camera camera;
 

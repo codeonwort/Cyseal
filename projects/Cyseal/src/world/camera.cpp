@@ -1,13 +1,43 @@
 #include "camera.h"
+#include "core/cymath.h"
 
-
-void Camera::setPerspective(float fovY_degrees, float aspectWH, float zNear, float zFar)
+Camera::Camera()
 {
-	// #todo
+	perspective(90.0f, 9.0f / 16.0f, 1.0f, 10000.0f);
+	lookAt(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
+}
+
+void Camera::perspective(float fovY_degrees, float aspectWH, float n, float f)
+{
+	const float fovY = Cymath::radians(fovY_degrees);
+	const float Y = Cymath::cot(fovY * 0.5f);
+	const float X = Y / aspectWH;
+
+	float P[16] = {
+		X,       0.0f,    0.0f,               0.0f,
+		0.0f,    Y,       0.0f,               0.0f,
+		0.0f,    0.0f,    f / (f - n),        1.0f,
+		0.0f,    0.0f,    -n * f / (f - n),   0.0f
+	};
+	projection.copy(P);
 }
 
 void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
 {
-	// #todo
+	vec3 Z = normalize(target - origin);
+	vec3 X = normalize(cross(up, Z));
+	vec3 Y = cross(Z, X);
+
+	float V[16] = {
+		X.x,             Y.x,             Z.x,             0.0f,
+		X.y,             Y.y,             Z.y,             0.0f,
+		X.z,             Y.z,             Z.z,             0.0f,
+		-dot(X, target), -dot(Y, target), -dot(Z, target), 1.0f
+	};
+	view.getMatrix().copy(V);
 }
 
+void Camera::updateViewProjection() const
+{
+	viewProjection = projection * view.getMatrix();
+}

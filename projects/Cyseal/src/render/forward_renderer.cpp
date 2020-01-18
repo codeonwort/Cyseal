@@ -65,7 +65,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 	//////////////////////////////////////////////////////////////////////////
 	// Draw static meshes
-	const Matrix cameraTransform = camera->getMatrix();
+	const Matrix viewProjection = camera->getMatrix();
 	// #todo: Apply camera transform
 
 	commandList->setPipelineState(basePass->getPipelineState());
@@ -73,6 +73,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 	commandList->iaSetPrimitiveTopology(basePass->getPrimitiveTopology());
 	for (const StaticMesh* mesh : scene->staticMeshes)
 	{
+		// Upload transpose(viewProjection * world)
 		//mesh->bind(commandList);
 		for (const StaticMeshSection& section : mesh->getSections())
 		{

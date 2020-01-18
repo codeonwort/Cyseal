@@ -25,6 +25,11 @@ public:
 		memcpy_s(m, sizeof(m), I, sizeof(I));
 	}
 
+	inline void copy(float* data)
+	{
+		memcpy_s(m, sizeof(m), data, sizeof(m));
+	}
+
 	inline float trace() const
 	{
 		return m[0][0] + m[1][1] + m[2][2] + m[3][3];
@@ -48,7 +53,22 @@ inline Matrix operator-(const Matrix& A, const Matrix& B)
 	C -= B;
 	return C;
 }
-inline Matrix operator*(const Matrix& A, const Matrix& B);
+// #todo: Fast multiplication
+inline Matrix operator*(const Matrix& A, const Matrix& B)
+{
+	Matrix C;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		for (int32 j = 0; j < 4; ++j)
+		{
+			C.m[i][j] = A.m[i][0] * B.m[0][j]
+				+ A.m[i][1] * B.m[1][j]
+				+ A.m[i][2] * B.m[2][j]
+				+ A.m[i][3] * B.m[3][j];
+		}
+	}
+	return C;
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -66,6 +86,7 @@ public:
 	void setScale(const vec3& newScale);
 
 	inline const Matrix& getMatrix() const { return m; }
+	inline Matrix& getMatrix() { return m; }
 	const float* getMatrixData() const;
 
 private:
@@ -79,4 +100,3 @@ private:
 	mutable Matrix m;
 
 };
-
