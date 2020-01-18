@@ -79,11 +79,11 @@ public:
 		int32_t baseVertexLocation,
 		uint32_t startInstanceLocation) override;
 
-	inline ID3D12GraphicsCommandList* getRaw() const { return commandList.Get(); }
+	inline ID3D12GraphicsCommandList4* getRaw() const { return commandList.Get(); }
 
 private:
 	D3DDevice* device;
 	D3DRenderCommandAllocator* commandAllocator;
-	WRL::ComPtr<ID3D12GraphicsCommandList> commandList;
+	WRL::ComPtr<ID3D12GraphicsCommandList4> commandList;
 
 };

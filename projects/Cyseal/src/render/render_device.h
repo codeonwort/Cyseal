@@ -19,6 +19,12 @@ enum class ERenderDeviceRawAPI
 	Vulkan
 };
 
+enum class ERayTracingTier
+{
+	NotSupported,
+	Tier_1_0
+};
+
 enum class EWindowType
 {
 	FULLSCREEN,
@@ -30,14 +36,15 @@ struct RenderDeviceCreateParams
 {
 	HWND hwnd;
 	ERenderDeviceRawAPI rawAPI;
+	ERayTracingTier rayTracingTier;
 
+	// #todo-renderdevice: These are not renderdevice params. Move to somewhere.
 	EWindowType windowType;
-	uint32_t windowWidth;
-	uint32_t windowHeight;
+	uint32 windowWidth;
+	uint32 windowHeight;
 };
 
-// ID3D12Device
-// VkDevice
+// ID3D12Device and VkDevice
 class RenderDevice
 {
 	
@@ -46,8 +53,12 @@ public:
 	virtual ~RenderDevice();
 
 	virtual void initialize(const RenderDeviceCreateParams& createParams) = 0;
+
 	virtual void recreateSwapChain(HWND hwnd, uint32 width, uint32 height) = 0;
+
 	virtual void flushCommandQueue() = 0;
+
+	virtual bool supportsRayTracing() = 0;
 
 	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes) = 0;
 	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) = 0;

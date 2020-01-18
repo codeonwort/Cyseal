@@ -13,6 +13,7 @@
 					CONFIGURATION
 --------------------------------------------------------*/
 #define RAW_API          ERenderDeviceRawAPI::DirectX12
+#define RAYTRACING_TIER  ERayTracingTier::Tier_1_0
 #define WINDOW_TYPE      EWindowType::WINDOWED
 #define RENDERER_TYPE    ERendererType::Forward
 
@@ -32,6 +33,7 @@ bool Application::onInitialize()
 {
 	CysealEngineCreateParams engineInit;
 	engineInit.renderDevice.rawAPI          = RAW_API;
+	engineInit.renderDevice.rayTracingTier  = RAYTRACING_TIER;
 	engineInit.renderDevice.hwnd            = getHWND();
 	engineInit.renderDevice.windowType      = WINDOW_TYPE;
 	engineInit.renderDevice.windowWidth     = getWidth();

@@ -3,10 +3,13 @@
 #include "d3d_render_command.h"
 #include "d3d_resource_view.h"
 #include "core/assertion.h"
+#include "util/logging.h"
 
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "d3dcompiler.lib")
+
+DEFINE_LOG_CATEGORY(LogDirectX);
 
 // How to initialize D3D12
 // 1. Create a ID3D12Device
@@ -79,8 +82,14 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 	HR( device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &featureLevelCandidates, sizeof(featureLevelCandidates)) );
 
+	// #DXR: Check feature level
+	if (createParams.rayTracingTier == ERayTracingTier::Tier_1_0)
+	{
+		CHECK(featureLevelCandidates.MaxSupportedFeatureLevel >= D3D_FEATURE_LEVEL_12_1);
+	}
+
 	// If possible, recreate the device with max feature level.
-	if(featureLevelCandidates.MaxSupportedFeatureLevel != minFeatureLevel)
+	if (featureLevelCandidates.MaxSupportedFeatureLevel != minFeatureLevel)
 	{
 		device = nullptr;
 
@@ -88,6 +97,20 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 				hardwareAdapter.Get(),
 				featureLevelCandidates.MaxSupportedFeatureLevel,
 				IID_PPV_ARGS(&device)) );
+	}
+
+	rayTracingEnabled = supportsRayTracing();
+
+	if (createParams.rayTracingTier == ERayTracingTier::Tier_1_0)
+	{
+		if (rayTracingEnabled)
+		{
+			CYLOG(LogDirectX, Log, TEXT("DXR enabled"));
+		}
+		else
+		{
+			CYLOG(LogDirectX, Log, TEXT("DXR requested, but failed to initialize"));
+		}
 	}
 
 	// 2. Create a ID3D12Fence and retrieve sizes of descriptors.
@@ -258,6 +281,18 @@ void D3DDevice::flushCommandQueue()
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
+}
+
+bool D3DDevice::supportsRayTracing()
+{
+	D3D12_FEATURE_DATA_D3D12_OPTIONS5 caps = {};
+	HR( device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &caps, sizeof(caps)) );
+
+	if (caps.RaytracingTier < D3D12_RAYTRACING_TIER_1_0)
+	{
+		return false;
+	}
+	return true;
 }
 
 VertexBuffer* D3DDevice::createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes)

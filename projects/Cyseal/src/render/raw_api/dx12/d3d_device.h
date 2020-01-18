@@ -12,14 +12,18 @@ public:
 	~D3DDevice();
 
 	virtual void initialize(const RenderDeviceCreateParams& createParams) override;
+
 	virtual void recreateSwapChain(HWND hwnd, uint32 width, uint32 height) override;
+
 	virtual void flushCommandQueue() override;
+
+	virtual bool supportsRayTracing() override;
 
 	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes) override;
 	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) override;
 
 	inline IDXGIFactory4* getDXGIFactory() const { return dxgiFactory.Get(); }
-	inline ID3D12Device* getRawDevice() const { return device.Get(); }
+	inline ID3D12Device5* getRawDevice() const { return device.Get(); }
 	inline ID3D12CommandQueue* getRawCommandQueue() const { return rawCommandQueue; }
 
 	inline DXGI_FORMAT getBackBufferFormat() const { return backBufferFormat; }
@@ -33,9 +37,11 @@ private:
 		return heapDSV->GetCPUDescriptorHandleForHeapStart();
 	}
 
+// #todo-renderdevice: Move non-renderdevice members into other places
 private:
 	WRL::ComPtr<IDXGIFactory4>        dxgiFactory;
-	WRL::ComPtr<ID3D12Device>         device;
+
+	WRL::ComPtr<ID3D12Device5>        device;
 
 	WRL::ComPtr<ID3D12Fence>          fence;
 	UINT                              currentFence;
@@ -45,9 +51,11 @@ private:
 	UINT                              descSizeCBV_SRV_UAV;
 	UINT                              quality4xMSAA;
 
+	bool                              rayTracingEnabled;
+
 	// Raw interfaces
 	ID3D12CommandQueue*               rawCommandQueue;
-	ID3D12GraphicsCommandList*        rawCommandList;
+	ID3D12GraphicsCommandList4*       rawCommandList;
 	class D3DRenderCommandAllocator*  d3dCommandAllocator;
 	D3DSwapChain*                     d3dSwapChain;
 
