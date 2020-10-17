@@ -7,6 +7,23 @@
 
 class VulkanDevice : public RenderDevice
 {
+	struct QueueFamilyIndices
+	{
+		int graphicsFamily = -1;
+		int presentFamily = -1;
+		bool isComplete()
+		{
+			return graphicsFamily >= 0 && presentFamily >= 0;
+		}
+	};
+
+	struct SwapChainSupportDetails
+	{
+		VkSurfaceCapabilitiesKHR capabilities;
+		std::vector<VkSurfaceFormatKHR> formats;
+		std::vector<VkPresentModeKHR> presentModes;
+	};
+
 public:
 	VulkanDevice();
 	~VulkanDevice();
@@ -25,9 +42,14 @@ public:
 private:
 	bool checkValidationLayerSupport();
 	void getRequiredExtensions(std::vector<const char*>& extensions);
+	bool isDeviceSuitable(VkPhysicalDevice physDevice);
+	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physDevice);
+	bool checkDeviceExtensionSupport(VkPhysicalDevice physDevice);
+	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice physDevice);
 
 private:
 	VkInstance instance;
+	VkPhysicalDevice physicalDevice;
 	VkDebugReportCallbackEXT callback;
 	VkSurfaceKHR surface;
 
