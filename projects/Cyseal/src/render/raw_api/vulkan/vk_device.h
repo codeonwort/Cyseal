@@ -64,6 +64,8 @@ private:
 	std::vector<VkImage> swapchainImages;
 	VkFormat swapchainImageFormat;
 	VkExtent2D swapchainExtent;
+	std::vector<VkImageView> swapchainImageViews;
+	VkRenderPass backbufferRenderPass;
 
 	VkDebugReportCallbackEXT callback;
 	bool enableDebugLayer = false;
