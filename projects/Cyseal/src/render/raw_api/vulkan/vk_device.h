@@ -46,12 +46,25 @@ private:
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physDevice);
 	bool checkDeviceExtensionSupport(VkPhysicalDevice physDevice);
 	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice physDevice);
+	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32 windowWidth, uint32 windowHeight);
 
 private:
 	VkInstance instance;
-	VkPhysicalDevice physicalDevice;
-	VkDebugReportCallbackEXT callback;
+	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+	VkDevice device;
+
 	VkSurfaceKHR surface;
 
+	VkQueue graphicsQueue;
+	VkQueue presentQueue;
+
+	VkSwapchainKHR swapchain;
+	std::vector<VkImage> swapchainImages;
+	VkFormat swapchainImageFormat;
+	VkExtent2D swapchainExtent;
+
+	VkDebugReportCallbackEXT callback;
 	bool enableDebugLayer = false;
 };
