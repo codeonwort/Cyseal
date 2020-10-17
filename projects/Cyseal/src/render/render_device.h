@@ -37,11 +37,13 @@ struct RenderDeviceCreateParams
 	HWND hwnd;
 	ERenderDeviceRawAPI rawAPI;
 	ERayTracingTier rayTracingTier;
+	bool enableDebugLayer = true; // Enable debug layer (dx) or validation layer (vk)
 
 	// #todo-renderdevice: These are not renderdevice params. Move to somewhere.
-	EWindowType windowType;
-	uint32 windowWidth;
-	uint32 windowHeight;
+	// or leave here as initial values.
+	EWindowType windowType = EWindowType::WINDOWED;
+	uint32 windowWidth = 1920;
+	uint32 windowHeight = 1080;
 };
 
 // ID3D12Device and VkDevice

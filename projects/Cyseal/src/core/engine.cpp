@@ -74,17 +74,17 @@ void CysealEngine::createRenderDevice(const RenderDeviceCreateParams& createPara
 	{
 	case ERenderDeviceRawAPI::DirectX12:
 		renderDevice = new D3DDevice;
-		renderDevice->initialize(createParams);
 		break;
 
 	case ERenderDeviceRawAPI::Vulkan:
-		//renderDevice = new VulkanDevice;
-		CHECK_NO_ENTRY();
+		renderDevice = new VulkanDevice;
 		break;
 
 	default:
 		CHECK_NO_ENTRY();
 	}
+
+	renderDevice->initialize(createParams);
 
 	gRenderDevice = renderDevice;
 }

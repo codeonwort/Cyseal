@@ -21,7 +21,8 @@ struct LogStructBase
 		wchar_t buffer[1024];
 		swprintf_s(buffer, L"[%S][%S]%s\n", inCategory, LogLevelStrings[inLevel], inMessage);
 
-		// #todo: output to somewhere not stdout (log file, separate GUI, etc...)
+		// #todo: Output to somewhere not stdout (log file, separate GUI, etc...)
+		// #todo: Create a separate logging thread
 		wprintf_s(buffer);
 		OutputDebugStringW(buffer);
 	}

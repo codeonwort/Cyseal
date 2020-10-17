@@ -56,7 +56,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	WRL::ComPtr<IDXGIAdapter1> hardwareAdapter;
 	getHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter);
 
-	// Create a device with feature level 11.0 to verify the graphic card supports DX12.
+	// Create a device with feature level 11.0 to verify if the graphics card supports DX12.
 	const D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0;
 	if (FAILED(D3D12CreateDevice(
 			hardwareAdapter.Get(),
@@ -82,7 +82,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 	HR( device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &featureLevelCandidates, sizeof(featureLevelCandidates)) );
 
-	// #DXR: Check feature level
+	// #todo-dxr: Check feature level
 	if (createParams.rayTracingTier == ERayTracingTier::Tier_1_0)
 	{
 		CHECK(featureLevelCandidates.MaxSupportedFeatureLevel >= D3D_FEATURE_LEVEL_12_1);
@@ -109,7 +109,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 		}
 		else
 		{
-			CYLOG(LogDirectX, Log, TEXT("DXR requested, but failed to initialize"));
+			CYLOG(LogDirectX, Log, TEXT("DXR requested, but failed to be initialized"));
 		}
 	}
 

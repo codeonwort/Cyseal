@@ -227,5 +227,8 @@
     <ClCompile Include="src\world\camera.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="src\render\raw_api\vulkan\vk_device.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
