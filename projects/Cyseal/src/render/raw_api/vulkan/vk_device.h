@@ -66,6 +66,12 @@ private:
 	VkExtent2D swapchainExtent;
 	std::vector<VkImageView> swapchainImageViews;
 	VkRenderPass backbufferRenderPass;
+	std::vector<VkFramebuffer> swapchainFramebuffers;
+	VkImage depthImage;
+	VkDeviceMemory depthImageMemory;
+	VkImageView depthImageView;
+
+	VkCommandPool commandPool;
 
 	VkDebugReportCallbackEXT callback;
 	bool enableDebugLayer = false;
