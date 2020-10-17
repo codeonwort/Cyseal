@@ -7,7 +7,6 @@
 
 class VulkanDevice : public RenderDevice
 {
-	
 public:
 	VulkanDevice();
 	~VulkanDevice();
@@ -29,6 +28,8 @@ private:
 
 private:
 	VkInstance instance;
-	bool enableDebugLayer = false;
+	VkDebugReportCallbackEXT callback;
+	VkSurfaceKHR surface;
 
+	bool enableDebugLayer = false;
 };

@@ -3,6 +3,7 @@
 #include "util/logging.h"
 
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_win32.h>
 
 #pragma comment(lib, "vulkan-1.lib")
 
@@ -12,6 +13,48 @@ const std::vector<const char*> REQUIRED_VALIDATION_LAYERS = {
 	"VK_LAYER_KHRONOS_validation"
 };
 
+#include <iostream>
+static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebugCallback(
+	VkDebugReportFlagsEXT flags,
+	VkDebugReportObjectTypeEXT objType,
+	uint64_t obj,
+	size_t location,
+	int32_t code,
+	const char* layerPrefix,
+	const char* msg,
+	void* userData)
+{
+	static_cast<void>(flags);
+	static_cast<void>(objType);
+	static_cast<void>(obj);
+	static_cast<void>(location);
+	static_cast<void>(code);
+	static_cast<void>(layerPrefix);
+	static_cast<void>(userData);
+
+	// #todo-vulkan: Switch to CYLOG()
+	std::cerr << "[Vulkan validation layer] " << msg << std::endl;
+	return VK_FALSE;
+}
+
+VkResult CreateDebugReportCallbackEXT(
+	VkInstance instance,
+	const VkDebugReportCallbackCreateInfoEXT* pCreateInfo,
+	const VkAllocationCallbacks* pAllocator,
+	VkDebugReportCallbackEXT* pCallback)
+{
+	auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
+	if (func != nullptr)
+	{
+		return func(instance, pCreateInfo, pAllocator, pCallback);
+	}
+	else
+	{
+		return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 VulkanDevice::VulkanDevice()
 {
@@ -25,10 +68,14 @@ VulkanDevice::~VulkanDevice()
 
 void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 {
-	// #todo-vulkan
+	CYLOG(LogVulkan, Log, TEXT("=== Initialize Vulkan ==="));
+
+	// [Finished]
 	//createVkInstance();
 	//setupDebugCallback();
 	//createSurface();
+
+	// #todo-vulkan
 	//pickPhysicalDevice();
 	//createLogicalDevice();
 	//createSwapChain();
@@ -41,7 +88,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 	//createCommandBuffers();
 	//createSemaphores();
 
-	CYLOG(LogVulkan, Log, TEXT("Create a VkInstance"));
+	CYLOG(LogVulkan, Log, TEXT("> Create a VkInstance"));
 	{
 		if (createParams.enableDebugLayer)
 		{
@@ -75,6 +122,45 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		CHECK(result == VK_SUCCESS);
 	}
 
+	CYLOG(LogVulkan, Log, TEXT("> Setup Vulkan debug callback"));
+	{
+		if (enableDebugLayer)
+		{
+			VkDebugReportCallbackCreateInfoEXT createInfo{};
+			createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+			createInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+			createInfo.pfnCallback = vulkanDebugCallback;
+
+			if (CreateDebugReportCallbackEXT(instance, &createInfo, nullptr, &callback) != VK_SUCCESS) {
+				CHECK_NO_ENTRY();
+			}
+		}
+	}
+
+	CYLOG(LogVulkan, Log, TEXT("> Create KHR surface"));
+	{
+		VkResult err;
+		VkWin32SurfaceCreateInfoKHR sci;
+		PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR;
+
+		vkCreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR)vkGetInstanceProcAddr(instance, "vkCreateWin32SurfaceKHR");
+		if (!vkCreateWin32SurfaceKHR)
+		{
+			CYLOG(LogVulkan, Fatal, TEXT("Win32: Vulkan instance missing VK_KHR_win32_surface extension"));
+		}
+
+		memset(&sci, 0, sizeof(sci));
+		sci.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+		sci.hinstance = GetModuleHandle(NULL);
+		sci.hwnd = createParams.hwnd;
+
+		const VkAllocationCallbacks* allocator = nullptr;
+		err = vkCreateWin32SurfaceKHR(instance, &sci, allocator, &surface);
+		if (err)
+		{
+			CYLOG(LogVulkan, Fatal, TEXT("Failed to create Vulkan surface"));
+		}
+	}
 }
 
 void VulkanDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
@@ -135,12 +221,10 @@ void VulkanDevice::getRequiredExtensions(std::vector<const char*>& extensions)
 {
 	extensions.clear();
 
+	// #todo-crossplatform
 	{
-		//uint32_t glfwExtensionCount = 0;
-		//const char** glfwExtensions;
-		//glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-		//extensions.assign(glfwExtensions, glfwExtensions + glfwExtensionCount);
 		extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+		extensions.push_back("VK_KHR_win32_surface");
 	}
 
 	if (enableDebugLayer)
