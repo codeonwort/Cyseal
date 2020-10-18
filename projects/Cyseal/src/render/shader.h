@@ -14,11 +14,19 @@ enum class EShaderType : uint8_t
 	NUM_TYPES       = 6
 };
 
+// #todo-shader: Dummy which could be removed in future.
+class ShaderStage
+{
+};
+
 class Shader
 {
-	
 public:
+	virtual ~Shader() = default;
+
 	virtual void loadVertexShader(const TCHAR* filename, const char* entryPoint) = 0;
 	virtual void loadPixelShader(const TCHAR* filename, const char* entryPoint) = 0;
 
+	virtual ShaderStage* getVertexShader() = 0;
+	virtual ShaderStage* getPixelShader() = 0;
 };

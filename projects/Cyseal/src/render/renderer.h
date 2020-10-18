@@ -8,19 +8,13 @@ enum class ERendererType
 {
 	Forward,
 	Deferred,
-	ForwardPlus,
-	DeferredPlus,
-	Raytracer,
-	VisibilityBuffer
 };
 
 class Renderer
 {
-
 public:
 	virtual ~Renderer() = default;
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
 	virtual void render(const SceneProxy* scene, const Camera* camera) = 0;
-
 };

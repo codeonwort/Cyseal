@@ -36,8 +36,13 @@ public:
 
 	bool supportsRayTracing() override;
 
-	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes);
-	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format);
+	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes) override;
+	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) override;
+	virtual Shader* createShader() override;
+	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;
+	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
+
+	inline VkDevice getRaw() const { return device; }
 
 private:
 	bool checkValidationLayerSupport();
@@ -72,6 +77,9 @@ private:
 	VkImageView depthImageView;
 
 	VkCommandPool commandPool;
+	std::vector<VkCommandBuffer> commandBuffers;
+	VkSemaphore imageAvailableSemaphore;
+	VkSemaphore renderFinishedSemaphore;
 
 	VkDebugReportCallbackEXT callback;
 	bool enableDebugLayer = false;

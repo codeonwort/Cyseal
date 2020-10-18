@@ -1,9 +1,11 @@
 #include "d3d_device.h"
 #include "d3d_buffer.h"
+#include "d3d_shader.h"
 #include "d3d_render_command.h"
 #include "d3d_resource_view.h"
 #include "core/assertion.h"
 #include "util/logging.h"
+#include "d3d_pipeline_state.h"
 
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
@@ -125,7 +127,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	// It gives good result and the overload is not so big.
 	// All D3D11 level devices support 4X MSAA for all render target types.
 	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
-	msQualityLevels.Format           = backBufferFormat;
+	msQualityLevels.Format           = into_d3d::pixelFormat(backbufferFormat);
 	msQualityLevels.SampleCount      = 4;
 	msQualityLevels.Flags            = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 	msQualityLevels.NumQualityLevels = 0;
@@ -194,14 +196,14 @@ void D3DDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
 		dsDesc.Height             = height;
 		dsDesc.DepthOrArraySize   = 1;
 		dsDesc.MipLevels          = 1;
-		dsDesc.Format             = depthStencilFormat;
+		dsDesc.Format             = into_d3d::pixelFormat(backbufferDepthFormat);
 		dsDesc.SampleDesc.Count   = 1;
 		dsDesc.SampleDesc.Quality = 0;
 		dsDesc.Layout             = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN;
 		dsDesc.Flags              = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
 		D3D12_CLEAR_VALUE optClear;
-		optClear.Format               = depthStencilFormat;
+		optClear.Format               = into_d3d::pixelFormat(backbufferDepthFormat);
 		optClear.DepthStencil.Depth   = 1.0f;
 		optClear.DepthStencil.Stencil = 0;
 
@@ -307,4 +309,42 @@ IndexBuffer* D3DDevice::createIndexBuffer(void* data, uint32 sizeInBytes, EPixel
 	D3DIndexBuffer* buffer = new D3DIndexBuffer;
 	buffer->initialize(data, sizeInBytes, format);
 	return buffer;
+}
+
+Shader* D3DDevice::createShader()
+{
+	return new D3DShader;
+}
+
+RootSignature* D3DDevice::createRootSignature(const RootSignatureDesc& desc)
+{
+	into_d3d::TempAlloc tempAlloc;
+	D3D12_ROOT_SIGNATURE_DESC d3d_desc;
+	into_d3d::rootSignatureDesc(desc, d3d_desc, tempAlloc);
+
+	WRL::ComPtr<ID3DBlob> serializedRootSig;
+	WRL::ComPtr<ID3DBlob> errorBlob;
+	HR( D3D12SerializeRootSignature(
+		&d3d_desc,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		serializedRootSig.GetAddressOf(),
+		errorBlob.GetAddressOf())
+	);
+
+	D3DRootSignature* rootSignature = new D3DRootSignature;
+	rootSignature->initialize(device.Get(), 0, serializedRootSig->GetBufferPointer(), serializedRootSig->GetBufferSize());
+
+	return rootSignature;
+}
+
+PipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& desc)
+{
+	into_d3d::TempAlloc tempAlloc;
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3d_desc;
+	into_d3d::graphicsPipelineDesc(desc, d3d_desc, tempAlloc);
+
+	D3DPipelineState* pipeline = new D3DPipelineState;
+	pipeline->initialize(device.Get(), d3d_desc);
+
+	return pipeline;
 }

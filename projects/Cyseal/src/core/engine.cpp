@@ -9,7 +9,6 @@
 
 #include "render/raw_api/dx12/d3d_device.h"
 #include "render/raw_api/vulkan/vk_device.h"
-#include "render/raw_api/dx12/d3d_forward_renderer.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 
@@ -18,6 +17,7 @@ CysealEngine::CysealEngine()
 	state = EEngineState::UNINITIALIZED;
 
 	renderDevice = nullptr;
+	renderer = nullptr;
 }
 
 CysealEngine::~CysealEngine()
@@ -37,7 +37,7 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 
 	// Rendering
 	createRenderDevice(createParams.renderDevice);
-	createRenderer(createParams.renderDevice.rawAPI, createParams.rendererType);
+	createRenderer(createParams.rendererType);
 
 	CYLOG(LogEngine, Log, TEXT("Renderer has been initialized."));
 
@@ -89,16 +89,12 @@ void CysealEngine::createRenderDevice(const RenderDeviceCreateParams& createPara
 	gRenderDevice = renderDevice;
 }
 
-void CysealEngine::createRenderer(ERenderDeviceRawAPI rawAPI, ERendererType rendererType)
+void CysealEngine::createRenderer(ERendererType rendererType)
 {
-	switch (rawAPI)
+	switch (rendererType)
 	{
-	case ERenderDeviceRawAPI::DirectX12:
-		renderer = createD3DRenderer(rendererType);
-		break;
-
-	case ERenderDeviceRawAPI::Vulkan:
-		renderer = createVulkanRenderer(rendererType);
+	case ERendererType::Forward:
+		renderer = new ForwardRenderer;
 		break;
 
 	default:
@@ -106,30 +102,4 @@ void CysealEngine::createRenderer(ERenderDeviceRawAPI rawAPI, ERendererType rend
 	}
 
 	renderer->initialize(renderDevice);
-}
-
-Renderer* CysealEngine::createD3DRenderer(ERendererType rendererType)
-{
-	Renderer* renderer = nullptr;
-
-	switch (rendererType)
-	{
-	case ERendererType::Forward:
-		renderer = new D3DForwardRenderer;
-		break;
-
-	default:
-		// Not implemented yet.
-		CHECK_NO_ENTRY();
-	}
-
-	return renderer;
-}
-
-Renderer* CysealEngine::createVulkanRenderer(ERendererType rendererType)
-{
-	// Not implemented yet.
-	CHECK_NO_ENTRY();
-
-	return nullptr;
 }

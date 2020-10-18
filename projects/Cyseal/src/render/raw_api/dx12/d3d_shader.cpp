@@ -34,12 +34,16 @@ static const char* getD3DShaderType(EShaderType type)
 
 void D3DShader::loadVertexShader(const TCHAR* filename, const char* entryPoint)
 {
+	CHECK(vsStage == nullptr);
 	loadFromFile(filename, entryPoint, EShaderType::VERTEX_SHADER);
+	vsStage = new D3DShaderStage(this, EShaderType::VERTEX_SHADER);
 }
 
 void D3DShader::loadPixelShader(const TCHAR* filename, const char* entryPoint)
 {
+	CHECK(psStage == nullptr);
 	loadFromFile(filename, entryPoint, EShaderType::PIXEL_SHADER);
+	psStage = new D3DShaderStage(this, EShaderType::PIXEL_SHADER);
 }
 
 D3D12_SHADER_BYTECODE D3DShader::getBytecode(EShaderType shaderType)

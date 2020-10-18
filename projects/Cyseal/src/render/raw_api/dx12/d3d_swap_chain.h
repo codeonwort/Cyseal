@@ -38,9 +38,6 @@ public:
 	inline UINT getCurrentBackBufferIndex() const
 	{ return currentBackBuffer; }
 
-	inline DXGI_FORMAT getBackBufferFormat() const
-	{ return backBufferFormat; }
-
 	// #todo: check 4xMSAA support
 	inline bool supports4xMSAA() const
 	{ return false; }
@@ -54,7 +51,6 @@ private:
 
 	std::unique_ptr<D3DResource> swapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
 	std::unique_ptr<D3DRenderTargetView> backBufferRTVs[SWAP_CHAIN_BUFFER_COUNT];
-	DXGI_FORMAT backBufferFormat;
 
 	WRL::ComPtr<IDXGISwapChain1> rawSwapChain;
 	WRL::ComPtr<ID3D12Resource> rawSwapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];

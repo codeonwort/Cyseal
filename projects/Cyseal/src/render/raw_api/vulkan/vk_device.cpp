@@ -1,4 +1,5 @@
 #include "vk_device.h"
+#include "vk_shader.h"
 #include "core/assertion.h"
 #include "util/logging.h"
 #include <algorithm>
@@ -359,11 +360,11 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 		std::vector<const char*> extensions;
 		getRequiredExtensions(extensions);
-		createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+		createInfo.enabledExtensionCount = static_cast<uint32>(extensions.size());
 		createInfo.ppEnabledExtensionNames = extensions.data();
 		if (enableDebugLayer)
 		{
-			createInfo.enabledLayerCount = static_cast<uint32_t>(REQUIRED_VALIDATION_LAYERS.size());
+			createInfo.enabledLayerCount = static_cast<uint32>(REQUIRED_VALIDATION_LAYERS.size());
 			createInfo.ppEnabledLayerNames = REQUIRED_VALIDATION_LAYERS.data();
 		}
 
@@ -413,7 +414,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 	CYLOG(LogVulkan, Log, TEXT("> Pick a physical device"));
 	{
-		uint32_t deviceCount = 0;
+		uint32 deviceCount = 0;
 		vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
 		CHECK(deviceCount != 0);
@@ -457,13 +458,13 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		VkDeviceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 		createInfo.pQueueCreateInfos = queueCreateInfos.data();
-		createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+		createInfo.queueCreateInfoCount = static_cast<uint32>(queueCreateInfos.size());
 		createInfo.pEnabledFeatures = &deviceFeatures;
-		createInfo.enabledExtensionCount = static_cast<uint32_t>(REQUIRED_DEVICE_EXTENSIONS.size());
+		createInfo.enabledExtensionCount = static_cast<uint32>(REQUIRED_DEVICE_EXTENSIONS.size());
 		createInfo.ppEnabledExtensionNames = REQUIRED_DEVICE_EXTENSIONS.data();
 		if (enableDebugLayer)
 		{
-			createInfo.enabledLayerCount = static_cast<uint32_t>(REQUIRED_VALIDATION_LAYERS.size());
+			createInfo.enabledLayerCount = static_cast<uint32>(REQUIRED_VALIDATION_LAYERS.size());
 			createInfo.ppEnabledLayerNames = REQUIRED_VALIDATION_LAYERS.data();
 		}
 		else
@@ -485,7 +486,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
 		VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
 		VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities, createParams.windowWidth, createParams.windowHeight);
-		uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+		uint32 imageCount = swapChainSupport.capabilities.minImageCount + 1;
 		// maxImageCount = 0 means there's no limit besides memory requirements
 		if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
 		{
@@ -503,7 +504,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 		QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-		uint32_t queueFamilyIndices[] = { static_cast<uint32_t>(indices.graphicsFamily), static_cast<uint32_t>(indices.presentFamily) };
+		uint32 queueFamilyIndices[] = { static_cast<uint32>(indices.graphicsFamily), static_cast<uint32>(indices.presentFamily) };
 		if (indices.graphicsFamily != indices.presentFamily)
 		{
 			createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -595,7 +596,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		};
 		VkRenderPassCreateInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+		renderPassInfo.attachmentCount = static_cast<uint32>(attachments.size());
 		renderPassInfo.pAttachments = attachments.data();
 		renderPassInfo.subpassCount = 1;
 		renderPassInfo.pSubpasses = &subpass;
@@ -639,7 +640,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 			VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 	}
 
-	CYLOG(LogVulkan, Log, TEXT("> Create framebuffer for backbuffer"));
+	CYLOG(LogVulkan, Log, TEXT("> Create framebuffers for backbuffer"));
 	{
 		swapchainFramebuffers.resize(swapchainImageViews.size());
 
@@ -649,7 +650,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 			VkFramebufferCreateInfo framebufferInfo{};
 			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 			framebufferInfo.renderPass = backbufferRenderPass;
-			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+			framebufferInfo.attachmentCount = static_cast<uint32>(attachments.size());
 			framebufferInfo.pAttachments = attachments.data();
 			framebufferInfo.width = swapchainExtent.width;
 			framebufferInfo.height = swapchainExtent.height;
@@ -658,6 +659,66 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 			VkResult ret = vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapchainFramebuffers[i]);
 			CHECK(ret == VK_SUCCESS);
 		}
+	}
+
+	CYLOG(LogVulkan, Log, TEXT("> Create command buffers"));
+	{
+		commandBuffers.resize(swapchainFramebuffers.size());
+
+		VkCommandBufferAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.commandPool = commandPool;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandBufferCount = static_cast<uint32>(commandBuffers.size());
+		
+		VkResult ret = vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data());
+		CHECK(ret == VK_SUCCESS);
+
+		for (size_t i = 0; i < commandBuffers.size(); ++i)
+		{
+			VkCommandBufferBeginInfo beginInfo{};
+			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+			beginInfo.pInheritanceInfo = nullptr;
+			vkBeginCommandBuffer(commandBuffers[i], &beginInfo);
+
+			std::array<VkClearValue, 2> clearValues;
+			clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+			clearValues[1].depthStencil = { 1.0f, 0 };
+
+			VkRenderPassBeginInfo renderPassInfo{};
+			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+			renderPassInfo.renderPass = backbufferRenderPass;
+			renderPassInfo.framebuffer = swapchainFramebuffers[i];
+			renderPassInfo.renderArea.offset = { 0,0 };
+			renderPassInfo.renderArea.extent = swapchainExtent;
+			renderPassInfo.clearValueCount = static_cast<uint32>(clearValues.size());
+			renderPassInfo.pClearValues = clearValues.data();
+			
+			vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+			{
+				// #todo-vulkan: Drawing commands here
+				//triangle.commitCommands(commandBuffers[i]);
+			}
+			vkCmdEndRenderPass(commandBuffers[i]);
+
+			VkResult ret = vkEndCommandBuffer(commandBuffers[i]);
+			CHECK(ret == VK_SUCCESS);
+		}
+	}
+
+	CYLOG(LogVulkan, Log, TEXT("> Create semaphores for rendering"));
+	{
+		VkSemaphoreCreateInfo semaphoreInfo{};
+		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+		VkResult ret;
+
+		ret = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore);
+		CHECK(ret == VK_SUCCESS);
+
+		ret = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore);
+		CHECK(ret == VK_SUCCESS);
 	}
 }
 
@@ -689,9 +750,25 @@ IndexBuffer* VulkanDevice::createIndexBuffer(void* data, uint32 sizeInBytes, EPi
 	return nullptr;
 }
 
+Shader* VulkanDevice::createShader()
+{
+	return new VulkanShader;
+}
+
+RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& desc)
+{
+	// #todo-vulkan
+	return nullptr;
+}
+
+PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& desc)
+{
+	return nullptr;
+}
+
 bool VulkanDevice::checkValidationLayerSupport()
 {
-	uint32_t layerCount;
+	uint32 layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 	std::vector<VkLayerProperties> availableLayers(layerCount);
 	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
@@ -755,7 +832,7 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice physDevice)
 VulkanDevice::QueueFamilyIndices VulkanDevice::findQueueFamilies(VkPhysicalDevice physDevice)
 {
 	QueueFamilyIndices indices;
-	uint32_t queueFamilyCount = 0;
+	uint32 queueFamilyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(physDevice, &queueFamilyCount, nullptr);
 	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
 	vkGetPhysicalDeviceQueueFamilyProperties(physDevice, &queueFamilyCount, queueFamilies.data());
@@ -786,7 +863,7 @@ VulkanDevice::QueueFamilyIndices VulkanDevice::findQueueFamilies(VkPhysicalDevic
 
 bool VulkanDevice::checkDeviceExtensionSupport(VkPhysicalDevice physDevice)
 {
-	uint32_t extensionCount;
+	uint32 extensionCount;
 	vkEnumerateDeviceExtensionProperties(physDevice, nullptr, &extensionCount, nullptr);
 	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
 	vkEnumerateDeviceExtensionProperties(physDevice, nullptr, &extensionCount, availableExtensions.data());
@@ -803,7 +880,7 @@ VulkanDevice::SwapChainSupportDetails VulkanDevice::querySwapChainSupport(VkPhys
 	SwapChainSupportDetails details;
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physDevice, surface, &details.capabilities);
 	
-	uint32_t formatCount;
+	uint32 formatCount;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice, surface, &formatCount, nullptr);
 	if (formatCount != 0)
 	{
@@ -811,7 +888,7 @@ VulkanDevice::SwapChainSupportDetails VulkanDevice::querySwapChainSupport(VkPhys
 		vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice, surface, &formatCount, details.formats.data());
 	}
 
-	uint32_t presentModeCount;
+	uint32 presentModeCount;
 	vkGetPhysicalDeviceSurfacePresentModesKHR(physDevice, surface, &presentModeCount, nullptr);
 	if (presentModeCount != 0)
 	{

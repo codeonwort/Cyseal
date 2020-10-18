@@ -1,6 +1,7 @@
 #include "d3d_swap_chain.h"
 #include "d3d_device.h"
 #include "d3d_resource_view.h"
+#include "d3d_pipeline_state.h"
 
 D3DSwapChain::D3DSwapChain()
 {
@@ -20,7 +21,8 @@ void D3DSwapChain::initialize(
 	device = static_cast<D3DDevice*>(renderDevice);
 	backBufferWidth  = width;
 	backBufferHeight = height;
-	backBufferFormat = device->getBackBufferFormat();
+	backbufferFormat = device->getBackbufferFormat();
+	backbufferDepthFormat = device->getBackbufferDepthFormat();
 
 	auto dxgiFactory  = device->getDXGIFactory();
 	auto commandQueue = device->getRawCommandQueue();
@@ -32,7 +34,7 @@ void D3DSwapChain::initialize(
 	desc.BufferCount        = SWAP_CHAIN_BUFFER_COUNT;
 	desc.Width              = width;
 	desc.Height             = height;
-	desc.Format             = backBufferFormat;
+	desc.Format             = into_d3d::pixelFormat(backbufferFormat);
 	desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	desc.SwapEffect         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	// You can't create a MSAA swap chain.

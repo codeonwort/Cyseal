@@ -12,6 +12,11 @@ class GPUResource;
 class DepthStencilView;
 class VertexBuffer;
 class IndexBuffer;
+class Shader;
+struct RootSignatureDesc;
+class RootSignature;
+struct GraphicsPipelineDesc;
+class PipelineState;
 
 enum class ERenderDeviceRawAPI
 {
@@ -46,7 +51,8 @@ struct RenderDeviceCreateParams
 	uint32 windowHeight = 1080;
 };
 
-// ID3D12Device and VkDevice
+// ID3D12Device
+// VkDevice
 class RenderDevice
 {
 	
@@ -64,7 +70,12 @@ public:
 
 	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes) = 0;
 	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) = 0;
+	virtual Shader* createShader() = 0;
+	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
+	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
 
+	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }
+	inline EPixelFormat getBackbufferDepthFormat() const { return backbufferDepthFormat; }
 	inline SwapChain* getSwapChain() const { return swapChain; }
 	inline GPUResource* getDefaultDepthStencilBuffer() const { return defaultDepthStencilBuffer; }
 	inline DepthStencilView* getDefaultDSV() const { return defaultDSV; }
@@ -74,6 +85,8 @@ public:
 	inline RenderCommandQueue* getCommandQueue() const { return commandQueue; }
 
 protected:
+	EPixelFormat            backbufferFormat = EPixelFormat::R8G8B8A8_UNORM;
+	EPixelFormat            backbufferDepthFormat = EPixelFormat::D24_UNORM_S8_UINT;
 	SwapChain*              swapChain;
 	GPUResource*            defaultDepthStencilBuffer;
 	DepthStencilView*       defaultDSV;

@@ -2,9 +2,9 @@
 
 #include "render/render_device.h"
 #include "render/renderer.h"
-#include <stdint.h>
+#include "core/int_types.h"
 
-enum class EEngineState : uint8_t
+enum class EEngineState : uint8
 {
 	UNINITIALIZED,
 	RUNNING,
@@ -35,10 +35,7 @@ public:
 
 private:
 	void createRenderDevice(const RenderDeviceCreateParams& createParams);
-
-	void createRenderer(ERenderDeviceRawAPI rawAPI, ERendererType rendererType);
-	Renderer* createD3DRenderer(ERendererType rendererType);
-	Renderer* createVulkanRenderer(ERendererType rendererType);
+	void createRenderer(ERendererType rendererType);
 
 private:
 	EEngineState state;

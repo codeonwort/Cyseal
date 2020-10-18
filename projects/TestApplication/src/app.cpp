@@ -13,6 +13,7 @@
 					CONFIGURATION
 --------------------------------------------------------*/
 #define RAW_API          ERenderDeviceRawAPI::DirectX12
+//#define RAW_API          ERenderDeviceRawAPI::Vulkan
 #define RAYTRACING_TIER  ERayTracingTier::Tier_1_0
 #define WINDOW_TYPE      EWindowType::WINDOWED
 #define RENDERER_TYPE    ERendererType::Forward

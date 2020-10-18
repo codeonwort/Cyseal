@@ -66,9 +66,6 @@
     <ClInclude Include="src\render\raw_api\dx12\d3d_swap_chain.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\input_layout.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="src\render\pixel_format.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
@@ -117,12 +114,6 @@
     <ClInclude Include="src\render\render_pass.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_base_pass.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_forward_renderer.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="src\render\pipeline_state.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
@@ -157,6 +148,15 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\core\cymath.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\raw_api\vulkan\vk_swapchain.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\raw_api\vulkan\vk_shader.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\resource_binding.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
@@ -206,12 +206,6 @@
     <ClCompile Include="src\render\raw_api\dx12\d3d_shader.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_base_pass.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_forward_renderer.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="src\util\resource_finder.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -228,6 +222,15 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\raw_api\vulkan\vk_device.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\base_pass.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\raw_api\vulkan\vk_shader.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\raw_api\dx12\d3d_pipeline_state.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

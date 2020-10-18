@@ -40,8 +40,8 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 	Viewport viewport;
 	viewport.topLeftX = 0;
 	viewport.topLeftY = 0;
-	viewport.width    = static_cast<float>(swapChain->getBackBufferWidth());
-	viewport.height   = static_cast<float>(swapChain->getBackBufferHeight());
+	viewport.width    = static_cast<float>(swapChain->getBackbufferWidth());
+	viewport.height   = static_cast<float>(swapChain->getBackbufferHeight());
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
  	commandList->rsSetViewport(viewport);
@@ -49,8 +49,8 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 	ScissorRect scissorRect;
 	scissorRect.left   = 0;
 	scissorRect.top    = 0;
-	scissorRect.right  = swapChain->getBackBufferWidth();
-	scissorRect.bottom = swapChain->getBackBufferHeight();
+	scissorRect.right  = swapChain->getBackbufferWidth();
+	scissorRect.bottom = swapChain->getBackbufferHeight();
  	commandList->rsSetScissorRect(scissorRect);
 
 	commandList->omSetRenderTarget(currentBackBufferRTV, defaultDSV);
@@ -103,6 +103,12 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
  	swapChain->swapBackBuffer();
 
  	device->flushCommandQueue();
+}
+
+void ForwardRenderer::createRenderPasses()
+{
+	basePass = new BasePass;
+	basePass->initialize();
 }
 
 void ForwardRenderer::destroyRenderPasses()

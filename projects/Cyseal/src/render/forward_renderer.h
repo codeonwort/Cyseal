@@ -12,7 +12,7 @@ public:
 	virtual void render(const SceneProxy* scene, const Camera* camera) override;
 
 protected:
-	virtual void createRenderPasses() = 0;
+	void createRenderPasses();
 	void destroyRenderPasses();
 
 	// createRenderPasses() should create these passes.

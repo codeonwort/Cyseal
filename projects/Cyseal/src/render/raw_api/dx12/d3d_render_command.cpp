@@ -49,6 +49,7 @@ void D3DRenderCommandList::close()
 	HR( commandList->Close() );
 }
 
+// #todo: move to into_d3d namespace (d3d_pipeline_state.h)
 static D3D12_PRIMITIVE_TOPOLOGY getD3DPrimitiveTopology(EPrimitiveTopology topology)
 {
 	switch (topology)
