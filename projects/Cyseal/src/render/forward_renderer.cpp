@@ -16,8 +16,8 @@ void ForwardRenderer::initialize(RenderDevice* renderDevice)
 void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 {
 	auto swapChain            = device->getSwapChain();
-	auto currentBackBuffer    = swapChain->getCurrentBackBuffer();
-	auto currentBackBufferRTV = swapChain->getCurrentBackBufferRTV();
+	auto currentBackBuffer    = swapChain->getCurrentBackbuffer();
+	auto currentBackBufferRTV = swapChain->getCurrentBackbufferRTV();
 	auto defaultDepthStencil  = device->getDefaultDepthStencilBuffer();
 	auto defaultDSV           = device->getDefaultDSV();
 	auto commandAllocator     = device->getCommandAllocator();
@@ -100,7 +100,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 	commandQueue->executeCommandList(commandList);
 
  	swapChain->present();
- 	swapChain->swapBackBuffer();
+ 	swapChain->swapBackbuffer();
 
  	device->flushCommandQueue();
 }

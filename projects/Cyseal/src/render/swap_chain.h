@@ -13,7 +13,6 @@ class RenderTargetView;
 // VkSwapChainKHR
 class SwapChain
 {
-	
 public:
 	SwapChain();
 	virtual ~SwapChain();
@@ -23,14 +22,15 @@ public:
 		HWND          hwnd,
 		uint32        width,
 		uint32        height) = 0;
+
 	virtual void present() = 0;
-	virtual void swapBackBuffer() = 0;
+	virtual void swapBackbuffer() = 0;
 
-	virtual GPUResource* getCurrentBackBuffer() const = 0;
-	virtual RenderTargetView* getCurrentBackBufferRTV() const = 0;
+	virtual GPUResource* getCurrentBackbuffer() const = 0;
+	virtual RenderTargetView* getCurrentBackbufferRTV() const = 0;
 
-	inline uint32 getBackbufferWidth() const { return backBufferWidth; }
-	inline uint32 getBackbufferHeight() const { return backBufferHeight; }
+	inline uint32 getBackbufferWidth() const { return backbufferWidth; }
+	inline uint32 getBackbufferHeight() const { return backbufferHeight; }
 	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }
 	inline EPixelFormat getBackbufferDepthFormat() const { return backbufferDepthFormat; }
 
@@ -39,9 +39,9 @@ public:
 	virtual uint32 get4xMSAAQuality() const { return 1; }
 
 protected:
-	uint32 backBufferWidth;
-	uint32 backBufferHeight;
+	// Should match with those from RenderDevice
+	uint32 backbufferWidth;
+	uint32 backbufferHeight;
 	EPixelFormat backbufferFormat;
 	EPixelFormat backbufferDepthFormat;
-
 };

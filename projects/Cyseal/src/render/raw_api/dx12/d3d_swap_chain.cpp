@@ -19,8 +19,8 @@ void D3DSwapChain::initialize(
 	uint32_t      height)
 {
 	device = static_cast<D3DDevice*>(renderDevice);
-	backBufferWidth  = width;
-	backBufferHeight = height;
+	backbufferWidth  = width;
+	backbufferHeight = height;
 	backbufferFormat = device->getBackbufferFormat();
 	backbufferDepthFormat = device->getBackbufferDepthFormat();
 
@@ -80,17 +80,17 @@ void D3DSwapChain::initialize(
 	}
 }
 
-void D3DSwapChain::swapBackBuffer()
+void D3DSwapChain::swapBackbuffer()
 {
 	currentBackBuffer = (currentBackBuffer + 1) % SWAP_CHAIN_BUFFER_COUNT;
 }
 
-GPUResource* D3DSwapChain::getCurrentBackBuffer() const
+GPUResource* D3DSwapChain::getCurrentBackbuffer() const
 {
 	return swapChainBuffers[currentBackBuffer].get();
 }
 
-RenderTargetView* D3DSwapChain::getCurrentBackBufferRTV() const
+RenderTargetView* D3DSwapChain::getCurrentBackbufferRTV() const
 {
 	return backBufferRTVs[currentBackBuffer].get();
 }

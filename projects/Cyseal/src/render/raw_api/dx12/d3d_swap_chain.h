@@ -22,10 +22,10 @@ public:
 		uint32_t      width,
 		uint32_t      height) override;
 	virtual void present() override;
-	virtual void swapBackBuffer() override;
+	virtual void swapBackbuffer() override;
 
-	virtual GPUResource* getCurrentBackBuffer() const override;
-	virtual RenderTargetView* getCurrentBackBufferRTV() const override;
+	virtual GPUResource* getCurrentBackbuffer() const override;
+	virtual RenderTargetView* getCurrentBackbufferRTV() const override;
 
 	inline IDXGISwapChain* getRaw() const { return rawSwapChain.Get(); }
 
@@ -37,14 +37,6 @@ public:
 
 	inline UINT getCurrentBackBufferIndex() const
 	{ return currentBackBuffer; }
-
-	// #todo: check 4xMSAA support
-	inline bool supports4xMSAA() const
-	{ return false; }
-
-	// #todo: check 4xMSAA quality
-	inline UINT get4xMSAAQuality() const
-	{ return 1; }
 
 private:
 	D3DDevice* device;

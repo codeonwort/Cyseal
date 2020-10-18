@@ -1,7 +1,8 @@
 #pragma once
 
-#include <stdint.h>
+#include "core/int_types.h"
 
+// #todo: Move to pipeline_state.h
 struct Viewport
 {
 	float topLeftX;
@@ -14,8 +15,8 @@ struct Viewport
 
 struct ScissorRect
 {
-	uint32_t left;
-	uint32_t top;
-	uint32_t right;
-	uint32_t bottom;
+	uint32 left;
+	uint32 top;
+	uint32 right;
+	uint32 bottom;
 };
