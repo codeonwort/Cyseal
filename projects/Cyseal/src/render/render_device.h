@@ -2,7 +2,7 @@
 
 #include "core/types.h"
 #include "pixel_format.h"
-#include <Windows.h>
+#include <Windows.h> // #todo-crossplatform: Windows only for now
 
 class SwapChain;
 class RenderCommandAllocator;

@@ -1,12 +1,16 @@
 #pragma once
 
 #include "render/render_device.h"
+#include "util/logging.h"
 #include <vector>
-
 #include <vulkan/vulkan_core.h>
+
+DECLARE_LOG_CATEGORY(LogVulkan);
 
 class VulkanDevice : public RenderDevice
 {
+	friend class VulkanSwapchain;
+
 	struct QueueFamilyIndices
 	{
 		int graphicsFamily = -1;

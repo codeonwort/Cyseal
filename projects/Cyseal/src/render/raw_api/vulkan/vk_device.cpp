@@ -2,7 +2,6 @@
 #include "vk_shader.h"
 #include "vk_utils.h"
 #include "core/assertion.h"
-#include "util/logging.h"
 #include <algorithm>
 #include <limits>
 #include <string>
@@ -12,6 +11,7 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_win32.h>
 
+// #todo-crossapi: Dynamic loading
 #pragma comment(lib, "vulkan-1.lib")
 
 DEFINE_LOG_CATEGORY(LogVulkan);
@@ -557,7 +557,7 @@ void VulkanDevice::getRequiredExtensions(std::vector<const char*>& extensions)
 {
 	extensions.clear();
 
-	// #todo-crossplatform
+	// #todo-crossplatform: Windows only for now
 	{
 		extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 		extensions.push_back("VK_KHR_win32_surface");

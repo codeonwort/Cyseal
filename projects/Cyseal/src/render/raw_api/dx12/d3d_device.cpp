@@ -7,11 +7,12 @@
 #include "util/logging.h"
 #include "d3d_pipeline_state.h"
 
+// #todo-crossapi: Dynamic loading
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
-DEFINE_LOG_CATEGORY(LogDirectX);
+DEFINE_LOG_CATEGORY_STATIC(LogDirectX);
 
 // How to initialize D3D12
 // 1. Create a ID3D12Device

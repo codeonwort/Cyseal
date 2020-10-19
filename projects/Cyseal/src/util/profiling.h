@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Windows.h>
+#include <Windows.h> // #todo-crossplatform: Windows only for now
 
 struct CycleCounterParam
 {

@@ -10,7 +10,7 @@
 #include "render/raw_api/dx12/d3d_device.h"
 #include "render/raw_api/vulkan/vk_device.h"
 
-DEFINE_LOG_CATEGORY(LogEngine);
+DEFINE_LOG_CATEGORY_STATIC(LogEngine);
 
 CysealEngine::CysealEngine()
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Windows.h>
+#include <Windows.h> // #todo-crossplatform: Windows only for now
 #include "core/int_types.h"
 #include "pixel_format.h"
 
@@ -10,7 +10,7 @@ class GPUResource;
 class RenderTargetView;
 
 // ID3D12SwapChain
-// VkSwapChainKHR
+// VkSwapchainKHR
 class SwapChain
 {
 public:

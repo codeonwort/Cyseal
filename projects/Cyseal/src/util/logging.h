@@ -14,9 +14,9 @@ enum LogLevel
 
 static char* LogLevelStrings[] = { "Log", "Warning", "Error", "Fatal" };
 
-struct LogStructBase
+struct Logger
 {
-	LogStructBase(const char* inCategory, LogLevel inLevel, const TCHAR* inMessage)
+	static void log(const char* inCategory, LogLevel inLevel, const TCHAR* inMessage)
 	{
 		wchar_t buffer[1024];
 		swprintf_s(buffer, L"[%S][%S]%s\n", inCategory, LogLevelStrings[inLevel], inMessage);
@@ -28,13 +28,41 @@ struct LogStructBase
 	}
 };
 
-#define DECLARE_LOG_CATEGORY(Category) struct LogStruct_##Category;
-#define DEFINE_LOG_CATEGORY(Category)                                             \
-	struct LogStruct_##Category : LogStructBase									  \
-	{																			  \
-		LogStruct_##Category(LogLevel inLevel, const TCHAR* inMessage)	          \
-			: LogStructBase(#Category, inLevel, inMessage)						  \
-		{}																		  \
-	};																			  \
+//struct LogStructBase
+//{
+//	LogStructBase(const char* inCategory, LogLevel inLevel, const TCHAR* inMessage)
+//	{
+//		wchar_t buffer[1024];
+//		swprintf_s(buffer, L"[%S][%S]%s\n", inCategory, LogLevelStrings[inLevel], inMessage);
+//
+//		// #todo: Output to somewhere not stdout (log file, separate GUI, etc...)
+//		// #todo: Create a separate logging thread
+//		wprintf_s(buffer);
+//		OutputDebugStringW(buffer);
+//	}
+//};
 
-#define CYLOG(Category, Level, Message) { LogStruct_##Category(Level, Message); }
+struct LogStructBase
+{
+	LogStructBase(const char* inCategory)
+		: category(inCategory)
+	{
+	}
+	const char* category;
+};
+
+#define DECLARE_LOG_CATEGORY(Category)                                            \
+	extern struct LogStruct_##Category : LogStructBase						      \
+	{																			  \
+		LogStruct_##Category() : LogStructBase(#Category) {}					  \
+	} Category;
+
+#define DEFINE_LOG_CATEGORY(Category) LogStruct_##Category Category;
+
+#define DEFINE_LOG_CATEGORY_STATIC(Category)                                      \
+	static struct LogStruct_##Category : LogStructBase						      \
+	{																			  \
+		LogStruct_##Category() : LogStructBase(#Category) {}					  \
+	} Category;
+
+#define CYLOG(Category, Level, Message) { Logger::log(Category.category, Level, Message); }

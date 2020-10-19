@@ -21,6 +21,7 @@ public:
 		HWND          hwnd,
 		uint32_t      width,
 		uint32_t      height) override;
+
 	virtual void present() override;
 	virtual void swapBackbuffer() override;
 
