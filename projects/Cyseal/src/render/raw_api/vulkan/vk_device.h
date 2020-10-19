@@ -65,6 +65,7 @@ private:
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;
 
+	// #todo-vulkan: VulkanSwapchain
 	VkSwapchainKHR swapchain;
 	std::vector<VkImage> swapchainImages;
 	VkFormat swapchainImageFormat;
