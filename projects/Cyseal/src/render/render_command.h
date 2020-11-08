@@ -61,8 +61,8 @@ public:
 
 	virtual void iaSetPrimitiveTopology(EPrimitiveTopology topology) = 0;
 	virtual void iaSetVertexBuffers(
-		int32_t startSlot,
-		uint32_t numViews,
+		int32 startSlot,
+		uint32 numViews,
 		VertexBuffer* const* vertexBuffers) = 0;
 	virtual void iaSetIndexBuffer(IndexBuffer* indexBuffer) = 0;
 
@@ -92,10 +92,10 @@ public:
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) = 0;
 
 	virtual void drawIndexedInstanced(
-		uint32_t indexCountPerInstance,
-		uint32_t instanceCount,
-		uint32_t startIndexLocation,
-		int32_t baseVertexLocation,
-		uint32_t startInstanceLocation) = 0;
+		uint32 indexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startIndexLocation,
+		int32 baseVertexLocation,
+		uint32 startInstanceLocation) = 0;
 
 };

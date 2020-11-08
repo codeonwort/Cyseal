@@ -12,7 +12,7 @@ VulkanSwapchain::VulkanSwapchain()
 	//
 }
 
-void VulkanSwapchain::initialize(RenderDevice* renderDevice, HWND hwnd, uint32_t width, uint32_t height)
+void VulkanSwapchain::initialize(RenderDevice* renderDevice, HWND hwnd, uint32 width, uint32 height)
 {
 	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(renderDevice);
 

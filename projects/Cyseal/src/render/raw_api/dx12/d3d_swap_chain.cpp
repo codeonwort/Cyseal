@@ -15,8 +15,8 @@ D3DSwapChain::D3DSwapChain()
 void D3DSwapChain::initialize(
 	RenderDevice* renderDevice,
 	HWND          hwnd,
-	uint32_t      width,
-	uint32_t      height)
+	uint32        width,
+	uint32        height)
 {
 	device = static_cast<D3DDevice*>(renderDevice);
 	backbufferWidth  = width;

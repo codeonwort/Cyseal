@@ -1,8 +1,8 @@
 #pragma once
 
-#include <stdint.h>
+#include "core/int_types.h"
 
-enum class EPixelFormat : uint8_t
+enum class EPixelFormat : uint8
 {
 	UNKNOWN,
 

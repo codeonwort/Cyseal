@@ -22,8 +22,8 @@ public:
 	virtual void initialize(
 		RenderDevice* renderDevice,
 		HWND          hwnd,
-		uint32_t      width,
-		uint32_t      height) override;
+		uint32        width,
+		uint32        height) override;
 
 	virtual void present() override;
 	virtual void swapBackbuffer() override;

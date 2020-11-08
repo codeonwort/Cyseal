@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdint.h>
+#include "core/int_types.h"
 #include <Windows.h> // #todo-crossplatform: Windows only for now
 
 enum class EShaderType : uint8_t

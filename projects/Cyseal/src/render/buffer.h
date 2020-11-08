@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdint.h>
 #include "gpu_resource.h"
 #include "pixel_format.h"
 
@@ -9,17 +8,17 @@
 
 struct VertexBufferCreateParams
 {
-	uint32_t numVertices;
-	uint32_t elementSize;
+	uint32 numVertices;
+	uint32 elementSize;
 };
 
 class VertexBuffer : public GPUResource
 {
 	
 public:
-	virtual void initialize(void* initialData, uint32_t sizeInBytes, uint32_t strideInBytes) = 0;
+	virtual void initialize(void* initialData, uint32 sizeInBytes, uint32 strideInBytes) = 0;
 
-	virtual void updateData(void* data, uint32_t sizeInBytes, uint32_t strideInBytes) = 0;
+	virtual void updateData(void* data, uint32 sizeInBytes, uint32 strideInBytes) = 0;
 
 };
 
@@ -28,18 +27,18 @@ public:
 
 struct IndexBufferCreateParams
 {
-	uint32_t numIndices;
-	uint32_t elementSize;
+	uint32 numIndices;
+	uint32 elementSize;
 };
 
 class IndexBuffer : public GPUResource
 {
 
 public:
-	virtual void initialize(void* initialData, uint32_t sizeInBytes, EPixelFormat format) = 0;
+	virtual void initialize(void* initialData, uint32 sizeInBytes, EPixelFormat format) = 0;
 
-	virtual void updateData(void* data, uint32_t sizeInBytes, EPixelFormat format) = 0;
+	virtual void updateData(void* data, uint32 sizeInBytes, EPixelFormat format) = 0;
 
-	virtual uint32_t getIndexCount() = 0;
+	virtual uint32 getIndexCount() = 0;
 
 };

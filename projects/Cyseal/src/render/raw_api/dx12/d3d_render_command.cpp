@@ -97,12 +97,12 @@ void D3DRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology topology)
 	commandList->IASetPrimitiveTopology(d3dTopology);
 }
 
-void D3DRenderCommandList::iaSetVertexBuffers(int32_t startSlot, uint32_t numViews, VertexBuffer* const* vertexBuffers)
+void D3DRenderCommandList::iaSetVertexBuffers(int32 startSlot, uint32 numViews, VertexBuffer* const* vertexBuffers)
 {
 	std::vector<D3D12_VERTEX_BUFFER_VIEW> views;
 	views.resize(numViews);
 
-	for (uint32_t i = 0; i < numViews; ++i)
+	for (uint32 i = 0; i < numViews; ++i)
 	{
 		auto buffer = static_cast<D3DVertexBuffer*>(vertexBuffers[i]);
 		views[i] = buffer->getView();
@@ -202,11 +202,11 @@ void D3DRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature
 }
 
 void D3DRenderCommandList::drawIndexedInstanced(
-	uint32_t indexCountPerInstance,
-	uint32_t instanceCount,
-	uint32_t startIndexLocation,
-	int32_t baseVertexLocation,
-	uint32_t startInstanceLocation)
+	uint32 indexCountPerInstance,
+	uint32 instanceCount,
+	uint32 startIndexLocation,
+	int32 baseVertexLocation,
+	uint32 startInstanceLocation)
 {
 	commandList->DrawIndexedInstanced(
 		indexCountPerInstance,

@@ -44,8 +44,8 @@ public:
 
 	virtual void iaSetPrimitiveTopology(EPrimitiveTopology topology) override;
 	virtual void iaSetVertexBuffers(
-		int32_t startSlot,
-		uint32_t numViews,
+		int32 startSlot,
+		uint32 numViews,
 		VertexBuffer* const* vertexBuffers) override;
 	virtual void iaSetIndexBuffer(IndexBuffer* indexBuffer) override;
 
@@ -73,11 +73,11 @@ public:
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) override;
 
 	virtual void drawIndexedInstanced(
-		uint32_t indexCountPerInstance,
-		uint32_t instanceCount,
-		uint32_t startIndexLocation,
-		int32_t baseVertexLocation,
-		uint32_t startInstanceLocation) override;
+		uint32 indexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startIndexLocation,
+		int32 baseVertexLocation,
+		uint32 startInstanceLocation) override;
 
 	inline ID3D12GraphicsCommandList4* getRaw() const { return commandList.Get(); }
 

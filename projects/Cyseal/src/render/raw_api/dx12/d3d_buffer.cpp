@@ -53,12 +53,12 @@ WRL::ComPtr<ID3D12Resource> createDefaultBuffer(
 	return defaultBuffer;
 }
 
-void D3DVertexBuffer::initialize(void* initialData, uint32_t sizeInBytes, uint32_t strideInBytes)
+void D3DVertexBuffer::initialize(void* initialData, uint32 sizeInBytes, uint32 strideInBytes)
 {
 	updateData(initialData, sizeInBytes, strideInBytes);
 }
 
-void D3DVertexBuffer::updateData(void* data, uint32_t sizeInBytes, uint32_t strideInBytes)
+void D3DVertexBuffer::updateData(void* data, uint32 sizeInBytes, uint32 strideInBytes)
 {
 	auto device = getD3DDevice();
 	auto cmdList = static_cast<D3DRenderCommandList*>(device->getCommandList())->getRaw();
@@ -75,12 +75,12 @@ D3D12_VERTEX_BUFFER_VIEW D3DVertexBuffer::getView() const
 	return view;
 }
 
-void D3DIndexBuffer::initialize(void* initialData, uint32_t sizeInBytes, EPixelFormat format)
+void D3DIndexBuffer::initialize(void* initialData, uint32 sizeInBytes, EPixelFormat format)
 {
 	updateData(initialData, sizeInBytes, format);
 }
 
-void D3DIndexBuffer::updateData(void* data, uint32_t sizeInBytes, EPixelFormat format)
+void D3DIndexBuffer::updateData(void* data, uint32 sizeInBytes, EPixelFormat format)
 {
 	DXGI_FORMAT d3dFormat = DXGI_FORMAT_UNKNOWN;
 
@@ -108,7 +108,7 @@ void D3DIndexBuffer::updateData(void* data, uint32_t sizeInBytes, EPixelFormat f
 	view.SizeInBytes    = sizeInBytes;
 }
 
-uint32_t D3DIndexBuffer::getIndexCount()
+uint32 D3DIndexBuffer::getIndexCount()
 {
 	return indexCount;
 }
