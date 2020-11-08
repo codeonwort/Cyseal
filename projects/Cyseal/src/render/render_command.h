@@ -1,6 +1,5 @@
 #pragma once
 
-#include "viewport.h"
 #include "gpu_resource.h"
 #include "pipeline_state.h"
 

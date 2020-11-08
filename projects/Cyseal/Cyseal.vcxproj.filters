@@ -72,9 +72,6 @@
     <ClInclude Include="src\render\static_mesh.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\viewport.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="src\render\texture.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
