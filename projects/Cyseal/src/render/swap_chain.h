@@ -25,6 +25,7 @@ public:
 
 	virtual void present() = 0;
 	virtual void swapBackbuffer() = 0;
+	virtual uint32 getBufferCount() = 0;
 
 	virtual GPUResource* getCurrentBackbuffer() const = 0;
 	virtual RenderTargetView* getCurrentBackbufferRTV() const = 0;

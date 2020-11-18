@@ -11,6 +11,7 @@ class D3DRenderTargetView;
 
 class D3DSwapChain : public SwapChain
 {
+public:
 	static constexpr UINT SWAP_CHAIN_BUFFER_COUNT = 2;
 
 public:
@@ -24,6 +25,7 @@ public:
 
 	virtual void present() override;
 	virtual void swapBackbuffer() override;
+	virtual uint32 getBufferCount() override { return SWAP_CHAIN_BUFFER_COUNT; }
 
 	virtual GPUResource* getCurrentBackbuffer() const override;
 	virtual RenderTargetView* getCurrentBackbufferRTV() const override;

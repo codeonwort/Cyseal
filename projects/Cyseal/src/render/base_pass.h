@@ -3,6 +3,7 @@
 #include "render_pass.h"
 #include "pipeline_state.h"
 #include "resource_binding.h"
+#include "gpu_resource.h"
 #include <memory>
 
 class BasePass : public RenderPass
@@ -17,5 +18,7 @@ public:
 protected:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
+	std::vector<std::unique_ptr<DescriptorHeap>> cbvHeap;
+	std::vector<std::unique_ptr<ConstantBuffer>> constantBuffers;
 	VertexInputLayout inputLayout;
 };

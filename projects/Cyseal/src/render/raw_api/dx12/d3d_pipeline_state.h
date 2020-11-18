@@ -351,6 +351,24 @@ namespace into_d3d
 		outDesc.NumElements        = static_cast<UINT>(num);
 		outDesc.pInputElementDescs = tempElements;
 	}
+
+	inline D3D12_DESCRIPTOR_HEAP_TYPE descriptorHeapType(EDescriptorHeapType inType)
+	{
+		return static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(inType);
+	}
+
+	inline D3D12_DESCRIPTOR_HEAP_FLAGS descriptorHeapFlags(EDescriptorHeapFlags inFlags)
+	{
+		return static_cast<D3D12_DESCRIPTOR_HEAP_FLAGS>(inFlags);
+	}
+
+	inline void descriptorHeapDesc(const DescriptorHeapDesc& inDesc, D3D12_DESCRIPTOR_HEAP_DESC& outDesc)
+	{
+		outDesc.Type           = descriptorHeapType(inDesc.type);
+		outDesc.NumDescriptors = inDesc.numDescriptors;
+		outDesc.Flags          = descriptorHeapFlags(inDesc.flags);
+		outDesc.NodeMask       = inDesc.nodeMask;
+	}
 }
 
 class D3DPipelineState : public PipelineState

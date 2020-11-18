@@ -4,6 +4,11 @@
 #include "resource_binding.h"
 #include "shader.h"
 
+struct UBO_BasePass
+{
+	float r, g, b, a;
+};
+
 void BasePass::initialize()
 {
 	RenderDevice* device = gRenderDevice;
@@ -21,6 +26,24 @@ void BasePass::initialize()
 		RootSignatureDesc rootSigDesc(1, slotRootParameters, 0, nullptr, ERootSignatureFlags::AllowInputAssemblerInputLayout);
 
 		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
+	}
+
+	// 1. Create cbv descriptor heaps
+	// 2. Create constant buffers
+	cbvHeap.resize(swapchain->getBufferCount());
+	constantBuffers.resize(swapchain->getBufferCount());
+	for (uint32 i = 0; i < swapchain->getBufferCount(); ++i)
+	{
+		DescriptorHeapDesc desc;
+		desc.type = EDescriptorHeapType::CBV_SRV_UAV;
+		desc.numDescriptors = 1;
+		desc.flags = EDescriptorHeapFlags::ShaderVisible;
+		desc.nodeMask = 0;
+
+		cbvHeap[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
+
+		constantBuffers[i] = std::unique_ptr<ConstantBuffer>(
+			device->createConstantBuffer(cbvHeap[i].get(), 1024 * 64, sizeof(UBO_BasePass)));
 	}
 
 	// Create input layout

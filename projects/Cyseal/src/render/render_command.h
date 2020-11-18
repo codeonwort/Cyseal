@@ -91,6 +91,11 @@ public:
 	virtual void setPipelineState(PipelineState* state) = 0;
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) = 0;
 
+	// #todo-fatal: setDescriptorHeaps
+	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* heaps) = 0;
+	// #todo-fatal: setGraphicsRootDescriptorTable
+	virtual void setGraphicsRootParameter(uint32 rootParameterIndex, ConstantBuffer* constantBuffer) = 0;
+
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
 		uint32 instanceCount,

@@ -27,6 +27,7 @@ public:
 
 	virtual void present() override;
 	virtual void swapBackbuffer() override;
+	virtual uint32 getBufferCount() override { return swapchainImageCount; }
 
 	virtual GPUResource* getCurrentBackbuffer() const override;
 	virtual RenderTargetView* getCurrentBackbufferRTV() const override;
@@ -34,6 +35,7 @@ public:
 private:
 	VkSwapchainKHR swapchainKHR;
 	VkExtent2D swapchainExtent;
+	uint32 swapchainImageCount;
 
 	std::vector<VkImage> swapchainImages;
 	VkFormat swapchainImageFormat;

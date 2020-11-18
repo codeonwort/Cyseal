@@ -46,6 +46,9 @@ public:
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
 
+	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
+	virtual ConstantBuffer* createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize) override;
+
 	inline VkDevice getRaw() const { return device; }
 
 private:

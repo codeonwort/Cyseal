@@ -1,6 +1,8 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "util/enum_util.h"
+#include "pipeline_state.h"
 
 // Common interface for DX12 root signature and Vulkan descriptor set.
 // NOTE 1: This file might be merged into another file.
@@ -197,6 +199,7 @@ enum class ERootSignatureFlags : uint8
 	AllowStreamOutput              = 0x40,
 	LocalRootSignature             = 0x80
 };
+ENUM_CLASS_FLAGS(ERootSignatureFlags);
 
 struct RootSignatureDesc
 {
@@ -223,4 +226,38 @@ struct RootSignatureDesc
 
 class RootSignature
 {
+};
+
+// ----------------------------------------------------------------------------
+// Descriptor Heap
+
+// D3D12_DESCRIPTOR_HEAP_TYPE
+enum class EDescriptorHeapType : uint8
+{
+	CBV_SRV_UAV = 0,
+	SAMPLER     = 1,
+	RTV         = 2,
+	DSV         = 3,
+	NUM_TYPES   = 4
+};
+
+// D3D12_DESCRIPTOR_HEAP_FLAGS
+enum class EDescriptorHeapFlags : uint8
+{
+	None          = 0,
+	ShaderVisible = 1,
+};
+
+// D3D12_DESCRIPTOR_HEAP_DESC
+struct DescriptorHeapDesc
+{
+	EDescriptorHeapType type   = EDescriptorHeapType::NUM_TYPES;
+	uint32 numDescriptors      = 0;
+	EDescriptorHeapFlags flags = EDescriptorHeapFlags::None;
+	uint32 nodeMask            = 0;
+};
+
+class DescriptorHeap
+{
+	//
 };

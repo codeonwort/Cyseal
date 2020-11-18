@@ -38,8 +38,19 @@ enum class EClearFlags : uint8
 };
 ENUM_CLASS_FLAGS(EClearFlags);
 
+// #todo: Maybe not needed
 // Base class for buffers and textures
+// ID3D12Resource
 class GPUResource
 {
 	//
+};
+
+// ----------------------------------------
+
+// D3D12 committed resource (resource + implicit heap)
+class ConstantBuffer : public GPUResource
+{
+public:
+	virtual void upload(void* payload, uint32 payloadSize) = 0;
 };
