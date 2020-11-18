@@ -72,6 +72,9 @@ public:
 	virtual void setPipelineState(PipelineState* state) override;
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) override;
 
+	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override;
+	virtual void setGraphicsRootParameter(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap) override;
+
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
 		uint32 instanceCount,

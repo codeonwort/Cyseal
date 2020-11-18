@@ -42,13 +42,17 @@ void D3DSwapChain::initialize(
 	desc.SampleDesc.Count   = 1;
 	desc.SampleDesc.Quality = 0;
 
+	IDXGISwapChain1* tempSwapchain = nullptr;
+
 	HR( dxgiFactory->CreateSwapChainForHwnd(
 			commandQueue,
 			hwnd,
 			&desc,
 			nullptr, nullptr,
-			rawSwapChain.GetAddressOf())
+			&tempSwapchain)
 	);
+
+	rawSwapChain.Attach(static_cast<IDXGISwapChain3*>(tempSwapchain));
 
 	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{
@@ -85,6 +89,11 @@ void D3DSwapChain::swapBackbuffer()
 	currentBackBuffer = (currentBackBuffer + 1) % SWAP_CHAIN_BUFFER_COUNT;
 }
 
+uint32 D3DSwapChain::getCurrentBackbufferIndex() const
+{
+	return rawSwapChain->GetCurrentBackBufferIndex();
+}
+
 GPUResource* D3DSwapChain::getCurrentBackbuffer() const
 {
 	return swapChainBuffers[currentBackBuffer].get();
@@ -97,5 +106,7 @@ RenderTargetView* D3DSwapChain::getCurrentBackbufferRTV() const
 
 void D3DSwapChain::present()
 {
-	HR( rawSwapChain->Present(0, 0) );
+	UINT SyncInterval = 0;
+	UINT Flags = 0;
+	HR( rawSwapChain->Present(SyncInterval, Flags) );
 }

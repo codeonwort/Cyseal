@@ -3,11 +3,7 @@
 #include "swap_chain.h"
 #include "resource_binding.h"
 #include "shader.h"
-
-struct UBO_BasePass
-{
-	float r, g, b, a;
-};
+#include "render_command.h"
 
 void BasePass::initialize()
 {
@@ -27,7 +23,6 @@ void BasePass::initialize()
 
 		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
 	}
-
 	// 1. Create cbv descriptor heaps
 	// 2. Create constant buffers
 	cbvHeap.resize(swapchain->getBufferCount());
@@ -43,7 +38,7 @@ void BasePass::initialize()
 		cbvHeap[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
 
 		constantBuffers[i] = std::unique_ptr<ConstantBuffer>(
-			device->createConstantBuffer(cbvHeap[i].get(), 1024 * 64, sizeof(UBO_BasePass)));
+			device->createConstantBuffer(cbvHeap[i].get(), 1024 * 64, sizeof(ConstantBufferPayload)));
 	}
 
 	// Create input layout
@@ -86,4 +81,19 @@ void BasePass::initialize()
 	{
 		//delete shader;
 	}
+}
+
+void BasePass::bindRootParameter(RenderCommandList* cmdList)
+{
+	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+
+	DescriptorHeap* heaps[] = { cbvHeap[frameIndex].get() };
+	cmdList->setDescriptorHeaps(1, heaps);
+	cmdList->setGraphicsRootParameter(0, heaps[0]);
+}
+
+void BasePass::updateConstantBuffer(void* payload, uint32 payloadSize)
+{
+	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+	constantBuffers[frameIndex]->upload(payload, payloadSize);
 }

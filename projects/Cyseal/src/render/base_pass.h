@@ -6,10 +6,22 @@
 #include "gpu_resource.h"
 #include <memory>
 
+class RenderCommandList;
+
 class BasePass : public RenderPass
 {
 public:
+	struct ConstantBufferPayload
+	{
+		float r, g, b, a;
+	};
+
+public:
 	void initialize();
+
+	// #todo-wip: for test
+	void bindRootParameter(RenderCommandList* cmdList);
+	void updateConstantBuffer(void* payload, uint32 payloadSize);
 
 	inline PipelineState* getPipelineState() const { return pipelineState.get(); }
 	inline RootSignature* getRootSignature() const { return rootSignature.get(); }

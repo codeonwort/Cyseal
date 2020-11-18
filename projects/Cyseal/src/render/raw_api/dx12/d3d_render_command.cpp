@@ -201,6 +201,24 @@ void D3DRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature
 	commandList->SetGraphicsRootSignature(rawSignature);
 }
 
+void D3DRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps)
+{
+	std::vector<ID3D12DescriptorHeap*> rawHeaps;
+	rawHeaps.resize(count);
+	for (uint32 i = 0; i < count; ++i)
+	{
+		rawHeaps[i] = static_cast<D3DDescriptorHeap*>(heaps[i])->getRaw();
+	}
+	commandList->SetDescriptorHeaps(count, rawHeaps.data());
+}
+
+void D3DRenderCommandList::setGraphicsRootParameter(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap)
+{
+	commandList->SetGraphicsRootDescriptorTable(
+		rootParameterIndex,
+		static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw()->GetGPUDescriptorHandleForHeapStart());
+}
+
 void D3DRenderCommandList::drawIndexedInstanced(
 	uint32 indexCountPerInstance,
 	uint32 instanceCount,

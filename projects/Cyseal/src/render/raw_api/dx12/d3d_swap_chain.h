@@ -27,6 +27,7 @@ public:
 	virtual void swapBackbuffer() override;
 	virtual uint32 getBufferCount() override { return SWAP_CHAIN_BUFFER_COUNT; }
 
+	virtual uint32 getCurrentBackbufferIndex() const override;
 	virtual GPUResource* getCurrentBackbuffer() const override;
 	virtual RenderTargetView* getCurrentBackbufferRTV() const override;
 
@@ -47,9 +48,9 @@ private:
 	std::unique_ptr<D3DResource> swapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
 	std::unique_ptr<D3DRenderTargetView> backBufferRTVs[SWAP_CHAIN_BUFFER_COUNT];
 
-	WRL::ComPtr<IDXGISwapChain1> rawSwapChain;
+	WRL::ComPtr<IDXGISwapChain3> rawSwapChain;
 	WRL::ComPtr<ID3D12Resource> rawSwapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
-	UINT currentBackBuffer = 0;
+	UINT currentBackBuffer = 0; // #todo-deprecated: Is this necessary? See IDXGISwapChain3::GetCurrentBackBufferIndex()
 
 	WRL::ComPtr<ID3D12DescriptorHeap> heapRTV;
 

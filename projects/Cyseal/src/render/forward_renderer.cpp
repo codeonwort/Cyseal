@@ -71,8 +71,19 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 	commandList->setPipelineState(basePass->getPipelineState());
 	commandList->setGraphicsRootSignature(basePass->getRootSignature());
 	commandList->iaSetPrimitiveTopology(basePass->getPrimitiveTopology());
+
+	basePass->bindRootParameter(commandList);
+
 	for (const StaticMesh* mesh : scene->staticMeshes)
 	{
+		// #todo-wip: test
+		BasePass::ConstantBufferPayload payload;
+		payload.r = 0.0f;
+		payload.g = 1.0f;
+		payload.b = 0.0f;
+		payload.a = 1.0f;
+		basePass->updateConstantBuffer(&payload, sizeof(payload));
+
 		// Upload transpose(viewProjection * world)
 		//mesh->bind(commandList);
 		for (const StaticMeshSection& section : mesh->getSections())
