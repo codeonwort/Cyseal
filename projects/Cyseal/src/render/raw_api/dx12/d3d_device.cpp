@@ -59,6 +59,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	WRL::ComPtr<IDXGIAdapter1> hardwareAdapter;
 	getHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter);
 
+	// #todo-debug: Fails here if the process is launched by Start Graphics Debugging. (GRFXTool::ToolException)
 	// Create a device with feature level 11.0 to verify if the graphics card supports DX12.
 	const D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0;
 	if (FAILED(D3D12CreateDevice(

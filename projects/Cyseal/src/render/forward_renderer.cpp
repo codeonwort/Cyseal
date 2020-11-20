@@ -64,9 +64,11 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		1.0f, 0);
 
 	//////////////////////////////////////////////////////////////////////////
+	// #todo: Depth pre-pass
+
+	//////////////////////////////////////////////////////////////////////////
 	// Draw static meshes
 	const Matrix viewProjection = camera->getMatrix();
-	// #todo: Apply camera transform
 
 	commandList->setPipelineState(basePass->getPipelineState());
 	commandList->setGraphicsRootSignature(basePass->getRootSignature());
@@ -77,14 +79,18 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 	for (const StaticMesh* mesh : scene->staticMeshes)
 	{
 		// #todo-wip: test
+		const Matrix model = mesh->getTransform().getMatrix();
+		const Matrix MVP = model * viewProjection;
+
 		BasePass::ConstantBufferPayload payload;
+		payload.mvpTransform = MVP;
 		payload.r = 0.0f;
 		payload.g = 1.0f;
 		payload.b = 0.0f;
 		payload.a = 1.0f;
+
 		basePass->updateConstantBuffer(&payload, sizeof(payload));
 
-		// Upload transpose(viewProjection * world)
 		//mesh->bind(commandList);
 		for (const StaticMeshSection& section : mesh->getSections())
 		{

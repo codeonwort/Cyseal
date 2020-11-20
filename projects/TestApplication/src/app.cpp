@@ -18,6 +18,11 @@
 #define WINDOW_TYPE      EWindowType::WINDOWED
 #define RENDERER_TYPE    ERendererType::Forward
 
+#define CAMERA_POSITION  vec3(0.0f, 0.0f, 2.0f)
+#define CAMERA_LOOKAT    vec3(0.0f, 0.0f, 0.0f)
+#define CAMERA_UP        vec3(0.0f, 1.0f, 0.0f)
+#define MESH_POSITION    vec3(0.0f, 0.0f, -1.0f)
+#define MESH_SCALE       1.5f
 
 CysealEngine cysealEngine;
 
@@ -44,6 +49,8 @@ bool Application::onInitialize()
 	cysealEngine.startup(engineInit);
 
 	createResources();
+
+	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	
 	return true;
 }
@@ -76,11 +83,6 @@ void Application::createResources()
 {
 	Geometry icosphere;
 	GeometryGenerator::icosphere(3, icosphere);
-	for (auto& v : icosphere.positions)
-	{
-		v *= 0.5f;
-		v.z += 1.0f;
-	}
 
 	float* vertexData = reinterpret_cast<float*>(icosphere.positions.data());
 	uint32* indexData = icosphere.indices.data();
@@ -98,6 +100,9 @@ void Application::createResources()
 
 	staticMesh = new StaticMesh;
 	staticMesh->addSection(vertexBuffer, indexBuffer, nullptr);
+
+	staticMesh->getTransform().setPosition(MESH_POSITION);
+	staticMesh->getTransform().setScale(MESH_SCALE);
 
 	scene.addStaticMesh(staticMesh);
 }

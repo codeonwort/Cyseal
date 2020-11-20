@@ -13,6 +13,7 @@ class BasePass : public RenderPass
 public:
 	struct ConstantBufferPayload
 	{
+		Matrix mvpTransform;
 		float r, g, b, a;
 	};
 

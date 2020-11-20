@@ -3,7 +3,7 @@
 
 Camera::Camera()
 {
-	perspective(90.0f, 9.0f / 16.0f, 1.0f, 10000.0f);
+	perspective(90.0f, 1920.0f / 1080.0f, 1.0f, 1000.0f);
 	lookAt(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
 }
 
@@ -24,20 +24,26 @@ void Camera::perspective(float fovY_degrees, float aspectWH, float n, float f)
 
 void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
 {
-	vec3 Z = normalize(target - origin);
-	vec3 X = normalize(cross(up, Z));
-	vec3 Y = cross(Z, X);
+	vec3 Z = normalize(target - origin); // forward
+	vec3 X = normalize(cross(up, Z));    // right
+	vec3 Y = cross(Z, X);                // up
 
+	//float V[16] = {
+	//	X.x,             Y.x,             Z.x,             0.0f,
+	//	X.y,             Y.y,             Z.y,             0.0f,
+	//	X.z,             Y.z,             Z.z,             0.0f,
+	//	-dot(X, target), -dot(Y, target), -dot(Z, target), 1.0f
+	//};
 	float V[16] = {
-		X.x,             Y.x,             Z.x,             0.0f,
-		X.y,             Y.y,             Z.y,             0.0f,
-		X.z,             Y.z,             Z.z,             0.0f,
-		-dot(X, target), -dot(Y, target), -dot(Z, target), 1.0f
+		X.x,      X.y,      X.z,      0.0f,
+		Y.x,      Y.y,      Y.z,      0.0f,
+		Z.x,      Z.y,      Z.z,      0.0f,
+		origin.x, origin.y, origin.z, 1.0f
 	};
 	view.getMatrix().copy(V);
 }
 
 void Camera::updateViewProjection() const
 {
-	viewProjection = projection * view.getMatrix();
+	viewProjection = view.getMatrix() * projection;
 }

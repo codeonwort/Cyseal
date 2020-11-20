@@ -37,20 +37,22 @@ void Transform::setScale(const vec3& newScale)
 
 const float* Transform::getMatrixData() const
 {
-	if(dirty)
-	{
-		updateMatrix();
-	}
+	updateMatrix();
 	return &(m.m[0][0]);
 }
 
 void Transform::updateMatrix() const
 {
-	m.identity();
-	m.m[0][0] = scale.x;
-	m.m[1][1] = scale.y;
-	m.m[2][2] = scale.z;
-	m.m[0][3] = position.x;
-	m.m[1][3] = position.y;
-	m.m[2][3] = position.z;
+	if (dirty)
+	{
+		m.identity();
+		m.m[0][0] = scale.x;
+		m.m[1][1] = scale.y;
+		m.m[2][2] = scale.z;
+		m.m[3][0] = position.x;
+		m.m[3][1] = position.y;
+		m.m[3][2] = position.z;
+
+		dirty = false;
+	}
 }
