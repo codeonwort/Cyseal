@@ -219,6 +219,14 @@ void D3DRenderCommandList::setGraphicsRootParameter(uint32 rootParameterIndex, D
 		static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw()->GetGPUDescriptorHandleForHeapStart());
 }
 
+void D3DRenderCommandList::setGraphicsRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues)
+{
+	commandList->SetGraphicsRoot32BitConstant(
+		rootParameterIndex,
+		constant32,
+		destOffsetIn32BitValues);
+}
+
 void D3DRenderCommandList::drawIndexedInstanced(
 	uint32 indexCountPerInstance,
 	uint32 instanceCount,

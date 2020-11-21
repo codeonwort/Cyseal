@@ -38,18 +38,17 @@ private:
 class D3DConstantBuffer : public ConstantBuffer
 {
 public:
-	virtual void upload(void* payload, uint32 payloadSize)
+	virtual void clear()
 	{
-		uint8* mapPtr = nullptr;
+		// Not needed, but for clarity.
+		::memset(mapPtr, 0, resourceHeapSize);
+	}
 
-		// No read from CPU
-		CD3DX12_RANGE readRange(0, 0);
-		HR( rawResource->Map(0, &readRange, reinterpret_cast<void**>(&mapPtr)) );
-		CHECK(mapPtr != nullptr);
+	virtual void upload(uint32 payloadID, void* payload, uint32 payloadSize)
+	{
+		CHECK(payloadID < payloadMaxCount);
 
-		::memcpy_s(mapPtr, payloadSize, payload, payloadSize);
-		
-		rawResource->Unmap(0, &readRange);
+		::memcpy_s(mapPtr + payloadID * payloadSizeAligned, payloadSize, payload, payloadSize);
 	}
 
 	void initialize(
@@ -58,7 +57,11 @@ public:
 		uint32                heapSize,
 		uint32                payloadSize)
 	{
+		CHECK(heapSize > 0 && payloadSize > 0);
 		CHECK(heapSize % (1024 * 64) == 0);
+
+		resourceHeapSize = heapSize;
+		payloadSizeAligned = (payloadSize + 255) & ~255;
 
 		// #todo: It consumes too much memory
 		// Create a committed resource
@@ -70,17 +73,43 @@ public:
 				nullptr,
 				IID_PPV_ARGS(&rawResource)) );
 
-		// Create a CBV
-		D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc;
-		viewDesc.BufferLocation = rawResource->GetGPUVirtualAddress();
-		viewDesc.SizeInBytes = (payloadSize + 255) & ~255;
-		
-		device->CreateConstantBufferView(
-			&viewDesc,
-			descriptorHeap->GetCPUDescriptorHandleForHeapStart());
+		// Create CBVs
+		payloadMaxCount = resourceHeapSize / payloadSizeAligned;
+		for (uint32 payloadId = 0; payloadId < payloadMaxCount; ++payloadId)
+		{
+			D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc;
+			viewDesc.BufferLocation = rawResource->GetGPUVirtualAddress() + (payloadId * payloadSizeAligned);
+			viewDesc.SizeInBytes = payloadSizeAligned;
+
+			D3D12_CPU_DESCRIPTOR_HANDLE descHandle = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+			UINT descHandleInc = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			descHandle.ptr += payloadId * descHandleInc;
+
+			device->CreateConstantBufferView(&viewDesc, descHandle);
+		}
+
+		// No read from CPU
+		CD3DX12_RANGE readRange(0, 0);
+		HR( rawResource->Map(0, &readRange, reinterpret_cast<void**>(&mapPtr)) );
+		CHECK(mapPtr != nullptr);
+	}
+
+	void destroy()
+	{
+		if (rawResource != nullptr)
+		{
+			CD3DX12_RANGE readRange(0, 0);
+			rawResource->Unmap(0, &readRange);
+
+			mapPtr = nullptr;
+		}
 	}
 
 private:
 	WRL::ComPtr<ID3D12Resource> rawResource;
+	uint32 resourceHeapSize = 0; // The size of implicit heap of committed resource
+	uint32 payloadSizeAligned = 0; // 256-bytes aligned
+	uint32 payloadMaxCount = 0;
+	uint8* mapPtr = nullptr;
 
 };

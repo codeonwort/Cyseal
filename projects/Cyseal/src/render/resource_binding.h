@@ -108,6 +108,19 @@ struct RootParameter
 		}
 		shaderVisibility = EShaderVisibility::All;
 	}
+	void initAsConstants(
+		uint32 shaderRegister,
+		uint32 registerSpace,
+		uint32 num32BitValues)
+	{
+		parameterType = ERootParameterType::Constants32Bit;
+		{
+			constants.shaderRegister = shaderRegister;
+			constants.registerSpace = registerSpace;
+			constants.num32BitValues = num32BitValues;
+		}
+		shaderVisibility = EShaderVisibility::All;
+	}
 };
 
 // D3D12_FILTER

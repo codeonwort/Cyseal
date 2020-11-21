@@ -12,33 +12,44 @@ void BasePass::initialize()
 
 	// Create root signature
 	{
-		RootParameter slotRootParameters[1];
+		constexpr uint32 NUM_ROOT_PARAMETERS = 2;
+		RootParameter slotRootParameters[NUM_ROOT_PARAMETERS];
 		
 		DescriptorRange cbvTable;
-		cbvTable.init(EDescriptorRangeType::CBV, 1, 0);
+		cbvTable.init(EDescriptorRangeType::CBV, 1, 1);
 
-		slotRootParameters[0].initAsDescriptorTable(1, &cbvTable);
+		slotRootParameters[0].initAsConstants(0, 0, 1);
+		slotRootParameters[1].initAsDescriptorTable(1, &cbvTable);
 
-		RootSignatureDesc rootSigDesc(1, slotRootParameters, 0, nullptr, ERootSignatureFlags::AllowInputAssemblerInputLayout);
+		RootSignatureDesc rootSigDesc(
+			NUM_ROOT_PARAMETERS,
+			slotRootParameters,
+			0,
+			nullptr,
+			ERootSignatureFlags::AllowInputAssemblerInputLayout);
 
 		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
 	}
+
 	// 1. Create cbv descriptor heaps
 	// 2. Create constant buffers
 	cbvHeap.resize(swapchain->getBufferCount());
 	constantBuffers.resize(swapchain->getBufferCount());
 	for (uint32 i = 0; i < swapchain->getBufferCount(); ++i)
 	{
+		constexpr uint32 PAYLOAD_HEAP_SIZE = 1024 * 64; // 64 KiB
+		constexpr uint32 PAYLOAD_SIZE_ALIGNED = (sizeof(ConstantBufferPayload) + 255) & ~255;
+
 		DescriptorHeapDesc desc;
 		desc.type = EDescriptorHeapType::CBV_SRV_UAV;
-		desc.numDescriptors = 1;
+		desc.numDescriptors = PAYLOAD_HEAP_SIZE / PAYLOAD_SIZE_ALIGNED;
 		desc.flags = EDescriptorHeapFlags::ShaderVisible;
 		desc.nodeMask = 0;
 
 		cbvHeap[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
 
 		constantBuffers[i] = std::unique_ptr<ConstantBuffer>(
-			device->createConstantBuffer(cbvHeap[i].get(), 1024 * 64, sizeof(ConstantBufferPayload)));
+			device->createConstantBuffer(cbvHeap[i].get(), PAYLOAD_HEAP_SIZE, PAYLOAD_SIZE_ALIGNED));
 	}
 
 	// Create input layout
@@ -89,11 +100,11 @@ void BasePass::bindRootParameter(RenderCommandList* cmdList)
 
 	DescriptorHeap* heaps[] = { cbvHeap[frameIndex].get() };
 	cmdList->setDescriptorHeaps(1, heaps);
-	cmdList->setGraphicsRootParameter(0, heaps[0]);
+	cmdList->setGraphicsRootParameter(1, heaps[0]);
 }
 
-void BasePass::updateConstantBuffer(void* payload, uint32 payloadSize)
+void BasePass::updateConstantBuffer(uint32 payloadID, void* payload, uint32 payloadSize)
 {
 	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-	constantBuffers[frameIndex]->upload(payload, payloadSize);
+	constantBuffers[frameIndex]->upload(payloadID, payload, payloadSize);
 }

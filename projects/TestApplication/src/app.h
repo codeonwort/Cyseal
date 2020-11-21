@@ -3,6 +3,9 @@
 #include "app_base.h"
 #include "world/scene.h"
 #include "world/camera.h"
+#include <vector>
+
+class StaticMesh;
 
 class Application : public AppBase
 {
@@ -20,6 +23,6 @@ private:
 	Scene scene;
 	Camera camera;
 
-	class StaticMesh* staticMesh;
+	std::vector<StaticMesh*> staticMeshes;
 
 };

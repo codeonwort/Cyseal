@@ -169,6 +169,11 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 		desc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapCBV_SRV_UAV[i])) );
 	}
+
+	// #todo-shader: Shader Model 6
+	D3D12_FEATURE_DATA_SHADER_MODEL SM = { D3D_SHADER_MODEL::D3D_SHADER_MODEL_5_1 };
+	HR( device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &SM, sizeof(SM)) );
+	CHECK(SM.HighestShaderModel >= D3D_SHADER_MODEL::D3D_SHADER_MODEL_5_1);
 }
 
 void D3DDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
@@ -178,7 +183,7 @@ void D3DDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
 
 	swapChain->initialize(this, hwnd, width, height);
 
-	// 6. Create DSV heap.
+	// Create DSV heap.
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC desc;
 		desc.NumDescriptors = 1;
@@ -323,12 +328,19 @@ RootSignature* D3DDevice::createRootSignature(const RootSignatureDesc& desc)
 
 	WRL::ComPtr<ID3DBlob> serializedRootSig;
 	WRL::ComPtr<ID3DBlob> errorBlob;
-	HR( D3D12SerializeRootSignature(
+	HRESULT result = D3D12SerializeRootSignature(
 		&d3d_desc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		serializedRootSig.GetAddressOf(),
-		errorBlob.GetAddressOf())
-	);
+		errorBlob.GetAddressOf());
+	
+	if (errorBlob != nullptr)
+	{
+		const char* message = reinterpret_cast<char*>(errorBlob->GetBufferPointer());
+		::OutputDebugStringA(message);
+	}
+
+	HR(result);
 
 	D3DRootSignature* rootSignature = new D3DRootSignature;
 	rootSignature->initialize(device.Get(), 0, serializedRootSig->GetBufferPointer(), serializedRootSig->GetBufferSize());

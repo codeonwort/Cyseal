@@ -20,9 +20,9 @@ public:
 public:
 	void initialize();
 
-	// #todo-wip: for test
+	// #todo-wip: constant buffer
 	void bindRootParameter(RenderCommandList* cmdList);
-	void updateConstantBuffer(void* payload, uint32 payloadSize);
+	void updateConstantBuffer(uint32 payloadID, void* payload, uint32 payloadSize);
 
 	inline PipelineState* getPipelineState() const { return pipelineState.get(); }
 	inline RootSignature* getRootSignature() const { return rootSignature.get(); }

@@ -76,9 +76,10 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 	basePass->bindRootParameter(commandList);
 
+	uint32 payloadID = 0;
 	for (const StaticMesh* mesh : scene->staticMeshes)
 	{
-		// #todo-wip: test
+		// #todo-wip: constant buffer
 		const Matrix model = mesh->getTransform().getMatrix();
 		const Matrix MVP = model * viewProjection;
 
@@ -89,15 +90,17 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		payload.b = 0.0f;
 		payload.a = 1.0f;
 
-		basePass->updateConstantBuffer(&payload, sizeof(payload));
+		basePass->updateConstantBuffer(payloadID, &payload, sizeof(payload));
+		commandList->setGraphicsRootConstant32(0, payloadID, 0);
 
-		//mesh->bind(commandList);
 		for (const StaticMeshSection& section : mesh->getSections())
 		{
 			commandList->iaSetVertexBuffers(0, 1, &section.vertexBuffer);
 			commandList->iaSetIndexBuffer(section.indexBuffer);
 			commandList->drawIndexedInstanced(section.indexBuffer->getIndexCount(), 1, 0, 0, 0);
 		}
+
+		++payloadID;
 	}
 
 	//////////////////////////////////////////////////////////////////////////

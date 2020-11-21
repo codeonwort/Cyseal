@@ -6,25 +6,26 @@
 
 static const char* getD3DShaderType(EShaderType type)
 {
+	// #todo-shader: Shader Model 6
 	switch (type)
 	{
 	case EShaderType::VERTEX_SHADER:
-		return "vs_5_0";
+		return "vs_5_1";
 		break;
 	case EShaderType::DOMAIN_SHADER:
-		return "ds_5_0";
+		return "ds_5_1";
 		break;
 	case EShaderType::HULL_SHADER:
-		return "hs_5_0";
+		return "hs_5_1";
 		break;
 	case EShaderType::GEOMETRY_SHADER:
-		return "gs_5_0";
+		return "gs_5_1";
 		break;
 	case EShaderType::PIXEL_SHADER:
-		return "ps_5_0";
+		return "ps_5_1";
 		break;
 	case EShaderType::COMPUTE_SHADER:
-		return "cs_5_0";
+		return "cs_5_1";
 		break;
 	default:
 		CHECK_NO_ENTRY();

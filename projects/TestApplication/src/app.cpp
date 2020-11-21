@@ -18,11 +18,14 @@
 #define WINDOW_TYPE      EWindowType::WINDOWED
 #define RENDERER_TYPE    ERendererType::Forward
 
-#define CAMERA_POSITION  vec3(0.0f, 0.0f, 2.0f)
+#define CAMERA_POSITION  vec3(0.0f, 0.0f, 20.0f)
 #define CAMERA_LOOKAT    vec3(0.0f, 0.0f, 0.0f)
 #define CAMERA_UP        vec3(0.0f, 1.0f, 0.0f)
-#define MESH_POSITION    vec3(0.0f, 0.0f, -1.0f)
-#define MESH_SCALE       1.5f
+
+#define MESH_COUNT           10
+#define MESH_POSITION        vec3(-20.0f, 0.0f, -1.0f)
+#define MESH_POSITION_DELTA  vec3(4.0f, 0.0f, 0.0f)
+#define MESH_SCALE           1.0f
 
 CysealEngine cysealEngine;
 
@@ -98,16 +101,24 @@ void Application::createResources()
 	gRenderDevice->getCommandQueue()->executeCommandList(gRenderDevice->getCommandList());
 	gRenderDevice->flushCommandQueue();
 
-	staticMesh = new StaticMesh;
-	staticMesh->addSection(vertexBuffer, indexBuffer, nullptr);
+	for (uint32 i = 0; i < MESH_COUNT; ++i)
+	{
+		StaticMesh* staticMesh = new StaticMesh;
+		staticMesh->addSection(vertexBuffer, indexBuffer, nullptr);
 
-	staticMesh->getTransform().setPosition(MESH_POSITION);
-	staticMesh->getTransform().setScale(MESH_SCALE);
+		staticMesh->getTransform().setPosition(MESH_POSITION + ((float)i * MESH_POSITION_DELTA));
+		staticMesh->getTransform().setScale(MESH_SCALE);
 
-	scene.addStaticMesh(staticMesh);
+		scene.addStaticMesh(staticMesh);
+		staticMeshes.push_back(staticMesh);
+	}
 }
 
 void Application::destroyResources()
 {
-	delete staticMesh;
+	for (uint32 i = 0; i < staticMeshes.size(); ++i)
+	{
+		delete staticMeshes[i];
+	}
+	staticMeshes.clear();
 }

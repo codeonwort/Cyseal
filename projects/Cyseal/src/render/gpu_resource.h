@@ -43,7 +43,6 @@ ENUM_CLASS_FLAGS(EClearFlags);
 // ID3D12Resource
 class GPUResource
 {
-	//
 };
 
 // ----------------------------------------
@@ -52,5 +51,6 @@ class GPUResource
 class ConstantBuffer : public GPUResource
 {
 public:
-	virtual void upload(void* payload, uint32 payloadSize) = 0;
+	virtual void clear() = 0;
+	virtual void upload(uint32 payloadID, void* payload, uint32 payloadSize) = 0;
 };
