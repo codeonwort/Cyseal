@@ -1,13 +1,8 @@
 #include "app.h"
 #include "core/core_minimal.h"
 #include "render/static_mesh.h"
-#include "render/buffer.h"
+#include "render/gpu_resource.h"
 #include "geometry/primitive.h"
-
-// engine test
-#include "util/unit_test.h"
-#include "render/render_device.h"
-#include "render/render_command.h"
 
 /* -------------------------------------------------------
 					CONFIGURATION
@@ -18,8 +13,21 @@
 #define WINDOW_TYPE      EWindowType::WINDOWED
 #define RENDERER_TYPE    ERendererType::Forward
 
+#define CAMERA_POSITION  vec3(0.0f, 0.0f, 20.0f)
+#define CAMERA_LOOKAT    vec3(0.0f, 0.0f, 0.0f)
+#define CAMERA_UP        vec3(0.0f, 1.0f, 0.0f)
 
-CysealEngine cysealEngine;
+#define MESH_COUNT           10
+#define MESH_POSITION        vec3(-20.0f, 0.0f, -1.0f)
+#define MESH_POSITION_DELTA  vec3(4.0f, 0.0f, 0.0f)
+#define MESH_SCALE           1.0f
+
+/* -------------------------------------------------------
+					UNIT TEST
+--------------------------------------------------------*/
+#include "util/unit_test.h"
+#include "render/render_device.h"
+#include "render/render_command.h"
 
 class UnitTestHello : public UnitTest
 {
@@ -29,6 +37,11 @@ class UnitTestHello : public UnitTest
 	}
 };
 DEFINE_UNIT_TEST(UnitTestHello);
+
+/* -------------------------------------------------------
+					APPLICATION
+--------------------------------------------------------*/
+CysealEngine cysealEngine;
 
 bool Application::onInitialize()
 {
@@ -44,6 +57,8 @@ bool Application::onInitialize()
 	cysealEngine.startup(engineInit);
 
 	createResources();
+
+	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	
 	return true;
 }
@@ -76,11 +91,6 @@ void Application::createResources()
 {
 	Geometry icosphere;
 	GeometryGenerator::icosphere(3, icosphere);
-	for (auto& v : icosphere.positions)
-	{
-		v *= 0.5f;
-		v.z += 1.0f;
-	}
 
 	float* vertexData = reinterpret_cast<float*>(icosphere.positions.data());
 	uint32* indexData = icosphere.indices.data();
@@ -96,13 +106,24 @@ void Application::createResources()
 	gRenderDevice->getCommandQueue()->executeCommandList(gRenderDevice->getCommandList());
 	gRenderDevice->flushCommandQueue();
 
-	staticMesh = new StaticMesh;
-	staticMesh->addSection(vertexBuffer, indexBuffer, nullptr);
+	for (uint32 i = 0; i < MESH_COUNT; ++i)
+	{
+		StaticMesh* staticMesh = new StaticMesh;
+		staticMesh->addSection(vertexBuffer, indexBuffer, nullptr);
 
-	scene.addStaticMesh(staticMesh);
+		staticMesh->getTransform().setPosition(MESH_POSITION + ((float)i * MESH_POSITION_DELTA));
+		staticMesh->getTransform().setScale(MESH_SCALE);
+
+		scene.addStaticMesh(staticMesh);
+		staticMeshes.push_back(staticMesh);
+	}
 }
 
 void Application::destroyResources()
 {
-	delete staticMesh;
+	for (uint32 i = 0; i < staticMeshes.size(); ++i)
+	{
+		delete staticMeshes[i];
+	}
+	staticMeshes.clear();
 }

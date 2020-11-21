@@ -17,6 +17,9 @@ struct RootSignatureDesc;
 class RootSignature;
 struct GraphicsPipelineDesc;
 class PipelineState;
+struct DescriptorHeapDesc;
+class DescriptorHeap;
+class ConstantBuffer;
 
 enum class ERenderDeviceRawAPI
 {
@@ -73,6 +76,11 @@ public:
 	virtual Shader* createShader() = 0;
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
+
+	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
+	// heapSize must be a multiple of 64K
+	// payloadSize must be a multiple of 256
+	virtual ConstantBuffer* createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize) = 0;
 
 	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }
 	inline EPixelFormat getBackbufferDepthFormat() const { return backbufferDepthFormat; }

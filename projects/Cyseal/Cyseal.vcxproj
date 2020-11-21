@@ -107,7 +107,6 @@
     <ClInclude Include="src\render\static_mesh.h" />
     <ClInclude Include="src\render\swap_chain.h" />
     <ClInclude Include="src\render\texture.h" />
-    <ClInclude Include="src\render\buffer.h" />
     <ClInclude Include="src\util\enum_util.h" />
     <ClInclude Include="src\util\logging.h" />
     <ClInclude Include="src\util\profiling.h" />

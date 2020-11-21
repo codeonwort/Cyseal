@@ -9,7 +9,7 @@
 
 VulkanSwapchain::VulkanSwapchain()
 {
-	//
+	swapchainImageCount = 0;
 }
 
 void VulkanSwapchain::initialize(RenderDevice* renderDevice, HWND hwnd, uint32 width, uint32 height)
@@ -29,6 +29,7 @@ void VulkanSwapchain::initialize(RenderDevice* renderDevice, HWND hwnd, uint32 w
 		{
 			imageCount = swapChainSupport.capabilities.maxImageCount;
 		}
+		swapchainImageCount = imageCount;
 
 		VkSwapchainCreateInfoKHR createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;

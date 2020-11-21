@@ -3,9 +3,9 @@
 #include "d3d_shader.h"
 #include "d3d_render_command.h"
 #include "d3d_resource_view.h"
+#include "d3d_pipeline_state.h"
 #include "core/assertion.h"
 #include "util/logging.h"
-#include "d3d_pipeline_state.h"
 
 // #todo-crossapi: Dynamic loading
 #pragma comment(lib, "dxgi.lib")
@@ -59,6 +59,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	WRL::ComPtr<IDXGIAdapter1> hardwareAdapter;
 	getHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter);
 
+	// #todo-debug: Fails here if the process is launched by Start Graphics Debugging. (GRFXTool::ToolException)
 	// Create a device with feature level 11.0 to verify if the graphics card supports DX12.
 	const D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0;
 	if (FAILED(D3D12CreateDevice(
@@ -159,18 +160,20 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	swapChain = (d3dSwapChain = new D3DSwapChain);
 	recreateSwapChain(createParams.hwnd, createParams.windowWidth, createParams.windowHeight);
 
-	// 9. Viewport
-	viewport.TopLeftX = 0.0f;
-	viewport.TopLeftY = 0.0f;
-	viewport.Width    = static_cast<float>(createParams.windowWidth);
-	viewport.Height   = static_cast<float>(createParams.windowHeight);
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
+	// 6. Create descriptor heaps for CBV/SRV/UAV.
+	for (int32 i = 0; i < (int32)D3DSwapChain::SWAP_CHAIN_BUFFER_COUNT; ++i)
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC desc{};
+		desc.NumDescriptors = 1;
+		desc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		desc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapCBV_SRV_UAV[i])) );
+	}
 
-	// 10. Scissor rect
-	scissorRect.left   = scissorRect.top = 0;
-	scissorRect.right  = createParams.windowWidth;
-	scissorRect.bottom = createParams.windowHeight;
+	// #todo-shader: Shader Model 6
+	D3D12_FEATURE_DATA_SHADER_MODEL SM = { D3D_SHADER_MODEL::D3D_SHADER_MODEL_5_1 };
+	HR( device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &SM, sizeof(SM)) );
+	CHECK(SM.HighestShaderModel >= D3D_SHADER_MODEL::D3D_SHADER_MODEL_5_1);
 }
 
 void D3DDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
@@ -180,7 +183,7 @@ void D3DDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
 
 	swapChain->initialize(this, hwnd, width, height);
 
-	// 6. Create DSV heap.
+	// Create DSV heap.
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC desc;
 		desc.NumDescriptors = 1;
@@ -325,12 +328,19 @@ RootSignature* D3DDevice::createRootSignature(const RootSignatureDesc& desc)
 
 	WRL::ComPtr<ID3DBlob> serializedRootSig;
 	WRL::ComPtr<ID3DBlob> errorBlob;
-	HR( D3D12SerializeRootSignature(
+	HRESULT result = D3D12SerializeRootSignature(
 		&d3d_desc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		serializedRootSig.GetAddressOf(),
-		errorBlob.GetAddressOf())
-	);
+		errorBlob.GetAddressOf());
+	
+	if (errorBlob != nullptr)
+	{
+		const char* message = reinterpret_cast<char*>(errorBlob->GetBufferPointer());
+		::OutputDebugStringA(message);
+	}
+
+	HR(result);
 
 	D3DRootSignature* rootSignature = new D3DRootSignature;
 	rootSignature->initialize(device.Get(), 0, serializedRootSig->GetBufferPointer(), serializedRootSig->GetBufferSize());
@@ -348,4 +358,25 @@ PipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc
 	pipeline->initialize(device.Get(), d3d_desc);
 
 	return pipeline;
+}
+
+DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
+{
+	D3D12_DESCRIPTOR_HEAP_DESC d3d_desc;
+	into_d3d::descriptorHeapDesc(desc, d3d_desc);
+
+	D3DDescriptorHeap* heap = new D3DDescriptorHeap;
+	heap->initialize(device.Get(), d3d_desc);
+
+	return heap;
+}
+
+ConstantBuffer* D3DDevice::createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize)
+{
+	ID3D12DescriptorHeap* rawHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+
+	D3DConstantBuffer* cb = new D3DConstantBuffer;
+	cb->initialize(device.Get(), rawHeap, heapSize, payloadSize);
+
+	return cb;
 }

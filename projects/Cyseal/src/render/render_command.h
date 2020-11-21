@@ -11,6 +11,7 @@ class PipelineState;
 class RootSignature;
 class VertexBuffer;
 class IndexBuffer;
+class DescriptorHeap;
 
 // #todo: implement
 class RenderCommand
@@ -90,6 +91,12 @@ public:
 
 	virtual void setPipelineState(PipelineState* state) = 0;
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) = 0;
+
+	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) = 0;
+	// #todo: Misnamed
+	virtual void setGraphicsRootParameter(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap) = 0;
+	// #todo: What is DestOffsetIn32BitValues in ID3D12GraphicsCommandList::SetGraphicsRoot32BitConstants() method?
+	virtual void setGraphicsRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) = 0;
 
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,

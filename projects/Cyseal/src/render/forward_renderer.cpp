@@ -1,10 +1,10 @@
 #include "forward_renderer.h"
-#include "render/render_command.h"
-#include "render/base_pass.h"
-#include "render/swap_chain.h"
 #include "core/assertion.h"
-#include "static_mesh.h"
-#include "buffer.h"
+#include "render/render_command.h"
+#include "render/gpu_resource.h"
+#include "render/swap_chain.h"
+#include "render/base_pass.h"
+#include "render/static_mesh.h"
 
 void ForwardRenderer::initialize(RenderDevice* renderDevice)
 {
@@ -64,23 +64,43 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		1.0f, 0);
 
 	//////////////////////////////////////////////////////////////////////////
+	// #todo: Depth pre-pass
+
+	//////////////////////////////////////////////////////////////////////////
 	// Draw static meshes
 	const Matrix viewProjection = camera->getMatrix();
-	// #todo: Apply camera transform
 
 	commandList->setPipelineState(basePass->getPipelineState());
 	commandList->setGraphicsRootSignature(basePass->getRootSignature());
 	commandList->iaSetPrimitiveTopology(basePass->getPrimitiveTopology());
+
+	basePass->bindRootParameter(commandList);
+
+	uint32 payloadID = 0;
 	for (const StaticMesh* mesh : scene->staticMeshes)
 	{
-		// Upload transpose(viewProjection * world)
-		//mesh->bind(commandList);
+		// #todo-wip: constant buffer
+		const Matrix model = mesh->getTransform().getMatrix();
+		const Matrix MVP = model * viewProjection;
+
+		BasePass::ConstantBufferPayload payload;
+		payload.mvpTransform = MVP;
+		payload.r = 0.0f;
+		payload.g = 1.0f;
+		payload.b = 0.0f;
+		payload.a = 1.0f;
+
+		basePass->updateConstantBuffer(payloadID, &payload, sizeof(payload));
+		commandList->setGraphicsRootConstant32(0, payloadID, 0);
+
 		for (const StaticMeshSection& section : mesh->getSections())
 		{
 			commandList->iaSetVertexBuffers(0, 1, &section.vertexBuffer);
 			commandList->iaSetIndexBuffer(section.indexBuffer);
 			commandList->drawIndexedInstanced(section.indexBuffer->getIndexCount(), 1, 0, 0, 0);
 		}
+
+		++payloadID;
 	}
 
 	//////////////////////////////////////////////////////////////////////////

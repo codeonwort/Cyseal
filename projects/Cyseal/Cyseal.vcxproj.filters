@@ -90,9 +90,6 @@
     <ClInclude Include="src\render\raw_api\dx12\d3d_resource_view.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\buffer.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="src\render\raw_api\dx12\d3d_buffer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>

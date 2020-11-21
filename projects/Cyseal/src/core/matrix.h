@@ -3,9 +3,16 @@
 #include "vec3.h"
 #include <memory.h>
 
-// #todo: SIMD
+// #todo-matrix: SIMD
 
-// row-major
+// #todo-matrix: https://docs.microsoft.com/en-US/windows/win32/direct3dhlsl/dx-graphics-hlsl-per-component-math
+// HLSL matrix packing order is column-major, so I need to choose one among several options:
+//   1. Use row-major in application side and transpose final matrices before uploading to the GPU.
+//   2. Use row-major in application side and use row_major float4x4 in HLSL.
+//   3. Use column-major in application side and, transpose every data and reverse every mul order.
+// Currently I'm going with 2nd option which is the most lazy way.
+
+// Row-major (same convention as DirectXMath's XMMatrix)
 class Matrix
 {
 	friend class Transform;
@@ -85,15 +92,15 @@ public:
 	void setScale(float newScale);
 	void setScale(const vec3& newScale);
 
-	inline const Matrix& getMatrix() const { return m; }
-	inline Matrix& getMatrix() { return m; }
+	inline const Matrix& getMatrix() const { updateMatrix(); return m; }
+	inline Matrix& getMatrix() { updateMatrix(); return m; }
 	const float* getMatrixData() const;
 
 private:
 	void updateMatrix() const;
 
 	vec3 position;
-	// vec3 rotation;
+	// vec3 rotation; // #todo: Rotator
 	vec3 scale;
 
 	mutable bool dirty;

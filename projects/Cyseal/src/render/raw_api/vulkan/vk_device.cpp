@@ -524,6 +524,19 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& desc)
 
 PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& desc)
 {
+	// #todo-vulkan
+	return nullptr;
+}
+
+DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
+{
+	// #todo-vulkan
+	return nullptr;
+}
+
+ConstantBuffer* VulkanDevice::createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize)
+{
+	// #todo-vulkan
 	return nullptr;
 }
 

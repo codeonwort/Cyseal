@@ -25,6 +25,9 @@ public:
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
 
+	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
+	virtual ConstantBuffer* createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize) override;
+
 	inline IDXGIFactory4* getDXGIFactory() const { return dxgiFactory.Get(); }
 	inline ID3D12Device5* getRawDevice() const { return device.Get(); }
 	inline ID3D12CommandQueue* getRawCommandQueue() const { return rawCommandQueue; }
@@ -60,11 +63,9 @@ private:
 	D3DSwapChain*                     d3dSwapChain;
 
 	WRL::ComPtr<ID3D12DescriptorHeap> heapDSV;
+	WRL::ComPtr<ID3D12DescriptorHeap> heapCBV_SRV_UAV[D3DSwapChain::SWAP_CHAIN_BUFFER_COUNT];
 
 	WRL::ComPtr<ID3D12Resource>       rawDepthStencilBuffer;
-
-	D3D12_VIEWPORT                    viewport;
-	D3D12_RECT                        scissorRect;
 
 	uint32                            screenWidth;
 	uint32                            screenHeight;
