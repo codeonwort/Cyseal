@@ -1,13 +1,8 @@
 #include "app.h"
 #include "core/core_minimal.h"
 #include "render/static_mesh.h"
-#include "render/buffer.h"
+#include "render/gpu_resource.h"
 #include "geometry/primitive.h"
-
-// engine test
-#include "util/unit_test.h"
-#include "render/render_device.h"
-#include "render/render_command.h"
 
 /* -------------------------------------------------------
 					CONFIGURATION
@@ -27,7 +22,12 @@
 #define MESH_POSITION_DELTA  vec3(4.0f, 0.0f, 0.0f)
 #define MESH_SCALE           1.0f
 
-CysealEngine cysealEngine;
+/* -------------------------------------------------------
+					UNIT TEST
+--------------------------------------------------------*/
+#include "util/unit_test.h"
+#include "render/render_device.h"
+#include "render/render_command.h"
 
 class UnitTestHello : public UnitTest
 {
@@ -37,6 +37,11 @@ class UnitTestHello : public UnitTest
 	}
 };
 DEFINE_UNIT_TEST(UnitTestHello);
+
+/* -------------------------------------------------------
+					APPLICATION
+--------------------------------------------------------*/
+CysealEngine cysealEngine;
 
 bool Application::onInitialize()
 {

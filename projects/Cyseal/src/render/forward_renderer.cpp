@@ -1,10 +1,10 @@
 #include "forward_renderer.h"
-#include "render/render_command.h"
-#include "render/base_pass.h"
-#include "render/swap_chain.h"
 #include "core/assertion.h"
-#include "static_mesh.h"
-#include "buffer.h"
+#include "render/render_command.h"
+#include "render/gpu_resource.h"
+#include "render/swap_chain.h"
+#include "render/base_pass.h"
+#include "render/static_mesh.h"
 
 void ForwardRenderer::initialize(RenderDevice* renderDevice)
 {

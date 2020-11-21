@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/buffer.h"
+#include "render/gpu_resource.h"
 #include "d3d_util.h"
 
 class RenderDevice;
