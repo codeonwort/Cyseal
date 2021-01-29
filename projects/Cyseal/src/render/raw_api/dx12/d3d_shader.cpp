@@ -1,8 +1,11 @@
 #include "d3d_shader.h"
 #include "d3d_util.h"
 #include "util/resource_finder.h"
+#include "util/logging.h"
 #include "core/assertion.h"
 #include <d3dcompiler.h>
+
+DEFINE_LOG_CATEGORY_STATIC(LogD3DShader);
 
 static const char* getD3DShaderType(EShaderType type)
 {
@@ -82,8 +85,8 @@ void D3DShader::loadFromFile(const TCHAR* filename, const char* entryPoint, ESha
 
 	if (errors != nullptr)
 	{
-		// #todo: log module
-		OutputDebugStringA((char*)errors->GetBufferPointer());
+		const char* errorMessage = (const char*)errors->GetBufferPointer();
+		CYLOG(LogD3DShader, Error, L"%S", errorMessage);
 	}
 
 	HR(hr);

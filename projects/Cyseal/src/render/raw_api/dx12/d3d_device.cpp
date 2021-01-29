@@ -109,11 +109,11 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	{
 		if (rayTracingEnabled)
 		{
-			CYLOG(LogDirectX, Log, TEXT("DXR enabled"));
+			CYLOG(LogDirectX, Log, TEXT("DXR enabled: tier %d"), 1);
 		}
 		else
 		{
-			CYLOG(LogDirectX, Log, TEXT("DXR requested, but failed to be initialized"));
+			CYLOG(LogDirectX, Warning, TEXT("DXR requested, but failed to be initialized"));
 		}
 	}
 

@@ -60,7 +60,7 @@ inline Matrix operator-(const Matrix& A, const Matrix& B)
 	C -= B;
 	return C;
 }
-// #todo: Fast multiplication
+// #todo-matrix: Fast multiplication
 inline Matrix operator*(const Matrix& A, const Matrix& B)
 {
 	Matrix C;
@@ -100,7 +100,7 @@ private:
 	void updateMatrix() const;
 
 	vec3 position;
-	// vec3 rotation; // #todo: Rotator
+	// vec3 rotation; // #todo-matrix: Rotator
 	vec3 scale;
 
 	mutable bool dirty;

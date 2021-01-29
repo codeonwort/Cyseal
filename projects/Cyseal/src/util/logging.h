@@ -15,13 +15,20 @@ static char* LogLevelStrings[] = { "Log", "Warning", "Error", "Fatal" };
 
 struct Logger
 {
-	static void log(const char* inCategory, LogLevel inLevel, const TCHAR* inMessage)
+	// #todo-log: Output to somewhere not stdout (log file, separate GUI, etc...)
+	// #todo-log: Separate logging thread?
+	static void log(const char* inCategory, LogLevel inLevel, const TCHAR* inMessage...)
 	{
-		wchar_t buffer[1024];
-		swprintf_s(buffer, L"[%S][%S]%s\n", inCategory, LogLevelStrings[inLevel], inMessage);
+		wchar_t fmtBuffer[1024];
+		va_list argptr;
+		va_start(argptr, inMessage);
+		_vswprintf_p(fmtBuffer, 1024, inMessage, argptr);
+		va_end(argptr);
 
-		// #todo: Output to somewhere not stdout (log file, separate GUI, etc...)
-		// #todo: Create a separate logging thread
+		wchar_t buffer[1024];
+		swprintf_s(buffer, L"[%S][%S]%s\n", inCategory, LogLevelStrings[inLevel], fmtBuffer);
+
+		// Print
 		wprintf_s(buffer);
 		OutputDebugStringW(buffer);
 	}
@@ -34,8 +41,8 @@ struct Logger
 //		wchar_t buffer[1024];
 //		swprintf_s(buffer, L"[%S][%S]%s\n", inCategory, LogLevelStrings[inLevel], inMessage);
 //
-//		// #todo: Output to somewhere not stdout (log file, separate GUI, etc...)
-//		// #todo: Create a separate logging thread
+//		// #todo-log: Output to somewhere not stdout (log file, separate GUI, etc...)
+//		// #todo-log: Create a separate logging thread
 //		wprintf_s(buffer);
 //		OutputDebugStringW(buffer);
 //	}
@@ -64,4 +71,4 @@ struct LogStructBase
 		LogStruct_##Category() : LogStructBase(#Category) {}					  \
 	} Category;
 
-#define CYLOG(Category, Level, Message) { Logger::log(Category.category, Level, Message); }
+#define CYLOG(Category, Level, Message, ...) { Logger::log(Category.category, Level, Message, __VA_ARGS__); }
