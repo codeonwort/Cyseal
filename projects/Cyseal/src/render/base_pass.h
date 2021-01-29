@@ -1,6 +1,5 @@
 #pragma once
 
-#include "render_pass.h"
 #include "pipeline_state.h"
 #include "resource_binding.h"
 #include "gpu_resource.h"
@@ -8,7 +7,7 @@
 
 class RenderCommandList;
 
-class BasePass : public RenderPass
+class BasePass
 {
 public:
 	struct ConstantBufferPayload
