@@ -200,6 +200,7 @@ struct StaticSamplerDesc
 	EShaderVisibility shaderVisibility;
 };
 
+// D3D12_ROOT_SIGNATURE_FLAGS
 enum class ERootSignatureFlags : uint8
 {
 	None                           = 0,
@@ -214,6 +215,7 @@ enum class ERootSignatureFlags : uint8
 };
 ENUM_CLASS_FLAGS(ERootSignatureFlags);
 
+// D3D12_ROOT_SIGNATURE_DESC
 struct RootSignatureDesc
 {
 	RootSignatureDesc(
@@ -237,6 +239,10 @@ struct RootSignatureDesc
 	ERootSignatureFlags flags;
 };
 
+// ID3D12RootSignature
+// - Defines resource binding for drawcall.
+// - It's a collection of root parameters.
+// - A root parameter is one of root constant, root descirptor, or descriptor table.
 class RootSignature
 {
 };

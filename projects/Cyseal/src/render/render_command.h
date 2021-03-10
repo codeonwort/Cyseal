@@ -2,6 +2,7 @@
 
 #include "gpu_resource.h"
 #include "pipeline_state.h"
+#include <functional>
 
 // Forward Declarations
 class RenderDevice;
@@ -12,15 +13,6 @@ class RootSignature;
 class VertexBuffer;
 class IndexBuffer;
 class DescriptorHeap;
-
-// #todo: implement
-class RenderCommand
-{
-
-public:
-	//
-
-};
 
 // ID3D12CommandQueue
 // VkQueue
@@ -106,3 +98,15 @@ public:
 		uint32 startInstanceLocation) = 0;
 
 };
+
+// #todo-rendercommand: Immediate and flushing for now.
+// It will be not immediate nor flushing when render thread is implemented.
+using RenderCommandLambda = std::function<void()>;
+struct CustomRenderCommand
+{
+	CustomRenderCommand(RenderCommandLambda inLambda);
+
+	RenderCommandLambda lambda;
+};
+
+#define ENQUEUE_RENDER_COMMAND(CommandName) CustomRenderCommand CommandName

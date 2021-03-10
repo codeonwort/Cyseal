@@ -95,16 +95,16 @@ void Application::createResources()
 	float* vertexData = reinterpret_cast<float*>(icosphere.positions.data());
 	uint32* indexData = icosphere.indices.data();
 
-	// #todo: don't deal with allocator, list, and queue here...
-	gRenderDevice->getCommandAllocator()->reset();
-	gRenderDevice->getCommandList()->reset();
+	VertexBuffer* vertexBuffer = nullptr;
+	IndexBuffer* indexBuffer = nullptr;
 
-	VertexBuffer* vertexBuffer = gRenderDevice->createVertexBuffer(vertexData, (uint32)(icosphere.positions.size() * 3 * sizeof(float)), sizeof(float) * 3);
-	IndexBuffer* indexBuffer = gRenderDevice->createIndexBuffer(indexData, (uint32)(icosphere.indices.size() * sizeof(uint32)), EPixelFormat::R32_UINT);
-
-	gRenderDevice->getCommandList()->close();
-	gRenderDevice->getCommandQueue()->executeCommandList(gRenderDevice->getCommandList());
-	gRenderDevice->flushCommandQueue();
+	ENQUEUE_RENDER_COMMAND(UploadIcosphereBuffers)(
+		[&icosphere, &vertexData, &indexData, &vertexBuffer, &indexBuffer]() -> void
+		{
+			vertexBuffer = gRenderDevice->createVertexBuffer(vertexData, (uint32)(icosphere.positions.size() * 3 * sizeof(float)), sizeof(float) * 3);
+			indexBuffer = gRenderDevice->createIndexBuffer(indexData, (uint32)(icosphere.indices.size() * sizeof(uint32)), EPixelFormat::R32_UINT);
+		}
+	);
 
 	for (uint32 i = 0; i < MESH_COUNT; ++i)
 	{
