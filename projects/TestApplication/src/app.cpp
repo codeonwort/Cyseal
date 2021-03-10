@@ -69,11 +69,22 @@ bool Application::onUpdate(float dt)
 	swprintf_s(buf, L"Hello World / FPS: %.2f", 1.0f / dt);
 	setTitle(std::wstring(buf));
 
-	SceneProxy* sceneProxy = scene.createProxy();
+	// #todo-app: Control camera by user input
+	{
+		static float elapsed = 0.0f;
+		elapsed += dt;
+		vec3 posDelta = vec3(10.0f * sinf(elapsed), 0.0f, 5.0f * cosf(elapsed));
+		camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
+	}
 
-	cysealEngine.getRenderer()->render(sceneProxy, &camera);
+	// #todo: Move rendering loop to engine
+	{
+		SceneProxy* sceneProxy = scene.createProxy();
 
-	delete sceneProxy;
+		cysealEngine.getRenderer()->render(sceneProxy, &camera);
+
+		delete sceneProxy;
+	}
 
 	return true;
 }
