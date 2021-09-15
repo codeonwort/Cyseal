@@ -38,6 +38,19 @@ class UnitTestHello : public UnitTest
 };
 DEFINE_UNIT_TEST(UnitTestHello);
 
+class UnitTestVector : public UnitTest
+{
+	virtual bool runTest() override
+	{
+		if (vec3(0.0f, 0.0f, 0.0f) != vec3(0.0f, 0.0f, 0.0f))
+		{
+			return false;
+		}
+		return true;
+	}
+};
+DEFINE_UNIT_TEST(UnitTestVector);
+
 /* -------------------------------------------------------
 					APPLICATION
 --------------------------------------------------------*/

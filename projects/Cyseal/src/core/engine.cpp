@@ -44,8 +44,6 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 	// Unit test
 	UnitTestValidator::runAllUnitTests();
 
-	CYLOG(LogEngine, Log, TEXT("All unit tests are passed."));
-
 	// Startup is finished.
 	state = EEngineState::RUNNING;
 
