@@ -3,6 +3,7 @@
 #include "render/static_mesh.h"
 #include "render/gpu_resource.h"
 #include "geometry/primitive.h"
+#include "loader/image_loader.h"
 
 /* -------------------------------------------------------
 					CONFIGURATION
@@ -50,6 +51,20 @@ class UnitTestVector : public UnitTest
 	}
 };
 DEFINE_UNIT_TEST(UnitTestVector);
+
+DEFINE_LOG_CATEGORY_STATIC(LogTemp);
+class UnitTestImageLoader : public UnitTest
+{
+	virtual bool runTest() override
+	{
+		ImageLoader loader;
+		ImageLoadData loadData;
+		bool success = loader.load(L"bee.png", loadData);
+		CYLOG(LogTemp, Log, TEXT("Test image loader: %s"), success ? TEXT("Success") : TEXT("Failed"));
+		return true;
+	}
+};
+DEFINE_UNIT_TEST(UnitTestImageLoader);
 
 /* -------------------------------------------------------
 					APPLICATION

@@ -162,6 +162,9 @@
     <ClInclude Include="src\core\win\windows_critical_section.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\loader\image_loader.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -246,6 +249,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\core\win\windows_critical_section.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\loader\image_loader.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

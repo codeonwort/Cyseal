@@ -57,14 +57,18 @@ struct LogStructBase
 	const char* category;
 };
 
+// Must use with DEFINE_LOG_CATEGORY().
+// Any source files that include the header can access this category.
 #define DECLARE_LOG_CATEGORY(Category)                                            \
 	extern struct LogStruct_##Category : LogStructBase						      \
 	{																			  \
 		LogStruct_##Category() : LogStructBase(#Category) {}					  \
 	} Category;
 
+// Must use with DECLARE_LOG_CATEGORY().
 #define DEFINE_LOG_CATEGORY(Category) LogStruct_##Category Category;
 
+// Define in a .cpp file and only can access within that file.
 #define DEFINE_LOG_CATEGORY_STATIC(Category)                                      \
 	static struct LogStruct_##Category : LogStructBase						      \
 	{																			  \
