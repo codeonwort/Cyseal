@@ -94,6 +94,7 @@
     <ClInclude Include="src\render\raw_api\dx12\d3d_resource_view.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_shader.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_swap_chain.h" />
+    <ClInclude Include="src\render\raw_api\dx12\d3d_texture.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_util.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_device.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_shader.h" />
@@ -135,6 +136,7 @@
     <ClCompile Include="src\render\raw_api\dx12\d3d_render_command.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_shader.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_swap_chain.cpp" />
+    <ClCompile Include="src\render\raw_api\dx12\d3d_texture.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_util.cpp" />
     <ClCompile Include="src\render\raw_api\vulkan\vk_device.cpp" />
     <ClCompile Include="src\render\raw_api\vulkan\vk_shader.cpp" />

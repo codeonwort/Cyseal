@@ -27,6 +27,8 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 	commandAllocator->reset();
 	commandList->reset();
 
+	commandList->executeCustomCommands();
+
 	commandList->transitionResource(
 		currentBackBuffer,
 		EGPUResourceState::PRESENT,
@@ -60,7 +62,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 	commandList->clearDepthStencilView(
 		defaultDSV,
-		EClearFlags::DEPTH | EClearFlags::STENCIL,
+		EDepthClearFlags::DEPTH_STENCIL,
 		1.0f, 0);
 
 	//////////////////////////////////////////////////////////////////////////

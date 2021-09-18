@@ -13,15 +13,39 @@ RenderCommandList::~RenderCommandList()
 {
 }
 
-CustomRenderCommand::CustomRenderCommand(RenderCommandLambda inLambda)
-	: lambda(inLambda)
+void RenderCommandList::enqueueCustomCommand(CustomCommandType lambda)
 {
-	gRenderDevice->getCommandAllocator()->reset();
-	gRenderDevice->getCommandList()->reset();
+	customCommands.push_back(lambda);
+}
 
-	lambda();
+void RenderCommandList::executeCustomCommands()
+{
+	for (CustomCommandType lambda : customCommands)
+	{
+		lambda(*this);
+	}
+	customCommands.clear();
+}
 
-	gRenderDevice->getCommandList()->close();
-	gRenderDevice->getCommandQueue()->executeCommandList(gRenderDevice->getCommandList());
+// ---------------------------------------------------------------------
+
+EnqueueCustomRenderCommand::EnqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda)
+{
+	RenderCommandList* commandList = gRenderDevice->getCommandList();
+	commandList->enqueueCustomCommand(inLambda);
+}
+
+FlushRenderCommands::FlushRenderCommands()
+{
+	RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator();
+	RenderCommandList* commandList = gRenderDevice->getCommandList();
+	RenderCommandQueue* commandQueue = gRenderDevice->getCommandQueue();
+
+	commandAllocator->reset();
+	commandList->reset();
+	commandList->executeCustomCommands();
+	commandList->close();
+	commandQueue->executeCommandList(commandList);
+
 	gRenderDevice->flushCommandQueue();
 }

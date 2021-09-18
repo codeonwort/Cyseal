@@ -44,8 +44,9 @@ public:
 // VkCommandBuffer
 class RenderCommandList
 {
-	
 public:
+	using CustomCommandType = std::function<void(RenderCommandList&)>;
+
 	virtual ~RenderCommandList();
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
@@ -74,7 +75,7 @@ public:
 
 	virtual void clearDepthStencilView(
 		DepthStencilView* DSV,
-		EClearFlags clearFlags,
+		EDepthClearFlags clearFlags,
 		float depth,
 		uint8_t stencil) = 0;
 
@@ -97,16 +98,28 @@ public:
 		int32 baseVertexLocation,
 		uint32 startInstanceLocation) = 0;
 
+	void enqueueCustomCommand(CustomCommandType lambda);
+	void executeCustomCommands();
+
+private:
+	std::vector<CustomCommandType> customCommands;
 };
 
-// #todo-rendercommand: Immediate and flushing for now.
-// It will be not immediate nor flushing when render thread is implemented.
-using RenderCommandLambda = std::function<void()>;
-struct CustomRenderCommand
+// #todo-rendercommand: Currently every custom commands are executed prior to whole internal rendering pipeline.
+// Needs a lambda wrapper for each internal command for perfect queueing.
+struct EnqueueCustomRenderCommand
 {
-	CustomRenderCommand(RenderCommandLambda inLambda);
-
-	RenderCommandLambda lambda;
+	EnqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda);
+};
+// #todo-render-command: Resets the list and only executes custom commands registered so far.
+// Just a hack due to incomplete render command list support.
+struct FlushRenderCommands
+{
+	FlushRenderCommands();
 };
 
-#define ENQUEUE_RENDER_COMMAND(CommandName) CustomRenderCommand CommandName
+#define ENQUEUE_RENDER_COMMAND(CommandName) EnqueueCustomRenderCommand CommandName
+
+#define FLUSH_RENDER_COMMANDS_INTERNAL(x, y) x ## y
+#define FLUSH_RENDER_COMMANDS_INTERNAL2(x, y) FLUSH_RENDER_COMMANDS_INTERNAL(x, y)
+#define FLUSH_RENDER_COMMANDS() FlushRenderCommands FLUSH_RENDER_COMMANDS_INTERNAL2(flushRenderCommands_, __LINE__)

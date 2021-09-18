@@ -63,7 +63,7 @@ public:
 
 	virtual void clearDepthStencilView(
 		DepthStencilView* DSV,
-		EClearFlags clearFlags,
+		EDepthClearFlags clearFlags,
 		float depth,
 		uint8_t stencil) override;
 

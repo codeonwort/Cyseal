@@ -2,6 +2,7 @@
 
 #include "core/types.h"
 #include "pixel_format.h"
+#include "texture.h"
 #include <Windows.h> // #todo-crossplatform: Windows only for now
 
 class SwapChain;
@@ -73,6 +74,7 @@ public:
 
 	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes) = 0;
 	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) = 0;
+	virtual Texture* createTexture(const TextureCreateParams& createParams) = 0;
 	virtual Shader* createShader() = 0;
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;

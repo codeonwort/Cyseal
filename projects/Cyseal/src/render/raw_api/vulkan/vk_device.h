@@ -42,6 +42,7 @@ public:
 
 	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes) override;
 	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) override;
+	virtual Texture* createTexture(const TextureCreateParams& createParams) override;
 	virtual Shader* createShader() override;
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;

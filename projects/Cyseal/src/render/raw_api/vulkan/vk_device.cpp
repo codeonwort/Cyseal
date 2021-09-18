@@ -511,6 +511,12 @@ IndexBuffer* VulkanDevice::createIndexBuffer(void* data, uint32 sizeInBytes, EPi
 	return nullptr;
 }
 
+Texture* VulkanDevice::createTexture(const TextureCreateParams& createParams)
+{
+	// #todo-vulkan
+	return nullptr;
+}
+
 Shader* VulkanDevice::createShader()
 {
 	return new VulkanShader;

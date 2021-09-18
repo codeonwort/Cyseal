@@ -166,7 +166,7 @@ void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const fl
 
 void D3DRenderCommandList::clearDepthStencilView(
 	DepthStencilView* DSV,
-	EClearFlags clearFlags,
+	EDepthClearFlags clearFlags,
 	float depth,
 	uint8_t stencil)
 {

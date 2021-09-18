@@ -1,5 +1,6 @@
 #include "d3d_device.h"
 #include "d3d_buffer.h"
+#include "d3d_texture.h"
 #include "d3d_shader.h"
 #include "d3d_render_command.h"
 #include "d3d_resource_view.h"
@@ -279,6 +280,7 @@ void D3DDevice::flushCommandQueue()
 	if (fence->GetCompletedValue() < currentFence)
 	{
 		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+		CHECK(eventHandle != 0);
 
 		// Fire event when GPU hits current fence.  
 		HR( fence->SetEventOnCompletion(currentFence, eventHandle) );
@@ -313,6 +315,14 @@ IndexBuffer* D3DDevice::createIndexBuffer(void* data, uint32 sizeInBytes, EPixel
 	D3DIndexBuffer* buffer = new D3DIndexBuffer;
 	buffer->initialize(data, sizeInBytes, format);
 	return buffer;
+}
+
+Texture* D3DDevice::createTexture(const TextureCreateParams& createParams)
+{
+	// #todo-texture
+	D3DTexture* texture = new D3DTexture;
+	texture->initialize(createParams);
+	return texture;
 }
 
 Shader* D3DDevice::createShader()

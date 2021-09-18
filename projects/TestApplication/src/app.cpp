@@ -138,12 +138,13 @@ void Application::createResources()
 	IndexBuffer* indexBuffer = nullptr;
 
 	ENQUEUE_RENDER_COMMAND(UploadIcosphereBuffers)(
-		[&icosphere, &vertexData, &indexData, &vertexBuffer, &indexBuffer]() -> void
+		[&icosphere, &vertexData, &indexData, &vertexBuffer, &indexBuffer](RenderCommandList& commandList)
 		{
 			vertexBuffer = gRenderDevice->createVertexBuffer(vertexData, (uint32)(icosphere.positions.size() * 3 * sizeof(float)), sizeof(float) * 3);
 			indexBuffer = gRenderDevice->createIndexBuffer(indexData, (uint32)(icosphere.indices.size() * sizeof(uint32)), EPixelFormat::R32_UINT);
 		}
 	);
+	FLUSH_RENDER_COMMANDS();
 
 	for (uint32 i = 0; i < MESH_COUNT; ++i)
 	{

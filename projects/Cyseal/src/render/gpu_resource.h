@@ -5,6 +5,7 @@
 #include "pixel_format.h"
 
 // GPU Resources = Buffers + Textures
+// #todo: merge with texture.h?
 
 enum class EGPUResourceState : uint32
 {
@@ -32,12 +33,13 @@ enum class EGPUResourceState : uint32
 	VIDEO_PROCESS_WRITE        = 0x80000
 };
 
-enum class EClearFlags : uint8
+enum class EDepthClearFlags : uint8
 {
 	DEPTH   = 0x1,
-	STENCIL = 0x2
+	STENCIL = 0x2,
+	DEPTH_STENCIL = DEPTH | STENCIL
 };
-ENUM_CLASS_FLAGS(EClearFlags);
+ENUM_CLASS_FLAGS(EDepthClearFlags);
 
 // #todo: Maybe not needed
 // Base class for buffers and textures
