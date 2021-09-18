@@ -5,6 +5,7 @@
 #include "world/camera.h"
 #include <vector>
 
+class Texture;
 class StaticMesh;
 
 class Application : public AppBase
@@ -23,6 +24,7 @@ private:
 	Scene scene;
 	Camera camera;
 
+	Texture* texture;
 	std::vector<StaticMesh*> staticMeshes;
 
 };

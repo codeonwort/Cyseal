@@ -4,6 +4,9 @@
 #include "d3d_util.h"
 #include "d3d_swap_chain.h"
 
+// #todo-renderdevice: Magic number
+#define MAX_SRV_DESCRIPTORS 1024
+
 class D3DDevice : public RenderDevice
 {
 
@@ -32,6 +35,19 @@ public:
 	inline IDXGIFactory4* getDXGIFactory() const { return dxgiFactory.Get(); }
 	inline ID3D12Device5* getRawDevice() const { return device.Get(); }
 	inline ID3D12CommandQueue* getRawCommandQueue() const { return rawCommandQueue; }
+
+	// #todo-renderdevice: Needs abstraction layer and release mechanism
+	inline ID3D12DescriptorHeap* getRawSRVHeap() const { return heapSRV.Get(); }
+	inline D3D12_CPU_DESCRIPTOR_HANDLE allocateSRVHeapHandle()
+	{
+		CHECK(heapSRVOffset < MAX_SRV_DESCRIPTORS);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = heapSRV->GetCPUDescriptorHandleForHeapStart();
+		handle.ptr += SIZE_T(heapSRVOffset) * SIZE_T(descSizeCBV_SRV_UAV);
+		++heapSRVOffset;
+
+		return handle;
+	}
 
 private:
 	void getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter);
@@ -64,7 +80,10 @@ private:
 	D3DSwapChain*                     d3dSwapChain;
 
 	WRL::ComPtr<ID3D12DescriptorHeap> heapDSV;
-	WRL::ComPtr<ID3D12DescriptorHeap> heapCBV_SRV_UAV[D3DSwapChain::SWAP_CHAIN_BUFFER_COUNT];
+	WRL::ComPtr<ID3D12DescriptorHeap> heapSRV;
+	uint32                            heapSRVOffset = 0;
+	// #todo-renderdevice: Do I need this? and as many as swap chain length?
+	//WRL::ComPtr<ID3D12DescriptorHeap> heapCBV_SRV_UAV[D3DSwapChain::SWAP_CHAIN_BUFFER_COUNT];
 
 	WRL::ComPtr<ID3D12Resource>       rawDepthStencilBuffer;
 

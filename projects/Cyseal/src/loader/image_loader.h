@@ -14,6 +14,9 @@ struct ImageLoadData
 		}
 	}
 
+	inline uint64 getRowPitch() const { return uint64(width) * uint64(numComponents); }
+	inline uint64 getSlicePitch() const { return getRowPitch() * uint64(height); }
+
 	uint8* buffer = nullptr;
 	uint32 length = 0; // Size in bytes
 	uint32 width = 0;

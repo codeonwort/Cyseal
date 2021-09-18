@@ -34,6 +34,7 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 	ResourceFinder::get().add(L"../");
 	ResourceFinder::get().add(L"../../");
 	ResourceFinder::get().add(L"../../shaders/");
+	ResourceFinder::get().add(L"../../resource/");
 
 	// Rendering
 	createRenderDevice(createParams.renderDevice);

@@ -60,7 +60,8 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	WRL::ComPtr<IDXGIAdapter1> hardwareAdapter;
 	getHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter);
 
-	// #todo-debug: Fails here if the process is launched by Start Graphics Debugging. (GRFXTool::ToolException)
+	// Warning: Fails here if the process is launched by Start Graphics Debugging. (GRFXTool::ToolException)
+	//          OK, seems VS-integrated Graphics Debugging is not maintained anymore and I have to use PIX :/
 	// Create a device with feature level 11.0 to verify if the graphics card supports DX12.
 	const D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0;
 	if (FAILED(D3D12CreateDevice(
@@ -162,13 +163,20 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	recreateSwapChain(createParams.hwnd, createParams.windowWidth, createParams.windowHeight);
 
 	// 6. Create descriptor heaps for CBV/SRV/UAV.
-	for (int32 i = 0; i < (int32)D3DSwapChain::SWAP_CHAIN_BUFFER_COUNT; ++i)
+	//for (int32 i = 0; i < (int32)D3DSwapChain::SWAP_CHAIN_BUFFER_COUNT; ++i)
+	//{
+	//	D3D12_DESCRIPTOR_HEAP_DESC desc{};
+	//	desc.NumDescriptors = 1;
+	//	desc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	//	desc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	//	HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapCBV_SRV_UAV[i])) );
+	//}
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC desc{};
-		desc.NumDescriptors = 1;
-		desc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		desc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapCBV_SRV_UAV[i])) );
+		desc.NumDescriptors = MAX_SRV_DESCRIPTORS;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapSRV)) );
 	}
 
 	// #todo-shader: Shader Model 6

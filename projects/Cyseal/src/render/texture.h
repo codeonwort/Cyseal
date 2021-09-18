@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gpu_resource.h"
+#include "render_command.h"
 
 // ------------------------------------ //
 // #todo-vulkan: Vulkan API for texture //
@@ -89,6 +90,10 @@ struct TextureCreateParams
 
 class Texture : public GPUResource
 {
+public:
+    virtual void uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch) = 0;
+    virtual void setDebugName(const wchar_t* debugName) = 0;
+
 private:
     // #todo-texture
     // SRV

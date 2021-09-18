@@ -146,8 +146,7 @@ void D3DRenderCommandList::transitionResource(
 	EGPUResourceState stateBefore,
 	EGPUResourceState stateAfter)
 {
-	auto d3dResource = static_cast<D3DResource*>(resource);
-	auto rawResource = d3dResource->getRaw();
+	ID3D12Resource* rawResource = static_cast<D3DResource*>(resource)->getRaw();
 
 	commandList->ResourceBarrier(
 		1, &CD3DX12_RESOURCE_BARRIER::Transition(

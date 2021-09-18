@@ -1,6 +1,7 @@
 #include "d3d_texture.h"
 #include "d3d_device.h"
 #include "d3d_pipeline_state.h"
+#include "d3d_render_command.h"
 #include "core/assertion.h"
 
 // Convert API-agnostic structs into D3D12 structs
@@ -44,12 +45,6 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 {
 	auto device = getD3DDevice()->getRawDevice();
 	D3D12_RESOURCE_DESC textureDesc = into_d3d::textureDesc(params);
-
-	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
-	// the command list that references it has finished executing on the GPU.
-	// We will flush the GPU at the end of this method to ensure the resource is not
-	// prematurely destroyed.
-	WRL::ComPtr<ID3D12Resource> textureUploadHeap;
 	
 	HR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -68,22 +63,8 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&textureUploadHeap)));
-
-	// #todo-texture: Upload initial data
-	// Needs access to command list
-	//D3D12_SUBRESOURCE_DATA textureData;
-	//textureData.pData = &inTextureData;
-	//textureData.RowPitch = textureDesc.Width * bytesPerPixel;
-	//textureData.SlicePitch = textureData.RowPitch * textureDesc.Height;
-	//UpdateSubresources(commandList, rawResource.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
-	//commandList->ResourceBarrier(1,
-	//	&CD3DX12_RESOURCE_BARRIER::Transition(
-	//		rawResource.Get(),
-	//		D3D12_RESOURCE_STATE_COPY_DEST,
-	//		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	
-	// #todo-texture: Create texture views
-	// Needs access to srvHeap
+	// #todo-texture: RTV and UAV
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	srvDesc.Format = textureDesc.Format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -92,5 +73,28 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	srvDesc.Texture2D.MipLevels = textureDesc.MipLevels;
 	srvDesc.Texture2D.PlaneSlice = 0;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	//device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	srvHandle = getD3DDevice()->allocateSRVHeapHandle();
+	device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHandle);
+}
+
+void D3DTexture::uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch)
+{
+	ID3D12GraphicsCommandList* rawCommandList = static_cast<D3DRenderCommandList*>(&commandList)->getRaw();
+
+	D3D12_SUBRESOURCE_DATA textureData;
+	textureData.pData = buffer;
+	textureData.RowPitch = rowPitch;
+	textureData.SlicePitch = slicePitch;
+
+	UpdateSubresources(rawCommandList, rawResource.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
+
+	commandList.transitionResource(this,
+		EGPUResourceState::COPY_DEST,
+		EGPUResourceState::PIXEL_SHADER_RESOURCE);
+}
+
+void D3DTexture::setDebugName(const wchar_t* debugName)
+{
+	rawResource->SetName(debugName);
 }
