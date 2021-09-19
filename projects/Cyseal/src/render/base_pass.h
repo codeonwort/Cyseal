@@ -6,6 +6,7 @@
 #include <memory>
 
 class RenderCommandList;
+class Material;
 
 class BasePass
 {
@@ -22,6 +23,7 @@ public:
 	// #todo-wip: constant buffer
 	void bindRootParameter(RenderCommandList* cmdList);
 	void updateConstantBuffer(uint32 payloadID, void* payload, uint32 payloadSize);
+	void updateMaterial(uint32 payloadID, Material* material);
 
 	inline PipelineState* getPipelineState() const { return pipelineState.get(); }
 	inline RootSignature* getRootSignature() const { return rootSignature.get(); }

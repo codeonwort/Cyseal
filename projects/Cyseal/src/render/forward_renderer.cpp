@@ -84,6 +84,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		// #todo-wip: constant buffer
 		const Matrix model = mesh->getTransform().getMatrix();
 		const Matrix MVP = model * viewProjection;
+		Material* material = mesh->getMaterial();
 
 		BasePass::ConstantBufferPayload payload;
 		payload.mvpTransform = MVP;
@@ -93,6 +94,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		payload.a = 1.0f;
 
 		basePass->updateConstantBuffer(payloadID, &payload, sizeof(payload));
+		basePass->updateMaterial(payloadID, material);
 		commandList->setGraphicsRootConstant32(0, payloadID, 0);
 
 		for (const StaticMeshSection& section : mesh->getSections())

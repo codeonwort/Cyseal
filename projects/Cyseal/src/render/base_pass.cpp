@@ -5,6 +5,8 @@
 #include "shader.h"
 #include "render_command.h"
 
+#include "static_mesh.h" // #todo-wip: for Material
+
 void BasePass::initialize()
 {
 	RenderDevice* device = gRenderDevice;
@@ -12,20 +14,32 @@ void BasePass::initialize()
 
 	// Create root signature
 	{
-		constexpr uint32 NUM_ROOT_PARAMETERS = 2;
+		constexpr uint32 NUM_ROOT_PARAMETERS = 3;
 		RootParameter slotRootParameters[NUM_ROOT_PARAMETERS];
 		
-		DescriptorRange cbvTable;
-		cbvTable.init(EDescriptorRangeType::CBV, 1, 1);
+		DescriptorRange descriptorRanges[2];
+		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1);
+		descriptorRanges[1].init(EDescriptorRangeType::SRV, 1, 0);
 
 		slotRootParameters[0].initAsConstants(0, 0, 1);
-		slotRootParameters[1].initAsDescriptorTable(1, &cbvTable);
+		slotRootParameters[1].initAsDescriptorTable(1, &descriptorRanges[0]);
+		slotRootParameters[2].initAsDescriptorTable(1, &descriptorRanges[1]);
+
+		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
+		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
+
+		ZeroMemory(staticSamplers + 0, sizeof(staticSamplers[0]));
+		staticSamplers[0].filter = ETextureFilter::MIN_MAG_MIP_POINT;
+		staticSamplers[0].addressU = ETextureAddressMode::Clamp;
+		staticSamplers[0].addressV = ETextureAddressMode::Clamp;
+		staticSamplers[0].addressW = ETextureAddressMode::Clamp;
+		staticSamplers[0].shaderVisibility = EShaderVisibility::Pixel;
 
 		RootSignatureDesc rootSigDesc(
 			NUM_ROOT_PARAMETERS,
 			slotRootParameters,
-			0,
-			nullptr,
+			NUM_STATIC_SAMPLERS,
+			staticSamplers,
 			ERootSignatureFlags::AllowInputAssemblerInputLayout);
 
 		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
@@ -98,13 +112,26 @@ void BasePass::bindRootParameter(RenderCommandList* cmdList)
 {
 	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
+	// #todo-wip: Need to somehow bring srv heap from d3d_device to here.
+	// https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12graphicscommandlist-setdescriptorheaps
+	//   Only one descriptor heap of each type can be set at one time,
+	//   which means a maximum of 2 heaps (one sampler, one CBV/SRV/UAV) can be set at one time.
 	DescriptorHeap* heaps[] = { cbvHeap[frameIndex].get() };
 	cmdList->setDescriptorHeaps(1, heaps);
-	cmdList->setGraphicsRootParameter(1, heaps[0]);
+	cmdList->setGraphicsRootDescriptorTable(1, heaps[0]);
+	//cmdList->setGraphicsRootDescriptorTable(2, heaps[0]);
 }
 
 void BasePass::updateConstantBuffer(uint32 payloadID, void* payload, uint32 payloadSize)
 {
 	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 	constantBuffers[frameIndex]->upload(payloadID, payload, payloadSize);
+}
+
+void BasePass::updateMaterial(uint32 payloadID, Material* material)
+{
+	// #todo-wip: updateMaterial
+	if (material) {
+		Texture* albedo = material->albedo;
+	}
 }

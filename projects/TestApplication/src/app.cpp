@@ -181,10 +181,13 @@ void Application::createResources()
 	);
 	FLUSH_RENDER_COMMANDS();
 
+	Material* baseMaterial = new Material;
+	baseMaterial->albedo = texture;
+
 	for (uint32 i = 0; i < MESH_COUNT; ++i)
 	{
 		StaticMesh* staticMesh = new StaticMesh;
-		staticMesh->addSection(vertexBuffer, indexBuffer, nullptr);
+		staticMesh->addSection(vertexBuffer, indexBuffer, baseMaterial);
 
 		staticMesh->getTransform().setPosition(MESH_POSITION + ((float)i * MESH_POSITION_DELTA));
 		staticMesh->getTransform().setScale(MESH_SCALE);

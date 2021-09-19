@@ -5,7 +5,14 @@
 
 class VertexBuffer;
 class IndexBuffer;
-class Material;
+class Texture;
+
+// #todo-material: Temp
+class Material
+{
+public:
+	Texture* albedo = nullptr;
+};
 
 class StaticMeshSection
 {
@@ -25,6 +32,9 @@ public:
 
 	void addSection(VertexBuffer* vertexBuffer, IndexBuffer* indexBuffer, Material* material);
 
+	inline Material* getMaterial() const { return material; }
+	void setMaterial(Material* inMaterial) { material = inMaterial; }
+
 	inline const std::vector<StaticMeshSection>& getSections() const { return sections; }
 
 	inline Transform& getTransform() { return transform; }
@@ -35,4 +45,6 @@ private:
 
 	Transform transform;
 
+	// #todo-material: Temp
+	Material* material = nullptr;
 };

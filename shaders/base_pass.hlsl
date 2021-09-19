@@ -12,6 +12,9 @@ struct MaterialConstants
 ConstantBuffer<IdConstant> objectConstants : register(b0);
 ConstantBuffer<MaterialConstants> materialConstants[] : register(b1);
 
+Texture2D albedoTexture : register(t0);
+SamplerState albedoSampler : register(s0);
+
 uint getObjectId() { return objectConstants.objectId; }
 MaterialConstants getMaterialData() { return materialConstants[getObjectId()]; }
 

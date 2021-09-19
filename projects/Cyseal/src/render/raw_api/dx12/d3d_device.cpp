@@ -327,7 +327,6 @@ IndexBuffer* D3DDevice::createIndexBuffer(void* data, uint32 sizeInBytes, EPixel
 
 Texture* D3DDevice::createTexture(const TextureCreateParams& createParams)
 {
-	// #todo-texture
 	D3DTexture* texture = new D3DTexture;
 	texture->initialize(createParams);
 	return texture;

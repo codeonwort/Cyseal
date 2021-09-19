@@ -24,4 +24,3 @@ void StaticMesh::addSection(VertexBuffer* vertexBuffer, IndexBuffer* indexBuffer
 
 	sections.emplace_back(section);
 }
-
