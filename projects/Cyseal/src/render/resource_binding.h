@@ -239,6 +239,7 @@ struct RootSignatureDesc
 	ERootSignatureFlags flags;
 };
 
+// https://docs.microsoft.com/en-us/windows/win32/direct3d12/root-signatures-overview
 // ID3D12RootSignature
 // - Defines resource binding for drawcall.
 // - It's a collection of root parameters.

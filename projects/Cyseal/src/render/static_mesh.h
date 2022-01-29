@@ -7,7 +7,7 @@ class VertexBuffer;
 class IndexBuffer;
 class Texture;
 
-// #todo-material: Temp
+// todo-material: Temp class Material
 class Material
 {
 public:

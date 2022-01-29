@@ -213,7 +213,7 @@ void D3DRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* cons
 
 void D3DRenderCommandList::setGraphicsRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap)
 {
-	// #todo-wip: You can't just throw the heap as an argument... where is the offset?
+	// todo-wip: You can't just throw the heap as an argument... where is the offset?
 	commandList->SetGraphicsRootDescriptorTable(
 		rootParameterIndex,
 		static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw()->GetGPUDescriptorHandleForHeapStart());

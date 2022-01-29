@@ -20,8 +20,9 @@ public:
 public:
 	void initialize();
 
-	// #todo-wip: constant buffer
-	void bindRootParameter(RenderCommandList* cmdList);
+	// Bind root parameters for the current root signature
+	void bindRootParameters(RenderCommandList* cmdList);
+
 	void updateConstantBuffer(uint32 payloadID, void* payload, uint32 payloadSize);
 	void updateMaterial(uint32 payloadID, Material* material);
 

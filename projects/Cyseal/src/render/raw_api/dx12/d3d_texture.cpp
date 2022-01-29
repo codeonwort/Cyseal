@@ -74,7 +74,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	srvDesc.Texture2D.PlaneSlice = 0;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-	// #todo-wip: Is this the right time to create the SRV?
+	// todo-wip: Is this the right time to create the SRV?
 	// Should I create SRVs every frame for current swapchain index?
 	srvHandle = getD3DDevice()->allocateSRVHeapHandle();
 	device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHandle);

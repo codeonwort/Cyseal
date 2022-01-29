@@ -106,9 +106,8 @@ public:
 	}
 
 private:
-	// #todo-wip:
-	// Constant buffer object itself is a committed resource but CBVs are allocated in a cbv heap.
-	// Who is responsible for management of the cbv heap?
+	// todo-wip: Constant buffer object itself is a committed resource
+	// but CBVs are allocated in a cbv heap. Who is responsible for management of the cbv heap?
 	WRL::ComPtr<ID3D12Resource> rawResource;
 
 	uint32 resourceHeapSize = 0; // The size of implicit heap of committed resource

@@ -5,14 +5,18 @@
 #include "shader.h"
 #include "render_command.h"
 
-#include "static_mesh.h" // #todo-wip: for Material
+#include "static_mesh.h" // todo-wip: Include static_mesh.h for Material
 
 void BasePass::initialize()
 {
 	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
+	const uint32 bufferCount = swapchain->getBufferCount();
 
 	// Create root signature
+	// - slot0: 32-bit constant (object id)
+	// - slot1: descriptobe table (CBV)
+	// - slot2: descriptor table (SRV)
 	{
 		constexpr uint32 NUM_ROOT_PARAMETERS = 3;
 		RootParameter slotRootParameters[NUM_ROOT_PARAMETERS];
@@ -47,9 +51,9 @@ void BasePass::initialize()
 
 	// 1. Create cbv descriptor heaps
 	// 2. Create constant buffers
-	cbvHeap.resize(swapchain->getBufferCount());
-	constantBuffers.resize(swapchain->getBufferCount());
-	for (uint32 i = 0; i < swapchain->getBufferCount(); ++i)
+	cbvHeap.resize(bufferCount);
+	constantBuffers.resize(bufferCount);
+	for (uint32 i = 0; i < bufferCount; ++i)
 	{
 		constexpr uint32 PAYLOAD_HEAP_SIZE = 1024 * 64; // 64 KiB
 		constexpr uint32 PAYLOAD_SIZE_ALIGNED = (sizeof(ConstantBufferPayload) + 255) & ~255;
@@ -108,18 +112,25 @@ void BasePass::initialize()
 	}
 }
 
-void BasePass::bindRootParameter(RenderCommandList* cmdList)
+void BasePass::bindRootParameters(RenderCommandList* cmdList)
 {
 	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
-	// #todo-wip: Need to somehow bring srv heap from d3d_device to here.
+	// slot0: This is updated per payload
+	//cmdList->setGraphicsRootConstant32(0, payloadID, 0);
+
 	// https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12graphicscommandlist-setdescriptorheaps
 	//   Only one descriptor heap of each type can be set at one time,
 	//   which means a maximum of 2 heaps (one sampler, one CBV/SRV/UAV) can be set at one time.
+
+	// todo-wip: Need to somehow bring srv heap from d3d_device to here.
+	// https://stackoverflow.com/questions/32114174/directx-12-how-to-use-commandlist-with-multiple-descriptor-heaps
+	// The correty way is to allocate a large heap,
+	// and copy descriptors from non-shader-visible heap to it on demand.
+	
 	DescriptorHeap* heaps[] = { cbvHeap[frameIndex].get() };
 	cmdList->setDescriptorHeaps(1, heaps);
 	cmdList->setGraphicsRootDescriptorTable(1, heaps[0]);
-	//cmdList->setGraphicsRootDescriptorTable(2, heaps[0]);
 }
 
 void BasePass::updateConstantBuffer(uint32 payloadID, void* payload, uint32 payloadSize)
@@ -130,7 +141,7 @@ void BasePass::updateConstantBuffer(uint32 payloadID, void* payload, uint32 payl
 
 void BasePass::updateMaterial(uint32 payloadID, Material* material)
 {
-	// #todo-wip: updateMaterial
+	// todo-wip: Implement updateMaterial()
 	if (material) {
 		Texture* albedo = material->albedo;
 	}
