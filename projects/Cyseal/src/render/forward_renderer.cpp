@@ -93,7 +93,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 	uint32 payloadID = 0;
 	for (const StaticMesh* mesh : scene->staticMeshes)
 	{
-		// todo-wip: constant buffer
+		// #todo-wip: constant buffer
 		const Matrix model = mesh->getTransform().getMatrix();
 		const Matrix MVP = model * viewProjection;
 

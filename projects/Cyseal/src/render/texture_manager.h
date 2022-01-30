@@ -7,7 +7,7 @@
 
 // Manages GPU memory and descriptor heaps for textures
 
-// todo-wip: Manage committed resources here, not in render device
+// #todo-wip: Manage committed resources here, not in render device
 
 class Texture;
 
