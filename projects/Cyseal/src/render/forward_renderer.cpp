@@ -113,7 +113,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		{
 			basePass->updateMaterial(commandList, payloadID, section.material);
 
-			commandList->iaSetVertexBuffers(0, 1, &section.vertexBuffer);
+			commandList->iaSetVertexBuffers(0, 1, &section.positionBuffer);
 			commandList->iaSetIndexBuffer(section.indexBuffer);
 			commandList->drawIndexedInstanced(section.indexBuffer->getIndexCount(), 1, 0, 0, 0);
 		}

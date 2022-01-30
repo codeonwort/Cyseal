@@ -132,6 +132,7 @@ void Application::createResources()
 	Geometry icosphere;
 	GeometryGenerator::icosphere(3, icosphere);
 
+	// #todo: Unload image memory when GPU upload is done.
 	ImageLoader loader;
 	ImageLoadData loadData;
 	if (loader.load(L"bee.png", loadData) == false)

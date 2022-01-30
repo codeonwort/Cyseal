@@ -15,12 +15,12 @@ StaticMesh::~StaticMesh()
 	//}
 }
 
-void StaticMesh::addSection(VertexBuffer* vertexBuffer, IndexBuffer* indexBuffer, Material* material)
+void StaticMesh::addSection(VertexBuffer* positionBuffer, IndexBuffer* indexBuffer, Material* material)
 {
 	StaticMeshSection section;
-	section.vertexBuffer = vertexBuffer;
-	section.indexBuffer  = indexBuffer;
-	section.material     = material;
+	section.positionBuffer = positionBuffer;
+	section.indexBuffer    = indexBuffer;
+	section.material       = material;
 
 	sections.emplace_back(section);
 }

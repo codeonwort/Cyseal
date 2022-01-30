@@ -165,8 +165,7 @@ void BasePass::updateConstantBuffer(uint32 payloadID, void* payload, uint32 payl
 
 void BasePass::updateMaterial(RenderCommandList* cmdList, uint32 payloadID, Material* material)
 {
-	// todo-wip: Fallback texture if invalid material
-	Texture* albedo = nullptr;
+	Texture* albedo = gTextureManager->getSystemTextureGrey2D();
 	if (material) {
 		albedo = material->albedo;
 	}
@@ -178,12 +177,9 @@ void BasePass::updateMaterial(RenderCommandList* cmdList, uint32 payloadID, Mate
 	uint32 descriptorStartOffset = numPayloads; // SRVs come right after CBVs
 	descriptorStartOffset += payloadID * numSRVs;
 	
-	if (albedo)
-	{
-		gRenderDevice->copyDescriptors(
-			numSRVs,
-			volatileHeap, descriptorStartOffset,
-			gTextureManager->getSRVHeap(), albedo->getSRVDescriptorIndex());
-	}
+	gRenderDevice->copyDescriptors(
+		numSRVs,
+		volatileHeap, descriptorStartOffset,
+		gTextureManager->getSRVHeap(), albedo->getSRVDescriptorIndex());
 	cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, descriptorStartOffset);
 }

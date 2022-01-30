@@ -10,7 +10,7 @@ class Material;
 class StaticMeshSection
 {
 public:
-	VertexBuffer* vertexBuffer; // todo-wip: Rename to positionBuffer
+	VertexBuffer* positionBuffer;
 	IndexBuffer*  indexBuffer;
 	Material*     material;
 };
@@ -20,7 +20,7 @@ class StaticMesh
 public:
 	virtual ~StaticMesh();
 
-	void addSection(VertexBuffer* vertexBuffer, IndexBuffer* indexBuffer, Material* material);
+	void addSection(VertexBuffer* positionBuffer, IndexBuffer* indexBuffer, Material* material);
 
 	inline const std::vector<StaticMeshSection>& getSections() const { return sections; }
 
