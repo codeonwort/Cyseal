@@ -24,6 +24,10 @@ protected:
 class D3DDescriptorHeap : public DescriptorHeap
 {
 public:
+	D3DDescriptorHeap(const DescriptorHeapDesc& desc)
+		: DescriptorHeap(desc)
+	{}
+
 	virtual void setDebugName(const wchar_t* name)
 	{
 		rawState->SetName(name);

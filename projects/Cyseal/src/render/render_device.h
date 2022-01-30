@@ -89,12 +89,7 @@ public:
 		DescriptorHeap* destHeap,
 		uint32 destHeapDescriptorStartOffset,
 		DescriptorHeap* srcHeap,
-		uint32 srcHeapDescriptorStartOffset,
-		// todo-wip: Can validate automatically
-		EDescriptorHeapType descriptorHeapsType) = 0;
-
-	// todo-wip: Is it OK to expose this on RenderDevice level?
-	virtual uint32 getDescriptorSizeCbvSrvUav() = 0;
+		uint32 srcHeapDescriptorStartOffset) = 0;
 
 	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }
 	inline EPixelFormat getBackbufferDepthFormat() const { return backbufferDepthFormat; }

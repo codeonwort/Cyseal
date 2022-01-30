@@ -281,5 +281,15 @@ struct DescriptorHeapDesc
 class DescriptorHeap
 {
 public:
+	DescriptorHeap(const DescriptorHeapDesc& inDesc)
+		: desc(inDesc)
+	{
+	}
+
 	virtual void setDebugName(const wchar_t* name) = 0;
+
+	const DescriptorHeapDesc& getDesc() const { return desc; }
+
+private:
+	const DescriptorHeapDesc desc;
 };

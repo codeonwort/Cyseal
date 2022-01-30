@@ -55,10 +55,7 @@ public:
 		DescriptorHeap* destHeap,
 		uint32 destHeapDescriptorStartOffset,
 		DescriptorHeap* srcHeap,
-		uint32 srcHeapDescriptorStartOffset,
-		EDescriptorHeapType descriptorHeapsType) override;
-
-	virtual uint32 getDescriptorSizeCbvSrvUav() override;
+		uint32 srcHeapDescriptorStartOffset) override;
 
 	inline VkDevice getRaw() const { return device; }
 

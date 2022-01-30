@@ -561,18 +561,10 @@ void VulkanDevice::copyDescriptors(
 	DescriptorHeap* destHeap,
 	uint32 destHeapDescriptorStartOffset,
 	DescriptorHeap* srcHeap,
-	uint32 srcHeapDescriptorStartOffset,
-	EDescriptorHeapType descriptorHeapsType)
+	uint32 srcHeapDescriptorStartOffset)
 {
 	// #todo-vulkan
 	CHECK_NO_ENTRY();
-}
-
-uint32 VulkanDevice::getDescriptorSizeCbvSrvUav()
-{
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-	return 0;
 }
 
 bool VulkanDevice::checkValidationLayerSupport()

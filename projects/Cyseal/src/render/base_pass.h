@@ -37,11 +37,8 @@ protected:
 	std::vector<std::unique_ptr<ConstantBuffer>> constantBuffers;
 	VertexInputLayout inputLayout;
 
-	// todo-wip: Descriptors come from many places and I have no confidence
-	// I can globally manage all of them in just one heap.
-	// Let's copy descriptors that are needed for the current frame here.
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
-	// todo-wip: Maybe need a volatileSamplerHeap in similar way?
+	// #todo-sampler: Maybe need a volatileSamplerHeap in similar way?
 
 	uint32 numPayloads = 0;
 };

@@ -1,5 +1,6 @@
 #include "app.h"
 #include "core/core_minimal.h"
+#include "render/material.h"
 #include "render/static_mesh.h"
 #include "render/gpu_resource.h"
 #include "geometry/primitive.h"

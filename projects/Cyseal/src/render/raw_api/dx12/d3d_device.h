@@ -37,10 +37,9 @@ public:
 		DescriptorHeap* destHeap,
 		uint32 destHeapDescriptorStartOffset,
 		DescriptorHeap* srcHeap,
-		uint32 srcHeapDescriptorStartOffset,
-		EDescriptorHeapType descriptorHeapsType) override;
+		uint32 srcHeapDescriptorStartOffset) override;
 
-	virtual uint32 getDescriptorSizeCbvSrvUav() override;
+	uint32 getDescriptorSizeCbvSrvUav() { return descSizeCBV_SRV_UAV; }
 
 	inline IDXGIFactory4* getDXGIFactory() const { return dxgiFactory.Get(); }
 	inline ID3D12Device5* getRawDevice() const { return device.Get(); }

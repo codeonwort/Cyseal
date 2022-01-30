@@ -5,28 +5,18 @@
 
 class VertexBuffer;
 class IndexBuffer;
-class Texture;
-
-// todo-material: Temp class Material
-class Material
-{
-public:
-	Texture* albedo = nullptr;
-};
+class Material;
 
 class StaticMeshSection
 {
-
 public:
 	VertexBuffer* vertexBuffer; // todo-wip: Rename to positionBuffer
 	IndexBuffer*  indexBuffer;
 	Material*     material;
-
 };
 
 class StaticMesh
 {
-
 public:
 	virtual ~StaticMesh();
 

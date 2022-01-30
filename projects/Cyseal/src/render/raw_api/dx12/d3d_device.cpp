@@ -389,7 +389,7 @@ DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
 	D3D12_DESCRIPTOR_HEAP_DESC d3d_desc;
 	into_d3d::descriptorHeapDesc(desc, d3d_desc);
 
-	D3DDescriptorHeap* heap = new D3DDescriptorHeap;
+	D3DDescriptorHeap* heap = new D3DDescriptorHeap(desc);
 	heap->initialize(device.Get(), d3d_desc);
 
 	return heap;
@@ -410,14 +410,16 @@ void D3DDevice::copyDescriptors(
 	DescriptorHeap* destHeap,
 	uint32 destHeapDescriptorStartOffset,
 	DescriptorHeap* srcHeap,
-	uint32 srcHeapDescriptorStartOffset,
-	EDescriptorHeapType descriptorHeapsType)
+	uint32 srcHeapDescriptorStartOffset)
 {
+	CHECK(destHeap->getDesc().type == srcHeap->getDesc().type);
+	EDescriptorHeapType heapType = destHeap->getDesc().type;
+
 	ID3D12DescriptorHeap* rawDestHeap = static_cast<D3DDescriptorHeap*>(destHeap)->getRaw();
 	ID3D12DescriptorHeap* rawSrcHeap = static_cast<D3DDescriptorHeap*>(srcHeap)->getRaw();
 
 	uint64 descSize = 0;
-	switch (descriptorHeapsType)
+	switch (heapType)
 	{
 	case EDescriptorHeapType::CBV_SRV_UAV: descSize = descSizeCBV_SRV_UAV; break;
 	case EDescriptorHeapType::SAMPLER:     descSize = descSizeSampler; break;
@@ -436,10 +438,5 @@ void D3DDevice::copyDescriptors(
 		numDescriptors,
 		destHandle,
 		srcHandle,
-		into_d3d::descriptorHeapType(descriptorHeapsType));
-}
-
-uint32 D3DDevice::getDescriptorSizeCbvSrvUav()
-{
-	return (uint32)descSizeCBV_SRV_UAV;
+		into_d3d::descriptorHeapType(heapType));
 }

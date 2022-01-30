@@ -82,8 +82,13 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 	commandList->iaSetPrimitiveTopology(basePass->getPrimitiveTopology());
 
-	// todo-wip: material binding count can be larger than payload count due to static mesh sections
-	basePass->bindRootParameters(commandList, (uint32)scene->staticMeshes.size());
+	// #todo: There might be duplicate descriptors between meshes. Needs a drawcall sorting mechanism.
+	uint32 numVolatileDescriptors = 0;
+	for (const StaticMesh* mesh : scene->staticMeshes)
+	{
+		numVolatileDescriptors += (uint32)mesh->getSections().size();
+	}
+	basePass->bindRootParameters(commandList, numVolatileDescriptors);
 
 	uint32 payloadID = 0;
 	for (const StaticMesh* mesh : scene->staticMeshes)
