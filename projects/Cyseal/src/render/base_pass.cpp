@@ -63,7 +63,7 @@ void BasePass::initialize()
 		desc.type           = EDescriptorHeapType::CBV_SRV_UAV;
 		desc.numDescriptors = PAYLOAD_HEAP_SIZE / PAYLOAD_SIZE_ALIGNED;
 		// todo-wip: Must be non shader-visible to copy descriptors from here to the volatile heap
-		desc.flags          = EDescriptorHeapFlags::ShaderVisible;
+		desc.flags          = EDescriptorHeapFlags::None;
 		desc.nodeMask       = 0;
 
 		cbvHeap[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
@@ -84,6 +84,10 @@ void BasePass::initialize()
 		desc.nodeMask       = 0;
 
 		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
+
+		wchar_t debugName[256];
+		wsprintf(debugName, L"BasePass_VolatileViewHeap_%u", i);
+		volatileViewHeaps[i]->setDebugName(debugName);
 	}
 
 	// Create input layout
@@ -148,6 +152,11 @@ void BasePass::bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloa
 
 	// todo-wip: This was meant to be set per drawcall,
 	// but I'm accidentally using an AoS for the register(c1), so let's keep it here for now.
+	gRenderDevice->copyDescriptors(
+		numPayloads,
+		heaps[0], 0,
+		cbvHeap[frameIndex].get(), 0,
+		EDescriptorHeapType::CBV_SRV_UAV);
 	cmdList->setGraphicsRootDescriptorTable(1, heaps[0], 0);
 
 	// todo-wip: SRVs are set per drawcall. Not here!
@@ -179,5 +188,5 @@ void BasePass::updateMaterial(RenderCommandList* cmdList, uint32 payloadID, Mate
 	uint32 descriptorStartOffset = numPayloads; // SRVs come right after CBVs
 	descriptorStartOffset += payloadID * numSRVs;
 
-	cmdList->setGraphicsRootDescriptorTable(2, volatileViewHeaps[0].get(), descriptorStartOffset);
+	cmdList->setGraphicsRootDescriptorTable(2, volatileViewHeaps[frameIndex].get(), descriptorStartOffset);
 }

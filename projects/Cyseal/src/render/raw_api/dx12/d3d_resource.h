@@ -24,6 +24,11 @@ protected:
 class D3DDescriptorHeap : public DescriptorHeap
 {
 public:
+	virtual void setDebugName(const wchar_t* name)
+	{
+		rawState->SetName(name);
+	}
+
 	void initialize(ID3D12Device* device, const D3D12_DESCRIPTOR_HEAP_DESC& desc)
 	{
 		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&rawState)) );

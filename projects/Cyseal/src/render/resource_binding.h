@@ -280,5 +280,6 @@ struct DescriptorHeapDesc
 // ID3D12DescriptorHeap
 class DescriptorHeap
 {
-	//
+public:
+	virtual void setDebugName(const wchar_t* name) = 0;
 };
