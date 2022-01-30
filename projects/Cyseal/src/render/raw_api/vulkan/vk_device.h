@@ -50,6 +50,16 @@ public:
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
 	virtual ConstantBuffer* createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize) override;
 
+	virtual void copyDescriptors(
+		uint32 numDescriptors,
+		DescriptorHeap* destHeap,
+		uint32 destHeapDescriptorStartOffset,
+		DescriptorHeap* srcHeap,
+		uint32 srcHeapDescriptorStartOffset,
+		EDescriptorHeapType descriptorHeapsType) override;
+
+	virtual uint32 getDescriptorSizeCbvSrvUav() override;
+
 	inline VkDevice getRaw() const { return device; }
 
 private:

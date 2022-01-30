@@ -486,34 +486,40 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 void VulkanDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanDevice::flushCommandQueue()
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 bool VulkanDevice::supportsRayTracing()
 {
 	// #todo-vulkan: vk_nv_ray_tracing
+	CHECK_NO_ENTRY();
 	return false;
 }
 
 VertexBuffer* VulkanDevice::createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 
 IndexBuffer* VulkanDevice::createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 
 Texture* VulkanDevice::createTexture(const TextureCreateParams& createParams)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 
@@ -525,25 +531,48 @@ Shader* VulkanDevice::createShader()
 RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& desc)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 
 PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& desc)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 
 DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 
 ConstantBuffer* VulkanDevice::createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 	return nullptr;
+}
+
+void VulkanDevice::copyDescriptors(
+	uint32 numDescriptors,
+	DescriptorHeap* destHeap,
+	uint32 destHeapDescriptorStartOffset,
+	DescriptorHeap* srcHeap,
+	uint32 srcHeapDescriptorStartOffset,
+	EDescriptorHeapType descriptorHeapsType)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+}
+
+uint32 VulkanDevice::getDescriptorSizeCbvSrvUav()
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+	return 0;
 }
 
 bool VulkanDevice::checkValidationLayerSupport()

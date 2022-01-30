@@ -2,6 +2,7 @@
 
 #include "gpu_resource.h"
 #include "pipeline_state.h"
+#include "resource_binding.h"
 #include <functional>
 
 // Forward Declarations
@@ -60,7 +61,7 @@ public:
 		VertexBuffer* const* vertexBuffers) = 0;
 	virtual void iaSetIndexBuffer(IndexBuffer* indexBuffer) = 0;
 
-	// #todo: multiple viewports and scissor rects
+	// #todo-rendercommand: multiple viewports and scissor rects
 	virtual void rsSetViewport(const Viewport& viewport) = 0;
 	virtual void rsSetScissorRect(const ScissorRect& scissorRect) = 0;
 
@@ -79,17 +80,48 @@ public:
 		float depth,
 		uint8_t stencil) = 0;
 
-	// #todo: MRT
+	// #todo-rendercommand: MRT
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) = 0;
 
 	virtual void setPipelineState(PipelineState* state) = 0;
+	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) = 0;
+
+	/**************************************************************
+	#todo-rendercommand: Resource binding for compute pipeline
+	
+	virtual void setComputeRootSignature(RootSignature* computeRootSignature) = 0;
+	virtual void setComputeRoot32BitConstant(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) = 0;
+	virtual void setComputeRoot32BitConstants(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues) = 0;
+	virtual void setComputeRootConstantBufferView(uint32 rootParameterIndex, ConstantBuffer* cbv) = 0;
+	virtual void setComputeRootShaderResourceView(uint32 rootParameterIndex, ShaderResourceView* srv) = 0;
+	virtual void setComputeRootUnorderedAccessView(uint32 rootParameterIndex, UnorderedAccessView* uav) = 0;
+	virtual void setComputeRootDescriptorTable(uint32 rootParameterIndex, DescriptorTable* descriptorTable);
+	**************************************************************/
+	
+	// Resource binding for graphics pipeline
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) = 0;
 
-	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) = 0;
-	// #todo: Misnamed
-	virtual void setGraphicsRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap) = 0;
-	// #todo: What is DestOffsetIn32BitValues in ID3D12GraphicsCommandList::SetGraphicsRoot32BitConstants() method?
-	virtual void setGraphicsRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) = 0;
+	// #todo-rendercommand: What is DestOffsetIn32BitValues in ID3D12GraphicsCommandList::SetGraphicsRoot32BitConstants() method?
+	virtual void setGraphicsRootConstant32(
+		uint32 rootParameterIndex,
+		uint32 constant32,
+		uint32 destOffsetIn32BitValues) = 0;
+
+	// #todo-rendercommand: descriptor heap and table are different things
+	virtual void setGraphicsRootDescriptorTable(
+		uint32 rootParameterIndex,
+		DescriptorHeap* descriptorHeap,
+		uint32 descriptorStartOffset) = 0;
+
+	/**************************************************************
+	#todo-rendercommand: Resource binding for graphics pipeline
+
+	virtual void setGraphicsRoot32BitConstant(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) = 0;
+	virtual void setGraphicsRoot32BitConstants(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues) = 0;
+	virtual void setGraphicsRootConstantBufferView(uint32 rootParameterIndex, ConstantBuffer* cbv) = 0;
+	virtual void setGraphicsRootShaderResourceView(uint32 rootParameterIndex, ShaderResourceView* srv) = 0;
+	virtual void setGraphicsRootUnorderedAccessView(uint32 rootParameterIndex, UnorderedAccessView* uav) = 0;
+	**************************************************************/
 
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
@@ -111,7 +143,7 @@ struct EnqueueCustomRenderCommand
 {
 	EnqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda);
 };
-// #todo-render-command: Resets the list and only executes custom commands registered so far.
+// #todo-rendercommand: Resets the list and only executes custom commands registered so far.
 // Just a hack due to incomplete render command list support.
 struct FlushRenderCommands
 {

@@ -126,6 +126,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	descSizeRTV         = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descSizeDSV         = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	descSizeCBV_SRV_UAV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	descSizeSampler     = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 	// 3. Check 4X MSAA support.
 	// It gives good result and the overload is not so big.
@@ -174,7 +175,9 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC desc{};
 		desc.NumDescriptors = MAX_SRV_DESCRIPTORS;
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		// This heap is none shader-visible. You need to copy descriptors in this heap
+		// to a shader-visible heap to use them in shaders.
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapSRV)) );
 	}
@@ -396,4 +399,43 @@ ConstantBuffer* D3DDevice::createConstantBuffer(DescriptorHeap* descriptorHeap, 
 	cb->initialize(device.Get(), rawHeap, heapSize, payloadSize);
 
 	return cb;
+}
+
+void D3DDevice::copyDescriptors(
+	uint32 numDescriptors,
+	DescriptorHeap* destHeap,
+	uint32 destHeapDescriptorStartOffset,
+	DescriptorHeap* srcHeap,
+	uint32 srcHeapDescriptorStartOffset,
+	EDescriptorHeapType descriptorHeapsType)
+{
+	ID3D12DescriptorHeap* rawDestHeap = static_cast<D3DDescriptorHeap*>(destHeap)->getRaw();
+	ID3D12DescriptorHeap* rawSrcHeap = static_cast<D3DDescriptorHeap*>(srcHeap)->getRaw();
+
+	uint64 descSize = 0;
+	switch (descriptorHeapsType)
+	{
+	case EDescriptorHeapType::CBV_SRV_UAV: descSize = descSizeCBV_SRV_UAV; break;
+	case EDescriptorHeapType::SAMPLER:     descSize = descSizeSampler; break;
+	case EDescriptorHeapType::RTV:         descSize = descSizeRTV; break;
+	case EDescriptorHeapType::DSV:         descSize = descSizeDSV; break;
+	default:                               CHECK_NO_ENTRY(); break;
+	}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE destHandle = rawDestHeap->GetCPUDescriptorHandleForHeapStart();
+	destHandle.ptr += descSize * destHeapDescriptorStartOffset;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = rawSrcHeap->GetCPUDescriptorHandleForHeapStart();
+	srcHandle.ptr += descSize * srcHeapDescriptorStartOffset;
+
+	device->CopyDescriptorsSimple(
+		numDescriptors,
+		destHandle,
+		srcHandle,
+		into_d3d::descriptorHeapType(descriptorHeapsType));
+}
+
+uint32 D3DDevice::getDescriptorSizeCbvSrvUav()
+{
+	return (uint32)descSizeCBV_SRV_UAV;
 }

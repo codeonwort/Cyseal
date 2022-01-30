@@ -82,7 +82,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 	commandList->iaSetPrimitiveTopology(basePass->getPrimitiveTopology());
 
-	basePass->bindRootParameters(commandList);
+	basePass->bindRootParameters(commandList, (uint32)scene->staticMeshes.size());
 
 	uint32 payloadID = 0;
 	for (const StaticMesh* mesh : scene->staticMeshes)
@@ -100,7 +100,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		payload.a = 1.0f;
 
 		basePass->updateConstantBuffer(payloadID, &payload, sizeof(payload));
-		basePass->updateMaterial(payloadID, material);
+		basePass->updateMaterial(commandList, payloadID, material);
 
 		// rootParameterIndex, constant, destOffsetIn32BitValues
 		commandList->setGraphicsRootConstant32(0, payloadID, 0);

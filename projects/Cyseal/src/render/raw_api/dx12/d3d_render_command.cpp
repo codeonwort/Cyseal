@@ -97,7 +97,10 @@ void D3DRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology topology)
 	commandList->IASetPrimitiveTopology(d3dTopology);
 }
 
-void D3DRenderCommandList::iaSetVertexBuffers(int32 startSlot, uint32 numViews, VertexBuffer* const* vertexBuffers)
+void D3DRenderCommandList::iaSetVertexBuffers(
+	int32 startSlot,
+	uint32 numViews,
+	VertexBuffer* const* vertexBuffers)
 {
 	std::vector<D3D12_VERTEX_BUFFER_VIEW> views;
 	views.resize(numViews);
@@ -211,15 +214,22 @@ void D3DRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* cons
 	commandList->SetDescriptorHeaps(count, rawHeaps.data());
 }
 
-void D3DRenderCommandList::setGraphicsRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap)
+void D3DRenderCommandList::setGraphicsRootDescriptorTable(
+	uint32 rootParameterIndex,
+	DescriptorHeap* descriptorHeap,
+	uint32 descriptorStartOffset)
 {
-	// todo-wip: You can't just throw the heap as an argument... where is the offset?
-	commandList->SetGraphicsRootDescriptorTable(
-		rootParameterIndex,
-		static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw()->GetGPUDescriptorHandleForHeapStart());
+	ID3D12DescriptorHeap* rawHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	D3D12_GPU_DESCRIPTOR_HANDLE tableHandle = rawHeap->GetGPUDescriptorHandleForHeapStart();
+	tableHandle.ptr += (uint64)descriptorStartOffset * (uint64)device->getDescriptorSizeCbvSrvUav();
+
+	commandList->SetGraphicsRootDescriptorTable(rootParameterIndex, tableHandle);
 }
 
-void D3DRenderCommandList::setGraphicsRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues)
+void D3DRenderCommandList::setGraphicsRootConstant32(
+	uint32 rootParameterIndex,
+	uint32 constant32,
+	uint32 destOffsetIn32BitValues)
 {
 	commandList->SetGraphicsRoot32BitConstant(
 		rootParameterIndex,

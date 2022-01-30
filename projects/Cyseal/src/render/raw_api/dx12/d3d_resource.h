@@ -20,6 +20,7 @@ protected:
 
 // --------------------------------------------------------------
 
+// https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nn-d3d12-id3d12descriptorheap
 class D3DDescriptorHeap : public DescriptorHeap
 {
 public:
