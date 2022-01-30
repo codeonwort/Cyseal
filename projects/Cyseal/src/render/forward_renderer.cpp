@@ -66,17 +66,29 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		1.0f, 0);
 
 	//////////////////////////////////////////////////////////////////////////
-	// #todo: Depth pre-pass
+	// #todo: Depth PrePass
 
 	//////////////////////////////////////////////////////////////////////////
+	// BasePass
+	
 	// Draw static meshes
 	const Matrix viewProjection = camera->getMatrix();
 
+	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
+	//   Setting a PSO does not change the root signature.
+	//   The application must call a dedicated API for setting the root signature.
 	commandList->setPipelineState(basePass->getPipelineState());
 	commandList->setGraphicsRootSignature(basePass->getRootSignature());
+
 	commandList->iaSetPrimitiveTopology(basePass->getPrimitiveTopology());
 
-	basePass->bindRootParameter(commandList);
+	// #todo: There might be duplicate descriptors between meshes. Needs a drawcall sorting mechanism.
+	uint32 numVolatileDescriptors = 0;
+	for (const StaticMesh* mesh : scene->staticMeshes)
+	{
+		numVolatileDescriptors += (uint32)mesh->getSections().size();
+	}
+	basePass->bindRootParameters(commandList, numVolatileDescriptors);
 
 	uint32 payloadID = 0;
 	for (const StaticMesh* mesh : scene->staticMeshes)
@@ -84,7 +96,6 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		// #todo-wip: constant buffer
 		const Matrix model = mesh->getTransform().getMatrix();
 		const Matrix MVP = model * viewProjection;
-		Material* material = mesh->getMaterial();
 
 		BasePass::ConstantBufferPayload payload;
 		payload.mvpTransform = MVP;
@@ -94,12 +105,15 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		payload.a = 1.0f;
 
 		basePass->updateConstantBuffer(payloadID, &payload, sizeof(payload));
-		basePass->updateMaterial(payloadID, material);
+
+		// rootParameterIndex, constant, destOffsetIn32BitValues
 		commandList->setGraphicsRootConstant32(0, payloadID, 0);
 
 		for (const StaticMeshSection& section : mesh->getSections())
 		{
-			commandList->iaSetVertexBuffers(0, 1, &section.vertexBuffer);
+			basePass->updateMaterial(commandList, payloadID, section.material);
+
+			commandList->iaSetVertexBuffers(0, 1, &section.positionBuffer);
 			commandList->iaSetIndexBuffer(section.indexBuffer);
 			commandList->drawIndexedInstanced(section.indexBuffer->getIndexCount(), 1, 0, 0, 0);
 		}

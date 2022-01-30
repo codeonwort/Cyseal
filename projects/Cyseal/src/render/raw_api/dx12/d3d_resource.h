@@ -20,9 +20,19 @@ protected:
 
 // --------------------------------------------------------------
 
+// https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nn-d3d12-id3d12descriptorheap
 class D3DDescriptorHeap : public DescriptorHeap
 {
 public:
+	D3DDescriptorHeap(const DescriptorHeapDesc& desc)
+		: DescriptorHeap(desc)
+	{}
+
+	virtual void setDebugName(const wchar_t* name)
+	{
+		rawState->SetName(name);
+	}
+
 	void initialize(ID3D12Device* device, const D3D12_DESCRIPTOR_HEAP_DESC& desc)
 	{
 		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&rawState)) );
@@ -106,9 +116,8 @@ public:
 	}
 
 private:
-	// #todo-wip:
-	// Constant buffer object itself is a committed resource but CBVs are allocated in a cbv heap.
-	// Who is responsible for management of the cbv heap?
+	// #todo-wip: Constant buffer object itself is a committed resource
+	// but CBVs are allocated in a cbv heap. Who is responsible for management of the cbv heap?
 	WRL::ComPtr<ID3D12Resource> rawResource;
 
 	uint32 resourceHeapSize = 0; // The size of implicit heap of committed resource

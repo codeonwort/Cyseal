@@ -1,5 +1,6 @@
 #include "app.h"
 #include "core/core_minimal.h"
+#include "render/material.h"
 #include "render/static_mesh.h"
 #include "render/gpu_resource.h"
 #include "geometry/primitive.h"
@@ -21,7 +22,7 @@
 #define MESH_COUNT           10
 #define MESH_POSITION        vec3(-20.0f, 0.0f, -1.0f)
 #define MESH_POSITION_DELTA  vec3(4.0f, 0.0f, 0.0f)
-#define MESH_SCALE           1.0f
+#define MESH_SCALE           2.0f
 
 /* -------------------------------------------------------
 					UNIT TEST
@@ -131,6 +132,7 @@ void Application::createResources()
 	Geometry icosphere;
 	GeometryGenerator::icosphere(3, icosphere);
 
+	// #todo: Unload image memory when GPU upload is done.
 	ImageLoader loader;
 	ImageLoadData loadData;
 	if (loader.load(L"bee.png", loadData) == false)

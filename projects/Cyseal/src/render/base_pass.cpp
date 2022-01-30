@@ -4,22 +4,28 @@
 #include "resource_binding.h"
 #include "shader.h"
 #include "render_command.h"
+#include "texture_manager.h"
+#include "material.h"
 
-#include "static_mesh.h" // #todo-wip: for Material
+#define MAX_VOLATILE_DESCRIPTORS 1024
 
 void BasePass::initialize()
 {
 	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
+	const uint32 bufferCount = swapchain->getBufferCount();
 
 	// Create root signature
+	// - slot0: 32-bit constant (object id)
+	// - slot1: descriptor table (CBV)
+	// - slot2: descriptor table (SRV)
 	{
 		constexpr uint32 NUM_ROOT_PARAMETERS = 3;
 		RootParameter slotRootParameters[NUM_ROOT_PARAMETERS];
 		
 		DescriptorRange descriptorRanges[2];
-		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1);
-		descriptorRanges[1].init(EDescriptorRangeType::SRV, 1, 0);
+		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1 /*b1*/);
+		descriptorRanges[1].init(EDescriptorRangeType::SRV, 1, 0 /*c0*/);
 
 		slotRootParameters[0].initAsConstants(0, 0, 1);
 		slotRootParameters[1].initAsDescriptorTable(1, &descriptorRanges[0]);
@@ -30,9 +36,9 @@ void BasePass::initialize()
 
 		ZeroMemory(staticSamplers + 0, sizeof(staticSamplers[0]));
 		staticSamplers[0].filter = ETextureFilter::MIN_MAG_MIP_POINT;
-		staticSamplers[0].addressU = ETextureAddressMode::Clamp;
-		staticSamplers[0].addressV = ETextureAddressMode::Clamp;
-		staticSamplers[0].addressW = ETextureAddressMode::Clamp;
+		staticSamplers[0].addressU = ETextureAddressMode::Wrap;
+		staticSamplers[0].addressV = ETextureAddressMode::Wrap;
+		staticSamplers[0].addressW = ETextureAddressMode::Wrap;
 		staticSamplers[0].shaderVisibility = EShaderVisibility::Pixel;
 
 		RootSignatureDesc rootSigDesc(
@@ -47,23 +53,39 @@ void BasePass::initialize()
 
 	// 1. Create cbv descriptor heaps
 	// 2. Create constant buffers
-	cbvHeap.resize(swapchain->getBufferCount());
-	constantBuffers.resize(swapchain->getBufferCount());
-	for (uint32 i = 0; i < swapchain->getBufferCount(); ++i)
+	cbvHeap.resize(bufferCount);
+	constantBuffers.resize(bufferCount);
+	for (uint32 i = 0; i < bufferCount; ++i)
 	{
 		constexpr uint32 PAYLOAD_HEAP_SIZE = 1024 * 64; // 64 KiB
 		constexpr uint32 PAYLOAD_SIZE_ALIGNED = (sizeof(ConstantBufferPayload) + 255) & ~255;
 
 		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::CBV_SRV_UAV;
+		desc.type           = EDescriptorHeapType::CBV_SRV_UAV;
 		desc.numDescriptors = PAYLOAD_HEAP_SIZE / PAYLOAD_SIZE_ALIGNED;
-		desc.flags = EDescriptorHeapFlags::ShaderVisible;
-		desc.nodeMask = 0;
+		desc.flags          = EDescriptorHeapFlags::None;
+		desc.nodeMask       = 0;
 
 		cbvHeap[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
-
 		constantBuffers[i] = std::unique_ptr<ConstantBuffer>(
 			device->createConstantBuffer(cbvHeap[i].get(), PAYLOAD_HEAP_SIZE, PAYLOAD_SIZE_ALIGNED));
+	}
+
+	// Create volatile heaps for CBVs, SRVs, and UAVs for each frame
+	volatileViewHeaps.resize(bufferCount);
+	for (uint32 i = 0; i < bufferCount; ++i)
+	{
+		DescriptorHeapDesc desc;
+		desc.type           = EDescriptorHeapType::CBV_SRV_UAV;
+		desc.numDescriptors = MAX_VOLATILE_DESCRIPTORS;
+		desc.flags          = EDescriptorHeapFlags::ShaderVisible;
+		desc.nodeMask       = 0;
+
+		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
+
+		wchar_t debugName[256];
+		wsprintf(debugName, L"BasePass_VolatileViewHeap_%u", i);
+		volatileViewHeaps[i]->setDebugName(debugName);
 	}
 
 	// Create input layout
@@ -108,30 +130,56 @@ void BasePass::initialize()
 	}
 }
 
-void BasePass::bindRootParameter(RenderCommandList* cmdList)
+void BasePass::bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloads)
 {
+	numPayloads = inNumPayloads;
+	CHECK(numPayloads <= MAX_VOLATILE_DESCRIPTORS);
+
 	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
-	// #todo-wip: Need to somehow bring srv heap from d3d_device to here.
-	// https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12graphicscommandlist-setdescriptorheaps
-	//   Only one descriptor heap of each type can be set at one time,
-	//   which means a maximum of 2 heaps (one sampler, one CBV/SRV/UAV) can be set at one time.
-	DescriptorHeap* heaps[] = { cbvHeap[frameIndex].get() };
+	// slot0: Updated per drawcall, not here
+	//cmdList->setGraphicsRootConstant32(0, payloadID, 0);
+
+	// #todo-sampler: volatile sampler heap in the second element
+	DescriptorHeap* heaps[] = { volatileViewHeaps[frameIndex].get() };
 	cmdList->setDescriptorHeaps(1, heaps);
-	cmdList->setGraphicsRootDescriptorTable(1, heaps[0]);
-	//cmdList->setGraphicsRootDescriptorTable(2, heaps[0]);
+
+	// slot1: This was meant to be set per drawcall, but I'm accidentally
+	// using an AoS for the register(c1), so let's keep it here for now.
+	// Maybe this can be even better performant who knows?
+	gRenderDevice->copyDescriptors(
+		numPayloads,
+		heaps[0], 0,
+		cbvHeap[frameIndex].get(), 0);
+	cmdList->setGraphicsRootDescriptorTable(1, heaps[0], 0);
+
+	// slot2: Updated per drawcall, not here
+	//cmdList->setGraphicsRootDescriptorTable(2, heaps[0] + someOffsetForCurrentMesh);
 }
 
 void BasePass::updateConstantBuffer(uint32 payloadID, void* payload, uint32 payloadSize)
 {
-	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 	constantBuffers[frameIndex]->upload(payloadID, payload, payloadSize);
 }
 
-void BasePass::updateMaterial(uint32 payloadID, Material* material)
+void BasePass::updateMaterial(RenderCommandList* cmdList, uint32 payloadID, Material* material)
 {
-	// #todo-wip: updateMaterial
+	Texture* albedo = gTextureManager->getSystemTextureGrey2D();
 	if (material) {
-		Texture* albedo = material->albedo;
+		albedo = material->albedo;
 	}
+
+	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+	const uint32 numSRVs = 1; // For this drawcall
+	DescriptorHeap* volatileHeap = volatileViewHeaps[frameIndex].get();
+
+	uint32 descriptorStartOffset = numPayloads; // SRVs come right after CBVs
+	descriptorStartOffset += payloadID * numSRVs;
+	
+	gRenderDevice->copyDescriptors(
+		numSRVs,
+		volatileHeap, descriptorStartOffset,
+		gTextureManager->getSRVHeap(), albedo->getSRVDescriptorIndex());
+	cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, descriptorStartOffset);
 }

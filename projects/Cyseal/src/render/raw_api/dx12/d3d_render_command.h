@@ -70,11 +70,19 @@ public:
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) override;
 
 	virtual void setPipelineState(PipelineState* state) override;
+	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override;
+
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) override;
 
-	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override;
-	virtual void setGraphicsRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap) override;
-	virtual void setGraphicsRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) override;
+	virtual void setGraphicsRootConstant32(
+		uint32 rootParameterIndex,
+		uint32 constant32,
+		uint32 destOffsetIn32BitValues) override;
+
+	virtual void setGraphicsRootDescriptorTable(
+		uint32 rootParameterIndex,
+		DescriptorHeap* descriptorHeap,
+		uint32 descriptorStartOffset) override;
 
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,

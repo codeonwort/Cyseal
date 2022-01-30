@@ -126,42 +126,42 @@ struct RootParameter
 // D3D12_FILTER
 enum class ETextureFilter : uint16
 {
-	MIN_MAG_MIP_POINT = 0,
-	MIN_MAG_POINT_MIP_LINEAR = 0x1,
-	MIN_POINT_MAG_LINEAR_MIP_POINT = 0x4,
-	MIN_POINT_MAG_MIP_LINEAR = 0x5,
-	MIN_LINEAR_MAG_MIP_POINT = 0x10,
-	MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x11,
-	MIN_MAG_LINEAR_MIP_POINT = 0x14,
-	MIN_MAG_MIP_LINEAR = 0x15,
-	ANISOTROPIC = 0x55,
-	COMPARISON_MIN_MAG_MIP_POINT = 0x80,
-	COMPARISON_MIN_MAG_POINT_MIP_LINEAR = 0x81,
-	COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT = 0x84,
-	COMPARISON_MIN_POINT_MAG_MIP_LINEAR = 0x85,
-	COMPARISON_MIN_LINEAR_MAG_MIP_POINT = 0x90,
+	MIN_MAG_MIP_POINT                          = 0,
+	MIN_MAG_POINT_MIP_LINEAR                   = 0x1,
+	MIN_POINT_MAG_LINEAR_MIP_POINT             = 0x4,
+	MIN_POINT_MAG_MIP_LINEAR                   = 0x5,
+	MIN_LINEAR_MAG_MIP_POINT                   = 0x10,
+	MIN_LINEAR_MAG_POINT_MIP_LINEAR            = 0x11,
+	MIN_MAG_LINEAR_MIP_POINT                   = 0x14,
+	MIN_MAG_MIP_LINEAR                         = 0x15,
+	ANISOTROPIC                                = 0x55,
+	COMPARISON_MIN_MAG_MIP_POINT               = 0x80,
+	COMPARISON_MIN_MAG_POINT_MIP_LINEAR        = 0x81,
+	COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT  = 0x84,
+	COMPARISON_MIN_POINT_MAG_MIP_LINEAR        = 0x85,
+	COMPARISON_MIN_LINEAR_MAG_MIP_POINT        = 0x90,
 	COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x91,
-	COMPARISON_MIN_MAG_LINEAR_MIP_POINT = 0x94,
-	COMPARISON_MIN_MAG_MIP_LINEAR = 0x95,
-	COMPARISON_ANISOTROPIC = 0xd5,
-	MINIMUM_MIN_MAG_MIP_POINT = 0x100,
-	MINIMUM_MIN_MAG_POINT_MIP_LINEAR = 0x101,
-	MINIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT = 0x104,
-	MINIMUM_MIN_POINT_MAG_MIP_LINEAR = 0x105,
-	MINIMUM_MIN_LINEAR_MAG_MIP_POINT = 0x110,
-	MINIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x111,
-	MINIMUM_MIN_MAG_LINEAR_MIP_POINT = 0x114,
-	MINIMUM_MIN_MAG_MIP_LINEAR = 0x115,
-	MINIMUM_ANISOTROPIC = 0x155,
-	MAXIMUM_MIN_MAG_MIP_POINT = 0x180,
-	MAXIMUM_MIN_MAG_POINT_MIP_LINEAR = 0x181,
-	MAXIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT = 0x184,
-	MAXIMUM_MIN_POINT_MAG_MIP_LINEAR = 0x185,
-	MAXIMUM_MIN_LINEAR_MAG_MIP_POINT = 0x190,
-	MAXIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x191,
-	MAXIMUM_MIN_MAG_LINEAR_MIP_POINT = 0x194,
-	MAXIMUM_MIN_MAG_MIP_LINEAR = 0x195,
-	MAXIMUM_ANISOTROPIC = 0x1d5
+	COMPARISON_MIN_MAG_LINEAR_MIP_POINT        = 0x94,
+	COMPARISON_MIN_MAG_MIP_LINEAR              = 0x95,
+	COMPARISON_ANISOTROPIC                     = 0xd5,
+	MINIMUM_MIN_MAG_MIP_POINT                  = 0x100,
+	MINIMUM_MIN_MAG_POINT_MIP_LINEAR           = 0x101,
+	MINIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT     = 0x104,
+	MINIMUM_MIN_POINT_MAG_MIP_LINEAR           = 0x105,
+	MINIMUM_MIN_LINEAR_MAG_MIP_POINT           = 0x110,
+	MINIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR    = 0x111,
+	MINIMUM_MIN_MAG_LINEAR_MIP_POINT           = 0x114,
+	MINIMUM_MIN_MAG_MIP_LINEAR                 = 0x115,
+	MINIMUM_ANISOTROPIC                        = 0x155,
+	MAXIMUM_MIN_MAG_MIP_POINT                  = 0x180,
+	MAXIMUM_MIN_MAG_POINT_MIP_LINEAR           = 0x181,
+	MAXIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT     = 0x184,
+	MAXIMUM_MIN_POINT_MAG_MIP_LINEAR           = 0x185,
+	MAXIMUM_MIN_LINEAR_MAG_MIP_POINT           = 0x190,
+	MAXIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR    = 0x191,
+	MAXIMUM_MIN_MAG_LINEAR_MIP_POINT           = 0x194,
+	MAXIMUM_MIN_MAG_MIP_LINEAR                 = 0x195,
+	MAXIMUM_ANISOTROPIC                        = 0x1d5
 };
 
 // D3D12_TEXTURE_ADDRESS_MODE
@@ -239,6 +239,7 @@ struct RootSignatureDesc
 	ERootSignatureFlags flags;
 };
 
+// https://docs.microsoft.com/en-us/windows/win32/direct3d12/root-signatures-overview
 // ID3D12RootSignature
 // - Defines resource binding for drawcall.
 // - It's a collection of root parameters.
@@ -273,10 +274,22 @@ struct DescriptorHeapDesc
 	EDescriptorHeapType type   = EDescriptorHeapType::NUM_TYPES;
 	uint32 numDescriptors      = 0;
 	EDescriptorHeapFlags flags = EDescriptorHeapFlags::None;
-	uint32 nodeMask            = 0;
+	uint32 nodeMask            = 0; // MGPU thing
 };
 
+// ID3D12DescriptorHeap
 class DescriptorHeap
 {
-	//
+public:
+	DescriptorHeap(const DescriptorHeapDesc& inDesc)
+		: desc(inDesc)
+	{
+	}
+
+	virtual void setDebugName(const wchar_t* name) = 0;
+
+	const DescriptorHeapDesc& getDesc() const { return desc; }
+
+private:
+	const DescriptorHeapDesc desc;
 };

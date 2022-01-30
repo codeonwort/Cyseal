@@ -6,6 +6,7 @@
 #include "d3d_resource_view.h"
 #include "d3d_pipeline_state.h"
 #include "core/assertion.h"
+#include "render/texture_manager.h"
 #include "util/logging.h"
 
 // #todo-crossapi: Dynamic loading
@@ -126,6 +127,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	descSizeRTV         = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descSizeDSV         = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	descSizeCBV_SRV_UAV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	descSizeSampler     = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 	// 3. Check 4X MSAA support.
 	// It gives good result and the overload is not so big.
@@ -171,13 +173,6 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	//	desc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	//	HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapCBV_SRV_UAV[i])) );
 	//}
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC desc{};
-		desc.NumDescriptors = MAX_SRV_DESCRIPTORS;
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapSRV)) );
-	}
 
 	// #todo-shader: Shader Model 6
 	D3D12_FEATURE_DATA_SHADER_MODEL SM = { D3D_SHADER_MODEL::D3D_SHADER_MODEL_5_1 };
@@ -241,6 +236,18 @@ void D3DDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
 
 	static_cast<D3DResource*>(defaultDepthStencilBuffer)->setRaw(rawDepthStencilBuffer.Get());
 	static_cast<D3DDepthStencilView*>(defaultDSV)->setRaw(rawGetDepthStencilView());
+}
+
+void D3DDevice::allocateSRVHeapHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
+{
+	ID3D12DescriptorHeap* heapSRV = static_cast<D3DDescriptorHeap*>(gTextureManager->getSRVHeap())->getRaw();
+	const uint32 srvIndex = gTextureManager->allocateSRVIndex();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = heapSRV->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += SIZE_T(srvIndex) * SIZE_T(descSizeCBV_SRV_UAV);
+
+	outHandle = handle;
+	outDescriptorIndex = srvIndex;
 }
 
 void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter)
@@ -382,7 +389,7 @@ DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
 	D3D12_DESCRIPTOR_HEAP_DESC d3d_desc;
 	into_d3d::descriptorHeapDesc(desc, d3d_desc);
 
-	D3DDescriptorHeap* heap = new D3DDescriptorHeap;
+	D3DDescriptorHeap* heap = new D3DDescriptorHeap(desc);
 	heap->initialize(device.Get(), d3d_desc);
 
 	return heap;
@@ -396,4 +403,40 @@ ConstantBuffer* D3DDevice::createConstantBuffer(DescriptorHeap* descriptorHeap, 
 	cb->initialize(device.Get(), rawHeap, heapSize, payloadSize);
 
 	return cb;
+}
+
+void D3DDevice::copyDescriptors(
+	uint32 numDescriptors,
+	DescriptorHeap* destHeap,
+	uint32 destHeapDescriptorStartOffset,
+	DescriptorHeap* srcHeap,
+	uint32 srcHeapDescriptorStartOffset)
+{
+	CHECK(destHeap->getDesc().type == srcHeap->getDesc().type);
+	EDescriptorHeapType heapType = destHeap->getDesc().type;
+
+	ID3D12DescriptorHeap* rawDestHeap = static_cast<D3DDescriptorHeap*>(destHeap)->getRaw();
+	ID3D12DescriptorHeap* rawSrcHeap = static_cast<D3DDescriptorHeap*>(srcHeap)->getRaw();
+
+	uint64 descSize = 0;
+	switch (heapType)
+	{
+	case EDescriptorHeapType::CBV_SRV_UAV: descSize = descSizeCBV_SRV_UAV; break;
+	case EDescriptorHeapType::SAMPLER:     descSize = descSizeSampler; break;
+	case EDescriptorHeapType::RTV:         descSize = descSizeRTV; break;
+	case EDescriptorHeapType::DSV:         descSize = descSizeDSV; break;
+	default:                               CHECK_NO_ENTRY(); break;
+	}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE destHandle = rawDestHeap->GetCPUDescriptorHandleForHeapStart();
+	destHandle.ptr += descSize * destHeapDescriptorStartOffset;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = rawSrcHeap->GetCPUDescriptorHandleForHeapStart();
+	srcHandle.ptr += descSize * srcHeapDescriptorStartOffset;
+
+	device->CopyDescriptorsSimple(
+		numDescriptors,
+		destHandle,
+		srcHandle,
+		into_d3d::descriptorHeapType(heapType));
 }

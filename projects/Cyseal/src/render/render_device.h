@@ -84,6 +84,13 @@ public:
 	// payloadSize must be a multiple of 256
 	virtual ConstantBuffer* createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize) = 0;
 
+	virtual void copyDescriptors(
+		uint32 numDescriptors,
+		DescriptorHeap* destHeap,
+		uint32 destHeapDescriptorStartOffset,
+		DescriptorHeap* srcHeap,
+		uint32 srcHeapDescriptorStartOffset) = 0;
+
 	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }
 	inline EPixelFormat getBackbufferDepthFormat() const { return backbufferDepthFormat; }
 	inline SwapChain* getSwapChain() const { return swapChain; }
