@@ -82,6 +82,7 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 	commandList->iaSetPrimitiveTopology(basePass->getPrimitiveTopology());
 
+	// todo-wip: material binding count can be larger than payload count due to static mesh sections
 	basePass->bindRootParameters(commandList, (uint32)scene->staticMeshes.size());
 
 	uint32 payloadID = 0;
@@ -90,7 +91,6 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		// todo-wip: constant buffer
 		const Matrix model = mesh->getTransform().getMatrix();
 		const Matrix MVP = model * viewProjection;
-		Material* material = mesh->getMaterial();
 
 		BasePass::ConstantBufferPayload payload;
 		payload.mvpTransform = MVP;
@@ -100,13 +100,14 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
 		payload.a = 1.0f;
 
 		basePass->updateConstantBuffer(payloadID, &payload, sizeof(payload));
-		basePass->updateMaterial(commandList, payloadID, material);
 
 		// rootParameterIndex, constant, destOffsetIn32BitValues
 		commandList->setGraphicsRootConstant32(0, payloadID, 0);
 
 		for (const StaticMeshSection& section : mesh->getSections())
 		{
+			basePass->updateMaterial(commandList, payloadID, section.material);
+
 			commandList->iaSetVertexBuffers(0, 1, &section.vertexBuffer);
 			commandList->iaSetIndexBuffer(section.indexBuffer);
 			commandList->drawIndexedInstanced(section.indexBuffer->getIndexCount(), 1, 0, 0, 0);

@@ -94,6 +94,8 @@ public:
     virtual void uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch) = 0;
     virtual void setDebugName(const wchar_t* debugName) = 0;
 
+    virtual uint32 getSRVDescriptorIndex() const = 0;
+
 private:
     // #todo-texture
     // SRV

@@ -4,6 +4,7 @@
 #include "resource_binding.h"
 #include "shader.h"
 #include "render_command.h"
+#include "texture_manager.h"
 
 #include "static_mesh.h" // todo-wip: Include static_mesh.h for Material
 
@@ -35,9 +36,9 @@ void BasePass::initialize()
 
 		ZeroMemory(staticSamplers + 0, sizeof(staticSamplers[0]));
 		staticSamplers[0].filter = ETextureFilter::MIN_MAG_MIP_POINT;
-		staticSamplers[0].addressU = ETextureAddressMode::Clamp;
-		staticSamplers[0].addressV = ETextureAddressMode::Clamp;
-		staticSamplers[0].addressW = ETextureAddressMode::Clamp;
+		staticSamplers[0].addressU = ETextureAddressMode::Wrap;
+		staticSamplers[0].addressV = ETextureAddressMode::Wrap;
+		staticSamplers[0].addressW = ETextureAddressMode::Wrap;
 		staticSamplers[0].shaderVisibility = EShaderVisibility::Pixel;
 
 		RootSignatureDesc rootSigDesc(
@@ -141,11 +142,6 @@ void BasePass::bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloa
 	// slot0: This is updated per drawcall.
 	//cmdList->setGraphicsRootConstant32(0, payloadID, 0);
 
-	// todo-wip: Need to somehow bring srv heap from d3d_device to here.
-	// https://stackoverflow.com/questions/32114174/directx-12-how-to-use-commandlist-with-multiple-descriptor-heaps
-	// The correty way is to allocate a large heap,
-	// and copy descriptors from non-shader-visible heap to it on demand.
-	
 	// todo-wip: volatile sampler heap in the second element
 	DescriptorHeap* heaps[] = { volatileViewHeaps[frameIndex].get() };
 	cmdList->setDescriptorHeaps(1, heaps);
@@ -179,14 +175,18 @@ void BasePass::updateMaterial(RenderCommandList* cmdList, uint32 payloadID, Mate
 
 	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 	const uint32 numSRVs = 1; // For this drawcall
+	DescriptorHeap* volatileHeap = volatileViewHeaps[frameIndex].get();
 
-	// todo-wip: heapSRV is declared in d3d_device.h
-	// 1. Copy SRV descriptors
-	//gRenderDevice->copyDescriptors(numSRVs, 
-
-	// 2. Set descriptor table
 	uint32 descriptorStartOffset = numPayloads; // SRVs come right after CBVs
 	descriptorStartOffset += payloadID * numSRVs;
-
-	cmdList->setGraphicsRootDescriptorTable(2, volatileViewHeaps[frameIndex].get(), descriptorStartOffset);
+	
+	if (albedo)
+	{
+		gRenderDevice->copyDescriptors(
+			numSRVs,
+			volatileHeap, descriptorStartOffset,
+			gTextureManager->getSRVHeap(), albedo->getSRVDescriptorIndex(),
+			EDescriptorHeapType::CBV_SRV_UAV);
+	}
+	cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, descriptorStartOffset);
 }

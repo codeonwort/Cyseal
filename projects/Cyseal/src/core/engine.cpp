@@ -6,6 +6,7 @@
 #include "util/logging.h"
 
 #include "render/forward_renderer.h"
+#include "render/texture_manager.h"
 
 #include "render/raw_api/dx12/d3d_device.h"
 #include "render/raw_api/vulkan/vk_device.h"
@@ -40,6 +41,9 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 	createRenderDevice(createParams.renderDevice);
 	createRenderer(createParams.rendererType);
 
+	// Subsystems
+	createTextureManager();
+
 	CYLOG(LogEngine, Log, TEXT("Renderer has been initialized."));
 
 	// Unit test
@@ -57,9 +61,12 @@ void CysealEngine::shutdown()
 
 	CYLOG(LogEngine, Log, TEXT("Start engine termination."));
 
+	// Subsystems
+	delete gTextureManager; gTextureManager = nullptr;
+
 	// Rendering
 	delete renderer;
-	delete renderDevice;
+	delete renderDevice; gRenderDevice = nullptr;
 
 	// Shutdown is finished.
 	state = EEngineState::SHUTDOWN;
@@ -101,4 +108,10 @@ void CysealEngine::createRenderer(ERendererType rendererType)
 	}
 
 	renderer->initialize(renderDevice);
+}
+
+void CysealEngine::createTextureManager()
+{
+	gTextureManager = new TextureManager;
+	gTextureManager->initialize();
 }

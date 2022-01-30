@@ -37,6 +37,8 @@ private:
 	void createRenderDevice(const RenderDeviceCreateParams& createParams);
 	void createRenderer(ERendererType rendererType);
 
+	void createTextureManager();
+
 private:
 	EEngineState state;
 

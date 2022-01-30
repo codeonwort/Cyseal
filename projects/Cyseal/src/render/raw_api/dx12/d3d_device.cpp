@@ -6,6 +6,7 @@
 #include "d3d_resource_view.h"
 #include "d3d_pipeline_state.h"
 #include "core/assertion.h"
+#include "render/texture_manager.h"
 #include "util/logging.h"
 
 // #todo-crossapi: Dynamic loading
@@ -172,15 +173,6 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	//	desc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	//	HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapCBV_SRV_UAV[i])) );
 	//}
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC desc{};
-		desc.NumDescriptors = MAX_SRV_DESCRIPTORS;
-		// This heap is none shader-visible. You need to copy descriptors in this heap
-		// to a shader-visible heap to use them in shaders.
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapSRV)) );
-	}
 
 	// #todo-shader: Shader Model 6
 	D3D12_FEATURE_DATA_SHADER_MODEL SM = { D3D_SHADER_MODEL::D3D_SHADER_MODEL_5_1 };
@@ -244,6 +236,18 @@ void D3DDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
 
 	static_cast<D3DResource*>(defaultDepthStencilBuffer)->setRaw(rawDepthStencilBuffer.Get());
 	static_cast<D3DDepthStencilView*>(defaultDSV)->setRaw(rawGetDepthStencilView());
+}
+
+void D3DDevice::allocateSRVHeapHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
+{
+	ID3D12DescriptorHeap* heapSRV = static_cast<D3DDescriptorHeap*>(gTextureManager->getSRVHeap())->getRaw();
+	const uint32 srvIndex = gTextureManager->allocateSRVIndex();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = heapSRV->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += SIZE_T(srvIndex) * SIZE_T(descSizeCBV_SRV_UAV);
+
+	outHandle = handle;
+	outDescriptorIndex = srvIndex;
 }
 
 void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter)

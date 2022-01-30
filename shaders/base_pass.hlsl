@@ -29,6 +29,7 @@ struct VertexOutput
 {
     float4 posH : SV_POSITION;
     float3 normal : NORMAL;
+    float2 uv : TEXCOORD0;
 };
 
 VertexOutput mainVS(VertexInput input)
@@ -45,6 +46,9 @@ VertexOutput mainVS(VertexInput input)
 
     output.normal = normalize(input.posL);
 
+    // todo-wip: Bind vertex buffer for UV
+    output.uv = frac(input.posL.xy);
+
     return output;
 }
 
@@ -59,6 +63,9 @@ float4 mainPS(VertexOutput vout) : SV_TARGET
 
     // Material properties
     float3 albedo = float3(material.color.rgb);
+
+    float4 albedoSample = albedoTexture.SampleLevel(albedoSampler, vout.uv, 0.0);
+    albedo = albedoSample.xyz;
 
     // Lighting
     float3 diffuse = albedo * NdotL;

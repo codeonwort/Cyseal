@@ -18,7 +18,7 @@ class StaticMeshSection
 {
 
 public:
-	VertexBuffer* vertexBuffer;
+	VertexBuffer* vertexBuffer; // todo-wip: Rename to positionBuffer
 	IndexBuffer*  indexBuffer;
 	Material*     material;
 
@@ -32,9 +32,6 @@ public:
 
 	void addSection(VertexBuffer* vertexBuffer, IndexBuffer* indexBuffer, Material* material);
 
-	inline Material* getMaterial() const { return material; }
-	void setMaterial(Material* inMaterial) { material = inMaterial; }
-
 	inline const std::vector<StaticMeshSection>& getSections() const { return sections; }
 
 	inline Transform& getTransform() { return transform; }
@@ -44,7 +41,4 @@ private:
 	std::vector<StaticMeshSection> sections;
 
 	Transform transform;
-
-	// #todo-material: Temp
-	Material* material = nullptr;
 };
