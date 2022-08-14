@@ -15,7 +15,7 @@ class BasePass final
 public:
 	struct ConstantBufferPayload
 	{
-		Matrix mvpTransform;
+		Float4x4 mvpTransform;
 		float r, g, b, a;
 	};
 

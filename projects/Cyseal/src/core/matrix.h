@@ -5,14 +5,9 @@
 
 // #todo-matrix: SIMD
 
-// #todo-matrix: https://docs.microsoft.com/en-US/windows/win32/direct3dhlsl/dx-graphics-hlsl-per-component-math
-// HLSL matrix packing order is column-major, so I need to choose one among several options:
-//   1. Use row-major in application side and transpose final matrices before uploading to the GPU.
-//   2. Use row-major in application side and use row_major float4x4 in HLSL.
-//   3. Use column-major in application side and, transpose every data and reverse every mul order.
-// Currently I'm going with 2nd option which is the most lazy way.
-
+// NOTE: Do not use this as shader parameter. Use Float4x4.
 // Row-major (same convention as DirectXMath's XMMatrix)
+// https://docs.microsoft.com/en-US/windows/win32/direct3dhlsl/dx-graphics-hlsl-per-component-math
 class Matrix
 {
 	friend class Transform;
@@ -32,7 +27,7 @@ public:
 		memcpy_s(m, sizeof(m), I, sizeof(I));
 	}
 
-	inline void copy(float* data)
+	inline void copyFrom(float* data)
 	{
 		memcpy_s(m, sizeof(m), data, sizeof(m));
 	}
@@ -76,6 +71,43 @@ inline Matrix operator*(const Matrix& A, const Matrix& B)
 	}
 	return C;
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+// Use this for shader parameter.
+struct Float4x4
+{
+	float m[4][4];
+
+	Float4x4()
+	{
+		memset(m, 0, sizeof(m));
+	}
+
+	// Transpose of M
+	Float4x4(const Matrix& M)
+	{
+		m[0][0] = M.m[0][0];
+		m[0][1] = M.m[1][0];
+		m[0][2] = M.m[2][0];
+		m[0][3] = M.m[3][0];
+
+		m[1][0] = M.m[0][1];
+		m[1][1] = M.m[1][1];
+		m[1][2] = M.m[2][1];
+		m[1][3] = M.m[3][1];
+
+		m[2][0] = M.m[0][2];
+		m[2][1] = M.m[1][2];
+		m[2][2] = M.m[2][2];
+		m[2][3] = M.m[3][2];
+
+		m[3][0] = M.m[0][3];
+		m[3][1] = M.m[1][3];
+		m[3][2] = M.m[2][3];
+		m[3][3] = M.m[3][3];
+	}
+};
 
 //////////////////////////////////////////////////////////////////////////
 

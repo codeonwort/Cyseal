@@ -15,9 +15,14 @@
 #define WINDOW_TYPE      EWindowType::WINDOWED
 #define RENDERER_TYPE    ERendererType::Forward
 
-#define CAMERA_POSITION  vec3(0.0f, 0.0f, 20.0f)
+// #todo: Did I implement left-handedness?
+//        It's been too long I worked on this project...
+#define CAMERA_POSITION  vec3(0.0f, 0.0f, -20.0f) // Outward from monitor?
 #define CAMERA_LOOKAT    vec3(0.0f, 0.0f, 0.0f)
 #define CAMERA_UP        vec3(0.0f, 1.0f, 0.0f)
+#define CAMERA_FOV_Y     70.0f
+#define CAMERA_Z_NEAR    1.0f
+#define CAMERA_Z_FAR     10000.0f
 
 #define MESH_COUNT           10
 #define MESH_POSITION        vec3(-20.0f, 0.0f, -1.0f)
@@ -88,6 +93,8 @@ bool Application::onInitialize()
 	createResources();
 
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
+	// #todo: Respond to window resize
+	camera.perspective(CAMERA_FOV_Y, (float)getWidth() / getHeight(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 	
 	return true;
 }
