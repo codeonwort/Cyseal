@@ -6,6 +6,7 @@
 #include "render_command.h"
 #include "texture_manager.h"
 #include "material.h"
+#include "static_mesh.h"
 
 #define MAX_VOLATILE_DESCRIPTORS 1024
 
@@ -127,6 +128,64 @@ void BasePass::initialize()
 	// Cleanup
 	{
 		//delete shader;
+	}
+}
+
+void BasePass::renderBasePass(
+	RenderCommandList* commandList,
+	const SceneProxy* scene,
+	const Camera* camera)
+{
+	// Draw static meshes
+	const Matrix viewProjection = camera->getMatrix();
+	// #todo: Support Other topologies
+	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
+
+	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
+	//   Setting a PSO does not change the root signature.
+	//   The application must call a dedicated API for setting the root signature.
+	commandList->setPipelineState(pipelineState.get());
+	commandList->setGraphicsRootSignature(rootSignature.get());
+	
+	commandList->iaSetPrimitiveTopology(primitiveTopology);
+
+	// #todo: There might be duplicate descriptors between meshes. Needs a drawcall sorting mechanism.
+	uint32 numVolatileDescriptors = 0;
+	for (const StaticMesh* mesh : scene->staticMeshes)
+	{
+		numVolatileDescriptors += (uint32)mesh->getSections().size();
+	}
+	bindRootParameters(commandList, numVolatileDescriptors);
+
+	uint32 payloadID = 0;
+	for (const StaticMesh* mesh : scene->staticMeshes)
+	{
+		// #todo-wip: constant buffer
+		const Matrix model = mesh->getTransform().getMatrix();
+		const Matrix MVP = model * viewProjection;
+
+		BasePass::ConstantBufferPayload payload;
+		payload.mvpTransform = MVP;
+		payload.r = 0.0f;
+		payload.g = 1.0f;
+		payload.b = 0.0f;
+		payload.a = 1.0f;
+
+		updateConstantBuffer(payloadID, &payload, sizeof(payload));
+
+		// rootParameterIndex, constant, destOffsetIn32BitValues
+		commandList->setGraphicsRootConstant32(0, payloadID, 0);
+
+		for (const StaticMeshSection& section : mesh->getSections())
+		{
+			updateMaterial(commandList, payloadID, section.material);
+
+			commandList->iaSetVertexBuffers(0, 1, &section.positionBuffer);
+			commandList->iaSetIndexBuffer(section.indexBuffer);
+			commandList->drawIndexedInstanced(section.indexBuffer->getIndexCount(), 1, 0, 0, 0);
+		}
+
+		++payloadID;
 	}
 }
 

@@ -7,8 +7,10 @@
 
 class RenderCommandList;
 class Material;
+class SceneProxy;
+class Camera;
 
-class BasePass
+class BasePass final
 {
 public:
 	struct ConstantBufferPayload
@@ -19,7 +21,9 @@ public:
 
 public:
 	void initialize();
+	void renderBasePass(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera);
 
+private:
 	// Bind root parameters for the current root signature
 	void bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloads);
 
@@ -30,7 +34,7 @@ public:
 	inline RootSignature* getRootSignature() const { return rootSignature.get(); }
 	inline EPrimitiveTopology getPrimitiveTopology() const { return EPrimitiveTopology::TRIANGLELIST; }
 
-protected:
+private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
 	std::vector<std::unique_ptr<DescriptorHeap>> cbvHeap;
