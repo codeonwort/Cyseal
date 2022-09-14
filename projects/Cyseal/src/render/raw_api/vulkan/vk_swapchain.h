@@ -1,5 +1,7 @@
 #pragma once
 
+#if COMPILE_BACKEND_VULKAN
+
 #include "render/swap_chain.h"
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -48,3 +50,5 @@ private:
 	VkDeviceMemory depthImageMemory;
 	VkImageView depthImageView;
 };
+
+#endif // COMPILE_BACKEND_VULKAN

@@ -1,5 +1,7 @@
 #pragma once
 
+#if COMPILE_BACKEND_VULKAN
+
 #include "core/assertion.h"
 #include "core/int_types.h"
 #include <vector>
@@ -74,3 +76,5 @@ void transitionImageLayout(
 	VkFormat format,
 	VkImageLayout oldLayout,
 	VkImageLayout newLayout);
+
+#endif // COMPILE_BACKEND_VULKAN

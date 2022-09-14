@@ -1,4 +1,7 @@
 #include "vk_shader.h"
+
+#if COMPILE_BACKEND_VULKAN
+
 #include "core/assertion.h"
 #include "util/resource_finder.h"
 #include <fstream>
@@ -64,3 +67,5 @@ VkShaderModule VulkanShader::createShaderModule(const std::vector<char>& code)
 
 	return shaderModule;
 }
+
+#endif // COMPILE_BACKEND_VULKAN

@@ -1,4 +1,7 @@
 #include "vk_device.h"
+
+#if COMPILE_BACKEND_VULKAN
+
 #include "vk_shader.h"
 #include "vk_utils.h"
 #include "core/assertion.h"
@@ -745,3 +748,5 @@ VkExtent2D VulkanDevice::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabi
 		return actualExtent;
 	}
 }
+
+#endif // COMPILE_BACKEND_VULKAN

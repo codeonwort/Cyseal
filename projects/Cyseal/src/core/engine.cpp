@@ -8,8 +8,12 @@
 #include "render/forward_renderer.h"
 #include "render/texture_manager.h"
 
-#include "render/raw_api/dx12/d3d_device.h"
-#include "render/raw_api/vulkan/vk_device.h"
+#if COMPILE_BACKEND_DX12
+	#include "render/raw_api/dx12/d3d_device.h"
+#endif
+#if COMPILE_BACKEND_VULKAN
+	#include "render/raw_api/vulkan/vk_device.h"
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogEngine);
 
@@ -83,7 +87,11 @@ void CysealEngine::createRenderDevice(const RenderDeviceCreateParams& createPara
 		break;
 
 	case ERenderDeviceRawAPI::Vulkan:
+#if COMPILE_BACKEND_VULKAN
 		renderDevice = new VulkanDevice;
+#else
+		renderDevice = new D3DDevice;
+#endif
 		break;
 
 	default:

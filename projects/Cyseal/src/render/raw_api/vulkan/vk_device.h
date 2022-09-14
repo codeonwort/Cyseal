@@ -1,6 +1,13 @@
 #pragma once
 
 #include "render/render_device.h"
+
+#if !COMPILE_BACKEND_VULKAN
+
+class VulkanDevice : public RenderDevice {};
+
+#else // COMPILE_BACKEND_VULKAN
+
 #include "util/logging.h"
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -100,3 +107,5 @@ private:
 	VkDebugReportCallbackEXT callback;
 	bool enableDebugLayer = false;
 };
+
+#endif // COMPILE_BACKEND_VULKAN

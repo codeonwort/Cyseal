@@ -1,5 +1,7 @@
 #include "vk_utils.h"
 
+#if COMPILE_BACKEND_VULKAN
+
 VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
 {
 	VkImageViewCreateInfo viewInfo{};
@@ -194,3 +196,5 @@ void transitionImageLayout(
 
 	endSingleTimeCommands(device, commandPool, graphicsQueue, commandBuffer);
 }
+
+#endif // COMPILE_BACKEND_VULKAN

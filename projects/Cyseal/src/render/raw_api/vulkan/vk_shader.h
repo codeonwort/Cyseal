@@ -1,6 +1,9 @@
 #pragma once
 
 #include "vk_device.h"
+
+#if COMPILE_BACKEND_VULKAN
+
 #include "core/int_types.h"
 #include "render/shader.h"
 #include <vector>
@@ -27,3 +30,5 @@ private:
 	VkShaderModule vsModule;
 	VkShaderModule fsModule;
 };
+
+#endif // COMPILE_BACKEND_VULKAN

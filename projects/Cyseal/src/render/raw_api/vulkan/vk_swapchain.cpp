@@ -1,4 +1,7 @@
 #include "vk_swapchain.h"
+
+#if COMPILE_BACKEND_VULKAN
+
 #include "vk_device.h"
 #include "vk_utils.h"
 #include "core/assertion.h"
@@ -219,3 +222,5 @@ RenderTargetView* VulkanSwapchain::getCurrentBackbufferRTV() const
 {
 	return nullptr;
 }
+
+#endif // COMPILE_BACKEND_VULKAN
