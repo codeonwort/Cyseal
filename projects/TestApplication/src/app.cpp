@@ -77,15 +77,15 @@ DEFINE_UNIT_TEST(UnitTestImageLoader);
 --------------------------------------------------------*/
 CysealEngine cysealEngine;
 
-bool Application::onInitialize()
+bool TestApplication::onInitialize()
 {
 	CysealEngineCreateParams engineInit;
 	engineInit.renderDevice.rawAPI          = RAW_API;
 	engineInit.renderDevice.rayTracingTier  = RAYTRACING_TIER;
 	engineInit.renderDevice.hwnd            = getHWND();
 	engineInit.renderDevice.windowType      = WINDOW_TYPE;
-	engineInit.renderDevice.windowWidth     = getWidth();
-	engineInit.renderDevice.windowHeight    = getHeight();
+	engineInit.renderDevice.windowWidth     = getWindowWidth();
+	engineInit.renderDevice.windowHeight    = getWindowHeight();
 	engineInit.rendererType                 = RENDERER_TYPE;
 
 	cysealEngine.startup(engineInit);
@@ -94,21 +94,21 @@ bool Application::onInitialize()
 
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	// #todo: Respond to window resize
-	camera.perspective(CAMERA_FOV_Y, (float)getWidth() / getHeight(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
+	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 	
 	return true;
 }
 
-bool Application::onUpdate(float dt)
+void TestApplication::onTick(float deltaSeconds)
 {
 	wchar_t buf[256];
-	swprintf_s(buf, L"Hello World / FPS: %.2f", 1.0f / dt);
-	setTitle(std::wstring(buf));
+	swprintf_s(buf, L"Hello World / FPS: %.2f", 1.0f / deltaSeconds);
+	setWindowTitle(std::wstring(buf));
 
 	// #todo-app: Control camera by user input
 	{
 		static float elapsed = 0.0f;
-		elapsed += dt;
+		elapsed += deltaSeconds;
 		vec3 posDelta = vec3(10.0f * sinf(elapsed), 0.0f, 5.0f * cosf(elapsed));
 		camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
 	}
@@ -121,20 +121,16 @@ bool Application::onUpdate(float dt)
 
 		delete sceneProxy;
 	}
-
-	return true;
 }
 
-bool Application::onTerminate()
+void TestApplication::onTerminate()
 {
 	destroyResources();
 
 	cysealEngine.shutdown();
-
-	return true;
 }
 
-void Application::createResources()
+void TestApplication::createResources()
 {
 	Geometry icosphere;
 	GeometryGenerator::icosphere(3, icosphere);
@@ -206,7 +202,7 @@ void Application::createResources()
 	}
 }
 
-void Application::destroyResources()
+void TestApplication::destroyResources()
 {
 	for (uint32 i = 0; i < staticMeshes.size(); ++i)
 	{

@@ -1,6 +1,7 @@
-#include "App.h"
+#include "app.h"
+#include "core/assertion.h"
 
-AppBase* app = nullptr;
+WindowsApplication* app = nullptr;
 
 int APIENTRY wWinMain(
 	_In_     HINSTANCE hInstance,
@@ -10,12 +11,19 @@ int APIENTRY wWinMain(
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
+	UNREFERENCED_PARAMETER(nCmdShow);
 
-	app = new Application;
-	app->setTitle(L"Hello world");
-	app->setPosition(200, 200);
-	app->setSize(1600, 900);
-	app->run(hInstance, nCmdShow, L"StudyDirectX12");
+	app = new TestApplication;
+	app->setWindowTitle(L"Hello world");
+	app->setWindowPosition(200, 200);
+	app->setWindowSize(1600, 900);
+
+	ApplicationCreateParams createParams;
+	createParams.nativeWindowHandle = hInstance;
+	createParams.applicationName = L"StudyDirectX12";
+	
+	EApplicationReturnCode ret = app->launch(createParams);
+	CHECK(ret == EApplicationReturnCode::Ok);
 
 	return 0;
 }

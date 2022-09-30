@@ -79,11 +79,6 @@
   <ItemGroup>
     <ClInclude Include="src\app.h" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\WindowSystem\WindowSystem.vcxproj">
-      <Project>{5ace2fda-b96c-4cfe-b6d0-665951fcfcb2}</Project>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

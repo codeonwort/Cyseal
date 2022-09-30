@@ -1,6 +1,6 @@
 #pragma once
 
-#include "app_base.h"
+#include "core/win/windows_application.h"
 #include "world/scene.h"
 #include "world/camera.h"
 #include <vector>
@@ -8,13 +8,13 @@
 class Texture;
 class StaticMesh;
 
-class Application : public AppBase
+class TestApplication : public WindowsApplication
 {
 
 protected:
 	virtual bool onInitialize() override;
-	virtual bool onUpdate(float dt) override;
-	virtual bool onTerminate() override;
+	virtual void onTick(float deltaSeconds) override;
+	virtual void onTerminate() override;
 
 private:
 	void createResources();
