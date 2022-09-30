@@ -1,6 +1,4 @@
 #include "util/unit_test.h"
-// #todo-crossplatform: Remove from here
-#include <Windows.h>
 #include "util/logging.h"
 #include "core/vec3.h"
 #include "loader/image_loader.h"

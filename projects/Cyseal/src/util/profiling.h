@@ -4,6 +4,7 @@
 
 struct CycleCounterParam
 {
+	// #todo-profiling: initialize() is not being called.
 	static void initialize();
 	static LARGE_INTEGER frequency;
 };

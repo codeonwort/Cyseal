@@ -2,8 +2,6 @@
 
 #include "core/int_types.h"
 #include "pixel_format.h"
-// #todo-crossplatform: Remove from here
-#include <Windows.h>
 
 class RenderDevice;
 class SwapChain;

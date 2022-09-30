@@ -35,7 +35,7 @@ void BasePass::initialize()
 		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
 		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
 
-		ZeroMemory(staticSamplers + 0, sizeof(staticSamplers[0]));
+		memset(staticSamplers + 0, 0, sizeof(staticSamplers[0]));
 		staticSamplers[0].filter = ETextureFilter::MIN_MAG_MIP_POINT;
 		staticSamplers[0].addressU = ETextureAddressMode::Wrap;
 		staticSamplers[0].addressV = ETextureAddressMode::Wrap;
@@ -85,7 +85,7 @@ void BasePass::initialize()
 		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
 
 		wchar_t debugName[256];
-		wsprintf(debugName, L"BasePass_VolatileViewHeap_%u", i);
+		swprintf_s(debugName, L"BasePass_VolatileViewHeap_%u", i);
 		volatileViewHeaps[i]->setDebugName(debugName);
 	}
 

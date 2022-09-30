@@ -278,5 +278,8 @@
     <ClCompile Include="src\core\win\windows_application.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="src\util\logging.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

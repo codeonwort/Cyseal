@@ -1,6 +1,5 @@
 #include "unit_test.h"
 #include "core/assertion.h"
-#include "core/critical_section.h"
 #include "util/logging.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnitTest);

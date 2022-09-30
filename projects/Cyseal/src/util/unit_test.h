@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/critical_section.h"
 #include <vector>
 
 class UnitTest

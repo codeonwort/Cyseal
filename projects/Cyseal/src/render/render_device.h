@@ -3,8 +3,6 @@
 #include "core/types.h"
 #include "pixel_format.h"
 #include "texture.h"
-// #todo-crossplatform: Remove from here
-#include <Windows.h>
 
 class SwapChain;
 class RenderCommandAllocator;

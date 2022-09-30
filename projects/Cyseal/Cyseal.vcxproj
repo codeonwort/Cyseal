@@ -156,6 +156,7 @@
     <ClCompile Include="src\render\static_mesh.cpp" />
     <ClCompile Include="src\render\swap_chain.cpp" />
     <ClCompile Include="src\render\texture_manager.cpp" />
+    <ClCompile Include="src\util\logging.cpp" />
     <ClCompile Include="src\util\profiling.cpp" />
     <ClCompile Include="src\util\resource_finder.cpp" />
     <ClCompile Include="src\util\unit_test.cpp" />
