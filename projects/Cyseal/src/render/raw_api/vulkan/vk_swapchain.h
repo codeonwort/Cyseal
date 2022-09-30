@@ -23,7 +23,7 @@ public:
 
 	virtual void initialize(
 		RenderDevice* renderDevice,
-		HWND          hwnd,
+		void*         nativeWindowHandle,
 		uint32        width,
 		uint32        height) override;
 

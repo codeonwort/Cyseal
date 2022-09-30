@@ -14,10 +14,12 @@ D3DSwapChain::D3DSwapChain()
 
 void D3DSwapChain::initialize(
 	RenderDevice* renderDevice,
-	HWND          hwnd,
+	void*         nativeWindowHandle,
 	uint32        width,
 	uint32        height)
 {
+	HWND hwnd = (HWND)nativeWindowHandle;
+
 	device = static_cast<D3DDevice*>(renderDevice);
 	backbufferWidth  = width;
 	backbufferHeight = height;

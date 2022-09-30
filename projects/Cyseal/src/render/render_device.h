@@ -3,7 +3,8 @@
 #include "core/types.h"
 #include "pixel_format.h"
 #include "texture.h"
-#include <Windows.h> // #todo-crossplatform: Windows only for now
+// #todo-crossplatform: Remove from here
+#include <Windows.h>
 
 class SwapChain;
 class RenderCommandAllocator;
@@ -43,7 +44,7 @@ enum class EWindowType
 
 struct RenderDeviceCreateParams
 {
-	HWND hwnd;
+	void* nativeWindowHandle;
 	ERenderDeviceRawAPI rawAPI;
 	ERayTracingTier rayTracingTier;
 	bool enableDebugLayer = true; // Enable debug layer (dx) or validation layer (vk)
@@ -66,7 +67,7 @@ public:
 
 	virtual void initialize(const RenderDeviceCreateParams& createParams) = 0;
 
-	virtual void recreateSwapChain(HWND hwnd, uint32 width, uint32 height) = 0;
+	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) = 0;
 
 	virtual void flushCommandQueue() = 0;
 

@@ -166,7 +166,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		memset(&sci, 0, sizeof(sci));
 		sci.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 		sci.hinstance = GetModuleHandle(NULL);
-		sci.hwnd = createParams.hwnd;
+		sci.hwnd = createParams.nativeWindowHandle;
 
 		const VkAllocationCallbacks* allocator = nullptr;
 		err = vkCreateWin32SurfaceKHR(instance, &sci, allocator, &surface);
@@ -486,8 +486,9 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 	}
 }
 
-void VulkanDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
+void VulkanDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)
 {
+	HWND hwnd = (HWND)nativeWindowHandle;
 	// #todo-vulkan
 	CHECK_NO_ENTRY();
 }

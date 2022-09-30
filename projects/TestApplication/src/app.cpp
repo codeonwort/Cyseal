@@ -37,13 +37,13 @@ CysealEngine cysealEngine;
 bool TestApplication::onInitialize()
 {
 	CysealEngineCreateParams engineInit;
-	engineInit.renderDevice.rawAPI          = RAW_API;
-	engineInit.renderDevice.rayTracingTier  = RAYTRACING_TIER;
-	engineInit.renderDevice.hwnd            = getHWND();
-	engineInit.renderDevice.windowType      = WINDOW_TYPE;
-	engineInit.renderDevice.windowWidth     = getWindowWidth();
-	engineInit.renderDevice.windowHeight    = getWindowHeight();
-	engineInit.rendererType                 = RENDERER_TYPE;
+	engineInit.renderDevice.rawAPI             = RAW_API;
+	engineInit.renderDevice.rayTracingTier     = RAYTRACING_TIER;
+	engineInit.renderDevice.nativeWindowHandle = getHWND();
+	engineInit.renderDevice.windowType         = WINDOW_TYPE;
+	engineInit.renderDevice.windowWidth        = getWindowWidth();
+	engineInit.renderDevice.windowHeight       = getWindowHeight();
+	engineInit.rendererType                    = RENDERER_TYPE;
 
 	cysealEngine.startup(engineInit);
 

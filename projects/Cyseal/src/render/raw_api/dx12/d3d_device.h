@@ -16,7 +16,7 @@ public:
 
 	virtual void initialize(const RenderDeviceCreateParams& createParams) override;
 
-	virtual void recreateSwapChain(HWND hwnd, uint32 width, uint32 height) override;
+	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;
 
 	virtual void flushCommandQueue() override;
 

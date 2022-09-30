@@ -15,8 +15,10 @@ VulkanSwapchain::VulkanSwapchain()
 	swapchainImageCount = 0;
 }
 
-void VulkanSwapchain::initialize(RenderDevice* renderDevice, HWND hwnd, uint32 width, uint32 height)
+void VulkanSwapchain::initialize(RenderDevice* renderDevice, void* nativeWindowHandle, uint32 width, uint32 height)
 {
+	HWND hwnd = (HWND)nativeWindowHandle;
+
 	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(renderDevice);
 
 	VulkanDevice::SwapChainSupportDetails swapChainSupport = deviceWrapper->querySwapChainSupport(deviceWrapper->physicalDevice);

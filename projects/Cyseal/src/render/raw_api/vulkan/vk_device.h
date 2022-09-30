@@ -41,7 +41,7 @@ public:
 
 	void initialize(const RenderDeviceCreateParams& createParams) override;
 
-	void recreateSwapChain(HWND hwnd, uint32 width, uint32 height) override;
+	void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;
 
 	void flushCommandQueue() override;
 

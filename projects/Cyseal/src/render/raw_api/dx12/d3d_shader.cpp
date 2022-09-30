@@ -3,31 +3,33 @@
 #include "util/resource_finder.h"
 #include "util/logging.h"
 #include "core/assertion.h"
+
 #include <d3dcompiler.h>
+#include <Windows.h>
 
 DEFINE_LOG_CATEGORY_STATIC(LogD3DShader);
 
-static const char* getD3DShaderType(EShaderType type)
+static const char* getD3DShaderType(EShaderStage type)
 {
 	// #todo-shader: Shader Model 6
 	switch (type)
 	{
-	case EShaderType::VERTEX_SHADER:
+	case EShaderStage::VERTEX_SHADER:
 		return "vs_5_1";
 		break;
-	case EShaderType::DOMAIN_SHADER:
+	case EShaderStage::DOMAIN_SHADER:
 		return "ds_5_1";
 		break;
-	case EShaderType::HULL_SHADER:
+	case EShaderStage::HULL_SHADER:
 		return "hs_5_1";
 		break;
-	case EShaderType::GEOMETRY_SHADER:
+	case EShaderStage::GEOMETRY_SHADER:
 		return "gs_5_1";
 		break;
-	case EShaderType::PIXEL_SHADER:
+	case EShaderStage::PIXEL_SHADER:
 		return "ps_5_1";
 		break;
-	case EShaderType::COMPUTE_SHADER:
+	case EShaderStage::COMPUTE_SHADER:
 		return "cs_5_1";
 		break;
 	default:
@@ -36,21 +38,21 @@ static const char* getD3DShaderType(EShaderType type)
 	return "unknown";
 }
 
-void D3DShader::loadVertexShader(const TCHAR* filename, const char* entryPoint)
+void D3DShader::loadVertexShader(const wchar_t* filename, const char* entryPoint)
 {
 	CHECK(vsStage == nullptr);
-	loadFromFile(filename, entryPoint, EShaderType::VERTEX_SHADER);
-	vsStage = new D3DShaderStage(this, EShaderType::VERTEX_SHADER);
+	loadFromFile(filename, entryPoint, EShaderStage::VERTEX_SHADER);
+	vsStage = new D3DShaderStage(this, EShaderStage::VERTEX_SHADER);
 }
 
-void D3DShader::loadPixelShader(const TCHAR* filename, const char* entryPoint)
+void D3DShader::loadPixelShader(const wchar_t* filename, const char* entryPoint)
 {
 	CHECK(psStage == nullptr);
-	loadFromFile(filename, entryPoint, EShaderType::PIXEL_SHADER);
-	psStage = new D3DShaderStage(this, EShaderType::PIXEL_SHADER);
+	loadFromFile(filename, entryPoint, EShaderStage::PIXEL_SHADER);
+	psStage = new D3DShaderStage(this, EShaderStage::PIXEL_SHADER);
 }
 
-D3D12_SHADER_BYTECODE D3DShader::getBytecode(EShaderType shaderType)
+D3D12_SHADER_BYTECODE D3DShader::getBytecode(EShaderStage shaderType)
 {
 	D3D12_SHADER_BYTECODE bc;
 	bc.pShaderBytecode = byteCodes[(int)shaderType]->GetBufferPointer();
@@ -58,7 +60,7 @@ D3D12_SHADER_BYTECODE D3DShader::getBytecode(EShaderType shaderType)
 	return bc;
 }
 
-void D3DShader::loadFromFile(const TCHAR* filename, const char* entryPoint, EShaderType shaderType)
+void D3DShader::loadFromFile(const TCHAR* filename, const char* entryPoint, EShaderStage shaderType)
 {
 	UINT compileFlags = 0;
 #if (DEBUG || _DEBUG)

@@ -1,5 +1,4 @@
 #include "critical_section.h"
-#include <Windows.h>
 
 ScopedCriticalSection::ScopedCriticalSection()
 {

@@ -1,9 +1,9 @@
 #pragma once
 
 #include "core/int_types.h"
-#include <Windows.h> // #todo-crossplatform: Windows only for now
+#include <string>
 
-enum class EShaderType : uint8_t
+enum class EShaderStage : uint8_t
 {
 	VERTEX_SHADER   = 0,
 	DOMAIN_SHADER   = 1,
@@ -24,8 +24,8 @@ class Shader
 public:
 	virtual ~Shader() = default;
 
-	virtual void loadVertexShader(const TCHAR* filename, const char* entryPoint) = 0;
-	virtual void loadPixelShader(const TCHAR* filename, const char* entryPoint) = 0;
+	virtual void loadVertexShader(const wchar_t* filename, const char* entryPoint) = 0;
+	virtual void loadPixelShader(const wchar_t* filename, const char* entryPoint) = 0;
 
 	virtual ShaderStage* getVertexShader() = 0;
 	virtual ShaderStage* getPixelShader() = 0;

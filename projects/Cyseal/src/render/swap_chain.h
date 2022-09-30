@@ -1,8 +1,9 @@
 #pragma once
 
-#include <Windows.h> // #todo-crossplatform: Windows only for now
 #include "core/int_types.h"
 #include "pixel_format.h"
+// #todo-crossplatform: Remove from here
+#include <Windows.h>
 
 class RenderDevice;
 class SwapChain;
@@ -19,7 +20,7 @@ public:
 
 	virtual void initialize(
 		RenderDevice* renderDevice,
-		HWND          hwnd,
+		void*         nativeWindowHandle,
 		uint32        width,
 		uint32        height) = 0;
 

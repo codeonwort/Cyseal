@@ -49,7 +49,7 @@ void TextureManager::createSystemTextures()
 				EPixelFormat::R8G8B8A8_UNORM, 1, 1, 1);
 			grey2DPtr = gRenderDevice->createTexture(params);
 			grey2DPtr->uploadData(commandList, grey2DData, 4, 4);
-			grey2DPtr->setDebugName(TEXT("Texture_SystemGrey2D"));
+			grey2DPtr->setDebugName(L"Texture_SystemGrey2D");
 		}
 	);
 	FLUSH_RENDER_COMMANDS();

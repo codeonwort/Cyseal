@@ -162,7 +162,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 	// 5. Create a swap chain.
 	swapChain = (d3dSwapChain = new D3DSwapChain);
-	recreateSwapChain(createParams.hwnd, createParams.windowWidth, createParams.windowHeight);
+	recreateSwapChain(createParams.nativeWindowHandle, createParams.windowWidth, createParams.windowHeight);
 
 	// 6. Create descriptor heaps for CBV/SRV/UAV.
 	//for (int32 i = 0; i < (int32)D3DSwapChain::SWAP_CHAIN_BUFFER_COUNT; ++i)
@@ -180,10 +180,12 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	CHECK(SM.HighestShaderModel >= D3D_SHADER_MODEL::D3D_SHADER_MODEL_5_1);
 }
 
-void D3DDevice::recreateSwapChain(HWND hwnd, uint32 width, uint32 height)
+void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)
 {
 	screenWidth = width;
 	screenHeight = height;
+
+	HWND hwnd = (HWND)nativeWindowHandle;
 
 	swapChain->initialize(this, hwnd, width, height);
 
