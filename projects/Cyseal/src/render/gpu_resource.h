@@ -94,6 +94,8 @@ public:
 class ConstantBuffer : public GPUResource
 {
 public:
+	virtual ~ConstantBuffer() = default;
+
 	virtual void clear() = 0;
 	virtual void upload(uint32 payloadID, void* payload, uint32 payloadSize) = 0;
 };

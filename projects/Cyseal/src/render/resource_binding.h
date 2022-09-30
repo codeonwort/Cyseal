@@ -286,6 +286,8 @@ public:
 	{
 	}
 
+	virtual ~DescriptorHeap() = default;
+
 	virtual void setDebugName(const wchar_t* name) = 0;
 
 	const DescriptorHeapDesc& getDesc() const { return desc; }
