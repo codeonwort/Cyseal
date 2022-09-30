@@ -1,25 +1,26 @@
 #include "image_loader.h"
 #include "util/resource_finder.h"
 
-// string conversion -------------------------------
-// https://stackoverflow.com/a/18374698
-#include <locale>
-#include <codecvt>
-void str_to_wstr(const std::string& inStr, std::wstring& outWstr)
+// ------------------------------------------------
+// String conversion utils
+// 
+// #todo-crossplatform: std::codecvt is deprecated in C++17.
+#include <Windows.h>
+void str_to_wstr(const std::string& inStr, std::wstring& outStr)
 {
-	using convert_typeX = std::codecvt_utf8<wchar_t>;
-	std::wstring_convert<convert_typeX, wchar_t> converterX;
-	outWstr = converterX.from_bytes(inStr);
+	int size = ::MultiByteToWideChar(CP_ACP, 0, inStr.data(), (int)inStr.size(), NULL, 0);
+	outStr.assign(size, 0);
+	::MultiByteToWideChar(CP_ACP, 0, inStr.data(), (int)inStr.size(), const_cast<wchar_t*>(outStr.data()), size);
 }
-void wstr_to_str(const std::wstring& inWstr, std::string& outStr)
+void wstr_to_str(const std::wstring& inStr, std::string& outStr)
 {
-	using convert_typeX = std::codecvt_utf8<wchar_t>;
-	std::wstring_convert<convert_typeX, wchar_t> converterX;
-	outStr = converterX.to_bytes(inWstr);
+	int size = ::WideCharToMultiByte(CP_ACP, 0, inStr.data(), (int)inStr.size(), NULL, 0, NULL, NULL);
+	outStr.assign(size, 0);
+	::WideCharToMultiByte(CP_ACP, 0, inStr.data(), (int)inStr.size(), const_cast<char*>(outStr.data()), size, NULL, NULL);
 }
-// -------------------------------------------------
 
-// stb_image wrapper -------------------------------
+// ------------------------------------------------
+// <stb_image> wrapper
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -36,7 +37,9 @@ bool loadImage_internal(char const* filename, ImageLoadData& outData)
 
 	return buffer != nullptr;
 }
+
 // ------------------------------------------------
+// ImageLoader
 
 bool ImageLoader::load(const std::wstring& path, ImageLoadData& outData)
 {
