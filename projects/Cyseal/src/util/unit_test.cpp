@@ -29,7 +29,7 @@ void UnitTestValidator::runAllUnitTests()
 		}
 		CHECK(result);
 	}
-	CYLOG(LogUnitTest, Log, TEXT("All %u unit tests are passed."), numTests);
+	CYLOG(LogUnitTest, Log, TEXT("All unit tests have passed. Count: %u"), numTests);
 }
 
 void UnitTestValidator::addTest(UnitTest* unitTest)

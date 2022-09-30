@@ -30,49 +30,6 @@
 #define MESH_SCALE           2.0f
 
 /* -------------------------------------------------------
-					UNIT TEST
---------------------------------------------------------*/
-#include "util/unit_test.h"
-#include "render/render_device.h"
-#include "render/render_command.h"
-
-class UnitTestHello : public UnitTest
-{
-	virtual bool runTest() override
-	{
-		return true;
-	}
-};
-DEFINE_UNIT_TEST(UnitTestHello);
-
-class UnitTestVector : public UnitTest
-{
-	virtual bool runTest() override
-	{
-		if (vec3(0.0f, 0.0f, 0.0f) != vec3(0.0f, 0.0f, 0.0f))
-		{
-			return false;
-		}
-		return true;
-	}
-};
-DEFINE_UNIT_TEST(UnitTestVector);
-
-DEFINE_LOG_CATEGORY_STATIC(LogTemp);
-class UnitTestImageLoader : public UnitTest
-{
-	virtual bool runTest() override
-	{
-		ImageLoader loader;
-		ImageLoadData loadData;
-		bool success = loader.load(L"bee.png", loadData);
-		CYLOG(LogTemp, Log, TEXT("Test image loader: %s"), success ? TEXT("Success") : TEXT("Failed"));
-		return true;
-	}
-};
-DEFINE_UNIT_TEST(UnitTestImageLoader);
-
-/* -------------------------------------------------------
 					APPLICATION
 --------------------------------------------------------*/
 CysealEngine cysealEngine;

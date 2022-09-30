@@ -79,6 +79,7 @@
   <ItemGroup>
     <ClCompile Include="src\app.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\unit_tests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\app.h" />
