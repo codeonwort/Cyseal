@@ -1,11 +1,19 @@
 #include "image_loader.h"
+#include "core/platform.h"
 #include "util/resource_finder.h"
 
 // ------------------------------------------------
 // String conversion utils
 // 
-// #todo-crossplatform: std::codecvt is deprecated in C++17.
-#include <Windows.h>
+// 
+void str_to_wstr(const std::string& inStr, std::wstring& outStr);
+void wstr_to_str(const std::wstring& inStr, std::string& outStr);
+#if PLATFORM_WINDOWS
+	#include <Windows.h>
+#else
+	// #todo-crossplatform: std::codecvt is deprecated in C++17.
+	#error Not implemented yet
+#endif
 void str_to_wstr(const std::string& inStr, std::wstring& outStr)
 {
 	int size = ::MultiByteToWideChar(CP_ACP, 0, inStr.data(), (int)inStr.size(), NULL, 0);

@@ -4,6 +4,7 @@
 
 #include "vk_shader.h"
 #include "vk_utils.h"
+#include "core/platform.h"
 #include "core/assertion.h"
 #include <algorithm>
 #include <limits>
@@ -601,11 +602,12 @@ void VulkanDevice::getRequiredExtensions(std::vector<const char*>& extensions)
 {
 	extensions.clear();
 
-	// #todo-crossplatform: Windows only for now
-	{
-		extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-		extensions.push_back("VK_KHR_win32_surface");
-	}
+#if PLATFORM_WINDOWS
+	extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+	extensions.push_back("VK_KHR_win32_surface");
+#else
+	#error Not implemented yet
+#endif
 
 	if (enableDebugLayer)
 	{
