@@ -1,4 +1,4 @@
-#include "forward_renderer.h"
+#include "scene_renderer.h"
 #include "core/assertion.h"
 #include "render/render_command.h"
 #include "render/gpu_resource.h"
@@ -6,14 +6,14 @@
 #include "render/base_pass.h"
 #include "render/static_mesh.h"
 
-void ForwardRenderer::initialize(RenderDevice* renderDevice)
+void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
 
 	createRenderPasses();
 }
 
-void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
+void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 {
 	auto swapChain            = device->getSwapChain();
 	auto currentBackBuffer    = swapChain->getCurrentBackbuffer();
@@ -91,13 +91,13 @@ void ForwardRenderer::render(const SceneProxy* scene, const Camera* camera)
  	device->flushCommandQueue();
 }
 
-void ForwardRenderer::createRenderPasses()
+void SceneRenderer::createRenderPasses()
 {
 	basePass = new BasePass;
 	basePass->initialize();
 }
 
-void ForwardRenderer::destroyRenderPasses()
+void SceneRenderer::destroyRenderPasses()
 {
 	delete basePass;
 }

@@ -48,7 +48,7 @@
     <ClInclude Include="src\render\renderer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\forward_renderer.h">
+    <ClInclude Include="src\render\scene_renderer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\world\camera.h">
@@ -203,7 +203,7 @@
     <ClCompile Include="src\render\raw_api\dx12\d3d_util.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\forward_renderer.cpp">
+    <ClCompile Include="src\render\scene_renderer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\raw_api\dx12\d3d_swap_chain.cpp">

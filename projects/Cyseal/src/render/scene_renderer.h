@@ -4,9 +4,8 @@
 
 class BasePass;
 
-class ForwardRenderer : public Renderer
+class SceneRenderer : public Renderer
 {
-
 public:
 	virtual void initialize(RenderDevice* renderDevice) override;
 	virtual void render(const SceneProxy* scene, const Camera* camera) override;
@@ -16,9 +15,8 @@ protected:
 	void destroyRenderPasses();
 
 	// createRenderPasses() should create these passes.
-	BasePass* basePass;
+	BasePass* basePass = nullptr;
 
 private:
-	RenderDevice* device;
-
+	RenderDevice* device = nullptr;
 };

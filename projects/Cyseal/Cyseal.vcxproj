@@ -90,7 +90,7 @@
     <ClInclude Include="src\loader\image_loader.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
     <ClInclude Include="src\render\base_pass.h" />
-    <ClInclude Include="src\render\forward_renderer.h" />
+    <ClInclude Include="src\render\scene_renderer.h" />
     <ClInclude Include="src\render\material.h" />
     <ClInclude Include="src\render\pipeline_state.h" />
     <ClInclude Include="src\render\pixel_format.h" />
@@ -139,7 +139,7 @@
     <ClCompile Include="src\loader\image_loader.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\base_pass.cpp" />
-    <ClCompile Include="src\render\forward_renderer.cpp" />
+    <ClCompile Include="src\render\scene_renderer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_buffer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_device.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_pipeline_state.cpp" />

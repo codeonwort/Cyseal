@@ -13,7 +13,8 @@
 //#define RAW_API          ERenderDeviceRawAPI::Vulkan
 #define RAYTRACING_TIER  ERayTracingTier::Tier_1_0
 #define WINDOW_TYPE      EWindowType::WINDOWED
-#define RENDERER_TYPE    ERendererType::Forward
+#define RENDERER_TYPE    ERendererType::Standard
+//#define RENDERER_TYPE    ERendererType::Null
 
 // #todo: Did I implement left-handedness?
 //        It's been too long I worked on this project...

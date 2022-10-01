@@ -5,7 +5,7 @@
 #include "util/resource_finder.h"
 #include "util/logging.h"
 
-#include "render/forward_renderer.h"
+#include "render/scene_renderer.h"
 #include "render/texture_manager.h"
 
 #if COMPILE_BACKEND_DX12
@@ -107,10 +107,12 @@ void CysealEngine::createRenderer(ERendererType rendererType)
 {
 	switch (rendererType)
 	{
-	case ERendererType::Forward:
-		renderer = new ForwardRenderer;
+	case ERendererType::Standard:
+		renderer = new SceneRenderer;
 		break;
-
+	case ERendererType::Null:
+		renderer = new NullRenderer;
+		break;
 	default:
 		CHECK_NO_ENTRY();
 	}
