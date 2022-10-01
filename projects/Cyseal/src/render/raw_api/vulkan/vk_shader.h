@@ -15,14 +15,14 @@ public:
 	VulkanShader() = default;
 	~VulkanShader();
 
-	virtual void loadVertexShader(const TCHAR* filename, const char* entryPoint) override;
-	virtual void loadPixelShader(const TCHAR* filename, const char* entryPoint) override;
+	virtual void loadVertexShader(const wchar_t* filename, const char* entryPoint) override;
+	virtual void loadPixelShader(const wchar_t* filename, const char* entryPoint) override;
 
 	virtual ShaderStage* getVertexShader() override;
 	virtual ShaderStage* getPixelShader() override;
 
 private:
-	void loadFromFile(const TCHAR* filename, std::vector<char>& outCode);
+	void loadFromFile(const wchar_t* filename, std::vector<char>& outCode);
 	VkShaderModule createShaderModule(const std::vector<char>& code);
 
 	std::vector<char> vsCode;

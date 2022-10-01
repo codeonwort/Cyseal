@@ -4,9 +4,14 @@
 
 #include "vk_device.h"
 #include "vk_utils.h"
+#include "core/platform.h"
 #include "core/assertion.h"
 #include "util/logging.h"
 #include <array>
+
+#if PLATFORM_WINDOWS
+	#include <Windows.h>
+#endif
 
 // #todo-vulkan: Use this and remove swapchain code from VulkanDevice
 

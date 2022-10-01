@@ -13,13 +13,13 @@ VulkanShader::~VulkanShader()
 	vkDestroyShaderModule(device->getRaw(), fsModule, nullptr);
 }
 
-void VulkanShader::loadVertexShader(const TCHAR* filename, const char* entryPoint)
+void VulkanShader::loadVertexShader(const wchar_t* filename, const char* entryPoint)
 {
 	loadFromFile(filename, vsCode);
 	vsModule = createShaderModule(vsCode);
 }
 
-void VulkanShader::loadPixelShader(const TCHAR* filename, const char* entryPoint)
+void VulkanShader::loadPixelShader(const wchar_t* filename, const char* entryPoint)
 {
 	loadFromFile(filename, fsCode);
 	fsModule = createShaderModule(fsCode);
@@ -37,7 +37,7 @@ ShaderStage* VulkanShader::getPixelShader()
 	return nullptr;
 }
 
-void VulkanShader::loadFromFile(const TCHAR* filename, std::vector<char>& outCode)
+void VulkanShader::loadFromFile(const wchar_t* filename, std::vector<char>& outCode)
 {
 	auto filenameEx = ResourceFinder::get().find(filename);
 

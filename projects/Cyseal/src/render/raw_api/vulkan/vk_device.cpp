@@ -1,4 +1,5 @@
 #include "vk_device.h"
+#include "core/platform.h"
 
 #if COMPILE_BACKEND_VULKAN
 
@@ -11,6 +12,10 @@
 #include <string>
 #include <array>
 #include <set>
+
+#if PLATFORM_WINDOWS
+	#include <Windows.h>
+#endif
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_win32.h>
@@ -152,6 +157,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		}
 	}
 
+#if PLATFORM_WINDOWS
 	CYLOG(LogVulkan, Log, TEXT("> Create KHR surface"));
 	{
 		VkResult err;
@@ -167,7 +173,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		memset(&sci, 0, sizeof(sci));
 		sci.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 		sci.hinstance = GetModuleHandle(NULL);
-		sci.hwnd = createParams.nativeWindowHandle;
+		sci.hwnd = (HWND)createParams.nativeWindowHandle;
 
 		const VkAllocationCallbacks* allocator = nullptr;
 		err = vkCreateWin32SurfaceKHR(instance, &sci, allocator, &surface);
@@ -176,6 +182,9 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 			CYLOG(LogVulkan, Fatal, TEXT("Failed to create Vulkan surface"));
 		}
 	}
+#else
+	#error Not implemented yet
+#endif
 
 	CYLOG(LogVulkan, Log, TEXT("> Pick a physical device"));
 	{

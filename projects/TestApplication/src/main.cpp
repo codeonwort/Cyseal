@@ -22,7 +22,9 @@ int APIENTRY wWinMain(
 	createParams.nativeWindowHandle = hInstance;
 	createParams.applicationName = L"StudyDirectX12";
 	
+	// Enters the main loop.
 	EApplicationReturnCode ret = app->launch(createParams);
+
 	CHECK(ret == EApplicationReturnCode::Ok);
 
 	return 0;
