@@ -35,6 +35,9 @@ public:
 	virtual RenderTargetView* getCurrentBackbufferRTV() const override;
 
 private:
+	// #todo-vulkan: Init subroutines here
+
+private:
 	VkSwapchainKHR swapchainKHR;
 	VkExtent2D swapchainExtent;
 	uint32 swapchainImageCount;

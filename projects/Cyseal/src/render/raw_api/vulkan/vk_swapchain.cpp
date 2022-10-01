@@ -9,10 +9,6 @@
 #include "util/logging.h"
 #include <array>
 
-#if PLATFORM_WINDOWS
-	#include <Windows.h>
-#endif
-
 // #todo-vulkan: Use this and remove swapchain code from VulkanDevice
 
 VulkanSwapchain::VulkanSwapchain()
@@ -20,18 +16,20 @@ VulkanSwapchain::VulkanSwapchain()
 	swapchainImageCount = 0;
 }
 
-void VulkanSwapchain::initialize(RenderDevice* renderDevice, void* nativeWindowHandle, uint32 width, uint32 height)
+void VulkanSwapchain::initialize(
+	RenderDevice* renderDevice,
+	void* nativeWindowHandle,
+	uint32 width,
+	uint32 height)
 {
-	HWND hwnd = (HWND)nativeWindowHandle;
-
 	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(renderDevice);
 
-	VulkanDevice::SwapChainSupportDetails swapChainSupport = deviceWrapper->querySwapChainSupport(deviceWrapper->physicalDevice);
+	VulkanDevice::SwapChainSupportDetails swapChainSupport = deviceWrapper->querySwapChainSupport(deviceWrapper->vkPhysicalDevice);
 	VkSurfaceFormatKHR surfaceFormat = deviceWrapper->chooseSwapSurfaceFormat(swapChainSupport.formats);
 	VkPresentModeKHR presentMode = deviceWrapper->chooseSwapPresentMode(swapChainSupport.presentModes);
 	VkExtent2D extent = deviceWrapper->chooseSwapExtent(swapChainSupport.capabilities, width, height);
 
-	CYLOG(LogVulkan, Log, TEXT("Create swapchain images"));
+	CYLOG(LogVulkan, Log, L"Create swapchain images");
 	{
 		uint32 imageCount = swapChainSupport.capabilities.minImageCount + 1;
 		// maxImageCount = 0 means there's no limit besides memory requirements
@@ -43,7 +41,7 @@ void VulkanSwapchain::initialize(RenderDevice* renderDevice, void* nativeWindowH
 
 		VkSwapchainCreateInfoKHR createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-		createInfo.surface = deviceWrapper->surface;
+		createInfo.surface = deviceWrapper->vkSurface;
 		createInfo.minImageCount = imageCount;
 		createInfo.imageFormat = surfaceFormat.format;
 		createInfo.imageColorSpace = surfaceFormat.colorSpace;
@@ -51,7 +49,7 @@ void VulkanSwapchain::initialize(RenderDevice* renderDevice, void* nativeWindowH
 		createInfo.imageArrayLayers = 1; // 1 unless developming a stereoscopic 3D application
 		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-		VulkanDevice::QueueFamilyIndices indices = deviceWrapper->findQueueFamilies(deviceWrapper->physicalDevice);
+		VulkanDevice::QueueFamilyIndices indices = deviceWrapper->findQueueFamilies(deviceWrapper->vkPhysicalDevice);
 		uint32 queueFamilyIndices[] = { static_cast<uint32>(indices.graphicsFamily), static_cast<uint32>(indices.presentFamily) };
 		if (indices.graphicsFamily != indices.presentFamily)
 		{
@@ -71,30 +69,30 @@ void VulkanSwapchain::initialize(RenderDevice* renderDevice, void* nativeWindowH
 		createInfo.clipped = VK_TRUE;
 		createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-		VkResult ret = vkCreateSwapchainKHR(deviceWrapper->device, &createInfo, nullptr, &swapchainKHR);
+		VkResult ret = vkCreateSwapchainKHR(deviceWrapper->vkDevice, &createInfo, nullptr, &swapchainKHR);
 		CHECK(ret == VK_SUCCESS);
 
-		vkGetSwapchainImagesKHR(deviceWrapper->device, swapchainKHR, &imageCount, nullptr);
+		vkGetSwapchainImagesKHR(deviceWrapper->vkDevice, swapchainKHR, &imageCount, nullptr);
 		swapchainImages.resize(imageCount);
-		vkGetSwapchainImagesKHR(deviceWrapper->device, swapchainKHR, &imageCount, swapchainImages.data());
+		vkGetSwapchainImagesKHR(deviceWrapper->vkDevice, swapchainKHR, &imageCount, swapchainImages.data());
 		swapchainImageFormat = surfaceFormat.format;
 		swapchainExtent = extent;
 	}
 
-	CYLOG(LogVulkan, Log, TEXT("> Create image views for swapchain images"));
+	CYLOG(LogVulkan, Log, L"> Create image views for swapchain images");
 	{
 		swapchainImageViews.resize(swapchainImages.size());
 		for (size_t i = 0; i < swapchainImages.size(); ++i)
 		{
 			swapchainImageViews[i] = createImageView(
-				deviceWrapper->device,
+				deviceWrapper->vkDevice,
 				swapchainImages[i],
 				swapchainImageFormat,
 				VK_IMAGE_ASPECT_COLOR_BIT);
 		}
 	}
 
-	CYLOG(LogVulkan, Log, TEXT("> Create render pass for back-buffer"));
+	CYLOG(LogVulkan, Log, L"> Create render pass for back-buffer");
 	{
 		VkAttachmentDescription colorAttachment{};
 		colorAttachment.format = swapchainImageFormat;
@@ -111,7 +109,7 @@ void VulkanSwapchain::initialize(RenderDevice* renderDevice, void* nativeWindowH
 		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 		VkAttachmentDescription depthAttachment = {};
-		depthAttachment.format = findDepthFormat(deviceWrapper->physicalDevice);
+		depthAttachment.format = findDepthFormat(deviceWrapper->vkPhysicalDevice);
 		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -150,15 +148,15 @@ void VulkanSwapchain::initialize(RenderDevice* renderDevice, void* nativeWindowH
 		renderPassInfo.dependencyCount = 1;
 		renderPassInfo.pDependencies = &dependency;
 
-		VkResult ret = vkCreateRenderPass(deviceWrapper->device, &renderPassInfo, nullptr, &backbufferRenderPass);
+		VkResult ret = vkCreateRenderPass(deviceWrapper->vkDevice, &renderPassInfo, nullptr, &backbufferRenderPass);
 		CHECK(ret == VK_SUCCESS);
 	}
 
-	CYLOG(LogVulkan, Log, TEXT("> Create depth resources for backbuffer"));
+	CYLOG(LogVulkan, Log, L"> Create depth resources for backbuffer");
 	{
-		VkFormat depthFormat = findDepthFormat(deviceWrapper->physicalDevice);
+		VkFormat depthFormat = findDepthFormat(deviceWrapper->vkPhysicalDevice);
 
-		createImage(deviceWrapper->physicalDevice, deviceWrapper->device,
+		createImage(deviceWrapper->vkPhysicalDevice, deviceWrapper->vkDevice,
 			swapchainExtent.width, swapchainExtent.height,
 			depthFormat,
 			VK_IMAGE_TILING_OPTIMAL,
@@ -166,19 +164,19 @@ void VulkanSwapchain::initialize(RenderDevice* renderDevice, void* nativeWindowH
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			depthImage, depthImageMemory);
 
-		depthImageView = createImageView(deviceWrapper->device, depthImage, depthFormat,
+		depthImageView = createImageView(deviceWrapper->vkDevice, depthImage, depthFormat,
 			VK_IMAGE_ASPECT_DEPTH_BIT);
 
 		transitionImageLayout(
-			deviceWrapper->device,
-			deviceWrapper->commandPool,
-			deviceWrapper->graphicsQueue,
+			deviceWrapper->vkDevice,
+			deviceWrapper->vkCommandPool,
+			deviceWrapper->vkGraphicsQueue,
 			depthImage, depthFormat,
 			VK_IMAGE_LAYOUT_UNDEFINED,
 			VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 	}
 
-	CYLOG(LogVulkan, Log, TEXT("> Create framebuffers for backbuffer"));
+	CYLOG(LogVulkan, Log, L"> Create framebuffers for backbuffer");
 	{
 		swapchainFramebuffers.resize(swapchainImageViews.size());
 
@@ -195,7 +193,7 @@ void VulkanSwapchain::initialize(RenderDevice* renderDevice, void* nativeWindowH
 			framebufferInfo.layers = 1;
 
 			VkResult ret = vkCreateFramebuffer(
-				deviceWrapper->device,
+				deviceWrapper->vkDevice,
 				&framebufferInfo,
 				nullptr,
 				&swapchainFramebuffers[i]);

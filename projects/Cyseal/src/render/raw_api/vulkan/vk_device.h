@@ -39,13 +39,13 @@ public:
 	VulkanDevice();
 	~VulkanDevice();
 
-	void initialize(const RenderDeviceCreateParams& createParams) override;
+	virtual void initialize(const RenderDeviceCreateParams& createParams) override;
 
-	void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;
+	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;
 
-	void flushCommandQueue() override;
+	virtual void flushCommandQueue() override;
 
-	bool supportsRayTracing() override;
+	virtual bool supportsRayTracing() override;
 
 	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes) override;
 	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) override;
@@ -64,7 +64,7 @@ public:
 		DescriptorHeap* srcHeap,
 		uint32 srcHeapDescriptorStartOffset) override;
 
-	inline VkDevice getRaw() const { return device; }
+	inline VkDevice getRaw() const { return vkDevice; }
 
 private:
 	bool checkValidationLayerSupport();
@@ -78,14 +78,14 @@ private:
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32 windowWidth, uint32 windowHeight);
 
 private:
-	VkInstance instance;
-	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-	VkDevice device;
+	VkInstance vkInstance = VK_NULL_HANDLE;
+	VkPhysicalDevice vkPhysicalDevice = VK_NULL_HANDLE;
+	VkDevice vkDevice = VK_NULL_HANDLE;
 
-	VkSurfaceKHR surface;
+	VkSurfaceKHR vkSurface = VK_NULL_HANDLE;
 
-	VkQueue graphicsQueue;
-	VkQueue presentQueue;
+	VkQueue vkGraphicsQueue = VK_NULL_HANDLE;
+	VkQueue vkPresentQueue = VK_NULL_HANDLE;
 
 	// #todo-vulkan: VulkanSwapchain
 	VkSwapchainKHR swapchain;
@@ -99,12 +99,12 @@ private:
 	VkDeviceMemory depthImageMemory;
 	VkImageView depthImageView;
 
-	VkCommandPool commandPool;
-	std::vector<VkCommandBuffer> commandBuffers;
-	VkSemaphore imageAvailableSemaphore;
-	VkSemaphore renderFinishedSemaphore;
+	VkCommandPool vkCommandPool = VK_NULL_HANDLE;
+	std::vector<VkCommandBuffer> vkCommandBuffers;
+	VkSemaphore vkImageAvailableSemaphore = VK_NULL_HANDLE;
+	VkSemaphore vkRenderFinishedSemaphore = VK_NULL_HANDLE;
 
-	VkDebugReportCallbackEXT callback;
+	VkDebugReportCallbackEXT vkDebugCallback = VK_NULL_HANDLE;
 	bool enableDebugLayer = false;
 };
 

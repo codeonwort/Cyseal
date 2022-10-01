@@ -13,12 +13,12 @@
 #include <array>
 #include <set>
 
+#include <vulkan/vulkan.h>
+
 #if PLATFORM_WINDOWS
 	#include <Windows.h>
+	#include <vulkan/vulkan_win32.h>
 #endif
-
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_win32.h>
 
 // #todo-crossapi: Dynamic loading
 #pragma comment(lib, "vulkan-1.lib")
@@ -138,7 +138,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 			createInfo.ppEnabledLayerNames = REQUIRED_VALIDATION_LAYERS.data();
 		}
 
-		VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
+		VkResult result = vkCreateInstance(&createInfo, nullptr, &vkInstance);
 		CHECK(result == VK_SUCCESS);
 	}
 
@@ -151,7 +151,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 			createInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
 			createInfo.pfnCallback = vulkanDebugCallback;
 
-			if (CreateDebugReportCallbackEXT(instance, &createInfo, nullptr, &callback) != VK_SUCCESS) {
+			if (CreateDebugReportCallbackEXT(vkInstance, &createInfo, nullptr, &vkDebugCallback) != VK_SUCCESS) {
 				CHECK_NO_ENTRY();
 			}
 		}
@@ -164,7 +164,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		VkWin32SurfaceCreateInfoKHR sci;
 		PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR;
 
-		vkCreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR)vkGetInstanceProcAddr(instance, "vkCreateWin32SurfaceKHR");
+		vkCreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR)vkGetInstanceProcAddr(vkInstance, "vkCreateWin32SurfaceKHR");
 		if (!vkCreateWin32SurfaceKHR)
 		{
 			CYLOG(LogVulkan, Fatal, TEXT("Win32: Vulkan instance missing VK_KHR_win32_surface extension"));
@@ -176,7 +176,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		sci.hwnd = (HWND)createParams.nativeWindowHandle;
 
 		const VkAllocationCallbacks* allocator = nullptr;
-		err = vkCreateWin32SurfaceKHR(instance, &sci, allocator, &surface);
+		err = vkCreateWin32SurfaceKHR(vkInstance, &sci, allocator, &vkSurface);
 		if (err)
 		{
 			CYLOG(LogVulkan, Fatal, TEXT("Failed to create Vulkan surface"));
@@ -189,27 +189,27 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 	CYLOG(LogVulkan, Log, TEXT("> Pick a physical device"));
 	{
 		uint32 deviceCount = 0;
-		vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+		vkEnumeratePhysicalDevices(vkInstance, &deviceCount, nullptr);
 
 		CHECK(deviceCount != 0);
 
 		std::vector<VkPhysicalDevice> devices(deviceCount);
-		vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+		vkEnumeratePhysicalDevices(vkInstance, &deviceCount, devices.data());
 		for (const auto& physDevice : devices)
 		{
 			if (isDeviceSuitable(physDevice))
 			{
-				physicalDevice = physDevice;
+				vkPhysicalDevice = physDevice;
 				break;
 			}
 		}
 
-		CHECK(physicalDevice != VK_NULL_HANDLE);
+		CHECK(vkPhysicalDevice != VK_NULL_HANDLE);
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create a logical device"));
 	{
-		QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+		QueueFamilyIndices indices = findQueueFamilies(vkPhysicalDevice);
 
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 		std::set<int> uniqueQueueFamilies = { indices.graphicsFamily, indices.presentFamily };
@@ -247,16 +247,16 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		}
 
 		const VkAllocationCallbacks* allocator = nullptr;
-		VkResult ret = vkCreateDevice(physicalDevice, &createInfo, allocator, &device);
+		VkResult ret = vkCreateDevice(vkPhysicalDevice, &createInfo, allocator, &vkDevice);
 		CHECK(ret == VK_SUCCESS);
 
-		vkGetDeviceQueue(device, indices.graphicsFamily, 0, &graphicsQueue);
-		vkGetDeviceQueue(device, indices.presentFamily, 0, &presentQueue);
+		vkGetDeviceQueue(vkDevice, indices.graphicsFamily, 0, &vkGraphicsQueue);
+		vkGetDeviceQueue(vkDevice, indices.presentFamily, 0, &vkPresentQueue);
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("Create swapchain"));
 	{
-		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
+		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(vkPhysicalDevice);
 		VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
 		VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
 		VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities, createParams.windowWidth, createParams.windowHeight);
@@ -268,7 +268,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		}
 		VkSwapchainCreateInfoKHR createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-		createInfo.surface = surface;
+		createInfo.surface = vkSurface;
 		createInfo.minImageCount = imageCount;
 		createInfo.imageFormat = surfaceFormat.format;
 		createInfo.imageColorSpace = surfaceFormat.colorSpace;
@@ -277,7 +277,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		createInfo.imageArrayLayers = 1;
 		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-		QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+		QueueFamilyIndices indices = findQueueFamilies(vkPhysicalDevice);
 		uint32 queueFamilyIndices[] = { static_cast<uint32>(indices.graphicsFamily), static_cast<uint32>(indices.presentFamily) };
 		if (indices.graphicsFamily != indices.presentFamily)
 		{
@@ -298,12 +298,12 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		createInfo.clipped = VK_TRUE;
 		createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-		VkResult ret = vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapchain);
+		VkResult ret = vkCreateSwapchainKHR(vkDevice, &createInfo, nullptr, &swapchain);
 		CHECK(ret == VK_SUCCESS);
 
-		vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
+		vkGetSwapchainImagesKHR(vkDevice, swapchain, &imageCount, nullptr);
 		swapchainImages.resize(imageCount);
-		vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages.data());
+		vkGetSwapchainImagesKHR(vkDevice, swapchain, &imageCount, swapchainImages.data());
 		swapchainImageFormat = surfaceFormat.format;
 		swapchainExtent = extent;
 	}
@@ -314,7 +314,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		for (size_t i = 0; i < swapchainImages.size(); ++i)
 		{
 			swapchainImageViews[i] = createImageView(
-				device,
+				vkDevice,
 				swapchainImages[i],
 				swapchainImageFormat,
 				VK_IMAGE_ASPECT_COLOR_BIT);
@@ -338,7 +338,7 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 		VkAttachmentDescription depthAttachment = {};
-		depthAttachment.format = findDepthFormat(physicalDevice);
+		depthAttachment.format = findDepthFormat(vkPhysicalDevice);
 		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -377,38 +377,38 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		renderPassInfo.dependencyCount = 1;
 		renderPassInfo.pDependencies = &dependency;
 
-		VkResult ret = vkCreateRenderPass(device, &renderPassInfo, nullptr, &backbufferRenderPass);
+		VkResult ret = vkCreateRenderPass(vkDevice, &renderPassInfo, nullptr, &backbufferRenderPass);
 		CHECK(ret == VK_SUCCESS);
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create command pool"));
 	{
-		QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+		QueueFamilyIndices queueFamilyIndices = findQueueFamilies(vkPhysicalDevice);
 		VkCommandPoolCreateInfo poolInfo{};
 		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
 		poolInfo.flags = 0;
 
-		VkResult ret = vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool);
+		VkResult ret = vkCreateCommandPool(vkDevice, &poolInfo, nullptr, &vkCommandPool);
 		CHECK(ret == VK_SUCCESS);
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create depth resources for backbuffer"));
 	{
-		VkFormat depthFormat = findDepthFormat(physicalDevice);
+		VkFormat depthFormat = findDepthFormat(vkPhysicalDevice);
 
-		createImage(physicalDevice, device, swapchainExtent.width, swapchainExtent.height,
+		createImage(vkPhysicalDevice, vkDevice, swapchainExtent.width, swapchainExtent.height,
 			depthFormat,
 			VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			depthImage, depthImageMemory);
 
-		depthImageView = createImageView(device, depthImage, depthFormat,
+		depthImageView = createImageView(vkDevice, depthImage, depthFormat,
 			VK_IMAGE_ASPECT_DEPTH_BIT);
 
 		transitionImageLayout(
-			device, commandPool, graphicsQueue,
+			vkDevice, vkCommandPool, vkGraphicsQueue,
 			depthImage, depthFormat,
 			VK_IMAGE_LAYOUT_UNDEFINED,
 			VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
@@ -430,31 +430,31 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 			framebufferInfo.height = swapchainExtent.height;
 			framebufferInfo.layers = 1;
 
-			VkResult ret = vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapchainFramebuffers[i]);
+			VkResult ret = vkCreateFramebuffer(vkDevice, &framebufferInfo, nullptr, &swapchainFramebuffers[i]);
 			CHECK(ret == VK_SUCCESS);
 		}
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create command buffers"));
 	{
-		commandBuffers.resize(swapchainFramebuffers.size());
+		vkCommandBuffers.resize(swapchainFramebuffers.size());
 
 		VkCommandBufferAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = commandPool;
+		allocInfo.commandPool = vkCommandPool;
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandBufferCount = static_cast<uint32>(commandBuffers.size());
+		allocInfo.commandBufferCount = static_cast<uint32>(vkCommandBuffers.size());
 		
-		VkResult ret = vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data());
+		VkResult ret = vkAllocateCommandBuffers(vkDevice, &allocInfo, vkCommandBuffers.data());
 		CHECK(ret == VK_SUCCESS);
 
-		for (size_t i = 0; i < commandBuffers.size(); ++i)
+		for (size_t i = 0; i < vkCommandBuffers.size(); ++i)
 		{
 			VkCommandBufferBeginInfo beginInfo{};
 			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 			beginInfo.pInheritanceInfo = nullptr;
-			vkBeginCommandBuffer(commandBuffers[i], &beginInfo);
+			vkBeginCommandBuffer(vkCommandBuffers[i], &beginInfo);
 
 			std::array<VkClearValue, 2> clearValues;
 			clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -469,14 +469,14 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 			renderPassInfo.clearValueCount = static_cast<uint32>(clearValues.size());
 			renderPassInfo.pClearValues = clearValues.data();
 			
-			vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+			vkCmdBeginRenderPass(vkCommandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 			{
 				// #todo-vulkan: Drawing commands here
 				//triangle.commitCommands(commandBuffers[i]);
 			}
-			vkCmdEndRenderPass(commandBuffers[i]);
+			vkCmdEndRenderPass(vkCommandBuffers[i]);
 
-			VkResult ret = vkEndCommandBuffer(commandBuffers[i]);
+			VkResult ret = vkEndCommandBuffer(vkCommandBuffers[i]);
 			CHECK(ret == VK_SUCCESS);
 		}
 	}
@@ -488,10 +488,10 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 		VkResult ret;
 
-		ret = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore);
+		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkImageAvailableSemaphore);
 		CHECK(ret == VK_SUCCESS);
 
-		ret = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore);
+		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkRenderFinishedSemaphore);
 		CHECK(ret == VK_SUCCESS);
 	}
 }
@@ -663,7 +663,7 @@ VulkanDevice::QueueFamilyIndices VulkanDevice::findQueueFamilies(VkPhysicalDevic
 
 		CYLOG(LogVulkan, Log, TEXT("Check surface present support"));
 
-		vkGetPhysicalDeviceSurfaceSupportKHR(physDevice, i, surface, &presentSupport);
+		vkGetPhysicalDeviceSurfaceSupportKHR(physDevice, i, vkSurface, &presentSupport);
 		if (queueFamily.queueCount > 0 && presentSupport)
 		{
 			indices.presentFamily = i;
@@ -694,22 +694,22 @@ bool VulkanDevice::checkDeviceExtensionSupport(VkPhysicalDevice physDevice)
 VulkanDevice::SwapChainSupportDetails VulkanDevice::querySwapChainSupport(VkPhysicalDevice physDevice)
 {
 	SwapChainSupportDetails details;
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physDevice, surface, &details.capabilities);
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physDevice, vkSurface, &details.capabilities);
 	
 	uint32 formatCount;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice, surface, &formatCount, nullptr);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice, vkSurface, &formatCount, nullptr);
 	if (formatCount != 0)
 	{
 		details.formats.resize(formatCount);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice, surface, &formatCount, details.formats.data());
+		vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice, vkSurface, &formatCount, details.formats.data());
 	}
 
 	uint32 presentModeCount;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(physDevice, surface, &presentModeCount, nullptr);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(physDevice, vkSurface, &presentModeCount, nullptr);
 	if (presentModeCount != 0)
 	{
 		details.presentModes.resize(presentModeCount);
-		vkGetPhysicalDeviceSurfacePresentModesKHR(physDevice, surface, &presentModeCount, details.presentModes.data());
+		vkGetPhysicalDeviceSurfacePresentModesKHR(physDevice, vkSurface, &presentModeCount, details.presentModes.data());
 	}
 
 	return details;
