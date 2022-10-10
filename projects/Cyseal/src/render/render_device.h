@@ -96,7 +96,7 @@ public:
 	inline GPUResource* getDefaultDepthStencilBuffer() const { return defaultDepthStencilBuffer; }
 	inline DepthStencilView* getDefaultDSV() const { return defaultDSV; }
 
-	inline RenderCommandAllocator* getCommandAllocator() const { return commandAllocator; }
+	inline RenderCommandAllocator* getCommandAllocator(uint32 swapchainIndex) const { return commandAllocators[swapchainIndex]; }
 	inline RenderCommandList* getCommandList() const { return commandList; }
 	inline RenderCommandQueue* getCommandQueue() const { return commandQueue; }
 
@@ -107,9 +107,19 @@ protected:
 	GPUResource*            defaultDepthStencilBuffer;
 	DepthStencilView*       defaultDSV;
 
-	RenderCommandAllocator* commandAllocator;
-	RenderCommandQueue*     commandQueue;
-	RenderCommandList*      commandList;
+	// https://learn.microsoft.com/en-us/windows/win32/direct3d12/recording-command-lists-and-bundles
+	// Command allocators should hold memory for render commands while GPU is accessing them,
+	// but command lists can immediately reset after a recording set is done.
+	// So, it would be...
+	// 0. Prepare alloc0 and alloc1 for double buffering
+	// 1. cmdList->reset(alloc0)
+	// 2. Record commands
+	// 3. Wait until commands allocated in alloc1 are finished
+	// 4. Submit commands allocated in alloc0 to the queue
+	// 5. Repeat 1~4, but allocators swapped.
+	std::vector<RenderCommandAllocator*> commandAllocators;
+	RenderCommandQueue* commandQueue; // Primary graphics queue. Later other queues can be added (e.g., async compute queue).
+	RenderCommandList* commandList;
 
 };
 

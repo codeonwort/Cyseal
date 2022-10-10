@@ -24,24 +24,27 @@ void D3DRenderCommandAllocator::reset()
 void D3DRenderCommandList::initialize(RenderDevice* renderDevice)
 {
 	device = static_cast<D3DDevice*>(renderDevice);
-	commandAllocator = static_cast<D3DRenderCommandAllocator*>(device->getCommandAllocator());
 
 	auto rawDevice = device->getRawDevice();
-	auto rawAllocator = commandAllocator->getRaw();
+	// #todo-dx12: Use the first allocator to create a command list
+	// but this list will be reset with a different allocator every frame.
+	// Is it safe? (No error in my PC but does the spec guarantees it?)
+	auto tempAllocator = static_cast<D3DRenderCommandAllocator*>(device->getCommandAllocator(0))->getRaw();
 
 	HR( rawDevice->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		rawAllocator,
-		nullptr,
+		tempAllocator,
+		nullptr, // Initial state
 		IID_PPV_ARGS(commandList.GetAddressOf()))
 	);
 	HR( commandList->Close() );
 }
 
-void D3DRenderCommandList::reset()
+void D3DRenderCommandList::reset(RenderCommandAllocator* allocator)
 {
-	HR( commandList->Reset(commandAllocator->getRaw(), nullptr) );
+	ID3D12CommandAllocator* d3dAllocator = static_cast<D3DRenderCommandAllocator*>(allocator)->getRaw();
+	HR( commandList->Reset(d3dAllocator, nullptr) );
 }
 
 void D3DRenderCommandList::close()

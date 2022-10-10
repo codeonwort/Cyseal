@@ -1,5 +1,6 @@
 #include "render_command.h"
 #include "render_device.h"
+#include "swap_chain.h"
 
 RenderCommandQueue::~RenderCommandQueue()
 {
@@ -37,12 +38,14 @@ EnqueueCustomRenderCommand::EnqueueCustomRenderCommand(RenderCommandList::Custom
 
 FlushRenderCommands::FlushRenderCommands()
 {
-	RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator();
+	uint32 backbufferIx = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+
+	RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator(backbufferIx);
 	RenderCommandList* commandList = gRenderDevice->getCommandList();
 	RenderCommandQueue* commandQueue = gRenderDevice->getCommandQueue();
 
 	commandAllocator->reset();
-	commandList->reset();
+	commandList->reset(commandAllocator);
 	commandList->executeCustomCommands();
 	commandList->close();
 	commandQueue->executeCommandList(commandList);

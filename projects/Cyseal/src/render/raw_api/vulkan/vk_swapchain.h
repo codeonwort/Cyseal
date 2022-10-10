@@ -31,6 +31,7 @@ public:
 	virtual void swapBackbuffer() override;
 	virtual uint32 getBufferCount() override { return swapchainImageCount; }
 
+	virtual uint32 getCurrentBackbufferIndex() const override;
 	virtual GPUResource* getCurrentBackbuffer() const override;
 	virtual RenderTargetView* getCurrentBackbufferRTV() const override;
 
@@ -38,6 +39,8 @@ private:
 	// #todo-vulkan: Init subroutines here
 
 private:
+	uint32 currentBackbufferIx = 0;
+
 	VkSwapchainKHR swapchainKHR;
 	VkExtent2D swapchainExtent;
 	uint32 swapchainImageCount;

@@ -51,7 +51,7 @@ public:
 	virtual ~RenderCommandList();
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
-	virtual void reset() = 0;
+	virtual void reset(RenderCommandAllocator* allocator) = 0;
 	virtual void close() = 0;
 
 	virtual void iaSetPrimitiveTopology(EPrimitiveTopology topology) = 0;

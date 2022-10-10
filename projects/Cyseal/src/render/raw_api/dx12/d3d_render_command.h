@@ -39,7 +39,7 @@ class D3DRenderCommandList : public RenderCommandList
 
 public:
 	virtual void initialize(RenderDevice* renderDevice) override;
-	virtual void reset() override;
+	virtual void reset(RenderCommandAllocator* allocator) override;
 	virtual void close() override;
 
 	virtual void iaSetPrimitiveTopology(EPrimitiveTopology topology) override;

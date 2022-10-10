@@ -9,12 +9,20 @@
 /* -------------------------------------------------------
 					CONFIGURATION
 --------------------------------------------------------*/
-#define RAW_API          ERenderDeviceRawAPI::DirectX12
-//#define RAW_API          ERenderDeviceRawAPI::Vulkan
-#define RAYTRACING_TIER  ERayTracingTier::Tier_1_0
-#define WINDOW_TYPE      EWindowType::WINDOWED
-#define RENDERER_TYPE    ERendererType::Standard
-//#define RENDERER_TYPE    ERendererType::Null
+// 0: DX12 + Standard renderer
+// 1: Vulkan + Null renderer
+#define RENDERER_PRESET 0
+
+#if RENDERER_PRESET == 0
+	#define RAW_API          ERenderDeviceRawAPI::DirectX12
+	#define RENDERER_TYPE    ERendererType::Standard
+#elif RENDERER_PRESET == 1
+	#define RAW_API          ERenderDeviceRawAPI::Vulkan
+	#define RENDERER_TYPE    ERendererType::Null
+#endif
+#define RAYTRACING_TIER      ERayTracingTier::Tier_1_0
+#define WINDOW_TYPE          EWindowType::WINDOWED
+#define RENDERER_TYPE        ERendererType::Standard
 
 // #todo: Did I implement left-handedness?
 //        It's been too long I worked on this project...

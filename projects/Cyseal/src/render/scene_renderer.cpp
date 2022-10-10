@@ -16,16 +16,19 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 {
 	auto swapChain            = device->getSwapChain();
+	uint32 backbufferIndex    = swapChain->getCurrentBackbufferIndex();
 	auto currentBackBuffer    = swapChain->getCurrentBackbuffer();
 	auto currentBackBufferRTV = swapChain->getCurrentBackbufferRTV();
 	auto defaultDepthStencil  = device->getDefaultDepthStencilBuffer();
 	auto defaultDSV           = device->getDefaultDSV();
-	auto commandAllocator     = device->getCommandAllocator();
+	auto commandAllocator     = device->getCommandAllocator(backbufferIndex);
 	auto commandList          = device->getCommandList();
 	auto commandQueue         = device->getCommandQueue();
 
 	commandAllocator->reset();
-	commandList->reset();
+	// #todo-dx12: Is it OK to reset a command list with a different allocator
+	// than which was passed to ID3D12Device::CreateCommandList()?
+	commandList->reset(commandAllocator);
 
 	commandList->executeCustomCommands();
 

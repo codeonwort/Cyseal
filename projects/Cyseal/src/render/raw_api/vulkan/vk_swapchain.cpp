@@ -215,7 +215,12 @@ void VulkanSwapchain::present()
 
 void VulkanSwapchain::swapBackbuffer()
 {
-	//
+	currentBackbufferIx = (currentBackbufferIx + 1) % swapchainImageCount;
+}
+
+uint32 VulkanSwapchain::getCurrentBackbufferIndex() const
+{
+	return currentBackbufferIx;
 }
 
 GPUResource* VulkanSwapchain::getCurrentBackbuffer() const

@@ -4,7 +4,6 @@ RenderDevice* gRenderDevice = nullptr;
 
 RenderDevice::RenderDevice()
 	: swapChain(nullptr)
-	, commandAllocator(nullptr)
 {
 }
 

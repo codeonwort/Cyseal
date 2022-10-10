@@ -76,7 +76,6 @@ private:
 	// Raw interfaces
 	ID3D12CommandQueue*               rawCommandQueue;
 	ID3D12GraphicsCommandList4*       rawCommandList;
-	class D3DRenderCommandAllocator*  d3dCommandAllocator;
 	D3DSwapChain*                     d3dSwapChain;
 
 	WRL::ComPtr<ID3D12DescriptorHeap> heapDSV;

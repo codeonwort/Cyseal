@@ -4,12 +4,14 @@
 #if COMPILE_BACKEND_VULKAN
 
 #include "vk_render_command.h"
+#include "vk_swapchain.h"
 #include "vk_texture.h"
 #include "vk_buffer.h"
 #include "vk_shader.h"
 #include "vk_utils.h"
 #include "core/platform.h"
 #include "core/assertion.h"
+#include "render/swap_chain.h"
 
 #include <algorithm>
 #include <limits>
@@ -502,8 +504,18 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 	commandQueue = new VulkanRenderCommandQueue;
 	commandQueue->initialize(this);
 
-	commandAllocator = new VulkanRenderCommandAllocator;
-	commandAllocator->initialize(this);
+	swapChain = new VulkanSwapchain;
+	swapChain->initialize(this,
+		createParams.nativeWindowHandle,
+		createParams.windowWidth,
+		createParams.windowHeight);
+
+	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
+	{
+		RenderCommandAllocator* allocator = new VulkanRenderCommandAllocator;
+		allocator->initialize(this);
+		commandAllocators.push_back(allocator);
+	}
 
 	commandList = new VulkanRenderCommandList;
 	commandList->initialize(this);

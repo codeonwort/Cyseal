@@ -39,7 +39,10 @@ D3DDevice::~D3DDevice()
 	delete defaultDepthStencilBuffer;
 	delete defaultDSV;
 
-	delete commandAllocator;
+	for (size_t i = 0; i < commandAllocators.size(); ++i)
+	{
+		delete commandAllocators[i];
+	}
 	delete commandQueue;
 	delete commandList;
 }
@@ -146,33 +149,28 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	quality4xMSAA = msQualityLevels.NumQualityLevels;
 	CHECK(quality4xMSAA > 0);
 
-	// 4. Create command queues, command list allocators, and main command queue.
+	// 4. Create command queue.
 	commandQueue = new D3DRenderCommandQueue;
 	commandQueue->initialize(this);
 
-	commandAllocator = ( d3dCommandAllocator = new D3DRenderCommandAllocator );
-	commandAllocator->initialize(this);
+	rawCommandQueue = static_cast<D3DRenderCommandQueue*>(commandQueue)->getRaw();
+
+	// 5. Create swap chain.
+	swapChain = (d3dSwapChain = new D3DSwapChain);
+	recreateSwapChain(createParams.nativeWindowHandle, createParams.windowWidth, createParams.windowHeight);
+
+	// 6. Create command allocators and command list.
+	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
+	{
+		RenderCommandAllocator* allocator = new D3DRenderCommandAllocator;
+		allocator->initialize(this);
+		commandAllocators.push_back(allocator);
+	}
 
 	commandList = new D3DRenderCommandList;
 	commandList->initialize(this);
 
-	// Get raw interfaces
-	rawCommandQueue = static_cast<D3DRenderCommandQueue*>(commandQueue)->getRaw();
 	rawCommandList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
-
-	// 5. Create a swap chain.
-	swapChain = (d3dSwapChain = new D3DSwapChain);
-	recreateSwapChain(createParams.nativeWindowHandle, createParams.windowWidth, createParams.windowHeight);
-
-	// 6. Create descriptor heaps for CBV/SRV/UAV.
-	//for (int32 i = 0; i < (int32)D3DSwapChain::SWAP_CHAIN_BUFFER_COUNT; ++i)
-	//{
-	//	D3D12_DESCRIPTOR_HEAP_DESC desc{};
-	//	desc.NumDescriptors = 1;
-	//	desc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	//	desc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	//	HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heapCBV_SRV_UAV[i])) );
-	//}
 
 	// #todo-shader: Shader Model 6
 	D3D12_FEATURE_DATA_SHADER_MODEL SM = { D3D_SHADER_MODEL::D3D_SHADER_MODEL_5_1 };

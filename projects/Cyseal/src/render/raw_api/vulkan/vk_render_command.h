@@ -58,7 +58,7 @@ public:
 	}
 
 
-	void reset() override
+	void reset(RenderCommandAllocator* allocator) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
