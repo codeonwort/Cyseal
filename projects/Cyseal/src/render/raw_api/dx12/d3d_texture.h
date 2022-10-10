@@ -16,7 +16,11 @@ public:
 
 private:
 	WRL::ComPtr<ID3D12Resource> rawResource;
+	TextureCreateParams createParams;
+
 	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE uavHandle;
 	uint32 descriptorIndexInHeap = 0xffffffff;
 
 	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until

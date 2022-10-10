@@ -2,6 +2,7 @@
 
 #include "gpu_resource.h"
 #include "render_command.h"
+#include "util/enum_util.h"
 
 // ------------------------------------ //
 // #todo-vulkan: Vulkan API for texture //
@@ -54,12 +55,24 @@ enum class ETextureDimension : uint8
     TEXTURE3D = 3
 };
 
+enum class ETextureAccessFlags : uint32
+{
+    SRV          = 1 << 0,
+    RTV          = 1 << 1,
+    UAV          = 1 << 2,
+    CPU_WRITE    = 1 << 3,
+
+    GPU_ALL      = SRV | RTV| UAV
+};
+ENUM_CLASS_FLAGS(ETextureAccessFlags);
+
 // D3D12_RESOURCE_DESC (CD3DX12_RESOURCE_DESC)
 // VkImageCreateInfo
 struct TextureCreateParams
 {
     ETextureDimension dimension;
     EPixelFormat format;
+    ETextureAccessFlags accessFlags;
     uint32 width;
     uint32 height;
     uint16 depth; // or array size
@@ -69,6 +82,7 @@ struct TextureCreateParams
 
     static TextureCreateParams texture2D(
         EPixelFormat inFormat,
+        ETextureAccessFlags inAccessFlags,
         uint32 inWidth,
         uint32 inHeight,
         uint16 inMipLevels = 1,
@@ -78,6 +92,7 @@ struct TextureCreateParams
         return TextureCreateParams{
             ETextureDimension::TEXTURE2D,
             inFormat,
+            inAccessFlags,
             inWidth,
             inHeight,
             1,

@@ -188,8 +188,8 @@ void D3DRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthStencil
 {
 	auto d3dRTV = static_cast<D3DRenderTargetView*>(RTV);
 	auto d3dDSV = static_cast<D3DDepthStencilView*>(DSV);
-	auto rawRTV = d3dRTV->getRaw();
-	auto rawDSV = d3dDSV->getRaw();
+	D3D12_CPU_DESCRIPTOR_HANDLE rawRTV = d3dRTV->getRaw();
+	D3D12_CPU_DESCRIPTOR_HANDLE rawDSV = d3dDSV->getRaw();
 
 	commandList->OMSetRenderTargets(1, &rawRTV, true, &rawDSV);
 }

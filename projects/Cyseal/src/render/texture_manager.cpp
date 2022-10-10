@@ -46,7 +46,9 @@ void TextureManager::createSystemTextures()
 		[&grey2DPtr, &grey2DData](RenderCommandList& commandList)
 		{
 			TextureCreateParams params = TextureCreateParams::texture2D(
-				EPixelFormat::R8G8B8A8_UNORM, 1, 1, 1);
+				EPixelFormat::R8G8B8A8_UNORM,
+				ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
+				1, 1, 1);
 			grey2DPtr = gRenderDevice->createTexture(params);
 			grey2DPtr->uploadData(commandList, grey2DData, 4, 4);
 			grey2DPtr->setDebugName(L"Texture_SystemGrey2D");

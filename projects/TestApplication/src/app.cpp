@@ -144,7 +144,9 @@ void TestApplication::createResources()
 		[&texturePtr, &loadData](RenderCommandList& commandList)
 		{
 			TextureCreateParams params = TextureCreateParams::texture2D(
-				EPixelFormat::R8G8B8A8_UNORM, loadData.width, loadData.height, 1);
+				EPixelFormat::R8G8B8A8_UNORM,
+				ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
+				loadData.width, loadData.height, 1);
 			texturePtr = gRenderDevice->createTexture(params);
 			texturePtr->uploadData(commandList, loadData.buffer, loadData.getRowPitch(), loadData.getSlicePitch());
 			texturePtr->setDebugName(TEXT("Texture_test"));

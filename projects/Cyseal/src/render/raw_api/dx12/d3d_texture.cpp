@@ -43,6 +43,8 @@ namespace into_d3d
 
 void D3DTexture::initialize(const TextureCreateParams& params)
 {
+	createParams = params;
+
 	auto device = getD3DDevice()->getRawDevice();
 	D3D12_RESOURCE_DESC textureDesc = into_d3d::textureDesc(params);
 	
@@ -54,32 +56,41 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		nullptr,
 		IID_PPV_ARGS(&rawResource)));
 
-	const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, 1);
+	if (0 != (params.accessFlags & ETextureAccessFlags::CPU_WRITE))
+	{
+		const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, 1);
 
-	HR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&textureUploadHeap)));
+		HR(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&textureUploadHeap)));
+	}
 	
-	// #todo-texture: RTV and UAV
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-	srvDesc.Format = textureDesc.Format;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.MipLevels = textureDesc.MipLevels;
-	srvDesc.Texture2D.PlaneSlice = 0;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	if (0 != (params.accessFlags & ETextureAccessFlags::SRV))
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.Format = textureDesc.Format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // #todo-dx12: SRV ViewDimension
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = textureDesc.MipLevels;
+		srvDesc.Texture2D.PlaneSlice = 0;
+		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-	getD3DDevice()->allocateSRVHeapHandle(srvHandle, descriptorIndexInHeap);
-	device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHandle);
+		getD3DDevice()->allocateSRVHeapHandle(srvHandle, descriptorIndexInHeap);
+		device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHandle);
+	}
+
+	// #todo-texture: RTV and UAV
 }
 
 void D3DTexture::uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch)
 {
+	CHECK(0 != (createParams.accessFlags & ETextureAccessFlags::CPU_WRITE));
+
 	ID3D12GraphicsCommandList* rawCommandList = static_cast<D3DRenderCommandList*>(&commandList)->getRaw();
 
 	D3D12_SUBRESOURCE_DATA textureData;
