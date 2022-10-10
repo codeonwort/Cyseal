@@ -3,10 +3,14 @@
 
 #if COMPILE_BACKEND_VULKAN
 
+#include "vk_render_command.h"
+#include "vk_texture.h"
+#include "vk_buffer.h"
 #include "vk_shader.h"
 #include "vk_utils.h"
 #include "core/platform.h"
 #include "core/assertion.h"
+
 #include <algorithm>
 #include <limits>
 #include <string>
@@ -494,6 +498,15 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkRenderFinishedSemaphore);
 		CHECK(ret == VK_SUCCESS);
 	}
+
+	commandQueue = new VulkanRenderCommandQueue;
+	commandQueue->initialize(this);
+
+	commandAllocator = new VulkanRenderCommandAllocator;
+	commandAllocator->initialize(this);
+
+	commandList = new VulkanRenderCommandList;
+	commandList->initialize(this);
 }
 
 void VulkanDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)
@@ -506,7 +519,7 @@ void VulkanDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uin
 void VulkanDevice::flushCommandQueue()
 {
 	// #todo-vulkan
-	CHECK_NO_ENTRY();
+	//CHECK_NO_ENTRY();
 }
 
 bool VulkanDevice::supportsRayTracing()
@@ -518,23 +531,23 @@ bool VulkanDevice::supportsRayTracing()
 
 VertexBuffer* VulkanDevice::createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes)
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-	return nullptr;
+	VulkanVertexBuffer* buffer = new VulkanVertexBuffer;
+	buffer->initialize(data, sizeInBytes, strideInBytes);
+	return buffer;
 }
 
 IndexBuffer* VulkanDevice::createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format)
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-	return nullptr;
+	VulkanIndexBuffer* buffer = new VulkanIndexBuffer;
+	buffer->initialize(data, sizeInBytes, format);
+	return buffer;
 }
 
 Texture* VulkanDevice::createTexture(const TextureCreateParams& createParams)
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-	return nullptr;
+	VulkanTexture* texture = new VulkanTexture;
+	texture->initialize(createParams);
+	return texture;
 }
 
 Shader* VulkanDevice::createShader()
@@ -559,7 +572,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
 {
 	// #todo-vulkan
-	CHECK_NO_ENTRY();
+	//CHECK_NO_ENTRY();
 	return nullptr;
 }
 

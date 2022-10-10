@@ -90,6 +90,7 @@ void CysealEngine::createRenderDevice(const RenderDeviceCreateParams& createPara
 #if COMPILE_BACKEND_VULKAN
 		renderDevice = new VulkanDevice;
 #else
+		CYLOG(LogEngine, Error, L"Vulkan backend is compiled out. Switch to DX12 backend.");
 		renderDevice = new D3DDevice;
 #endif
 		break;

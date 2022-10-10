@@ -90,6 +90,9 @@
     <ClInclude Include="src\loader\image_loader.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
     <ClInclude Include="src\render\base_pass.h" />
+    <ClInclude Include="src\render\raw_api\vulkan\vk_buffer.h" />
+    <ClInclude Include="src\render\raw_api\vulkan\vk_render_command.h" />
+    <ClInclude Include="src\render\raw_api\vulkan\vk_texture.h" />
     <ClInclude Include="src\render\scene_renderer.h" />
     <ClInclude Include="src\render\material.h" />
     <ClInclude Include="src\render\pipeline_state.h" />
