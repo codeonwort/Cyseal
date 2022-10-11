@@ -18,6 +18,7 @@ public:
 	~TextureManager() = default;
 
 	void initialize();
+	void destroy();
 
 	uint32 allocateSRVIndex();
 	uint32 allocateRTVIndex();

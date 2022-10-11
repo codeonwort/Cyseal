@@ -30,10 +30,6 @@ private:
 	void updateConstantBuffer(uint32 payloadID, void* payload, uint32 payloadSize);
 	void updateMaterial(RenderCommandList* cmdList, uint32 payloadID, Material* material);
 
-	inline PipelineState* getPipelineState() const { return pipelineState.get(); }
-	inline RootSignature* getRootSignature() const { return rootSignature.get(); }
-	inline EPrimitiveTopology getPrimitiveTopology() const { return EPrimitiveTopology::TRIANGLELIST; }
-
 private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;

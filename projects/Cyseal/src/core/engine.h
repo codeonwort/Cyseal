@@ -21,7 +21,7 @@ class CysealEngine final
 {
 
 public:
-	explicit CysealEngine();
+	explicit CysealEngine() = default;
 	~CysealEngine();
 
 	CysealEngine(const CysealEngine& rhs) = delete;
@@ -40,9 +40,9 @@ private:
 	void createTextureManager();
 
 private:
-	EEngineState state;
+	EEngineState state = EEngineState::UNINITIALIZED;
 
-	RenderDevice* renderDevice;
-	Renderer* renderer;
+	RenderDevice* renderDevice = nullptr;
+	Renderer* renderer = nullptr;
 
 };

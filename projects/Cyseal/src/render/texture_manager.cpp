@@ -32,6 +32,11 @@ void TextureManager::initialize()
 	createSystemTextures();
 }
 
+void TextureManager::destroy()
+{
+	delete systemTexture_grey2D;
+}
+
 uint32 TextureManager::allocateSRVIndex()
 {
 	CHECK(nextSRVIndex < MAX_SRV_DESCRIPTORS);

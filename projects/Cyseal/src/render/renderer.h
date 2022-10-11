@@ -16,8 +16,7 @@ public:
 	virtual ~Renderer() = default;
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
-	// #todo-renderer: Destroy Renderer on termination.
-	//virtual void destroy() = 0;
+	virtual void destroy() = 0;
 	virtual void render(const SceneProxy* scene, const Camera* camera) = 0;
 };
 
@@ -27,5 +26,6 @@ class NullRenderer : public Renderer
 {
 public:
 	virtual void initialize(RenderDevice*) override {}
+	virtual void destroy() override {}
 	virtual void render(const SceneProxy* scene, const Camera* camera) override {}
 };

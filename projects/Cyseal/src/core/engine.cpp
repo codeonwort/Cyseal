@@ -17,14 +17,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogEngine);
 
-CysealEngine::CysealEngine()
-{
-	state = EEngineState::UNINITIALIZED;
-
-	renderDevice = nullptr;
-	renderer = nullptr;
-}
-
 CysealEngine::~CysealEngine()
 {
 	CHECK(state == EEngineState::SHUTDOWN);
@@ -68,11 +60,16 @@ void CysealEngine::shutdown()
 	CYLOG(LogEngine, Log, TEXT("Start engine termination."));
 
 	// Subsystems
-	delete gTextureManager; gTextureManager = nullptr;
+	gTextureManager->destroy();
+	delete gTextureManager;
+	gTextureManager = nullptr;
 
 	// Rendering
+	renderer->destroy();
 	delete renderer;
-	delete renderDevice; gRenderDevice = nullptr;
+
+	delete renderDevice;
+	gRenderDevice = nullptr;
 
 	// Shutdown is finished.
 	state = EEngineState::SHUTDOWN;

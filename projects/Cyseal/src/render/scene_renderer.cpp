@@ -6,11 +6,6 @@
 #include "render/base_pass.h"
 #include "render/static_mesh.h"
 
-SceneRenderer::~SceneRenderer()
-{
-	delete RT_sceneColor;
-}
-
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
@@ -23,7 +18,15 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 			renderDevice->getSwapChain()->getBackbufferHeight(),
 			1, 1, 0));
 
-	createRenderPasses();
+	basePass = new BasePass;
+	basePass->initialize();
+}
+
+void SceneRenderer::destroy()
+{
+	delete RT_sceneColor;
+
+	delete basePass;
 }
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
@@ -113,15 +116,4 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
  	swapChain->swapBackbuffer();
 
  	device->flushCommandQueue();
-}
-
-void SceneRenderer::createRenderPasses()
-{
-	basePass = new BasePass;
-	basePass->initialize();
-}
-
-void SceneRenderer::destroyRenderPasses()
-{
-	delete basePass;
 }

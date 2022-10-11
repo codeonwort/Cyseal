@@ -14,6 +14,12 @@
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
+#if _DEBUG
+#include <dxgidebug.h>
+#pragma comment(lib, "dxguid.lib")
+#endif
+
+
 DEFINE_LOG_CATEGORY_STATIC(LogDirectX);
 
 // How to initialize D3D12
@@ -45,6 +51,15 @@ D3DDevice::~D3DDevice()
 	}
 	delete commandQueue;
 	delete commandList;
+
+#if _DEBUG
+	IDXGIDebug1* dxgiDebug = NULL;
+	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
+	{
+		dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_SUMMARY);
+		dxgiDebug->Release();
+	}
+#endif
 }
 
 void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
