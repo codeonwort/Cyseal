@@ -4,6 +4,8 @@
 #include "render_command.h"
 #include "util/enum_util.h"
 
+class RenderTargetView;
+
 // ------------------------------------ //
 // #todo-vulkan: Vulkan API for texture //
 // 
@@ -109,11 +111,15 @@ public:
     virtual void uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch) = 0;
     virtual void setDebugName(const wchar_t* debugName) = 0;
 
+    virtual RenderTargetView* getRTV() const = 0;
+
+    // Element index in the descriptor heap from which the descriptor was created.
     virtual uint32 getSRVDescriptorIndex() const = 0;
+    virtual uint32 getRTVDescriptorIndex() const = 0;
+    virtual uint32 getUAVDescriptorIndex() const = 0;
 
 private:
     // #todo-texture
     // SRV
-    // RTV
     // UAV
 };

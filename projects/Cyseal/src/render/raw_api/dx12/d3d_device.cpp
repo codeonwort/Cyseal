@@ -238,16 +238,28 @@ void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32
 	static_cast<D3DDepthStencilView*>(defaultDSV)->setRaw(rawGetDepthStencilView());
 }
 
-void D3DDevice::allocateSRVHeapHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
+void D3DDevice::allocateSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
 {
-	ID3D12DescriptorHeap* heapSRV = static_cast<D3DDescriptorHeap*>(gTextureManager->getSRVHeap())->getRaw();
-	const uint32 srvIndex = gTextureManager->allocateSRVIndex();
+	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getSRVHeap())->getRaw();
+	const uint32 viewIndex = gTextureManager->allocateSRVIndex();
 
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = heapSRV->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += SIZE_T(srvIndex) * SIZE_T(descSizeCBV_SRV_UAV);
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeCBV_SRV_UAV);
 
 	outHandle = handle;
-	outDescriptorIndex = srvIndex;
+	outDescriptorIndex = viewIndex;
+}
+
+void D3DDevice::allocateRTVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
+{
+	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getRTVHeap())->getRaw();
+	const uint32 viewIndex = gTextureManager->allocateRTVIndex();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeRTV);
+
+	outHandle = handle;
+	outDescriptorIndex = viewIndex;
 }
 
 void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter)

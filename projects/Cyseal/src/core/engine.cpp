@@ -41,12 +41,14 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 	ResourceFinder::get().add(L"../../shaders/");
 	ResourceFinder::get().add(L"../../resource/");
 
-	// Rendering
+	// Core
 	createRenderDevice(createParams.renderDevice);
-	createRenderer(createParams.rendererType);
 
 	// Subsystems
 	createTextureManager();
+
+	// Rendering
+	createRenderer(createParams.rendererType);
 
 	CYLOG(LogEngine, Log, TEXT("Renderer has been initialized."));
 

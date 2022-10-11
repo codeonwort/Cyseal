@@ -6,9 +6,22 @@
 #include "render/base_pass.h"
 #include "render/static_mesh.h"
 
+SceneRenderer::~SceneRenderer()
+{
+	delete RT_sceneColor;
+}
+
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
+
+	RT_sceneColor = renderDevice->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::R8G8B8A8_UNORM,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
+			renderDevice->getSwapChain()->getBackbufferWidth(),
+			renderDevice->getSwapChain()->getBackbufferHeight(),
+			1, 1, 0));
 
 	createRenderPasses();
 }
@@ -58,7 +71,15 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	scissorRect.bottom = swapChain->getBackbufferHeight();
  	commandList->rsSetScissorRect(scissorRect);
 
+#if 0
+	commandList->transitionResource(
+		RT_sceneColor,
+		EGPUResourceState::COMMON,
+		EGPUResourceState::RENDER_TARGET);
+	commandList->omSetRenderTarget(RT_sceneColor->getRTV(), defaultDSV);
+#else
 	commandList->omSetRenderTarget(currentBackBufferRTV, defaultDSV);
+#endif
 
 	float clearColor[4] = { 0.5f, 0.0f, 0.0f, 1.0f };
 	commandList->clearRenderTargetView(currentBackBufferRTV, clearColor);

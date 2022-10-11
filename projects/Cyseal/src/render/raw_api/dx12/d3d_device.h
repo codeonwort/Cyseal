@@ -46,7 +46,8 @@ public:
 	inline ID3D12CommandQueue* getRawCommandQueue() const { return rawCommandQueue; }
 
 	// #todo-renderdevice: Needs abstraction layer and release mechanism
-	void allocateSRVHeapHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
+	void allocateSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
+	void allocateRTVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
 
 private:
 	void getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter);

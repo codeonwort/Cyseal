@@ -14,6 +14,8 @@ public:
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
+	virtual RenderTargetView* getRTV() const override { return nullptr; }
+
 
 	void setDebugName(const wchar_t* debugName) override
 	{
@@ -22,6 +24,18 @@ public:
 
 
 	uint32 getSRVDescriptorIndex() const override
+	{
+		//throw std::logic_error("The method or operation is not implemented.");
+		return 0;
+	}
+
+	uint32 getRTVDescriptorIndex() const override
+	{
+		//throw std::logic_error("The method or operation is not implemented.");
+		return 0;
+	}
+
+	uint32 getUAVDescriptorIndex() const override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 		return 0;

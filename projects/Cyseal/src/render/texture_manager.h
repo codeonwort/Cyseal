@@ -14,14 +14,16 @@ class Texture;
 class TextureManager final
 {
 public:
-	TextureManager();
-	~TextureManager();
+	TextureManager() = default;
+	~TextureManager() = default;
 
 	void initialize();
 
 	uint32 allocateSRVIndex();
+	uint32 allocateRTVIndex();
 
 	DescriptorHeap* getSRVHeap() const { return srvHeap.get(); }
+	DescriptorHeap* getRTVHeap() const { return rtvHeap.get(); }
 
 	Texture* getSystemTextureGrey2D() const { return systemTexture_grey2D; }
 
@@ -29,9 +31,11 @@ private:
 	void createSystemTextures();
 
 	std::unique_ptr<DescriptorHeap> srvHeap;
-	uint32 srvIndex;
+	std::unique_ptr<DescriptorHeap> rtvHeap;
+	uint32 nextSRVIndex = 0;
+	uint32 nextRTVIndex = 0;
 
-	Texture* systemTexture_grey2D;
+	Texture* systemTexture_grey2D = nullptr;
 };
 
 extern TextureManager* gTextureManager;

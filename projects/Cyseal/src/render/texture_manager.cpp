@@ -3,38 +3,45 @@
 #include "texture.h"
 #include "core/assertion.h"
 
-#define MAX_TEXTURE_DESCRIPTORS 1024
+#define MAX_SRV_DESCRIPTORS 1024
+#define MAX_RTV_DESCRIPTORS 64
 
 TextureManager* gTextureManager = nullptr;
 
-TextureManager::TextureManager()
-	: srvHeap(nullptr)
-	, srvIndex(0)
-	, systemTexture_grey2D(nullptr)
-{
-}
-
-TextureManager::~TextureManager()
-{
-}
-
 void TextureManager::initialize()
 {
-	DescriptorHeapDesc desc;
-	desc.type           = EDescriptorHeapType::CBV_SRV_UAV;
-	desc.numDescriptors = MAX_TEXTURE_DESCRIPTORS;
-	desc.flags          = EDescriptorHeapFlags::None;
-	desc.nodeMask       = 0;
+	{
+		DescriptorHeapDesc desc;
+		desc.type = EDescriptorHeapType::CBV_SRV_UAV;
+		desc.numDescriptors = MAX_SRV_DESCRIPTORS;
+		desc.flags = EDescriptorHeapFlags::None;
+		desc.nodeMask = 0;
 
-	srvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
+		srvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
+	}
+	{
+		DescriptorHeapDesc desc;
+		desc.type = EDescriptorHeapType::RTV;
+		desc.numDescriptors = MAX_RTV_DESCRIPTORS;
+		desc.flags = EDescriptorHeapFlags::None;
+		desc.nodeMask = 0;
+
+		rtvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
+	}
 
 	createSystemTextures();
 }
 
 uint32 TextureManager::allocateSRVIndex()
 {
-	CHECK(srvIndex < MAX_TEXTURE_DESCRIPTORS);
-	return srvIndex++;
+	CHECK(nextSRVIndex < MAX_SRV_DESCRIPTORS);
+	return nextSRVIndex++;
+}
+
+uint32 TextureManager::allocateRTVIndex()
+{
+	CHECK(nextSRVIndex < MAX_SRV_DESCRIPTORS);
+	return nextSRVIndex++;
 }
 
 void TextureManager::createSystemTextures()
@@ -55,5 +62,4 @@ void TextureManager::createSystemTextures()
 		}
 	);
 	FLUSH_RENDER_COMMANDS();
-
 }

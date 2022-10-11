@@ -2,6 +2,7 @@
 #include "d3d_device.h"
 #include "d3d_pipeline_state.h"
 #include "d3d_render_command.h"
+#include "d3d_resource_view.h"
 #include "core/assertion.h"
 
 // Convert API-agnostic structs into D3D12 structs
@@ -35,7 +36,17 @@ namespace into_d3d
 		desc.SampleDesc.Count = params.sampleCount;
 		desc.SampleDesc.Quality = params.sampleQuality;
 		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN; // #todo-dx12: Always default layout
-		desc.Flags = D3D12_RESOURCE_FLAG_NONE; // #todo-dx12: Do I need allow flags?
+		
+		// #todo-dx12: Other allow flags
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		if (0 != (params.accessFlags & ETextureAccessFlags::RTV))
+		{
+			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+		}
+		if (0 != (params.accessFlags & ETextureAccessFlags::UAV))
+		{
+			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		}
 
 		return desc;
 	}
@@ -71,20 +82,45 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	
 	if (0 != (params.accessFlags & ETextureAccessFlags::SRV))
 	{
+		// #todo-dx12: SRV ViewDimension
+		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
+
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
 		srvDesc.Format = textureDesc.Format;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // #todo-dx12: SRV ViewDimension
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srvDesc.Texture2D.MostDetailedMip = 0;
 		srvDesc.Texture2D.MipLevels = textureDesc.MipLevels;
 		srvDesc.Texture2D.PlaneSlice = 0;
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-		getD3DDevice()->allocateSRVHeapHandle(srvHandle, descriptorIndexInHeap);
+		getD3DDevice()->allocateSRVHandle(srvHandle, srvDescriptorIndex);
 		device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHandle);
 	}
 
-	// #todo-texture: RTV and UAV
+	if (0 != (params.accessFlags & ETextureAccessFlags::RTV))
+	{
+		// #todo-dx12: RTV ViewDimension
+		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
+
+		D3D12_RENDER_TARGET_VIEW_DESC viewDesc{};
+		viewDesc.Format = textureDesc.Format;
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		viewDesc.Texture2D.MipSlice = 0;
+		viewDesc.Texture2D.PlaneSlice = 0;
+
+		getD3DDevice()->allocateRTVHandle(rtvHandle, rtvDescriptorIndex);
+		device->CreateRenderTargetView(rawResource.Get(), &viewDesc, rtvHandle);
+
+		rtv = std::make_unique<D3DRenderTargetView>();
+		rtv->setRaw(rtvHandle);
+	}
+
+	if (0 != (params.accessFlags & ETextureAccessFlags::UAV))
+	{
+		// #todo-dx12: UAV
+		CHECK_NO_ENTRY();
+	}
 }
 
 void D3DTexture::uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch)
@@ -108,4 +144,9 @@ void D3DTexture::uploadData(RenderCommandList& commandList, const void* buffer, 
 void D3DTexture::setDebugName(const wchar_t* debugName)
 {
 	rawResource->SetName(debugName);
+}
+
+RenderTargetView* D3DTexture::getRTV() const
+{
+	return rtv.get();
 }

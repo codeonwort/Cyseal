@@ -4,24 +4,35 @@
 #include "render/texture.h"
 #include "d3d_util.h"
 
+class RenderTargetView;
+class D3DRenderTargetView;
+
 class D3DTexture : public Texture
 {
 public:
 	void initialize(const TextureCreateParams& params);
 
-	virtual void uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch);
-	virtual void setDebugName(const wchar_t* debugName);
+	virtual void uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch) override;
+	virtual void setDebugName(const wchar_t* debugName) override;
 
-	virtual uint32 getSRVDescriptorIndex() const { return descriptorIndexInHeap; }
+	virtual RenderTargetView* getRTV() const override;
+
+	virtual uint32 getSRVDescriptorIndex() const override { return srvDescriptorIndex; }
+	virtual uint32 getRTVDescriptorIndex() const override { return rtvDescriptorIndex; }
+	virtual uint32 getUAVDescriptorIndex() const override { return uavDescriptorIndex; }
 
 private:
 	WRL::ComPtr<ID3D12Resource> rawResource;
 	TextureCreateParams createParams;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
-	D3D12_CPU_DESCRIPTOR_HANDLE uavHandle;
-	uint32 descriptorIndexInHeap = 0xffffffff;
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = { NULL };
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = { NULL };
+	D3D12_CPU_DESCRIPTOR_HANDLE uavHandle = { NULL };
+	uint32 srvDescriptorIndex = 0xffffffff;
+	uint32 rtvDescriptorIndex = 0xffffffff;
+	uint32 uavDescriptorIndex = 0xffffffff;
+
+	std::unique_ptr<D3DRenderTargetView> rtv;
 
 	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 	// the command list that references it has finished executing on the GPU.
