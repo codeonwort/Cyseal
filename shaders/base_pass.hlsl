@@ -60,9 +60,9 @@ float4 mainPS(VertexOutput vout) : SV_TARGET
     MaterialConstants material = getMaterialData();
 
     // Variables
-    float3 L = normalize(float3(0.0, -1.0, 1.0));
+    float3 Wi = -normalize(float3(0.0, -1.0, 1.0));
     float3 N = normalize(vout.normal);
-    float NdotL = max(0.0, dot(N, -L));
+    float NdotL = max(0.0, dot(N, Wi));
 
     // Material properties
     float3 albedo = float3(material.color.rgb);
@@ -71,11 +71,12 @@ float4 mainPS(VertexOutput vout) : SV_TARGET
     albedo = albedoSample.xyz;
 
     // Lighting
-    float3 diffuse = albedo * NdotL;
+    float3 Li = 5.0 * float3(1.0, 1.0, 1.0);
+    float3 diffuse = albedo * Li * NdotL;
     float3 specular = float3(0.0, 0.0, 0.0);
 
     float3 radiance = diffuse + specular;
-    float opacity = material.color.a;
+    //float opacity = material.color.a;
 
-    return float4(radiance, opacity);
+    return float4(radiance, 1.0);
 }

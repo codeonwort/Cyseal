@@ -64,10 +64,10 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	D3D12_RESOURCE_DESC textureDesc = into_d3d::textureDesc(params);
 	
 	// Validate desc
+	const bool isColorTarget = 0 != (params.accessFlags & ETextureAccessFlags::COLOR_ALL);
+	const bool isDepthTarget = 0 != (params.accessFlags & ETextureAccessFlags::DSV);
 	{
 		// Can't be both color target and depth target
-		const bool isColorTarget = 0 != (params.accessFlags & ETextureAccessFlags::COLOR_ALL);
-		const bool isDepthTarget = 0 != (params.accessFlags & ETextureAccessFlags::DSV);
 		CHECK(!isColorTarget || !isDepthTarget);
 
 		if (isDepthTarget)
@@ -79,12 +79,41 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		}
 	}
 
+	// #todo-dx12: Texture clear value
+	bool bNeedsClearValue = false;
+	D3D12_CLEAR_VALUE optClearValue;
+	optClearValue.Format = textureDesc.Format;
+	if (isColorTarget && (0 != (params.accessFlags & ETextureAccessFlags::RTV)))
+	{
+		bNeedsClearValue = true;
+		optClearValue.Color[0] = 0.0f;
+		optClearValue.Color[1] = 0.0f;
+		optClearValue.Color[2] = 0.0f;
+		optClearValue.Color[3] = 0.0f;
+	}
+	else if (isDepthTarget && (0 != (params.accessFlags & ETextureAccessFlags::DSV)))
+	{
+		bNeedsClearValue = true;
+		optClearValue.DepthStencil.Depth = 1.0f;
+		optClearValue.DepthStencil.Stencil = 0;
+	}
+
+	D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
+	if (isColorTarget && (0 != (params.accessFlags & ETextureAccessFlags::CPU_WRITE)))
+	{
+		initialState |= D3D12_RESOURCE_STATE_COPY_DEST;
+	}
+	else if (isDepthTarget && (0 != (params.accessFlags & ETextureAccessFlags::DSV)))
+	{
+		initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	}
+
 	HR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&textureDesc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
+		initialState,
+		bNeedsClearValue ? &optClearValue : nullptr,
 		IID_PPV_ARGS(&rawResource)));
 	
 	if (0 != (params.accessFlags & ETextureAccessFlags::CPU_WRITE))
@@ -152,6 +181,9 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 
 		getD3DDevice()->allocateDSVHandle(dsvHandle, dsvDescriptorIndex);
 		device->CreateDepthStencilView(rawResource.Get(), &viewDesc, dsvHandle);
+
+		dsv = std::make_unique<D3DDepthStencilView>();
+		dsv->setRaw(dsvHandle);
 	}
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::UAV))

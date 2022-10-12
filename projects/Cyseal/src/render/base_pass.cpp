@@ -9,6 +9,8 @@
 #include "static_mesh.h"
 
 #define MAX_VOLATILE_DESCRIPTORS 1024
+// #todo: Acquire pixel format from Texture
+#define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 
 void BasePass::initialize()
 {
@@ -117,7 +119,7 @@ void BasePass::initialize()
 		desc.sampleMask             = 0xffffffff;
 		desc.primitiveTopologyType  = EPrimitiveTopologyType::Triangle;
 		desc.numRenderTargets       = 1;
-		desc.rtvFormats[0]          = swapchain->getBackbufferFormat();
+		desc.rtvFormats[0]          = PF_sceneColor;
 		desc.sampleDesc.count       = swapchain->supports4xMSAA() ? 4 : 1;
 		desc.sampleDesc.quality     = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0;
 		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();

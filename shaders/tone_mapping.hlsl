@@ -1,4 +1,8 @@
 
+// #todo-hlsl: Parameterize
+#define GAMMA_CORRECTION 2.2
+#define EXPOSURE         1.0
+
 // ------------------------------------------------------------------------
 // Resource bindings
 
@@ -30,13 +34,16 @@ Interpolants mainVS(uint vertexID: SV_VertexID)
 float4 mainPS(Interpolants interpolants) : SV_TARGET
 {
     float2 screenUV = interpolants.uv;
+    screenUV.y = 1.0 - screenUV.y;
 
-    //float4 sceneColorSample = sceneColor.SampleLevel(sceneColorSampler, screenUV, 0.0);
-    //sceneColorSample.rgb *= exp(1.0 / 2.2);
+    float4 color = sceneColor.SampleLevel(sceneColorSampler, screenUV, 0.0);
 
-    float4 sceneColorSample = float4(1.0, 0.0, 0.0, 1.0);
+    // Reinhard tone mapper
+    color.rgb = float3(1.0, 1.0, 1.0) - exp(-color.rgb * EXPOSURE);
 
-    clip(screenUV.x - 0.5);
+    // Gamma correction
+    float gamma = 1.0 / GAMMA_CORRECTION;
+    color.rgb = pow(color.rgb, float3(gamma, gamma, gamma));
 
-    return sceneColorSample;
+    return color;
 }

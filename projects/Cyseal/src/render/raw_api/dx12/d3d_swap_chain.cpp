@@ -61,6 +61,10 @@ void D3DSwapChain::initialize(
 		auto bufferPtr = rawSwapChainBuffers[i].GetAddressOf();
 		HR( rawSwapChain->GetBuffer(i, IID_PPV_ARGS(bufferPtr)) );
 		swapChainBuffers[i]->setRaw(rawSwapChainBuffers[i].Get());
+
+		wchar_t debugName[256];
+		swprintf_s(debugName, L"Backbuffer%u", i);
+		rawSwapChainBuffers[i]->SetName(debugName);
 	}
 
 	// Create RTV heap

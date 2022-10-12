@@ -18,10 +18,11 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 		RT_sceneColor = renderDevice->createTexture(
 			TextureCreateParams::texture2D(
-				EPixelFormat::R8G8B8A8_UNORM,
+				EPixelFormat::R32G32B32A32_FLOAT,
 				ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
 				sceneWidth, sceneHeight,
 				1, 1, 0));
+		RT_sceneColor->setDebugName(L"SceneColor");
 
 		RT_sceneDepth = renderDevice->createTexture(
 			TextureCreateParams::texture2D(
@@ -29,6 +30,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 				ETextureAccessFlags::DSV,
 				sceneWidth, sceneHeight,
 				1, 1, 0));
+		RT_sceneDepth->setDebugName(L"SceneDepth");
 	}
 
 	// Render passes
@@ -61,6 +63,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	auto commandList          = device->getCommandList();
 	auto commandQueue         = device->getCommandQueue();
 
+	const uint32 sceneWidth = swapChain->getBackbufferWidth();
+	const uint32 sceneHeight = swapChain->getBackbufferHeight();
+
 	commandAllocator->reset();
 	// #todo-dx12: Is it OK to reset a command list with a different allocator
 	// than which was passed to ID3D12Device::CreateCommandList()?
@@ -68,21 +73,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 	commandList->executeCustomCommands();
 
-	commandList->transitionResource(
-		currentBackBuffer,
-		EGPUResourceState::PRESENT,
-		EGPUResourceState::RENDER_TARGET);
-
-	commandList->transitionResource(
-		backbufferDepth,
-		EGPUResourceState::COMMON,
-		EGPUResourceState::DEPTH_WRITE);
-
 	Viewport viewport;
 	viewport.topLeftX = 0;
 	viewport.topLeftY = 0;
-	viewport.width    = static_cast<float>(swapChain->getBackbufferWidth());
-	viewport.height   = static_cast<float>(swapChain->getBackbufferHeight());
+	viewport.width    = static_cast<float>(sceneWidth);
+	viewport.height   = static_cast<float>(sceneHeight);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
  	commandList->rsSetViewport(viewport);
@@ -90,33 +85,55 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	ScissorRect scissorRect;
 	scissorRect.left   = 0;
 	scissorRect.top    = 0;
-	scissorRect.right  = swapChain->getBackbufferWidth();
-	scissorRect.bottom = swapChain->getBackbufferHeight();
+	scissorRect.right  = sceneWidth;
+	scissorRect.bottom = sceneHeight;
  	commandList->rsSetScissorRect(scissorRect);
-
-#if 0
-	commandList->transitionResource(
-		RT_sceneColor,
-		EGPUResourceState::COMMON,
-		EGPUResourceState::RENDER_TARGET);
-	commandList->omSetRenderTarget(RT_sceneColor->getRTV(), defaultDSV);
-#else
-	commandList->omSetRenderTarget(currentBackBufferRTV, backbufferDSV);
-#endif
-
-	float clearColor[4] = { 0.5f, 0.0f, 0.0f, 1.0f };
-	commandList->clearRenderTargetView(currentBackBufferRTV, clearColor);
-
-	commandList->clearDepthStencilView(
-		backbufferDSV,
-		EDepthClearFlags::DEPTH_STENCIL,
-		1.0f, 0);
 
 	// #todo: Depth PrePass
 
-	basePass->renderBasePass(commandList, scene, camera);
+	// Base pass
+	// final target: RT_sceneColor, RT_sceneDepth
+	{
+		commandList->transitionResource(
+			RT_sceneColor,
+			EGPUResourceState::PIXEL_SHADER_RESOURCE,
+			EGPUResourceState::RENDER_TARGET);
 
-	toneMapping->renderToneMapping(commandList, RT_sceneColor);
+		commandList->omSetRenderTarget(RT_sceneColor->getRTV(), RT_sceneDepth->getDSV());
+
+		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		commandList->clearRenderTargetView(RT_sceneColor->getRTV(), clearColor);
+
+		commandList->clearDepthStencilView(
+			RT_sceneDepth->getDSV(),
+			EDepthClearFlags::DEPTH_STENCIL,
+			1.0f, 0);
+
+		basePass->renderBasePass(commandList, scene, camera);
+	}
+
+	// Tone mapping
+	// final target: back buffer
+	{
+		commandList->transitionResource(
+			RT_sceneColor,
+			EGPUResourceState::RENDER_TARGET,
+			EGPUResourceState::PIXEL_SHADER_RESOURCE);
+
+		commandList->transitionResource(
+			currentBackBuffer,
+			EGPUResourceState::PRESENT,
+			EGPUResourceState::RENDER_TARGET);
+
+		commandList->transitionResource(
+			backbufferDepth,
+			EGPUResourceState::COMMON,
+			EGPUResourceState::DEPTH_WRITE);
+
+		commandList->omSetRenderTarget(currentBackBufferRTV, backbufferDSV);
+
+		toneMapping->renderToneMapping(commandList, RT_sceneColor);
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 	// Present

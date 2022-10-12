@@ -4,9 +4,6 @@
 #include "d3d_util.h"
 #include "d3d_swap_chain.h"
 
-// #todo-renderdevice: Magic number
-#define MAX_SRV_DESCRIPTORS 1024
-
 class D3DDevice : public RenderDevice
 {
 
