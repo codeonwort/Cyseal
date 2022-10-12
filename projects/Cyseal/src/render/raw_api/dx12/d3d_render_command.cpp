@@ -225,8 +225,18 @@ void D3DRenderCommandList::setGraphicsRootDescriptorTable(
 	ID3D12DescriptorHeap* rawHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
 	D3D12_GPU_DESCRIPTOR_HANDLE tableHandle = rawHeap->GetGPUDescriptorHandleForHeapStart();
 	tableHandle.ptr += (uint64)descriptorStartOffset * (uint64)device->getDescriptorSizeCbvSrvUav();
-
+	
 	commandList->SetGraphicsRootDescriptorTable(rootParameterIndex, tableHandle);
+}
+
+void D3DRenderCommandList::setGraphicsRootDescriptorSRV(
+	uint32 rootParameterIndex,
+	ShaderResourceView* srv)
+{
+	D3DShaderResourceView* d3dSRV = static_cast<D3DShaderResourceView*>(srv);
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dSRV->getGPUVirtualAddress();
+
+	commandList->SetGraphicsRootShaderResourceView(rootParameterIndex, gpuAddr);
 }
 
 void D3DRenderCommandList::setGraphicsRootConstant32(
@@ -252,6 +262,19 @@ void D3DRenderCommandList::drawIndexedInstanced(
 		instanceCount,
 		startIndexLocation,
 		baseVertexLocation,
+		startInstanceLocation);
+}
+
+void D3DRenderCommandList::drawInstanced(
+	uint32 vertexCountPerInstance,
+	uint32 instanceCount,
+	uint32 startVertexLocation,
+	uint32 startInstanceLocation)
+{
+	commandList->DrawInstanced(
+		vertexCountPerInstance,
+		instanceCount,
+		startVertexLocation,
 		startInstanceLocation);
 }
 

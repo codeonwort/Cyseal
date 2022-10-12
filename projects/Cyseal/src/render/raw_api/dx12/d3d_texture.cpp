@@ -47,6 +47,10 @@ namespace into_d3d
 		{
 			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		}
+		if (0 != (params.accessFlags & ETextureAccessFlags::DSV))
+		{
+			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		}
 
 		return desc;
 	}
@@ -59,6 +63,22 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	auto device = getD3DDevice()->getRawDevice();
 	D3D12_RESOURCE_DESC textureDesc = into_d3d::textureDesc(params);
 	
+	// Validate desc
+	{
+		// Can't be both color target and depth target
+		const bool isColorTarget = 0 != (params.accessFlags & ETextureAccessFlags::COLOR_ALL);
+		const bool isDepthTarget = 0 != (params.accessFlags & ETextureAccessFlags::DSV);
+		CHECK(!isColorTarget || !isDepthTarget);
+
+		if (isDepthTarget)
+		{
+			CHECK(textureDesc.Format == DXGI_FORMAT_D16_UNORM
+				|| textureDesc.Format == DXGI_FORMAT_D24_UNORM_S8_UINT
+				|| textureDesc.Format == DXGI_FORMAT_D32_FLOAT
+				|| textureDesc.Format == DXGI_FORMAT_D32_FLOAT_S8X24_UINT);
+		}
+	}
+
 	HR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
@@ -66,7 +86,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		nullptr,
 		IID_PPV_ARGS(&rawResource)));
-
+	
 	if (0 != (params.accessFlags & ETextureAccessFlags::CPU_WRITE))
 	{
 		const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, 1);
@@ -96,6 +116,9 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 
 		getD3DDevice()->allocateSRVHandle(srvHandle, srvDescriptorIndex);
 		device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHandle);
+
+		srv = std::make_unique<D3DShaderResourceView>(this);
+		srv->setCPUHandle(srvHandle);
 	}
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::RTV))
@@ -116,11 +139,31 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		rtv->setRaw(rtvHandle);
 	}
 
+	if (0 != (params.accessFlags & ETextureAccessFlags::DSV))
+	{
+		// #todo-dx12: DSV ViewDimension
+		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
+
+		D3D12_DEPTH_STENCIL_VIEW_DESC viewDesc;
+		viewDesc.Format = textureDesc.Format;
+		viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		viewDesc.Flags = D3D12_DSV_FLAG_NONE;
+		viewDesc.Texture2D.MipSlice = 0;
+
+		getD3DDevice()->allocateDSVHandle(dsvHandle, dsvDescriptorIndex);
+		device->CreateDepthStencilView(rawResource.Get(), &viewDesc, dsvHandle);
+	}
+
 	if (0 != (params.accessFlags & ETextureAccessFlags::UAV))
 	{
 		// #todo-dx12: UAV
 		CHECK_NO_ENTRY();
 	}
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS D3DTexture::getGPUVirtualAddress() const
+{
+	return rawResource->GetGPUVirtualAddress();
 }
 
 void D3DTexture::uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch)
@@ -149,4 +192,14 @@ void D3DTexture::setDebugName(const wchar_t* debugName)
 RenderTargetView* D3DTexture::getRTV() const
 {
 	return rtv.get();
+}
+
+ShaderResourceView* D3DTexture::getSRV() const
+{
+	return srv.get();
+}
+
+DepthStencilView* D3DTexture::getDSV() const
+{
+	return dsv.get();
 }

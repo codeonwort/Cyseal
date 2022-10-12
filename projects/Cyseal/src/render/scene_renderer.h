@@ -2,8 +2,9 @@
 
 #include "renderer.h"
 
-class BasePass;
 class Texture;
+class BasePass;
+class ToneMapping;
 
 class SceneRenderer final : public Renderer
 {
@@ -19,7 +20,9 @@ private:
 
 	// #todo-renderer: Temporarily manage render targets in the renderer.
 	Texture* RT_sceneColor = nullptr;
+	Texture* RT_sceneDepth = nullptr; // Actually DS target but let's unify prefixes
 
 	// Render passes
 	BasePass* basePass = nullptr;
+	ToneMapping* toneMapping = nullptr;
 };

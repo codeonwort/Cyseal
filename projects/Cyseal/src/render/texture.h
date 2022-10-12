@@ -62,9 +62,10 @@ enum class ETextureAccessFlags : uint32
     SRV          = 1 << 0,
     RTV          = 1 << 1,
     UAV          = 1 << 2,
-    CPU_WRITE    = 1 << 3,
+    DSV          = 1 << 3,
+    CPU_WRITE    = 1 << 4,
 
-    GPU_ALL      = SRV | RTV| UAV
+    COLOR_ALL = SRV | RTV | UAV
 };
 ENUM_CLASS_FLAGS(ETextureAccessFlags);
 
@@ -112,14 +113,15 @@ public:
     virtual void setDebugName(const wchar_t* debugName) = 0;
 
     virtual RenderTargetView* getRTV() const = 0;
+    virtual ShaderResourceView* getSRV() const = 0;
+    virtual DepthStencilView* getDSV() const = 0;
 
     // Element index in the descriptor heap from which the descriptor was created.
     virtual uint32 getSRVDescriptorIndex() const = 0;
     virtual uint32 getRTVDescriptorIndex() const = 0;
+    virtual uint32 getDSVDescriptorIndex() const = 0;
     virtual uint32 getUAVDescriptorIndex() const = 0;
 
 private:
-    // #todo-texture
-    // SRV
-    // UAV
+    // #todo-texture: getUAV()
 };

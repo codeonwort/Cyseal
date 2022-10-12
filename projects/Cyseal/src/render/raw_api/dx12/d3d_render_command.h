@@ -4,6 +4,8 @@
 #include "d3d_device.h"
 #include "d3d_util.h"
 
+class ShaderResourceView;
+
 class D3DRenderCommandQueue : public RenderCommandQueue
 {
 
@@ -84,11 +86,21 @@ public:
 		DescriptorHeap* descriptorHeap,
 		uint32 descriptorStartOffset) override;
 
+	virtual void setGraphicsRootDescriptorSRV(
+		uint32 rootParameterIndex,
+		ShaderResourceView* srv) override;
+
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
 		uint32 instanceCount,
 		uint32 startIndexLocation,
 		int32 baseVertexLocation,
+		uint32 startInstanceLocation) override;
+
+	virtual void drawInstanced(
+		uint32 vertexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startVertexLocation,
 		uint32 startInstanceLocation) override;
 
 	inline ID3D12GraphicsCommandList4* getRaw() const { return commandList.Get(); }

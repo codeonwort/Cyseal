@@ -2,6 +2,7 @@
 
 class RenderDevice;
 class VertexBuffer;
+class Texture;
 
 enum class EResourceViewDimension
 {
@@ -25,6 +26,14 @@ class DepthStencilView
 // public:
 // 	virtual void initialize(RenderDevice* renderDevice) = 0;
 
+};
+
+class ShaderResourceView
+{
+public:
+	ShaderResourceView(Texture* inOwner) : owner(inOwner) {}
+protected:
+	Texture* owner;
 };
 
 class UnorderedAccessView

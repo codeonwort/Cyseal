@@ -5,6 +5,7 @@
 
 #define MAX_SRV_DESCRIPTORS 1024
 #define MAX_RTV_DESCRIPTORS 64
+#define MAX_DSV_DESCRIPTORS 64
 
 TextureManager* gTextureManager = nullptr;
 
@@ -28,6 +29,15 @@ void TextureManager::initialize()
 
 		rtvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
 	}
+	{
+		DescriptorHeapDesc desc;
+		desc.type = EDescriptorHeapType::DSV;
+		desc.numDescriptors = MAX_DSV_DESCRIPTORS;
+		desc.flags = EDescriptorHeapFlags::None;
+		desc.nodeMask = 0;
+
+		dsvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
+	}
 
 	createSystemTextures();
 }
@@ -47,6 +57,12 @@ uint32 TextureManager::allocateRTVIndex()
 {
 	CHECK(nextSRVIndex < MAX_SRV_DESCRIPTORS);
 	return nextSRVIndex++;
+}
+
+uint32 TextureManager::allocateDSVIndex()
+{
+	CHECK(nextDSVIndex < MAX_DSV_DESCRIPTORS);
+	return nextDSVIndex++;
 }
 
 void TextureManager::createSystemTextures()

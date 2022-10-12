@@ -119,6 +119,14 @@ struct RasterizerDesc
 	bool antialisedLineEnable                         = false;
 	uint32 forcedSampleCount                          = 0;
 	EConservativeRasterizationMode conservativeRaster = EConservativeRasterizationMode::Off;
+
+	// For fullscreen triangle pass
+	static RasterizerDesc FrontCull()
+	{
+		RasterizerDesc desc{};
+		desc.cullMode = ECullMode::Front;
+		return desc;
+	}
 };
 
 // D3D12_BLEND
@@ -203,8 +211,8 @@ struct RenderTargetBlendDesc
 // VkPipelineColorBlendStateCreateInfo
 struct BlendDesc
 {
-	bool alphaToCoverageEnable;
-	bool independentBlendEnable;
+	bool alphaToCoverageEnable  = false;
+	bool independentBlendEnable = false;
 	RenderTargetBlendDesc renderTarget[8];
 };
 
@@ -266,6 +274,28 @@ struct DepthstencilDesc
 	uint8 stencilWriteMask         = 0xff;
 	DepthstencilOpDesc frontFace   = { EStencilOp::Keep, EStencilOp::Keep, EStencilOp::Keep, EComparisonFunc::Always };
 	DepthstencilOpDesc backFace    = { EStencilOp::Keep, EStencilOp::Keep, EStencilOp::Keep, EComparisonFunc::Always };
+
+	static DepthstencilDesc NoDepth()
+	{
+		return DepthstencilDesc{
+			false,
+			EDepthWriteMask::Zero,
+			EComparisonFunc::Always
+		};
+	}
+	static DepthstencilDesc StandardSceneDepth()
+	{
+		return DepthstencilDesc{
+			true,
+			EDepthWriteMask::All,
+			EComparisonFunc::Less,
+			false,
+			0xff,
+			0xff,
+			{ EStencilOp::Keep, EStencilOp::Keep, EStencilOp::Keep, EComparisonFunc::Always },
+			{ EStencilOp::Keep, EStencilOp::Keep, EStencilOp::Keep, EComparisonFunc::Always }
+		};
+	}
 };
 
 struct Viewport

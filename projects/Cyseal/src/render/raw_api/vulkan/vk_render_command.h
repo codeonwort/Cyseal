@@ -13,6 +13,8 @@ class VulkanRenderCommandList : public RenderCommandList {}
 
 #include <vulkan/vulkan_core.h>
 
+class ShaderResourceView;
+
 class VulkanRenderCommandQueue : public RenderCommandQueue
 {
 public:
@@ -153,8 +155,24 @@ public:
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
+	virtual void setGraphicsRootDescriptorSRV(
+		uint32 rootParameterIndex,
+		ShaderResourceView* srv)
+	{
+		//throw std::logic_error("The method or operation is not implemented.");
+	}
+
 
 	void drawIndexedInstanced(uint32 indexCountPerInstance, uint32 instanceCount, uint32 startIndexLocation, int32 baseVertexLocation, uint32 startInstanceLocation) override
+	{
+		//throw std::logic_error("The method or operation is not implemented.");
+	}
+
+	virtual void drawInstanced(
+		uint32 vertexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startVertexLocation,
+		uint32 startInstanceLocation) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}

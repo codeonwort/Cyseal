@@ -3,30 +3,50 @@
 #include "render/render_command.h"
 #include "render/gpu_resource.h"
 #include "render/swap_chain.h"
-#include "render/base_pass.h"
 #include "render/static_mesh.h"
+#include "render/base_pass.h"
+#include "render/tone_mapping.h"
 
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
 
-	RT_sceneColor = renderDevice->createTexture(
-		TextureCreateParams::texture2D(
-			EPixelFormat::R8G8B8A8_UNORM,
-			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
-			renderDevice->getSwapChain()->getBackbufferWidth(),
-			renderDevice->getSwapChain()->getBackbufferHeight(),
-			1, 1, 0));
+	// Scene textures
+	{
+		const uint32 sceneWidth = renderDevice->getSwapChain()->getBackbufferWidth();
+		const uint32 sceneHeight = renderDevice->getSwapChain()->getBackbufferHeight();
 
-	basePass = new BasePass;
-	basePass->initialize();
+		RT_sceneColor = renderDevice->createTexture(
+			TextureCreateParams::texture2D(
+				EPixelFormat::R8G8B8A8_UNORM,
+				ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
+				sceneWidth, sceneHeight,
+				1, 1, 0));
+
+		RT_sceneDepth = renderDevice->createTexture(
+			TextureCreateParams::texture2D(
+				EPixelFormat::D24_UNORM_S8_UINT,
+				ETextureAccessFlags::DSV,
+				sceneWidth, sceneHeight,
+				1, 1, 0));
+	}
+
+	// Render passes
+	{
+		basePass = new BasePass;
+		basePass->initialize();
+
+		toneMapping = new ToneMapping;
+	}
 }
 
 void SceneRenderer::destroy()
 {
 	delete RT_sceneColor;
+	delete RT_sceneDepth;
 
 	delete basePass;
+	delete toneMapping;
 }
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
@@ -35,8 +55,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	uint32 backbufferIndex    = swapChain->getCurrentBackbufferIndex();
 	auto currentBackBuffer    = swapChain->getCurrentBackbuffer();
 	auto currentBackBufferRTV = swapChain->getCurrentBackbufferRTV();
-	auto defaultDepthStencil  = device->getDefaultDepthStencilBuffer();
-	auto defaultDSV           = device->getDefaultDSV();
+	auto backbufferDepth      = device->getDefaultDepthStencilBuffer();
+	auto backbufferDSV        = device->getDefaultDSV();
 	auto commandAllocator     = device->getCommandAllocator(backbufferIndex);
 	auto commandList          = device->getCommandList();
 	auto commandQueue         = device->getCommandQueue();
@@ -54,7 +74,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		EGPUResourceState::RENDER_TARGET);
 
 	commandList->transitionResource(
-		defaultDepthStencil,
+		backbufferDepth,
 		EGPUResourceState::COMMON,
 		EGPUResourceState::DEPTH_WRITE);
 
@@ -81,20 +101,22 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		EGPUResourceState::RENDER_TARGET);
 	commandList->omSetRenderTarget(RT_sceneColor->getRTV(), defaultDSV);
 #else
-	commandList->omSetRenderTarget(currentBackBufferRTV, defaultDSV);
+	commandList->omSetRenderTarget(currentBackBufferRTV, backbufferDSV);
 #endif
 
 	float clearColor[4] = { 0.5f, 0.0f, 0.0f, 1.0f };
 	commandList->clearRenderTargetView(currentBackBufferRTV, clearColor);
 
 	commandList->clearDepthStencilView(
-		defaultDSV,
+		backbufferDSV,
 		EDepthClearFlags::DEPTH_STENCIL,
 		1.0f, 0);
 
 	// #todo: Depth PrePass
 
 	basePass->renderBasePass(commandList, scene, camera);
+
+	toneMapping->renderToneMapping(commandList, RT_sceneColor);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Present
@@ -104,7 +126,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		EGPUResourceState::PRESENT);
 
 	commandList->transitionResource(
-		defaultDepthStencil,
+		backbufferDepth,
 		EGPUResourceState::DEPTH_WRITE,
 		EGPUResourceState::COMMON);
 

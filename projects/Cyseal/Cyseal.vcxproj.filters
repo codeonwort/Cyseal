@@ -296,5 +296,8 @@
     <ClCompile Include="src\util\logging.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="src\render\tone_mapping.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

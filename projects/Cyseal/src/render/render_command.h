@@ -9,6 +9,7 @@
 class RenderDevice;
 class RenderTargetView;
 class DepthStencilView;
+class ShaderResourceView;
 class PipelineState;
 class RootSignature;
 class VertexBuffer;
@@ -113,13 +114,17 @@ public:
 		DescriptorHeap* descriptorHeap,
 		uint32 descriptorStartOffset) = 0;
 
+	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
+	virtual void setGraphicsRootDescriptorSRV(
+		uint32 rootParameterIndex,
+		ShaderResourceView* srv) = 0;
+
 	/**************************************************************
 	#todo-rendercommand: Resource binding for graphics pipeline
 
 	virtual void setGraphicsRoot32BitConstant(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) = 0;
 	virtual void setGraphicsRoot32BitConstants(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues) = 0;
 	virtual void setGraphicsRootConstantBufferView(uint32 rootParameterIndex, ConstantBuffer* cbv) = 0;
-	virtual void setGraphicsRootShaderResourceView(uint32 rootParameterIndex, ShaderResourceView* srv) = 0;
 	virtual void setGraphicsRootUnorderedAccessView(uint32 rootParameterIndex, UnorderedAccessView* uav) = 0;
 	**************************************************************/
 
@@ -128,6 +133,12 @@ public:
 		uint32 instanceCount,
 		uint32 startIndexLocation,
 		int32 baseVertexLocation,
+		uint32 startInstanceLocation) = 0;
+
+	virtual void drawInstanced(
+		uint32 vertexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startVertexLocation,
 		uint32 startInstanceLocation) = 0;
 
 	void enqueueCustomCommand(CustomCommandType lambda);

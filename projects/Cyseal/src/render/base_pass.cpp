@@ -113,7 +113,7 @@ void BasePass::initialize()
 		desc.ps                     = shader->getPixelShader();
 		desc.rasterizerDesc         = RasterizerDesc();
 		desc.blendDesc              = BlendDesc();
-		desc.depthstencilDesc       = DepthstencilDesc();
+		desc.depthstencilDesc       = DepthstencilDesc::StandardSceneDepth();
 		desc.sampleMask             = 0xffffffff;
 		desc.primitiveTopologyType  = EPrimitiveTopologyType::Triangle;
 		desc.numRenderTargets       = 1;
@@ -127,6 +127,7 @@ void BasePass::initialize()
 
 	// Cleanup
 	{
+		// #todo-renderer
 		//delete shader;
 	}
 }

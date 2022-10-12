@@ -108,6 +108,17 @@ struct RootParameter
 		}
 		shaderVisibility = EShaderVisibility::All;
 	}
+	void initAsSRV(
+		uint32 shaderRegister,
+		uint32 registerSpace)
+	{
+		parameterType = ERootParameterType::SRV;
+		{
+			descriptor.shaderRegister = shaderRegister;
+			descriptor.registerSpace = registerSpace;
+		}
+		shaderVisibility = EShaderVisibility::All;
+	}
 	void initAsConstants(
 		uint32 shaderRegister,
 		uint32 registerSpace,
