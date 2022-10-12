@@ -177,6 +177,9 @@ public:
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
+	virtual void beginEventMarker(const char* eventName) override {}
+	virtual void endEventMarker() override {}
+
 private:
 	VkCommandBuffer vkCommandBuffer = VK_NULL_HANDLE;
 };

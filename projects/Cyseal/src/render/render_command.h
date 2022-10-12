@@ -141,6 +141,9 @@ public:
 		uint32 startVertexLocation,
 		uint32 startInstanceLocation) = 0;
 
+	virtual void beginEventMarker(const char* eventName) = 0;
+	virtual void endEventMarker() = 0;
+
 	void enqueueCustomCommand(CustomCommandType lambda);
 	void executeCustomCommands();
 
@@ -166,3 +169,19 @@ struct FlushRenderCommands
 #define FLUSH_RENDER_COMMANDS_INTERNAL(x, y) x ## y
 #define FLUSH_RENDER_COMMANDS_INTERNAL2(x, y) FLUSH_RENDER_COMMANDS_INTERNAL(x, y)
 #define FLUSH_RENDER_COMMANDS() FlushRenderCommands FLUSH_RENDER_COMMANDS_INTERNAL2(flushRenderCommands_, __LINE__)
+
+struct ScopedDrawEvent
+{
+	ScopedDrawEvent(RenderCommandList* inCommandList, const char* inEventName)
+		: commandList(inCommandList)
+	{
+		commandList->beginEventMarker(inEventName);
+	}
+	~ScopedDrawEvent()
+	{
+		commandList->endEventMarker();
+	}
+	RenderCommandList* commandList;
+};
+
+#define SCOPED_DRAW_EVENT(commandList, eventName) ScopedDrawEvent scopedDrawEvent_##eventName(commandList, #eventName)

@@ -92,6 +92,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	// Base pass
 	// final target: RT_sceneColor, RT_sceneDepth
 	{
+		SCOPED_DRAW_EVENT(commandList, BasePass);
+
 		commandList->transitionResource(
 			RT_sceneColor,
 			EGPUResourceState::PIXEL_SHADER_RESOURCE,
@@ -113,6 +115,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	// Tone mapping
 	// final target: back buffer
 	{
+		SCOPED_DRAW_EVENT(commandList, ToneMapping);
+
 		commandList->transitionResource(
 			RT_sceneColor,
 			EGPUResourceState::RENDER_TARGET,
@@ -129,18 +133,23 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Present
-	commandList->transitionResource(
-		currentBackBuffer,
-		EGPUResourceState::RENDER_TARGET,
-		EGPUResourceState::PRESENT);
+	// Finalize
 
-	commandList->close();
+	{
+		SCOPED_DRAW_EVENT(commandList, Present);
 
-	commandQueue->executeCommandList(commandList);
+		commandList->transitionResource(
+			currentBackBuffer,
+			EGPUResourceState::RENDER_TARGET,
+			EGPUResourceState::PRESENT);
 
- 	swapChain->present();
- 	swapChain->swapBackbuffer();
+		commandList->close();
+
+		commandQueue->executeCommandList(commandList);
+
+		swapChain->present();
+		swapChain->swapBackbuffer();
+	}
 
  	device->flushCommandQueue();
 }

@@ -6,6 +6,32 @@
 #include "core/assertion.h"
 #include <vector>
 
+#include <pix3.h>
+
+//////////////////////////////////////////////////////////////////////////
+// D3DRenderCommandQueue
+
+void D3DRenderCommandQueue::initialize(RenderDevice* renderDevice)
+{
+	device = static_cast<D3DDevice*>(renderDevice);
+
+	D3D12_COMMAND_QUEUE_DESC desc{};
+	desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+
+	HR(device->getRawDevice()->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)));
+}
+
+void D3DRenderCommandQueue::executeCommandList(class RenderCommandList* commandList)
+{
+	auto rawList = static_cast<D3DRenderCommandList*>(commandList);
+	ID3D12CommandList* const lists[] = { rawList->getRaw() };
+	queue->ExecuteCommandLists(1, lists);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// D3DRenderCommandAllocator
+
 void D3DRenderCommandAllocator::initialize(RenderDevice* renderDevice)
 {
 	device = static_cast<D3DDevice*>(renderDevice);
@@ -20,6 +46,9 @@ void D3DRenderCommandAllocator::reset()
 {
 	HR( allocator->Reset() );
 }
+
+//////////////////////////////////////////////////////////////////////////
+// D3DRenderCommandList
 
 void D3DRenderCommandList::initialize(RenderDevice* renderDevice)
 {
@@ -282,20 +311,12 @@ void D3DRenderCommandList::drawInstanced(
 		startInstanceLocation);
 }
 
-void D3DRenderCommandQueue::initialize(RenderDevice* renderDevice)
+void D3DRenderCommandList::beginEventMarker(const char* eventName)
 {
-	device = static_cast<D3DDevice*>(renderDevice);
-
-	D3D12_COMMAND_QUEUE_DESC desc{};
-	desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-
-	HR( device->getRawDevice()->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)) );
+	::PIXBeginEvent(commandList.Get(), 0x00000000, eventName);
 }
 
-void D3DRenderCommandQueue::executeCommandList(class RenderCommandList* commandList)
+void D3DRenderCommandList::endEventMarker()
 {
-	auto rawList = static_cast<D3DRenderCommandList*>(commandList);
-	ID3D12CommandList* const lists[] = { rawList->getRaw() };
-	queue->ExecuteCommandLists(1, lists);
+	::PIXEndEvent(commandList.Get());
 }

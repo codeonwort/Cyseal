@@ -103,6 +103,9 @@ public:
 		uint32 startVertexLocation,
 		uint32 startInstanceLocation) override;
 
+	virtual void beginEventMarker(const char* eventName) override;
+	virtual void endEventMarker() override;
+
 	inline ID3D12GraphicsCommandList4* getRaw() const { return commandList.Get(); }
 
 private:
