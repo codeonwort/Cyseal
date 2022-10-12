@@ -50,11 +50,6 @@ public:
 private:
 	void getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter);
 
-	inline D3D12_CPU_DESCRIPTOR_HANDLE rawGetDepthStencilView() const
-	{
-		return heapDSV->GetCPUDescriptorHandleForHeapStart();
-	}
-
 // #todo-renderdevice: Move non-renderdevice members into other places
 private:
 	WRL::ComPtr<IDXGIFactory4>        dxgiFactory;
@@ -76,10 +71,6 @@ private:
 	ID3D12CommandQueue*               rawCommandQueue;
 	ID3D12GraphicsCommandList4*       rawCommandList;
 	D3DSwapChain*                     d3dSwapChain;
-
-	WRL::ComPtr<ID3D12DescriptorHeap> heapDSV;
-
-	WRL::ComPtr<ID3D12Resource>       rawDepthStencilBuffer;
 
 	uint32                            screenWidth;
 	uint32                            screenHeight;

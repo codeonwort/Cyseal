@@ -93,8 +93,6 @@ public:
 	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }
 	inline EPixelFormat getBackbufferDepthFormat() const { return backbufferDepthFormat; }
 	inline SwapChain* getSwapChain() const { return swapChain; }
-	inline GPUResource* getDefaultDepthStencilBuffer() const { return defaultDepthStencilBuffer; }
-	inline DepthStencilView* getDefaultDSV() const { return defaultDSV; }
 
 	inline RenderCommandAllocator* getCommandAllocator(uint32 swapchainIndex) const { return commandAllocators[swapchainIndex]; }
 	inline RenderCommandList* getCommandList() const { return commandList; }
@@ -104,8 +102,6 @@ protected:
 	EPixelFormat            backbufferFormat = EPixelFormat::R8G8B8A8_UNORM;
 	EPixelFormat            backbufferDepthFormat = EPixelFormat::D24_UNORM_S8_UINT;
 	SwapChain*              swapChain;
-	GPUResource*            defaultDepthStencilBuffer;
-	DepthStencilView*       defaultDSV;
 
 	// https://learn.microsoft.com/en-us/windows/win32/direct3d12/recording-command-lists-and-bundles
 	// Command allocators should hold memory for render commands while GPU is accessing them,

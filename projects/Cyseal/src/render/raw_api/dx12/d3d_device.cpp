@@ -35,15 +35,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogDirectX);
 
 D3DDevice::D3DDevice()
 {
-	defaultDepthStencilBuffer = new D3DResource;
-	defaultDSV = new D3DDepthStencilView;
 }
 
 D3DDevice::~D3DDevice()
 {
 	delete swapChain;
-	delete defaultDepthStencilBuffer;
-	delete defaultDSV;
 
 	for (size_t i = 0; i < commandAllocators.size(); ++i)
 	{
@@ -201,56 +197,6 @@ void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32
 	HWND hwnd = (HWND)nativeWindowHandle;
 
 	swapChain->initialize(this, hwnd, width, height);
-
-	// Create DSV heap.
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC desc;
-		desc.NumDescriptors = 1;
-		desc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		desc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		desc.NodeMask       = 0;
-		HR( device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heapDSV.GetAddressOf())) );
-	}
-	{
-		D3D12_RESOURCE_DESC dsDesc;
-		dsDesc.Dimension          = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		dsDesc.Alignment          = 0;
-		dsDesc.Width              = width;
-		dsDesc.Height             = height;
-		dsDesc.DepthOrArraySize   = 1;
-		dsDesc.MipLevels          = 1;
-		dsDesc.Format             = into_d3d::pixelFormat(backbufferDepthFormat);
-		dsDesc.SampleDesc.Count   = 1;
-		dsDesc.SampleDesc.Quality = 0;
-		dsDesc.Layout             = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		dsDesc.Flags              = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-		D3D12_CLEAR_VALUE optClear;
-		optClear.Format               = into_d3d::pixelFormat(backbufferDepthFormat);
-		optClear.DepthStencil.Depth   = 1.0f;
-		optClear.DepthStencil.Stencil = 0;
-
-		D3D12_HEAP_PROPERTIES dsHeapProps;
-		dsHeapProps.Type                 = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT;
-		dsHeapProps.CPUPageProperty      = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		dsHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
-		dsHeapProps.CreationNodeMask     = 0;
-		dsHeapProps.VisibleNodeMask      = 0;
-
-		HR( device->CreateCommittedResource(
-				&dsHeapProps,
-				D3D12_HEAP_FLAG_NONE, &dsDesc, D3D12_RESOURCE_STATE_COMMON, &optClear,
-				IID_PPV_ARGS(rawDepthStencilBuffer.GetAddressOf()))
-		);
-
-		device->CreateDepthStencilView(
-			rawDepthStencilBuffer.Get(),
-			nullptr,
-			rawGetDepthStencilView());
-	}
-
-	static_cast<D3DResource*>(defaultDepthStencilBuffer)->setRaw(rawDepthStencilBuffer.Get());
-	static_cast<D3DDepthStencilView*>(defaultDSV)->setRaw(rawGetDepthStencilView());
 }
 
 void D3DDevice::allocateSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)

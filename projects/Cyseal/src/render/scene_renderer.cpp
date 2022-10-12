@@ -57,8 +57,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	uint32 backbufferIndex    = swapChain->getCurrentBackbufferIndex();
 	auto currentBackBuffer    = swapChain->getCurrentBackbuffer();
 	auto currentBackBufferRTV = swapChain->getCurrentBackbufferRTV();
-	auto backbufferDepth      = device->getDefaultDepthStencilBuffer();
-	auto backbufferDSV        = device->getDefaultDSV();
 	auto commandAllocator     = device->getCommandAllocator(backbufferIndex);
 	auto commandList          = device->getCommandList();
 	auto commandQueue         = device->getCommandQueue();
@@ -125,12 +123,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 			EGPUResourceState::PRESENT,
 			EGPUResourceState::RENDER_TARGET);
 
-		commandList->transitionResource(
-			backbufferDepth,
-			EGPUResourceState::COMMON,
-			EGPUResourceState::DEPTH_WRITE);
-
-		commandList->omSetRenderTarget(currentBackBufferRTV, backbufferDSV);
+		commandList->omSetRenderTarget(currentBackBufferRTV, nullptr);
 
 		toneMapping->renderToneMapping(commandList, RT_sceneColor);
 	}
@@ -141,11 +134,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		currentBackBuffer,
 		EGPUResourceState::RENDER_TARGET,
 		EGPUResourceState::PRESENT);
-
-	commandList->transitionResource(
-		backbufferDepth,
-		EGPUResourceState::DEPTH_WRITE,
-		EGPUResourceState::COMMON);
 
 	commandList->close();
 

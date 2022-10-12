@@ -186,12 +186,16 @@ void D3DRenderCommandList::clearDepthStencilView(
 
 void D3DRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV)
 {
-	auto d3dRTV = static_cast<D3DRenderTargetView*>(RTV);
-	auto d3dDSV = static_cast<D3DDepthStencilView*>(DSV);
-	D3D12_CPU_DESCRIPTOR_HANDLE rawRTV = d3dRTV->getRaw();
-	D3D12_CPU_DESCRIPTOR_HANDLE rawDSV = d3dDSV->getRaw();
+	CHECK(RTV != nullptr); // RTV should exist, DSV can be null
 
-	commandList->OMSetRenderTargets(1, &rawRTV, true, &rawDSV);
+	D3D12_CPU_DESCRIPTOR_HANDLE rawRTV = static_cast<D3DRenderTargetView*>(RTV)->getRaw();
+	D3D12_CPU_DESCRIPTOR_HANDLE rawDSV = { NULL };
+	if (DSV != nullptr)
+	{
+		rawDSV = static_cast<D3DDepthStencilView*>(DSV)->getRaw();
+	}
+
+	commandList->OMSetRenderTargets(1, &rawRTV, true, (DSV != nullptr ? &rawDSV : nullptr));
 }
 
 void D3DRenderCommandList::setPipelineState(PipelineState* state)
