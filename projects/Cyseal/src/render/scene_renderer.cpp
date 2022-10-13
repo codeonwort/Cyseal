@@ -135,21 +135,17 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize
 
-	{
-		SCOPED_DRAW_EVENT(commandList, Present);
+	commandList->transitionResource(
+		currentBackBuffer,
+		EGPUResourceState::RENDER_TARGET,
+		EGPUResourceState::PRESENT);
 
-		commandList->transitionResource(
-			currentBackBuffer,
-			EGPUResourceState::RENDER_TARGET,
-			EGPUResourceState::PRESENT);
+	commandList->close();
 
-		commandList->close();
+	commandQueue->executeCommandList(commandList);
 
-		commandQueue->executeCommandList(commandList);
-
-		swapChain->present();
-		swapChain->swapBackbuffer();
-	}
+	swapChain->present();
+	swapChain->swapBackbuffer();
 
  	device->flushCommandQueue();
 }
