@@ -4,6 +4,7 @@
 
 // Engine core
 #include "types.h"
+#include "cymath.h"
 #include "engine.h"
 #include "assertion.h"
 

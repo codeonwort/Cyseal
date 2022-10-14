@@ -1,5 +1,6 @@
 #include "primitive.h"
-#include <math.h>
+#include "core/cymath.h"
+
 #include <map>
 
 // http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
@@ -129,4 +130,42 @@ void GeometryGenerator::icosphere(uint32 iterations, Geometry& outGeometry)
 		outGeometry.indices.push_back(tri.v3);
 	}
 
+}
+
+void GeometryGenerator::spikeBall(uint32 subdivisions, float phase, float peak, Geometry& outGeometry)
+{
+	icosphere(subdivisions, outGeometry);
+
+	// Add random spike
+	float t = phase;
+	for (vec3& pos : outGeometry.positions)
+	{
+		float spike = 1.0f + peak * 0.5f * (1.0f + Cymath::sin(t));
+		pos *= spike;
+		t += 0.137f;
+	}
+
+	// Recalculate vertex normals
+	outGeometry.normals.resize(outGeometry.positions.size(), vec3(0.0f, 0.0f, 0.0f));
+	for (uint32 i = 0; i < outGeometry.indices.size(); i += 3)
+	{
+		uint32 i0 = outGeometry.indices[i + 0];
+		uint32 i1 = outGeometry.indices[i + 1];
+		uint32 i2 = outGeometry.indices[i + 2];
+
+		vec3 p1 = outGeometry.positions[i1] - outGeometry.positions[i0];
+		vec3 p2 = outGeometry.positions[i2] - outGeometry.positions[i0];
+		vec3 n = cross(p1, p2);
+		if (dot(n, n) > 1e-6)
+		{
+			n = normalize(n);
+			outGeometry.normals[i0] += n;
+			outGeometry.normals[i1] += n;
+			outGeometry.normals[i2] += n;
+		}
+	}
+	for (uint32 i = 0; i < outGeometry.normals.size(); ++i)
+	{
+		outGeometry.normals[i] = normalize(outGeometry.normals[i]);
+	}
 }

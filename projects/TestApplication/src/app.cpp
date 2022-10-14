@@ -39,7 +39,7 @@
 #define MESH_GROUP_CENTER    vec3(0.0f, 0.0f, -1.0f)
 #define MESH_SPACE_X         2.0f
 #define MESH_SPACE_Y         2.0f
-#define MESH_SCALE           1.0f
+#define MESH_SCALE           0.5f
 
 /* -------------------------------------------------------
 					APPLICATION
@@ -101,11 +101,19 @@ void TestApplication::onTerminate()
 
 void TestApplication::createResources()
 {
+	constexpr uint32 NUM_GEOM_ASSETS = 7;
 	constexpr uint32 NUM_LODs = 2;
 
-	Geometry icospheres[NUM_LODs];
-	GeometryGenerator::icosphere(3, icospheres[0]);
-	GeometryGenerator::icosphere(1, icospheres[1]);
+	Geometry geometriesLODs[NUM_GEOM_ASSETS][NUM_LODs];
+	for (uint32 i = 0; i < NUM_GEOM_ASSETS; ++i)
+	{
+		const float phase = Cymath::randFloatRange(0.0f, 6.28f);
+		const float spike = Cymath::randFloatRange(0.0f, 1.0f);
+		GeometryGenerator::spikeBall(3, phase, spike, geometriesLODs[i][0]);
+		GeometryGenerator::spikeBall(1, phase, spike, geometriesLODs[i][1]);
+		//GeometryGenerator::icosphere(3, icospheres[0]);
+		//GeometryGenerator::icosphere(1, geometriesLOD1);
+	}
 
 	// #todo: Unload image memory when GPU upload is done.
 	ImageLoader loader;
@@ -132,28 +140,34 @@ void TestApplication::createResources()
 		}
 	}
 
-	float* vertexDataLODs[NUM_LODs];
-	uint32* indexDataLODs[NUM_LODs];
-	for (uint32 i = 0; i < NUM_LODs; ++i)
+	float* vertexDataLODs[NUM_GEOM_ASSETS][NUM_LODs];
+	uint32* indexDataLODs[NUM_GEOM_ASSETS][NUM_LODs];
+	for (uint32 geomIx = 0; geomIx < NUM_GEOM_ASSETS; ++geomIx)
 	{
-		vertexDataLODs[i] = reinterpret_cast<float*>(icospheres[i].positions.data());
-		indexDataLODs[i] = icospheres[i].indices.data();
+		for (uint32 lod = 0; lod < NUM_LODs; ++lod)
+		{
+			vertexDataLODs[geomIx][lod] = reinterpret_cast<float*>(geometriesLODs[geomIx][lod].positions.data());
+			indexDataLODs[geomIx][lod] = geometriesLODs[geomIx][lod].indices.data();
+		}
 	}
 
-	VertexBuffer* vertexBufferLODs[NUM_LODs];
-	IndexBuffer* indexBufferLODs[NUM_LODs];
+	VertexBuffer* vertexBufferLODs[NUM_GEOM_ASSETS][NUM_LODs];
+	IndexBuffer* indexBufferLODs[NUM_GEOM_ASSETS][NUM_LODs];
 
 	ENQUEUE_RENDER_COMMAND(UploadIcosphereBuffers)(
-		[NUM_LODs, &icospheres,
+		[NUM_GEOM_ASSETS, NUM_LODs, &geometriesLODs,
 		&vertexDataLODs, &indexDataLODs,
 		&vertexBufferLODs, &indexBufferLODs](RenderCommandList& commandList)
 		{
-			for (uint32 i = 0; i < NUM_LODs; ++i)
+			for (uint32 geomIx = 0; geomIx < NUM_GEOM_ASSETS; ++geomIx)
 			{
-				uint32 vertexBufferBytes = (uint32)(icospheres[i].positions.size() * 3 * sizeof(float));
-				uint32 indexBufferBytes = (uint32)(icospheres[i].indices.size() * sizeof(uint32));
-				vertexBufferLODs[i] = gRenderDevice->createVertexBuffer(vertexDataLODs[i], vertexBufferBytes, sizeof(float) * 3);
-				indexBufferLODs[i] = gRenderDevice->createIndexBuffer(indexDataLODs[i], indexBufferBytes, EPixelFormat::R32_UINT);
+				for (uint32 lod = 0; lod < NUM_LODs; ++lod)
+				{
+					uint32 vertexBufferBytes = (uint32)(geometriesLODs[geomIx][lod].positions.size() * 3 * sizeof(float));
+					uint32 indexBufferBytes = (uint32)(geometriesLODs[geomIx][lod].indices.size() * sizeof(uint32));
+					vertexBufferLODs[geomIx][lod] = gRenderDevice->createVertexBuffer(vertexDataLODs[geomIx][lod], vertexBufferBytes, sizeof(float) * 3);
+					indexBufferLODs[geomIx][lod] = gRenderDevice->createIndexBuffer(indexDataLODs[geomIx][lod], indexBufferBytes, EPixelFormat::R32_UINT);
+				}
 			}
 		}
 	);
@@ -174,6 +188,7 @@ void TestApplication::createResources()
 
 	const float x0 = MESH_GROUP_CENTER.x - (float)(MESH_COLS * MESH_SPACE_X) / 2.0f;
 	const float y0 = MESH_GROUP_CENTER.y - (float)(MESH_ROWS * MESH_SPACE_Y) / 2.0f;
+	uint32 currentGeomIx = 0;
 	for (uint32 row = 0; row < MESH_ROWS; ++row)
 	{
 		for (uint32 col = 0; col < MESH_COLS; ++col)
@@ -187,7 +202,7 @@ void TestApplication::createResources()
 				material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
 				material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
 				material->albedoMultiplier[2] = 0.0f;
-				staticMesh->addSection(lod, vertexBufferLODs[lod], indexBufferLODs[lod], material);
+				staticMesh->addSection(lod, vertexBufferLODs[currentGeomIx][lod], indexBufferLODs[currentGeomIx][lod], material);
 			}
 
 			vec3 pos = MESH_GROUP_CENTER;
@@ -199,6 +214,8 @@ void TestApplication::createResources()
 
 			scene.addStaticMesh(staticMesh);
 			staticMeshes.push_back(staticMesh);
+
+			currentGeomIx = (currentGeomIx + 1) % NUM_GEOM_ASSETS;
 		}
 	}
 }

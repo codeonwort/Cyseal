@@ -1,6 +1,7 @@
 #pragma once
 
 #include <math.h>
+#include <random>
 
 class Cymath
 {
@@ -27,6 +28,8 @@ public:
 	static inline float asin(float x);
 	static inline float atan(float x);
 
+	static inline float randFloat(); // [-1.0, 1.0]
+	static inline float randFloatRange(float minValue, float maxValue);
 };
 
 float Cymath::radians(float degree)
@@ -87,4 +90,17 @@ float Cymath::asin(float x)
 float Cymath::atan(float x)
 {
 	return atanf(x);
+}
+
+float Cymath::randFloat()
+{
+	static std::random_device rd;
+	static std::mt19937 gen(rd());
+	static std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	return dist(gen);
+}
+
+float Cymath::randFloatRange(float minValue, float maxValue)
+{
+	return minValue + (maxValue - minValue) * Cymath::randFloat();
 }
