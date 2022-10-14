@@ -9,7 +9,7 @@ struct IdConstant
 struct MaterialConstants
 {
     float4x4 mvpTransform;
-    float4 color;
+    float4 albedoMultiplier;
 };
 
 ConstantBuffer<IdConstant> objectConstants : register(b0);
@@ -29,16 +29,16 @@ struct VertexInput
     float3 posL : POSITION;
 };
 
-struct VertexOutput
+struct Interpolants
 {
     float4 posH : SV_POSITION;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
 };
 
-VertexOutput mainVS(VertexInput input)
+Interpolants mainVS(VertexInput input)
 {
-    VertexOutput output;
+    Interpolants output;
 
     MaterialConstants material = getMaterialData();
 
@@ -55,20 +55,18 @@ VertexOutput mainVS(VertexInput input)
 // ------------------------------------------------------------------------
 // Pixel shader
 
-float4 mainPS(VertexOutput vout) : SV_TARGET
+float4 mainPS(Interpolants interpolants) : SV_TARGET
 {
     MaterialConstants material = getMaterialData();
 
     // Variables
     float3 Wi = -normalize(float3(0.0, -1.0, 1.0));
-    float3 N = normalize(vout.normal);
+    float3 N = normalize(interpolants.normal);
     float NdotL = max(0.0, dot(N, Wi));
 
     // Material properties
-    float3 albedo = float3(material.color.rgb);
-
-    float4 albedoSample = albedoTexture.SampleLevel(albedoSampler, vout.uv, 0.0);
-    albedo = albedoSample.xyz;
+    float3 albedo = albedoTexture.SampleLevel(albedoSampler, interpolants.uv, 0.0).rgb;
+    albedo *= material.albedoMultiplier.rgb;
 
     // Lighting
     float3 Li = 5.0 * float3(1.0, 1.0, 1.0);

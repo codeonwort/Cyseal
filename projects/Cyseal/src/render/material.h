@@ -5,5 +5,6 @@ class Texture;
 class Material
 {
 public:
-	Texture* albedo = nullptr;
+	Texture* albedoTexture = nullptr;
+	float albedoMultiplier[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 };

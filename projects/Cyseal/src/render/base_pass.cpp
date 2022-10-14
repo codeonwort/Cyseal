@@ -163,32 +163,30 @@ void BasePass::renderBasePass(
 	uint32 payloadID = 0;
 	for (const StaticMesh* mesh : scene->staticMeshes)
 	{
-		// #todo-wip: constant buffer
-		const Matrix model = mesh->getTransform().getMatrix();
-		const Matrix MVP = model * viewProjection;
-
-		BasePass::ConstantBufferPayload payload;
-		payload.mvpTransform = MVP;
-		payload.r = 0.0f;
-		payload.g = 1.0f;
-		payload.b = 0.0f;
-		payload.a = 1.0f;
-
-		updateConstantBuffer(payloadID, &payload, sizeof(payload));
-
-		// rootParameterIndex, constant, destOffsetIn32BitValues
-		commandList->setGraphicsRootConstant32(0, payloadID, 0);
-
 		for (const StaticMeshSection& section : mesh->getSections())
 		{
+			// #todo-wip: constant buffer
+			const Matrix model = mesh->getTransform().getMatrix();
+			const Matrix MVP = model * viewProjection;
+
+			BasePass::ConstantBufferPayload payload;
+			payload.mvpTransform = MVP;
+			memcpy_s(payload.albedoMultiplier, sizeof(payload.albedoMultiplier),
+				section.material->albedoMultiplier, sizeof(section.material->albedoMultiplier));
+
+			updateConstantBuffer(payloadID, &payload, sizeof(payload));
+
+			// rootParameterIndex, constant, destOffsetIn32BitValues
+			commandList->setGraphicsRootConstant32(0, payloadID, 0);
+
 			updateMaterial(commandList, payloadID, section.material);
 
 			commandList->iaSetVertexBuffers(0, 1, &section.positionBuffer);
 			commandList->iaSetIndexBuffer(section.indexBuffer);
 			commandList->drawIndexedInstanced(section.indexBuffer->getIndexCount(), 1, 0, 0, 0);
-		}
 
-		++payloadID;
+			++payloadID;
+		}
 	}
 }
 
@@ -229,7 +227,7 @@ void BasePass::updateMaterial(RenderCommandList* cmdList, uint32 payloadID, Mate
 {
 	Texture* albedo = gTextureManager->getSystemTextureGrey2D();
 	if (material) {
-		albedo = material->albedo;
+		albedo = material->albedoTexture;
 	}
 
 	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();

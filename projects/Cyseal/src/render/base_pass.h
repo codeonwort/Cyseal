@@ -16,7 +16,7 @@ public:
 	struct ConstantBufferPayload
 	{
 		Float4x4 mvpTransform;
-		float r, g, b, a;
+		float albedoMultiplier[4];
 	};
 
 public:

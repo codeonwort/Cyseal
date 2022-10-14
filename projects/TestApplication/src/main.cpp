@@ -1,6 +1,9 @@
 #include "app.h"
 #include "core/assertion.h"
 
+#define WINDOW_WIDTH  1600
+#define WINDOW_HEIGHT 900
+
 WindowsApplication* app = nullptr;
 
 int APIENTRY wWinMain(
@@ -16,7 +19,7 @@ int APIENTRY wWinMain(
 	app = new TestApplication;
 	app->setWindowTitle(L"Hello world");
 	app->setWindowPosition(200, 200);
-	app->setWindowSize(1600, 900);
+	app->setWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
 
 	ApplicationCreateParams createParams;
 	createParams.nativeWindowHandle = hInstance;

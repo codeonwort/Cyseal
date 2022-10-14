@@ -6,6 +6,8 @@
 #include "geometry/primitive.h"
 #include "loader/image_loader.h"
 
+#include <algorithm>
+
 /* -------------------------------------------------------
 					CONFIGURATION
 --------------------------------------------------------*/
@@ -32,10 +34,12 @@
 #define CAMERA_Z_NEAR    1.0f
 #define CAMERA_Z_FAR     10000.0f
 
-#define MESH_COUNT           10
-#define MESH_POSITION        vec3(-20.0f, 0.0f, -1.0f)
-#define MESH_POSITION_DELTA  vec3(4.0f, 0.0f, 0.0f)
-#define MESH_SCALE           2.0f
+#define MESH_ROWS            10
+#define MESH_COLS            10
+#define MESH_GROUP_CENTER    vec3(0.0f, 0.0f, -1.0f)
+#define MESH_SPACE_X         2.0f
+#define MESH_SPACE_Y         2.0f
+#define MESH_SCALE           1.0f
 
 /* -------------------------------------------------------
 					APPLICATION
@@ -72,10 +76,10 @@ void TestApplication::onTick(float deltaSeconds)
 
 	// #todo-app: Control camera by user input
 	{
-		static float elapsed = 0.0f;
-		elapsed += deltaSeconds;
-		vec3 posDelta = vec3(10.0f * sinf(elapsed), 0.0f, 5.0f * cosf(elapsed));
-		camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
+		//static float elapsed = 0.0f;
+		//elapsed += deltaSeconds;
+		//vec3 posDelta = vec3(10.0f * sinf(elapsed), 0.0f, 5.0f * cosf(elapsed));
+		//camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
 	}
 
 	// #todo: Move rendering loop to engine
@@ -153,19 +157,31 @@ void TestApplication::createResources()
 	);
 	FLUSH_RENDER_COMMANDS();
 
-	Material* baseMaterial = new Material;
-	baseMaterial->albedo = texture;
-
-	for (uint32 i = 0; i < MESH_COUNT; ++i)
+	const float x0 = MESH_GROUP_CENTER.x - (float)(MESH_COLS * MESH_SPACE_X) / 2.0f;
+	const float y0 = MESH_GROUP_CENTER.y - (float)(MESH_ROWS * MESH_SPACE_Y) / 2.0f;
+	for (uint32 row = 0; row < MESH_ROWS; ++row)
 	{
-		StaticMesh* staticMesh = new StaticMesh;
-		staticMesh->addSection(vertexBuffer, indexBuffer, baseMaterial);
+		for (uint32 col = 0; col < MESH_COLS; ++col)
+		{
+			StaticMesh* staticMesh = new StaticMesh;
 
-		staticMesh->getTransform().setPosition(MESH_POSITION + ((float)i * MESH_POSITION_DELTA));
-		staticMesh->getTransform().setScale(MESH_SCALE);
+			Material* material = new Material;
+			material->albedoTexture = texture;
+			material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
+			material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
+			material->albedoMultiplier[2] = 0.0f;
+			staticMesh->addSection(vertexBuffer, indexBuffer, material);
 
-		scene.addStaticMesh(staticMesh);
-		staticMeshes.push_back(staticMesh);
+			vec3 pos = MESH_GROUP_CENTER;
+			pos.x = x0 + col * MESH_SPACE_X;
+			pos.y = y0 + row * MESH_SPACE_Y;
+
+			staticMesh->getTransform().setPosition(pos);
+			staticMesh->getTransform().setScale(MESH_SCALE);
+
+			scene.addStaticMesh(staticMesh);
+			staticMeshes.push_back(staticMesh);
+		}
 	}
 }
 

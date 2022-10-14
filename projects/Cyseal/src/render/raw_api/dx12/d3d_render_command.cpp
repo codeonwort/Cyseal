@@ -6,6 +6,9 @@
 #include "core/assertion.h"
 #include <vector>
 
+#ifndef _DEBUG
+	#define USE_PIX
+#endif
 #include <pix3.h>
 
 //////////////////////////////////////////////////////////////////////////
