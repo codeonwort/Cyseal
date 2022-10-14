@@ -101,8 +101,11 @@ void TestApplication::onTerminate()
 
 void TestApplication::createResources()
 {
-	Geometry icosphere;
-	GeometryGenerator::icosphere(3, icosphere);
+	constexpr uint32 NUM_LODs = 2;
+
+	Geometry icospheres[NUM_LODs];
+	GeometryGenerator::icosphere(3, icospheres[0]);
+	GeometryGenerator::icosphere(1, icospheres[1]);
 
 	// #todo: Unload image memory when GPU upload is done.
 	ImageLoader loader;
@@ -129,17 +132,29 @@ void TestApplication::createResources()
 		}
 	}
 
-	float* vertexData = reinterpret_cast<float*>(icosphere.positions.data());
-	uint32* indexData = icosphere.indices.data();
+	float* vertexDataLODs[NUM_LODs];
+	uint32* indexDataLODs[NUM_LODs];
+	for (uint32 i = 0; i < NUM_LODs; ++i)
+	{
+		vertexDataLODs[i] = reinterpret_cast<float*>(icospheres[i].positions.data());
+		indexDataLODs[i] = icospheres[i].indices.data();
+	}
 
-	VertexBuffer* vertexBuffer = nullptr;
-	IndexBuffer* indexBuffer = nullptr;
+	VertexBuffer* vertexBufferLODs[NUM_LODs];
+	IndexBuffer* indexBufferLODs[NUM_LODs];
 
 	ENQUEUE_RENDER_COMMAND(UploadIcosphereBuffers)(
-		[&icosphere, &vertexData, &indexData, &vertexBuffer, &indexBuffer](RenderCommandList& commandList)
+		[NUM_LODs, &icospheres,
+		&vertexDataLODs, &indexDataLODs,
+		&vertexBufferLODs, &indexBufferLODs](RenderCommandList& commandList)
 		{
-			vertexBuffer = gRenderDevice->createVertexBuffer(vertexData, (uint32)(icosphere.positions.size() * 3 * sizeof(float)), sizeof(float) * 3);
-			indexBuffer = gRenderDevice->createIndexBuffer(indexData, (uint32)(icosphere.indices.size() * sizeof(uint32)), EPixelFormat::R32_UINT);
+			for (uint32 i = 0; i < NUM_LODs; ++i)
+			{
+				uint32 vertexBufferBytes = (uint32)(icospheres[i].positions.size() * 3 * sizeof(float));
+				uint32 indexBufferBytes = (uint32)(icospheres[i].indices.size() * sizeof(uint32));
+				vertexBufferLODs[i] = gRenderDevice->createVertexBuffer(vertexDataLODs[i], vertexBufferBytes, sizeof(float) * 3);
+				indexBufferLODs[i] = gRenderDevice->createIndexBuffer(indexDataLODs[i], indexBufferBytes, EPixelFormat::R32_UINT);
+			}
 		}
 	);
 	Texture*& texturePtr = texture;
@@ -165,12 +180,15 @@ void TestApplication::createResources()
 		{
 			StaticMesh* staticMesh = new StaticMesh;
 
-			Material* material = new Material;
-			material->albedoTexture = texture;
-			material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
-			material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
-			material->albedoMultiplier[2] = 0.0f;
-			staticMesh->addSection(vertexBuffer, indexBuffer, material);
+			for (uint32 lod = 0; lod < NUM_LODs; ++lod)
+			{
+				Material* material = new Material;
+				material->albedoTexture = texture;
+				material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
+				material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
+				material->albedoMultiplier[2] = 0.0f;
+				staticMesh->addSection(lod, vertexBufferLODs[lod], indexBufferLODs[lod], material);
+			}
 
 			vec3 pos = MESH_GROUP_CENTER;
 			pos.x = x0 + col * MESH_SPACE_X;

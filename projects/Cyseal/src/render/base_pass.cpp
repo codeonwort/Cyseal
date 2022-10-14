@@ -152,18 +152,21 @@ void BasePass::renderBasePass(
 	
 	commandList->iaSetPrimitiveTopology(primitiveTopology);
 
+	// #todo-lod: LOD selection
+	const uint32 LOD = 0;
+
 	// #todo: There might be duplicate descriptors between meshes. Needs a drawcall sorting mechanism.
 	uint32 numVolatileDescriptors = 0;
 	for (const StaticMesh* mesh : scene->staticMeshes)
 	{
-		numVolatileDescriptors += (uint32)mesh->getSections().size();
+		numVolatileDescriptors += (uint32)mesh->getSections(LOD).size();
 	}
 	bindRootParameters(commandList, numVolatileDescriptors);
 
 	uint32 payloadID = 0;
 	for (const StaticMesh* mesh : scene->staticMeshes)
 	{
-		for (const StaticMeshSection& section : mesh->getSections())
+		for (const StaticMeshSection& section : mesh->getSections(LOD))
 		{
 			// #todo-wip: constant buffer
 			const Matrix model = mesh->getTransform().getMatrix();

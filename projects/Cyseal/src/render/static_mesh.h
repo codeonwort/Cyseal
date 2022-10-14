@@ -7,12 +7,16 @@ class VertexBuffer;
 class IndexBuffer;
 class Material;
 
-class StaticMeshSection
+struct StaticMeshSection
 {
-public:
-	VertexBuffer* positionBuffer;
-	IndexBuffer*  indexBuffer;
-	Material*     material;
+	VertexBuffer* positionBuffer = nullptr;
+	IndexBuffer*  indexBuffer = nullptr;
+	Material*     material = nullptr;
+};
+
+struct StaticMeshLOD
+{
+	std::vector<StaticMeshSection> sections;
 };
 
 class StaticMesh
@@ -20,15 +24,19 @@ class StaticMesh
 public:
 	virtual ~StaticMesh();
 
-	void addSection(VertexBuffer* positionBuffer, IndexBuffer* indexBuffer, Material* material);
+	void addSection(uint32 lod, VertexBuffer* positionBuffer, IndexBuffer* indexBuffer, Material* material);
 
-	inline const std::vector<StaticMeshSection>& getSections() const { return sections; }
+	inline const std::vector<StaticMeshSection>& getSections(uint32 lod) const
+	{
+		CHECK(lod < LODs.size());
+		return LODs[lod].sections;
+	}
 
 	inline Transform& getTransform() { return transform; }
 	inline const Transform& getTransform() const { return transform; }
 
 private:
-	std::vector<StaticMeshSection> sections;
+	std::vector<StaticMeshLOD> LODs;
 
 	Transform transform;
 };
