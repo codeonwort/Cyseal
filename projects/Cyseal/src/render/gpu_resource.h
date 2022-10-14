@@ -4,6 +4,9 @@
 #include "util/enum_util.h"
 #include "pixel_format.h"
 
+class VertexBufferPool;
+class RenderCommandList;
+
 // GPU Resources = Buffers + Textures
 // #todo: merge with texture.h?
 
@@ -53,18 +56,38 @@ class GPUResource
 
 struct VertexBufferCreateParams
 {
-	uint32 numVertices;
-	uint32 elementSize;
+	// Buffer size, must be non-zero.
+	uint32 sizeInBytes;
+
+	// If null, the initial data is undefined.
+	void* initialData = nullptr;
+	// Only meaningful if initialData is there.
+	uint32 strideInBytes = 0;
+
+	// If false, this buffer will be suballocated from a global pool.
+	// Otherwise, this buffer uses separate allocation.
+	// CAUTION: Separate allocation may consume large portion of VRAM
+	//          than the buffer actually requires, and there is upper limit
+	//          of total allocation count.
+	bool bCommittedResource = false;
 };
 
+// Can be a committed resource or suballocation of a vertex buffer pool.
 class VertexBuffer : public GPUResource
 {
-
+	friend class VertexBufferPool;
 public:
-	virtual void initialize(void* initialData, uint32 sizeInBytes, uint32 strideInBytes) = 0;
+	virtual void initialize(uint32 sizeInBytes) = 0;
+	
+	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
 
-	virtual void updateData(void* data, uint32 sizeInBytes, uint32 strideInBytes) = 0;
+	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) = 0;
 
+	VertexBufferPool* internal_getParentPool() { return parentPool; }
+
+protected:
+	// Null if a committed resource.
+	VertexBufferPool* parentPool = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////

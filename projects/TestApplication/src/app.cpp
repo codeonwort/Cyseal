@@ -3,6 +3,7 @@
 #include "render/material.h"
 #include "render/static_mesh.h"
 #include "render/gpu_resource.h"
+#include "render/vertex_buffer_pool.h"
 #include "geometry/primitive.h"
 #include "loader/image_loader.h"
 
@@ -165,8 +166,11 @@ void TestApplication::createResources()
 				{
 					uint32 vertexBufferBytes = (uint32)(geometriesLODs[geomIx][lod].positions.size() * 3 * sizeof(float));
 					uint32 indexBufferBytes = (uint32)(geometriesLODs[geomIx][lod].indices.size() * sizeof(uint32));
-					vertexBufferLODs[geomIx][lod] = gRenderDevice->createVertexBuffer(vertexDataLODs[geomIx][lod], vertexBufferBytes, sizeof(float) * 3);
+					//vertexBufferLODs[geomIx][lod] = gRenderDevice->createVertexBuffer(vertexBufferBytes);
+					vertexBufferLODs[geomIx][lod] = gVertexBufferPool->suballocate(vertexBufferBytes);
 					indexBufferLODs[geomIx][lod] = gRenderDevice->createIndexBuffer(indexDataLODs[geomIx][lod], indexBufferBytes, EPixelFormat::R32_UINT);
+
+					vertexBufferLODs[geomIx][lod]->updateData(&commandList, vertexDataLODs[geomIx][lod], sizeof(float) * 3);
 				}
 			}
 		}

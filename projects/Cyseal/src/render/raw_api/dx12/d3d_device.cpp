@@ -279,7 +279,7 @@ void D3DDevice::flushCommandQueue()
 	// Wait until the GPU has completed commands up to this fence point.
 	if (fence->GetCompletedValue() < currentFence)
 	{
-		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
 		CHECK(eventHandle != 0);
 
 		// Fire event when GPU hits current fence.  
@@ -303,10 +303,21 @@ bool D3DDevice::supportsRayTracing()
 	return true;
 }
 
-VertexBuffer* D3DDevice::createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes)
+VertexBuffer* D3DDevice::createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)
 {
 	D3DVertexBuffer* buffer = new D3DVertexBuffer;
-	buffer->initialize(data, sizeInBytes, strideInBytes);
+	buffer->initialize(sizeInBytes);
+	if (inDebugName != nullptr)
+	{
+		buffer->setDebugName(inDebugName);
+	}
+	return buffer;
+}
+
+VertexBuffer* D3DDevice::createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
+{
+	D3DVertexBuffer* buffer = new D3DVertexBuffer;
+	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
 

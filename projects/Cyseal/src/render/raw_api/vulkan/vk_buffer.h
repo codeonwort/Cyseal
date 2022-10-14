@@ -6,13 +6,17 @@
 class VulkanVertexBuffer : public VertexBuffer
 {
 public:
-	void initialize(void* initialData, uint32 sizeInBytes, uint32 strideInBytes) override
+	virtual void initialize(uint32 sizeInBytes) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
+	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override
+	{
+		//throw std::logic_error("The method or operation is not implemented.");
+	}
 
-	void updateData(void* data, uint32 sizeInBytes, uint32 strideInBytes) override
+	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}

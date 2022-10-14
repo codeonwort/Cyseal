@@ -7,6 +7,7 @@
 #include "texture_manager.h"
 #include "material.h"
 #include "static_mesh.h"
+#include "vertex_buffer_pool.h"
 
 #define MAX_VOLATILE_DESCRIPTORS 1024
 // #todo: Acquire pixel format from Texture

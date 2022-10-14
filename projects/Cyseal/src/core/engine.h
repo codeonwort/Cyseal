@@ -3,6 +3,9 @@
 #include "render/render_device.h"
 #include "render/renderer.h"
 #include "core/int_types.h"
+#include "util/logging.h"
+
+DECLARE_LOG_CATEGORY(LogEngine);
 
 enum class EEngineState : uint8
 {

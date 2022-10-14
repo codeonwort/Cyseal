@@ -11,6 +11,7 @@ class RenderCommandQueue;
 class GPUResource;
 class DepthStencilView;
 class VertexBuffer;
+class VertexBufferPool;
 class IndexBuffer;
 class Shader;
 struct RootSignatureDesc;
@@ -71,7 +72,10 @@ public:
 
 	virtual bool supportsRayTracing() = 0;
 
-	virtual VertexBuffer* createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes) = 0;
+	// #todo-wip: uint64 for sizeInBytes
+	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName = nullptr) = 0;
+	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
+
 	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) = 0;
 	virtual Texture* createTexture(const TextureCreateParams& createParams) = 0;
 	virtual Shader* createShader() = 0;

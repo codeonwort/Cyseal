@@ -11,7 +11,7 @@ enum LogLevel
 	Fatal   = 3
 };
 
-static char* LogLevelStrings[] = { "Log", "Warning", "Error", "Fatal" };
+static const char* LogLevelStrings[] = { "Log", "Warning", "Error", "Fatal" };
 
 struct Logger
 {

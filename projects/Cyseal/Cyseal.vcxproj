@@ -130,6 +130,7 @@
     <ClInclude Include="src\render\texture.h" />
     <ClInclude Include="src\render\texture_manager.h" />
     <ClInclude Include="src\render\tone_mapping.h" />
+    <ClInclude Include="src\render\vertex_buffer_pool.h" />
     <ClInclude Include="src\util\enum_util.h" />
     <ClInclude Include="src\util\logging.h" />
     <ClInclude Include="src\util\profiling.h" />
@@ -168,6 +169,7 @@
     <ClCompile Include="src\render\swap_chain.cpp" />
     <ClCompile Include="src\render\texture_manager.cpp" />
     <ClCompile Include="src\render\tone_mapping.cpp" />
+    <ClCompile Include="src\render\vertex_buffer_pool.cpp" />
     <ClCompile Include="src\util\logging.cpp" />
     <ClCompile Include="src\util\profiling.cpp" />
     <ClCompile Include="src\util\resource_finder.cpp" />

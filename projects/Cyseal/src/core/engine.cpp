@@ -3,10 +3,10 @@
 
 #include "util/unit_test.h"
 #include "util/resource_finder.h"
-#include "util/logging.h"
 
 #include "render/scene_renderer.h"
 #include "render/texture_manager.h"
+#include "render/vertex_buffer_pool.h"
 
 #if COMPILE_BACKEND_DX12
 	#include "render/raw_api/dx12/d3d_device.h"
@@ -15,7 +15,9 @@
 	#include "render/raw_api/vulkan/vk_device.h"
 #endif
 
-DEFINE_LOG_CATEGORY_STATIC(LogEngine);
+#define VERTEX_BUFFER_POOL_SIZE (64 * 1024 * 1024) // 64 MiB
+
+DEFINE_LOG_CATEGORY(LogEngine);
 
 CysealEngine::~CysealEngine()
 {
@@ -37,7 +39,12 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 	createRenderDevice(createParams.renderDevice);
 
 	// Subsystems
-	createTextureManager();
+	{
+		gVertexBufferPool = new VertexBufferPool;
+		gVertexBufferPool->initialize(VERTEX_BUFFER_POOL_SIZE);
+
+		createTextureManager();
+	}
 
 	// Rendering
 	createRenderer(createParams.rendererType);
@@ -60,9 +67,15 @@ void CysealEngine::shutdown()
 	CYLOG(LogEngine, Log, TEXT("Start engine termination."));
 
 	// Subsystems
-	gTextureManager->destroy();
-	delete gTextureManager;
-	gTextureManager = nullptr;
+	{
+		gVertexBufferPool->destroy();
+		delete gVertexBufferPool;
+		gVertexBufferPool = nullptr;
+
+		gTextureManager->destroy();
+		delete gTextureManager;
+		gTextureManager = nullptr;
+	}
 
 	// Rendering
 	renderer->destroy();
@@ -98,9 +111,8 @@ void CysealEngine::createRenderDevice(const RenderDeviceCreateParams& createPara
 		CHECK_NO_ENTRY();
 	}
 
-	renderDevice->initialize(createParams);
-
 	gRenderDevice = renderDevice;
+	renderDevice->initialize(createParams);
 }
 
 void CysealEngine::createRenderer(ERendererType rendererType)

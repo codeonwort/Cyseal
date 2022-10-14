@@ -541,10 +541,17 @@ bool VulkanDevice::supportsRayTracing()
 	return false;
 }
 
-VertexBuffer* VulkanDevice::createVertexBuffer(void* data, uint32 sizeInBytes, uint32 strideInBytes)
+VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)
 {
 	VulkanVertexBuffer* buffer = new VulkanVertexBuffer;
-	buffer->initialize(data, sizeInBytes, strideInBytes);
+	buffer->initialize(sizeInBytes);
+	return buffer;
+}
+
+VertexBuffer* VulkanDevice::createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
+{
+	VulkanVertexBuffer* buffer = new VulkanVertexBuffer;
+	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
 
