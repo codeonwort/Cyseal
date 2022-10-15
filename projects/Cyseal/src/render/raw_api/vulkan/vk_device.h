@@ -50,7 +50,9 @@ public:
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName) override;
 	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 
-	virtual IndexBuffer* createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format) override;
+	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName) override;
+	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
+
 	virtual Texture* createTexture(const TextureCreateParams& createParams) override;
 	virtual Shader* createShader() override;
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;

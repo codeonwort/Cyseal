@@ -16,6 +16,7 @@
 #endif
 
 #define VERTEX_BUFFER_POOL_SIZE (64 * 1024 * 1024) // 64 MiB
+#define INDEX_BUFFER_POOL_SIZE  (16 * 1024 * 1024) // 16 MiB
 
 DEFINE_LOG_CATEGORY(LogEngine);
 
@@ -42,6 +43,9 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 	{
 		gVertexBufferPool = new VertexBufferPool;
 		gVertexBufferPool->initialize(VERTEX_BUFFER_POOL_SIZE);
+
+		gIndexBufferPool = new IndexBufferPool;
+		gIndexBufferPool->initialize(INDEX_BUFFER_POOL_SIZE);
 
 		createTextureManager();
 	}
@@ -71,6 +75,10 @@ void CysealEngine::shutdown()
 		gVertexBufferPool->destroy();
 		delete gVertexBufferPool;
 		gVertexBufferPool = nullptr;
+
+		gIndexBufferPool->destroy();
+		delete gIndexBufferPool;
+		gIndexBufferPool = nullptr;
 
 		gTextureManager->destroy();
 		delete gTextureManager;

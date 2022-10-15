@@ -33,11 +33,15 @@ private:
 class D3DIndexBuffer : public IndexBuffer
 {
 public:
-	virtual void initialize(void* initialData, uint32 sizeInBytes, EPixelFormat format) override;
+	virtual void initialize(uint32 sizeInBytes) override;
 
-	virtual void updateData(void* data, uint32 sizeInBytes, EPixelFormat format) override;
+	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
+
+	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) override;
 
 	virtual uint32 getIndexCount() override { return indexCount; }
+
+	void setDebugName(const wchar_t* inDebugName);
 
 	inline D3D12_INDEX_BUFFER_VIEW getView() const { return view; }
 
@@ -48,6 +52,7 @@ private:
 	WRL::ComPtr<ID3D12Resource> uploadBuffer;
 
 	D3D12_INDEX_BUFFER_VIEW view;
+	uint64 offsetInDefaultBuffer = 0;
 
-	uint32 indexCount;
+	uint32 indexCount = 0;
 };

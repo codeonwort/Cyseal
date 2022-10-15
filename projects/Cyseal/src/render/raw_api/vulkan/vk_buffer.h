@@ -27,22 +27,24 @@ public:
 class VulkanIndexBuffer : public IndexBuffer
 {
 public:
-	void initialize(void* initialData, uint32 sizeInBytes, EPixelFormat format) override
+	void initialize(uint32 sizeInBytes) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
-
-	void updateData(void* data, uint32 sizeInBytes, EPixelFormat format) override
+	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
+	void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) override
+	{
+		//throw std::logic_error("The method or operation is not implemented.");
+	}
 
 	uint32 getIndexCount() override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 		return 0;
 	}
-
 };

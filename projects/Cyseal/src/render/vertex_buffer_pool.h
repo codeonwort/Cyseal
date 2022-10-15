@@ -14,10 +14,11 @@
 #include <memory>
 #include <vector>
 
-struct VertexBufferPoolItem
+// #todo-vram-pool: Implement free list with this.
+struct BufferPoolItem
 {
 	uint64 offset;
-	uint64 size;
+	uint32 size;
 };
 
 class VertexBufferPool final
@@ -44,7 +45,35 @@ private:
 	
 	// #todo-vram-pool: Only increment for now. Need a free list.
 	uint64 currentOffset = 0;
-	std::vector<VertexBufferPoolItem> items;
+	//std::vector<BufferPoolItem> items;
+};
+
+class IndexBufferPool final
+{
+public:
+	void initialize(uint64 totalBytes);
+	void destroy();
+
+	IndexBuffer* suballocate(uint32 sizeInBytes);
+
+	// #todo-vram-pool: deallocate()
+	// ...
+
+	inline uint64 getTotalBytes() const { return poolSize; }
+	inline uint64 getUsedBytes() const { return currentOffset; }
+	inline uint64 getAvailableBytes() const { return poolSize - currentOffset; }
+
+public:
+	IndexBuffer* internal_getPoolBuffer() const { return pool; }
+
+private:
+	uint64 poolSize = 0;
+	IndexBuffer* pool = nullptr;
+
+	// #todo-vram-pool: Only increment for now. Need a free list.
+	uint64 currentOffset = 0;
+	//std::vector<BufferPoolItem> items;
 };
 
 extern VertexBufferPool* gVertexBufferPool;
+extern IndexBufferPool* gIndexBufferPool;

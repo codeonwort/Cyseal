@@ -555,10 +555,17 @@ VertexBuffer* VulkanDevice::createVertexBuffer(VertexBufferPool* pool, uint64 of
 	return buffer;
 }
 
-IndexBuffer* VulkanDevice::createIndexBuffer(void* data, uint32 sizeInBytes, EPixelFormat format)
+IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes)
 {
 	VulkanIndexBuffer* buffer = new VulkanIndexBuffer;
-	buffer->initialize(data, sizeInBytes, format);
+	buffer->initialize(sizeInBytes);
+	return buffer;
+}
+
+IndexBuffer* VulkanDevice::createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
+{
+	VulkanIndexBuffer* buffer = new VulkanIndexBuffer;
+	//buffer->initialize(data, sizeInBytes, format);
 	return buffer;
 }
 

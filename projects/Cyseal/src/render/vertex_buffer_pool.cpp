@@ -5,6 +5,7 @@
 #include "gpu_resource.h"
 
 VertexBufferPool* gVertexBufferPool = nullptr;
+IndexBufferPool* gIndexBufferPool = nullptr;
 
 void VertexBufferPool::initialize(uint64 totalBytes)
 {
@@ -39,6 +40,39 @@ VertexBuffer* VertexBufferPool::suballocate(uint32 sizeInBytes)
 	}
 
 	VertexBuffer* buffer = gRenderDevice->createVertexBuffer(this, currentOffset, sizeInBytes);
+	currentOffset += sizeInBytes;
+
+	return buffer;
+}
+
+void IndexBufferPool::initialize(uint64 totalBytes)
+{
+	CHECK(pool == nullptr);
+
+	poolSize = totalBytes;
+	pool = gRenderDevice->createIndexBuffer((uint32)totalBytes, L"GlobalIndexBufferPool");
+
+	const float size_mb = (float)totalBytes / (1024 * 1024);
+	CYLOG(LogEngine, Log, L"Index buffer pool: %.2f MiB", size_mb);
+}
+
+void IndexBufferPool::destroy()
+{
+	CHECK(pool != nullptr);
+	delete pool;
+	pool = nullptr;
+}
+
+IndexBuffer* IndexBufferPool::suballocate(uint32 sizeInBytes)
+{
+	if (currentOffset + sizeInBytes >= poolSize)
+	{
+		// Out of memory
+		CHECK_NO_ENTRY();
+		return nullptr;
+	}
+
+	IndexBuffer* buffer = gRenderDevice->createIndexBuffer(this, currentOffset, sizeInBytes);
 	currentOffset += sizeInBytes;
 
 	return buffer;

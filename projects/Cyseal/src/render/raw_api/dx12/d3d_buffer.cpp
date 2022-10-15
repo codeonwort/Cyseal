@@ -120,15 +120,31 @@ void D3DVertexBuffer::setDebugName(const wchar_t* inDebugName)
 //////////////////////////////////////////////////////////////////////////
 // D3DIndexBuffer
 
-void D3DIndexBuffer::initialize(void* initialData, uint32 sizeInBytes, EPixelFormat format)
+void D3DIndexBuffer::initialize(uint32 sizeInBytes)
 {
 	defaultBuffer = createDefaultBuffer(sizeInBytes);
-	updateData(initialData, sizeInBytes, format);
+
+	view.BufferLocation = defaultBuffer->GetGPUVirtualAddress();
+	view.SizeInBytes = sizeInBytes;
+	//view.Format is set in updateData().
 }
 
-void D3DIndexBuffer::updateData(void* data, uint32 sizeInBytes, EPixelFormat format)
+void D3DIndexBuffer::initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
+{
+	parentPool = pool;
+	offsetInDefaultBuffer = offsetInPool;
+
+	D3DIndexBuffer* poolBuffer = static_cast<D3DIndexBuffer*>(pool->internal_getPoolBuffer());
+	defaultBuffer = poolBuffer->defaultBuffer;
+
+	view.BufferLocation = defaultBuffer->GetGPUVirtualAddress() + offsetInPool;
+	view.SizeInBytes = sizeInBytes;
+}
+
+void D3DIndexBuffer::updateData(RenderCommandList* commandList, void* data, EPixelFormat format)
 {
 	DXGI_FORMAT d3dFormat = DXGI_FORMAT_UNKNOWN;
+	uint32 sizeInBytes = view.SizeInBytes;
 
 	switch (format)
 	{
@@ -144,13 +160,16 @@ void D3DIndexBuffer::updateData(void* data, uint32 sizeInBytes, EPixelFormat for
 
 	CHECK(d3dFormat != DXGI_FORMAT_UNKNOWN);
 
-	auto device = getD3DDevice();
-	auto cmdList = static_cast<D3DRenderCommandList*>(device->getCommandList())->getRaw();
+	auto cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
 	updateDefaultBuffer(cmdList, defaultBuffer, uploadBuffer,
-		0, data, sizeInBytes);
+		offsetInDefaultBuffer, data, sizeInBytes);
 
-	view.BufferLocation = defaultBuffer->GetGPUVirtualAddress();
-	view.Format         = d3dFormat;
-	view.SizeInBytes    = sizeInBytes;
+	view.Format = d3dFormat;
+}
+
+void D3DIndexBuffer::setDebugName(const wchar_t* inDebugName)
+{
+	CHECK(parentPool == nullptr);
+	defaultBuffer->SetName(inDebugName);
 }

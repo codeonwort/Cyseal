@@ -167,10 +167,12 @@ void TestApplication::createResources()
 					uint32 vertexBufferBytes = (uint32)(geometriesLODs[geomIx][lod].positions.size() * 3 * sizeof(float));
 					uint32 indexBufferBytes = (uint32)(geometriesLODs[geomIx][lod].indices.size() * sizeof(uint32));
 					//vertexBufferLODs[geomIx][lod] = gRenderDevice->createVertexBuffer(vertexBufferBytes);
+					//indexBufferLODs[geomIx][lod] = gRenderDevice->createIndexBuffer(indexBufferBytes);
 					vertexBufferLODs[geomIx][lod] = gVertexBufferPool->suballocate(vertexBufferBytes);
-					indexBufferLODs[geomIx][lod] = gRenderDevice->createIndexBuffer(indexDataLODs[geomIx][lod], indexBufferBytes, EPixelFormat::R32_UINT);
+					indexBufferLODs[geomIx][lod] = gIndexBufferPool->suballocate(indexBufferBytes);
 
 					vertexBufferLODs[geomIx][lod]->updateData(&commandList, vertexDataLODs[geomIx][lod], sizeof(float) * 3);
+					indexBufferLODs[geomIx][lod]->updateData(&commandList, indexDataLODs[geomIx][lod], EPixelFormat::R32_UINT);
 				}
 			}
 		}
