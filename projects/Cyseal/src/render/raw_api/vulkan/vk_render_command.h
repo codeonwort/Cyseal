@@ -5,9 +5,9 @@
 
 #if !COMPILE_BACKEND_VULKAN
 
-class VulkanRenderCommandQueue : public RenderCommandQueue {}
-class VulkanRenderCommandAllocator : public RenderCommandAllocator {}
-class VulkanRenderCommandList : public RenderCommandList {}
+class VulkanRenderCommandQueue : public RenderCommandQueue {};
+class VulkanRenderCommandAllocator : public RenderCommandAllocator {};
+class VulkanRenderCommandList : public RenderCommandList {};
 
 #else // !COMPILE_BACKEND_VULKAN
 
@@ -107,6 +107,12 @@ public:
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
+	virtual void resourceBarriers(
+		uint32 numBarriers,
+		const ResourceBarrier* barriers) override
+	{
+		//throw std::logic_error("The method or operation is not implemented.");
+	}
 
 	void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override
 	{

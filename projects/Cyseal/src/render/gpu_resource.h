@@ -51,6 +51,24 @@ class GPUResource
 {
 };
 
+// #todo-barrier: There are 3 types of barriers (transition, aliasing, and UAV)
+// Only deal with transition barrier for now.
+enum class EResourceBarrierType
+{
+	Transition = 0,
+	Aliasing = (Transition + 1),
+	UAV = (Aliasing + 1)
+};
+struct ResourceBarrier
+{
+	const EResourceBarrierType type = EResourceBarrierType::Transition;
+	// #todo-barrier: Split barrier
+	// ...
+	GPUResource* resource;
+	EGPUResourceState stateBefore;
+	EGPUResourceState stateAfter;
+};
+
 //////////////////////////////////////////////////////////////////////////
 // Vertex Buffer
 

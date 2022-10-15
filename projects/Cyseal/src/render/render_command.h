@@ -66,10 +66,15 @@ public:
 	virtual void rsSetViewport(const Viewport& viewport) = 0;
 	virtual void rsSetScissorRect(const ScissorRect& scissorRect) = 0;
 
+	// #todo-rendercommand: Use resourceBarriers() instead.
 	virtual void transitionResource(
 		GPUResource* resource,
 		EGPUResourceState stateBefore,
 		EGPUResourceState stateAfter) = 0;
+
+	virtual void resourceBarriers(
+		uint32 numBarriers,
+		const ResourceBarrier* barriers) = 0;
 
 	virtual void clearRenderTargetView(
 		RenderTargetView* RTV,

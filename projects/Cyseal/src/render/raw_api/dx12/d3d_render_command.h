@@ -59,6 +59,10 @@ public:
 		EGPUResourceState stateBefore,
 		EGPUResourceState stateAfter) override;
 
+	virtual void resourceBarriers(
+		uint32 numBarriers,
+		const ResourceBarrier* barriers) override;
+
 	virtual void clearRenderTargetView(
 		RenderTargetView* RTV,
 		const float* rgba) override;

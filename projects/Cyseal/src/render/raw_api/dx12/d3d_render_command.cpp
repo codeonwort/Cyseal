@@ -11,6 +11,37 @@
 #endif
 #include <pix3.h>
 
+namespace into_d3d
+{
+	inline D3D12_RESOURCE_BARRIER resourceBarrier(const ResourceBarrier& barrier)
+	{
+		ID3D12Resource* d3dResource = static_cast<D3DResource*>(barrier.resource)->getRaw();
+
+		D3D12_RESOURCE_BARRIER d3dBarrier;
+		d3dBarrier.Type = (D3D12_RESOURCE_BARRIER_TYPE)barrier.type;
+		d3dBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		switch(barrier.type)
+		{
+		case EResourceBarrierType::Transition:
+			d3dBarrier.Transition.pResource = d3dResource;
+			// #todo-barrier: Subresource index?
+			d3dBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			d3dBarrier.Transition.StateBefore = (D3D12_RESOURCE_STATES)barrier.stateBefore;
+			d3dBarrier.Transition.StateAfter = (D3D12_RESOURCE_STATES)barrier.stateAfter;
+			break;
+		case EResourceBarrierType::Aliasing:
+			CHECK_NO_ENTRY();
+			break;
+		case EResourceBarrierType::UAV:
+			CHECK_NO_ENTRY();
+			break;
+		default:
+			break;
+		}
+		return d3dBarrier;
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 // D3DRenderCommandQueue
 
@@ -191,6 +222,16 @@ void D3DRenderCommandList::transitionResource(
 			rawResource,
 			(D3D12_RESOURCE_STATES)stateBefore,
 			(D3D12_RESOURCE_STATES)stateAfter));
+}
+
+void D3DRenderCommandList::resourceBarriers(uint32 numBarriers, const ResourceBarrier* barriers)
+{
+	std::vector<D3D12_RESOURCE_BARRIER> rawBarriers(numBarriers);
+	for (uint32 i=0; i<numBarriers; ++i)
+	{
+		rawBarriers[i] = into_d3d::resourceBarrier(barriers[i]);
+	}
+	commandList->ResourceBarrier(numBarriers, rawBarriers.data());
 }
 
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)

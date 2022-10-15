@@ -117,15 +117,21 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	{
 		SCOPED_DRAW_EVENT(commandList, ToneMapping);
 
-		commandList->transitionResource(
-			RT_sceneColor,
-			EGPUResourceState::RENDER_TARGET,
-			EGPUResourceState::PIXEL_SHADER_RESOURCE);
-
-		commandList->transitionResource(
-			currentBackBuffer,
-			EGPUResourceState::PRESENT,
-			EGPUResourceState::RENDER_TARGET);
+		ResourceBarrier barriers[] = {
+			{
+				EResourceBarrierType::Transition,
+				RT_sceneColor,
+				EGPUResourceState::RENDER_TARGET,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE
+			},
+			{
+				EResourceBarrierType::Transition,
+				currentBackBuffer,
+				EGPUResourceState::PRESENT,
+				EGPUResourceState::RENDER_TARGET
+			}
+		};
+		commandList->resourceBarriers(_countof(barriers), barriers);
 
 		commandList->omSetRenderTarget(currentBackBufferRTV, nullptr);
 
