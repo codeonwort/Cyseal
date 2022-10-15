@@ -22,12 +22,17 @@
 #include <vulkan/vulkan.h>
 
 #if PLATFORM_WINDOWS
-	#include <Windows.h>
-	#include <vulkan/vulkan_win32.h>
+	#include "vk_win32.h"
 #endif
 
 // #todo-crossapi: Dynamic loading
 #pragma comment(lib, "vulkan-1.lib")
+
+#define VK_APPINFO_APPNAME       "CysealApplication"
+#define VK_APPINFO_APPVER        VK_MAKE_API_VERSION(0, 1, 0, 0)
+#define VK_APPINFO_ENGINENAME    "CysealEngine"
+#define VK_APPINFO_ENGINEVER     VK_MAKE_API_VERSION(0, 1, 0, 0)
+#define VK_MAX_API               VK_API_VERSION_1_3
 
 DEFINE_LOG_CATEGORY(LogVulkan);
 
@@ -40,7 +45,7 @@ const std::vector<const char*> REQUIRED_DEVICE_EXTENSIONS = {
 };
 
 #include <iostream>
-static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebugCallback(
+static VKAPI_ATTR VkBool32 VKAPI_CALL GVulkanDebugCallback(
 	VkDebugReportFlagsEXT flags,
 	VkDebugReportObjectTypeEXT objType,
 	uint64_t obj,
@@ -96,23 +101,17 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 {
 	CYLOG(LogVulkan, Log, TEXT("=== Initialize Vulkan ==="));
 
-	// [Finished]
-	//createVkInstance();
-	//setupDebugCallback();
-	//createSurface();
-	//pickPhysicalDevice();
-	//createLogicalDevice();
-	//createSwapChain();
-	//createImageViews();
-	//createRenderPass();
-
-	// #todo-vulkan
-	//createCommandPool();
-	//createDepthResources();
-	//createFramebuffers();
-	//create3DModels();
-	//createCommandBuffers();
-	//createSemaphores();
+	// Initialization steps
+	// 1. VkInstance
+	// 2. Vulkan debug callback
+	// 3. KHR surface
+	// 4. VkPhysicalDevice
+	// 5. VkDevice
+	// 6. Debug marker
+	// 7. VkCommandPool
+	// 8. Swapchain wrapper
+	// 9. VkCommandBuffer
+	// 10. VkSemaphore
 
 	CYLOG(LogVulkan, Log, TEXT("> Create a VkInstance"));
 	{
@@ -124,11 +123,11 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 		VkApplicationInfo appInfo{};
 		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		appInfo.pApplicationName = "CysealEngine"; // #todo-vulkan: Proper app name
-		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.pEngineName = "CysealEngine"; // #todo-vulkan: Proper engine name
-		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.apiVersion = VK_API_VERSION_1_1;
+		appInfo.pApplicationName = VK_APPINFO_APPNAME;
+		appInfo.applicationVersion = VK_APPINFO_APPVER;
+		appInfo.pEngineName = VK_APPINFO_ENGINENAME;
+		appInfo.engineVersion = VK_APPINFO_ENGINEVER;
+		appInfo.apiVersion = VK_MAX_API;
 
 		VkInstanceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -155,39 +154,16 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 			VkDebugReportCallbackCreateInfoEXT createInfo{};
 			createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
 			createInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
-			createInfo.pfnCallback = vulkanDebugCallback;
+			createInfo.pfnCallback = GVulkanDebugCallback;
 
-			if (CreateDebugReportCallbackEXT(vkInstance, &createInfo, nullptr, &vkDebugCallback) != VK_SUCCESS) {
-				CHECK_NO_ENTRY();
-			}
+			VkResult ret = CreateDebugReportCallbackEXT(vkInstance, &createInfo, nullptr, &vkDebugCallback);
+			CHECK(ret == VK_SUCCESS);
 		}
 	}
 
 #if PLATFORM_WINDOWS
 	CYLOG(LogVulkan, Log, TEXT("> Create KHR surface"));
-	{
-		VkResult err;
-		VkWin32SurfaceCreateInfoKHR sci;
-		PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR;
-
-		vkCreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR)vkGetInstanceProcAddr(vkInstance, "vkCreateWin32SurfaceKHR");
-		if (!vkCreateWin32SurfaceKHR)
-		{
-			CYLOG(LogVulkan, Fatal, TEXT("Win32: Vulkan instance missing VK_KHR_win32_surface extension"));
-		}
-
-		memset(&sci, 0, sizeof(sci));
-		sci.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-		sci.hinstance = GetModuleHandle(NULL);
-		sci.hwnd = (HWND)createParams.nativeWindowHandle;
-
-		const VkAllocationCallbacks* allocator = nullptr;
-		err = vkCreateWin32SurfaceKHR(vkInstance, &sci, allocator, &vkSurface);
-		if (err)
-		{
-			CYLOG(LogVulkan, Fatal, TEXT("Failed to create Vulkan surface"));
-		}
-	}
+	vkSurface = ::createVkSurfaceKHR_win32(vkInstance, createParams.nativeWindowHandle);
 #else
 	#error Not implemented yet
 #endif
@@ -196,12 +172,11 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 	{
 		uint32 deviceCount = 0;
 		vkEnumeratePhysicalDevices(vkInstance, &deviceCount, nullptr);
-
 		CHECK(deviceCount != 0);
 
 		std::vector<VkPhysicalDevice> devices(deviceCount);
 		vkEnumeratePhysicalDevices(vkInstance, &deviceCount, devices.data());
-		for (const auto& physDevice : devices)
+		for (const VkPhysicalDevice& physDevice : devices)
 		{
 			if (isDeviceSuitable(physDevice))
 			{
@@ -209,13 +184,14 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 				break;
 			}
 		}
-
 		CHECK(vkPhysicalDevice != VK_NULL_HANDLE);
 	}
 
+	// #todo-vulkan: Check debug marker support
+
 	CYLOG(LogVulkan, Log, TEXT("> Create a logical device"));
 	{
-		QueueFamilyIndices indices = findQueueFamilies(vkPhysicalDevice);
+		QueueFamilyIndices indices = findQueueFamilies(vkPhysicalDevice, vkSurface);
 
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 		std::set<int> uniqueQueueFamilies = { indices.graphicsFamily, indices.presentFamily };
@@ -260,232 +236,30 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		vkGetDeviceQueue(vkDevice, indices.presentFamily, 0, &vkPresentQueue);
 	}
 
-	CYLOG(LogVulkan, Log, TEXT("Create swapchain"));
+	// Determine swapchain image count first.
+	swapChain = new VulkanSwapchain;
+	static_cast<VulkanSwapchain*>(swapChain)->preinitialize(this);
+
 	{
-		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(vkPhysicalDevice);
-		VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
-		VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-		VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities, createParams.windowWidth, createParams.windowHeight);
-		uint32 imageCount = swapChainSupport.capabilities.minImageCount + 1;
-		// maxImageCount = 0 means there's no limit besides memory requirements
-		if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
+		commandQueue = new VulkanRenderCommandQueue;
+		commandQueue->initialize(this);
+
+		for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
 		{
-			imageCount = swapChainSupport.capabilities.maxImageCount;
+			RenderCommandAllocator* allocator = new VulkanRenderCommandAllocator;
+			allocator->initialize(this);
+			commandAllocators.push_back(allocator);
 		}
-		VkSwapchainCreateInfoKHR createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-		createInfo.surface = vkSurface;
-		createInfo.minImageCount = imageCount;
-		createInfo.imageFormat = surfaceFormat.format;
-		createInfo.imageColorSpace = surfaceFormat.colorSpace;
-		createInfo.imageExtent = extent;
-		// 1 unless developming a stereoscopic 3D application
-		createInfo.imageArrayLayers = 1;
-		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-		QueueFamilyIndices indices = findQueueFamilies(vkPhysicalDevice);
-		uint32 queueFamilyIndices[] = { static_cast<uint32>(indices.graphicsFamily), static_cast<uint32>(indices.presentFamily) };
-		if (indices.graphicsFamily != indices.presentFamily)
-		{
-			createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-			createInfo.queueFamilyIndexCount = 2;
-			createInfo.pQueueFamilyIndices = queueFamilyIndices;
-		}
-		else
-		{
-			// best performance. an image is owned by one queue family at a time
-			createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-			createInfo.queueFamilyIndexCount = 0;
-			createInfo.pQueueFamilyIndices = nullptr;
-		}
-		createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-		createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-		createInfo.presentMode = presentMode;
-		createInfo.clipped = VK_TRUE;
-		createInfo.oldSwapchain = VK_NULL_HANDLE;
-
-		VkResult ret = vkCreateSwapchainKHR(vkDevice, &createInfo, nullptr, &swapchain);
-		CHECK(ret == VK_SUCCESS);
-
-		vkGetSwapchainImagesKHR(vkDevice, swapchain, &imageCount, nullptr);
-		swapchainImages.resize(imageCount);
-		vkGetSwapchainImagesKHR(vkDevice, swapchain, &imageCount, swapchainImages.data());
-		swapchainImageFormat = surfaceFormat.format;
-		swapchainExtent = extent;
+		commandList = new VulkanRenderCommandList;
+		commandList->initialize(this);
 	}
 
-	CYLOG(LogVulkan, Log, TEXT("> Create image views for swapchain images"));
-	{
-		swapchainImageViews.resize(swapchainImages.size());
-		for (size_t i = 0; i < swapchainImages.size(); ++i)
-		{
-			swapchainImageViews[i] = createImageView(
-				vkDevice,
-				swapchainImages[i],
-				swapchainImageFormat,
-				VK_IMAGE_ASPECT_COLOR_BIT);
-		}
-	}
-
-	CYLOG(LogVulkan, Log, TEXT("> Create render pass for back-buffer"));
-	{
-		VkAttachmentDescription colorAttachment{};
-		colorAttachment.format = swapchainImageFormat;
-		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-		VkAttachmentReference colorAttachmentRef{};
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentDescription depthAttachment = {};
-		depthAttachment.format = findDepthFormat(vkPhysicalDevice);
-		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference depthAttachmentRef = {};
-		depthAttachmentRef.attachment = 1;
-		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkSubpassDescription subpass{};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &colorAttachmentRef;
-		subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-		VkSubpassDependency dependency{};
-		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependency.dstSubpass = 0;
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.srcAccessMask = 0;
-		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-		std::array<VkAttachmentDescription, 2> attachments = {
-			colorAttachment, depthAttachment
-		};
-		VkRenderPassCreateInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = static_cast<uint32>(attachments.size());
-		renderPassInfo.pAttachments = attachments.data();
-		renderPassInfo.subpassCount = 1;
-		renderPassInfo.pSubpasses = &subpass;
-		renderPassInfo.dependencyCount = 1;
-		renderPassInfo.pDependencies = &dependency;
-
-		VkResult ret = vkCreateRenderPass(vkDevice, &renderPassInfo, nullptr, &backbufferRenderPass);
-		CHECK(ret == VK_SUCCESS);
-	}
-
-	CYLOG(LogVulkan, Log, TEXT("> Create command pool"));
-	{
-		QueueFamilyIndices queueFamilyIndices = findQueueFamilies(vkPhysicalDevice);
-		VkCommandPoolCreateInfo poolInfo{};
-		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
-		poolInfo.flags = 0;
-
-		VkResult ret = vkCreateCommandPool(vkDevice, &poolInfo, nullptr, &vkCommandPool);
-		CHECK(ret == VK_SUCCESS);
-	}
-
-	CYLOG(LogVulkan, Log, TEXT("> Create depth resources for backbuffer"));
-	{
-		VkFormat depthFormat = findDepthFormat(vkPhysicalDevice);
-
-		createImage(vkPhysicalDevice, vkDevice, swapchainExtent.width, swapchainExtent.height,
-			depthFormat,
-			VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			depthImage, depthImageMemory);
-
-		depthImageView = createImageView(vkDevice, depthImage, depthFormat,
-			VK_IMAGE_ASPECT_DEPTH_BIT);
-
-		transitionImageLayout(
-			vkDevice, vkCommandPool, vkGraphicsQueue,
-			depthImage, depthFormat,
-			VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-	}
-
-	CYLOG(LogVulkan, Log, TEXT("> Create framebuffers for backbuffer"));
-	{
-		swapchainFramebuffers.resize(swapchainImageViews.size());
-
-		for (size_t i = 0; i < swapchainImageViews.size(); ++i)
-		{
-			std::array<VkImageView, 2> attachments = { swapchainImageViews[i], depthImageView };
-			VkFramebufferCreateInfo framebufferInfo{};
-			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = backbufferRenderPass;
-			framebufferInfo.attachmentCount = static_cast<uint32>(attachments.size());
-			framebufferInfo.pAttachments = attachments.data();
-			framebufferInfo.width = swapchainExtent.width;
-			framebufferInfo.height = swapchainExtent.height;
-			framebufferInfo.layers = 1;
-
-			VkResult ret = vkCreateFramebuffer(vkDevice, &framebufferInfo, nullptr, &swapchainFramebuffers[i]);
-			CHECK(ret == VK_SUCCESS);
-		}
-	}
-
-	CYLOG(LogVulkan, Log, TEXT("> Create command buffers"));
-	{
-		vkCommandBuffers.resize(swapchainFramebuffers.size());
-
-		VkCommandBufferAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = vkCommandPool;
-		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandBufferCount = static_cast<uint32>(vkCommandBuffers.size());
-		
-		VkResult ret = vkAllocateCommandBuffers(vkDevice, &allocInfo, vkCommandBuffers.data());
-		CHECK(ret == VK_SUCCESS);
-
-		for (size_t i = 0; i < vkCommandBuffers.size(); ++i)
-		{
-			VkCommandBufferBeginInfo beginInfo{};
-			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-			beginInfo.pInheritanceInfo = nullptr;
-			vkBeginCommandBuffer(vkCommandBuffers[i], &beginInfo);
-
-			std::array<VkClearValue, 2> clearValues;
-			clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-			clearValues[1].depthStencil = { 1.0f, 0 };
-
-			VkRenderPassBeginInfo renderPassInfo{};
-			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-			renderPassInfo.renderPass = backbufferRenderPass;
-			renderPassInfo.framebuffer = swapchainFramebuffers[i];
-			renderPassInfo.renderArea.offset = { 0,0 };
-			renderPassInfo.renderArea.extent = swapchainExtent;
-			renderPassInfo.clearValueCount = static_cast<uint32>(clearValues.size());
-			renderPassInfo.pClearValues = clearValues.data();
-			
-			vkCmdBeginRenderPass(vkCommandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-			{
-				// #todo-vulkan: Drawing commands here
-				//triangle.commitCommands(commandBuffers[i]);
-			}
-			vkCmdEndRenderPass(vkCommandBuffers[i]);
-
-			VkResult ret = vkEndCommandBuffer(vkCommandBuffers[i]);
-			CHECK(ret == VK_SUCCESS);
-		}
-	}
+	swapChain->initialize(
+		this,
+		createParams.nativeWindowHandle,
+		createParams.windowWidth,
+		createParams.windowHeight);
 
 	CYLOG(LogVulkan, Log, TEXT("> Create semaphores for rendering"));
 	{
@@ -500,25 +274,6 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkRenderFinishedSemaphore);
 		CHECK(ret == VK_SUCCESS);
 	}
-
-	commandQueue = new VulkanRenderCommandQueue;
-	commandQueue->initialize(this);
-
-	swapChain = new VulkanSwapchain;
-	swapChain->initialize(this,
-		createParams.nativeWindowHandle,
-		createParams.windowWidth,
-		createParams.windowHeight);
-
-	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
-	{
-		RenderCommandAllocator* allocator = new VulkanRenderCommandAllocator;
-		allocator->initialize(this);
-		commandAllocators.push_back(allocator);
-	}
-
-	commandList = new VulkanRenderCommandList;
-	commandList->initialize(this);
 }
 
 void VulkanDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)
@@ -555,7 +310,7 @@ VertexBuffer* VulkanDevice::createVertexBuffer(VertexBufferPool* pool, uint64 of
 	return buffer;
 }
 
-IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes)
+IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)
 {
 	VulkanIndexBuffer* buffer = new VulkanIndexBuffer;
 	buffer->initialize(sizeInBytes);
@@ -620,6 +375,11 @@ void VulkanDevice::copyDescriptors(
 	CHECK_NO_ENTRY();
 }
 
+VkCommandPool VulkanDevice::getTempCommandPool() const
+{
+	return static_cast<VulkanRenderCommandAllocator*>(commandAllocators[0])->getRawCommandPool();
+}
+
 bool VulkanDevice::checkValidationLayerSupport()
 {
 	uint32 layerCount;
@@ -665,7 +425,7 @@ void VulkanDevice::getRequiredExtensions(std::vector<const char*>& extensions)
 
 bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice physDevice)
 {
-	QueueFamilyIndices indices = findQueueFamilies(physDevice);
+	QueueFamilyIndices indices = findQueueFamilies(physDevice, vkSurface);
 
 	VkPhysicalDeviceProperties deviceProperties;
 	vkGetPhysicalDeviceProperties(physDevice, &deviceProperties);
@@ -684,38 +444,6 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice physDevice)
 		&& swapChainAdequate && deviceFeatures.samplerAnisotropy;
 }
 
-VulkanDevice::QueueFamilyIndices VulkanDevice::findQueueFamilies(VkPhysicalDevice physDevice)
-{
-	QueueFamilyIndices indices;
-	uint32 queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(physDevice, &queueFamilyCount, nullptr);
-	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(physDevice, &queueFamilyCount, queueFamilies.data());
-	int i = 0;
-	for (const auto& queueFamily : queueFamilies)
-	{
-		if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-		{
-			indices.graphicsFamily = i;
-		}
-		VkBool32 presentSupport = false;
-
-		CYLOG(LogVulkan, Log, TEXT("Check surface present support"));
-
-		vkGetPhysicalDeviceSurfaceSupportKHR(physDevice, i, vkSurface, &presentSupport);
-		if (queueFamily.queueCount > 0 && presentSupport)
-		{
-			indices.presentFamily = i;
-		}
-		if (indices.isComplete())
-		{
-			break;
-		}
-		++i;
-	}
-	return indices;
-}
-
 bool VulkanDevice::checkDeviceExtensionSupport(VkPhysicalDevice physDevice)
 {
 	uint32 extensionCount;
@@ -730,7 +458,7 @@ bool VulkanDevice::checkDeviceExtensionSupport(VkPhysicalDevice physDevice)
 	return requiredExtensions.empty();
 }
 
-VulkanDevice::SwapChainSupportDetails VulkanDevice::querySwapChainSupport(VkPhysicalDevice physDevice)
+SwapChainSupportDetails VulkanDevice::querySwapChainSupport(VkPhysicalDevice physDevice)
 {
 	SwapChainSupportDetails details;
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physDevice, vkSurface, &details.capabilities);

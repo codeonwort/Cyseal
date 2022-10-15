@@ -107,7 +107,7 @@ public:
 protected:
 	EPixelFormat            backbufferFormat = EPixelFormat::R8G8B8A8_UNORM;
 	EPixelFormat            backbufferDepthFormat = EPixelFormat::D24_UNORM_S8_UINT;
-	SwapChain*              swapChain;
+	SwapChain*              swapChain = nullptr;
 
 	// https://learn.microsoft.com/en-us/windows/win32/direct3d12/recording-command-lists-and-bundles
 	// Command allocators should hold memory for render commands while GPU is accessing them,

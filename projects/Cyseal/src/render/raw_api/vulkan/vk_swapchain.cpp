@@ -16,6 +16,21 @@ VulkanSwapchain::VulkanSwapchain()
 	swapchainImageCount = 0;
 }
 
+void VulkanSwapchain::preinitialize(RenderDevice* renderDevice)
+{
+	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(renderDevice);
+	auto physicalDevice = deviceWrapper->vkPhysicalDevice;
+	SwapChainSupportDetails supportDetails = deviceWrapper->querySwapChainSupport(physicalDevice);
+
+	uint32 imageCount = std::max(2u, supportDetails.capabilities.minImageCount);
+	// maxImageCount = 0 means there's no limit besides memory requirements
+	if (supportDetails.capabilities.maxImageCount > 0 && imageCount > supportDetails.capabilities.maxImageCount)
+	{
+		imageCount = supportDetails.capabilities.maxImageCount;
+	}
+	swapchainImageCount = imageCount;
+}
+
 void VulkanSwapchain::initialize(
 	RenderDevice* renderDevice,
 	void* nativeWindowHandle,
@@ -24,39 +39,32 @@ void VulkanSwapchain::initialize(
 {
 	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(renderDevice);
 
-	VulkanDevice::SwapChainSupportDetails swapChainSupport = deviceWrapper->querySwapChainSupport(deviceWrapper->vkPhysicalDevice);
+	SwapChainSupportDetails swapChainSupport = deviceWrapper->querySwapChainSupport(deviceWrapper->vkPhysicalDevice);
 	VkSurfaceFormatKHR surfaceFormat = deviceWrapper->chooseSwapSurfaceFormat(swapChainSupport.formats);
 	VkPresentModeKHR presentMode = deviceWrapper->chooseSwapPresentMode(swapChainSupport.presentModes);
 	VkExtent2D extent = deviceWrapper->chooseSwapExtent(swapChainSupport.capabilities, width, height);
 
 	CYLOG(LogVulkan, Log, L"Create swapchain images");
 	{
-		uint32 imageCount = swapChainSupport.capabilities.minImageCount + 1;
-		// maxImageCount = 0 means there's no limit besides memory requirements
-		if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
-		{
-			imageCount = swapChainSupport.capabilities.maxImageCount;
-		}
-		swapchainImageCount = imageCount;
-
 		VkSwapchainCreateInfoKHR createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 		createInfo.surface = deviceWrapper->vkSurface;
-		createInfo.minImageCount = imageCount;
+		createInfo.minImageCount = swapchainImageCount;
 		createInfo.imageFormat = surfaceFormat.format;
 		createInfo.imageColorSpace = surfaceFormat.colorSpace;
 		createInfo.imageExtent = extent;
 		createInfo.imageArrayLayers = 1; // 1 unless developming a stereoscopic 3D application
 		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-		VulkanDevice::QueueFamilyIndices indices = deviceWrapper->findQueueFamilies(deviceWrapper->vkPhysicalDevice);
+		QueueFamilyIndices indices = findQueueFamilies(deviceWrapper->vkPhysicalDevice, deviceWrapper->vkSurface);
 		uint32 queueFamilyIndices[] = { static_cast<uint32>(indices.graphicsFamily), static_cast<uint32>(indices.presentFamily) };
 		if (indices.graphicsFamily != indices.presentFamily)
 		{
 			createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 			createInfo.queueFamilyIndexCount = 2;
 			createInfo.pQueueFamilyIndices = queueFamilyIndices;
-		} else
+		}
+		else
 		{
 			// best performance. an image is owned by one queue family at a time
 			createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -72,9 +80,9 @@ void VulkanSwapchain::initialize(
 		VkResult ret = vkCreateSwapchainKHR(deviceWrapper->vkDevice, &createInfo, nullptr, &swapchainKHR);
 		CHECK(ret == VK_SUCCESS);
 
-		vkGetSwapchainImagesKHR(deviceWrapper->vkDevice, swapchainKHR, &imageCount, nullptr);
-		swapchainImages.resize(imageCount);
-		vkGetSwapchainImagesKHR(deviceWrapper->vkDevice, swapchainKHR, &imageCount, swapchainImages.data());
+		vkGetSwapchainImagesKHR(deviceWrapper->vkDevice, swapchainKHR, &swapchainImageCount, nullptr);
+		swapchainImages.resize(swapchainImageCount);
+		vkGetSwapchainImagesKHR(deviceWrapper->vkDevice, swapchainKHR, &swapchainImageCount, swapchainImages.data());
 		swapchainImageFormat = surfaceFormat.format;
 		swapchainExtent = extent;
 	}
@@ -169,7 +177,7 @@ void VulkanSwapchain::initialize(
 
 		transitionImageLayout(
 			deviceWrapper->vkDevice,
-			deviceWrapper->vkCommandPool,
+			deviceWrapper->getTempCommandPool(),
 			deviceWrapper->vkGraphicsQueue,
 			depthImage, depthFormat,
 			VK_IMAGE_LAYOUT_UNDEFINED,

@@ -8,32 +8,19 @@ class VulkanDevice : public RenderDevice {};
 
 #else // COMPILE_BACKEND_VULKAN
 
+#include "vk_utils.h"
 #include "util/logging.h"
+
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
 DECLARE_LOG_CATEGORY(LogVulkan);
 
+class VulkanSwapchain;
+
 class VulkanDevice : public RenderDevice
 {
 	friend class VulkanSwapchain;
-
-	struct QueueFamilyIndices
-	{
-		int graphicsFamily = -1;
-		int presentFamily = -1;
-		bool isComplete()
-		{
-			return graphicsFamily >= 0 && presentFamily >= 0;
-		}
-	};
-
-	struct SwapChainSupportDetails
-	{
-		VkSurfaceCapabilitiesKHR capabilities;
-		std::vector<VkSurfaceFormatKHR> formats;
-		std::vector<VkPresentModeKHR> presentModes;
-	};
 
 public:
 	VulkanDevice();
@@ -68,13 +55,20 @@ public:
 		DescriptorHeap* srcHeap,
 		uint32 srcHeapDescriptorStartOffset) override;
 
+	// Internal use only
 	inline VkDevice getRaw() const { return vkDevice; }
+	inline VkPhysicalDevice getVkPhysicalDevice() const { return vkPhysicalDevice; }
+	inline VkSurfaceKHR getVkSurface() const { return vkSurface; }
+	inline VkQueue getVkGraphicsQueue() const { return vkGraphicsQueue; }
+	inline VkSemaphore getVkImageAvailableSemoaphre() const { return vkImageAvailableSemaphore; }
+	inline VkSemaphore getVkRenderFinishedSemoaphre() const { return vkRenderFinishedSemaphore; }
+
+	VkCommandPool getTempCommandPool() const;
 
 private:
 	bool checkValidationLayerSupport();
 	void getRequiredExtensions(std::vector<const char*>& extensions);
 	bool isDeviceSuitable(VkPhysicalDevice physDevice);
-	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physDevice);
 	bool checkDeviceExtensionSupport(VkPhysicalDevice physDevice);
 	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice physDevice);
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
@@ -91,20 +85,6 @@ private:
 	VkQueue vkGraphicsQueue = VK_NULL_HANDLE;
 	VkQueue vkPresentQueue = VK_NULL_HANDLE;
 
-	// #todo-vulkan: VulkanSwapchain
-	VkSwapchainKHR swapchain;
-	std::vector<VkImage> swapchainImages;
-	VkFormat swapchainImageFormat;
-	VkExtent2D swapchainExtent;
-	std::vector<VkImageView> swapchainImageViews;
-	VkRenderPass backbufferRenderPass;
-	std::vector<VkFramebuffer> swapchainFramebuffers;
-	VkImage depthImage;
-	VkDeviceMemory depthImageMemory;
-	VkImageView depthImageView;
-
-	VkCommandPool vkCommandPool = VK_NULL_HANDLE;
-	std::vector<VkCommandBuffer> vkCommandBuffers;
 	VkSemaphore vkImageAvailableSemaphore = VK_NULL_HANDLE;
 	VkSemaphore vkRenderFinishedSemaphore = VK_NULL_HANDLE;
 

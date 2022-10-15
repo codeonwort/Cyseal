@@ -18,53 +18,38 @@ class ShaderResourceView;
 class VulkanRenderCommandQueue : public RenderCommandQueue
 {
 public:
-	void initialize(RenderDevice* renderDevice) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
+	void initialize(RenderDevice* renderDevice) override;
 
-
-	void executeCommandList(class RenderCommandList* commandList) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
+	void executeCommandList(class RenderCommandList* commandList) override;
 
 private:
-	// raw vk object here
+	VulkanDevice* deviceWrapper = nullptr;
+	VkQueue vkGraphicsQueue = VK_NULL_HANDLE;
 };
 
 class VulkanRenderCommandAllocator : public RenderCommandAllocator
 {
 public:
-	void initialize(RenderDevice* renderDevice) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
+	virtual void initialize(RenderDevice* renderDevice) override;
 
-	void reset() override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
+	virtual void reset() override;
+
+	inline VkCommandPool getRawCommandPool() const { return vkCommandPool; }
+	inline VkCommandBuffer getRawCommandBuffer() const { return vkCommandBuffer; }
 
 private:
-	// raw vk object here
+	VkDevice vkDevice = VK_NULL_HANDLE;
+	VkCommandPool vkCommandPool = VK_NULL_HANDLE;
+	VkCommandBuffer vkCommandBuffer = VK_NULL_HANDLE;
 };
 
 class VulkanRenderCommandList : public RenderCommandList
 {
 public:
 
-	void initialize(RenderDevice* renderDevice) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
+	void initialize(RenderDevice* renderDevice) override;
 
-
-	void reset(RenderCommandAllocator* allocator) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
-
+	void reset(RenderCommandAllocator* allocator) override;
 
 	void close() override
 	{
@@ -186,8 +171,9 @@ public:
 	virtual void beginEventMarker(const char* eventName) override {}
 	virtual void endEventMarker() override {}
 
-private:
-	VkCommandBuffer vkCommandBuffer = VK_NULL_HANDLE;
+public:
+//private:
+	VkCommandBuffer currentCommandBuffer = VK_NULL_HANDLE;
 };
 
 #endif // !COMPILE_BACKEND_VULKAN

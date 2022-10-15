@@ -21,6 +21,8 @@ class VulkanSwapchain : public SwapChain
 public:
 	VulkanSwapchain();
 
+	void preinitialize(RenderDevice* renderDevice);
+
 	virtual void initialize(
 		RenderDevice* renderDevice,
 		void*         nativeWindowHandle,

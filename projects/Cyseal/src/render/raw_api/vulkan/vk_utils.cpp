@@ -2,6 +2,42 @@
 
 #if COMPILE_BACKEND_VULKAN
 
+#include "util/logging.h"
+
+DECLARE_LOG_CATEGORY(LogVulkan);
+
+QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physDevice, VkSurfaceKHR surfaceKHR)
+{
+	QueueFamilyIndices indices;
+	uint32 queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(physDevice, &queueFamilyCount, nullptr);
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(physDevice, &queueFamilyCount, queueFamilies.data());
+	int i = 0;
+	for (const auto& queueFamily : queueFamilies)
+	{
+		if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+		{
+			indices.graphicsFamily = i;
+		}
+		VkBool32 presentSupport = false;
+
+		CYLOG(LogVulkan, Log, L"Check surface present support");
+
+		vkGetPhysicalDeviceSurfaceSupportKHR(physDevice, i, surfaceKHR, &presentSupport);
+		if (queueFamily.queueCount > 0 && presentSupport)
+		{
+			indices.presentFamily = i;
+		}
+		if (indices.isComplete())
+		{
+			break;
+		}
+		++i;
+	}
+	return indices;
+}
+
 VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
 {
 	VkImageViewCreateInfo viewInfo{};

@@ -198,6 +198,9 @@
     <ClInclude Include="src\render\vertex_buffer_pool.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\raw_api\vulkan\vk_win32.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -303,6 +306,12 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\vertex_buffer_pool.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\raw_api\vulkan\vk_win32.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\raw_api\vulkan\vk_render_command.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
