@@ -75,8 +75,4 @@ private:
 	ID3D12CommandQueue*               rawCommandQueue;
 	ID3D12GraphicsCommandList4*       rawCommandList;
 	D3DSwapChain*                     d3dSwapChain;
-
-	uint32                            screenWidth;
-	uint32                            screenHeight;
-
 };

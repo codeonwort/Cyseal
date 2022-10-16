@@ -216,6 +216,11 @@ void VulkanSwapchain::initialize(
 	//EPixelFormat backbufferDepthFormat;
 }
 
+void VulkanSwapchain::resize(uint32 newWidth, uint32 newHeight)
+{
+	//
+}
+
 void VulkanSwapchain::present()
 {
 	//

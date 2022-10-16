@@ -280,7 +280,7 @@ void VulkanDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uin
 {
 	HWND hwnd = (HWND)nativeWindowHandle;
 	// #todo-vulkan
-	CHECK_NO_ENTRY();
+	//CHECK_NO_ENTRY();
 }
 
 void VulkanDevice::flushCommandQueue()

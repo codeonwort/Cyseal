@@ -56,17 +56,6 @@ void D3DSwapChain::initialize(
 
 	rawSwapChain.Attach(static_cast<IDXGISwapChain3*>(tempSwapchain));
 
-	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
-	{
-		auto bufferPtr = rawSwapChainBuffers[i].GetAddressOf();
-		HR( rawSwapChain->GetBuffer(i, IID_PPV_ARGS(bufferPtr)) );
-		swapChainBuffers[i]->setRaw(rawSwapChainBuffers[i].Get());
-
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"Backbuffer%u", i);
-		rawSwapChainBuffers[i]->SetName(debugName);
-	}
-
 	// Create RTV heap
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC desc;
@@ -78,21 +67,34 @@ void D3DSwapChain::initialize(
 		HR( rawDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heapRTV.GetAddressOf())) );
 	}
 
-	// Create RTVs
-	auto descSizeRTV = rawDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(heapRTV->GetCPUDescriptorHandleForHeapStart());
-	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
+	createSwapchainImages();
+}
+
+void D3DSwapChain::resize(uint32 newWidth, uint32 newHeight)
+{
+	backbufferWidth = newWidth;
+	backbufferHeight = newHeight;
+
+	for (auto i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{
-		auto buffer = getRawSwapChainBuffer(i);
-		rawDevice->CreateRenderTargetView(buffer, nullptr, rtvHeapHandle);
-		backBufferRTVs[i]->setRaw(rtvHeapHandle);
-		rtvHeapHandle.ptr += descSizeRTV;
+		swapChainBuffers[i]->setRaw(nullptr);
+		rawSwapChainBuffers[i].Reset();
 	}
+	rawSwapChain->ResizeBuffers(
+		SWAP_CHAIN_BUFFER_COUNT,
+		newWidth, newHeight,
+		into_d3d::pixelFormat(backbufferFormat),
+		0 /*DXGI_SWAP_CHAIN_FLAG*/);
+
+	createSwapchainImages();
 }
 
 void D3DSwapChain::swapBackbuffer()
 {
-	currentBackBuffer = (currentBackBuffer + 1) % SWAP_CHAIN_BUFFER_COUNT;
+	// Do nothing here. DXGI swapchain automatically flips the back buffers.
+	// 
+	// https://learn.microsoft.com/en-us/windows/uwp/gaming/reduce-latency-with-dxgi-1-3-swap-chains
+	// -> With the flip model swap chain, back buffer "flips" are queued whenever your game calls IDXGISwapChain::Present.
 }
 
 uint32 D3DSwapChain::getCurrentBackbufferIndex() const
@@ -102,12 +104,39 @@ uint32 D3DSwapChain::getCurrentBackbufferIndex() const
 
 GPUResource* D3DSwapChain::getCurrentBackbuffer() const
 {
-	return swapChainBuffers[currentBackBuffer].get();
+	return swapChainBuffers[getCurrentBackbufferIndex()].get();
 }
 
 RenderTargetView* D3DSwapChain::getCurrentBackbufferRTV() const
 {
-	return backBufferRTVs[currentBackBuffer].get();
+	return backBufferRTVs[getCurrentBackbufferIndex()].get();
+}
+
+void D3DSwapChain::createSwapchainImages()
+{
+	auto rawDevice = device->getRawDevice();
+
+	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
+	{
+		auto bufferPtr = rawSwapChainBuffers[i].GetAddressOf();
+		HR(rawSwapChain->GetBuffer(i, IID_PPV_ARGS(bufferPtr)));
+		swapChainBuffers[i]->setRaw(rawSwapChainBuffers[i].Get());
+
+		wchar_t debugName[256];
+		swprintf_s(debugName, L"Backbuffer%u", i);
+		rawSwapChainBuffers[i]->SetName(debugName);
+	}
+
+	// Create RTVs
+	auto descSizeRTV = rawDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(heapRTV->GetCPUDescriptorHandleForHeapStart());
+	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
+	{
+		auto rawResource = rawSwapChainBuffers[i].Get();
+		rawDevice->CreateRenderTargetView(rawResource, nullptr, rtvHeapHandle);
+		backBufferRTVs[i]->setRaw(rtvHeapHandle);
+		rtvHeapHandle.ptr += descSizeRTV;
+	}
 }
 
 void D3DSwapChain::present()

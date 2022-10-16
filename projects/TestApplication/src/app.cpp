@@ -85,6 +85,13 @@ void TestApplication::onTick(float deltaSeconds)
 
 	// #todo: Move rendering loop to engine
 	{
+		if (bViewportNeedsResize)
+		{
+			cysealEngine.getRenderDevice()->recreateSwapChain(
+				getHWND(), newViewportWidth, newViewportHeight);
+			bViewportNeedsResize = false;
+		}
+
 		SceneProxy* sceneProxy = scene.createProxy();
 
 		cysealEngine.getRenderer()->render(sceneProxy, &camera);
@@ -102,9 +109,9 @@ void TestApplication::onTerminate()
 
 void TestApplication::onWindowResize(uint32 newWidth, uint32 newHeight)
 {
-	// #todo-renderdevice: Need to do this when frame rendering is idle.
-	//cysealEngine.getRenderDevice()->recreateSwapChain(
-	//	getHWND(), newWidth, newHeight);
+	bViewportNeedsResize = true;
+	newViewportWidth = newWidth;
+	newViewportHeight = newHeight;
 }
 
 void TestApplication::createResources()

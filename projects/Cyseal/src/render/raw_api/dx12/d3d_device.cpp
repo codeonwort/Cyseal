@@ -168,7 +168,11 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 	// 5. Create swap chain.
 	swapChain = (d3dSwapChain = new D3DSwapChain);
-	recreateSwapChain(createParams.nativeWindowHandle, createParams.windowWidth, createParams.windowHeight);
+	swapChain->initialize(
+		this,
+		createParams.nativeWindowHandle,
+		createParams.windowWidth,
+		createParams.windowHeight);
 
 	// 6. Create command allocators and command list.
 	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
@@ -191,12 +195,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)
 {
-	screenWidth = width;
-	screenHeight = height;
-
-	HWND hwnd = (HWND)nativeWindowHandle;
-
-	swapChain->initialize(this, hwnd, width, height);
+	swapChain->resize(width, height);
 }
 
 void D3DDevice::allocateSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)

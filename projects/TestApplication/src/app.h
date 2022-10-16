@@ -29,4 +29,7 @@ private:
 	Texture* texture;
 	std::vector<StaticMesh*> staticMeshes;
 
+	bool bViewportNeedsResize = false;
+	uint32 newViewportWidth = 0;
+	uint32 newViewportHeight = 0;
 };

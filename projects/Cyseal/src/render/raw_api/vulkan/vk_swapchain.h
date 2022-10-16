@@ -29,6 +29,8 @@ public:
 		uint32        width,
 		uint32        height) override;
 
+	virtual void resize(uint32 newWidth, uint32 newHeight) override;
+
 	virtual void present() override;
 	virtual void swapBackbuffer() override;
 	virtual uint32 getBufferCount() override { return swapchainImageCount; }
