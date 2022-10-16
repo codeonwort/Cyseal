@@ -4,6 +4,7 @@
 #include "util/unit_test.h"
 #include "util/resource_finder.h"
 
+#include "render/null_renderer.h"
 #include "render/scene_renderer.h"
 #include "render/texture_manager.h"
 #include "render/vertex_buffer_pool.h"

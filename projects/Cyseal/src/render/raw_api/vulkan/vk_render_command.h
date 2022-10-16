@@ -51,11 +51,7 @@ public:
 
 	void reset(RenderCommandAllocator* allocator) override;
 
-	void close() override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
-
+	void close() override;
 
 	void iaSetPrimitiveTopology(EPrimitiveTopology topology) override
 	{

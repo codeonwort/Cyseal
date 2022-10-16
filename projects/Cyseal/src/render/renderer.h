@@ -19,13 +19,3 @@ public:
 	virtual void destroy() = 0;
 	virtual void render(const SceneProxy* scene, const Camera* camera) = 0;
 };
-
-// Renders nothing.
-// #todo-vulkan-fatal: Vulkan backend should not crash when using this.
-class NullRenderer : public Renderer
-{
-public:
-	virtual void initialize(RenderDevice*) override {}
-	virtual void destroy() override {}
-	virtual void render(const SceneProxy* scene, const Camera* camera) override {}
-};

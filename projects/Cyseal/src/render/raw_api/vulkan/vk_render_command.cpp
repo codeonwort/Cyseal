@@ -84,4 +84,17 @@ void VulkanRenderCommandList::reset(RenderCommandAllocator* allocator)
 {
 	VulkanRenderCommandAllocator* vkAllocator = static_cast<VulkanRenderCommandAllocator*>(allocator);
 	currentCommandBuffer = vkAllocator->getRawCommandBuffer();
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	beginInfo.pInheritanceInfo = nullptr;
+	VkResult ret = vkBeginCommandBuffer(currentCommandBuffer, &beginInfo);
+	CHECK(ret == VK_SUCCESS);
+}
+
+void VulkanRenderCommandList::close()
+{
+	VkResult ret = vkEndCommandBuffer(currentCommandBuffer);
+	CHECK(ret == VK_SUCCESS);
 }

@@ -18,7 +18,7 @@ VulkanSwapchain::VulkanSwapchain()
 
 void VulkanSwapchain::preinitialize(RenderDevice* renderDevice)
 {
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(renderDevice);
+	deviceWrapper = static_cast<VulkanDevice*>(renderDevice);
 	auto physicalDevice = deviceWrapper->vkPhysicalDevice;
 	SwapChainSupportDetails supportDetails = deviceWrapper->querySwapChainSupport(physicalDevice);
 
@@ -37,7 +37,12 @@ void VulkanSwapchain::initialize(
 	uint32 width,
 	uint32 height)
 {
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(renderDevice);
+	CHECK(deviceWrapper == renderDevice);
+
+	backbufferWidth = width;
+	backbufferHeight = height;
+	backbufferFormat = deviceWrapper->getBackbufferFormat();
+	backbufferDepthFormat = deviceWrapper->getBackbufferDepthFormat();
 
 	SwapChainSupportDetails swapChainSupport = deviceWrapper->querySwapChainSupport(deviceWrapper->vkPhysicalDevice);
 	VkSurfaceFormatKHR surfaceFormat = deviceWrapper->chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -156,7 +161,11 @@ void VulkanSwapchain::initialize(
 		renderPassInfo.dependencyCount = 1;
 		renderPassInfo.pDependencies = &dependency;
 
-		VkResult ret = vkCreateRenderPass(deviceWrapper->vkDevice, &renderPassInfo, nullptr, &backbufferRenderPass);
+		VkResult ret = vkCreateRenderPass(
+			deviceWrapper->vkDevice,
+			&renderPassInfo,
+			nullptr,
+			&backbufferRenderPass);
 		CHECK(ret == VK_SUCCESS);
 	}
 
@@ -164,15 +173,21 @@ void VulkanSwapchain::initialize(
 	{
 		VkFormat depthFormat = findDepthFormat(deviceWrapper->vkPhysicalDevice);
 
-		createImage(deviceWrapper->vkPhysicalDevice, deviceWrapper->vkDevice,
-			swapchainExtent.width, swapchainExtent.height,
+		createImage(
+			deviceWrapper->vkPhysicalDevice,
+			deviceWrapper->vkDevice,
+			swapchainExtent.width,
+			swapchainExtent.height,
 			depthFormat,
 			VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			depthImage, depthImageMemory);
 
-		depthImageView = createImageView(deviceWrapper->vkDevice, depthImage, depthFormat,
+		depthImageView = createImageView(
+			deviceWrapper->vkDevice,
+			depthImage,
+			depthFormat,
 			VK_IMAGE_ASPECT_DEPTH_BIT);
 
 		transitionImageLayout(
@@ -208,22 +223,38 @@ void VulkanSwapchain::initialize(
 			CHECK(ret == VK_SUCCESS);
 		}
 	}
-
-	// Set inherited member variables
-	//uint32 backbufferWidth;
-	//uint32 backbufferHeight;
-	//EPixelFormat backbufferFormat;
-	//EPixelFormat backbufferDepthFormat;
 }
 
 void VulkanSwapchain::resize(uint32 newWidth, uint32 newHeight)
 {
-	//
+	// #todo-vulkan
 }
 
 void VulkanSwapchain::present()
 {
-	//
+	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkRenderFinishedSemoaphre() };
+	VkSwapchainKHR swapchains[] = { swapchainKHR };
+	uint32 swapchainIndices[] = { currentBackbufferIx };
+
+	VkPresentInfoKHR presentInfo{};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = waitSemaphores;
+
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = swapchains;
+	presentInfo.pImageIndices = swapchainIndices;
+	presentInfo.pResults = nullptr;
+
+	VkResult ret = vkQueuePresentKHR(deviceWrapper->getVkPresentQueue(), &presentInfo);
+	if (ret == VK_ERROR_OUT_OF_DATE_KHR || ret == VK_SUBOPTIMAL_KHR)
+	{
+		resize(backbufferWidth, backbufferHeight);
+	}
+	else
+	{
+		CHECK(ret == VK_SUCCESS);
+	}
 }
 
 void VulkanSwapchain::swapBackbuffer()

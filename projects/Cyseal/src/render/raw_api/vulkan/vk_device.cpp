@@ -87,11 +87,6 @@ VkResult CreateDebugReportCallbackEXT(
 
 //////////////////////////////////////////////////////////////////////////
 
-VulkanDevice::VulkanDevice()
-{
-	// #todo-vulkan
-}
-
 VulkanDevice::~VulkanDevice()
 {
 	// #todo-vulkan
@@ -285,8 +280,8 @@ void VulkanDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uin
 
 void VulkanDevice::flushCommandQueue()
 {
-	// #todo-vulkan
-	//CHECK_NO_ENTRY();
+	VkResult ret = vkQueueWaitIdle(vkPresentQueue);
+	CHECK(ret == VK_SUCCESS);
 }
 
 bool VulkanDevice::supportsRayTracing()

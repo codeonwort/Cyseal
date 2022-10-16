@@ -174,7 +174,10 @@ LRESULT CALLBACK Win32WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 				WindowsApplication* winApp = it->second;
 				UINT windowWidth = LOWORD(lParam);
 				UINT windowHeight = HIWORD(lParam);
-				winApp->onWindowResize(windowWidth, windowHeight);
+				if (windowWidth > 0 && windowHeight > 0)
+				{
+					winApp->onWindowResize(windowWidth, windowHeight);
+				}
 			}
 		}
 		break;

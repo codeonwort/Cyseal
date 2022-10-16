@@ -105,6 +105,7 @@ public:
 	inline RenderCommandQueue* getCommandQueue() const { return commandQueue; }
 
 protected:
+	// #todo-renderdevice: Move backbuffer formats to swapchain
 	EPixelFormat            backbufferFormat = EPixelFormat::R8G8B8A8_UNORM;
 	EPixelFormat            backbufferDepthFormat = EPixelFormat::D24_UNORM_S8_UINT;
 	SwapChain*              swapChain = nullptr;

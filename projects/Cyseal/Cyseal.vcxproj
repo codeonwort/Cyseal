@@ -96,6 +96,7 @@
     <ClInclude Include="src\loader\image_loader.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
     <ClInclude Include="src\render\base_pass.h" />
+    <ClInclude Include="src\render\null_renderer.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_buffer.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_render_command.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_texture.h" />
@@ -151,6 +152,7 @@
     <ClCompile Include="src\loader\image_loader.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\base_pass.cpp" />
+    <ClCompile Include="src\render\null_renderer.cpp" />
     <ClCompile Include="src\render\raw_api\vulkan\vk_render_command.cpp" />
     <ClCompile Include="src\render\raw_api\vulkan\vk_win32.cpp" />
     <ClCompile Include="src\render\scene_renderer.cpp" />

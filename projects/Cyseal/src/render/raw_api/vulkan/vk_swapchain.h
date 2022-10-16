@@ -16,6 +16,8 @@ https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkRenderPa
 	The use of a render pass in a command buffer is a render pass instance.
 ------------------------------------------------------------------------------------ */
 
+class VulkanDevice;
+
 class VulkanSwapchain : public SwapChain
 {
 public:
@@ -40,25 +42,24 @@ public:
 	virtual RenderTargetView* getCurrentBackbufferRTV() const override;
 
 private:
-	// #todo-vulkan: Init subroutines here
+	VulkanDevice* deviceWrapper = nullptr;
 
-private:
 	uint32 currentBackbufferIx = 0;
 
-	VkSwapchainKHR swapchainKHR;
-	VkExtent2D swapchainExtent;
-	uint32 swapchainImageCount;
+	VkSwapchainKHR swapchainKHR = VK_NULL_HANDLE;
+	VkExtent2D swapchainExtent = VkExtent2D{ 0,0 };
+	uint32 swapchainImageCount = 0;
 
 	std::vector<VkImage> swapchainImages;
-	VkFormat swapchainImageFormat;
+	VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
 	std::vector<VkImageView> swapchainImageViews;
 
-	VkRenderPass backbufferRenderPass;
+	VkRenderPass backbufferRenderPass = VK_NULL_HANDLE;
 	std::vector<VkFramebuffer> swapchainFramebuffers;
 
-	VkImage depthImage;
-	VkDeviceMemory depthImageMemory;
-	VkImageView depthImageView;
+	VkImage depthImage = VK_NULL_HANDLE;
+	VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
+	VkImageView depthImageView = VK_NULL_HANDLE;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

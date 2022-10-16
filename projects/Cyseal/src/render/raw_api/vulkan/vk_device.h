@@ -23,7 +23,7 @@ class VulkanDevice : public RenderDevice
 	friend class VulkanSwapchain;
 
 public:
-	VulkanDevice();
+	VulkanDevice() = default;
 	~VulkanDevice();
 
 	virtual void initialize(const RenderDeviceCreateParams& createParams) override;
@@ -60,6 +60,7 @@ public:
 	inline VkPhysicalDevice getVkPhysicalDevice() const { return vkPhysicalDevice; }
 	inline VkSurfaceKHR getVkSurface() const { return vkSurface; }
 	inline VkQueue getVkGraphicsQueue() const { return vkGraphicsQueue; }
+	inline VkQueue getVkPresentQueue() const { return vkPresentQueue; }
 	inline VkSemaphore getVkImageAvailableSemoaphre() const { return vkImageAvailableSemaphore; }
 	inline VkSemaphore getVkRenderFinishedSemoaphre() const { return vkRenderFinishedSemaphore; }
 
