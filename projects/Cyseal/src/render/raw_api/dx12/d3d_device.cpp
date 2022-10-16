@@ -345,9 +345,9 @@ Texture* D3DDevice::createTexture(const TextureCreateParams& createParams)
 	return texture;
 }
 
-Shader* D3DDevice::createShader()
+ShaderStage* D3DDevice::createShader(EShaderStage shaderStage, const char* debugName)
 {
-	return new D3DShader;
+	return new D3DShaderStage(shaderStage, debugName);
 }
 
 RootSignature* D3DDevice::createRootSignature(const RootSignatureDesc& desc)

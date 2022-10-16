@@ -137,6 +137,7 @@
     <ClInclude Include="src\util\logging.h" />
     <ClInclude Include="src\util\profiling.h" />
     <ClInclude Include="src\util\resource_finder.h" />
+    <ClInclude Include="src\util\string_conversion.h" />
     <ClInclude Include="src\util\unit_test.h" />
     <ClInclude Include="src\world\camera.h" />
     <ClInclude Include="src\world\scene.h" />
@@ -178,6 +179,7 @@
     <ClCompile Include="src\util\logging.cpp" />
     <ClCompile Include="src\util\profiling.cpp" />
     <ClCompile Include="src\util\resource_finder.cpp" />
+    <ClCompile Include="src\util\string_conversion.cpp" />
     <ClCompile Include="src\util\unit_test.cpp" />
     <ClCompile Include="src\world\camera.cpp" />
     <ClCompile Include="src\world\scene.cpp" />

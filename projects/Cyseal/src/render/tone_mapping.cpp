@@ -72,20 +72,18 @@ ToneMapping::ToneMapping()
 	}
 
 	// Load shader
-	Shader* shader = nullptr;
-	{
-		shader = device->createShader();
-		shader->loadVertexShader(L"tone_mapping.hlsl", "mainVS");
-		shader->loadPixelShader(L"tone_mapping.hlsl", "mainPS");
-	}
+	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "ToneMappingVS");
+	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "ToneMappingPS");
+	shaderVS->loadFromFile(L"tone_mapping.hlsl", "mainVS");
+	shaderPS->loadFromFile(L"tone_mapping.hlsl", "mainPS");
 
 	// Create PSO
 	{
 		GraphicsPipelineDesc desc;
 		desc.inputLayout            = inputLayout;
 		desc.rootSignature          = rootSignature.get();
-		desc.vs                     = shader->getVertexShader();
-		desc.ps                     = shader->getPixelShader();
+		desc.vs                     = shaderVS;
+		desc.ps                     = shaderPS;
 		desc.rasterizerDesc         = RasterizerDesc::FrontCull();
 		desc.blendDesc              = BlendDesc();
 		desc.depthstencilDesc       = DepthstencilDesc::NoDepth();

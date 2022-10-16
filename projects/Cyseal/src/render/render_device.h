@@ -3,6 +3,7 @@
 #include "core/types.h"
 #include "pixel_format.h"
 #include "texture.h"
+#include "shader.h"
 
 class SwapChain;
 class RenderCommandAllocator;
@@ -13,7 +14,6 @@ class DepthStencilView;
 class VertexBuffer;
 class VertexBufferPool;
 class IndexBuffer;
-class Shader;
 struct RootSignatureDesc;
 class RootSignature;
 struct GraphicsPipelineDesc;
@@ -80,7 +80,9 @@ public:
 	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
 
 	virtual Texture* createTexture(const TextureCreateParams& createParams) = 0;
-	virtual Shader* createShader() = 0;
+
+	virtual ShaderStage* createShader(EShaderStage shaderStage, const char* debugName) = 0;
+
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
 

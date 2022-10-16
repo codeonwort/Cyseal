@@ -6,20 +6,21 @@ struct IdConstant
 {
     uint objectId;
 };
-struct MaterialConstants
+struct Material
 {
     float4x4 mvpTransform;
     float4 albedoMultiplier;
 };
 
 ConstantBuffer<IdConstant> objectConstants : register(b0);
-ConstantBuffer<MaterialConstants> materialConstants[] : register(b1);
+ConstantBuffer<Material> materialConstants[] : register(b1);
 
 Texture2D albedoTexture : register(t0);
 SamplerState albedoSampler : register(s0);
 
 uint getObjectId() { return objectConstants.objectId; }
-MaterialConstants getMaterialData() { return materialConstants[getObjectId()]; }
+// #todo-shader: glslangValidator can't translate this?
+Material getMaterialData() { return materialConstants[getObjectId()]; }
 
 // ------------------------------------------------------------------------
 // Vertex shader
@@ -40,7 +41,7 @@ Interpolants mainVS(VertexInput input)
 {
     Interpolants output;
 
-    MaterialConstants material = getMaterialData();
+    Material material = getMaterialData();
 
     output.posH = mul(float4(input.posL, 1.0), material.mvpTransform);
 
@@ -57,7 +58,7 @@ Interpolants mainVS(VertexInput input)
 
 float4 mainPS(Interpolants interpolants) : SV_TARGET
 {
-    MaterialConstants material = getMaterialData();
+    Material material = getMaterialData();
 
     // Variables
     float3 Wi = -normalize(float3(0.0, -1.0, 1.0));

@@ -1,71 +1,86 @@
 #include "vk_shader.h"
 
+// #todo-vulkan: Runtime shader recompilation, maybe using this?
+// https://github.com/KhronosGroup/SPIRV-Tools
+
 #if COMPILE_BACKEND_VULKAN
 
+#include "core/platform.h"
 #include "core/assertion.h"
 #include "util/resource_finder.h"
+#include "util/string_conversion.h"
 #include <fstream>
 
-VulkanShader::~VulkanShader()
+const char* shaderTypeStrings[] = {
+	"vert",
+	"tese",
+	"tesc",
+	"geom",
+	"frag",
+	"comp",
+	nullptr, // mesh
+	nullptr, // amp
+	nullptr, // intersection
+	nullptr, // anyhit
+	nullptr, // closesthit
+	nullptr, // miss
+};
+
+VulkanShaderStage::~VulkanShaderStage()
 {
+	CHECK(vkModule != VK_NULL_HANDLE);
+
 	VulkanDevice* device = static_cast<VulkanDevice*>(gRenderDevice);
-	vkDestroyShaderModule(device->getRaw(), vsModule, nullptr);
-	vkDestroyShaderModule(device->getRaw(), fsModule, nullptr);
+	vkDestroyShaderModule(device->getRaw(), vkModule, nullptr);
 }
 
-void VulkanShader::loadVertexShader(const wchar_t* filename, const char* entryPoint)
+void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* entryPoint)
 {
-	loadFromFile(filename, vsCode);
-	vsModule = createShaderModule(vsCode);
-}
+	std::wstring hlslPathW = ResourceFinder::get().find(inFilename);
+	CHECK(hlslPathW.size() > 0);
+	std::string hlslPath;
+	wstr_to_str(hlslPathW, hlslPath);
 
-void VulkanShader::loadPixelShader(const wchar_t* filename, const char* entryPoint)
-{
-	loadFromFile(filename, fsCode);
-	fsModule = createShaderModule(fsCode);
-}
+#if PLATFORM_WINDOWS
+	// Hmm... glslangValidator also works for HLSL?
+	// https://github.com/KhronosGroup/glslang/wiki/HLSL-FAQ
+	
+	const char* glslang = "%VULKAN_SDK%\\Bin\\glslangValidator.exe";
+	const char* shaderTypeStr = shaderTypeStrings[(int)stageFlag];
+	std::string spirvPath = hlslPath.substr(0, hlslPath.find(".hlsl")) + ".spv";
+	char cmd[512];
+	sprintf_s(cmd, "%s -S %s -e %s -o %s -V -D %s",
+		glslang, shaderTypeStr, entryPoint, spirvPath.c_str(), hlslPath.c_str());
+	std::system(cmd);
+#else
+	#error Not implemented yet
+#endif
 
-ShaderStage* VulkanShader::getVertexShader()
-{
-	// #todo-vulkan: shader stage
-	return nullptr;
-}
-
-ShaderStage* VulkanShader::getPixelShader()
-{
-	// #todo-vulkan: shader stage
-	return nullptr;
-}
-
-void VulkanShader::loadFromFile(const wchar_t* filename, std::vector<char>& outCode)
-{
-	auto filenameEx = ResourceFinder::get().find(filename);
-
-	std::ifstream file(filenameEx, std::ios::ate | std::ios::binary);
+	std::ifstream file(spirvPath, std::ios::ate | std::ios::binary);
 	CHECK(file.is_open());
 
 	size_t fileSize = static_cast<size_t>(file.tellg());
-	outCode.resize(fileSize);
+	sourceCode.resize(fileSize);
 
 	file.seekg(0);
-	file.read(outCode.data(), fileSize);
+	file.read(sourceCode.data(), fileSize);
 	file.close();
-}
 
-VkShaderModule VulkanShader::createShaderModule(const std::vector<char>& code)
-{
+	//////////////////////////////////////////////////////////////////////////
+
 	VulkanDevice* device = static_cast<VulkanDevice*>(gRenderDevice);
 
 	VkShaderModuleCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	createInfo.codeSize = code.size();
-	createInfo.pCode = reinterpret_cast<const uint32*>(code.data());
+	createInfo.codeSize = sourceCode.size();
+	createInfo.pCode = reinterpret_cast<const uint32*>(sourceCode.data());
 
-	VkShaderModule shaderModule;
-	VkResult ret = vkCreateShaderModule(device->getRaw(), &createInfo, nullptr, &shaderModule);
+	VkResult ret = vkCreateShaderModule(
+		device->getRaw(),
+		&createInfo,
+		nullptr,
+		&vkModule);
 	CHECK(ret == VK_SUCCESS);
-
-	return shaderModule;
 }
 
 #endif // COMPILE_BACKEND_VULKAN

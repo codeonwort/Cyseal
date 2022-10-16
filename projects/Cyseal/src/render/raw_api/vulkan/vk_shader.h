@@ -8,27 +8,19 @@
 #include "render/shader.h"
 #include <vector>
 
-
-class VulkanShader : public Shader
+class VulkanShaderStage : public ShaderStage
 {
 public:
-	VulkanShader() = default;
-	~VulkanShader();
+	VulkanShaderStage(EShaderStage inStageFlag, const char* inDebugName)
+		: ShaderStage(inStageFlag, inDebugName)
+	{}
+	~VulkanShaderStage();
 
-	virtual void loadVertexShader(const wchar_t* filename, const char* entryPoint) override;
-	virtual void loadPixelShader(const wchar_t* filename, const char* entryPoint) override;
-
-	virtual ShaderStage* getVertexShader() override;
-	virtual ShaderStage* getPixelShader() override;
+	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) override;
 
 private:
-	void loadFromFile(const wchar_t* filename, std::vector<char>& outCode);
-	VkShaderModule createShaderModule(const std::vector<char>& code);
-
-	std::vector<char> vsCode;
-	std::vector<char> fsCode;
-	VkShaderModule vsModule;
-	VkShaderModule fsModule;
+	std::vector<char> sourceCode;
+	VkShaderModule vkModule = VK_NULL_HANDLE;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

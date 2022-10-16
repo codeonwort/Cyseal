@@ -7,6 +7,8 @@
 #include <d3dcompiler.h>
 #include <Windows.h>
 
+#define SKIP_SHADER_OPTIMIZATION (_DEBUG)
+
 DEFINE_LOG_CATEGORY_STATIC(LogD3DShader);
 
 static const char* getD3DShaderType(EShaderStage type)
@@ -38,51 +40,27 @@ static const char* getD3DShaderType(EShaderStage type)
 	return "unknown";
 }
 
-void D3DShader::loadVertexShader(const wchar_t* filename, const char* entryPoint)
-{
-	CHECK(vsStage == nullptr);
-	loadFromFile(filename, entryPoint, EShaderStage::VERTEX_SHADER);
-	vsStage = new D3DShaderStage(this, EShaderStage::VERTEX_SHADER);
-}
-
-void D3DShader::loadPixelShader(const wchar_t* filename, const char* entryPoint)
-{
-	CHECK(psStage == nullptr);
-	loadFromFile(filename, entryPoint, EShaderStage::PIXEL_SHADER);
-	psStage = new D3DShaderStage(this, EShaderStage::PIXEL_SHADER);
-}
-
-D3D12_SHADER_BYTECODE D3DShader::getBytecode(EShaderStage shaderType)
-{
-	D3D12_SHADER_BYTECODE bc;
-	bc.pShaderBytecode = byteCodes[(int)shaderType]->GetBufferPointer();
-	bc.BytecodeLength = byteCodes[(int)shaderType]->GetBufferSize();
-	return bc;
-}
-
-void D3DShader::loadFromFile(const TCHAR* filename, const char* entryPoint, EShaderStage shaderType)
+void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* entryPoint)
 {
 	UINT compileFlags = 0;
-#if (DEBUG || _DEBUG)
+#if SKIP_SHADER_OPTIMIZATION
 	compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
 	D3D_SHADER_MACRO* defines = nullptr;
 	WRL::ComPtr<ID3DBlob> errors;
 
-	auto file = ResourceFinder::get().find(filename);
-
-	int byteCodeIx = static_cast<int>(shaderType);
+	std::wstring fullpath = ResourceFinder::get().find(inFilename);
 
 	HRESULT hr = D3DCompileFromFile(
-		file.c_str(),
+		fullpath.c_str(),
 		defines,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
 		entryPoint,
-		getD3DShaderType(shaderType),
+		getD3DShaderType(stageFlag),
 		compileFlags,
 		0,
-		byteCodes[byteCodeIx].GetAddressOf(),
+		bytecodeBlob.GetAddressOf(),
 		&errors);
 
 	if (errors != nullptr)

@@ -14,6 +14,7 @@
 --------------------------------------------------------*/
 // 0: DX12 + Standard renderer
 // 1: Vulkan + Null renderer
+// 2: Vulkan + Standard renderer (WIP)
 #define RENDERER_PRESET 0
 
 #if RENDERER_PRESET == 0
@@ -22,6 +23,9 @@
 #elif RENDERER_PRESET == 1
 	#define RAW_API          ERenderDeviceRawAPI::Vulkan
 	#define RENDERER_TYPE    ERendererType::Null
+#elif RENDERER_PRESET == 2
+	#define RAW_API          ERenderDeviceRawAPI::Vulkan
+	#define RENDERER_TYPE    ERendererType::Standard
 #endif
 #define RAYTRACING_TIER      ERayTracingTier::Tier_1_0
 #define WINDOW_TYPE          EWindowType::WINDOWED

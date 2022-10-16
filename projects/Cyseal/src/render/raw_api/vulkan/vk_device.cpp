@@ -326,9 +326,9 @@ Texture* VulkanDevice::createTexture(const TextureCreateParams& createParams)
 	return texture;
 }
 
-Shader* VulkanDevice::createShader()
+ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* debugName)
 {
-	return new VulkanShader;
+	return new VulkanShaderStage(shaderStage, debugName);
 }
 
 RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& desc)

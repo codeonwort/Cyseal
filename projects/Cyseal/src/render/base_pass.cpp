@@ -100,20 +100,18 @@ void BasePass::initialize()
 	}
 
 	// Load shader
-	Shader* shader = nullptr;
-	{
-		shader = device->createShader();
-		shader->loadVertexShader(L"base_pass.hlsl", "mainVS");
-		shader->loadPixelShader(L"base_pass.hlsl", "mainPS");
-	}
+	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BasePassVS");
+	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BasePassPS");
+	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS");
+	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
 
 	// Create PSO
 	{
 		GraphicsPipelineDesc desc;
 		desc.inputLayout            = inputLayout;
 		desc.rootSignature          = rootSignature.get();
-		desc.vs                     = shader->getVertexShader();
-		desc.ps                     = shader->getPixelShader();
+		desc.vs                     = shaderVS;
+		desc.ps                     = shaderPS;
 		desc.rasterizerDesc         = RasterizerDesc();
 		desc.blendDesc              = BlendDesc();
 		desc.depthstencilDesc       = DepthstencilDesc::StandardSceneDepth();

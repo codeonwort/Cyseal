@@ -26,7 +26,9 @@ public:
 	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 
 	virtual Texture* createTexture(const TextureCreateParams& createParams) override;
-	virtual Shader* createShader() override;
+
+	virtual ShaderStage* createShader(EShaderStage shaderStage, const char* debugName) override;
+
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
 
