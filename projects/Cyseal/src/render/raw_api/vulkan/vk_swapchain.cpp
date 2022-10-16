@@ -232,7 +232,7 @@ void VulkanSwapchain::resize(uint32 newWidth, uint32 newHeight)
 
 void VulkanSwapchain::present()
 {
-	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkRenderFinishedSemoaphre() };
+	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
 	VkSwapchainKHR swapchains[] = { swapchainKHR };
 	uint32 swapchainIndices[] = { currentBackbufferIx };
 
@@ -259,7 +259,15 @@ void VulkanSwapchain::present()
 
 void VulkanSwapchain::swapBackbuffer()
 {
-	currentBackbufferIx = (currentBackbufferIx + 1) % swapchainImageCount;
+	VkDevice vkDevice = deviceWrapper->getRaw();
+	VkResult ret = vkAcquireNextImageKHR(
+		vkDevice,
+		swapchainKHR,
+		UINT64_MAX,
+		deviceWrapper->getVkImageAvailableSemaphore(),
+		VK_NULL_HANDLE,
+		&currentBackbufferIx);
+	CHECK(ret == VK_SUCCESS);
 }
 
 uint32 VulkanSwapchain::getCurrentBackbufferIndex() const

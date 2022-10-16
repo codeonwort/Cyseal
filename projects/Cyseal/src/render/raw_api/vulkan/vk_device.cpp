@@ -280,7 +280,7 @@ void VulkanDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uin
 
 void VulkanDevice::flushCommandQueue()
 {
-	VkResult ret = vkQueueWaitIdle(vkPresentQueue);
+	VkResult ret = vkQueueWaitIdle(vkGraphicsQueue);
 	CHECK(ret == VK_SUCCESS);
 }
 

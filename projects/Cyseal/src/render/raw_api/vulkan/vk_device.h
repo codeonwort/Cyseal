@@ -63,8 +63,8 @@ public:
 	inline VkSurfaceKHR getVkSurface() const { return vkSurface; }
 	inline VkQueue getVkGraphicsQueue() const { return vkGraphicsQueue; }
 	inline VkQueue getVkPresentQueue() const { return vkPresentQueue; }
-	inline VkSemaphore getVkImageAvailableSemoaphre() const { return vkImageAvailableSemaphore; }
-	inline VkSemaphore getVkRenderFinishedSemoaphre() const { return vkRenderFinishedSemaphore; }
+	inline VkSemaphore getVkImageAvailableSemaphore() const { return vkImageAvailableSemaphore; }
+	inline VkSemaphore getVkRenderFinishedSemaphore() const { return vkRenderFinishedSemaphore; }
 
 	VkCommandPool getTempCommandPool() const;
 
@@ -88,7 +88,9 @@ private:
 	VkQueue vkGraphicsQueue = VK_NULL_HANDLE;
 	VkQueue vkPresentQueue = VK_NULL_HANDLE;
 
+	// #todo-vulkan Swapchain image is available. Is this needed?
 	VkSemaphore vkImageAvailableSemaphore = VK_NULL_HANDLE;
+	// Graphics queue has finished.
 	VkSemaphore vkRenderFinishedSemaphore = VK_NULL_HANDLE;
 
 	VkDebugReportCallbackEXT vkDebugCallback = VK_NULL_HANDLE;

@@ -15,20 +15,27 @@ void VulkanRenderCommandQueue::initialize(RenderDevice* renderDevice)
 
 void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList)
 {
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
 	VulkanRenderCommandList* vkCmdList = static_cast<VulkanRenderCommandList*>(commandList);
 
-	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkImageAvailableSemoaphre() };
+	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkImageAvailableSemaphore() };
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkSemaphore signalSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	// #todo-vulkan: Semaphore
+	// It's possible that current command list is executing some one-time commands,
+	// not relevant to swapchain present. So I don't wanna wait for image available sem here...
+#if 0
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = waitSemaphores;
+#else
+	submitInfo.waitSemaphoreCount = 0;
+	submitInfo.pWaitSemaphores = nullptr;
+#endif
 	submitInfo.pWaitDstStageMask = waitStages;
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &(vkCmdList->currentCommandBuffer);
-
-	VkSemaphore signalSemaphores[] = { deviceWrapper->getVkRenderFinishedSemoaphre() };
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
