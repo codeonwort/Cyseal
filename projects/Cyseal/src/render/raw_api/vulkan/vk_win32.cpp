@@ -1,4 +1,7 @@
 #include "vk_win32.h"
+
+#if COMPILE_BACKEND_VULKAN
+
 #include "util/logging.h"
 
 #include <Windows.h>
@@ -38,3 +41,5 @@ VkSurfaceKHR createVkSurfaceKHR_win32(
 
 	return surfaceKHR;
 }
+
+#endif // COMPILE_BACKEND_VULKAN

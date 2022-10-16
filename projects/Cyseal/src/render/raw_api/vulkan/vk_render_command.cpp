@@ -1,4 +1,7 @@
 #include "vk_render_command.h"
+
+#if COMPILE_BACKEND_VULKAN
+
 #include "vk_utils.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -98,3 +101,5 @@ void VulkanRenderCommandList::close()
 	VkResult ret = vkEndCommandBuffer(currentCommandBuffer);
 	CHECK(ret == VK_SUCCESS);
 }
+
+#endif
