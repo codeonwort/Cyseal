@@ -8,6 +8,8 @@ HWND Win32InitInstance(
 	int x, int y, int width, int height,
 	const wchar_t* title);
 
+std::map<HWND, WindowsApplication*> WindowsApplication::hwndToApp;
+
 WindowsApplication::WindowsApplication()
 {
 	x = y = 0; width = 1024; height = 768;
@@ -59,6 +61,8 @@ EApplicationReturnCode WindowsApplication::launch(const ApplicationCreateParams&
 	{
 		return EApplicationReturnCode::RandomError;
 	}
+
+	WindowsApplication::hwndToApp.insert(std::make_pair(hWnd, this));
 
 	bool bInit = onInitialize();
 	if (!bInit)
@@ -141,32 +145,48 @@ LRESULT CALLBACK Win32WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 {
 	switch (message)
 	{
-	case WM_COMMAND:
-	{
-		return DefWindowProcW(hWnd, message, wParam, lParam);
-	}
-	break;
-	case WM_KEYDOWN:
-	{
-		if (wParam == VK_ESCAPE)
+		case WM_COMMAND:
+		{
+			return DefWindowProcW(hWnd, message, wParam, lParam);
+		}
+		break;
+		case WM_KEYDOWN:
+		{
+			if (wParam == VK_ESCAPE)
+			{
+				PostQuitMessage(0);
+			}
+		}
+		break;
+		case WM_PAINT:
+		{
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(hWnd, &ps);
+			static_cast<void>(hdc);
+			EndPaint(hWnd, &ps);
+		}
+		break;
+		case WM_SIZE:
+		{
+			auto it = WindowsApplication::hwndToApp.find(hWnd);
+			if (it != WindowsApplication::hwndToApp.end())
+			{
+				WindowsApplication* winApp = it->second;
+				UINT windowWidth = LOWORD(lParam);
+				UINT windowHeight = HIWORD(lParam);
+				winApp->onWindowResize(windowWidth, windowHeight);
+			}
+		}
+		break;
+		case WM_CLOSE:
 		{
 			PostQuitMessage(0);
+			break;
 		}
-	}
-	break;
-	case WM_PAINT:
-	{
-		PAINTSTRUCT ps;
-		HDC hdc = BeginPaint(hWnd, &ps);
-		static_cast<void>(hdc);
-		EndPaint(hWnd, &ps);
-	}
-	break;
-	case WM_CLOSE:
-		PostQuitMessage(0);
-		break;
-	default:
-		return DefWindowProcW(hWnd, message, wParam, lParam);
+		default:
+		{
+			return DefWindowProcW(hWnd, message, wParam, lParam);
+		}
 	}
 	return 0;
 }

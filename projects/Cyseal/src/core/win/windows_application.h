@@ -2,16 +2,22 @@
 
 #include "core/application.h"
 
+#include <map>
 #include <Windows.h>
 
 class WindowsApplication : public ApplicationBase
 {
+public:
+	static std::map<HWND, WindowsApplication*> hwndToApp;
+
 public:
 	WindowsApplication();
 
 	virtual void setWindowPosition(int32 inX, int32 inY) override;
 	virtual void setWindowSize(uint32 inWidth, uint32 inHeight) override;
 	virtual void setWindowTitle(const std::wstring& inTitle) override;
+
+	virtual void onWindowResize(uint32 newWidth, uint32 newHeight) {}
 
 	virtual EApplicationReturnCode launch(const ApplicationCreateParams& createParams) override;
 

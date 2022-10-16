@@ -16,6 +16,8 @@ protected:
 	virtual void onTick(float deltaSeconds) override;
 	virtual void onTerminate() override;
 
+	virtual void onWindowResize(uint32 newWidth, uint32 newHeight) override;
+
 private:
 	void createResources();
 	void destroyResources();

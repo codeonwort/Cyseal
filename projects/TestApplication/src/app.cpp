@@ -100,6 +100,13 @@ void TestApplication::onTerminate()
 	cysealEngine.shutdown();
 }
 
+void TestApplication::onWindowResize(uint32 newWidth, uint32 newHeight)
+{
+	// #todo-renderdevice: Need to do this when frame rendering is idle.
+	//cysealEngine.getRenderDevice()->recreateSwapChain(
+	//	getHWND(), newWidth, newHeight);
+}
+
 void TestApplication::createResources()
 {
 	constexpr uint32 NUM_GEOM_ASSETS = 7;
