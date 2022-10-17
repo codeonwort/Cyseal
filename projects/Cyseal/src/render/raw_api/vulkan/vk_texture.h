@@ -1,10 +1,6 @@
 #pragma once
 
-#if !COMPILE_BACKEND_VULKAN
-
-class VulkanTexture : public Texture {};
-
-#else // COMPILE_BACKEND_VULKAN
+#if COMPILE_BACKEND_VULKAN
 
 #include "vk_resource_view.h"
 #include "render/gpu_resource.h"
@@ -12,7 +8,6 @@ class VulkanTexture : public Texture {};
 
 #include <vulkan/vulkan_core.h>
 
-// #todo-vulkan: Texture wrapper
 class VulkanTexture : public Texture
 {
 public:
@@ -24,10 +19,7 @@ public:
 		RenderCommandList& commandList,
 		const void* buffer,
 		uint64 rowPitch,
-		uint64 slicePitch) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
+		uint64 slicePitch) override;
 
 	virtual RenderTargetView* getRTV() const override { return rtv.get(); }
 	virtual ShaderResourceView* getSRV() const override { return srv.get(); }
@@ -35,28 +27,10 @@ public:
 
 	virtual void setDebugName(const wchar_t* debugName) override;
 
-	virtual uint32 getSRVDescriptorIndex() const override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-		return 0;
-	}
-
-	virtual uint32 getRTVDescriptorIndex() const override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-		return 0;
-	}
-
-	virtual uint32 getDSVDescriptorIndex() const override
-	{
-		return 0;
-	}
-
-	virtual uint32 getUAVDescriptorIndex() const override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-		return 0;
-	}
+	virtual uint32 getSRVDescriptorIndex() const override;
+	virtual uint32 getRTVDescriptorIndex() const override;
+	virtual uint32 getDSVDescriptorIndex() const override;
+	virtual uint32 getUAVDescriptorIndex() const override;
 
 private:
 	VkImage vkImage = VK_NULL_HANDLE;

@@ -1,16 +1,9 @@
 #pragma once
 
+#if COMPILE_BACKEND_VULKAN
+
 #include "render/render_command.h"
 #include "vk_device.h"
-
-#if !COMPILE_BACKEND_VULKAN
-
-class VulkanRenderCommandQueue : public RenderCommandQueue {};
-class VulkanRenderCommandAllocator : public RenderCommandAllocator {};
-class VulkanRenderCommandList : public RenderCommandList {};
-
-#else // !COMPILE_BACKEND_VULKAN
-
 #include <vulkan/vulkan_core.h>
 
 class ShaderResourceView;
@@ -18,9 +11,9 @@ class ShaderResourceView;
 class VulkanRenderCommandQueue : public RenderCommandQueue
 {
 public:
-	void initialize(RenderDevice* renderDevice) override;
+	virtual void initialize(RenderDevice* renderDevice) override;
 
-	void executeCommandList(class RenderCommandList* commandList) override;
+	virtual void executeCommandList(class RenderCommandList* commandList) override;
 
 private:
 	VulkanDevice* deviceWrapper = nullptr;
@@ -46,30 +39,17 @@ private:
 class VulkanRenderCommandList : public RenderCommandList
 {
 public:
+	virtual void initialize(RenderDevice* renderDevice) override;
 
-	void initialize(RenderDevice* renderDevice) override;
+	virtual void reset(RenderCommandAllocator* allocator) override;
+	virtual void close() override;
 
-	void reset(RenderCommandAllocator* allocator) override;
+	virtual void iaSetPrimitiveTopology(EPrimitiveTopology topology) override;
+	virtual void iaSetVertexBuffers(int32 startSlot, uint32 numViews, VertexBuffer* const* vertexBuffers) override;
+	virtual void iaSetIndexBuffer(IndexBuffer* indexBuffer) override;
 
-	void close() override;
-
-	void iaSetPrimitiveTopology(EPrimitiveTopology topology) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
-
-	void iaSetVertexBuffers(int32 startSlot, uint32 numViews, VertexBuffer* const* vertexBuffers) override;
-
-	void iaSetIndexBuffer(IndexBuffer* indexBuffer) override;
-
-	void rsSetViewport(const Viewport& viewport) override;
-
-	void rsSetScissorRect(const ScissorRect& scissorRect) override;
-
-	void transitionResource(GPUResource* resource, EGPUResourceState stateBefore, EGPUResourceState stateAfter) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
+	virtual void rsSetViewport(const Viewport& viewport) override;
+	virtual void rsSetScissorRect(const ScissorRect& scissorRect) override;
 
 	virtual void resourceBarriers(
 		uint32 numBarriers,
@@ -78,49 +58,42 @@ public:
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
-	void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override
+	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
-
-	void clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil) override
+	virtual void clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
-
-	void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) override
+	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
-
-	void setPipelineState(PipelineState* state) override
+	virtual void setPipelineState(PipelineState* state) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
-
-	void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override
+	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
-
-	void setGraphicsRootSignature(RootSignature* rootSignature) override
+	virtual void setGraphicsRootSignature(RootSignature* rootSignature) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
-
-	void setGraphicsRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) override
+	virtual void setGraphicsRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
-
-	void setGraphicsRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap, uint32 descriptorStartOffset) override
+	virtual void setGraphicsRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap, uint32 descriptorStartOffset) override
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
@@ -131,7 +104,6 @@ public:
 	{
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
-
 
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
@@ -154,4 +126,4 @@ public:
 	VkCommandBuffer currentCommandBuffer = VK_NULL_HANDLE;
 };
 
-#endif // !COMPILE_BACKEND_VULKAN
+#endif // COMPILE_BACKEND_VULKAN

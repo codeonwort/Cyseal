@@ -9,8 +9,6 @@
 #include "util/logging.h"
 #include <array>
 
-// #todo-vulkan: Use this and remove swapchain code from VulkanDevice
-
 VulkanSwapchain::VulkanSwapchain()
 {
 	swapchainImageCount = 0;
@@ -277,11 +275,13 @@ uint32 VulkanSwapchain::getCurrentBackbufferIndex() const
 
 GPUResource* VulkanSwapchain::getCurrentBackbuffer() const
 {
+	// #todo-vulkan
 	return nullptr;
 }
 
 RenderTargetView* VulkanSwapchain::getCurrentBackbufferRTV() const
 {
+	// #todo-vulkan
 	return nullptr;
 }
 

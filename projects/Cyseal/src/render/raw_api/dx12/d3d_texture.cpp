@@ -211,9 +211,13 @@ void D3DTexture::uploadData(RenderCommandList& commandList, const void* buffer, 
 
 	UpdateSubresources(rawCommandList, rawResource.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
 
-	commandList.transitionResource(this,
+	ResourceBarrier barrier{
+		EResourceBarrierType::Transition,
+		this,
 		EGPUResourceState::COPY_DEST,
-		EGPUResourceState::PIXEL_SHADER_RESOURCE);
+		EGPUResourceState::PIXEL_SHADER_RESOURCE
+	};
+	commandList.resourceBarriers(1, &barrier);
 }
 
 void D3DTexture::setDebugName(const wchar_t* debugName)

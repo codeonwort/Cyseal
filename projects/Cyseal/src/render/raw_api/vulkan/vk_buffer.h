@@ -3,15 +3,20 @@
 #include "render/gpu_resource.h"
 #include <vulkan/vulkan_core.h>
 
-// #todo-vulkan: VertexBuffer
 class VulkanVertexBuffer : public VertexBuffer
 {
 public:
 	virtual void initialize(uint32 sizeInBytes) override;
 
-	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
+	virtual void initializeWithinPool(
+		VertexBufferPool* pool,
+		uint64 offsetInPool,
+		uint32 sizeInBytes) override;
 
-	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) override;
+	virtual void updateData(
+		RenderCommandList* commandList,
+		void* data,
+		uint32 strideInBytes) override;
 
 	VkBuffer getVkBuffer() const { return vkBuffer; }
 
@@ -21,15 +26,20 @@ private:
 	VkDeviceSize vkBufferSize = 0;
 };
 
-// #todo-vulkan: IndexBuffer
 class VulkanIndexBuffer : public IndexBuffer
 {
 public:
-	void initialize(uint32 sizeInBytes) override;
+	virtual void initialize(uint32 sizeInBytes) override;
 
-	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
+	virtual void initializeWithinPool(
+		IndexBufferPool* pool,
+		uint64 offsetInPool,
+		uint32 sizeInBytes) override;
 
-	void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) override;
+	virtual void updateData(
+		RenderCommandList* commandList,
+		void* data,
+		EPixelFormat format) override;
 
 	uint32 getIndexCount() override { return indexCount; }
 	VkIndexType getIndexType() const { return vkIndexType; }

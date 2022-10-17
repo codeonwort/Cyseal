@@ -65,6 +65,7 @@ void VulkanVertexBuffer::initializeWithinPool(
 	uint64 offsetInPool,
 	uint32 sizeInBytes)
 {
+	// #todo-vulkan
 	//throw std::logic_error("The method or operation is not implemented.");
 }
 
@@ -123,6 +124,7 @@ void VulkanIndexBuffer::initializeWithinPool(
 	uint64 offsetInPool,
 	uint32 sizeInBytes)
 {
+	// #todo-vulkan
 	//throw std::logic_error("The method or operation is not implemented.");
 }
 

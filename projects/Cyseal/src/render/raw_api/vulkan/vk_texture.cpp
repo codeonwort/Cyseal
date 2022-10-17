@@ -225,6 +225,15 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 	}
 }
 
+void VulkanTexture::uploadData(
+	RenderCommandList& commandList,
+	const void* buffer,
+	uint64 rowPitch,
+	uint64 slicePitch)
+{
+	// #todo-vulkan
+}
+
 void VulkanTexture::setDebugName(const wchar_t* debugNameW)
 {
 	std::string debugNameA;
@@ -235,6 +244,30 @@ void VulkanTexture::setDebugName(const wchar_t* debugNameW)
 		VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT,
 		(uint64)vkImage,
 		debugNameA.c_str());
+}
+
+uint32 VulkanTexture::getSRVDescriptorIndex() const
+{
+	// #todo-vulkan
+	return 0;
+}
+
+uint32 VulkanTexture::getRTVDescriptorIndex() const
+{
+	// #todo-vulkan
+	return 0;
+}
+
+uint32 VulkanTexture::getDSVDescriptorIndex() const
+{
+	// #todo-vulkan
+	return 0;
+}
+
+uint32 VulkanTexture::getUAVDescriptorIndex() const
+{
+	// #todo-vulkan
+	return 0;
 }
 
 #endif // COMPILE_BACKEND_VULKAN

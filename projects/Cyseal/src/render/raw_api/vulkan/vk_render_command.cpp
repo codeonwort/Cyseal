@@ -28,6 +28,25 @@ namespace into_vk
 		vkScissor.offset.y = scissorRect.top;
 		return vkScissor;
 	}
+
+	VkPrimitiveTopology primitiveTopology(EPrimitiveTopology inTopology)
+	{
+		switch (inTopology)
+		{
+			case EPrimitiveTopology::UNDEFINED: return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
+			case EPrimitiveTopology::POINTLIST: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+			case EPrimitiveTopology::LINELIST: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+			case EPrimitiveTopology::LINESTRIP: return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+			case EPrimitiveTopology::TRIANGLELIST: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+			case EPrimitiveTopology::TRIANGLESTRIP: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+			case EPrimitiveTopology::LINELIST_ADJ: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY;
+			case EPrimitiveTopology::LINESTRIP_ADJ: return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY;
+			case EPrimitiveTopology::TRIANGLELIST_ADJ: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY;
+			case EPrimitiveTopology::TRIANGLESTRIP_ADJ: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY;
+		}
+		CHECK_NO_ENTRY();
+		return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -133,6 +152,14 @@ void VulkanRenderCommandList::close()
 {
 	VkResult ret = vkEndCommandBuffer(currentCommandBuffer);
 	CHECK(ret == VK_SUCCESS);
+}
+
+void VulkanRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology inTopology)
+{
+	// The PSO should be created with VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY
+	// set in VkPipelineDynamicStateCreateInfo::pDynamicStates.
+	VkPrimitiveTopology vkTopology = into_vk::primitiveTopology(inTopology);
+	vkCmdSetPrimitiveTopology(currentCommandBuffer, vkTopology);
 }
 
 void VulkanRenderCommandList::iaSetVertexBuffers(
