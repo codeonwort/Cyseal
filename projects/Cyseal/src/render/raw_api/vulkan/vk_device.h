@@ -66,6 +66,8 @@ public:
 	inline VkSemaphore getVkImageAvailableSemaphore() const { return vkImageAvailableSemaphore; }
 	inline VkSemaphore getVkRenderFinishedSemaphore() const { return vkRenderFinishedSemaphore; }
 
+	void copyVkBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize bufferSize);
+
 	void setObjectDebugName(
 		VkDebugReportObjectTypeEXT objectType,
 		uint64 objectHandle,

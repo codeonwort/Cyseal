@@ -370,6 +370,18 @@ void VulkanDevice::copyDescriptors(
 	CHECK_NO_ENTRY();
 }
 
+void VulkanDevice::copyVkBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize bufferSize)
+{
+	VkCommandPool cmdPool = getTempCommandPool();
+	VkCommandBuffer commandBuffer = beginSingleTimeCommands(vkDevice, cmdPool);
+
+	VkBufferCopy copyRegion{};
+	copyRegion.size = bufferSize;
+	vkCmdCopyBuffer(commandBuffer, src, dst, 1, &copyRegion);
+
+	endSingleTimeCommands(vkDevice, cmdPool, vkGraphicsQueue, commandBuffer);
+}
+
 void VulkanDevice::setObjectDebugName(
 	VkDebugReportObjectTypeEXT objectType,
 	uint64 objectHandle,

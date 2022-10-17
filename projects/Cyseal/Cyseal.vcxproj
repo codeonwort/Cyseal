@@ -155,6 +155,7 @@
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\base_pass.cpp" />
     <ClCompile Include="src\render\null_renderer.cpp" />
+    <ClCompile Include="src\render\raw_api\vulkan\vk_buffer.cpp" />
     <ClCompile Include="src\render\raw_api\vulkan\vk_render_command.cpp" />
     <ClCompile Include="src\render\raw_api\vulkan\vk_texture.cpp" />
     <ClCompile Include="src\render\raw_api\vulkan\vk_win32.cpp" />
