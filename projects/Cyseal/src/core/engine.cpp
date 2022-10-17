@@ -48,7 +48,8 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 		gIndexBufferPool = new IndexBufferPool;
 		gIndexBufferPool->initialize(INDEX_BUFFER_POOL_SIZE);
 
-		createTextureManager();
+		gTextureManager = new TextureManager;
+		gTextureManager->initialize();
 	}
 
 	// Rendering
@@ -139,10 +140,4 @@ void CysealEngine::createRenderer(ERendererType rendererType)
 	}
 
 	renderer->initialize(renderDevice);
-}
-
-void CysealEngine::createTextureManager()
-{
-	gTextureManager = new TextureManager;
-	gTextureManager->initialize();
 }

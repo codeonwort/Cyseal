@@ -82,6 +82,7 @@ struct TextureCreateParams
     uint16 mipLevels; // 0 means full mips
     uint32 sampleCount;
     uint32 sampleQuality;
+    uint32 numLayers = 1; // #todo-texture: For tex2Darray or texCube
 
     static TextureCreateParams texture2D(
         EPixelFormat inFormat,

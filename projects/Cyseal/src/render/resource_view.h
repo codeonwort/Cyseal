@@ -14,18 +14,10 @@ enum class EResourceViewDimension
 
 class RenderTargetView
 {
-
-// public:
-// 	virtual void initialize(RenderDevice* renderDevice) = 0;
-
 };
 
 class DepthStencilView
 {
-	
-// public:
-// 	virtual void initialize(RenderDevice* renderDevice) = 0;
-
 };
 
 class ShaderResourceView
@@ -38,8 +30,4 @@ protected:
 
 class UnorderedAccessView
 {
-	
-public:
-	virtual void initialize(RenderDevice* renderDevice) = 0;
-
 };

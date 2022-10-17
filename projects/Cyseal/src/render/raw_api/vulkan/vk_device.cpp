@@ -370,6 +370,23 @@ void VulkanDevice::copyDescriptors(
 	CHECK_NO_ENTRY();
 }
 
+void VulkanDevice::setObjectDebugName(
+	VkDebugReportObjectTypeEXT objectType,
+	uint64 objectHandle,
+	const char* debugName)
+{
+	// #todo-vulkan
+	//if (canEnableDebugMarker)
+	//{
+	//	VkDebugMarkerObjectNameInfoEXT info{};
+	//	info.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+	//	info.objectType = objectType;
+	//	info.object = objectHandle;
+	//	info.pObjectName = debugName;
+	//	vkDebugMarkerSetObjectName(vkDevice, &info);
+	//}
+}
+
 VkCommandPool VulkanDevice::getTempCommandPool() const
 {
 	return static_cast<VulkanRenderCommandAllocator*>(commandAllocators[0])->getRawCommandPool();

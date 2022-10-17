@@ -22,7 +22,6 @@ struct CysealEngineCreateParams
 
 class CysealEngine final
 {
-
 public:
 	explicit CysealEngine() = default;
 	~CysealEngine();
@@ -40,12 +39,9 @@ private:
 	void createRenderDevice(const RenderDeviceCreateParams& createParams);
 	void createRenderer(ERendererType rendererType);
 
-	void createTextureManager();
-
 private:
 	EEngineState state = EEngineState::UNINITIALIZED;
 
 	RenderDevice* renderDevice = nullptr;
 	Renderer* renderer = nullptr;
-
 };
