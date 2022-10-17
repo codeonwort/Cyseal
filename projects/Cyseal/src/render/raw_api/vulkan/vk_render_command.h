@@ -58,30 +58,13 @@ public:
 		//throw std::logic_error("The method or operation is not implemented.");
 	}
 
+	void iaSetVertexBuffers(int32 startSlot, uint32 numViews, VertexBuffer* const* vertexBuffers) override;
 
-	void iaSetVertexBuffers(int32 startSlot, uint32 numViews, VertexBuffer* const* vertexBuffers) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
+	void iaSetIndexBuffer(IndexBuffer* indexBuffer) override;
 
+	void rsSetViewport(const Viewport& viewport) override;
 
-	void iaSetIndexBuffer(IndexBuffer* indexBuffer) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
-
-
-	void rsSetViewport(const Viewport& viewport) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
-
-
-	void rsSetScissorRect(const ScissorRect& scissorRect) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
-
+	void rsSetScissorRect(const ScissorRect& scissorRect) override;
 
 	void transitionResource(GPUResource* resource, EGPUResourceState stateBefore, EGPUResourceState stateAfter) override
 	{
@@ -150,22 +133,21 @@ public:
 	}
 
 
-	void drawIndexedInstanced(uint32 indexCountPerInstance, uint32 instanceCount, uint32 startIndexLocation, int32 baseVertexLocation, uint32 startInstanceLocation) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
+	virtual void drawIndexedInstanced(
+		uint32 indexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startIndexLocation,
+		int32 baseVertexLocation,
+		uint32 startInstanceLocation) override;
 
 	virtual void drawInstanced(
 		uint32 vertexCountPerInstance,
 		uint32 instanceCount,
 		uint32 startVertexLocation,
-		uint32 startInstanceLocation) override
-	{
-		//throw std::logic_error("The method or operation is not implemented.");
-	}
+		uint32 startInstanceLocation) override;
 
-	virtual void beginEventMarker(const char* eventName) override {}
-	virtual void endEventMarker() override {}
+	virtual void beginEventMarker(const char* eventName) override;
+	virtual void endEventMarker() override;
 
 public:
 //private:

@@ -131,19 +131,19 @@ void VulkanIndexBuffer::updateData(
 	void* data,
 	EPixelFormat format)
 {
-	VkFormat vkFormat = VK_FORMAT_UNDEFINED;
+	vkIndexType = VK_INDEX_TYPE_MAX_ENUM;
 	switch (format)
 	{
 		case EPixelFormat::R16_UINT:
-			vkFormat = VK_FORMAT_R16_UINT;
+			vkIndexType = VK_INDEX_TYPE_UINT16;
 			indexCount = (uint32)vkBufferSize / 2;
 			break;
 		case EPixelFormat::R32_UINT:
-			vkFormat = VK_FORMAT_R32_UINT;
+			vkIndexType = VK_INDEX_TYPE_UINT32;
 			indexCount = (uint32)vkBufferSize / 4;
 			break;
 	}
-	CHECK(vkFormat != VK_FORMAT_UNDEFINED);
+	CHECK(vkIndexType != VK_INDEX_TYPE_MAX_ENUM);
 
 	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
 	VkDevice vkDevice = deviceWrapper->getRaw();

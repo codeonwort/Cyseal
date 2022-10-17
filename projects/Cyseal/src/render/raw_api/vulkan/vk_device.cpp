@@ -85,6 +85,25 @@ VkResult CreateDebugReportCallbackEXT(
 	}
 }
 
+// https://www.saschawillems.de/blog/2016/05/28/tutorial-on-using-vulkans-vk_ext_debug_marker-with-renderdoc/
+static bool checkVkDebugMarkerSupport(VkPhysicalDevice physDevice)
+{
+	uint32 extensionCount;
+	vkEnumerateDeviceExtensionProperties(physDevice, nullptr, &extensionCount, nullptr);
+	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+	vkEnumerateDeviceExtensionProperties(physDevice, nullptr, &extensionCount, availableExtensions.data());
+
+	for (const auto& extension : availableExtensions)
+	{
+		if (0 == strcmp(extension.extensionName, VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 VulkanDevice::~VulkanDevice()
@@ -183,6 +202,9 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 	}
 
 	// #todo-vulkan: Check debug marker support
+	{
+		canEnableDebugMarker = checkVkDebugMarkerSupport(vkPhysicalDevice);
+	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create a logical device"));
 	{
@@ -206,13 +228,21 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 		VkPhysicalDeviceFeatures deviceFeatures{};
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
 
+		std::vector<const char*> enabledExtensions(
+			REQUIRED_DEVICE_EXTENSIONS.begin(),
+			REQUIRED_DEVICE_EXTENSIONS.end());
+		if (canEnableDebugMarker)
+		{
+			enabledExtensions.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
+		}
+
 		VkDeviceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 		createInfo.pQueueCreateInfos = queueCreateInfos.data();
 		createInfo.queueCreateInfoCount = static_cast<uint32>(queueCreateInfos.size());
 		createInfo.pEnabledFeatures = &deviceFeatures;
-		createInfo.enabledExtensionCount = static_cast<uint32>(REQUIRED_DEVICE_EXTENSIONS.size());
-		createInfo.ppEnabledExtensionNames = REQUIRED_DEVICE_EXTENSIONS.data();
+		createInfo.enabledExtensionCount = (uint32)enabledExtensions.size();
+		createInfo.ppEnabledExtensionNames = enabledExtensions.data();
 		if (enableDebugLayer)
 		{
 			createInfo.enabledLayerCount = static_cast<uint32>(REQUIRED_VALIDATION_LAYERS.size());
@@ -229,6 +259,32 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 		vkGetDeviceQueue(vkDevice, indices.graphicsFamily, 0, &vkGraphicsQueue);
 		vkGetDeviceQueue(vkDevice, indices.presentFamily, 0, &vkPresentQueue);
+	}
+
+	// Support debug marker
+	{
+		if (canEnableDebugMarker)
+		{
+			vkCmdDebugMarkerBegin = (PFN_vkCmdDebugMarkerBeginEXT)vkGetDeviceProcAddr(vkDevice, "vkCmdDebugMarkerBeginEXT");
+			vkCmdDebugMarkerEnd = (PFN_vkCmdDebugMarkerEndEXT)vkGetDeviceProcAddr(vkDevice, "vkCmdDebugMarkerEndEXT");
+			vkDebugMarkerSetObjectName = (PFN_vkDebugMarkerSetObjectNameEXT)vkGetDeviceProcAddr(vkDevice, "vkDebugMarkerSetObjectNameEXT");
+
+			if (vkCmdDebugMarkerBegin != VK_NULL_HANDLE
+				&& vkCmdDebugMarkerEnd != VK_NULL_HANDLE
+				&& vkDebugMarkerSetObjectName != VK_NULL_HANDLE)
+			{
+				CYLOG(LogVulkan, Log, L"Enable extension: debug marker");
+			}
+			else
+			{
+				canEnableDebugMarker = false;
+				CYLOG(LogVulkan, Log, L"Can't enable extension: debug marker procedures not found");
+			}
+		}
+		else
+		{
+			CYLOG(LogVulkan, Log, L"Can't enable extension: debug marker not found");
+		}
 	}
 
 	// Determine swapchain image count first.
@@ -382,21 +438,51 @@ void VulkanDevice::copyVkBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize bufferS
 	endSingleTimeCommands(vkDevice, cmdPool, vkGraphicsQueue, commandBuffer);
 }
 
+void VulkanDevice::beginVkDebugMarker(
+	VkCommandBuffer& cmdBuffer,
+	const char* debugName,
+	uint32 color /*= 0x000000*/)
+{
+	if (canEnableDebugMarker)
+	{
+		float a = color != 0 ? 1.0f : 0.0f;
+		float r = (float)((color >> 16) & 0xff) / 255.0f;
+		float g = (float)((color >> 8) & 0xff) / 255.0f;
+		float b = (float)(color & 0xff) / 255.0f;
+
+		VkDebugMarkerMarkerInfoEXT debugMarker{};
+		debugMarker.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT;
+		debugMarker.pMarkerName = debugName;
+		debugMarker.color[0] = r;
+		debugMarker.color[1] = g;
+		debugMarker.color[2] = b;
+		debugMarker.color[3] = a;
+		vkCmdDebugMarkerBegin(cmdBuffer, &debugMarker);
+	}
+}
+
+void VulkanDevice::endVkDebugMarker(VkCommandBuffer& cmdBuffer)
+{
+	if (canEnableDebugMarker)
+	{
+		vkCmdDebugMarkerEnd(cmdBuffer);
+	}
+}
+
 void VulkanDevice::setObjectDebugName(
 	VkDebugReportObjectTypeEXT objectType,
 	uint64 objectHandle,
 	const char* debugName)
 {
-	// #todo-vulkan
-	//if (canEnableDebugMarker)
-	//{
-	//	VkDebugMarkerObjectNameInfoEXT info{};
-	//	info.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
-	//	info.objectType = objectType;
-	//	info.object = objectHandle;
-	//	info.pObjectName = debugName;
-	//	vkDebugMarkerSetObjectName(vkDevice, &info);
-	//}
+	if (canEnableDebugMarker)
+	{
+		VkDebugMarkerObjectNameInfoEXT info{};
+		info.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+		info.objectType = objectType;
+		info.object = objectHandle;
+		info.pObjectName = debugName;
+		vkDebugMarkerSetObjectName(vkDevice, &info);
+	}
 }
 
 VkCommandPool VulkanDevice::getTempCommandPool() const

@@ -13,6 +13,8 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) override;
 
+	VkBuffer getVkBuffer() const { return vkBuffer; }
+
 private:
 	VkBuffer vkBuffer = VK_NULL_HANDLE;
 	VkDeviceMemory vkBufferMemory = VK_NULL_HANDLE;
@@ -30,10 +32,13 @@ public:
 	void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) override;
 
 	uint32 getIndexCount() override { return indexCount; }
+	VkIndexType getIndexType() const { return vkIndexType; }
+	VkBuffer getVkBuffer() const { return vkBuffer; }
 
 private:
 	VkBuffer vkBuffer = VK_NULL_HANDLE;
 	VkDeviceMemory vkBufferMemory = VK_NULL_HANDLE;
 	VkDeviceSize vkBufferSize = 0;
 	uint32 indexCount = 0;
+	VkIndexType vkIndexType = VK_INDEX_TYPE_MAX_ENUM;
 };
