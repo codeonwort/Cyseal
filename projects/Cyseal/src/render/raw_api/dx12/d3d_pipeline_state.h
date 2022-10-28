@@ -371,6 +371,7 @@ namespace into_d3d
 	}
 }
 
+// #todo-dx12: Rename to D3DGraphicsPipelineState
 class D3DPipelineState : public PipelineState
 {
 public:

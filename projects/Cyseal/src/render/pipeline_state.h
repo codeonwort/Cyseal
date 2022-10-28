@@ -351,4 +351,6 @@ struct GraphicsPipelineDesc
 // VkPipeline
 class PipelineState
 {
+public:
+	virtual ~PipelineState() = default;
 };

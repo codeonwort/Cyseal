@@ -4,50 +4,7 @@
 
 #include "vk_utils.h"
 #include "vk_buffer.h"
-
-namespace into_vk
-{
-	VkViewport viewport(const Viewport& inViewport)
-	{
-		VkViewport vkViewport{};
-		vkViewport.x = inViewport.topLeftX;
-		vkViewport.y = inViewport.topLeftY;
-		vkViewport.width = inViewport.width;
-		vkViewport.height = inViewport.height;
-		vkViewport.minDepth = inViewport.minDepth;
-		vkViewport.maxDepth = inViewport.maxDepth;
-		return vkViewport;
-	}
-
-	VkRect2D scissorRect(const ScissorRect& scissorRect)
-	{
-		VkRect2D vkScissor{};
-		vkScissor.extent.width = scissorRect.right - scissorRect.left;
-		vkScissor.extent.height = scissorRect.bottom - scissorRect.top;
-		vkScissor.offset.x = scissorRect.left;
-		vkScissor.offset.y = scissorRect.top;
-		return vkScissor;
-	}
-
-	VkPrimitiveTopology primitiveTopology(EPrimitiveTopology inTopology)
-	{
-		switch (inTopology)
-		{
-			case EPrimitiveTopology::UNDEFINED: return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
-			case EPrimitiveTopology::POINTLIST: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-			case EPrimitiveTopology::LINELIST: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-			case EPrimitiveTopology::LINESTRIP: return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-			case EPrimitiveTopology::TRIANGLELIST: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-			case EPrimitiveTopology::TRIANGLESTRIP: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-			case EPrimitiveTopology::LINELIST_ADJ: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY;
-			case EPrimitiveTopology::LINESTRIP_ADJ: return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY;
-			case EPrimitiveTopology::TRIANGLELIST_ADJ: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY;
-			case EPrimitiveTopology::TRIANGLESTRIP_ADJ: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY;
-		}
-		CHECK_NO_ENTRY();
-		return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
-	}
-}
+#include "vk_into.h"
 
 //////////////////////////////////////////////////////////////////////////
 // VulkanRenderCommandQueue

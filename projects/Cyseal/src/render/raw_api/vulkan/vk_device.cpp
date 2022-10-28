@@ -8,18 +8,21 @@
 #include "vk_texture.h"
 #include "vk_buffer.h"
 #include "vk_shader.h"
+#include "vk_pipeline_state.h"
 #include "vk_utils.h"
+#include "vk_into.h"
 #include "core/platform.h"
 #include "core/assertion.h"
 #include "render/swap_chain.h"
+
+#include <vulkan/vulkan.h>
 
 #include <algorithm>
 #include <limits>
 #include <string>
 #include <array>
 #include <set>
-
-#include <vulkan/vulkan.h>
+#include <iostream>
 
 #if PLATFORM_WINDOWS
 	#include "vk_win32.h"
@@ -44,7 +47,6 @@ const std::vector<const char*> REQUIRED_DEVICE_EXTENSIONS = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-#include <iostream>
 static VKAPI_ATTR VkBool32 VKAPI_CALL GVulkanDebugCallback(
 	VkDebugReportFlagsEXT flags,
 	VkDebugReportObjectTypeEXT objType,
@@ -394,10 +396,95 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& desc)
 	return nullptr;
 }
 
-PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& desc)
+PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
+	// #todo-vulkan-wip: PSO conversion
+
+#if 0
+	// pStages
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+	ShaderStage* shaderWrappers[] = { inDesc.vs, inDesc.hs, inDesc.ds, inDesc.gs, inDesc.ps };
+	for (uint32 i = 0; i < _countof(shaderWrappers); ++i)
+	{
+		VulkanShaderStage* shaderWrapper = static_cast<VulkanShaderStage*>(shaderWrappers[i]);
+		if (shaderWrapper == nullptr)
+		{
+			continue;
+		}
+		VkPipelineShaderStageCreateInfo stageInfo{};
+		stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stageInfo.stage = shaderWrapper->getVkShaderStage();
+		stageInfo.module = shaderWrapper->getVkShaderModule();
+		stageInfo.pName = shaderWrapper->getEntryPoint();
+		shaderStages.emplace_back(stageInfo);
+	}
+
+	// pVertexInputState
+
+	// pInputAssemblyState
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssembly.topology = into_vk::primitiveTopologyType(inDesc.primitiveTopologyType);
+	inputAssembly.primitiveRestartEnable = VK_FALSE; // #todo-vulkan: Primitive Restart
+
+	// pRasterizationState
+
+	// pMultisampleState
+	// #todo-vulkan: Support multisampling
+	VkPipelineMultisampleStateCreateInfo multisampling{};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = VK_FALSE;
+	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampling.minSampleShading = 1.0f;
+	multisampling.pSampleMask = nullptr;
+	multisampling.alphaToCoverageEnable = VK_FALSE;
+	multisampling.alphaToOneEnable = VK_FALSE;
+
+	// pDepthStencilState
+
+	// pColorBlendState
+
+	// pDynamicState
+	// #todo-vulkan: DX12 always set them dynamically via RSSet~~ methods,
+	// so we make them always dynamic in Vulkan backend also. Some render passes
+	// would have fixed viewport and scissor, but we ignore the tiny overhead for them.
+	std::array<VkDynamicState, 2> dynamicStates = {
+		VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR
+	};
+	VkPipelineDynamicStateCreateInfo dynamicStateInfo{};
+	dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicStateInfo.dynamicStateCount = (uint32_t)dynamicStates.size();
+	dynamicStateInfo.pDynamicStates = dynamicStates.data();
+
+	// layout
+
+	// renderpass
+
+	VkGraphicsPipelineCreateInfo pipelineInfo{};
+	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.stageCount = (uint32)shaderStages.size();
+	pipelineInfo.pStages = shaderStages.data();
+	pipelineInfo.pVertexInputState = &vertexInputInfo;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	pipelineInfo.pViewportState = nullptr; // Always dynamic state in my engine.
+	pipelineInfo.pRasterizationState = &rasterizer;
+	pipelineInfo.pMultisampleState = &multisampling;
+	pipelineInfo.pDepthStencilState = &depthStencil;
+	pipelineInfo.pColorBlendState = &colorBlending;
+	pipelineInfo.pDynamicState = &dynamicStateInfo;
+	pipelineInfo.layout = psoLayout_conetrace;
+	pipelineInfo.renderPass = vkRenderPass_conetrace;
+	pipelineInfo.subpass = 0;
+	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+	pipelineInfo.basePipelineIndex = -1;
+
+	VkPipeline vkPipeline = VK_NULL_HANDLE;
+	VkResult ret = vkCreateGraphicsPipelines(
+		vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkPipeline);
+	CHECK(ret == VK_SUCCESS);
+
+	return new VulkanGraphicsPipelineState(vkPipeline);
+#endif
 	return nullptr;
 }
 

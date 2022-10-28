@@ -210,6 +210,12 @@
     <ClInclude Include="src\render\raw_api\vulkan\vk_resource_view.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\raw_api\vulkan\vk_pipeline_state.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\raw_api\vulkan\vk_into.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
