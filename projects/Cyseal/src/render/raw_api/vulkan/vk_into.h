@@ -4,7 +4,9 @@
 
 #include "core/assertion.h"
 #include "render/pipeline_state.h"
+
 #include <vulkan/vulkan_core.h>
+#include <algorithm>
 
 // Convert API-agnostic structs into Vulkan structs
 namespace into_vk
@@ -365,6 +367,57 @@ namespace into_vk
 			case EDescriptorHeapType::NUM_TYPES: CHECK_NO_ENTRY();
 		}
 		return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+	}
+
+	inline VkVertexInputRate vertexInputRate(EVertexInputClassification inRate)
+	{
+		switch (inRate)
+		{
+			case EVertexInputClassification::PerVertex: return VK_VERTEX_INPUT_RATE_VERTEX;
+			case EVertexInputClassification::PerInstance: return VK_VERTEX_INPUT_RATE_INSTANCE;
+			default: CHECK_NO_ENTRY();
+		}
+		return VK_VERTEX_INPUT_RATE_MAX_ENUM;
+	}
+
+	// #todo-vulkan: Should I redefine VertexInputElement?
+	inline void vertexInputBindings(
+		const std::vector<VertexInputElement>& inElements,
+		std::vector<VkVertexInputBindingDescription>& outBindings)
+	{
+		std::vector<VertexInputElement> elems = inElements;
+		std::sort(elems.begin(), elems.end(),
+			[](const VertexInputElement& x, VertexInputElement& y)
+			{
+				return x.inputSlot < y.inputSlot;
+			});
+		
+		for (size_t i = 0; i < elems.size(); ++i)
+		{
+			if (i == 0 || elems[i].inputSlot != elems[i - 1].inputSlot)
+			{
+				VkVertexInputBindingDescription bindingDesc{};
+				bindingDesc.binding = elems[i].inputSlot;
+				bindingDesc.inputRate = into_vk::vertexInputRate(elems[i].inputSlotClass);
+				bindingDesc.stride = 0;
+				for (size_t j = i; j < elems.size() && elems[i].inputSlot == elems[j].inputSlot; ++j)
+				{
+					uint32 x = elems[j].alignedByteOffset + getPixelFormatBytes(elems[j].format);
+					bindingDesc.stride = std::max(bindingDesc.stride, x);
+				}
+				outBindings.emplace_back(bindingDesc);
+			}
+		}
+	}
+
+	inline VkVertexInputAttributeDescription vertexInputAttribute(const VertexInputElement& inElement)
+	{
+		VkVertexInputAttributeDescription desc{};
+		desc.location = inElement.semanticIndex;
+		desc.binding = inElement.inputSlot;
+		desc.format = into_vk::pixelFormat(inElement.format);
+		desc.offset = inElement.alignedByteOffset;
+		return desc;
 	}
 }
 

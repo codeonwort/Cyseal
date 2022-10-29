@@ -392,7 +392,7 @@ ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* de
 
 RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc)
 {
-	// #todo-vulkan-wip: Needs VkDescriptorPool, VkDescriptorSetLayout, and VkDescriptorSet first.
+	// #todo-vulkan-wip: Needs VkDescriptorSetLayout, and VkDescriptorSet first.
 	VkPipelineLayoutCreateInfo desc{};
 	desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	desc.setLayoutCount = 1;
@@ -508,7 +508,20 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	}
 
 	// pVertexInputState
-	// #todo-vulkan-wip
+	const uint32 numInputElements = (uint32)inDesc.inputLayout.elements.size();
+	std::vector<VkVertexInputBindingDescription> inputBindings;
+	std::vector<VkVertexInputAttributeDescription> inputAttributes(numInputElements);
+	into_vk::vertexInputBindings(inDesc.inputLayout.elements, inputBindings);
+	for (uint32 i = 0; i < numInputElements; ++i)
+	{
+		inputAttributes[i] = into_vk::vertexInputAttribute(inDesc.inputLayout.elements[i]);
+	}
+	VkPipelineVertexInputStateCreateInfo vertexInputDesc{};
+	vertexInputDesc.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInputDesc.vertexBindingDescriptionCount = (uint32)inputBindings.size();
+	vertexInputDesc.pVertexBindingDescriptions = inputBindings.data();
+	vertexInputDesc.vertexAttributeDescriptionCount = (uint32)inputAttributes.size();
+	vertexInputDesc.pVertexAttributeDescriptions = inputAttributes.data();
 
 	// pInputAssemblyState
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -594,7 +607,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipelineInfo.stageCount = (uint32)shaderStages.size();
 	pipelineInfo.pStages = shaderStages.data();
-	pipelineInfo.pVertexInputState = &vertexInputInfo;
+	pipelineInfo.pVertexInputState = &vertexInputDesc;
 	pipelineInfo.pInputAssemblyState = &inputAssembly;
 	pipelineInfo.pViewportState = nullptr; // Always dynamic state in my engine.
 	pipelineInfo.pRasterizationState = &rasterizer;
