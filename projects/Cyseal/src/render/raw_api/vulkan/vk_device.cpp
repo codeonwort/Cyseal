@@ -399,8 +399,86 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& desc)
 PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
 {
 	// #todo-vulkan-wip: PSO conversion
+	VkPipeline vkPipeline = VK_NULL_HANDLE;
+	VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
+	VkRenderPass vkRenderPass = VK_NULL_HANDLE;
 
 #if 0
+	// VkRenderPass
+	{
+		std::vector<VkAttachmentDescription> colorAttachments(inDesc.numRenderTargets);
+		for (uint32 i = 0; i < inDesc.numRenderTargets; ++i)
+		{
+			colorAttachments[i].format = into_vk::pixelFormat(inDesc.rtvFormats[i]);
+			colorAttachments[i].flags = 0; // VkAttachmentDescriptionFlags
+			// #todo-vulkan: Vulkan allows different sample counts between color attachments?
+			// DX12 requires same count for all attachments:
+			// https://learn.microsoft.com/en-us/windows/win32/api/dxgicommon/ns-dxgicommon-dxgi_sample_desc
+			colorAttachments[i].samples = into_vk::sampleCount(inDesc.sampleDesc.count);
+			// #todo-vulkan: loadOp, storeOp for color attachment
+			colorAttachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			colorAttachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			colorAttachments[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			colorAttachments[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			// #todo-vulkan: initialLayout, finalLayout for color attachment
+			colorAttachments[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			colorAttachments[i].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		}
+
+		VkAttachmentDescription depthAttachment{};
+		depthAttachment.format = into_vk::pixelFormat(inDesc.dsvFormat);
+		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		// #todo-vulkan: initialLayout, finalLayout for depth attachment
+		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		std::vector<VkAttachmentReference> colorAttachmentRef(inDesc.numRenderTargets);
+		for (uint32 i = 0; i < inDesc.numRenderTargets; ++i)
+		{
+			colorAttachmentRef[i].attachment = i;
+			colorAttachmentRef[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		}
+		VkAttachmentReference depthAttachmentRef = {};
+		depthAttachmentRef.attachment = inDesc.numRenderTargets; // Binding point right after color attachments
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDescription subpass{};
+		subpass.colorAttachmentCount = inDesc.numRenderTargets;
+		subpass.pColorAttachments = colorAttachmentRef.data();
+		subpass.pDepthStencilAttachment = inDesc.depthstencilDesc.depthEnable ? &depthAttachmentRef : nullptr;
+
+		// #todo-vulkan: Subpass dependency
+		// https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples
+		//VkSubpassDependency subpassDependency{};
+
+		std::vector<VkAttachmentDescription> attachmentDesc;
+		for (uint32 i = 0; i < inDesc.numRenderTargets; ++i)
+		{
+			attachmentDesc.push_back(colorAttachments[i]);
+		}
+		if (inDesc.depthstencilDesc.depthEnable)
+		{
+			attachmentDesc.push_back(depthAttachment);
+		}
+
+		VkRenderPassCreateInfo renderPassDesc{};
+		renderPassDesc.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		renderPassDesc.attachmentCount = (uint32)attachmentDesc.size();
+		renderPassDesc.pAttachments = attachmentDesc.data();
+		renderPassDesc.subpassCount = 1;
+		renderPassDesc.pSubpasses = &subpass;
+		renderPassDesc.dependencyCount = 0;
+		renderPassDesc.pDependencies = nullptr;
+
+		VkResult ret = vkCreateRenderPass(
+			vkDevice, &renderPassDesc, nullptr, &vkRenderPass);
+		CHECK(ret == VK_SUCCESS);
+	}
+
 	// pStages
 	std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 	ShaderStage* shaderWrappers[] = { inDesc.vs, inDesc.hs, inDesc.ds, inDesc.gs, inDesc.ps };
@@ -420,6 +498,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	}
 
 	// pVertexInputState
+	// #todo-vulkan-wip
 
 	// pInputAssemblyState
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -428,6 +507,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	inputAssembly.primitiveRestartEnable = VK_FALSE; // #todo-vulkan: Primitive Restart
 
 	// pRasterizationState
+	// #todo-vulkan-wip
 
 	// pMultisampleState
 	// #todo-vulkan: Support multisampling
@@ -441,8 +521,11 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	multisampling.alphaToOneEnable = VK_FALSE;
 
 	// pDepthStencilState
+	VkPipelineDepthStencilStateCreateInfo depthStencil
+		= into_vk::depthstencilDesc(inDesc.depthstencilDesc);
 
 	// pColorBlendState
+	// #todo-vulkan-wip
 
 	// pDynamicState
 	// #todo-vulkan: DX12 always set them dynamically via RSSet~~ methods,
@@ -457,8 +540,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	dynamicStateInfo.pDynamicStates = dynamicStates.data();
 
 	// layout
-
-	// renderpass
+	// #todo-vulkan-wip
 
 	VkGraphicsPipelineCreateInfo pipelineInfo{};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -472,18 +554,18 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	pipelineInfo.pDepthStencilState = &depthStencil;
 	pipelineInfo.pColorBlendState = &colorBlending;
 	pipelineInfo.pDynamicState = &dynamicStateInfo;
-	pipelineInfo.layout = psoLayout_conetrace;
-	pipelineInfo.renderPass = vkRenderPass_conetrace;
+	pipelineInfo.layout = vkPipelineLayout;
+	pipelineInfo.renderPass = vkRenderPass;
 	pipelineInfo.subpass = 0;
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	pipelineInfo.basePipelineIndex = -1;
 
-	VkPipeline vkPipeline = VK_NULL_HANDLE;
 	VkResult ret = vkCreateGraphicsPipelines(
 		vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkPipeline);
 	CHECK(ret == VK_SUCCESS);
 
-	return new VulkanGraphicsPipelineState(vkPipeline);
+	return new VulkanGraphicsPipelineState(
+		vkPipeline, vkPipelineLayout, vkRenderPass);
 #endif
 	return nullptr;
 }

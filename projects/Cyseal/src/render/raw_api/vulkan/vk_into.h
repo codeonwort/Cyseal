@@ -9,6 +9,18 @@
 // Convert API-agnostic structs into Vulkan structs
 namespace into_vk
 {
+	class TempAlloc
+	{
+	public:
+		~TempAlloc()
+		{
+			//
+		}
+
+	private:
+
+	};
+
 	inline VkViewport viewport(const Viewport& inViewport)
 	{
 		VkViewport vkViewport{};
@@ -186,6 +198,79 @@ namespace into_vk
 			desc.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		}
 
+		return desc;
+	}
+
+	inline VkCompareOp compareOp(EComparisonFunc inComp)
+	{
+		switch (inComp)
+		{
+			case EComparisonFunc::Never: return VK_COMPARE_OP_NEVER;
+			case EComparisonFunc::Less: return VK_COMPARE_OP_LESS;
+			case EComparisonFunc::Equal: return VK_COMPARE_OP_EQUAL;
+			case EComparisonFunc::LessEqual: return VK_COMPARE_OP_LESS_OR_EQUAL;
+			case EComparisonFunc::Greater: return VK_COMPARE_OP_GREATER;
+			case EComparisonFunc::NotEqual: return VK_COMPARE_OP_NOT_EQUAL;
+			case EComparisonFunc::GreaterEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+			case EComparisonFunc::Always: return VK_COMPARE_OP_ALWAYS;
+			default: CHECK_NO_ENTRY();
+		}
+		return VK_COMPARE_OP_MAX_ENUM;
+	}
+
+	inline VkLogicOp logicOp(ELogicOp inOp)
+	{
+		switch (inOp)
+		{
+			case ELogicOp::Clear: return VK_LOGIC_OP_CLEAR;
+			case ELogicOp::Set: return VK_LOGIC_OP_SET;
+			case ELogicOp::Copy: return VK_LOGIC_OP_COPY;
+			case ELogicOp::CopyInverted: return VK_LOGIC_OP_COPY_INVERTED;
+			case ELogicOp::Noop: return VK_LOGIC_OP_NO_OP;
+			case ELogicOp::Invert: return VK_LOGIC_OP_INVERT;
+			case ELogicOp::And: return VK_LOGIC_OP_AND;
+			case ELogicOp::Nand: return VK_LOGIC_OP_NAND;
+			case ELogicOp::Or: return VK_LOGIC_OP_OR;
+			case ELogicOp::Nor: return VK_LOGIC_OP_NOR;
+			case ELogicOp::Xor: return VK_LOGIC_OP_XOR;
+			case ELogicOp::Equivalent: return VK_LOGIC_OP_EQUIVALENT;
+			case ELogicOp::AndReverse: return VK_LOGIC_OP_AND_REVERSE;
+			case ELogicOp::AndInverted: return VK_LOGIC_OP_AND_INVERTED;
+			case ELogicOp::OrReverse: return VK_LOGIC_OP_OR_REVERSE;
+			case ELogicOp::OrInverted: return VK_LOGIC_OP_OR_INVERTED;
+			default: CHECK_NO_ENTRY();
+		}
+		return VK_LOGIC_OP_MAX_ENUM;
+	}
+
+	inline VkPipelineColorBlendStateCreateInfo colorBlendDesc(const BlendDesc& inDesc, uint32 numAttachments)
+	{
+		// #todo-vulkan: Independent blend state is an extension in Vulkan
+		VkPipelineColorBlendStateCreateInfo desc{};
+		desc.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		desc.logicOpEnable = inDesc.renderTarget[0].logicOpEnable;
+		desc.logicOp = into_vk::logicOp(inDesc.renderTarget[0].logicOp);
+		desc.attachmentCount = numAttachments;
+		desc.pAttachments = 0; // #todo-vulkan-wip: I need TempAlloc again?
+		desc.blendConstants[0] = 0.0f;
+		desc.blendConstants[1] = 0.0f;
+		desc.blendConstants[2] = 0.0f;
+		desc.blendConstants[3] = 0.0f;
+	}
+
+	inline VkPipelineDepthStencilStateCreateInfo depthstencilDesc(const DepthstencilDesc& inDesc)
+	{
+		VkPipelineDepthStencilStateCreateInfo desc{};
+		desc.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		desc.depthTestEnable = inDesc.depthEnable;
+		desc.depthWriteEnable = (inDesc.depthWriteMask == EDepthWriteMask::All);
+		desc.depthCompareOp = into_vk::compareOp(inDesc.depthFunc);
+		desc.depthBoundsTestEnable = VK_FALSE; // #todo-vulkan: depthBoundsTestEnable
+		desc.minDepthBounds = 0.0f; // Optional
+		desc.maxDepthBounds = 1.0f; // Optional
+		desc.stencilTestEnable = inDesc.stencilEnable;
+		desc.front = {}; // #todo-vulkan: VkStencilOpState
+		desc.back = {};
 		return desc;
 	}
 }
