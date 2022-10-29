@@ -243,19 +243,69 @@ namespace into_vk
 		return VK_LOGIC_OP_MAX_ENUM;
 	}
 
-	inline VkPipelineColorBlendStateCreateInfo colorBlendDesc(const BlendDesc& inDesc, uint32 numAttachments)
+	inline VkColorComponentFlags colorWriteMask(EColorWriteEnable inMask)
 	{
-		// #todo-vulkan: Independent blend state is an extension in Vulkan
-		VkPipelineColorBlendStateCreateInfo desc{};
-		desc.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-		desc.logicOpEnable = inDesc.renderTarget[0].logicOpEnable;
-		desc.logicOp = into_vk::logicOp(inDesc.renderTarget[0].logicOp);
-		desc.attachmentCount = numAttachments;
-		desc.pAttachments = 0; // #todo-vulkan-wip: I need TempAlloc again?
-		desc.blendConstants[0] = 0.0f;
-		desc.blendConstants[1] = 0.0f;
-		desc.blendConstants[2] = 0.0f;
-		desc.blendConstants[3] = 0.0f;
+		VkColorComponentFlags mask = 0;
+		if (0 != (inMask & EColorWriteEnable::Red))
+		{
+			mask |= VK_COLOR_COMPONENT_R_BIT;
+		}
+		if (0 != (inMask & EColorWriteEnable::Green))
+		{
+			mask |= VK_COLOR_COMPONENT_G_BIT;
+		}
+		if (0 != (inMask & EColorWriteEnable::Blue))
+		{
+			mask |= VK_COLOR_COMPONENT_B_BIT;
+		}
+		if (0 != (inMask & EColorWriteEnable::Alpha))
+		{
+			mask |= VK_COLOR_COMPONENT_A_BIT;
+		}
+		return mask;
+	}
+
+	inline VkBlendFactor blendFactor(EBlend inBlend)
+	{
+		switch (inBlend)
+		{
+			case EBlend::Zero: return VK_BLEND_FACTOR_ZERO;
+			case EBlend::One: return VK_BLEND_FACTOR_ONE;
+			case EBlend::SrcColor: return VK_BLEND_FACTOR_SRC_COLOR;
+			case EBlend::InvSrcColor: return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
+			case EBlend::SrcAlpha: return VK_BLEND_FACTOR_SRC_ALPHA;
+			case EBlend::InvSrcAlpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+			case EBlend::DestAlpha: return VK_BLEND_FACTOR_DST_ALPHA;
+			case EBlend::InvDestAlpha: return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+			case EBlend::DestColor: return VK_BLEND_FACTOR_DST_COLOR;
+			case EBlend::InvDestColor: return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+			case EBlend::SrcAlphaSaturate: return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+			// #todo-vulkan: Equivalent of OMSetBlendFactor()?
+			// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdSetBlendConstants.html
+			case EBlend::BlendFactor: CHECK_NO_ENTRY();
+			case EBlend::InvBlendFactor: CHECK_NO_ENTRY();
+			case EBlend::Src1Color: return VK_BLEND_FACTOR_SRC1_COLOR;
+			case EBlend::InvSrc1Color: return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
+			case EBlend::Src1Alpha: return VK_BLEND_FACTOR_SRC1_ALPHA;
+			case EBlend::InvSrc1Alpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+			default: CHECK_NO_ENTRY();
+		}
+		return VK_BLEND_FACTOR_MAX_ENUM;
+	}
+
+	inline VkBlendOp blendOp(EBlendOp inOp)
+	{
+		// #todo-vulkan: A bunch of EXT blendOps
+		switch (inOp)
+		{
+			case EBlendOp::Add: return VK_BLEND_OP_ADD;
+			case EBlendOp::Subtract: return VK_BLEND_OP_SUBTRACT;
+			case EBlendOp::RevSubtract: return VK_BLEND_OP_REVERSE_SUBTRACT;
+			case EBlendOp::Min: return VK_BLEND_OP_MIN;
+			case EBlendOp::Max: return VK_BLEND_OP_MAX;
+			default: CHECK_NO_ENTRY();
+		}
+		return VK_BLEND_OP_MAX_ENUM;
 	}
 
 	inline VkPipelineDepthStencilStateCreateInfo depthstencilDesc(const DepthstencilDesc& inDesc)
@@ -272,6 +322,31 @@ namespace into_vk
 		desc.front = {}; // #todo-vulkan: VkStencilOpState
 		desc.back = {};
 		return desc;
+	}
+
+	inline VkPolygonMode polygonMode(EFillMode inMode)
+	{
+		// #todo-vulkan: Missing VkPolygonMode (POINT, FILL_RECTANGLE_NV)
+		switch (inMode)
+		{
+			case EFillMode::Line: return VK_POLYGON_MODE_LINE;
+			case EFillMode::Fill: return VK_POLYGON_MODE_FILL;
+			default: CHECK_NO_ENTRY();
+		}
+		return VK_POLYGON_MODE_MAX_ENUM;
+	}
+
+	inline VkCullModeFlags cullMode(ECullMode inMode)
+	{
+		// #todo-vulkan: Missing VkCullModeFlags (FRONT_AND_BACK)
+		switch (inMode)
+		{
+			case ECullMode::None: return VK_CULL_MODE_NONE;
+			case ECullMode::Front: return VK_CULL_MODE_FRONT_BIT;
+			case ECullMode::Back: return VK_CULL_MODE_BACK_BIT;
+			default: CHECK_NO_ENTRY();
+		}
+		return VK_CULL_MODE_FLAG_BITS_MAX_ENUM;
 	}
 }
 

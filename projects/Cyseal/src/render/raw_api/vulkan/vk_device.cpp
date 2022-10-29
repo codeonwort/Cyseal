@@ -507,7 +507,18 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	inputAssembly.primitiveRestartEnable = VK_FALSE; // #todo-vulkan: Primitive Restart
 
 	// pRasterizationState
-	// #todo-vulkan-wip
+	VkPipelineRasterizationStateCreateInfo rasterizer{};
+	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizer.depthClampEnable = inDesc.rasterizerDesc.depthClipEnable;
+	rasterizer.rasterizerDiscardEnable = VK_FALSE; // #todo-vulkan: rasterizerDiscardEnable
+	rasterizer.polygonMode = into_vk::polygonMode(inDesc.rasterizerDesc.fillMode);
+	rasterizer.cullMode = into_vk::cullMode(inDesc.rasterizerDesc.cullMode);
+	rasterizer.frontFace = inDesc.rasterizerDesc.frontCCW ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
+	rasterizer.depthBiasEnable = (0 != inDesc.rasterizerDesc.depthBias);
+	rasterizer.depthBiasConstantFactor = (float)inDesc.rasterizerDesc.depthBias;
+	rasterizer.depthBiasClamp = inDesc.rasterizerDesc.depthBiasClamp;
+	rasterizer.depthBiasSlopeFactor = inDesc.rasterizerDesc.slopeScaledDepthBias;
+	rasterizer.lineWidth = 1.0f; // #todo-crossapi: vk-only?
 
 	// pMultisampleState
 	// #todo-vulkan: Support multisampling
@@ -525,7 +536,32 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 		= into_vk::depthstencilDesc(inDesc.depthstencilDesc);
 
 	// pColorBlendState
-	// #todo-vulkan-wip
+	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments(inDesc.numRenderTargets);
+	for (uint32 i = 0; i < inDesc.numRenderTargets; ++i)
+	{
+		const RenderTargetBlendDesc& inBlend = inDesc.blendDesc.renderTarget[i];
+		colorBlendAttachments[i].colorWriteMask = into_vk::colorWriteMask(inBlend.renderTargetWriteMask);
+		colorBlendAttachments[i].blendEnable = inBlend.blendEnable;
+		colorBlendAttachments[i].srcColorBlendFactor = into_vk::blendFactor(inBlend.srcBlend);
+		colorBlendAttachments[i].dstColorBlendFactor = into_vk::blendFactor(inBlend.destBlend);
+		colorBlendAttachments[i].colorBlendOp = into_vk::blendOp(inBlend.blendOp);
+		colorBlendAttachments[i].srcAlphaBlendFactor = into_vk::blendFactor(inBlend.srcBlendAlpha);
+		colorBlendAttachments[i].dstAlphaBlendFactor = into_vk::blendFactor(inBlend.destBlendAlpha);
+		colorBlendAttachments[i].alphaBlendOp = into_vk::blendOp(inBlend.blendOpAlpha);
+	}
+	// #todo-vulkan: Independent blend state is an extension in Vulkan
+	VkPipelineColorBlendStateCreateInfo colorBlendDesc{};
+	colorBlendDesc.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlendDesc.logicOpEnable = inDesc.blendDesc.renderTarget[0].logicOpEnable;
+	colorBlendDesc.logicOp = into_vk::logicOp(inDesc.blendDesc.renderTarget[0].logicOp);
+	colorBlendDesc.attachmentCount = (uint32)colorBlendAttachments.size();
+	colorBlendDesc.pAttachments = colorBlendAttachments.data();
+	// #todo-vulkan: Dynamic blend factor
+	// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdSetBlendConstants.html
+	colorBlendDesc.blendConstants[0] = 0.0f;
+	colorBlendDesc.blendConstants[1] = 0.0f;
+	colorBlendDesc.blendConstants[2] = 0.0f;
+	colorBlendDesc.blendConstants[3] = 0.0f;
 
 	// pDynamicState
 	// #todo-vulkan: DX12 always set them dynamically via RSSet~~ methods,
@@ -552,11 +588,11 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	pipelineInfo.pRasterizationState = &rasterizer;
 	pipelineInfo.pMultisampleState = &multisampling;
 	pipelineInfo.pDepthStencilState = &depthStencil;
-	pipelineInfo.pColorBlendState = &colorBlending;
+	pipelineInfo.pColorBlendState = &colorBlendDesc;
 	pipelineInfo.pDynamicState = &dynamicStateInfo;
 	pipelineInfo.layout = vkPipelineLayout;
 	pipelineInfo.renderPass = vkRenderPass;
-	pipelineInfo.subpass = 0;
+	pipelineInfo.subpass = 0; // index of the subpass in the render pass where this pipeline will be used.
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	pipelineInfo.basePipelineIndex = -1;
 
