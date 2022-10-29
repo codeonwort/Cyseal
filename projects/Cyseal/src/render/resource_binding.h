@@ -252,6 +252,7 @@ struct RootSignatureDesc
 
 // https://docs.microsoft.com/en-us/windows/win32/direct3d12/root-signatures-overview
 // ID3D12RootSignature
+// VkPipelineLayout
 // - Defines resource binding for drawcall.
 // - It's a collection of root parameters.
 // - A root parameter is one of root constant, root descirptor, or descriptor table.
@@ -263,13 +264,17 @@ class RootSignature
 // Descriptor Heap
 
 // D3D12_DESCRIPTOR_HEAP_TYPE
+// VkDescriptorType
 enum class EDescriptorHeapType : uint8
 {
-	CBV_SRV_UAV = 0,
-	SAMPLER     = 1,
-	RTV         = 2,
-	DSV         = 3,
-	NUM_TYPES   = 4
+	CBV         = 0,
+	SRV         = 1,
+	UAV         = 2,
+	CBV_SRV_UAV = 3, // #todo-vulkan-wip: Oops... See VulkanDevice::createDescriptorHeap()
+	SAMPLER     = 4,
+	RTV         = 5,
+	DSV         = 6,
+	NUM_TYPES   = 7
 };
 
 // D3D12_DESCRIPTOR_HEAP_FLAGS
@@ -289,6 +294,7 @@ struct DescriptorHeapDesc
 };
 
 // ID3D12DescriptorHeap
+// VkDescriptorPool
 class DescriptorHeap
 {
 public:

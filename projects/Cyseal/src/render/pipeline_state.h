@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "util/enum_util.h"
 #include "pixel_format.h"
 #include <vector>
 

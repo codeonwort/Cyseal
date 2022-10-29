@@ -13,7 +13,7 @@ void TextureManager::initialize()
 {
 	{
 		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::CBV_SRV_UAV;
+		desc.type = EDescriptorHeapType::SRV;
 		desc.numDescriptors = MAX_SRV_DESCRIPTORS;
 		desc.flags = EDescriptorHeapFlags::None;
 		desc.nodeMask = 0;

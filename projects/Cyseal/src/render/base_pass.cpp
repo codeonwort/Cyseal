@@ -65,7 +65,7 @@ void BasePass::initialize()
 		constexpr uint32 PAYLOAD_SIZE_ALIGNED = (sizeof(ConstantBufferPayload) + 255) & ~255;
 
 		DescriptorHeapDesc desc;
-		desc.type           = EDescriptorHeapType::CBV_SRV_UAV;
+		desc.type           = EDescriptorHeapType::CBV;
 		desc.numDescriptors = PAYLOAD_HEAP_SIZE / PAYLOAD_SIZE_ALIGNED;
 		desc.flags          = EDescriptorHeapFlags::None;
 		desc.nodeMask       = 0;

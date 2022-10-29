@@ -9,6 +9,7 @@
 #include "vk_buffer.h"
 #include "vk_shader.h"
 #include "vk_pipeline_state.h"
+#include "vk_descriptor.h"
 #include "vk_utils.h"
 #include "vk_into.h"
 #include "core/platform.h"
@@ -389,18 +390,27 @@ ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* de
 	return new VulkanShaderStage(shaderStage, debugName);
 }
 
-RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& desc)
+RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc)
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-	return nullptr;
+	// #todo-vulkan-wip: Needs VkDescriptorPool, VkDescriptorSetLayout, and VkDescriptorSet first.
+	VkPipelineLayoutCreateInfo desc{};
+	desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	desc.setLayoutCount = 1;
+	desc.pSetLayouts = 0; // #todo-vulkan-wip
+	desc.pushConstantRangeCount = 0;
+	desc.pPushConstantRanges = nullptr; // #todo-vulkan-wip: Push constant
+
+	VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
+	VkResult ret = vkCreatePipelineLayout(vkDevice, &desc, nullptr, &vkPipelineLayout);
+	CHECK(ret == VK_SUCCESS);
+
+	return new VulkanPipelineLayout(vkPipelineLayout);
 }
 
 PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
 {
 	// #todo-vulkan-wip: PSO conversion
 	VkPipeline vkPipeline = VK_NULL_HANDLE;
-	VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
 	VkRenderPass vkRenderPass = VK_NULL_HANDLE;
 
 #if 0
@@ -576,7 +586,9 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	dynamicStateInfo.pDynamicStates = dynamicStates.data();
 
 	// layout
-	// #todo-vulkan-wip
+	// #todo-vulkan-wip: Take this as parameter
+	RootSignature* inRootSignature = nullptr;
+	VkPipelineLayout vkPipelineLayout = static_cast<VulkanPipelineLayout*>(inRootSignature)->getVkPipelineLayout();
 
 	VkGraphicsPipelineCreateInfo pipelineInfo{};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -600,17 +612,34 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 		vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkPipeline);
 	CHECK(ret == VK_SUCCESS);
 
-	return new VulkanGraphicsPipelineState(
-		vkPipeline, vkPipelineLayout, vkRenderPass);
+	return new VulkanGraphicsPipelineState(vkPipeline, vkRenderPass);
 #endif
 	return nullptr;
 }
 
-DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
+DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inDesc)
 {
-	// #todo-vulkan
-	//CHECK_NO_ENTRY();
-	return nullptr;
+	VkDescriptorPoolSize poolSize{};
+	// #todo-vulkan-wip: I'll have to revisit here for volatile heaps (CBV_SRV_UAV)
+	poolSize.type = into_vk::descriptorPoolType(inDesc.type);
+	// #todo-vulkan: Watch out for VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK
+	// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkDescriptorPoolSize.html
+	poolSize.descriptorCount = inDesc.numDescriptors;
+
+	VkDescriptorPoolCreateInfo desc{};
+	desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	// #todo-vulkan: A D3D12 descriptor heap allows only one descriptor type,
+	// but Vulkan descriptor pool allows multiple types.
+	desc.poolSizeCount = 1;
+	desc.pPoolSizes = &poolSize;
+	desc.maxSets = inDesc.numDescriptors;
+
+	VkDescriptorPool vkDescriptorPool = VK_NULL_HANDLE;
+	VkResult ret = vkCreateDescriptorPool(vkDevice, &desc, nullptr, &vkDescriptorPool);
+	CHECK(ret == VK_SUCCESS);
+
+	VulkanDescriptorPool* heap = new VulkanDescriptorPool(inDesc, vkDescriptorPool);
+	return heap;
 }
 
 ConstantBuffer* VulkanDevice::createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize)

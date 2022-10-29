@@ -418,20 +418,31 @@ void D3DDevice::copyDescriptors(
 	DescriptorHeap* srcHeap,
 	uint32 srcHeapDescriptorStartOffset)
 {
-	CHECK(destHeap->getDesc().type == srcHeap->getDesc().type);
-	EDescriptorHeapType heapType = destHeap->getDesc().type;
+	EDescriptorHeapType srcType = srcHeap->getDesc().type;
+	EDescriptorHeapType dstType = destHeap->getDesc().type;
+	if (dstType == EDescriptorHeapType::CBV_SRV_UAV) {
+		CHECK(srcType == EDescriptorHeapType::CBV
+			|| srcType == EDescriptorHeapType::SRV
+			|| srcType == EDescriptorHeapType::UAV
+			|| srcType == EDescriptorHeapType::CBV_SRV_UAV);
+	} else {
+		CHECK(srcType == dstType);
+	}
 
 	ID3D12DescriptorHeap* rawDestHeap = static_cast<D3DDescriptorHeap*>(destHeap)->getRaw();
 	ID3D12DescriptorHeap* rawSrcHeap = static_cast<D3DDescriptorHeap*>(srcHeap)->getRaw();
 
 	uint64 descSize = 0;
-	switch (heapType)
+	switch (dstType)
 	{
-	case EDescriptorHeapType::CBV_SRV_UAV: descSize = descSizeCBV_SRV_UAV; break;
-	case EDescriptorHeapType::SAMPLER:     descSize = descSizeSampler; break;
-	case EDescriptorHeapType::RTV:         descSize = descSizeRTV; break;
-	case EDescriptorHeapType::DSV:         descSize = descSizeDSV; break;
-	default:                               CHECK_NO_ENTRY(); break;
+		case EDescriptorHeapType::CBV:         descSize = descSizeCBV_SRV_UAV; break;
+		case EDescriptorHeapType::SRV:         descSize = descSizeCBV_SRV_UAV; break;
+		case EDescriptorHeapType::UAV:         descSize = descSizeCBV_SRV_UAV; break;
+		case EDescriptorHeapType::CBV_SRV_UAV: descSize = descSizeCBV_SRV_UAV; break;
+		case EDescriptorHeapType::SAMPLER:     descSize = descSizeSampler; break;
+		case EDescriptorHeapType::RTV:         descSize = descSizeRTV; break;
+		case EDescriptorHeapType::DSV:         descSize = descSizeDSV; break;
+		default:                               CHECK_NO_ENTRY(); break;
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE destHandle = rawDestHeap->GetCPUDescriptorHandleForHeapStart();
@@ -444,5 +455,5 @@ void D3DDevice::copyDescriptors(
 		numDescriptors,
 		destHandle,
 		srcHandle,
-		into_d3d::descriptorHeapType(heapType));
+		into_d3d::descriptorHeapType(dstType));
 }
