@@ -76,7 +76,9 @@ bool TestApplication::onInitialize()
 void TestApplication::onTick(float deltaSeconds)
 {
 	wchar_t buf[256];
-	swprintf_s(buf, L"Hello World / FPS: %.2f", 1.0f / deltaSeconds);
+	float newFPS = 1.0f / deltaSeconds;
+	framesPerSecond += 0.05f * (newFPS - framesPerSecond);
+	swprintf_s(buf, L"Hello World / FPS: %.2f", framesPerSecond);
 	setWindowTitle(std::wstring(buf));
 
 	// #todo-app: Control camera by user input

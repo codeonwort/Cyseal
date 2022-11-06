@@ -384,7 +384,7 @@ PipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3d_desc;
 	into_d3d::graphicsPipelineDesc(desc, d3d_desc, tempAlloc);
 
-	D3DPipelineState* pipeline = new D3DPipelineState;
+	D3DGraphicsPipelineState* pipeline = new D3DGraphicsPipelineState;
 	pipeline->initialize(device.Get(), d3d_desc);
 
 	return pipeline;

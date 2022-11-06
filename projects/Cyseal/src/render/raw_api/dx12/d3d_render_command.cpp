@@ -259,7 +259,7 @@ void D3DRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthStencil
 
 void D3DRenderCommandList::setPipelineState(PipelineState* state)
 {
-	auto rawState = static_cast<D3DPipelineState*>(state)->getRaw();
+	auto rawState = static_cast<D3DGraphicsPipelineState*>(state)->getRaw();
 	commandList->SetPipelineState(rawState);
 }
 

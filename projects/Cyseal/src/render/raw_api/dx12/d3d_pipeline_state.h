@@ -382,11 +382,10 @@ namespace into_d3d
 	}
 }
 
-// #todo-dx12: Rename to D3DGraphicsPipelineState
-class D3DPipelineState : public PipelineState
+class D3DGraphicsPipelineState : public PipelineState
 {
 public:
-	D3DPipelineState() {}
+	D3DGraphicsPipelineState() {}
 
 	void initialize(ID3D12Device* device, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
 	{
