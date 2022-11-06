@@ -75,7 +75,7 @@
     <ClInclude Include="src\render\texture.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\resource_view.h">
+    <ClInclude Include="src\render\gpu_resource_view.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\gpu_resource.h">
@@ -150,7 +150,7 @@
     <ClInclude Include="src\render\raw_api\vulkan\vk_shader.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\resource_binding.h">
+    <ClInclude Include="src\render\gpu_resource_binding.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\raw_api\vulkan\vk_utils.h">

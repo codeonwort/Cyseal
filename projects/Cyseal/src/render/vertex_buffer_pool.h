@@ -9,7 +9,7 @@
 #pragma once
 
 #include "gpu_resource.h"
-#include "resource_binding.h"
+#include "gpu_resource_binding.h"
 
 #include <memory>
 #include <vector>

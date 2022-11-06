@@ -1,7 +1,7 @@
 #include "tone_mapping.h"
 #include "render_device.h"
 #include "swap_chain.h"
-#include "resource_binding.h"
+#include "gpu_resource_binding.h"
 #include "shader.h"
 #include "render_command.h"
 #include "texture_manager.h"

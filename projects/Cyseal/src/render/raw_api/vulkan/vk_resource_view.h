@@ -2,7 +2,7 @@
 
 #if COMPILE_BACKEND_VULKAN
 
-#include "render/resource_view.h"
+#include "render/gpu_resource_view.h"
 #include <vulkan/vulkan_core.h>
 
 class VulkanRenderTargetView : public RenderTargetView

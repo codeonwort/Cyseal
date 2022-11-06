@@ -2,7 +2,7 @@
 
 #include "gpu_resource.h"
 #include "pipeline_state.h"
-#include "resource_binding.h"
+#include "gpu_resource_binding.h"
 #include <functional>
 
 // Forward Declarations

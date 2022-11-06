@@ -1,9 +1,9 @@
 #pragma once
 
 #include "pipeline_state.h"
-#include "resource_binding.h"
+#include "gpu_resource_binding.h"
 #include "gpu_resource.h"
-#include "resource_view.h"
+#include "gpu_resource_view.h"
 #include <memory>
 
 class RenderCommandList;

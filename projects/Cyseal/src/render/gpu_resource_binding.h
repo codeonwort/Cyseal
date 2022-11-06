@@ -293,6 +293,7 @@ struct DescriptorHeapDesc
 	uint32 nodeMask            = 0; // MGPU thing
 };
 
+// #todo-renderer: Move to gpu_resource.h?
 // ID3D12DescriptorHeap
 // VkDescriptorPool
 class DescriptorHeap

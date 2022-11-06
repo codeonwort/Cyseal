@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/resource_view.h"
+#include "render/gpu_resource_view.h"
 #include "d3d_util.h"
 #include "d3d_texture.h"
 

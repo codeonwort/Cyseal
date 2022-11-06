@@ -2,7 +2,7 @@
 
 #include "core/assertion.h"
 #include "render/pipeline_state.h"
-#include "render/resource_binding.h"
+#include "render/gpu_resource_binding.h"
 #include "d3d_util.h"
 #include <vector>
 
