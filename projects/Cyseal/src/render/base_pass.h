@@ -27,14 +27,19 @@ private:
 	// Bind root parameters for the current root signature
 	void bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloads);
 
-	void updateConstantBuffer(uint32 payloadID, void* payload, uint32 payloadSize);
-	void updateMaterial(RenderCommandList* cmdList, uint32 payloadID, Material* material);
+	void updateMaterialCBV(uint32 payloadID, void* payload, uint32 payloadSize);
+	void updateMaterialSRV(RenderCommandList* cmdList, uint32 payloadID, Material* material);
 
 private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
-	std::vector<std::unique_ptr<DescriptorHeap>> cbvHeap;
-	std::vector<std::unique_ptr<ConstantBuffer>> constantBuffers;
+
+	std::vector<std::unique_ptr<DescriptorHeap>> cbvHeap; // #todo-renderer: Only one heap is needed regardless of swapchain count.
+	std::vector<std::unique_ptr<ConstantBuffer>> materialConstantBuffers;
+
+	std::vector<std::unique_ptr<DescriptorHeap>> sceneUniformHeaps; // #todo-renderer: Merge with cbvHeap.
+	std::vector<std::unique_ptr<ConstantBuffer>> sceneUniformBuffers;
+
 	VertexInputLayout inputLayout;
 
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;

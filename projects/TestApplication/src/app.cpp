@@ -244,6 +244,9 @@ void TestApplication::createResources()
 			currentGeomIx = (currentGeomIx + 1) % NUM_GEOM_ASSETS;
 		}
 	}
+
+	scene.sun.direction = normalize(vec3(0.0f, -2.0f, 1.0f));
+	scene.sun.illuminance = 10.0f * vec3(1.0f, 1.0f, 1.0f);
 }
 
 void TestApplication::destroyResources()

@@ -5,6 +5,7 @@ SceneProxy* Scene::createProxy()
 {
 	SceneProxy* proxy = new SceneProxy;
 
+	proxy->sun = sun;
 	proxy->staticMeshes = staticMeshes;
 
 	return proxy;

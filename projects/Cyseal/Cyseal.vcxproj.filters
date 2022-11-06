@@ -219,6 +219,9 @@
     <ClInclude Include="src\render\raw_api\vulkan\vk_descriptor.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\world\light.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">

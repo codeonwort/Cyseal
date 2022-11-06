@@ -144,6 +144,7 @@
     <ClInclude Include="src\util\string_conversion.h" />
     <ClInclude Include="src\util\unit_test.h" />
     <ClInclude Include="src\world\camera.h" />
+    <ClInclude Include="src\world\light.h" />
     <ClInclude Include="src\world\scene.h" />
     <ClInclude Include="src\world\static_mesh.h" />
   </ItemGroup>

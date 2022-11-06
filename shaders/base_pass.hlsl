@@ -6,14 +6,23 @@ struct IdConstant
 {
     uint objectId;
 };
+
 struct Material
 {
     float4x4 mvpTransform;
     float4 albedoMultiplier;
 };
 
+struct SceneUniform
+{
+    float4 sunDirection;   // (x, y, z, ?)
+    float4 sunIlluminance; // (r, g, b, ?)
+};
+
 ConstantBuffer<IdConstant> objectConstants : register(b0);
-ConstantBuffer<Material> materialConstants[] : register(b1);
+ConstantBuffer<SceneUniform> sceneUniform : register(b1);
+// #todo-shader: It seems glslangValidator can't translate HLSL unbound array.
+ConstantBuffer<Material> materialConstants[] : register(b2);
 
 Texture2D albedoTexture : register(t0);
 SamplerState albedoSampler : register(s0);
@@ -61,21 +70,25 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     Material material = getMaterialData();
 
     // Variables
-    float3 Wi = -normalize(float3(0.0, -1.0, 1.0));
     float3 N = normalize(interpolants.normal);
-    float NdotL = max(0.0, dot(N, Wi));
 
     // Material properties
     float3 albedo = albedoTexture.SampleLevel(albedoSampler, interpolants.uv, 0.0).rgb;
     albedo *= material.albedoMultiplier.rgb;
 
     // Lighting
-    float3 Li = 5.0 * float3(1.0, 1.0, 1.0);
-    float3 diffuse = albedo * Li * NdotL;
+    float3 diffuse = float3(0.0, 0.0, 0.0);
     float3 specular = float3(0.0, 0.0, 0.0);
+    {
+        // Sun
+        float3 Li = sceneUniform.sunIlluminance.rgb; //5.0 * float3(1.0, 1.0, 1.0);
+        float3 Wi = -sceneUniform.sunDirection.xyz;
+        float NdotL = max(0.0, dot(N, Wi));
+        diffuse += albedo * Li * NdotL;
+    }
 
-    float3 radiance = diffuse + specular;
+    float3 outLuminance = diffuse + specular;
     //float opacity = material.color.a;
 
-    return float4(radiance, 1.0);
+    return float4(outLuminance, 1.0);
 }
