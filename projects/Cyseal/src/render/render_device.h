@@ -87,9 +87,8 @@ public:
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
-	// heapSize must be a multiple of 64K
-	// payloadSize must be a multiple of 256
-	virtual ConstantBuffer* createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize) = 0;
+
+	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) = 0;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,

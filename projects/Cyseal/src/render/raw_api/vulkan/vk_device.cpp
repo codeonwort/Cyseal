@@ -655,7 +655,7 @@ DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inD
 	return heap;
 }
 
-ConstantBuffer* VulkanDevice::createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize)
+ConstantBuffer* VulkanDevice::createConstantBuffer(uint32 totalBytes)
 {
 	// #todo-vulkan
 	CHECK_NO_ENTRY();

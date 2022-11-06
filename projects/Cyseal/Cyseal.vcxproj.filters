@@ -347,6 +347,12 @@
     <ClCompile Include="src\render\raw_api\vulkan\vk_buffer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="src\render\raw_api\dx12\d3d_resource.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\raw_api\dx12\d3d_resource_view.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

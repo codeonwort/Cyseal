@@ -47,82 +47,20 @@ private:
 // https://www.braynzarsoft.net/viewtutorial/q16390-directx-12-constant-buffers-root-descriptor-tables
 class D3DConstantBuffer : public ConstantBuffer
 {
+	friend class D3DConstantBufferView;
+
 public:
-	virtual void clear()
-	{
-		// Not needed, but for clarity.
-		::memset(mapPtr, 0, resourceHeapSize);
-	}
+	~D3DConstantBuffer();
 
-	virtual void upload(uint32 payloadID, void* payload, uint32 payloadSize)
-	{
-		CHECK(payloadID < payloadMaxCount);
+	virtual void initialize(uint32 sizeInBytes);
 
-		::memcpy_s(mapPtr + payloadID * payloadSizeAligned, payloadSize, payload, payloadSize);
-	}
+	virtual ConstantBufferView* allocateCBV(DescriptorHeap* descHeap, uint32 sizeInBytes, uint32 bufferingCount);
 
-	void initialize(
-		ID3D12Device*         device,
-		ID3D12DescriptorHeap* descriptorHeap,
-		uint32                heapSize,
-		uint32                payloadSize)
-	{
-		CHECK(heapSize > 0 && payloadSize > 0);
-		CHECK(heapSize % (1024 * 64) == 0);
-
-		resourceHeapSize = heapSize;
-		payloadSizeAligned = (payloadSize + 255) & ~255;
-
-		// #todo: It consumes too much memory
-		// Create a committed resource
-		HR( device->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(heapSize),
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr,
-				IID_PPV_ARGS(&rawResource)) );
-
-		// Create CBVs
-		payloadMaxCount = resourceHeapSize / payloadSizeAligned;
-		for (uint32 payloadId = 0; payloadId < payloadMaxCount; ++payloadId)
-		{
-			D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc;
-			viewDesc.BufferLocation = rawResource->GetGPUVirtualAddress() + (payloadId * payloadSizeAligned);
-			viewDesc.SizeInBytes = payloadSizeAligned;
-
-			D3D12_CPU_DESCRIPTOR_HANDLE descHandle = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-			UINT descHandleInc = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-			descHandle.ptr += payloadId * descHandleInc;
-
-			device->CreateConstantBufferView(&viewDesc, descHandle);
-		}
-
-		// No read from CPU
-		CD3DX12_RANGE readRange(0, 0);
-		HR( rawResource->Map(0, &readRange, reinterpret_cast<void**>(&mapPtr)) );
-		CHECK(mapPtr != nullptr);
-	}
-
-	void destroy()
-	{
-		if (rawResource != nullptr)
-		{
-			CD3DX12_RANGE readRange(0, 0);
-			rawResource->Unmap(0, &readRange);
-
-			mapPtr = nullptr;
-		}
-	}
+	void destroy();
 
 private:
-	// #todo-wip: Constant buffer object itself is a committed resource
-	// but CBVs are allocated in a cbv heap. Who is responsible for management of the cbv heap?
-	WRL::ComPtr<ID3D12Resource> rawResource;
-
-	uint32 resourceHeapSize = 0; // The size of implicit heap of committed resource
-	uint32 payloadSizeAligned = 0; // 256-bytes aligned
-	uint32 payloadMaxCount = 0;
+	WRL::ComPtr<ID3D12Resource> memoryPool;
+	uint32 totalBytes = 0;
+	uint32 allocatedBytes = 0;
 	uint8* mapPtr = nullptr;
-
 };

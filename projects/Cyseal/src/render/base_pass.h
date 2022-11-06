@@ -3,6 +3,7 @@
 #include "pipeline_state.h"
 #include "resource_binding.h"
 #include "gpu_resource.h"
+#include "resource_view.h"
 #include <memory>
 
 class RenderCommandList;
@@ -34,11 +35,10 @@ private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
 
-	std::vector<std::unique_ptr<DescriptorHeap>> cbvHeap; // #todo-renderer: Only one heap is needed regardless of swapchain count.
-	std::vector<std::unique_ptr<ConstantBuffer>> materialConstantBuffers;
-
-	std::vector<std::unique_ptr<DescriptorHeap>> sceneUniformHeaps; // #todo-renderer: Merge with cbvHeap.
-	std::vector<std::unique_ptr<ConstantBuffer>> sceneUniformBuffers;
+	std::unique_ptr<ConstantBuffer> constantBufferMemory;
+	std::unique_ptr<DescriptorHeap> cbvStagingHeap;
+	std::vector<std::unique_ptr<ConstantBufferView>> materialCBVs;
+	std::unique_ptr<ConstantBufferView> sceneUniformCBV;
 
 	VertexInputLayout inputLayout;
 

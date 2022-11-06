@@ -307,8 +307,17 @@ public:
 
 	virtual void setDebugName(const wchar_t* name) = 0;
 
+	uint32 allocateDescriptorIndex()
+	{
+		CHECK(currentDescriptorIndex < desc.numDescriptors);
+		uint32 ix = currentDescriptorIndex;
+		currentDescriptorIndex += 1;
+		return ix;
+	}
+
 	const DescriptorHeapDesc& getDesc() const { return desc; }
 
 private:
 	const DescriptorHeapDesc desc;
+	uint32 currentDescriptorIndex = 0;
 };

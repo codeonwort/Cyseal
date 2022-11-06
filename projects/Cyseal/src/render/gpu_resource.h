@@ -6,6 +6,8 @@
 
 class VertexBufferPool;
 class IndexBufferPool;
+class ConstantBufferView;
+class DescriptorHeap;
 class RenderCommandList;
 
 // GPU Resources = Buffers + Textures
@@ -137,13 +139,18 @@ protected:
 };
 
 //////////////////////////////////////////////////////////////////////////
-// Constant Buffer
+// Constant buffer memory
 // D3D12 committed resource (resource + implicit heap)
 class ConstantBuffer : public GPUResource
 {
 public:
 	~ConstantBuffer() = default;
 
-	virtual void clear() = 0;
-	virtual void upload(uint32 payloadID, void* payload, uint32 payloadSize) = 0;
+	virtual void initialize(uint32 sizeInBytes) = 0;
+
+	// #todo-wip: Is it alright to make buffering a built-in feature of CBV?
+	//            -> Not good. See base_pass.cpp. Maybe instancing parameter will be better.
+	// 'bufferingCount' : Same as the swapchain image count if this CBV will be dynamic per frame.
+	// Returns null if out of memory.
+	virtual ConstantBufferView* allocateCBV(DescriptorHeap* descHeap, uint32 sizeInBytes, uint32 bufferingCount) = 0;
 };

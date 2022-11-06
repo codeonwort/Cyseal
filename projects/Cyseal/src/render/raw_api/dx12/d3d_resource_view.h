@@ -4,6 +4,8 @@
 #include "d3d_util.h"
 #include "d3d_texture.h"
 
+class D3DConstantBuffer;
+
 class D3DRenderTargetView : public RenderTargetView
 {
 public:
@@ -38,7 +40,38 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { NULL };
 };
 
+// #todo-dx12: D3DUnorderedAccessView
 class D3DUnorderedAccessView : public UnorderedAccessView
 {
 	//
+};
+
+class D3DConstantBufferView : public ConstantBufferView
+{
+public:
+	D3DConstantBufferView(D3DConstantBuffer* inBuffer, uint32 inOffsetInBuffer, uint32 inSizeAligned, uint32 inBufferingCount)
+		: buffer(inBuffer)
+		, offsetInBuffer(inOffsetInBuffer)
+		, sizeAligned(inSizeAligned)
+	{
+		descriptorIndexArray.resize(inBufferingCount, 0xffffffff);
+	}
+
+	virtual void upload(void* data, uint32 sizeInBytes, uint32 bufferingIndex);
+
+	virtual uint32 getDescriptorIndexInHeap(uint32 bufferingIndex) const
+	{
+		return descriptorIndexArray[bufferingIndex];
+	}
+
+	void initialize(uint32 inDescriptorIndex, uint32 inBufferingIndex)
+	{
+		descriptorIndexArray[inBufferingIndex] = inDescriptorIndex;
+	}
+
+private:
+	D3DConstantBuffer* buffer;
+	uint32 offsetInBuffer;
+	uint32 sizeAligned;
+	std::vector<uint32> descriptorIndexArray;
 };

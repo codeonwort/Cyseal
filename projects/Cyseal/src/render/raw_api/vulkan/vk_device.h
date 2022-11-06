@@ -48,7 +48,8 @@ public:
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
-	virtual ConstantBuffer* createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize) override;
+
+	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) override;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,

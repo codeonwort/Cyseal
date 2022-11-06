@@ -2,6 +2,7 @@
 #include "render_device.h"
 #include "swap_chain.h"
 #include "resource_binding.h"
+#include "resource_view.h"
 #include "shader.h"
 #include "render_command.h"
 #include "texture_manager.h"
@@ -9,7 +10,11 @@
 #include "static_mesh.h"
 #include "vertex_buffer_pool.h"
 
-#define MAX_VOLATILE_DESCRIPTORS 1024
+#define MAX_STAGING_CBVs                 1024
+#define MAX_MATERIAL_CBVs                128          // (Should be >= num meshes in the scene)
+#define MAX_VOLATILE_DESCRIPTORS         1024         // (>= scene uniform cbv + material cbvs)
+#define CONSTANT_BUFFER_MEMORY_POOL_SIZE (640 * 1024) // 640 KiB
+
 // #todo: Acquire pixel format from Texture
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 
@@ -23,7 +28,7 @@ void BasePass::initialize()
 {
 	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
-	const uint32 bufferCount = swapchain->getBufferCount();
+	const uint32 swapchainCount = swapchain->getBufferCount();
 
 	// Create root signature
 	// - slot0: 32-bit constant (object id)
@@ -66,47 +71,29 @@ void BasePass::initialize()
 		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
 	}
 
-	// 1. Create cbv descriptor heaps
-	// 2. Create constant buffers
-	cbvHeap.resize(bufferCount);
-	materialConstantBuffers.resize(bufferCount);
-	for (uint32 i = 0; i < bufferCount; ++i)
+	// Create constant buffer - memory pool, descriptor heap, cbv
+	constantBufferMemory = std::unique_ptr<ConstantBuffer>(device->createConstantBuffer(CONSTANT_BUFFER_MEMORY_POOL_SIZE));
 	{
-		constexpr uint32 PAYLOAD_HEAP_SIZE = 1024 * 64; // 64 KiB
-		constexpr uint32 PAYLOAD_SIZE_ALIGNED = (sizeof(ConstantBufferPayload) + 255) & ~255;
-
 		DescriptorHeapDesc desc;
-		desc.type           = EDescriptorHeapType::CBV;
-		desc.numDescriptors = PAYLOAD_HEAP_SIZE / PAYLOAD_SIZE_ALIGNED;
-		desc.flags          = EDescriptorHeapFlags::None;
-		desc.nodeMask       = 0;
+		desc.type = EDescriptorHeapType::CBV;
+		desc.numDescriptors = MAX_STAGING_CBVs;
+		desc.flags = EDescriptorHeapFlags::None;
+		desc.nodeMask = 0;
 
-		cbvHeap[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
-		materialConstantBuffers[i] = std::unique_ptr<ConstantBuffer>(
-			device->createConstantBuffer(cbvHeap[i].get(), PAYLOAD_HEAP_SIZE, PAYLOAD_SIZE_ALIGNED));
+		cbvStagingHeap = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
 	}
-
-	sceneUniformHeaps.resize(bufferCount);
-	sceneUniformBuffers.resize(bufferCount);
-	for (uint32 i=0; i<bufferCount; ++i)
+	materialCBVs.resize(MAX_MATERIAL_CBVs);
+	for (uint32 i = 0; i < materialCBVs.size(); ++i)
 	{
-		constexpr uint32 PAYLOAD_HEAP_SIZE = 1024 * 64; // 64 KiB
-		constexpr uint32 PAYLOAD_SIZE_ALIGNED = (sizeof(SceneUniform) + 255) & ~255;
-
-		DescriptorHeapDesc desc;
-		desc.type           = EDescriptorHeapType::CBV;
-		desc.numDescriptors = PAYLOAD_HEAP_SIZE / PAYLOAD_SIZE_ALIGNED;
-		desc.flags          = EDescriptorHeapFlags::None;
-		desc.nodeMask       = 0;
-
-		sceneUniformHeaps[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
-		sceneUniformBuffers[i] = std::unique_ptr<ConstantBuffer>(
-			device->createConstantBuffer(sceneUniformHeaps[i].get(), PAYLOAD_HEAP_SIZE, PAYLOAD_SIZE_ALIGNED));
+		materialCBVs[i] = std::unique_ptr<ConstantBufferView>(
+			constantBufferMemory->allocateCBV(cbvStagingHeap.get(), sizeof(BasePass::ConstantBufferPayload), swapchainCount));
 	}
+	sceneUniformCBV = std::unique_ptr<ConstantBufferView>(
+		constantBufferMemory->allocateCBV(cbvStagingHeap.get(), sizeof(SceneUniform), swapchainCount));
 
 	// Create volatile heaps for CBVs, SRVs, and UAVs for each frame
-	volatileViewHeaps.resize(bufferCount);
-	for (uint32 i = 0; i < bufferCount; ++i)
+	volatileViewHeaps.resize(swapchainCount);
+	for (uint32 i = 0; i < swapchainCount; ++i)
 	{
 		DescriptorHeapDesc desc;
 		desc.type           = EDescriptorHeapType::CBV_SRV_UAV;
@@ -198,7 +185,7 @@ void BasePass::renderBasePass(
 		uboData.sunIlluminance = scene->sun.illuminance;
 
 		const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-		sceneUniformBuffers[frameIndex]->upload(0, &uboData, sizeof(uboData));
+		sceneUniformCBV->upload(&uboData, sizeof(uboData), frameIndex);
 	}
 
 	uint32 payloadID = 0;
@@ -247,17 +234,27 @@ void BasePass::bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloa
 	// Scene uniform
 	gRenderDevice->copyDescriptors(
 		1,
-		volatileHeap,
-		0,
-		sceneUniformHeaps[frameIndex].get(), 0);
+		volatileHeap, 0,
+		cbvStagingHeap.get(), sceneUniformCBV->getDescriptorIndexInHeap(frameIndex));
 	cmdList->setGraphicsRootDescriptorTable(1, volatileHeap, 0);
 
 	// Material CBV
-	gRenderDevice->copyDescriptors(
-		numPayloads,
-		volatileHeap,
-		1,
-		cbvHeap[frameIndex].get(), 0);
+	for (uint32 payloadId = 0; payloadId < numPayloads; ++payloadId)
+	{
+		// #todo-wip: Oops... it's actually a bad idea to inject buffering to CBV :/
+		// I can't copy all descriptors for the current frame by single copyDescriptors() call.
+#if 0
+		gRenderDevice->copyDescriptors(
+			numPayloads,
+			volatileHeap, 1,
+			cbvStagingHeap.get(), 0);
+#else
+		gRenderDevice->copyDescriptors(
+			1,
+			volatileHeap, 1 + payloadId,
+			cbvStagingHeap.get(), materialCBVs[payloadId]->getDescriptorIndexInHeap(frameIndex));
+#endif
+	}
 	cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, 1);
 
 	// Material SRV
@@ -269,7 +266,7 @@ void BasePass::bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloa
 void BasePass::updateMaterialCBV(uint32 payloadID, void* payload, uint32 payloadSize)
 {
 	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-	materialConstantBuffers[frameIndex]->upload(payloadID, payload, payloadSize);
+	materialCBVs[payloadID]->upload(payload, payloadSize, frameIndex);
 }
 
 void BasePass::updateMaterialSRV(RenderCommandList* cmdList, uint32 payloadID, Material* material)

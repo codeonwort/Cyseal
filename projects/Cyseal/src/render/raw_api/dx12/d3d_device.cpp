@@ -402,13 +402,10 @@ DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
 	return heap;
 }
 
-ConstantBuffer* D3DDevice::createConstantBuffer(DescriptorHeap* descriptorHeap, uint32 heapSize, uint32 payloadSize)
+ConstantBuffer* D3DDevice::createConstantBuffer(uint32 totalBytes)
 {
-	ID3D12DescriptorHeap* rawHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
-
 	D3DConstantBuffer* cb = new D3DConstantBuffer;
-	cb->initialize(device.Get(), rawHeap, heapSize, payloadSize);
-
+	cb->initialize(totalBytes);
 	return cb;
 }
 
