@@ -66,6 +66,15 @@ public:
 	inline VkSemaphore getVkImageAvailableSemaphore() const { return vkImageAvailableSemaphore; }
 	inline VkSemaphore getVkRenderFinishedSemaphore() const { return vkRenderFinishedSemaphore; }
 
+	void copyVkBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize bufferSize);
+
+	void beginVkDebugMarker(VkCommandBuffer& cmdBuffer, const char* debugName, uint32 color = 0x000000);
+	void endVkDebugMarker(VkCommandBuffer& cmdBuffer);
+	void setObjectDebugName(
+		VkDebugReportObjectTypeEXT objectType,
+		uint64 objectHandle,
+		const char* debugName);
+
 	VkCommandPool getTempCommandPool() const;
 
 private:
@@ -95,6 +104,12 @@ private:
 
 	VkDebugReportCallbackEXT vkDebugCallback = VK_NULL_HANDLE;
 	bool enableDebugLayer = false;
+
+	// #todo-vulkan: EXT - Debug marker
+	bool canEnableDebugMarker = false;
+	PFN_vkCmdDebugMarkerBeginEXT vkCmdDebugMarkerBegin = VK_NULL_HANDLE;
+	PFN_vkCmdDebugMarkerEndEXT vkCmdDebugMarkerEnd = VK_NULL_HANDLE;
+	PFN_vkDebugMarkerSetObjectNameEXT vkDebugMarkerSetObjectName = VK_NULL_HANDLE;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

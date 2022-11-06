@@ -9,6 +9,7 @@
 #include "core/assertion.h"
 #include "util/resource_finder.h"
 #include "util/string_conversion.h"
+#include "vk_into.h"
 #include <fstream>
 
 const char* shaderTypeStrings[] = {
@@ -26,6 +27,12 @@ const char* shaderTypeStrings[] = {
 	nullptr, // miss
 };
 
+VulkanShaderStage::VulkanShaderStage(EShaderStage inStageFlag, const char* inDebugName)
+	: ShaderStage(inStageFlag, inDebugName)
+{
+	vkShaderStage = into_vk::shaderStage(inStageFlag);
+}
+
 VulkanShaderStage::~VulkanShaderStage()
 {
 	CHECK(vkModule != VK_NULL_HANDLE);
@@ -36,6 +43,8 @@ VulkanShaderStage::~VulkanShaderStage()
 
 void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* entryPoint)
 {
+	entryPointName = entryPoint;
+
 	std::wstring hlslPathW = ResourceFinder::get().find(inFilename);
 	CHECK(hlslPathW.size() > 0);
 	std::string hlslPath;

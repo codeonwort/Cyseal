@@ -354,7 +354,18 @@ namespace into_d3d
 
 	inline D3D12_DESCRIPTOR_HEAP_TYPE descriptorHeapType(EDescriptorHeapType inType)
 	{
-		return static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(inType);
+		switch (inType)
+		{
+			case EDescriptorHeapType::CBV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::SRV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::UAV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::CBV_SRV_UAV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::SAMPLER:  return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+			case EDescriptorHeapType::RTV:  return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			case EDescriptorHeapType::DSV:  return D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+			case EDescriptorHeapType::NUM_TYPES: CHECK_NO_ENTRY();
+		}
+		return D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 	}
 
 	inline D3D12_DESCRIPTOR_HEAP_FLAGS descriptorHeapFlags(EDescriptorHeapFlags inFlags)
@@ -371,6 +382,7 @@ namespace into_d3d
 	}
 }
 
+// #todo-dx12: Rename to D3DGraphicsPipelineState
 class D3DPipelineState : public PipelineState
 {
 public:

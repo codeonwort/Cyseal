@@ -52,6 +52,8 @@ public:
 	virtual ~RenderCommandList();
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
+
+	// Begin/end the recording.
 	virtual void reset(RenderCommandAllocator* allocator) = 0;
 	virtual void close() = 0;
 
@@ -65,12 +67,6 @@ public:
 	// #todo-rendercommand: multiple viewports and scissor rects
 	virtual void rsSetViewport(const Viewport& viewport) = 0;
 	virtual void rsSetScissorRect(const ScissorRect& scissorRect) = 0;
-
-	// #todo-rendercommand: Use resourceBarriers() instead.
-	virtual void transitionResource(
-		GPUResource* resource,
-		EGPUResourceState stateBefore,
-		EGPUResourceState stateAfter) = 0;
 
 	virtual void resourceBarriers(
 		uint32 numBarriers,

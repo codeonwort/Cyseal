@@ -210,24 +210,10 @@ void D3DRenderCommandList::rsSetScissorRect(const ScissorRect& scissorRect)
 	commandList->RSSetScissorRects(1, &rect);
 }
 
-void D3DRenderCommandList::transitionResource(
-	GPUResource* resource,
-	EGPUResourceState stateBefore,
-	EGPUResourceState stateAfter)
-{
-	ID3D12Resource* rawResource = static_cast<D3DResource*>(resource)->getRaw();
-
-	commandList->ResourceBarrier(
-		1, &CD3DX12_RESOURCE_BARRIER::Transition(
-			rawResource,
-			(D3D12_RESOURCE_STATES)stateBefore,
-			(D3D12_RESOURCE_STATES)stateAfter));
-}
-
 void D3DRenderCommandList::resourceBarriers(uint32 numBarriers, const ResourceBarrier* barriers)
 {
 	std::vector<D3D12_RESOURCE_BARRIER> rawBarriers(numBarriers);
-	for (uint32 i=0; i<numBarriers; ++i)
+	for (uint32 i = 0; i < numBarriers; ++i)
 	{
 		rawBarriers[i] = into_d3d::resourceBarrier(barriers[i]);
 	}

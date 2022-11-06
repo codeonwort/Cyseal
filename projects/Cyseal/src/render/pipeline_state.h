@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "util/enum_util.h"
 #include "pixel_format.h"
 #include <vector>
 
@@ -130,6 +131,7 @@ struct RasterizerDesc
 };
 
 // D3D12_BLEND
+// VkBlendFactor
 enum class EBlend : uint8
 {
 	Zero             = 1,
@@ -139,7 +141,7 @@ enum class EBlend : uint8
 	SrcAlpha         = 5,
 	InvSrcAlpha      = 6,
 	DestAlpha        = 7,
-	InvDescAlpha     = 8,
+	InvDestAlpha     = 8,
 	DestColor        = 9,
 	InvDestColor     = 10,
 	SrcAlphaSaturate = 11,
@@ -190,6 +192,7 @@ enum class EColorWriteEnable : uint8
 	Alpha = 8,
 	All   = (Red | Green | Blue | Alpha)
 };
+ENUM_CLASS_FLAGS(EColorWriteEnable);
 
 // D3D12_RENDER_TARGET_BLEND_DESC
 // VkPipelineColorBlendAttachmentState
@@ -351,4 +354,6 @@ struct GraphicsPipelineDesc
 // VkPipeline
 class PipelineState
 {
+public:
+	virtual ~PipelineState() = default;
 };

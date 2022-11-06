@@ -54,11 +54,6 @@ public:
 	virtual void rsSetViewport(const Viewport& viewport) override;
 	virtual void rsSetScissorRect(const ScissorRect& scissorRect) override;
 
-	virtual void transitionResource(
-		GPUResource* resource,
-		EGPUResourceState stateBefore,
-		EGPUResourceState stateAfter) override;
-
 	virtual void resourceBarriers(
 		uint32 numBarriers,
 		const ResourceBarrier* barriers) override;

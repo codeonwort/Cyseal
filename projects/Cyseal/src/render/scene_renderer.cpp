@@ -94,10 +94,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	{
 		SCOPED_DRAW_EVENT(commandList, BasePass);
 
-		commandList->transitionResource(
+		ResourceBarrier barrier{
+			EResourceBarrierType::Transition,
 			RT_sceneColor,
 			EGPUResourceState::PIXEL_SHADER_RESOURCE,
-			EGPUResourceState::RENDER_TARGET);
+			EGPUResourceState::RENDER_TARGET
+		};
+		commandList->resourceBarriers(1, &barrier);
 
 		commandList->omSetRenderTarget(RT_sceneColor->getRTV(), RT_sceneDepth->getDSV());
 
@@ -141,10 +144,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize
 
-	commandList->transitionResource(
+	ResourceBarrier presentBarrier{
+		EResourceBarrierType::Transition,
 		currentBackBuffer,
 		EGPUResourceState::RENDER_TARGET,
-		EGPUResourceState::PRESENT);
+		EGPUResourceState::PRESENT
+	};
+	commandList->resourceBarriers(1, &presentBarrier);
 
 	commandList->close();
 

@@ -50,6 +50,8 @@ ENUM_CLASS_FLAGS(EDepthClearFlags);
 // ID3D12Resource
 class GPUResource
 {
+public:
+	virtual ~GPUResource() {}
 };
 
 // #todo-barrier: There are 3 types of barriers (transition, aliasing, and UAV)
@@ -140,7 +142,7 @@ protected:
 class ConstantBuffer : public GPUResource
 {
 public:
-	virtual ~ConstantBuffer() = default;
+	~ConstantBuffer() = default;
 
 	virtual void clear() = 0;
 	virtual void upload(uint32 payloadID, void* payload, uint32 payloadSize) = 0;

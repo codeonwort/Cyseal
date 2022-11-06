@@ -3,6 +3,8 @@
 #if COMPILE_BACKEND_VULKAN
 
 #include "vk_utils.h"
+#include "vk_buffer.h"
+#include "vk_into.h"
 
 //////////////////////////////////////////////////////////////////////////
 // VulkanRenderCommandQueue
@@ -107,6 +109,100 @@ void VulkanRenderCommandList::close()
 {
 	VkResult ret = vkEndCommandBuffer(currentCommandBuffer);
 	CHECK(ret == VK_SUCCESS);
+}
+
+void VulkanRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology inTopology)
+{
+	// The PSO should be created with VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY
+	// set in VkPipelineDynamicStateCreateInfo::pDynamicStates.
+	VkPrimitiveTopology vkTopology = into_vk::primitiveTopology(inTopology);
+	vkCmdSetPrimitiveTopology(currentCommandBuffer, vkTopology);
+}
+
+void VulkanRenderCommandList::iaSetVertexBuffers(
+	int32 startSlot,
+	uint32 numViews,
+	VertexBuffer* const* vertexBuffers)
+{
+	std::vector<VkBuffer> vkBuffers(numViews, VK_NULL_HANDLE);
+	std::vector<VkDeviceSize> vkOffsets(numViews, 0); // #todo-vulkan: Vertex buffer offsets?
+	for (uint32 i = 0; i < numViews; ++i)
+	{
+		vkBuffers[i] = static_cast<VulkanVertexBuffer*>(vertexBuffers[i])->getVkBuffer();
+	}
+	vkCmdBindVertexBuffers(
+		currentCommandBuffer,
+		(uint32)startSlot,
+		numViews,
+		vkBuffers.data(),
+		vkOffsets.data());
+}
+
+void VulkanRenderCommandList::iaSetIndexBuffer(IndexBuffer* inIndexBuffer)
+{
+	VulkanIndexBuffer* indexBuffer = static_cast<VulkanIndexBuffer*>(inIndexBuffer);
+	VkBuffer vkBuffer = indexBuffer->getVkBuffer();
+	VkIndexType vkIndexType = indexBuffer->getIndexType();
+
+	vkCmdBindIndexBuffer(
+		currentCommandBuffer,
+		vkBuffer,
+		0, // #todo-vulkan: Index buffer offset
+		vkIndexType);
+}
+
+void VulkanRenderCommandList::rsSetViewport(const Viewport& inViewport)
+{
+	VkViewport vkViewport = into_vk::viewport(inViewport);
+	vkCmdSetViewport(currentCommandBuffer, 0, 1, &vkViewport);
+}
+
+void VulkanRenderCommandList::rsSetScissorRect(const ScissorRect& scissorRect)
+{
+	VkRect2D vkScissor = into_vk::scissorRect(scissorRect);
+	vkCmdSetScissor(currentCommandBuffer, 0, 1, &vkScissor);
+}
+
+void VulkanRenderCommandList::drawIndexedInstanced(
+	uint32 indexCountPerInstance,
+	uint32 instanceCount,
+	uint32 startIndexLocation,
+	int32 baseVertexLocation,
+	uint32 startInstanceLocation)
+{
+	vkCmdDrawIndexed(
+		currentCommandBuffer,
+		indexCountPerInstance,
+		instanceCount,
+		startIndexLocation,
+		baseVertexLocation,
+		startInstanceLocation);
+}
+
+void VulkanRenderCommandList::drawInstanced(
+	uint32 vertexCountPerInstance,
+	uint32 instanceCount,
+	uint32 startVertexLocation,
+	uint32 startInstanceLocation)
+{
+	vkCmdDraw(
+		currentCommandBuffer,
+		vertexCountPerInstance,
+		instanceCount,
+		startVertexLocation,
+		startInstanceLocation);
+}
+
+void VulkanRenderCommandList::beginEventMarker(const char* eventName)
+{
+	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
+	deviceWrapper->beginVkDebugMarker(currentCommandBuffer, eventName);
+}
+
+void VulkanRenderCommandList::endEventMarker()
+{
+	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
+	deviceWrapper->endVkDebugMarker(currentCommandBuffer);
 }
 
 #endif
