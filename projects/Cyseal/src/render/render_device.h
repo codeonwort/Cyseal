@@ -123,8 +123,8 @@ protected:
 	// 4. Submit commands allocated in alloc0 to the queue
 	// 5. Repeat 1~4, but allocators swapped.
 	std::vector<RenderCommandAllocator*> commandAllocators;
-	RenderCommandQueue* commandQueue; // Primary graphics queue. Later other queues can be added (e.g., async compute queue).
-	RenderCommandList* commandList;
+	RenderCommandQueue* commandQueue = nullptr; // Primary graphics queue. Later other queues can be added (e.g., async compute queue).
+	RenderCommandList* commandList = nullptr;
 
 };
 

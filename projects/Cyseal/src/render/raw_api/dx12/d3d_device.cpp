@@ -90,6 +90,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	// Check the max supported feature level.
 	const D3D_FEATURE_LEVEL dx12FeatureLevels[] =
 	{
+		D3D_FEATURE_LEVEL_12_2,
 		D3D_FEATURE_LEVEL_12_1,
 		D3D_FEATURE_LEVEL_12_0,
 		D3D_FEATURE_LEVEL_11_1,
@@ -252,7 +253,7 @@ void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAd
 		if (SUCCEEDED(D3D12CreateDevice(
 			adapter.Get(),
 			D3D_FEATURE_LEVEL_11_0,
-			//D3D_FEATURE_LEVEL_12_1,
+			//D3D_FEATURE_LEVEL_12_2,
 			__uuidof(ID3D12Device),
 			nullptr)))
 		{
