@@ -3,58 +3,8 @@
 #include "d3d_pipeline_state.h"
 #include "d3d_render_command.h"
 #include "d3d_resource_view.h"
+#include "d3d_into.h"
 #include "core/assertion.h"
-
-// Convert API-agnostic structs into D3D12 structs
-namespace into_d3d
-{
-	inline D3D12_RESOURCE_DIMENSION textureDimension(ETextureDimension dimension)
-	{
-		switch (dimension)
-		{
-		case ETextureDimension::UNKNOWN: return D3D12_RESOURCE_DIMENSION_UNKNOWN;
-		case ETextureDimension::TEXTURE1D: return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
-		case ETextureDimension::TEXTURE2D: return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		case ETextureDimension::TEXTURE3D: return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
-		}
-		CHECK_NO_ENTRY();
-		return D3D12_RESOURCE_DIMENSION_UNKNOWN;
-	}
-
-	inline D3D12_RESOURCE_DESC textureDesc(const TextureCreateParams& params)
-	{
-		D3D12_RESOURCE_DESC desc;
-		ZeroMemory(&desc, sizeof(desc));
-
-		desc.Dimension = textureDimension(params.dimension);
-		desc.Alignment = 0; // #todo-dx12: Always default alignment
-		desc.Width = params.width;
-		desc.Height = params.height;
-		desc.DepthOrArraySize = params.depth;
-		desc.MipLevels = params.mipLevels;
-		desc.Format = into_d3d::pixelFormat(params.format);
-		desc.SampleDesc.Count = params.sampleCount;
-		desc.SampleDesc.Quality = params.sampleQuality;
-		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN; // #todo-dx12: Always default layout
-		
-		// #todo-dx12: Other allow flags
-		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-		if (0 != (params.accessFlags & ETextureAccessFlags::RTV))
-		{
-			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-		}
-		if (0 != (params.accessFlags & ETextureAccessFlags::UAV))
-		{
-			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-		}
-		if (0 != (params.accessFlags & ETextureAccessFlags::DSV))
-		{
-			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-		}
-
-		return desc;
-	}
-}
 
 void D3DTexture::initialize(const TextureCreateParams& params)
 {

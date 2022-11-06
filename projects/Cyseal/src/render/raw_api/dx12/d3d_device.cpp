@@ -5,6 +5,7 @@
 #include "d3d_render_command.h"
 #include "d3d_resource_view.h"
 #include "d3d_pipeline_state.h"
+#include "d3d_into.h"
 #include "core/assertion.h"
 #include "render/texture_manager.h"
 #include "util/logging.h"

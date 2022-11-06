@@ -2,6 +2,7 @@
 #include "d3d_device.h"
 #include "d3d_resource_view.h"
 #include "d3d_pipeline_state.h"
+#include "d3d_into.h"
 
 D3DSwapChain::D3DSwapChain()
 {

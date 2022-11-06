@@ -97,6 +97,7 @@
     <ClInclude Include="src\memory\mem_alloc.h" />
     <ClInclude Include="src\render\base_pass.h" />
     <ClInclude Include="src\render\null_renderer.h" />
+    <ClInclude Include="src\render\raw_api\dx12\d3d_into.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_buffer.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_descriptor.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_into.h" />
@@ -159,6 +160,7 @@
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\base_pass.cpp" />
     <ClCompile Include="src\render\null_renderer.cpp" />
+    <ClCompile Include="src\render\raw_api\dx12\d3d_into.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_resource.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_resource_view.cpp" />
     <ClCompile Include="src\render\raw_api\vulkan\vk_buffer.cpp" />
@@ -168,7 +170,6 @@
     <ClCompile Include="src\render\scene_renderer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_buffer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_device.cpp" />
-    <ClCompile Include="src\render\raw_api\dx12\d3d_pipeline_state.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_render_command.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_shader.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_swap_chain.cpp" />

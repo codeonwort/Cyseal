@@ -222,6 +222,9 @@
     <ClInclude Include="src\world\light.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\raw_api\dx12\d3d_into.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -293,9 +296,6 @@
     <ClCompile Include="src\render\raw_api\vulkan\vk_shader.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_pipeline_state.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="src\render\raw_api\vulkan\vk_utils.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -351,6 +351,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\raw_api\dx12\d3d_resource_view.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\raw_api\dx12\d3d_into.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
