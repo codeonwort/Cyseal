@@ -120,7 +120,9 @@ void BasePass::initialize()
 
 	// Create input layout
 	VertexInputLayout inputLayout = {
-			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0}
+			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
+			{"NORMAL", 0, EPixelFormat::R32G32B32_FLOAT, 1, 0, EVertexInputClassification::PerVertex, 0},
+			{"TEXCOORD", 0, EPixelFormat::R32G32_FLOAT, 1, sizeof(float) * 3, EVertexInputClassification::PerVertex, 0}
 	};
 
 	// Load shader
@@ -212,7 +214,8 @@ void BasePass::renderBasePass(
 			updateMaterialCBV(payloadID, &payload, sizeof(payload));
 			updateMaterialSRV(commandList, numVolatileDescriptors, payloadID, section.material);
 
-			commandList->iaSetVertexBuffers(0, 1, &section.positionBuffer);
+			VertexBuffer* vertexBuffers[] = { section.positionBuffer,section.nonPositionBuffer };
+			commandList->iaSetVertexBuffers(0, 2, vertexBuffers);
 			commandList->iaSetIndexBuffer(section.indexBuffer);
 			commandList->drawIndexedInstanced(section.indexBuffer->getIndexCount(), 1, 0, 0, 0);
 

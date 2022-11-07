@@ -303,6 +303,7 @@ namespace into_d3d
 		case EPixelFormat::UNKNOWN:            return DXGI_FORMAT_UNKNOWN;
 		case EPixelFormat::R32_TYPELESS:       return DXGI_FORMAT_R32_TYPELESS;
 		case EPixelFormat::R8G8B8A8_UNORM:     return DXGI_FORMAT_R8G8B8A8_UNORM;
+		case EPixelFormat::R32G32_FLOAT:       return DXGI_FORMAT_R32G32_FLOAT;
 		case EPixelFormat::R32G32B32_FLOAT:    return DXGI_FORMAT_R32G32B32_FLOAT;
 		case EPixelFormat::R32G32B32A32_FLOAT: return DXGI_FORMAT_R32G32B32A32_FLOAT;
 		case EPixelFormat::R32_UINT:           return DXGI_FORMAT_R32_UINT;

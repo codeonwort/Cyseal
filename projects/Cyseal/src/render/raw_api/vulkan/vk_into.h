@@ -134,6 +134,7 @@ namespace into_vk
 			// #todo-vulkan: R32_TYPLESS in Vulkan?
 			case EPixelFormat::R32_TYPELESS:       return VkFormat::VK_FORMAT_R32_SFLOAT;
 			case EPixelFormat::R8G8B8A8_UNORM:     return VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
+			case EPixelFormat::R32G32_FLOAT:       return VkFormat::VK_FORMAT_R32G32_SFLOAT;
 			case EPixelFormat::R32G32B32_FLOAT:    return VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
 			case EPixelFormat::R32G32B32A32_FLOAT: return VkFormat::VK_FORMAT_R32G32B32A32_SFLOAT;
 			case EPixelFormat::R32_UINT:           return VkFormat::VK_FORMAT_R32_UINT;

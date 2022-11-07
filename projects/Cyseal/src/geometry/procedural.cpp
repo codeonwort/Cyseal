@@ -18,21 +18,20 @@ namespace ProceduralGeometry
 		const float segW = sizeX / numCellsX, segH = sizeY / numCellsY;
 		const float x0 = -0.5f * sizeY, y0 = -0.5f * sizeY;
 
-		outGeometry.positions.resize(numVertices);
-		outGeometry.normals.resize(numVertices);
-		//outGeometry.uvs.resize(numVertices);
+		outGeometry.initNumVertices(numVertices);
 		outGeometry.indices.resize(numCellsX * numCellsY * 6);
 
 		auto& positions = outGeometry.positions;
 		auto& normals = outGeometry.normals;
+		auto& texcoords = outGeometry.texcoords;
 		auto& indices = outGeometry.indices;
 
 		size_t k = 0;
 		for (auto i = 0u; i <= numCellsX; i++) {
 			for (auto j = 0u; j <= numCellsY; j++) {
 				positions[k] = vec3(x0 + segW * j, y0 + segH * i, 0.0f);
-				//uvs[k] = vec2((float)j / numCellsX, (float)i / numCellsY);
-				//uvs[k] = vec2((float)j, (float)i);
+				//texcoords[k] = vec2((float)j / numCellsX, (float)i / numCellsY);
+				texcoords[k] = vec2((float)j, (float)i);
 				normals[k] = vec3(0.0f, 0.0f, 1.0f);
 				k++;
 			}
@@ -66,6 +65,8 @@ namespace ProceduralGeometry
 			}
 		}
 
+		outGeometry.finalize();
+
 		// #todo-wip: CCW rule
 #if 0
 		for (uint32 i = 0; i < indices.size(); i += 3)
@@ -83,9 +84,11 @@ namespace ProceduralGeometry
 		std::map<int64, int32> middlePointIndexCache;
 		int32 index = 0;
 
+		std::vector<vec3> tempPositions;
+
 		auto addVertex = [&](const vec3& v) -> int32
 		{
-			outGeometry.positions.push_back(normalize(v));
+			tempPositions.push_back(normalize(v));
 			return index++;
 		};
 
@@ -104,8 +107,8 @@ namespace ProceduralGeometry
 			}
 
 			// not in cache, calculate it
-			vec3 point1 = outGeometry.positions[p1];
-			vec3 point2 = outGeometry.positions[p2];
+			vec3 point1 = tempPositions[p1];
+			vec3 point2 = tempPositions[p2];
 			vec3 middle(
 				(point1.x + point2.x) / 2.0f,
 				(point1.y + point2.y) / 2.0f,
@@ -197,13 +200,21 @@ namespace ProceduralGeometry
 		}
 
 		// done, now add triangles to mesh
+		outGeometry.initNumVertices(tempPositions.size());
+		for (size_t i = 0; i < tempPositions.size(); ++i)
+		{
+			outGeometry.positions[i] = tempPositions[i];
+			outGeometry.normals[i] = normalize(tempPositions[i]);
+			outGeometry.texcoords[i].x = 0.5f * outGeometry.normals[i].x + 0.5f;
+			outGeometry.texcoords[i].y = 0.5f * outGeometry.normals[i].y + 0.5f;
+		}
 		for (const auto& tri : faces)
 		{
 			outGeometry.indices.push_back(tri.v1);
 			outGeometry.indices.push_back(tri.v2);
 			outGeometry.indices.push_back(tri.v3);
 		}
-
+		outGeometry.finalize();
 	}
 
 	void spikeBall(uint32 subdivisions, float phase, float peak, Geometry& outGeometry)
@@ -242,6 +253,7 @@ namespace ProceduralGeometry
 		{
 			outGeometry.normals[i] = normalize(outGeometry.normals[i]);
 		}
+		outGeometry.finalize();
 	}
 
 } // end of namespace ProceduralGeometry

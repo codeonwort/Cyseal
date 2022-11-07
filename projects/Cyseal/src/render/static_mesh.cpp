@@ -15,12 +15,18 @@ StaticMesh::~StaticMesh()
 	//}
 }
 
-void StaticMesh::addSection(uint32 lod, VertexBuffer* positionBuffer, IndexBuffer* indexBuffer, Material* material)
+void StaticMesh::addSection(
+	uint32 lod,
+	VertexBuffer* positionBuffer,
+	VertexBuffer* nonPositionBuffer,
+	IndexBuffer* indexBuffer,
+	Material* material)
 {
 	StaticMeshSection section;
-	section.positionBuffer = positionBuffer;
-	section.indexBuffer    = indexBuffer;
-	section.material       = material;
+	section.positionBuffer    = positionBuffer;
+	section.nonPositionBuffer = nonPositionBuffer;
+	section.indexBuffer       = indexBuffer;
+	section.material          = material;
 
 	if (LODs.size() <= lod)
 	{

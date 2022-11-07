@@ -40,14 +40,19 @@ Material getMaterialData() { return materialConstants[getObjectId()]; }
 
 struct VertexInput
 {
-    float3 posL : POSITION;
+    // All in model space
+    float3 position   : POSITION;
+    float3 normal     : NORMAL;
+    float2 texcoord   : TEXCOORD0;
 };
 
 struct Interpolants
 {
-    float4 posH : SV_POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXCOORD0;
+    float4 svPosition : SV_POSITION;
+
+    float3 positionWS : POSITION;   // in world space
+    float3 normalWS   : NORMAL;     // in world space
+    float2 texcoord   : TEXCOORD0;
 };
 
 Interpolants mainVS(VertexInput input)
@@ -57,12 +62,16 @@ Interpolants mainVS(VertexInput input)
     Material material = getMaterialData();
 
     float4x4 MVP = mul(material.modelMatrix, sceneUniform.viewProjMatrix);
-    output.posH = mul(float4(input.posL, 1.0), MVP);
+    output.svPosition = mul(float4(input.position, 1.0), MVP);
 
-    output.normal = normalize(input.posL);
+    output.positionWS = mul(float4(input.position, 1.0), material.modelMatrix).xyz;
 
-    // todo-wip: Bind a vertex buffer for UV
-    output.uv = frac(input.posL.xy);
+    // #todo-shader: Should renormalize if model matrix has non-uniform scaling
+    // I can't find float4x4 -> float3x3 conversion in MSDN??? what???
+    // Should be normalize(mul(input.normal, transpose(inverse(modelMatrix3x3))));
+    output.normalWS = normalize(mul(float4(input.normal, 0.0), material.modelMatrix).xyz);
+
+    output.texcoord = input.texcoord;
 
     return output;
 }
@@ -75,10 +84,10 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     Material material = getMaterialData();
 
     // Variables
-    float3 N = normalize(interpolants.normal);
+    float3 N = normalize(interpolants.normalWS);
 
     // Material properties
-    float3 albedo = albedoTexture.SampleLevel(albedoSampler, interpolants.uv, 0.0).rgb;
+    float3 albedo = albedoTexture.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
     albedo *= material.albedoMultiplier.rgb;
 
     // Lighting

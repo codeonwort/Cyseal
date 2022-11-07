@@ -89,6 +89,7 @@
     <ClInclude Include="src\core\platform.h" />
     <ClInclude Include="src\core\quaternion.h" />
     <ClInclude Include="src\core\types.h" />
+    <ClInclude Include="src\core\vec2.h" />
     <ClInclude Include="src\core\vec3.h" />
     <ClInclude Include="src\core\win\windows_application.h" />
     <ClInclude Include="src\core\win\windows_critical_section.h" />

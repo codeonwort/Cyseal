@@ -31,14 +31,14 @@
 #define RAYTRACING_TIER      ERayTracingTier::Tier_1_0
 #define WINDOW_TYPE          EWindowType::WINDOWED
 
-// #todo: Did I implement left-handedness?
+// #todo-wip: Did I implement left-handedness?
 //        It's been too long I worked on this project...
-#define CAMERA_POSITION  vec3(0.0f, 0.0f, -20.0f) // Outward from monitor?
-#define CAMERA_LOOKAT    vec3(0.0f, 0.0f, 0.0f)
-#define CAMERA_UP        vec3(0.0f, 1.0f, 0.0f)
-#define CAMERA_FOV_Y     70.0f
-#define CAMERA_Z_NEAR    1.0f
-#define CAMERA_Z_FAR     10000.0f
+#define CAMERA_POSITION      vec3(0.0f, 0.0f, -20.0f) // Outward from monitor?
+#define CAMERA_LOOKAT        vec3(0.0f, 0.0f, 0.0f)
+#define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
+#define CAMERA_FOV_Y         70.0f
+#define CAMERA_Z_NEAR        1.0f
+#define CAMERA_Z_FAR         10000.0f
 
 #define MESH_ROWS            10
 #define MESH_COLS            10
@@ -162,38 +162,28 @@ void TestApplication::createResources()
 		}
 	}
 
-	float* vertexDataLODs[NUM_GEOM_ASSETS][NUM_LODs];
-	uint32* indexDataLODs[NUM_GEOM_ASSETS][NUM_LODs];
-	for (uint32 geomIx = 0; geomIx < NUM_GEOM_ASSETS; ++geomIx)
-	{
-		for (uint32 lod = 0; lod < NUM_LODs; ++lod)
-		{
-			vertexDataLODs[geomIx][lod] = reinterpret_cast<float*>(geometriesLODs[geomIx][lod].positions.data());
-			indexDataLODs[geomIx][lod] = geometriesLODs[geomIx][lod].indices.data();
-		}
-	}
-
-	VertexBuffer* vertexBufferLODs[NUM_GEOM_ASSETS][NUM_LODs];
+	VertexBuffer* positionBufferLODs[NUM_GEOM_ASSETS][NUM_LODs];
+	VertexBuffer* nonPositionBufferLODs[NUM_GEOM_ASSETS][NUM_LODs];
 	IndexBuffer* indexBufferLODs[NUM_GEOM_ASSETS][NUM_LODs];
-
 	ENQUEUE_RENDER_COMMAND(UploadIcosphereBuffers)(
 		[NUM_GEOM_ASSETS, NUM_LODs, &geometriesLODs,
-		&vertexDataLODs, &indexDataLODs,
-		&vertexBufferLODs, &indexBufferLODs](RenderCommandList& commandList)
+		&positionBufferLODs, &nonPositionBufferLODs, &indexBufferLODs](RenderCommandList& commandList)
 		{
 			for (uint32 geomIx = 0; geomIx < NUM_GEOM_ASSETS; ++geomIx)
 			{
 				for (uint32 lod = 0; lod < NUM_LODs; ++lod)
 				{
-					uint32 vertexBufferBytes = geometriesLODs[geomIx][lod].getPositionBufferTotalBytes();
-					uint32 indexBufferBytes = geometriesLODs[geomIx][lod].getIndexBufferTotalBytes();
-					//vertexBufferLODs[geomIx][lod] = gRenderDevice->createVertexBuffer(vertexBufferBytes);
-					//indexBufferLODs[geomIx][lod] = gRenderDevice->createIndexBuffer(indexBufferBytes);
-					vertexBufferLODs[geomIx][lod] = gVertexBufferPool->suballocate(vertexBufferBytes);
-					indexBufferLODs[geomIx][lod] = gIndexBufferPool->suballocate(indexBufferBytes);
+					const Geometry& G = geometriesLODs[geomIx][lod];
+					//positionBufferLODs[geomIx][lod] = gRenderDevice->createVertexBuffer(G.getPositionBufferTotalBytes());
+					//nonPositionBufferLODs[geomIx][lod] = gRenderDevice->createVertexBuffer(G.getNonPositionBufferTotalBytes());
+					//indexBufferLODs[geomIx][lod] = gRenderDevice->createIndexBuffer(G.getIndexBufferTotalBytes());
+					positionBufferLODs[geomIx][lod] = gVertexBufferPool->suballocate(G.getPositionBufferTotalBytes());
+					nonPositionBufferLODs[geomIx][lod] = gVertexBufferPool->suballocate(G.getNonPositionBufferTotalBytes());
+					indexBufferLODs[geomIx][lod] = gIndexBufferPool->suballocate(G.getIndexBufferTotalBytes());
 
-					vertexBufferLODs[geomIx][lod]->updateData(&commandList, vertexDataLODs[geomIx][lod], sizeof(float) * 3);
-					indexBufferLODs[geomIx][lod]->updateData(&commandList, indexDataLODs[geomIx][lod], EPixelFormat::R32_UINT);
+					positionBufferLODs[geomIx][lod]->updateData(&commandList, G.getPositionBlob(), G.getPositionStride());
+					nonPositionBufferLODs[geomIx][lod]->updateData(&commandList, G.getNonPositionBlob(), G.getNonPositionStride());
+					indexBufferLODs[geomIx][lod]->updateData(&commandList, G.getIndexBlob(), G.getIndexFormat());
 				}
 			}
 		}
@@ -229,7 +219,13 @@ void TestApplication::createResources()
 				material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
 				material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
 				material->albedoMultiplier[2] = 0.0f;
-				staticMesh->addSection(lod, vertexBufferLODs[currentGeomIx][lod], indexBufferLODs[currentGeomIx][lod], material);
+
+				staticMesh->addSection(
+					lod,
+					positionBufferLODs[currentGeomIx][lod],
+					nonPositionBufferLODs[currentGeomIx][lod],
+					indexBufferLODs[currentGeomIx][lod],
+					material);
 			}
 
 			vec3 pos = MESH_GROUP_CENTER;
@@ -252,17 +248,20 @@ void TestApplication::createResources()
 		// #todo-wip: MVP is completely wrong if plane geometry is bigger than unit dimensions and I slightly move the ground?
 		ProceduralGeometry::plane(planeGeometry, 1.0f, 1.0f, 1, 1, ProceduralGeometry::EPlaneNormal::Y);
 
-		VertexBuffer* vertexBuffer;
+		VertexBuffer* positionBuffer;
+		VertexBuffer* nonPositionBuffer;
 		IndexBuffer* indexBuffer;
 		ENQUEUE_RENDER_COMMAND(UploadGroundMesh)(
-			[&planeGeometry, &vertexBuffer, &indexBuffer](RenderCommandList& commandList)
+			[&planeGeometry, &positionBuffer, &nonPositionBuffer, &indexBuffer](RenderCommandList& commandList)
 			{
-				vertexBuffer = gVertexBufferPool->suballocate(planeGeometry.getPositionBufferTotalBytes());
+				positionBuffer = gVertexBufferPool->suballocate(planeGeometry.getPositionBufferTotalBytes());
+				nonPositionBuffer = gVertexBufferPool->suballocate(planeGeometry.getNonPositionBufferTotalBytes());
 				indexBuffer = gIndexBufferPool->suballocate(planeGeometry.getIndexBufferTotalBytes());
 
 				// #todo-wip: Send vertex normals to IA
-				vertexBuffer->updateData(&commandList, planeGeometry.positions.data(), planeGeometry.getPositionStride());
-				indexBuffer->updateData(&commandList, planeGeometry.indices.data(), EPixelFormat::R32_UINT);
+				positionBuffer->updateData(&commandList, planeGeometry.getPositionBlob(), planeGeometry.getPositionStride());
+				nonPositionBuffer->updateData(&commandList, planeGeometry.getNonPositionBlob(), planeGeometry.getNonPositionStride());
+				indexBuffer->updateData(&commandList, planeGeometry.getIndexBlob(), planeGeometry.getIndexFormat());
 			}
 		);
 		FLUSH_RENDER_COMMANDS();
@@ -271,9 +270,9 @@ void TestApplication::createResources()
 		material->albedoTexture = albedoTexture;
 
 		ground = new StaticMesh;
-		ground->addSection(0, vertexBuffer, indexBuffer, material);
+		ground->addSection(0, positionBuffer, nonPositionBuffer, indexBuffer, material);
 		ground->getTransform().setPosition(vec3(0.0f, -10.0f, 0.0f));
-		ground->getTransform().setScale(10.0f);
+		ground->getTransform().setScale(100.0f);
 
 		scene.addStaticMesh(ground);
 	}

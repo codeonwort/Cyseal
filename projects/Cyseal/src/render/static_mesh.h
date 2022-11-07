@@ -10,6 +10,7 @@ class Material;
 struct StaticMeshSection
 {
 	VertexBuffer* positionBuffer = nullptr;
+	VertexBuffer* nonPositionBuffer = nullptr;
 	IndexBuffer*  indexBuffer = nullptr;
 	Material*     material = nullptr;
 };
@@ -24,7 +25,12 @@ class StaticMesh
 public:
 	virtual ~StaticMesh();
 
-	void addSection(uint32 lod, VertexBuffer* positionBuffer, IndexBuffer* indexBuffer, Material* material);
+	void addSection(
+		uint32 lod,
+		VertexBuffer* positionBuffer,
+		VertexBuffer* nonPositionBuffer,
+		IndexBuffer* indexBuffer,
+		Material* material);
 
 	inline const std::vector<StaticMeshSection>& getSections(uint32 lod) const
 	{
