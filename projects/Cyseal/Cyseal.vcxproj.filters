@@ -231,6 +231,9 @@
     <ClInclude Include="src\core\vec2.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\geometry\transform.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -363,6 +366,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\geometry\procedural.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geometry\transform.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

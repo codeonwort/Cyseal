@@ -86,7 +86,8 @@ void TestApplication::onTick(float deltaSeconds)
 		elapsed += deltaSeconds;
 		vec3 posDelta = vec3(10.0f * sinf(elapsed), 0.0f, 5.0f * cosf(elapsed));
 		//camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
-		ground->getTransform().setScale(1.0f + 0.5f * cosf(elapsed));
+		ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
+		ground->getTransform().setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
 	}
 
 	// #todo: Move rendering loop to engine

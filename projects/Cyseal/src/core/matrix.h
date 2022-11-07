@@ -108,34 +108,3 @@ struct Float4x4
 		m[3][3] = M.m[3][3];
 	}
 };
-
-//////////////////////////////////////////////////////////////////////////
-
-class Transform
-{
-
-public:
-	Transform()
-		: dirty(false)
-	{
-	}
-
-	void setPosition(const vec3& newPosition);
-	void setScale(float newScale);
-	void setScale(const vec3& newScale);
-
-	inline const Matrix& getMatrix() const { updateMatrix(); return m; }
-	inline Matrix& getMatrix() { updateMatrix(); return m; }
-	const float* getMatrixData() const;
-
-private:
-	void updateMatrix() const;
-
-	vec3 position;
-	// vec3 rotation; // #todo-matrix: Rotator
-	vec3 scale;
-
-	mutable bool dirty;
-	mutable Matrix m;
-
-};

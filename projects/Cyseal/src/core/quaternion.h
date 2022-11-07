@@ -52,13 +52,16 @@ public:
 		float denom = norm();
 		denom *= denom;
 
-		return denom * conjugate();
+		quaternion conj = conjugate();
+		conj *= denom;
+		return conj;
 	}
 
-	Matrix toMatrix() const;
+	inline Matrix toMatrix() const;
 
 	inline quaternion& operator+=(const quaternion& other);
 	inline quaternion& operator*=(const quaternion& other);
+	inline quaternion& operator*=(float t);
 
 };
 
@@ -85,6 +88,15 @@ Matrix quaternion::toMatrix() const
 	M.m[3][3] = 1.0f;
 
 	return M;
+}
+
+quaternion& quaternion::operator*=(float t)
+{
+	x *= t;
+	y *= t;
+	z *= t;
+	w *= t;
+	return *this;
 }
 
 quaternion& quaternion::operator+=(const quaternion& other)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/core_minimal.h"
+#include "geometry/transform.h"
 #include <vector>
 
 class VertexBuffer;
