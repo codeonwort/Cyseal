@@ -25,7 +25,7 @@ struct SceneUniform
 
 ConstantBuffer<IdConstant> objectConstants : register(b0);
 ConstantBuffer<SceneUniform> sceneUniform : register(b1);
-// #todo-shader: It seems glslangValidator can't translate HLSL unbound array.
+// #todo-shader: It seems glslangValidator can't translate HLSL unbounded array.
 ConstantBuffer<Material> materialConstants[] : register(b2);
 
 Texture2D albedoTexture : register(t0);

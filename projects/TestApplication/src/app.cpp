@@ -5,6 +5,7 @@
 #include "render/gpu_resource.h"
 #include "render/vertex_buffer_pool.h"
 #include "geometry/primitive.h"
+#include "geometry/procedural.h"
 #include "loader/image_loader.h"
 
 #include <algorithm>
@@ -130,8 +131,8 @@ void TestApplication::createResources()
 	{
 		const float phase = Cymath::randFloatRange(0.0f, 6.28f);
 		const float spike = Cymath::randFloatRange(0.0f, 1.0f);
-		GeometryGenerator::spikeBall(3, phase, spike, geometriesLODs[i][0]);
-		GeometryGenerator::spikeBall(1, phase, spike, geometriesLODs[i][1]);
+		ProceduralGeometry::spikeBall(3, phase, spike, geometriesLODs[i][0]);
+		ProceduralGeometry::spikeBall(1, phase, spike, geometriesLODs[i][1]);
 		//GeometryGenerator::icosphere(3, icospheres[0]);
 		//GeometryGenerator::icosphere(1, geometriesLOD1);
 	}
