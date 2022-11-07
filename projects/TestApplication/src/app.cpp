@@ -31,9 +31,7 @@
 #define RAYTRACING_TIER      ERayTracingTier::Tier_1_0
 #define WINDOW_TYPE          EWindowType::WINDOWED
 
-// #todo-wip: Did I implement left-handedness?
-//        It's been too long I worked on this project...
-#define CAMERA_POSITION      vec3(0.0f, 0.0f, -20.0f) // Outward from monitor?
+#define CAMERA_POSITION      vec3(0.0f, 0.0f, 20.0f)
 #define CAMERA_LOOKAT        vec3(0.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
 #define CAMERA_FOV_Y         70.0f
@@ -42,7 +40,7 @@
 
 #define MESH_ROWS            10
 #define MESH_COLS            10
-#define MESH_GROUP_CENTER    vec3(0.0f, 0.0f, -1.0f)
+#define MESH_GROUP_CENTER    vec3(0.0f, 0.0f, 0.0f)
 #define MESH_SPACE_X         2.0f
 #define MESH_SPACE_Y         2.0f
 #define MESH_SCALE           0.5f
@@ -84,10 +82,11 @@ void TestApplication::onTick(float deltaSeconds)
 
 	// #todo-app: Control camera by user input
 	{
-		//static float elapsed = 0.0f;
-		//elapsed += deltaSeconds;
-		//vec3 posDelta = vec3(10.0f * sinf(elapsed), 0.0f, 5.0f * cosf(elapsed));
+		static float elapsed = 0.0f;
+		elapsed += deltaSeconds;
+		vec3 posDelta = vec3(10.0f * sinf(elapsed), 0.0f, 5.0f * cosf(elapsed));
 		//camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
+		ground->getTransform().setScale(1.0f + 0.5f * cosf(elapsed));
 	}
 
 	// #todo: Move rendering loop to engine
@@ -133,8 +132,8 @@ void TestApplication::createResources()
 		const float spike = Cymath::randFloatRange(0.0f, 1.0f);
 		ProceduralGeometry::spikeBall(3, phase, spike, geometriesLODs[i][0]);
 		ProceduralGeometry::spikeBall(1, phase, spike, geometriesLODs[i][1]);
-		//GeometryGenerator::icosphere(3, icospheres[0]);
-		//GeometryGenerator::icosphere(1, geometriesLOD1);
+		//ProceduralGeometry::icosphere(3, geometriesLODs[i][0]);
+		//ProceduralGeometry::icosphere(1, geometriesLODs[i][1]);
 	}
 
 	// #todo: Unload image memory when GPU upload is done.
@@ -245,8 +244,7 @@ void TestApplication::createResources()
 	// Ground
 	{
 		Geometry planeGeometry;
-		// #todo-wip: MVP is completely wrong if plane geometry is bigger than unit dimensions and I slightly move the ground?
-		ProceduralGeometry::plane(planeGeometry, 1.0f, 1.0f, 1, 1, ProceduralGeometry::EPlaneNormal::Y);
+		ProceduralGeometry::plane(planeGeometry, 100.0f, 100.0f, 1, 1, ProceduralGeometry::EPlaneNormal::Y);
 
 		VertexBuffer* positionBuffer;
 		VertexBuffer* nonPositionBuffer;
@@ -258,7 +256,6 @@ void TestApplication::createResources()
 				nonPositionBuffer = gVertexBufferPool->suballocate(planeGeometry.getNonPositionBufferTotalBytes());
 				indexBuffer = gIndexBufferPool->suballocate(planeGeometry.getIndexBufferTotalBytes());
 
-				// #todo-wip: Send vertex normals to IA
 				positionBuffer->updateData(&commandList, planeGeometry.getPositionBlob(), planeGeometry.getPositionStride());
 				nonPositionBuffer->updateData(&commandList, planeGeometry.getNonPositionBlob(), planeGeometry.getNonPositionStride());
 				indexBuffer->updateData(&commandList, planeGeometry.getIndexBlob(), planeGeometry.getIndexFormat());
@@ -272,12 +269,11 @@ void TestApplication::createResources()
 		ground = new StaticMesh;
 		ground->addSection(0, positionBuffer, nonPositionBuffer, indexBuffer, material);
 		ground->getTransform().setPosition(vec3(0.0f, -10.0f, 0.0f));
-		ground->getTransform().setScale(100.0f);
 
 		scene.addStaticMesh(ground);
 	}
 
-	scene.sun.direction = normalize(vec3(0.0f, -2.0f, 1.0f));
+	scene.sun.direction = normalize(vec3(0.0f, -1.0f, -1.0f));
 	scene.sun.illuminance = 10.0f * vec3(1.0f, 1.0f, 1.0f);
 }
 

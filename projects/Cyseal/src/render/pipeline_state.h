@@ -111,7 +111,7 @@ struct RasterizerDesc
 {
 	EFillMode fillMode                                = EFillMode::Fill;
 	ECullMode cullMode                                = ECullMode::Back;
-	bool frontCCW                                     = false;
+	bool frontCCW                                     = true; // NOTE: D3D12 uses CW by default but I'll use CCW.
 	int32 depthBias                                   = 0;
 	float depthBiasClamp                              = 0.0f;
 	float slopeScaledDepthBias                        = 0.0f;

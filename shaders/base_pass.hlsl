@@ -90,7 +90,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     float3 albedo = albedoTexture.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
     albedo *= material.albedoMultiplier.rgb;
 
-    // Lighting
+    // Direct lighting
     float3 diffuse = float3(0.0, 0.0, 0.0);
     float3 specular = float3(0.0, 0.0, 0.0);
     {
@@ -100,6 +100,9 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
         float NdotL = max(0.0, dot(N, Wi));
         diffuse += albedo * Li * NdotL;
     }
+
+    // Fake indirect lighting to distinguish with black background.
+    diffuse += float3(0.02, 0.02, 0.02);
 
     float3 outLuminance = diffuse + specular;
     //float opacity = material.color.a;

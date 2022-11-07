@@ -11,3 +11,7 @@ ex) When looking at the monitor, if right is +X and up is +Y, then outward from 
 World position unit is **centimeter**.
 
 Sun light is defined by **illuminance** and its unit is **lux**. [(Reference)](https://www.realtimerendering.com/blog/physical-units-for-lights/)
+
+## Winding order
+
+Meshes are assumed to be **backface culled** and **front face is counterclockwise**.

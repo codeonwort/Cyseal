@@ -66,16 +66,6 @@ namespace ProceduralGeometry
 		}
 
 		outGeometry.finalize();
-
-		// #todo-wip: CCW rule
-#if 0
-		for (uint32 i = 0; i < indices.size(); i += 3)
-		{
-			uint32 temp = indices[i + 1];
-			indices[i + 1] = indices[i + 2];
-			indices[i + 2] = temp;
-		}
-#endif
 	}
 
 	// http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
@@ -210,6 +200,7 @@ namespace ProceduralGeometry
 		}
 		for (const auto& tri : faces)
 		{
+			// CCW winding
 			outGeometry.indices.push_back(tri.v1);
 			outGeometry.indices.push_back(tri.v2);
 			outGeometry.indices.push_back(tri.v3);

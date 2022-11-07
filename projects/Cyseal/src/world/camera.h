@@ -11,9 +11,11 @@ public:
 
 	void lookAt(const vec3& origin, const vec3& target, const vec3& up);
 
+	inline vec3 getPosition() const { return position; }
+
 	inline const Matrix& getViewMatrix() const
 	{
-		return view.getMatrix();
+		return view;
 	}
 
 	inline const Matrix& getProjMatrix() const
@@ -30,7 +32,9 @@ public:
 private:
 	void updateViewProjection() const;
 
-	Transform view;
+	vec3 position;
+
+	Matrix view;
 	Matrix projection;
 
 	mutable Matrix viewProjection;
