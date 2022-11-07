@@ -1,9 +1,81 @@
 #include "procedural.h"
 #include "core/cymath.h"
+#include "core/assertion.h"
 #include <map>
 
 namespace ProceduralGeometry
 {
+
+	void plane(
+		Geometry& outGeometry,
+		float sizeX, float sizeY,
+		uint32 numCellsX /*= 1*/, uint32 numCellsY /*= 1*/,
+		EPlaneNormal up /*= EPlaneNormal::Z*/)
+	{
+		CHECK(numCellsX > 0 && numCellsY > 0);
+
+		const uint32 numVertices = (numCellsX + 1) * (numCellsY + 1);
+		const float segW = sizeX / numCellsX, segH = sizeY / numCellsY;
+		const float x0 = -0.5f * sizeY, y0 = -0.5f * sizeY;
+
+		outGeometry.positions.resize(numVertices);
+		outGeometry.normals.resize(numVertices);
+		//outGeometry.uvs.resize(numVertices);
+		outGeometry.indices.resize(numCellsX * numCellsY * 6);
+
+		auto& positions = outGeometry.positions;
+		auto& normals = outGeometry.normals;
+		auto& indices = outGeometry.indices;
+
+		size_t k = 0;
+		for (auto i = 0u; i <= numCellsX; i++) {
+			for (auto j = 0u; j <= numCellsY; j++) {
+				positions[k] = vec3(x0 + segW * j, y0 + segH * i, 0.0f);
+				//uvs[k] = vec2((float)j / numCellsX, (float)i / numCellsY);
+				//uvs[k] = vec2((float)j, (float)i);
+				normals[k] = vec3(0.0f, 0.0f, 1.0f);
+				k++;
+			}
+		}
+
+		if (up == EPlaneNormal::X) {
+			for (auto i = 0u; i < positions.size(); ++i) {
+				positions[i].z = -positions[i].x;
+				positions[i].x = 0.0f;
+				normals[i] = vec3(1.0f, 0.0f, 0.0f);
+			}
+		} else if (up == EPlaneNormal::Y) {
+			for (auto i = 0u; i < positions.size(); ++i) {
+				positions[i].z = -positions[i].y;
+				positions[i].y = 0.0f;
+				normals[i] = vec3(0.0f, 1.0f, 0.0f);
+			}
+		}
+
+		k = 0;
+		for (auto i = 0u; i < numCellsY; i++) {
+			auto baseY = i * (numCellsX + 1);
+			for (auto j = 0u; j < numCellsX; j++) {
+				indices[k] = baseY + j;
+				indices[k + 1] = baseY + j + 1;
+				indices[k + 2] = baseY + j + (numCellsX + 1);
+				indices[k + 3] = baseY + j + 1;
+				indices[k + 4] = baseY + j + (numCellsX + 1) + 1;
+				indices[k + 5] = baseY + j + (numCellsX + 1);
+				k += 6;
+			}
+		}
+
+		// #todo-wip: CCW rule
+#if 0
+		for (uint32 i = 0; i < indices.size(); i += 3)
+		{
+			uint32 temp = indices[i + 1];
+			indices[i + 1] = indices[i + 2];
+			indices[i + 2] = temp;
+		}
+#endif
+	}
 
 	// http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
 	void icosphere(uint32 iterations, Geometry& outGeometry)

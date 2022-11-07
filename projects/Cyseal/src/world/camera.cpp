@@ -30,18 +30,22 @@ void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
 	vec3 X = normalize(cross(up, Z));    // right
 	vec3 Y = cross(Z, X);                // up
 
-	//float V[16] = {
-	//	X.x,             Y.x,             Z.x,             0.0f,
-	//	X.y,             Y.y,             Z.y,             0.0f,
-	//	X.z,             Y.z,             Z.z,             0.0f,
-	//	-dot(X, target), -dot(Y, target), -dot(Z, target), 1.0f
-	//};
+	// #todo-wip: lookAt matrix (LH? RH?)
+#if 1
+	float V[16] = {
+		X.x,             X.y,             X.z,             0.0f,
+		Y.x,             Y.y,             Y.z,             0.0f,
+		Z.x,             Z.y,             Z.z,             0.0f,
+		-dot(X, origin), -dot(Y, origin), -dot(Z, origin), 1.0f
+	};
+#else
 	float V[16] = {
 		X.x,      X.y,      X.z,         0.0f,
 		Y.x,      Y.y,      Y.z,         0.0f,
 		Z.x,      Z.y,      Z.z,         0.0f,
 		-origin.x, -origin.y, -origin.z, 1.0f
 	};
+#endif
 	view.getMatrix().copyFrom(V);
 
 	bDirty = true;

@@ -185,8 +185,8 @@ void TestApplication::createResources()
 			{
 				for (uint32 lod = 0; lod < NUM_LODs; ++lod)
 				{
-					uint32 vertexBufferBytes = (uint32)(geometriesLODs[geomIx][lod].positions.size() * 3 * sizeof(float));
-					uint32 indexBufferBytes = (uint32)(geometriesLODs[geomIx][lod].indices.size() * sizeof(uint32));
+					uint32 vertexBufferBytes = geometriesLODs[geomIx][lod].getPositionBufferTotalBytes();
+					uint32 indexBufferBytes = geometriesLODs[geomIx][lod].getIndexBufferTotalBytes();
 					//vertexBufferLODs[geomIx][lod] = gRenderDevice->createVertexBuffer(vertexBufferBytes);
 					//indexBufferLODs[geomIx][lod] = gRenderDevice->createIndexBuffer(indexBufferBytes);
 					vertexBufferLODs[geomIx][lod] = gVertexBufferPool->suballocate(vertexBufferBytes);
@@ -198,7 +198,7 @@ void TestApplication::createResources()
 			}
 		}
 	);
-	Texture*& texturePtr = texture;
+	Texture*& texturePtr = albedoTexture;
 	ENQUEUE_RENDER_COMMAND(CreateTexture)(
 		[&texturePtr, &loadData](RenderCommandList& commandList)
 		{
@@ -225,7 +225,7 @@ void TestApplication::createResources()
 			for (uint32 lod = 0; lod < NUM_LODs; ++lod)
 			{
 				Material* material = new Material;
-				material->albedoTexture = texture;
+				material->albedoTexture = albedoTexture;
 				material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
 				material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
 				material->albedoMultiplier[2] = 0.0f;
@@ -240,10 +240,42 @@ void TestApplication::createResources()
 			staticMesh->getTransform().setScale(MESH_SCALE);
 
 			scene.addStaticMesh(staticMesh);
-			staticMeshes.push_back(staticMesh);
+			balls.push_back(staticMesh);
 
 			currentGeomIx = (currentGeomIx + 1) % NUM_GEOM_ASSETS;
 		}
+	}
+
+	// Ground
+	{
+		Geometry planeGeometry;
+		// #todo-wip: MVP is completely wrong if plane geometry is bigger than unit dimensions and I slightly move the ground?
+		ProceduralGeometry::plane(planeGeometry, 1.0f, 1.0f, 1, 1, ProceduralGeometry::EPlaneNormal::Y);
+
+		VertexBuffer* vertexBuffer;
+		IndexBuffer* indexBuffer;
+		ENQUEUE_RENDER_COMMAND(UploadGroundMesh)(
+			[&planeGeometry, &vertexBuffer, &indexBuffer](RenderCommandList& commandList)
+			{
+				vertexBuffer = gVertexBufferPool->suballocate(planeGeometry.getPositionBufferTotalBytes());
+				indexBuffer = gIndexBufferPool->suballocate(planeGeometry.getIndexBufferTotalBytes());
+
+				// #todo-wip: Send vertex normals to IA
+				vertexBuffer->updateData(&commandList, planeGeometry.positions.data(), planeGeometry.getPositionStride());
+				indexBuffer->updateData(&commandList, planeGeometry.indices.data(), EPixelFormat::R32_UINT);
+			}
+		);
+		FLUSH_RENDER_COMMANDS();
+
+		Material* material = new Material;
+		material->albedoTexture = albedoTexture;
+
+		ground = new StaticMesh;
+		ground->addSection(0, vertexBuffer, indexBuffer, material);
+		ground->getTransform().setPosition(vec3(0.0f, -10.0f, 0.0f));
+		ground->getTransform().setScale(10.0f);
+
+		scene.addStaticMesh(ground);
 	}
 
 	scene.sun.direction = normalize(vec3(0.0f, -2.0f, 1.0f));
@@ -252,9 +284,11 @@ void TestApplication::createResources()
 
 void TestApplication::destroyResources()
 {
-	for (uint32 i = 0; i < staticMeshes.size(); ++i)
+	for (uint32 i = 0; i < balls.size(); ++i)
 	{
-		delete staticMeshes[i];
+		delete balls[i];
 	}
-	staticMeshes.clear();
+	balls.clear();
+
+	delete ground;
 }

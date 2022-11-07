@@ -26,8 +26,9 @@ private:
 	Scene scene;
 	Camera camera;
 
-	Texture* texture;
-	std::vector<StaticMesh*> staticMeshes;
+	Texture* albedoTexture = nullptr;
+	std::vector<StaticMesh*> balls;
+	StaticMesh* ground = nullptr;
 
 	bool bViewportNeedsResize = false;
 	uint32 newViewportWidth = 0;
