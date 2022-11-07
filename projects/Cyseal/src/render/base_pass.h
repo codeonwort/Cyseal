@@ -22,7 +22,7 @@ private:
 	void bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloads);
 
 	void updateMaterialCBV(uint32 payloadID, void* payload, uint32 payloadSize);
-	void updateMaterialSRV(RenderCommandList* cmdList, uint32 payloadID, Material* material);
+	void updateMaterialSRV(RenderCommandList* cmdList, uint32 totalPayloads, uint32 payloadID, Material* material);
 
 private:
 	std::unique_ptr<PipelineState> pipelineState;
@@ -33,10 +33,6 @@ private:
 	std::vector<std::unique_ptr<ConstantBufferView>> materialCBVs;
 	std::unique_ptr<ConstantBufferView> sceneUniformCBV;
 
-	VertexInputLayout inputLayout;
-
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
 	// #todo-sampler: Maybe need a volatileSamplerHeap in similar way?
-
-	uint32 numPayloads = 0;
 };

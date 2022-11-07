@@ -119,11 +119,9 @@ void BasePass::initialize()
 	}
 
 	// Create input layout
-	{
-		inputLayout = {
+	VertexInputLayout inputLayout = {
 			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0}
-		};
-	}
+	};
 
 	// Load shader
 	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BasePassVS");
@@ -212,7 +210,7 @@ void BasePass::renderBasePass(
 			// rootParameterIndex, constant, destOffsetIn32BitValues
 			commandList->setGraphicsRootConstant32(0, payloadID, 0);
 			updateMaterialCBV(payloadID, &payload, sizeof(payload));
-			updateMaterialSRV(commandList, payloadID, section.material);
+			updateMaterialSRV(commandList, numVolatileDescriptors, payloadID, section.material);
 
 			commandList->iaSetVertexBuffers(0, 1, &section.positionBuffer);
 			commandList->iaSetIndexBuffer(section.indexBuffer);
@@ -225,8 +223,7 @@ void BasePass::renderBasePass(
 
 void BasePass::bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloads)
 {
-	numPayloads = inNumPayloads;
-	CHECK(numPayloads <= MAX_VOLATILE_DESCRIPTORS);
+	CHECK(inNumPayloads <= MAX_VOLATILE_DESCRIPTORS);
 
 	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
@@ -246,7 +243,7 @@ void BasePass::bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloa
 	cmdList->setGraphicsRootDescriptorTable(1, volatileHeap, 0);
 
 	// Material CBV
-	for (uint32 payloadId = 0; payloadId < numPayloads; ++payloadId)
+	for (uint32 payloadId = 0; payloadId < inNumPayloads; ++payloadId)
 	{
 		// #todo-wip: Oops... it's actually a bad idea to inject buffering to CBV :/
 		// I can't copy all descriptors for the current frame by single copyDescriptors() call.
@@ -265,9 +262,9 @@ void BasePass::bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloa
 	cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, 1);
 
 	// Material SRV
-	// #todo-renderer: SRV won't be updated per drawcall!
+	// #todo-wip: SRV won't be updated per drawcall!
 	// But unbound CBV is already problematic for HLSL -> SPIR-V translation...
-	cmdList->setGraphicsRootDescriptorTable(3, volatileHeap, 1 + numPayloads);
+	cmdList->setGraphicsRootDescriptorTable(3, volatileHeap, 1 + inNumPayloads);
 }
 
 void BasePass::updateMaterialCBV(uint32 payloadID, void* payload, uint32 payloadSize)
@@ -276,7 +273,7 @@ void BasePass::updateMaterialCBV(uint32 payloadID, void* payload, uint32 payload
 	materialCBVs[payloadID]->upload(payload, payloadSize, frameIndex);
 }
 
-void BasePass::updateMaterialSRV(RenderCommandList* cmdList, uint32 payloadID, Material* material)
+void BasePass::updateMaterialSRV(RenderCommandList* cmdList, uint32 totalPayloads, uint32 payloadID, Material* material)
 {
 	Texture* albedo = gTextureManager->getSystemTextureGrey2D();
 	if (material) {
@@ -287,7 +284,7 @@ void BasePass::updateMaterialSRV(RenderCommandList* cmdList, uint32 payloadID, M
 	const uint32 numSRVs = 1; // For this drawcall
 	DescriptorHeap* volatileHeap = volatileViewHeaps[frameIndex].get();
 
-	uint32 descriptorStartOffset = 1 + numPayloads; // SRVs come right after scene uniform CBV and material CBVs
+	uint32 descriptorStartOffset = 1 + totalPayloads; // SRVs come right after scene uniform CBV and material CBVs
 	descriptorStartOffset += payloadID * numSRVs;
 	
 	gRenderDevice->copyDescriptors(
