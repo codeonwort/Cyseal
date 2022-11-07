@@ -15,13 +15,23 @@
 #define MAX_VOLATILE_DESCRIPTORS         1024         // (>= scene uniform cbv + material cbvs)
 #define CONSTANT_BUFFER_MEMORY_POOL_SIZE (640 * 1024) // 640 KiB
 
-// #todo: Acquire pixel format from Texture
+// #todo-renderer: Acquire pixel format from Texture
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 
 struct SceneUniform
 {
+	Float4x4 viewMatrix;
+	Float4x4 projMatrix;
+	Float4x4 viewProjMatrix;
+
 	vec3 sunDirection; float _pad0;
 	vec3 sunIlluminance; float _pad1;
+};
+
+struct MaterialConstants
+{
+	Float4x4 modelMatrix;
+	float albedoMultiplier[4];
 };
 
 void BasePass::initialize()
@@ -86,7 +96,7 @@ void BasePass::initialize()
 	for (uint32 i = 0; i < materialCBVs.size(); ++i)
 	{
 		materialCBVs[i] = std::unique_ptr<ConstantBufferView>(
-			constantBufferMemory->allocateCBV(cbvStagingHeap.get(), sizeof(BasePass::ConstantBufferPayload), swapchainCount));
+			constantBufferMemory->allocateCBV(cbvStagingHeap.get(), sizeof(MaterialConstants), swapchainCount));
 	}
 	sceneUniformCBV = std::unique_ptr<ConstantBufferView>(
 		constantBufferMemory->allocateCBV(cbvStagingHeap.get(), sizeof(SceneUniform), swapchainCount));
@@ -144,7 +154,7 @@ void BasePass::initialize()
 
 	// Cleanup
 	{
-		// #todo-renderer
+		// #todo-renderer: Delete shader object
 		//delete shader;
 	}
 }
@@ -154,9 +164,7 @@ void BasePass::renderBasePass(
 	const SceneProxy* scene,
 	const Camera* camera)
 {
-	// Draw static meshes
-	const Matrix viewProjection = camera->getMatrix();
-	// #todo: Support Other topologies
+	// #todo-renderer: Support other topologies
 	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
 
 	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
@@ -170,7 +178,7 @@ void BasePass::renderBasePass(
 	// #todo-lod: LOD selection
 	const uint32 LOD = 0;
 
-	// #todo-renderer: There might be duplicate descriptors between meshes. Needs a drawcall sorting mechanism.
+	// #todo-renderer: There might be duplicate descriptors between meshes. Need a drawcall sorting mechanism.
 	uint32 numVolatileDescriptors = 0;
 	for (const StaticMesh* mesh : scene->staticMeshes)
 	{
@@ -181,6 +189,9 @@ void BasePass::renderBasePass(
 	// Update scene uniform buffer
 	{
 		SceneUniform uboData;
+		uboData.viewMatrix = camera->getViewMatrix();
+		uboData.projMatrix = camera->getProjMatrix();
+		uboData.viewProjMatrix = camera->getViewProjMatrix();
 		uboData.sunDirection = scene->sun.direction;
 		uboData.sunIlluminance = scene->sun.illuminance;
 
@@ -193,12 +204,8 @@ void BasePass::renderBasePass(
 	{
 		for (const StaticMeshSection& section : mesh->getSections(LOD))
 		{
-			// #todo-wip: constant buffer
-			const Matrix model = mesh->getTransform().getMatrix();
-			const Matrix MVP = model * viewProjection;
-
-			BasePass::ConstantBufferPayload payload;
-			payload.mvpTransform = MVP;
+			MaterialConstants payload;
+			payload.modelMatrix = mesh->getTransform().getMatrix();
 			memcpy_s(payload.albedoMultiplier, sizeof(payload.albedoMultiplier),
 				section.material->albedoMultiplier, sizeof(section.material->albedoMultiplier));
 

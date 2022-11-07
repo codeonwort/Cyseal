@@ -20,6 +20,8 @@ void Camera::perspective(float fovY_degrees, float aspectWH, float n, float f)
 		0.0f,    0.0f,    -n * f / (f - n),   0.0f
 	};
 	projection.copyFrom(P);
+
+	bDirty = true;
 }
 
 void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
@@ -41,9 +43,15 @@ void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
 		-origin.x, -origin.y, -origin.z, 1.0f
 	};
 	view.getMatrix().copyFrom(V);
+
+	bDirty = true;
 }
 
 void Camera::updateViewProjection() const
 {
-	viewProjection = view.getMatrix() * projection;
+	if (bDirty)
+	{
+		viewProjection = view.getMatrix() * projection;
+		bDirty = false;
+	}
 }

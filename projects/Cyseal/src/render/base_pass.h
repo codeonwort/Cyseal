@@ -14,13 +14,6 @@ class Camera;
 class BasePass final
 {
 public:
-	struct ConstantBufferPayload
-	{
-		Float4x4 mvpTransform;
-		float albedoMultiplier[4];
-	};
-
-public:
 	void initialize();
 	void renderBasePass(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera);
 

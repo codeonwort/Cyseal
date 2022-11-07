@@ -9,12 +9,16 @@ struct IdConstant
 
 struct Material
 {
-    float4x4 mvpTransform;
+    float4x4 modelMatrix;
     float4 albedoMultiplier;
 };
 
 struct SceneUniform
 {
+    float4x4 viewMatrix;
+    float4x4 projMatrix;
+    float4x4 viewProjMatrix;
+
     float4 sunDirection;   // (x, y, z, ?)
     float4 sunIlluminance; // (r, g, b, ?)
 };
@@ -52,7 +56,8 @@ Interpolants mainVS(VertexInput input)
 
     Material material = getMaterialData();
 
-    output.posH = mul(float4(input.posL, 1.0), material.mvpTransform);
+    float4x4 MVP = mul(material.modelMatrix, sceneUniform.viewProjMatrix);
+    output.posH = mul(float4(input.posL, 1.0), MVP);
 
     output.normal = normalize(input.posL);
 
