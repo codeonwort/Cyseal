@@ -29,10 +29,10 @@ MeshData getMeshData() { return gpuSceneBuffer[pushConstants.objectId]; }
 struct Material
 {
     float4 albedoMultiplier;
-    // #todo-wip: Include SRV descriptor index here
+    uint   albedoTextureIndex; float3 _pad0;
 };
-ConstantBuffer<Material> materials[]        : register(b2);
-Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t1);
+ConstantBuffer<Material> materials[]        : register(b0, space1); // bindless in another space
+Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space1); // bindless in another space
 SamplerState albedoSampler                  : register(s0);
 
 Material getMaterial() { return materials[getObjectId()]; }
@@ -91,7 +91,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     float3 N = normalize(interpolants.normalWS);
 
     // Material properties
-    Texture2D albedoTex = albedoTextures[getObjectId()];
+    Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
     float3 albedo = albedoTex.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
     albedo *= material.albedoMultiplier.rgb;
 
