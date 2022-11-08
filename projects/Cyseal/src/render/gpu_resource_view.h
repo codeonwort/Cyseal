@@ -26,7 +26,7 @@ class DepthStencilView
 class ShaderResourceView
 {
 protected:
-	// #todo-wip: ByteBuffer? Or just buffer?
+	// #todo-resource-view: ByteBuffer? Or just buffer?
 	// Also no reason vertex/index buffers can't be used as SRV,
 	// though I've got no plan for such usage for now.
 	enum class ESource { Texture, StructuredBuffer };
@@ -48,7 +48,7 @@ protected:
 class UnorderedAccessView
 {
 protected:
-	// #todo-wip: Same problem with ShaderResourceView::ESource
+	// #todo-resource-view: Same problem with ShaderResourceView::ESource
 	enum class ESource { Texture, StructuredBuffer };
 public:
 	UnorderedAccessView(Texture* inOwner)

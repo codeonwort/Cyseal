@@ -41,6 +41,14 @@ enum class EGPUResourceState : uint32
 	VIDEO_PROCESS_WRITE        = 0x80000
 };
 
+// For StructuredBuffer
+enum class EBufferAccessFlags : uint32
+{
+	UAV       = 1 << 0,
+	CPU_WRITE = 1 << 1,
+};
+ENUM_CLASS_FLAGS(EBufferAccessFlags);
+
 enum class ETextureDimension : uint8
 {
     UNKNOWN = 0,
@@ -214,10 +222,12 @@ public:
 	//            -> Not good. See base_pass.cpp. Maybe instancing parameter will be better.
 	// 'bufferingCount' : Same as the swapchain image count if this CBV will be dynamic per frame.
 	// Returns null if out of memory.
-	virtual ConstantBufferView* allocateCBV(DescriptorHeap* descHeap, uint32 sizeInBytes, uint32 bufferingCount) = 0;
+	virtual ConstantBufferView* allocateCBV(
+		DescriptorHeap* descHeap,
+		uint32 sizeInBytes,
+		uint32 bufferingCount) = 0;
 };
 
-// #todo-wip: StructuredBuffer wrapper
 class StructuredBuffer : public GPUResource
 {
 public:

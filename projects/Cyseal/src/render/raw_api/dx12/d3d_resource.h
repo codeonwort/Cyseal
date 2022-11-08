@@ -72,7 +72,10 @@ private:
 class D3DStructuredBuffer : public StructuredBuffer
 {
 public:
-	void initialize(uint32 inNumElements, uint32 inStride);
+	void initialize(
+		uint32 inNumElements,
+		uint32 inStride,
+		EBufferAccessFlags inAccessFlags);
 
 	virtual void uploadData(
 		RenderCommandList* commandList,
@@ -94,6 +97,7 @@ public:
 
 private:
 	WRL::ComPtr<ID3D12Resource> rawBuffer;
+	EBufferAccessFlags accessFlags;
 	uint32 totalBytes = 0;
 	uint32 numElements = 0;
 	uint32 stride = 0;
@@ -106,6 +110,7 @@ private:
 	uint32 srvDescriptorIndex = 0xffffffff;
 	uint32 uavDescriptorIndex = 0xffffffff;
 
-	// #todo-wip: Don't wanna hold an upload heap :/
+	// #todo: Don't wanna hold an upload heap here...
+	// At least create it only if accessFlags has EBufferAccessFlags::CPU_WRITE.
 	WRL::ComPtr<ID3D12Resource> rawUploadBuffer;
 };

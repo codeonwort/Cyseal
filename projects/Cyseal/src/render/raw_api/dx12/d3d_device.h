@@ -36,7 +36,10 @@ public:
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
 
 	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) override;
-	virtual StructuredBuffer* createStructuredBuffer(uint32 numElements, uint32 stride) override;
+	virtual StructuredBuffer* createStructuredBuffer(
+		uint32 numElements,
+		uint32 stride,
+		EBufferAccessFlags accessFlags) override;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,

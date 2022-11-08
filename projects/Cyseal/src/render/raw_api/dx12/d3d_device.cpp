@@ -433,10 +433,13 @@ ConstantBuffer* D3DDevice::createConstantBuffer(uint32 totalBytes)
 	return cb;
 }
 
-StructuredBuffer* D3DDevice::createStructuredBuffer(uint32 numElements, uint32 stride)
+StructuredBuffer* D3DDevice::createStructuredBuffer(
+	uint32 numElements,
+	uint32 stride,
+	EBufferAccessFlags accessFlags)
 {
 	D3DStructuredBuffer* buffer = new D3DStructuredBuffer;
-	buffer->initialize(numElements, stride);
+	buffer->initialize(numElements, stride, accessFlags);
 	return buffer;
 }
 

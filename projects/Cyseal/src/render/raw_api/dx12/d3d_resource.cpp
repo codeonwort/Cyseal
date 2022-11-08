@@ -34,7 +34,10 @@ void D3DConstantBuffer::initialize(uint32 sizeInBytes)
 	CHECK(mapPtr != nullptr);
 }
 
-ConstantBufferView* D3DConstantBuffer::allocateCBV(DescriptorHeap* descHeap, uint32 sizeInBytes, uint32 bufferingCount)
+ConstantBufferView* D3DConstantBuffer::allocateCBV(
+	DescriptorHeap* descHeap,
+	uint32 sizeInBytes,
+	uint32 bufferingCount)
 {
 	CHECK(bufferingCount >= 1);
 
@@ -85,16 +88,23 @@ void D3DConstantBuffer::destroy()
 //////////////////////////////////////////////////////////////////////////
 // D3DStructuredBuffer
 
-void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
+void D3DStructuredBuffer::initialize(
+	uint32 inNumElements,
+	uint32 inStride,
+	EBufferAccessFlags inAccessFlags)
 {
 	numElements = inNumElements;
 	stride = inStride;
+	accessFlags = inAccessFlags;
+
 	totalBytes = numElements * stride;
 	CHECK((numElements > 0) && (stride > 0));
 
 	D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_NONE;
-	// #todo-wip: Allow only requested flags
-	resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	if (0 != (accessFlags & EBufferAccessFlags::UAV))
+	{
+		resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	}
 
 	// Create a committed resource
 	ID3D12Device* device = static_cast<D3DDevice*>(gRenderDevice)->getRawDevice();
@@ -106,22 +116,26 @@ void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
 		nullptr,
 		IID_PPV_ARGS(&rawBuffer)));
 
-	// #todo-wip: Temp upload buffer for StructuredBuffer
-	HR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(rawUploadBuffer.GetAddressOf())));
+	// Upload heap if required
+	if (0 != (accessFlags & EBufferAccessFlags::CPU_WRITE))
+	{
+		HR(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(rawUploadBuffer.GetAddressOf())));
+	}
 
 	// SRV
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
 		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // #todo-wip: Does it matter?
-		srvDesc.Buffer.FirstElement = 0; // #todo-wip: Map to whole range
+		// Shader4ComponentMapping must be D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING (0x1688) for structured buffers.
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Buffer.FirstElement = 0;
 		srvDesc.Buffer.NumElements = numElements;
 		srvDesc.Buffer.StructureByteStride = stride;
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
@@ -134,17 +148,21 @@ void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
 	}
 
 	// UAV
+	if (0 != (accessFlags & EBufferAccessFlags::UAV))
 	{
+		// #todo-renderdevice: UAV counter resource, but will it ever be needed?
+		// https://www.gamedev.net/forums/topic/711467-understanding-uav-counters/5444474/
+		ID3D12Resource* counterResource = NULL;
+		uint64 counterOffsetInBytes = 0;
+
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
 		uavDesc.Format = DXGI_FORMAT_UNKNOWN;
 		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 		uavDesc.Buffer.FirstElement = 0;
 		uavDesc.Buffer.NumElements = numElements;
 		uavDesc.Buffer.StructureByteStride = stride;
-		uavDesc.Buffer.CounterOffsetInBytes = 0; // #todo-wip: Counter?
+		uavDesc.Buffer.CounterOffsetInBytes = counterOffsetInBytes;
 		uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-
-		ID3D12Resource* counterResource = NULL; // #todo-wip: UAV CounterResource? What is this?
 
 		getD3DDevice()->allocateUAVHandle(uavHandle, uavDescriptorIndex);
 		device->CreateUnorderedAccessView(rawBuffer.Get(), counterResource, &uavDesc, uavHandle);
@@ -160,6 +178,7 @@ void D3DStructuredBuffer::uploadData(
 	uint32 sizeInBytes,
 	uint32 destOffsetInBytes)
 {
+	CHECK(0 != (accessFlags & EBufferAccessFlags::CPU_WRITE));
 	ID3D12GraphicsCommandList* cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 	
 	cmdList->ResourceBarrier(1,
@@ -191,5 +210,6 @@ ShaderResourceView* D3DStructuredBuffer::getSRV() const
 
 UnorderedAccessView* D3DStructuredBuffer::getUAV() const
 {
+	CHECK(0 != (accessFlags & EBufferAccessFlags::UAV));
 	return uav.get();
 }

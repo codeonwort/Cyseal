@@ -249,27 +249,8 @@ void BasePass::bindRootParameters(
 
 	cmdList->setGraphicsRootDescriptorSRV(2, gpuSceneBuffer->getSRV());
 
-	// Material CBV
-	// #todo-wip: Oops... it's actually a bad idea to inject buffering to CBV :/
-	// I can't copy all descriptors for the current frame by single copyDescriptors() call.
-#if 0
-	gRenderDevice->copyDescriptors(
-		inNumPayloads,
-		volatileHeap, 1,
-		cbvStagingHeap.get(), 0);
-#else
-	for (uint32 payloadId = 0; payloadId < inNumPayloads; ++payloadId)
-	{
-		gRenderDevice->copyDescriptors(
-			1,
-			volatileHeap, 1 + payloadId,
-			cbvStagingHeap.get(), materialCBVs[payloadId]->getDescriptorIndexInHeap(frameIndex));
-	}
-#endif
+	// Material CBV and SRV
 	cmdList->setGraphicsRootDescriptorTable(3, volatileHeap, 1);
-
-	// Material SRV
-	// #todo-wip: Descriptors are copied in updateMaterialSRV().
 	cmdList->setGraphicsRootDescriptorTable(4, volatileHeap, 1 + inNumPayloads);
 }
 
@@ -333,5 +314,10 @@ void BasePass::updateMaterialParameters(
 		payload.albedoTextureIndex = volatileAlbedoTextureIndex;
 
 		materialCBVs[payloadID]->upload(&payload, sizeof(payload), frameIndex);
+
+		gRenderDevice->copyDescriptors(
+			1,
+			volatileHeap, 1 + payloadID,
+			cbvStagingHeap.get(), materialCBVs[payloadID]->getDescriptorIndexInHeap(frameIndex));
 	}
 }

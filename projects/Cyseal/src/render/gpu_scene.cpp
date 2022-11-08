@@ -16,9 +16,15 @@ struct GPUSceneItem
 void GPUScene::initialize()
 {
 	gpuSceneBuffer = std::unique_ptr<StructuredBuffer>(
-		gRenderDevice->createStructuredBuffer(MAX_SCENE_ELEMENTS, sizeof(GPUSceneItem)));
+		gRenderDevice->createStructuredBuffer(
+			MAX_SCENE_ELEMENTS,
+			sizeof(GPUSceneItem),
+			EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV));
 	culledGpuSceneBuffer = std::unique_ptr<StructuredBuffer>(
-		gRenderDevice->createStructuredBuffer(MAX_SCENE_ELEMENTS, sizeof(GPUSceneItem)));
+		gRenderDevice->createStructuredBuffer(
+			MAX_SCENE_ELEMENTS,
+			sizeof(GPUSceneItem),
+			EBufferAccessFlags::UAV));
 
 	// Root signature
 	{
@@ -54,7 +60,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 {
 	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	uint32 numMeshSections = 0;
-	uint32 LOD = 0; // #todo-wip
+	uint32 LOD = 0; // #todo-wip: LOD
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
 		numMeshSections += (uint32)(scene->staticMeshes[i]->getSections(LOD).size());
