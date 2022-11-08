@@ -1,6 +1,8 @@
 #include "gpu_scene.h"
 #include "gpu_resource.h"
 #include "render_device.h"
+#include "static_mesh.h"
+#include "material.h"
 #include "core/matrix.h"
 #include "world/scene.h"
 
@@ -16,13 +18,16 @@ void GPUScene::initialize()
 {
 	gpuSceneBuffer = std::unique_ptr<StructuredBuffer>(
 		gRenderDevice->createStructuredBuffer(MAX_SCENE_ELEMENTS, sizeof(GPUSceneItem)));
+	culledGpuSceneBuffer = std::unique_ptr<StructuredBuffer>(
+		gRenderDevice->createStructuredBuffer(MAX_SCENE_ELEMENTS, sizeof(GPUSceneItem)));
 
 	// Root signature
 	{
-		constexpr uint32 NUM_ROOT_PARAMETERS = 2;
+		constexpr uint32 NUM_ROOT_PARAMETERS = 3;
 		RootParameter rootParameters[NUM_ROOT_PARAMETERS];
 		rootParameters[0].initAsConstants(0 /*b0*/, 0, 1); // numElements
-		rootParameters[1].initAsUAV(0, 0);                 // gpuSceneBuffer
+		rootParameters[1].initAsUAV(0 /*u0 */, 0);         // gpuSceneBuffer
+		rootParameters[2].initAsUAV(1 /*u1 */, 0);         // culledGpuSceneBuffer
 
 		RootSignatureDesc rootSigDesc(
 			NUM_ROOT_PARAMETERS,
@@ -48,37 +53,85 @@ void GPUScene::initialize()
 
 void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera)
 {
-	const uint32 numObjects = (uint32)scene->staticMeshes.size();
+	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
+	uint32 numMeshSections = 0;
+	uint32 LOD = 0; // #todo-wip
+	for (uint32 i = 0; i < numStaticMeshes; ++i)
+	{
+		numMeshSections += (uint32)(scene->staticMeshes[i]->getSections(LOD).size());
+	}
 	
-	// #todo-wip: Upload scene to GPU
-	// ...
-	
-	ResourceBarrier barrierBefore{
-		EResourceBarrierType::Transition,
-		gpuSceneBuffer.get(),
-		EGPUResourceState::COMMON,
-		EGPUResourceState::UNORDERED_ACCESS
+	// #todo-wip: Skip upload if scene has not changed
+	std::vector<GPUSceneItem> sceneData(numMeshSections);
+	uint32 k = 0;
+	for (uint32 i = 0; i < numStaticMeshes; ++i)
+	{
+		StaticMesh* sm = scene->staticMeshes[i];
+		uint32 smSections = (uint32)(sm->getSections(LOD).size());
+		for (uint32 j = 0; j < smSections; ++j)
+		{
+			const StaticMeshSection& section = sm->getSections(LOD)[j];
+			sceneData[k].modelTransform = sm->getTransform().getMatrix();
+			sceneData[k].albedoMultiplier.x = section.material->albedoMultiplier[0];
+			sceneData[k].albedoMultiplier.y = section.material->albedoMultiplier[1];
+			sceneData[k].albedoMultiplier.z = section.material->albedoMultiplier[2];
+			++k;
+		}
+	}
+	gpuSceneBuffer->uploadData(
+		commandList,
+		sceneData.data(),
+		(uint32)(sizeof(GPUSceneItem) * sceneData.size()),
+		0);
+
+	ResourceBarrier barriersBefore[] = {
+		{
+			EResourceBarrierType::Transition,
+			gpuSceneBuffer.get(),
+			EGPUResourceState::COMMON,
+			EGPUResourceState::UNORDERED_ACCESS
+		},
+		{
+			EResourceBarrierType::Transition,
+			culledGpuSceneBuffer.get(),
+			EGPUResourceState::COMMON,
+			EGPUResourceState::UNORDERED_ACCESS
+		}
 	};
-	commandList->resourceBarriers(1, &barrierBefore);
+	commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
 
 	commandList->setPipelineState(pipelineState.get());
 	commandList->setComputeRootSignature(rootSignature.get());
 
-	commandList->setComputeRootConstant32(0, numObjects, 0);
+	commandList->setComputeRootConstant32(0, numMeshSections, 0);
 	commandList->setComputeRootDescriptorUAV(1, gpuSceneBuffer->getUAV());
+	commandList->setComputeRootDescriptorUAV(2, culledGpuSceneBuffer->getUAV());
 
-	commandList->dispatchCompute(numObjects, 1, 1);
+	commandList->dispatchCompute(numMeshSections, 1, 1);
 
-	ResourceBarrier barrierAfter{
-		EResourceBarrierType::Transition,
-		gpuSceneBuffer.get(),
-		EGPUResourceState::UNORDERED_ACCESS,
-		EGPUResourceState::PIXEL_SHADER_RESOURCE
+	ResourceBarrier barriersAfter[] = {
+		{
+			EResourceBarrierType::Transition,
+			gpuSceneBuffer.get(),
+			EGPUResourceState::UNORDERED_ACCESS,
+			EGPUResourceState::PIXEL_SHADER_RESOURCE
+		},
+		{
+			EResourceBarrierType::Transition,
+			culledGpuSceneBuffer.get(),
+			EGPUResourceState::UNORDERED_ACCESS,
+			EGPUResourceState::PIXEL_SHADER_RESOURCE
+		}
 	};
-	commandList->resourceBarriers(1, &barrierAfter);
+	commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
 }
 
 StructuredBuffer* GPUScene::getGPUSceneBuffer() const
 {
 	return gpuSceneBuffer.get();
+}
+
+StructuredBuffer* GPUScene::getCulledGPUSceneBuffer() const
+{
+	return culledGpuSceneBuffer.get();
 }

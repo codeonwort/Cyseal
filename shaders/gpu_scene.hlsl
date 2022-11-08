@@ -8,9 +8,10 @@ struct PushConstants
     uint numElements;
 };
 
-ConstantBuffer<PushConstants> pushConstants : register(b0);
-//ConstantBuffer<SceneUniform> sceneUniform : register(b1);
-RWStructuredBuffer<MeshData> gpuSceneBuffer : register(u0);
+ConstantBuffer<PushConstants> pushConstants       : register(b0);
+//ConstantBuffer<SceneUniform> sceneUniform       : register(b1);
+RWStructuredBuffer<MeshData> gpuSceneBuffer       : register(u0);
+RWStructuredBuffer<MeshData> culledGpuSceneBuffer : register(u1);
 
 // ------------------------------------------------------------------------
 // Compute shader
@@ -24,10 +25,6 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
         return;
     }
 
-    MeshData meshData;
-    // #todo-wip: Fill meshData correctly
-    // ...
-    meshData.modelMatrix = float4x4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1);
-    meshData.albedoMultiplier = float4(1, 1, 1, 1);
-    gpuSceneBuffer[objectID] = meshData;
+    // #todo-wip: Cull something
+    culledGpuSceneBuffer[objectID] = gpuSceneBuffer[objectID];
 }

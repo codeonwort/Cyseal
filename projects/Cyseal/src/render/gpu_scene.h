@@ -16,10 +16,12 @@ public:
 	void renderGPUScene(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera);
 
 	StructuredBuffer* getGPUSceneBuffer() const;
+	StructuredBuffer* getCulledGPUSceneBuffer() const;
 
 private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
 
 	std::unique_ptr<StructuredBuffer> gpuSceneBuffer;
+	std::unique_ptr<StructuredBuffer> culledGpuSceneBuffer;
 };

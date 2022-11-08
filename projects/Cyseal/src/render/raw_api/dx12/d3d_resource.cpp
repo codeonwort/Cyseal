@@ -1,6 +1,7 @@
 #include "d3d_resource.h"
-#include "d3d_device.h"
 #include "d3d_resource_view.h"
+#include "d3d_device.h"
+#include "d3d_render_command.h"
 #include "render/render_device.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -105,6 +106,15 @@ void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
 		nullptr,
 		IID_PPV_ARGS(&rawBuffer)));
 
+	// #todo-wip: Temp upload buffer for StructuredBuffer
+	HR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(rawUploadBuffer.GetAddressOf())));
+
 	// SRV
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -123,6 +133,7 @@ void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
 		srv->setCPUHandle(srvHandle);
 	}
 
+	// UAV
 	{
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
 		uavDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -141,6 +152,36 @@ void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
 		uav = std::make_unique<D3DUnorderedAccessView>(this);
 		uav->setCPUHandle(uavHandle);
 	}
+}
+
+void D3DStructuredBuffer::uploadData(
+	RenderCommandList* commandList,
+	void* data,
+	uint32 sizeInBytes,
+	uint32 destOffsetInBytes)
+{
+	ID3D12GraphicsCommandList* cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
+	
+	cmdList->ResourceBarrier(1,
+		&CD3DX12_RESOURCE_BARRIER::Transition(rawBuffer.Get(),
+			D3D12_RESOURCE_STATE_COMMON,
+			D3D12_RESOURCE_STATE_COPY_DEST));
+
+	void* mapPtr;
+	rawUploadBuffer->Map(0, nullptr, &mapPtr);
+	::memcpy_s(mapPtr, sizeInBytes, data, sizeInBytes);
+	rawUploadBuffer->Unmap(0, nullptr);
+
+	cmdList->CopyBufferRegion(
+		rawBuffer.Get(), destOffsetInBytes,
+		rawUploadBuffer.Get(), 0,
+		sizeInBytes);
+
+	cmdList->ResourceBarrier(1,
+		&CD3DX12_RESOURCE_BARRIER::Transition(
+			rawBuffer.Get(),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			D3D12_RESOURCE_STATE_COMMON));
 }
 
 ShaderResourceView* D3DStructuredBuffer::getSRV() const

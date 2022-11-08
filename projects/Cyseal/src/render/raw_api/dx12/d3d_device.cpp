@@ -242,7 +242,7 @@ void D3DDevice::allocateUAVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32
 	const uint32 viewIndex = gTextureManager->allocateUAVIndex();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeDSV);
+	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeCBV_SRV_UAV);
 
 	outHandle = handle;
 	outDescriptorIndex = viewIndex;

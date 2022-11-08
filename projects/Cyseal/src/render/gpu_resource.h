@@ -221,6 +221,12 @@ public:
 class StructuredBuffer : public GPUResource
 {
 public:
+	virtual void uploadData(
+		RenderCommandList* commandList,
+		void* data,
+		uint32 sizeInBytes,
+		uint32 destOffsetInBytes) = 0;
+
 	virtual ShaderResourceView* getSRV() const = 0;
 	virtual UnorderedAccessView* getUAV() const = 0;
 

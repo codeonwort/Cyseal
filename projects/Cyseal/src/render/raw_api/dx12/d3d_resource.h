@@ -72,7 +72,13 @@ private:
 class D3DStructuredBuffer : public StructuredBuffer
 {
 public:
-	virtual void initialize(uint32 inNumElements, uint32 inStride);
+	void initialize(uint32 inNumElements, uint32 inStride);
+
+	virtual void uploadData(
+		RenderCommandList* commandList,
+		void* data,
+		uint32 sizeInBytes,
+		uint32 destOffsetInBytes) override;
 	
 	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const
 	{
@@ -99,4 +105,7 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE uavHandle = { NULL };
 	uint32 srvDescriptorIndex = 0xffffffff;
 	uint32 uavDescriptorIndex = 0xffffffff;
+
+	// #todo-wip: Don't wanna hold an upload heap :/
+	WRL::ComPtr<ID3D12Resource> rawUploadBuffer;
 };
