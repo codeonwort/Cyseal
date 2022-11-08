@@ -17,13 +17,15 @@ MeshData getMeshData() { return gpuSceneBuffer[pushConstants.objectId]; }
 // ------------------------------------------------------------------------
 // Resource bindings (material-specific)
 
-struct MaterialConstants
+struct Material
 {
     float4 albedoMultiplier;
 };
-ConstantBuffer<MaterialConstants> material  : register(b2);
+ConstantBuffer<Material> materials[]        : register(b2);
 Texture2D albedoTexture                     : register(t1);
 SamplerState albedoSampler                  : register(s0);
+
+Material getMaterial() { return materials[pushConstants.objectId]; }
 
 // ------------------------------------------------------------------------
 // Vertex shader
@@ -73,6 +75,7 @@ Interpolants mainVS(VertexInput input)
 float4 mainPS(Interpolants interpolants) : SV_TARGET
 {
     MeshData meshData = getMeshData();
+    Material material = getMaterial();
 
     // Variables
     float3 N = normalize(interpolants.normalWS);
@@ -86,7 +89,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     float3 specular = float3(0.0, 0.0, 0.0);
     {
         // Sun
-        float3 Li = sceneUniform.sunIlluminance.rgb; //5.0 * float3(1.0, 1.0, 1.0);
+        float3 Li = sceneUniform.sunIlluminance.rgb;
         float3 Wi = -sceneUniform.sunDirection.xyz;
         float NdotL = max(0.0, dot(N, Wi));
         diffuse += albedo * Li * NdotL;

@@ -267,8 +267,7 @@ void BasePass::bindRootParameters(
 			cbvStagingHeap.get(), materialCBVs[payloadId]->getDescriptorIndexInHeap(frameIndex));
 #endif
 	}
-	// #todo-wip: Wanna bind everything at once, but for now material CBV is updated per drawcall.
-	//cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, 1);
+	cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, 1);
 
 	// Material SRV
 	// #todo-wip: Wanna bind everything at once, but for now material SRV is updated per drawcall.
@@ -280,10 +279,7 @@ void BasePass::bindRootParameters(
 void BasePass::updateMaterialCBV(RenderCommandList* cmdList, uint32 payloadID, void* payload, uint32 payloadSize)
 {
 	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-	DescriptorHeap* volatileHeap = volatileViewHeaps[frameIndex].get();
-
 	materialCBVs[payloadID]->upload(payload, payloadSize, frameIndex);
-	cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, 1 + payloadID);
 }
 
 void BasePass::updateMaterialSRV(RenderCommandList* cmdList, uint32 totalPayloads, uint32 payloadID, Material* material)
