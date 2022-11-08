@@ -40,13 +40,15 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { NULL };
 };
 
-// #todo-wip: D3DUnorderedAccessView
 class D3DUnorderedAccessView : public UnorderedAccessView
 {
 public:
+	D3DUnorderedAccessView(Texture* inOwner) : UnorderedAccessView(inOwner) {}
+	D3DUnorderedAccessView(StructuredBuffer* inOwner) : UnorderedAccessView(inOwner) {}
+
 	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return cpuHandle; }
 	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE inHandle) { cpuHandle = inHandle; }
-	//D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress();
+	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress();
 private:
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { NULL };
 };

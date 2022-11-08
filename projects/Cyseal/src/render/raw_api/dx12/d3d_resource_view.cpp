@@ -27,3 +27,20 @@ D3D12_GPU_VIRTUAL_ADDRESS D3DShaderResourceView::getGPUVirtualAddress()
 	CHECK_NO_ENTRY();
 	return 0;
 }
+
+//////////////////////////////////////////////////////////////////////////
+// D3DUnorderedAccessView
+
+D3D12_GPU_VIRTUAL_ADDRESS D3DUnorderedAccessView::getGPUVirtualAddress()
+{
+	if (source == UnorderedAccessView::ESource::Texture)
+	{
+		return static_cast<D3DTexture*>(ownerTexture)->getGPUVirtualAddress();
+	}
+	else if (source == UnorderedAccessView::ESource::StructuredBuffer)
+	{
+		return static_cast<D3DStructuredBuffer*>(ownerStructuredBuffer)->getGPUVirtualAddress();
+	}
+	CHECK_NO_ENTRY();
+	return 0;
+}

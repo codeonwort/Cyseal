@@ -236,6 +236,18 @@ void D3DDevice::allocateDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32
 	outDescriptorIndex = viewIndex;
 }
 
+void D3DDevice::allocateUAVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
+{
+	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getUAVHeap())->getRaw();
+	const uint32 viewIndex = gTextureManager->allocateUAVIndex();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeDSV);
+
+	outHandle = handle;
+	outDescriptorIndex = viewIndex;
+}
+
 void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter)
 {
 	WRL::ComPtr<IDXGIAdapter1> adapter;

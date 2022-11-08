@@ -47,8 +47,22 @@ protected:
 
 class UnorderedAccessView
 {
+protected:
+	// #todo-wip: Same problem with ShaderResourceView::ESource
+	enum class ESource { Texture, StructuredBuffer };
 public:
-	virtual ~UnorderedAccessView() = default;
+	UnorderedAccessView(Texture* inOwner)
+		: ownerTexture(inOwner)
+		, source(ESource::Texture)
+	{}
+	UnorderedAccessView(StructuredBuffer* inOwner)
+		: ownerStructuredBuffer(inOwner)
+		, source(ESource::StructuredBuffer)
+	{}
+protected:
+	ESource source;
+	Texture* ownerTexture = nullptr;
+	StructuredBuffer* ownerStructuredBuffer = nullptr;
 };
 
 class ConstantBufferView

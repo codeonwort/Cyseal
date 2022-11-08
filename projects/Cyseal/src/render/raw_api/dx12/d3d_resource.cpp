@@ -104,7 +104,7 @@ void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
 	// SRV
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		srvDesc.Format = DXGI_FORMAT_UNKNOWN; // #todo-wip: unknown right?
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // #todo-wip: Does it matter?
 		srvDesc.Buffer.FirstElement = 0; // #todo-wip: Map to whole range
@@ -112,7 +112,6 @@ void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
 		srvDesc.Buffer.StructureByteStride = stride;
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-		// #todo-wip: Actually it abuses SRV heap for gTextureManager.
 		getD3DDevice()->allocateSRVHandle(srvHandle, srvDescriptorIndex);
 		device->CreateShaderResourceView(rawBuffer.Get(), &srvDesc, srvHandle);
 
@@ -120,9 +119,23 @@ void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
 		srv->setCPUHandle(srvHandle);
 	}
 
-	// #todo-wip: UAV for StructuredBuffer
 	{
-		//
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
+		uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		uavDesc.Buffer.FirstElement = 0;
+		uavDesc.Buffer.NumElements = numElements;
+		uavDesc.Buffer.StructureByteStride = stride;
+		uavDesc.Buffer.CounterOffsetInBytes = 0; // #todo-wip: Counter?
+		uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+		ID3D12Resource* counterResource = NULL; // #todo-wip: UAV CounterResource? What is this?
+
+		getD3DDevice()->allocateUAVHandle(uavHandle, uavDescriptorIndex);
+		device->CreateUnorderedAccessView(rawBuffer.Get(), counterResource, &uavDesc, uavHandle);
+
+		uav = std::make_unique<D3DUnorderedAccessView>(this);
+		uav->setCPUHandle(uavHandle);
 	}
 }
 

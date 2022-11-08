@@ -6,6 +6,7 @@
 #define MAX_SRV_DESCRIPTORS 1024
 #define MAX_RTV_DESCRIPTORS 64
 #define MAX_DSV_DESCRIPTORS 64
+#define MAX_UAV_DESCRIPTORS 1024
 
 TextureManager* gTextureManager = nullptr;
 
@@ -38,6 +39,15 @@ void TextureManager::initialize()
 
 		dsvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
 	}
+	{
+		DescriptorHeapDesc desc;
+		desc.type = EDescriptorHeapType::UAV;
+		desc.numDescriptors = MAX_UAV_DESCRIPTORS;
+		desc.flags = EDescriptorHeapFlags::None;
+		desc.nodeMask = 0;
+
+		uavHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
+	}
 
 	createSystemTextures();
 }
@@ -63,6 +73,12 @@ uint32 TextureManager::allocateDSVIndex()
 {
 	CHECK(nextDSVIndex < MAX_DSV_DESCRIPTORS);
 	return nextDSVIndex++;
+}
+
+uint32 TextureManager::allocateUAVIndex()
+{
+	CHECK(nextUAVIndex < MAX_UAV_DESCRIPTORS);
+	return nextUAVIndex++;
 }
 
 void TextureManager::createSystemTextures()
