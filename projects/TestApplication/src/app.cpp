@@ -4,6 +4,7 @@
 #include "render/static_mesh.h"
 #include "render/gpu_resource.h"
 #include "render/vertex_buffer_pool.h"
+#include "render/render_device_capabilities.h"
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
 #include "loader/image_loader.h"
@@ -28,7 +29,6 @@
 	#define RAW_API          ERenderDeviceRawAPI::Vulkan
 	#define RENDERER_TYPE    ERendererType::Standard
 #endif
-#define RAYTRACING_TIER      ERayTracingTier::Tier_1_0
 #define WINDOW_TYPE          EWindowType::WINDOWED
 
 #define CAMERA_POSITION      vec3(0.0f, 0.0f, 20.0f)
@@ -54,7 +54,6 @@ bool TestApplication::onInitialize()
 {
 	CysealEngineCreateParams engineInit;
 	engineInit.renderDevice.rawAPI             = RAW_API;
-	engineInit.renderDevice.rayTracingTier     = RAYTRACING_TIER;
 	engineInit.renderDevice.nativeWindowHandle = getHWND();
 	engineInit.renderDevice.windowType         = WINDOW_TYPE;
 	engineInit.renderDevice.windowWidth        = getWindowWidth();

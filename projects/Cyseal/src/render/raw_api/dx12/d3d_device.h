@@ -4,6 +4,11 @@
 #include "d3d_util.h"
 #include "d3d_swap_chain.h"
 
+// #todo-dx12: Is there any way to automatically select latest ID3D12Device?
+// Currently latest version is ID3D12Device9, but I don't need newer APIs yet.
+// https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nn-d3d12-id3d12device5
+#define ID3D12DeviceLatest ID3D12Device5
+
 class D3DDevice : public RenderDevice
 {
 
@@ -16,8 +21,6 @@ public:
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;
 
 	virtual void flushCommandQueue() override;
-
-	virtual bool supportsRayTracing() override;
 
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName) override;
 	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
@@ -51,7 +54,7 @@ public:
 	uint32 getDescriptorSizeCbvSrvUav() { return descSizeCBV_SRV_UAV; }
 
 	inline IDXGIFactory4* getDXGIFactory() const { return dxgiFactory.Get(); }
-	inline ID3D12Device5* getRawDevice() const { return device.Get(); }
+	inline ID3D12DeviceLatest* getRawDevice() const { return device.Get(); }
 	inline ID3D12CommandQueue* getRawCommandQueue() const { return rawCommandQueue; }
 
 	// #todo-renderdevice: Needs abstraction layer and release mechanism
@@ -66,7 +69,7 @@ private:
 
 // #todo-renderdevice: Move non-renderdevice members into other places
 private:
-	WRL::ComPtr<ID3D12Device5>        device;
+	WRL::ComPtr<ID3D12DeviceLatest>   device;
 
 	WRL::ComPtr<IDXGIFactory4>        dxgiFactory;
 
@@ -78,8 +81,6 @@ private:
 	UINT                              descSizeCBV_SRV_UAV;
 	UINT                              descSizeSampler;
 	UINT                              quality4xMSAA;
-
-	bool                              rayTracingEnabled;
 
 	// Raw interfaces
 	ID3D12CommandQueue*               rawCommandQueue;

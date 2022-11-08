@@ -110,35 +110,59 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 	HR( device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &featureLevelCandidates, sizeof(featureLevelCandidates)) );
 
-	// #todo-dxr: Check feature level
-	if (createParams.rayTracingTier == ERayTracingTier::Tier_1_0)
-	{
-		CHECK(featureLevelCandidates.MaxSupportedFeatureLevel >= D3D_FEATURE_LEVEL_12_1);
-	}
-
 	// If possible, recreate the device with max feature level.
 	if (featureLevelCandidates.MaxSupportedFeatureLevel != minFeatureLevel)
 	{
 		device.Reset();
 
-		HR( D3D12CreateDevice(
-				hardwareAdapter.Get(),
-				featureLevelCandidates.MaxSupportedFeatureLevel,
-				IID_PPV_ARGS(&device)) );
+		HR(D3D12CreateDevice(
+			hardwareAdapter.Get(),
+			featureLevelCandidates.MaxSupportedFeatureLevel,
+			IID_PPV_ARGS(&device)));
 	}
 
-	rayTracingEnabled = supportsRayTracing();
-
-	if (createParams.rayTracingTier == ERayTracingTier::Tier_1_0)
+	// Check capabilities
 	{
-		if (rayTracingEnabled)
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 caps5 = {}; // DXR
+		D3D12_FEATURE_DATA_D3D12_OPTIONS6 caps6 = {}; // VRS
+		D3D12_FEATURE_DATA_D3D12_OPTIONS7 caps7 = {}; // Mesh shader, sampler feedback
+		HR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &caps5, sizeof(caps5)));
+		HR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, &caps6, sizeof(caps6)));
+		HR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &caps7, sizeof(caps7)));
+
+		switch (caps5.RaytracingTier)
 		{
-			CYLOG(LogDirectX, Log, TEXT("DXR enabled: tier %d"), 1);
+			case D3D12_RAYTRACING_TIER_NOT_SUPPORTED: raytracingTier = ERaytracingTier::NotSupported; break;
+			case D3D12_RAYTRACING_TIER_1_0: raytracingTier = ERaytracingTier::Tier_1_0; break;
+			case D3D12_RAYTRACING_TIER_1_1: raytracingTier = ERaytracingTier::Tier_1_1; break;
+			default: CHECK_NO_ENTRY();
 		}
-		else
+		switch (caps6.VariableShadingRateTier)
 		{
-			CYLOG(LogDirectX, Warning, TEXT("DXR requested, but failed to be initialized"));
+			case D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED: vrsTier = EVariableShadingRateTier::NotSupported; break;
+			case D3D12_VARIABLE_SHADING_RATE_TIER_1: vrsTier = EVariableShadingRateTier::Tier_1; break;
+			case D3D12_VARIABLE_SHADING_RATE_TIER_2: vrsTier = EVariableShadingRateTier::Tier_2; break;
+			default: CHECK_NO_ENTRY();
 		}
+		switch (caps7.MeshShaderTier)
+		{
+			case D3D12_MESH_SHADER_TIER_NOT_SUPPORTED: meshShaderTier = EMeshShaderTier::NotSupported; break;
+			case D3D12_MESH_SHADER_TIER_1: meshShaderTier = EMeshShaderTier::Tier_1; break;
+			default: CHECK_NO_ENTRY();
+		}
+		switch (caps7.SamplerFeedbackTier)
+		{
+			case D3D12_SAMPLER_FEEDBACK_TIER_NOT_SUPPORTED: samplerFeedbackTier = ESamplerFeedbackTier::NotSupported; break;
+			case D3D12_SAMPLER_FEEDBACK_TIER_0_9: samplerFeedbackTier = ESamplerFeedbackTier::Tier_0_9; break;
+			case D3D12_SAMPLER_FEEDBACK_TIER_1_0: samplerFeedbackTier = ESamplerFeedbackTier::Tier_1_0; break;
+			default: CHECK_NO_ENTRY();
+		}
+
+		CYLOG(LogDirectX, Log, L"=== Hardware capabilities ===");
+		CYLOG(LogDirectX, Log, L"DXR             requested=%S\t\tactual=%S", toString(createParams.raytracingTier), toString(raytracingTier));
+		CYLOG(LogDirectX, Log, L"VRS             requested=%S\t\tactual=%S", toString(createParams.vrsTier), toString(vrsTier));
+		CYLOG(LogDirectX, Log, L"MeshShader      requested=%S\t\tactual=%S", toString(createParams.meshShaderTier), toString(meshShaderTier));
+		CYLOG(LogDirectX, Log, L"SamplerFeedback requested=%S\t\tactual=%S", toString(createParams.samplerFeedbackTier), toString(samplerFeedbackTier));
 	}
 
 	// 2. Create a ID3D12Fence and retrieve sizes of descriptors.
@@ -307,18 +331,6 @@ void D3DDevice::flushCommandQueue()
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
-}
-
-bool D3DDevice::supportsRayTracing()
-{
-	D3D12_FEATURE_DATA_D3D12_OPTIONS5 caps = {};
-	HR( device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &caps, sizeof(caps)) );
-
-	if (caps.RaytracingTier < D3D12_RAYTRACING_TIER_1_0)
-	{
-		return false;
-	}
-	return true;
 }
 
 VertexBuffer* D3DDevice::createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)

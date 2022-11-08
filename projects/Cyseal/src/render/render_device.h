@@ -4,6 +4,7 @@
 #include "pixel_format.h"
 #include "texture.h"
 #include "shader.h"
+#include "render_device_capabilities.h"
 
 class SwapChain;
 class RenderCommandAllocator;
@@ -28,12 +29,6 @@ enum class ERenderDeviceRawAPI
 	Vulkan
 };
 
-enum class ERayTracingTier
-{
-	NotSupported,
-	Tier_1_0
-};
-
 enum class EWindowType
 {
 	FULLSCREEN,
@@ -45,8 +40,14 @@ struct RenderDeviceCreateParams
 {
 	void* nativeWindowHandle;
 	ERenderDeviceRawAPI rawAPI;
-	ERayTracingTier rayTracingTier;
-	bool enableDebugLayer = true; // Enable debug layer (dx) or validation layer (vk)
+
+	// Required capability tiers
+	ERaytracingTier raytracingTier = ERaytracingTier::MaxTier;
+	EVariableShadingRateTier vrsTier = EVariableShadingRateTier::MaxTier;
+	EMeshShaderTier meshShaderTier = EMeshShaderTier::MaxTier;
+	ESamplerFeedbackTier samplerFeedbackTier = ESamplerFeedbackTier::MaxTier;
+
+	bool enableDebugLayer = true;   // Enable debug layer (dx) or validation layer (vk)
 
 	// #todo-renderdevice: These are not renderdevice params. Move to somewhere.
 	// or leave here as initial values.
@@ -69,8 +70,6 @@ public:
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) = 0;
 
 	virtual void flushCommandQueue() = 0;
-
-	virtual bool supportsRayTracing() = 0;
 
 	// #todo-renderdevice: uint64 for sizeInBytes
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName = nullptr) = 0;
@@ -110,6 +109,11 @@ public:
 	inline RenderCommandList* getCommandList() const { return commandList; }
 	inline RenderCommandQueue* getCommandQueue() const { return commandQueue; }
 
+	inline ERaytracingTier getRaytracingTier() const { return raytracingTier; }
+	inline EVariableShadingRateTier getVRSTier() const { return vrsTier; }
+	inline EMeshShaderTier getMeshShaderTier() const { return meshShaderTier; }
+	inline ESamplerFeedbackTier getSamplerFeedbackTier() const { return samplerFeedbackTier; }
+
 protected:
 	// #todo-renderdevice: Move backbuffer formats to swapchain
 	EPixelFormat            backbufferFormat = EPixelFormat::R8G8B8A8_UNORM;
@@ -130,6 +134,11 @@ protected:
 	RenderCommandQueue* commandQueue = nullptr; // Primary graphics queue. Later other queues can be added (e.g., async compute queue).
 	RenderCommandList* commandList = nullptr;
 
+	// Capabilities
+	ERaytracingTier raytracingTier = ERaytracingTier::NotSupported;
+	EVariableShadingRateTier vrsTier = EVariableShadingRateTier::NotSupported;
+	EMeshShaderTier meshShaderTier = EMeshShaderTier::NotSupported;
+	ESamplerFeedbackTier samplerFeedbackTier = ESamplerFeedbackTier::NotSupported;
 };
 
 extern RenderDevice* gRenderDevice;
