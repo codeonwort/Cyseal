@@ -254,26 +254,6 @@ void BasePass::bindRootParameters(
 	cmdList->setGraphicsRootDescriptorTable(4, volatileHeap, 1 + inNumPayloads);
 }
 
-void BasePass::updateMaterialSRV(RenderCommandList* cmdList, uint32 totalPayloads, uint32 payloadID, Material* material)
-{
-	Texture* albedo = gTextureManager->getSystemTextureGrey2D();
-	if (material && material->albedoTexture) {
-		albedo = material->albedoTexture;
-	}
-
-	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-	const uint32 numSRVs = 1; // For this drawcall
-	DescriptorHeap* volatileHeap = volatileViewHeaps[frameIndex].get();
-
-	uint32 descriptorStartOffset = 1 + totalPayloads; // SRVs come right after scene uniform CBV and material CBVs
-	descriptorStartOffset += payloadID * numSRVs;
-	
-	gRenderDevice->copyDescriptors(
-		numSRVs,
-		volatileHeap, descriptorStartOffset,
-		gTextureManager->getSRVHeap(), albedo->getSRVDescriptorIndex());
-}
-
 // #todo-wip: Descriptors are being duplicated even if they refer to the same material
 void BasePass::updateMaterialParameters(
 	RenderCommandList* cmdList,
