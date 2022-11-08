@@ -80,3 +80,58 @@ void D3DConstantBuffer::destroy()
 		mapPtr = nullptr;
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////
+// D3DStructuredBuffer
+
+void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
+{
+	numElements = inNumElements;
+	stride = inStride;
+	totalBytes = numElements * stride;
+	CHECK((numElements > 0) && (stride > 0));
+
+	// Create a committed resource
+	ID3D12Device* device = static_cast<D3DDevice*>(gRenderDevice)->getRawDevice();
+	HR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&rawBuffer)));
+
+	// SRV
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN; // #todo-wip: unknown right?
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // #todo-wip: Does it matter?
+		srvDesc.Buffer.FirstElement = 0; // #todo-wip: Map to whole range
+		srvDesc.Buffer.NumElements = numElements;
+		srvDesc.Buffer.StructureByteStride = stride;
+		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+		// #todo-wip: Actually it abuses SRV heap for gTextureManager.
+		getD3DDevice()->allocateSRVHandle(srvHandle, srvDescriptorIndex);
+		device->CreateShaderResourceView(rawBuffer.Get(), &srvDesc, srvHandle);
+
+		srv = std::make_unique<D3DShaderResourceView>(this);
+		srv->setCPUHandle(srvHandle);
+	}
+
+	// #todo-wip: UAV for StructuredBuffer
+	{
+		//
+	}
+}
+
+ShaderResourceView* D3DStructuredBuffer::getSRV() const
+{
+	return srv.get();
+}
+
+UnorderedAccessView* D3DStructuredBuffer::getUAV() const
+{
+	return uav.get();
+}

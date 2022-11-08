@@ -421,6 +421,13 @@ ConstantBuffer* D3DDevice::createConstantBuffer(uint32 totalBytes)
 	return cb;
 }
 
+StructuredBuffer* D3DDevice::createStructuredBuffer(uint32 numElements, uint32 stride)
+{
+	D3DStructuredBuffer* buffer = new D3DStructuredBuffer;
+	buffer->initialize(numElements, stride);
+	return buffer;
+}
+
 void D3DDevice::copyDescriptors(
 	uint32 numDescriptors,
 	DescriptorHeap* destHeap,

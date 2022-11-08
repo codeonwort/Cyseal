@@ -5,6 +5,7 @@
 #include "d3d_texture.h"
 
 class D3DConstantBuffer;
+class D3DStructuredBuffer;
 
 class D3DRenderTargetView : public RenderTargetView
 {
@@ -30,20 +31,24 @@ class D3DShaderResourceView : public ShaderResourceView
 {
 public:
 	D3DShaderResourceView(Texture* inOwner) : ShaderResourceView(inOwner) {}
+	D3DShaderResourceView(StructuredBuffer* inOwner) : ShaderResourceView(inOwner) {}
+
 	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return cpuHandle; }
 	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE inHandle) { cpuHandle = inHandle; }
-	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress()
-	{
-		return static_cast<D3DTexture*>(owner)->getGPUVirtualAddress();
-	}
+	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress();
 private:
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { NULL };
 };
 
-// #todo-dx12: D3DUnorderedAccessView
+// #todo-wip: D3DUnorderedAccessView
 class D3DUnorderedAccessView : public UnorderedAccessView
 {
-	//
+public:
+	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return cpuHandle; }
+	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE inHandle) { cpuHandle = inHandle; }
+	//D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress();
+private:
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { NULL };
 };
 
 class D3DConstantBufferView : public ConstantBufferView

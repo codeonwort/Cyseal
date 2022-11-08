@@ -4,6 +4,10 @@
 #include "render/gpu_resource_binding.h"
 #include "core/assertion.h"
 #include "d3d_util.h"
+#include <memory>
+
+class D3DShaderResourceView;
+class D3DUnorderedAccessView;
 
 // #todo: Maybe not needed
 class D3DResource : public GPUResource
@@ -63,4 +67,36 @@ private:
 	uint32 totalBytes = 0;
 	uint32 allocatedBytes = 0;
 	uint8* mapPtr = nullptr;
+};
+
+class D3DStructuredBuffer : public StructuredBuffer
+{
+public:
+	virtual void initialize(uint32 inNumElements, uint32 inStride);
+	
+	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const
+	{
+		return rawBuffer->GetGPUVirtualAddress();
+	}
+
+	virtual ShaderResourceView* getSRV() const override;
+	virtual UnorderedAccessView* getUAV() const override;
+
+	// Element index in the descriptor heap from which the descriptor was created.
+	virtual uint32 getSRVDescriptorIndex() const override { return srvDescriptorIndex; }
+	virtual uint32 getUAVDescriptorIndex() const override { return uavDescriptorIndex; }
+
+private:
+	WRL::ComPtr<ID3D12Resource> rawBuffer;
+	uint32 totalBytes = 0;
+	uint32 numElements = 0;
+	uint32 stride = 0;
+
+	std::unique_ptr<D3DShaderResourceView> srv;
+	std::unique_ptr<D3DUnorderedAccessView> uav;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = { NULL };
+	D3D12_CPU_DESCRIPTOR_HANDLE uavHandle = { NULL };
+	uint32 srvDescriptorIndex = 0xffffffff;
+	uint32 uavDescriptorIndex = 0xffffffff;
 };

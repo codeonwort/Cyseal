@@ -90,7 +90,7 @@ public:
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
 
 	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) = 0;
-	// #todo-wip: createStructuredBuffer()
+	virtual StructuredBuffer* createStructuredBuffer(uint32 numElements, uint32 stride) = 0;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,

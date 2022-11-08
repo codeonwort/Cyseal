@@ -88,17 +88,14 @@ public:
 	virtual void setPipelineState(PipelineState* state) = 0;
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) = 0;
 
-	/**************************************************************
-	#todo-rendercommand: Resource binding for compute pipeline
-	
-	virtual void setComputeRootSignature(RootSignature* computeRootSignature) = 0;
-	virtual void setComputeRoot32BitConstant(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) = 0;
-	virtual void setComputeRoot32BitConstants(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues) = 0;
-	virtual void setComputeRootConstantBufferView(uint32 rootParameterIndex, ConstantBuffer* cbv) = 0;
-	virtual void setComputeRootShaderResourceView(uint32 rootParameterIndex, ShaderResourceView* srv) = 0;
-	virtual void setComputeRootUnorderedAccessView(uint32 rootParameterIndex, UnorderedAccessView* uav) = 0;
-	virtual void setComputeRootDescriptorTable(uint32 rootParameterIndex, DescriptorTable* descriptorTable);
-	**************************************************************/
+	// #todo-wip: Compute resource binding
+	//virtual void setComputeRootSignature(RootSignature* computeRootSignature) = 0;
+	//virtual void setComputeRoot32BitConstant(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) = 0;
+	//virtual void setComputeRoot32BitConstants(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues) = 0;
+	//virtual void setComputeRootConstantBufferView(uint32 rootParameterIndex, ConstantBuffer* cbv) = 0;
+	//virtual void setComputeRootShaderResourceView(uint32 rootParameterIndex, ShaderResourceView* srv) = 0;
+	//virtual void setComputeRootUnorderedAccessView(uint32 rootParameterIndex, UnorderedAccessView* uav) = 0;
+	//virtual void setComputeRootDescriptorTable(uint32 rootParameterIndex, DescriptorTable* descriptorTable);
 	
 	// Resource binding for graphics pipeline
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) = 0;

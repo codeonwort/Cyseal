@@ -7,6 +7,8 @@
 class VertexBufferPool;
 class IndexBufferPool;
 class ConstantBufferView;
+class ShaderResourceView;
+class UnorderedAccessView;
 class DescriptorHeap;
 class RenderCommandList;
 
@@ -211,4 +213,16 @@ public:
 	// 'bufferingCount' : Same as the swapchain image count if this CBV will be dynamic per frame.
 	// Returns null if out of memory.
 	virtual ConstantBufferView* allocateCBV(DescriptorHeap* descHeap, uint32 sizeInBytes, uint32 bufferingCount) = 0;
+};
+
+// #todo-wip: StructuredBuffer wrapper
+class StructuredBuffer : public GPUResource
+{
+public:
+	virtual ShaderResourceView* getSRV() const = 0;
+	virtual UnorderedAccessView* getUAV() const = 0;
+
+	// Element index in the descriptor heap from which the descriptor was created.
+	virtual uint32 getSRVDescriptorIndex() const = 0;
+	virtual uint32 getUAVDescriptorIndex() const = 0;
 };
