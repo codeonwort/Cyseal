@@ -91,13 +91,17 @@ void D3DStructuredBuffer::initialize(uint32 inNumElements, uint32 inStride)
 	totalBytes = numElements * stride;
 	CHECK((numElements > 0) && (stride > 0));
 
+	D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_NONE;
+	// #todo-wip: Allow only requested flags
+	resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
 	// Create a committed resource
 	ID3D12Device* device = static_cast<D3DDevice*>(gRenderDevice)->getRawDevice();
 	HR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		&CD3DX12_RESOURCE_DESC::Buffer(totalBytes, resourceFlags),
+		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
 		IID_PPV_ARGS(&rawBuffer)));
 

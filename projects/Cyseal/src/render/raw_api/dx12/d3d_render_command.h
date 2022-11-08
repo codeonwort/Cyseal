@@ -74,6 +74,7 @@ public:
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override;
 
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) override;
+	virtual void setComputeRootSignature(RootSignature* rootSignature) override;
 
 	virtual void setGraphicsRootConstant32(
 		uint32 rootParameterIndex,
@@ -89,6 +90,19 @@ public:
 		uint32 rootParameterIndex,
 		ShaderResourceView* srv) override;
 
+	virtual void setComputeRootConstant32(
+		uint32 rootParameterIndex,
+		uint32 constant32,
+		uint32 destOffsetIn32BitValues) override;
+
+	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
+	virtual void setComputeRootDescriptorSRV(
+		uint32 rootParameterIndex,
+		ShaderResourceView* srv) override;
+	virtual void setComputeRootDescriptorUAV(
+		uint32 rootParameterIndex,
+		UnorderedAccessView* uav) override;
+
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
 		uint32 instanceCount,
@@ -101,6 +115,11 @@ public:
 		uint32 instanceCount,
 		uint32 startVertexLocation,
 		uint32 startInstanceLocation) override;
+
+	virtual void dispatchCompute(
+		uint32 threadGroupX,
+		uint32 threadGroupY,
+		uint32 threadGroupZ) override;
 
 	virtual void beginEventMarker(const char* eventName) override;
 	virtual void endEventMarker() override;

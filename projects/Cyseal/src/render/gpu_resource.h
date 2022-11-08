@@ -118,12 +118,14 @@ public:
 
 // #todo-barrier: There are 3 types of barriers (transition, aliasing, and UAV)
 // Only deal with transition barrier for now.
+// D3D12_RESOURCE_BARRIER_TYPE
 enum class EResourceBarrierType
 {
 	Transition = 0,
 	Aliasing = (Transition + 1),
 	UAV = (Aliasing + 1)
 };
+// D3D12_RESOURCE_BARRIER
 struct ResourceBarrier
 {
 	const EResourceBarrierType type = EResourceBarrierType::Transition;

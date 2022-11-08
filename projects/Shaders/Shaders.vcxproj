@@ -81,6 +81,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <FxCompile Include="..\..\shaders\base_pass.hlsl" />
+    <FxCompile Include="..\..\shaders\common.hlsl" />
     <FxCompile Include="..\..\shaders\tone_mapping.hlsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

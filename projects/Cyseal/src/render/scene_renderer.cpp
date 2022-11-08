@@ -4,6 +4,7 @@
 #include "render/gpu_resource.h"
 #include "render/swap_chain.h"
 #include "render/static_mesh.h"
+#include "render/gpu_scene.h"
 #include "render/base_pass.h"
 #include "render/tone_mapping.h"
 
@@ -35,6 +36,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 	// Render passes
 	{
+		gpuScene = new GPUScene;
+		gpuScene->initialize();
+
 		basePass = new BasePass;
 		basePass->initialize();
 
@@ -47,6 +51,7 @@ void SceneRenderer::destroy()
 	delete RT_sceneColor;
 	delete RT_sceneDepth;
 
+	delete gpuScene;
 	delete basePass;
 	delete toneMapping;
 }
@@ -86,6 +91,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	scissorRect.right  = sceneWidth;
 	scissorRect.bottom = sceneHeight;
  	commandList->rsSetScissorRect(scissorRect);
+
+	{
+		SCOPED_DRAW_EVENT(commandList, GPUScene);
+
+		gpuScene->renderGPUScene(commandList, scene, camera);
+	}
 
 	// #todo: Depth PrePass
 
