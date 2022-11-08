@@ -236,6 +236,18 @@ void D3DDevice::allocateDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32
 	outDescriptorIndex = viewIndex;
 }
 
+void D3DDevice::allocateUAVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
+{
+	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getUAVHeap())->getRaw();
+	const uint32 viewIndex = gTextureManager->allocateUAVIndex();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeCBV_SRV_UAV);
+
+	outHandle = handle;
+	outDescriptorIndex = viewIndex;
+}
+
 void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter)
 {
 	WRL::ComPtr<IDXGIAdapter1> adapter;
@@ -392,6 +404,17 @@ PipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc
 	return pipeline;
 }
 
+PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& desc)
+{
+	D3D12_COMPUTE_PIPELINE_STATE_DESC d3d_desc;
+	into_d3d::computePipelineDesc(desc, d3d_desc);
+
+	D3DComputePipelineState* pipeline = new D3DComputePipelineState;
+	pipeline->initialize(device.Get(), d3d_desc);
+
+	return pipeline;
+}
+
 DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
 {
 	D3D12_DESCRIPTOR_HEAP_DESC d3d_desc;
@@ -408,6 +431,16 @@ ConstantBuffer* D3DDevice::createConstantBuffer(uint32 totalBytes)
 	D3DConstantBuffer* cb = new D3DConstantBuffer;
 	cb->initialize(totalBytes);
 	return cb;
+}
+
+StructuredBuffer* D3DDevice::createStructuredBuffer(
+	uint32 numElements,
+	uint32 stride,
+	EBufferAccessFlags accessFlags)
+{
+	D3DStructuredBuffer* buffer = new D3DStructuredBuffer;
+	buffer->initialize(numElements, stride, accessFlags);
+	return buffer;
 }
 
 void D3DDevice::copyDescriptors(

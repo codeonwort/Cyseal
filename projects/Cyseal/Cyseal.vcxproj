@@ -99,6 +99,7 @@
     <ClInclude Include="src\loader\image_loader.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
     <ClInclude Include="src\render\base_pass.h" />
+    <ClInclude Include="src\render\gpu_scene.h" />
     <ClInclude Include="src\render\null_renderer.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_into.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_buffer.h" />
@@ -164,6 +165,7 @@
     <ClCompile Include="src\loader\image_loader.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\base_pass.cpp" />
+    <ClCompile Include="src\render\gpu_scene.cpp" />
     <ClCompile Include="src\render\null_renderer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_into.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_resource.cpp" />

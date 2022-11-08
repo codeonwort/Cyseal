@@ -31,10 +31,15 @@ public:
 
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
+	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
 
 	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) override;
+	virtual StructuredBuffer* createStructuredBuffer(
+		uint32 numElements,
+		uint32 stride,
+		EBufferAccessFlags accessFlags) override;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,
@@ -50,9 +55,11 @@ public:
 	inline ID3D12CommandQueue* getRawCommandQueue() const { return rawCommandQueue; }
 
 	// #todo-renderdevice: Needs abstraction layer and release mechanism
+	// #todo-renderdevice: Actually they are abusing desc heaps of gTextureManager.
 	void allocateSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
 	void allocateRTVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
 	void allocateDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
+	void allocateUAVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
 
 private:
 	void getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter);

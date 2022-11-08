@@ -3,5 +3,7 @@
   <ItemGroup>
     <FxCompile Include="..\..\shaders\base_pass.hlsl" />
     <FxCompile Include="..\..\shaders\tone_mapping.hlsl" />
+    <FxCompile Include="..\..\shaders\common.hlsl" />
+    <FxCompile Include="..\..\shaders\gpu_scene.hlsl" />
   </ItemGroup>
 </Project>

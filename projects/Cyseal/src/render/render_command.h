@@ -87,21 +87,9 @@ public:
 
 	virtual void setPipelineState(PipelineState* state) = 0;
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) = 0;
-
-	/**************************************************************
-	#todo-rendercommand: Resource binding for compute pipeline
 	
-	virtual void setComputeRootSignature(RootSignature* computeRootSignature) = 0;
-	virtual void setComputeRoot32BitConstant(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) = 0;
-	virtual void setComputeRoot32BitConstants(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues) = 0;
-	virtual void setComputeRootConstantBufferView(uint32 rootParameterIndex, ConstantBuffer* cbv) = 0;
-	virtual void setComputeRootShaderResourceView(uint32 rootParameterIndex, ShaderResourceView* srv) = 0;
-	virtual void setComputeRootUnorderedAccessView(uint32 rootParameterIndex, UnorderedAccessView* uav) = 0;
-	virtual void setComputeRootDescriptorTable(uint32 rootParameterIndex, DescriptorTable* descriptorTable);
-	**************************************************************/
-	
-	// Resource binding for graphics pipeline
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) = 0;
+	virtual void setComputeRootSignature(RootSignature* rootSignature) = 0;
 
 	// #todo-rendercommand: What is DestOffsetIn32BitValues in ID3D12GraphicsCommandList::SetGraphicsRoot32BitConstants() method?
 	virtual void setGraphicsRootConstant32(
@@ -122,12 +110,28 @@ public:
 
 	/**************************************************************
 	#todo-rendercommand: Resource binding for graphics pipeline
-
-	virtual void setGraphicsRoot32BitConstant(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues) = 0;
 	virtual void setGraphicsRoot32BitConstants(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues) = 0;
 	virtual void setGraphicsRootConstantBufferView(uint32 rootParameterIndex, ConstantBuffer* cbv) = 0;
 	virtual void setGraphicsRootUnorderedAccessView(uint32 rootParameterIndex, UnorderedAccessView* uav) = 0;
+
+	#todo-rendercommand: Resource binding for compute pipeline
+	virtual void setComputeRoot32BitConstants(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues) = 0;
+	virtual void setComputeRootConstantBufferView(uint32 rootParameterIndex, ConstantBuffer* cbv) = 0;
+	virtual void setComputeRootDescriptorTable(uint32 rootParameterIndex, DescriptorTable* descriptorTable);
 	**************************************************************/
+
+	virtual void setComputeRootConstant32(
+		uint32 rootParameterIndex,
+		uint32 constant32,
+		uint32 destOffsetIn32BitValues) = 0;
+
+	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
+	virtual void setComputeRootDescriptorSRV(
+		uint32 rootParameterIndex,
+		ShaderResourceView* srv) = 0;
+	virtual void setComputeRootDescriptorUAV(
+		uint32 rootParameterIndex,
+		UnorderedAccessView* uav) = 0;
 
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
@@ -141,6 +145,11 @@ public:
 		uint32 instanceCount,
 		uint32 startVertexLocation,
 		uint32 startInstanceLocation) = 0;
+
+	virtual void dispatchCompute(
+		uint32 threadGroupX,
+		uint32 threadGroupY,
+		uint32 threadGroupZ) = 0;
 
 	virtual void beginEventMarker(const char* eventName) = 0;
 	virtual void endEventMarker() = 0;

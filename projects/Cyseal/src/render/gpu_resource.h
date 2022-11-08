@@ -7,6 +7,8 @@
 class VertexBufferPool;
 class IndexBufferPool;
 class ConstantBufferView;
+class ShaderResourceView;
+class UnorderedAccessView;
 class DescriptorHeap;
 class RenderCommandList;
 
@@ -38,6 +40,14 @@ enum class EGPUResourceState : uint32
 	VIDEO_PROCESS_READ         = 0x40000,
 	VIDEO_PROCESS_WRITE        = 0x80000
 };
+
+// For StructuredBuffer
+enum class EBufferAccessFlags : uint32
+{
+	UAV       = 1 << 0,
+	CPU_WRITE = 1 << 1,
+};
+ENUM_CLASS_FLAGS(EBufferAccessFlags);
 
 enum class ETextureDimension : uint8
 {
@@ -116,12 +126,14 @@ public:
 
 // #todo-barrier: There are 3 types of barriers (transition, aliasing, and UAV)
 // Only deal with transition barrier for now.
+// D3D12_RESOURCE_BARRIER_TYPE
 enum class EResourceBarrierType
 {
 	Transition = 0,
 	Aliasing = (Transition + 1),
 	UAV = (Aliasing + 1)
 };
+// D3D12_RESOURCE_BARRIER
 struct ResourceBarrier
 {
 	const EResourceBarrierType type = EResourceBarrierType::Transition;
@@ -210,5 +222,25 @@ public:
 	//            -> Not good. See base_pass.cpp. Maybe instancing parameter will be better.
 	// 'bufferingCount' : Same as the swapchain image count if this CBV will be dynamic per frame.
 	// Returns null if out of memory.
-	virtual ConstantBufferView* allocateCBV(DescriptorHeap* descHeap, uint32 sizeInBytes, uint32 bufferingCount) = 0;
+	virtual ConstantBufferView* allocateCBV(
+		DescriptorHeap* descHeap,
+		uint32 sizeInBytes,
+		uint32 bufferingCount) = 0;
+};
+
+class StructuredBuffer : public GPUResource
+{
+public:
+	virtual void uploadData(
+		RenderCommandList* commandList,
+		void* data,
+		uint32 sizeInBytes,
+		uint32 destOffsetInBytes) = 0;
+
+	virtual ShaderResourceView* getSRV() const = 0;
+	virtual UnorderedAccessView* getUAV() const = 0;
+
+	// Element index in the descriptor heap from which the descriptor was created.
+	virtual uint32 getSRVDescriptorIndex() const = 0;
+	virtual uint32 getUAVDescriptorIndex() const = 0;
 };

@@ -239,6 +239,12 @@ void D3DRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature
 	commandList->SetGraphicsRootSignature(rawSignature);
 }
 
+void D3DRenderCommandList::setComputeRootSignature(RootSignature* rootSignature)
+{
+	auto rawSignature = static_cast<D3DRootSignature*>(rootSignature)->getRaw();
+	commandList->SetComputeRootSignature(rawSignature);
+}
+
 void D3DRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps)
 {
 	std::vector<ID3D12DescriptorHeap*> rawHeaps;
@@ -262,6 +268,17 @@ void D3DRenderCommandList::setGraphicsRootDescriptorTable(
 	commandList->SetGraphicsRootDescriptorTable(rootParameterIndex, tableHandle);
 }
 
+void D3DRenderCommandList::setGraphicsRootConstant32(
+	uint32 rootParameterIndex,
+	uint32 constant32,
+	uint32 destOffsetIn32BitValues)
+{
+	commandList->SetGraphicsRoot32BitConstant(
+		rootParameterIndex,
+		constant32,
+		destOffsetIn32BitValues);
+}
+
 void D3DRenderCommandList::setGraphicsRootDescriptorSRV(
 	uint32 rootParameterIndex,
 	ShaderResourceView* srv)
@@ -272,15 +289,35 @@ void D3DRenderCommandList::setGraphicsRootDescriptorSRV(
 	commandList->SetGraphicsRootShaderResourceView(rootParameterIndex, gpuAddr);
 }
 
-void D3DRenderCommandList::setGraphicsRootConstant32(
+void D3DRenderCommandList::setComputeRootConstant32(
 	uint32 rootParameterIndex,
 	uint32 constant32,
 	uint32 destOffsetIn32BitValues)
 {
-	commandList->SetGraphicsRoot32BitConstant(
+	commandList->SetComputeRoot32BitConstant(
 		rootParameterIndex,
 		constant32,
 		destOffsetIn32BitValues);
+}
+
+void D3DRenderCommandList::setComputeRootDescriptorSRV(
+	uint32 rootParameterIndex,
+	ShaderResourceView* srv)
+{
+	D3DShaderResourceView* d3dSRV = static_cast<D3DShaderResourceView*>(srv);
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dSRV->getGPUVirtualAddress();
+
+	commandList->SetComputeRootShaderResourceView(rootParameterIndex, gpuAddr);
+}
+
+void D3DRenderCommandList::setComputeRootDescriptorUAV(
+	uint32 rootParameterIndex,
+	UnorderedAccessView* uav)
+{
+	D3DUnorderedAccessView* d3dUAV = static_cast<D3DUnorderedAccessView*>(uav);
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dUAV->getGPUVirtualAddress();
+
+	commandList->SetComputeRootUnorderedAccessView(rootParameterIndex, gpuAddr);
 }
 
 void D3DRenderCommandList::drawIndexedInstanced(
@@ -309,6 +346,14 @@ void D3DRenderCommandList::drawInstanced(
 		instanceCount,
 		startVertexLocation,
 		startInstanceLocation);
+}
+
+void D3DRenderCommandList::dispatchCompute(
+	uint32 threadGroupX,
+	uint32 threadGroupY,
+	uint32 threadGroupZ)
+{
+	commandList->Dispatch(threadGroupX, threadGroupY, threadGroupZ);
 }
 
 void D3DRenderCommandList::beginEventMarker(const char* eventName)

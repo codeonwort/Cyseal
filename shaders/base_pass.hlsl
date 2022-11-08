@@ -1,39 +1,41 @@
+#include "common.hlsl"
+
+// error X3596: By default, unbounded size descriptor tables are disabled
+// to support frame captures in graphics tools. Use of unbounded (or large)
+// size descriptor tables can produce unusually large and potentially unusable
+// frame captures in graphics tools.  Please specify a reasonably small upper
+// bound on table size.  If that isn't an option, unbounded size descriptor
+// tables can be enabled using the compiler using switch: /enable_unbounded_descriptor_tables
+#define TEMP_MAX_SRVS 1024
 
 // ------------------------------------------------------------------------
-// Resource bindings
+// Resource bindings (common)
 
-struct IdConstant
+struct PushConstants
 {
     uint objectId;
 };
 
+ConstantBuffer<PushConstants> pushConstants : register(b0);
+ConstantBuffer<SceneUniform> sceneUniform   : register(b1);
+StructuredBuffer<MeshData> gpuSceneBuffer   : register(t0);
+
+uint getObjectId()     { return pushConstants.objectId; }
+MeshData getMeshData() { return gpuSceneBuffer[pushConstants.objectId]; }
+
+// ------------------------------------------------------------------------
+// Resource bindings (material-specific)
+
 struct Material
 {
-    float4x4 modelMatrix;
     float4 albedoMultiplier;
+    uint   albedoTextureIndex; float3 _pad0;
 };
+ConstantBuffer<Material> materials[]        : register(b0, space1); // bindless in another space
+Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space1); // bindless in another space
+SamplerState albedoSampler                  : register(s0);
 
-struct SceneUniform
-{
-    float4x4 viewMatrix;
-    float4x4 projMatrix;
-    float4x4 viewProjMatrix;
-
-    float4 sunDirection;   // (x, y, z, ?)
-    float4 sunIlluminance; // (r, g, b, ?)
-};
-
-ConstantBuffer<IdConstant> objectConstants : register(b0);
-ConstantBuffer<SceneUniform> sceneUniform : register(b1);
-// #todo-shader: It seems glslangValidator can't translate HLSL unbounded array.
-ConstantBuffer<Material> materialConstants[] : register(b2);
-
-Texture2D albedoTexture : register(t0);
-SamplerState albedoSampler : register(s0);
-
-uint getObjectId() { return objectConstants.objectId; }
-// #todo-shader: glslangValidator can't translate this?
-Material getMaterialData() { return materialConstants[getObjectId()]; }
+Material getMaterial() { return materials[getObjectId()]; }
 
 // ------------------------------------------------------------------------
 // Vertex shader
@@ -59,17 +61,18 @@ Interpolants mainVS(VertexInput input)
 {
     Interpolants output;
 
-    Material material = getMaterialData();
+    MeshData meshData = getMeshData();
+    float4x4 modelMatrix = meshData.modelMatrix;
 
-    float4x4 MVP = mul(material.modelMatrix, sceneUniform.viewProjMatrix);
+    float4x4 MVP = mul(modelMatrix, sceneUniform.viewProjMatrix);
     output.svPosition = mul(float4(input.position, 1.0), MVP);
 
-    output.positionWS = mul(float4(input.position, 1.0), material.modelMatrix).xyz;
+    output.positionWS = mul(float4(input.position, 1.0), modelMatrix).xyz;
 
     // #todo-shader: Should renormalize if model matrix has non-uniform scaling
     // I can't find float4x4 -> float3x3 conversion in MSDN??? what???
     // Should be normalize(mul(input.normal, transpose(inverse(modelMatrix3x3))));
-    output.normalWS = normalize(mul(float4(input.normal, 0.0), material.modelMatrix).xyz);
+    output.normalWS = normalize(mul(float4(input.normal, 0.0), modelMatrix).xyz);
 
     output.texcoord = input.texcoord;
 
@@ -81,13 +84,15 @@ Interpolants mainVS(VertexInput input)
 
 float4 mainPS(Interpolants interpolants) : SV_TARGET
 {
-    Material material = getMaterialData();
+    MeshData meshData = getMeshData();
+    Material material = getMaterial();
 
     // Variables
     float3 N = normalize(interpolants.normalWS);
 
     // Material properties
-    float3 albedo = albedoTexture.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
+    Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
+    float3 albedo = albedoTex.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
     albedo *= material.albedoMultiplier.rgb;
 
     // Direct lighting
@@ -95,7 +100,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     float3 specular = float3(0.0, 0.0, 0.0);
     {
         // Sun
-        float3 Li = sceneUniform.sunIlluminance.rgb; //5.0 * float3(1.0, 1.0, 1.0);
+        float3 Li = sceneUniform.sunIlluminance.rgb;
         float3 Wi = -sceneUniform.sunDirection.xyz;
         float NdotL = max(0.0, dot(N, Wi));
         diffuse += albedo * Li * NdotL;
@@ -105,7 +110,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     diffuse += float3(0.02, 0.02, 0.02);
 
     float3 outLuminance = diffuse + specular;
-    //float opacity = material.color.a;
+    //float opacity = meshData.color.a;
 
     return float4(outLuminance, 1.0);
 }

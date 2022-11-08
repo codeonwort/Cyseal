@@ -72,7 +72,7 @@ public:
 
 	virtual bool supportsRayTracing() = 0;
 
-	// #todo-wip: uint64 for sizeInBytes
+	// #todo-renderdevice: uint64 for sizeInBytes
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName = nullptr) = 0;
 	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
 
@@ -85,10 +85,15 @@ public:
 
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
+	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) = 0;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
 
 	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) = 0;
+	virtual StructuredBuffer* createStructuredBuffer(
+		uint32 numElements,
+		uint32 stride,
+		EBufferAccessFlags accessFlags) = 0;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,

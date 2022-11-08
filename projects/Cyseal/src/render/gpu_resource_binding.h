@@ -119,6 +119,17 @@ struct RootParameter
 		}
 		shaderVisibility = EShaderVisibility::All;
 	}
+	void initAsUAV(
+		uint32 shaderRegister,
+		uint32 registerSpace)
+	{
+		parameterType = ERootParameterType::UAV;
+		{
+			descriptor.shaderRegister = shaderRegister;
+			descriptor.registerSpace = registerSpace;
+		}
+		shaderVisibility = EShaderVisibility::All;
+	}
 	void initAsConstants(
 		uint32 shaderRegister,
 		uint32 registerSpace,

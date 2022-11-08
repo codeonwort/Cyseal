@@ -3,6 +3,7 @@
 #include "renderer.h"
 
 class Texture;
+class GPUScene;
 class BasePass;
 class ToneMapping;
 
@@ -23,6 +24,7 @@ private:
 	Texture* RT_sceneDepth = nullptr; // Actually DS target but let's unify prefixes
 
 	// Render passes
+	GPUScene* gpuScene = nullptr;
 	BasePass* basePass = nullptr;
 	ToneMapping* toneMapping = nullptr;
 };

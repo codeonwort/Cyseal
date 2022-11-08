@@ -5,6 +5,7 @@
 class RenderDevice;
 class VertexBuffer;
 class Texture;
+class StructuredBuffer;
 
 enum class EResourceViewDimension
 {
@@ -24,14 +25,44 @@ class DepthStencilView
 
 class ShaderResourceView
 {
-public:
-	ShaderResourceView(Texture* inOwner) : owner(inOwner) {}
 protected:
-	Texture* owner;
+	// #todo-resource-view: ByteBuffer? Or just buffer?
+	// Also no reason vertex/index buffers can't be used as SRV,
+	// though I've got no plan for such usage for now.
+	enum class ESource { Texture, StructuredBuffer };
+public:
+	ShaderResourceView(Texture* inOwner)
+		: ownerTexture(inOwner)
+		, source(ESource::Texture)
+	{}
+	ShaderResourceView(StructuredBuffer* inOwner)
+		: ownerStructuredBuffer(inOwner)
+		, source(ESource::StructuredBuffer)
+	{}
+protected:
+	ESource source;
+	Texture* ownerTexture = nullptr;
+	StructuredBuffer* ownerStructuredBuffer = nullptr;
 };
 
 class UnorderedAccessView
 {
+protected:
+	// #todo-resource-view: Same problem with ShaderResourceView::ESource
+	enum class ESource { Texture, StructuredBuffer };
+public:
+	UnorderedAccessView(Texture* inOwner)
+		: ownerTexture(inOwner)
+		, source(ESource::Texture)
+	{}
+	UnorderedAccessView(StructuredBuffer* inOwner)
+		: ownerStructuredBuffer(inOwner)
+		, source(ESource::StructuredBuffer)
+	{}
+protected:
+	ESource source;
+	Texture* ownerTexture = nullptr;
+	StructuredBuffer* ownerStructuredBuffer = nullptr;
 };
 
 class ConstantBufferView

@@ -328,7 +328,14 @@ namespace into_d3d
 		return static_cast<D3D12_INPUT_CLASSIFICATION>(inValue);
 	}
 
-	void graphicsPipelineDesc(const GraphicsPipelineDesc& inDesc, D3D12_GRAPHICS_PIPELINE_STATE_DESC& outDesc, TempAlloc& tempAlloc);
+	void graphicsPipelineDesc(
+		const GraphicsPipelineDesc& inDesc,
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC& outDesc,
+		TempAlloc& tempAlloc);
+
+	void computePipelineDesc(
+		const ComputePipelineDesc& inDesc,
+		D3D12_COMPUTE_PIPELINE_STATE_DESC& outDesc);
 
 	inline void inputElement(const VertexInputElement& inDesc, D3D12_INPUT_ELEMENT_DESC& outDesc)
 	{
