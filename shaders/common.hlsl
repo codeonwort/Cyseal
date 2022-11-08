@@ -1,7 +1,6 @@
 struct MeshData
 {
     float4x4 modelMatrix;
-    float4 albedoMultiplier;
 };
 
 struct SceneUniform

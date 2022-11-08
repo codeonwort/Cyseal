@@ -1,7 +1,7 @@
 #include "common.hlsl"
 
 // ------------------------------------------------------------------------
-// Resource bindings
+// Resource bindings (common)
 
 struct PushConstants
 {
@@ -9,20 +9,21 @@ struct PushConstants
 };
 
 ConstantBuffer<PushConstants> pushConstants : register(b0);
-ConstantBuffer<SceneUniform> sceneUniform : register(b1);
-// #todo-shader: It seems glslangValidator can't translate HLSL unbounded array.
-ConstantBuffer<MeshData> meshData[] : register(b2);
+ConstantBuffer<SceneUniform> sceneUniform   : register(b1);
+StructuredBuffer<MeshData> gpuSceneBuffer   : register(t0);
 
-Texture2D albedoTexture : register(t0);
-SamplerState albedoSampler : register(s0);
+MeshData getMeshData() { return gpuSceneBuffer[pushConstants.objectId]; }
 
-StructuredBuffer<MeshData> gpuSceneBuffer : register(t1);
+// ------------------------------------------------------------------------
+// Resource bindings (material-specific)
 
-uint getObjectId() { return pushConstants.objectId; }
-
-// #todo-shader: glslangValidator can't translate this?
-//MeshData getMeshData() { return meshData[getObjectId()]; }
-MeshData getMeshData() { return gpuSceneBuffer[getObjectId()]; }
+struct MaterialConstants
+{
+    float4 albedoMultiplier;
+};
+ConstantBuffer<MaterialConstants> material  : register(b2);
+Texture2D albedoTexture                     : register(t1);
+SamplerState albedoSampler                  : register(s0);
 
 // ------------------------------------------------------------------------
 // Vertex shader
@@ -78,7 +79,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 
     // Material properties
     float3 albedo = albedoTexture.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
-    albedo *= meshData.albedoMultiplier.rgb;
+    albedo *= material.albedoMultiplier.rgb;
 
     // Direct lighting
     float3 diffuse = float3(0.0, 0.0, 0.0);

@@ -30,7 +30,6 @@ struct SceneUniform
 
 struct MaterialConstants
 {
-	Float4x4 modelMatrix;
 	float albedoMultiplier[4];
 };
 
@@ -52,7 +51,7 @@ void BasePass::initialize()
 		DescriptorRange descriptorRanges[3];
 		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1 /*b1*/);
 		descriptorRanges[1].init(EDescriptorRangeType::CBV, 1, 2 /*b2 ~ b?*/);
-		descriptorRanges[2].init(EDescriptorRangeType::SRV, 1, 0 /*t0*/);
+		descriptorRanges[2].init(EDescriptorRangeType::SRV, 1, 1 /*t1*/);
 
 		slotRootParameters[0].initAsConstants(0 /*b0*/, 0, 1); // object ID
 		slotRootParameters[1].initAsDescriptorTable(1, &descriptorRanges[0]); // scene uniform
@@ -62,7 +61,7 @@ void BasePass::initialize()
 		// #todo-wip: This CBV is replaced with gpu scene
 		slotRootParameters[2].initAsDescriptorTable(1, &descriptorRanges[1]); // material CBV
 		slotRootParameters[3].initAsDescriptorTable(1, &descriptorRanges[2]); // material SRV
-		slotRootParameters[4].initAsSRV(1 /*t1*/, 0);
+		slotRootParameters[4].initAsSRV(0 /*t0*/, 0);
 
 		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
 		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
@@ -209,13 +208,12 @@ void BasePass::renderBasePass(
 		for (const StaticMeshSection& section : mesh->getSections(LOD))
 		{
 			MaterialConstants payload;
-			payload.modelMatrix = mesh->getTransform().getMatrix();
 			memcpy_s(payload.albedoMultiplier, sizeof(payload.albedoMultiplier),
 				section.material->albedoMultiplier, sizeof(section.material->albedoMultiplier));
 
 			// rootParameterIndex, constant, destOffsetIn32BitValues
 			commandList->setGraphicsRootConstant32(0, payloadID, 0);
-			updateMaterialCBV(payloadID, &payload, sizeof(payload));
+			updateMaterialCBV(commandList, payloadID, &payload, sizeof(payload));
 			updateMaterialSRV(commandList, numVolatileDescriptors, payloadID, section.material);
 
 			VertexBuffer* vertexBuffers[] = { section.positionBuffer,section.nonPositionBuffer };
@@ -269,20 +267,23 @@ void BasePass::bindRootParameters(
 			cbvStagingHeap.get(), materialCBVs[payloadId]->getDescriptorIndexInHeap(frameIndex));
 #endif
 	}
-	cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, 1);
+	// #todo-wip: Wanna bind everything at once, but for now material CBV is updated per drawcall.
+	//cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, 1);
 
 	// Material SRV
-	// #todo-wip: SRV won't be updated per drawcall!
-	// But unbound CBV is already problematic for HLSL -> SPIR-V translation...
-	cmdList->setGraphicsRootDescriptorTable(3, volatileHeap, 1 + inNumPayloads);
+	// #todo-wip: Wanna bind everything at once, but for now material SRV is updated per drawcall.
+	//cmdList->setGraphicsRootDescriptorTable(3, volatileHeap, 1 + inNumPayloads);
 
 	cmdList->setGraphicsRootDescriptorSRV(4, gpuSceneBuffer->getSRV());
 }
 
-void BasePass::updateMaterialCBV(uint32 payloadID, void* payload, uint32 payloadSize)
+void BasePass::updateMaterialCBV(RenderCommandList* cmdList, uint32 payloadID, void* payload, uint32 payloadSize)
 {
 	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+	DescriptorHeap* volatileHeap = volatileViewHeaps[frameIndex].get();
+
 	materialCBVs[payloadID]->upload(payload, payloadSize, frameIndex);
+	cmdList->setGraphicsRootDescriptorTable(2, volatileHeap, 1 + payloadID);
 }
 
 void BasePass::updateMaterialSRV(RenderCommandList* cmdList, uint32 totalPayloads, uint32 payloadID, Material* material)
@@ -303,4 +304,6 @@ void BasePass::updateMaterialSRV(RenderCommandList* cmdList, uint32 totalPayload
 		numSRVs,
 		volatileHeap, descriptorStartOffset,
 		gTextureManager->getSRVHeap(), albedo->getSRVDescriptorIndex());
+
+	cmdList->setGraphicsRootDescriptorTable(3, volatileHeap, 1 + totalPayloads + payloadID);
 }

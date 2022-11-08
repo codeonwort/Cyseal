@@ -11,7 +11,6 @@
 struct GPUSceneItem
 {
 	Float4x4 modelTransform;
-	vec3 albedoMultiplier; float _pad0;
 };
 
 void GPUScene::initialize()
@@ -72,9 +71,6 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 		{
 			const StaticMeshSection& section = sm->getSections(LOD)[j];
 			sceneData[k].modelTransform = sm->getTransform().getMatrix();
-			sceneData[k].albedoMultiplier.x = section.material->albedoMultiplier[0];
-			sceneData[k].albedoMultiplier.y = section.material->albedoMultiplier[1];
-			sceneData[k].albedoMultiplier.z = section.material->albedoMultiplier[2];
 			++k;
 		}
 	}

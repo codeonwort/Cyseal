@@ -29,7 +29,7 @@ private:
 		uint32 inNumPayloads,
 		StructuredBuffer* gpuSceneBuffer);
 
-	void updateMaterialCBV(uint32 payloadID, void* payload, uint32 payloadSize);
+	void updateMaterialCBV(RenderCommandList* cmdList, uint32 payloadID, void* payload, uint32 payloadSize);
 	void updateMaterialSRV(RenderCommandList* cmdList, uint32 totalPayloads, uint32 payloadID, Material* material);
 
 private:
