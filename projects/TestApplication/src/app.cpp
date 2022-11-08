@@ -203,6 +203,17 @@ void TestApplication::createResources()
 	);
 	FLUSH_RENDER_COMMANDS();
 
+	// #todo: Temp prevent memory leak
+	for (uint32 geomIx = 0; geomIx < NUM_GEOM_ASSETS; ++geomIx)
+	{
+		for (uint32 lod = 0; lod < NUM_LODs; ++lod)
+		{
+			vbuffersToDelete.push_back(positionBufferLODs[geomIx][lod]);
+			vbuffersToDelete.push_back(nonPositionBufferLODs[geomIx][lod]);
+			ibuffersToDelete.push_back(indexBufferLODs[geomIx][lod]);
+		}
+	}
+
 	const float x0 = MESH_GROUP_CENTER.x - (float)(MESH_COLS * MESH_SPACE_X) / 2.0f;
 	const float y0 = MESH_GROUP_CENTER.y - (float)(MESH_ROWS * MESH_SPACE_Y) / 2.0f;
 	uint32 currentGeomIx = 0;
@@ -264,6 +275,11 @@ void TestApplication::createResources()
 		);
 		FLUSH_RENDER_COMMANDS();
 
+		// #todo: Temp prevent memory leak
+		vbuffersToDelete.push_back(positionBuffer);
+		vbuffersToDelete.push_back(nonPositionBuffer);
+		ibuffersToDelete.push_back(indexBuffer);
+
 		Material* material = new Material;
 		material->albedoTexture = albedoTexture;
 
@@ -280,6 +296,12 @@ void TestApplication::createResources()
 
 void TestApplication::destroyResources()
 {
+	delete albedoTexture;
+
+	// #todo: Temp prevent memory leak
+	for (VertexBuffer* vbuf : vbuffersToDelete) delete vbuf;
+	for (IndexBuffer* ibuf : ibuffersToDelete) delete ibuf;
+
 	for (uint32 i = 0; i < balls.size(); ++i)
 	{
 		delete balls[i];

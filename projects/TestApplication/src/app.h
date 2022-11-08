@@ -35,4 +35,8 @@ private:
 	uint32 newViewportHeight = 0;
 
 	float framesPerSecond = 0.0f;
+
+private:
+	std::vector<class VertexBuffer*> vbuffersToDelete;
+	std::vector<class IndexBuffer*> ibuffersToDelete;
 };

@@ -66,9 +66,9 @@ private:
 
 // #todo-renderdevice: Move non-renderdevice members into other places
 private:
-	WRL::ComPtr<IDXGIFactory4>        dxgiFactory;
-
 	WRL::ComPtr<ID3D12Device5>        device;
+
+	WRL::ComPtr<IDXGIFactory4>        dxgiFactory;
 
 	WRL::ComPtr<ID3D12Fence>          fence;
 	UINT                              currentFence;

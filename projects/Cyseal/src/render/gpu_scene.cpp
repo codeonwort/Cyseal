@@ -10,7 +10,7 @@
 
 struct GPUSceneItem
 {
-	Float4x4 modelTransform;
+	Float4x4 modelTransform; // localToWorld
 };
 
 void GPUScene::initialize()
@@ -66,7 +66,11 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 		numMeshSections += (uint32)(scene->staticMeshes[i]->getSections(LOD).size());
 	}
 	
-	// #todo-wip: Skip upload if scene has not changed
+	// #todo-wip: Skip upload if scene has not changed.
+	// There are various cases:
+	// (1) A new object is added to the scene.
+	// (2) An object is removed from the scene.
+	// (3) No addition or removal but some objects changed their transforms.
 	std::vector<GPUSceneItem> sceneData(numMeshSections);
 	uint32 k = 0;
 	for (uint32 i = 0; i < numStaticMeshes; ++i)

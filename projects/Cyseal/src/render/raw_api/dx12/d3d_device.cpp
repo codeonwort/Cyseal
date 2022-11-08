@@ -34,29 +34,34 @@ DEFINE_LOG_CATEGORY_STATIC(LogDirectX);
 // 8. Create a depth/stencil buffer
 // 9. Set viewport and scissor rect
 
+void reportD3DLiveObjects()
+{
+#if _DEBUG
+	CYLOG(LogDirectX, Log, L"Checking live objects...");
+	IDXGIDebug1* dxgiDebug = NULL;
+	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
+	{
+		dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL,
+			DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_DETAIL | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
+		dxgiDebug->Release();
+	}
+#endif
+}
+
 D3DDevice::D3DDevice()
 {
+	std::atexit(reportD3DLiveObjects);
 }
 
 D3DDevice::~D3DDevice()
 {
 	delete swapChain;
-
 	for (size_t i = 0; i < commandAllocators.size(); ++i)
 	{
 		delete commandAllocators[i];
 	}
 	delete commandQueue;
 	delete commandList;
-
-#if _DEBUG
-	IDXGIDebug1* dxgiDebug = NULL;
-	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
-	{
-		dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_SUMMARY);
-		dxgiDebug->Release();
-	}
-#endif
 }
 
 void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
@@ -114,7 +119,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	// If possible, recreate the device with max feature level.
 	if (featureLevelCandidates.MaxSupportedFeatureLevel != minFeatureLevel)
 	{
-		device = nullptr;
+		device.Reset();
 
 		HR( D3D12CreateDevice(
 				hardwareAdapter.Get(),

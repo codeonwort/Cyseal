@@ -269,6 +269,8 @@ struct RootSignatureDesc
 // - A root parameter is one of root constant, root descirptor, or descriptor table.
 class RootSignature
 {
+public:
+	virtual ~RootSignature() = default;
 };
 
 // ----------------------------------------------------------------------------
