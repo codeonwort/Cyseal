@@ -1,5 +1,13 @@
 #include "common.hlsl"
 
+// error X3596: By default, unbounded size descriptor tables are disabled
+// to support frame captures in graphics tools. Use of unbounded (or large)
+// size descriptor tables can produce unusually large and potentially unusable
+// frame captures in graphics tools.  Please specify a reasonably small upper
+// bound on table size.  If that isn't an option, unbounded size descriptor
+// tables can be enabled using the compiler using switch: /enable_unbounded_descriptor_tables
+#define TEMP_MAX_SRVS 1024
+
 // ------------------------------------------------------------------------
 // Resource bindings (common)
 
@@ -12,6 +20,7 @@ ConstantBuffer<PushConstants> pushConstants : register(b0);
 ConstantBuffer<SceneUniform> sceneUniform   : register(b1);
 StructuredBuffer<MeshData> gpuSceneBuffer   : register(t0);
 
+uint getObjectId()     { return pushConstants.objectId; }
 MeshData getMeshData() { return gpuSceneBuffer[pushConstants.objectId]; }
 
 // ------------------------------------------------------------------------
@@ -20,12 +29,13 @@ MeshData getMeshData() { return gpuSceneBuffer[pushConstants.objectId]; }
 struct Material
 {
     float4 albedoMultiplier;
+    // #todo-wip: Include SRV descriptor index here
 };
 ConstantBuffer<Material> materials[]        : register(b2);
-Texture2D albedoTexture                     : register(t1);
+Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t1);
 SamplerState albedoSampler                  : register(s0);
 
-Material getMaterial() { return materials[pushConstants.objectId]; }
+Material getMaterial() { return materials[getObjectId()]; }
 
 // ------------------------------------------------------------------------
 // Vertex shader
@@ -81,7 +91,8 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     float3 N = normalize(interpolants.normalWS);
 
     // Material properties
-    float3 albedo = albedoTexture.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
+    Texture2D albedoTex = albedoTextures[getObjectId()];
+    float3 albedo = albedoTex.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
     albedo *= material.albedoMultiplier.rgb;
 
     // Direct lighting
