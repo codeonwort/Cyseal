@@ -16,14 +16,13 @@ ConstantBuffer<MeshData> meshData[] : register(b2);
 Texture2D albedoTexture : register(t0);
 SamplerState albedoSampler : register(s0);
 
-// #todo-wip
-//StructuredBuffer<MeshData> gpuSceneBuffer : register(t1);
+StructuredBuffer<MeshData> gpuSceneBuffer : register(t1);
 
 uint getObjectId() { return pushConstants.objectId; }
 
 // #todo-shader: glslangValidator can't translate this?
-MeshData getMeshData() { return meshData[getObjectId()]; }
-//MeshData getMeshData() { return gpuSceneBuffer[getObjectId()]; }
+//MeshData getMeshData() { return meshData[getObjectId()]; }
+MeshData getMeshData() { return gpuSceneBuffer[getObjectId()]; }
 
 // ------------------------------------------------------------------------
 // Vertex shader

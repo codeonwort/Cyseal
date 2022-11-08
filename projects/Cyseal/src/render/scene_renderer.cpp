@@ -123,7 +123,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 			EDepthClearFlags::DEPTH_STENCIL,
 			1.0f, 0);
 
-		basePass->renderBasePass(commandList, scene, camera);
+		basePass->renderBasePass(commandList, scene, camera, gpuScene->getCulledGPUSceneBuffer());
 	}
 
 	// Tone mapping

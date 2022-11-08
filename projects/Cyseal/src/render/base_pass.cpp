@@ -44,22 +44,25 @@ void BasePass::initialize()
 	// - slot0: 32-bit constant (object id)
 	// - slot1: descriptor table (CBV)
 	// - slot2: descriptor table (SRV)
+	// - slot3: gpu scene (SRV)
 	{
-		constexpr uint32 NUM_ROOT_PARAMETERS = 4;
+		constexpr uint32 NUM_ROOT_PARAMETERS = 5;
 		RootParameter slotRootParameters[NUM_ROOT_PARAMETERS];
 		
 		DescriptorRange descriptorRanges[3];
 		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1 /*b1*/);
 		descriptorRanges[1].init(EDescriptorRangeType::CBV, 1, 2 /*b2 ~ b?*/);
-		descriptorRanges[2].init(EDescriptorRangeType::SRV, 1, 0 /*c0*/);
+		descriptorRanges[2].init(EDescriptorRangeType::SRV, 1, 0 /*t0*/);
 
 		slotRootParameters[0].initAsConstants(0 /*b0*/, 0, 1); // object ID
 		slotRootParameters[1].initAsDescriptorTable(1, &descriptorRanges[0]); // scene uniform
 		// NOTE: Can't group material CBV and SRV into the same table.
 		// numPayloads is varying, so setGraphicsRootDescriptorTable()
 		// can't decidie where to start SRV descriptors if they are in the same table.
+		// #todo-wip: This CBV is replaced with gpu scene
 		slotRootParameters[2].initAsDescriptorTable(1, &descriptorRanges[1]); // material CBV
 		slotRootParameters[3].initAsDescriptorTable(1, &descriptorRanges[2]); // material SRV
+		slotRootParameters[4].initAsSRV(1 /*t1*/, 0);
 
 		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
 		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
@@ -162,7 +165,8 @@ void BasePass::initialize()
 void BasePass::renderBasePass(
 	RenderCommandList* commandList,
 	const SceneProxy* scene,
-	const Camera* camera)
+	const Camera* camera,
+	StructuredBuffer* gpuSceneBuffer)
 {
 	// #todo-renderer: Support other topologies
 	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
@@ -184,7 +188,7 @@ void BasePass::renderBasePass(
 	{
 		numVolatileDescriptors += (uint32)mesh->getSections(LOD).size();
 	}
-	bindRootParameters(commandList, numVolatileDescriptors);
+	bindRootParameters(commandList, numVolatileDescriptors, gpuSceneBuffer);
 
 	// Update scene uniform buffer
 	{
@@ -224,7 +228,10 @@ void BasePass::renderBasePass(
 	}
 }
 
-void BasePass::bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloads)
+void BasePass::bindRootParameters(
+	RenderCommandList* cmdList,
+	uint32 inNumPayloads,
+	StructuredBuffer* gpuSceneBuffer)
 {
 	CHECK(inNumPayloads <= MAX_VOLATILE_DESCRIPTORS);
 
@@ -268,6 +275,8 @@ void BasePass::bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloa
 	// #todo-wip: SRV won't be updated per drawcall!
 	// But unbound CBV is already problematic for HLSL -> SPIR-V translation...
 	cmdList->setGraphicsRootDescriptorTable(3, volatileHeap, 1 + inNumPayloads);
+
+	cmdList->setGraphicsRootDescriptorSRV(4, gpuSceneBuffer->getSRV());
 }
 
 void BasePass::updateMaterialCBV(uint32 payloadID, void* payload, uint32 payloadSize)

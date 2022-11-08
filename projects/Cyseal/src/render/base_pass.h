@@ -15,11 +15,19 @@ class BasePass final
 {
 public:
 	void initialize();
-	void renderBasePass(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera);
+
+	void renderBasePass(
+		RenderCommandList* commandList,
+		const SceneProxy* scene,
+		const Camera* camera,
+		StructuredBuffer* gpuSceneBuffer);
 
 private:
 	// Bind root parameters for the current root signature
-	void bindRootParameters(RenderCommandList* cmdList, uint32 inNumPayloads);
+	void bindRootParameters(
+		RenderCommandList* cmdList,
+		uint32 inNumPayloads,
+		StructuredBuffer* gpuSceneBuffer);
 
 	void updateMaterialCBV(uint32 payloadID, void* payload, uint32 payloadSize);
 	void updateMaterialSRV(RenderCommandList* cmdList, uint32 totalPayloads, uint32 payloadID, Material* material);
