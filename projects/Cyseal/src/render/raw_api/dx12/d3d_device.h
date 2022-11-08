@@ -31,6 +31,7 @@ public:
 
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
+	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
 

@@ -85,10 +85,12 @@ public:
 
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
+	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) = 0;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
 
 	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) = 0;
+	// #todo-wip: createStructuredBuffer()
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,

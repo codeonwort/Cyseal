@@ -12,22 +12,29 @@ class D3DShaderStage;
 class D3DGraphicsPipelineState : public PipelineState
 {
 public:
-	D3DGraphicsPipelineState() {}
-
 	void initialize(ID3D12Device* device, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
 	{
-		HR( device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&rawState)) );
+		HR( device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&rawPSO)) );
 	}
-
-	ID3D12PipelineState* getRaw() const { return rawState.Get(); }
-
+	ID3D12PipelineState* getRaw() const { return rawPSO.Get(); }
 private:
-	WRL::ComPtr<ID3D12PipelineState> rawState;
+	WRL::ComPtr<ID3D12PipelineState> rawPSO;
+};
+
+class D3DComputePipelineState : public PipelineState
+{
+public:
+	void initialize(ID3D12Device* device, const D3D12_COMPUTE_PIPELINE_STATE_DESC& desc)
+	{
+		HR(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&rawPSO)));
+	}
+	ID3D12PipelineState* getRaw() const { return rawPSO.Get(); }
+private:
+	WRL::ComPtr<ID3D12PipelineState> rawPSO;
 };
 
 class D3DRootSignature : public RootSignature
 {
-
 public:
 	void initialize(
 		ID3D12Device* device,
@@ -42,13 +49,10 @@ public:
 			IID_PPV_ARGS(&rawRootSignature))
 		);
 	}
-
 	inline ID3D12RootSignature* getRaw() const
 	{
 		return rawRootSignature.Get();
 	}
-
 private:
 	WRL::ComPtr<ID3D12RootSignature> rawRootSignature;
-	
 };

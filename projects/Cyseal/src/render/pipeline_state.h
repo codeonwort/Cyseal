@@ -323,6 +323,7 @@ struct ScissorRect
 // Pipeline state
 
 // D3D12_GRAPHICS_PIPELINE_STATE_DESC
+// VkGraphicsPipelineCreateInfo
 struct GraphicsPipelineDesc
 {
 	RootSignature* rootSignature = nullptr;
@@ -348,6 +349,17 @@ struct GraphicsPipelineDesc
 	// #todo-crossapi: UINT NodeMask
 	// #todo-crossapi: D3D12_CACHED_PIPELINE_STATE CachedPSO
 	// #todo-crossapi: D3D12_PIPELINE_STATE_FLAGS Flags
+};
+
+// D3D12_COMPUTE_PIPELINE_STATE_DESC
+// VkComputePipelineCreateInfo
+struct ComputePipelineDesc
+{
+	RootSignature* rootSignature = nullptr;
+	ShaderStage* cs = nullptr;
+	uint32 nodeMask = 0; // #todo-mgpu
+	// #todo-crossapi: D3D12_CACHED_PIPELINE_STATE CachedPSO;
+	// #todo-crossapi: D3D12_PIPELINE_STATE_FLAGS  Flags;
 };
 
 // ID3D12PipelineState
