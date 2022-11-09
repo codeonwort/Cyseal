@@ -11,6 +11,11 @@ void D3DConstantBufferView::upload(void* data, uint32 sizeInBytes, uint32 buffer
 	::memcpy_s(destPtr, sizeInBytes, data, sizeInBytes);
 }
 
+D3D12_GPU_VIRTUAL_ADDRESS D3DConstantBufferView::getGPUVirtualAddress()
+{
+	return buffer->getGPUVirtualAddress() + offsetInBuffer;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // D3DShaderResourceView
 

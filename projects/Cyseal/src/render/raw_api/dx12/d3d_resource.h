@@ -62,6 +62,12 @@ public:
 
 	void destroy();
 
+	// NOTE: CBVs should add their offset.
+	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const
+	{
+		return memoryPool->GetGPUVirtualAddress();
+	}
+
 private:
 	WRL::ComPtr<ID3D12Resource> memoryPool;
 	uint32 totalBytes = 0;

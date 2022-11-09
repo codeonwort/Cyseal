@@ -76,6 +76,8 @@ public:
 		descriptorIndexArray[inBufferingIndex] = inDescriptorIndex;
 	}
 
+	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress();
+
 private:
 	D3DConstantBuffer* buffer;
 	uint32 offsetInBuffer;
