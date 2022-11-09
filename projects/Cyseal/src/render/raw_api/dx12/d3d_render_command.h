@@ -79,6 +79,7 @@ public:
 	virtual void rsSetScissorRect(const ScissorRect& scissorRect) override;
 
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) override;
+	virtual void omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV) override;
 
 	virtual void setGraphicsRootConstant32(
 		uint32 rootParameterIndex,

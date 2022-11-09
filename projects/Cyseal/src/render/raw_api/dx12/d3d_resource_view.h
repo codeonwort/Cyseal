@@ -10,8 +10,8 @@ class D3DStructuredBuffer;
 class D3DRenderTargetView : public RenderTargetView
 {
 public:
-	D3D12_CPU_DESCRIPTOR_HANDLE getRaw() const { return handle; }
-	void setRaw(D3D12_CPU_DESCRIPTOR_HANDLE rawHandle) { handle = rawHandle; }
+	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return handle; }
+	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE rawHandle) { handle = rawHandle; }
 
 private:
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;
@@ -20,8 +20,8 @@ private:
 class D3DDepthStencilView : public DepthStencilView
 {
 public:
-	D3D12_CPU_DESCRIPTOR_HANDLE getRaw() const { return handle; }
-	void setRaw(D3D12_CPU_DESCRIPTOR_HANDLE rawHandle) { handle = rawHandle; }
+	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return handle; }
+	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE rawHandle) { handle = rawHandle; }
 
 private:
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;

@@ -115,7 +115,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		device->CreateRenderTargetView(rawResource.Get(), &viewDesc, rtvHandle);
 
 		rtv = std::make_unique<D3DRenderTargetView>();
-		rtv->setRaw(rtvHandle);
+		rtv->setCPUHandle(rtvHandle);
 	}
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::DSV))
@@ -133,7 +133,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		device->CreateDepthStencilView(rawResource.Get(), &viewDesc, dsvHandle);
 
 		dsv = std::make_unique<D3DDepthStencilView>();
-		dsv->setRaw(dsvHandle);
+		dsv->setCPUHandle(dsvHandle);
 	}
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::UAV))

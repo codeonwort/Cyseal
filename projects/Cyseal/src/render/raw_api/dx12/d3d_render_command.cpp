@@ -193,7 +193,7 @@ void D3DRenderCommandList::resourceBarriers(uint32 numBarriers, const ResourceBa
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
 {
 	auto d3dRTV = static_cast<D3DRenderTargetView*>(RTV);
-	auto rawRTV = d3dRTV->getRaw();
+	auto rawRTV = d3dRTV->getCPUHandle();
 
 	commandList->ClearRenderTargetView(rawRTV, rgba, 0, nullptr);
 }
@@ -205,7 +205,7 @@ void D3DRenderCommandList::clearDepthStencilView(
 	uint8_t stencil)
 {
 	auto d3dDSV = static_cast<D3DDepthStencilView*>(DSV);
-	auto rawDSV = d3dDSV->getRaw();
+	auto rawDSV = d3dDSV->getCPUHandle();
 
 	commandList->ClearDepthStencilView(
 		rawDSV, (D3D12_CLEAR_FLAGS)clearFlags,
@@ -215,16 +215,50 @@ void D3DRenderCommandList::clearDepthStencilView(
 
 void D3DRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV)
 {
-	CHECK(RTV != nullptr); // RTV should exist, DSV can be null
+	CHECK(RTV != nullptr || DSV != nullptr); // At least one of them should exist... right?
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rawRTV = static_cast<D3DRenderTargetView*>(RTV)->getRaw();
+	uint32 numRTV = (RTV != nullptr) ? 1 : 0;
+	D3D12_CPU_DESCRIPTOR_HANDLE rawRTV = { NULL };
 	D3D12_CPU_DESCRIPTOR_HANDLE rawDSV = { NULL };
+	if (RTV != nullptr)
+	{
+		rawRTV = static_cast<D3DRenderTargetView*>(RTV)->getCPUHandle();
+	}
 	if (DSV != nullptr)
 	{
-		rawDSV = static_cast<D3DDepthStencilView*>(DSV)->getRaw();
+		rawDSV = static_cast<D3DDepthStencilView*>(DSV)->getCPUHandle();
 	}
 
-	commandList->OMSetRenderTargets(1, &rawRTV, true, (DSV != nullptr ? &rawDSV : nullptr));
+	constexpr bool RTsSingleHandleToDescriptorRange = true; // Whatever
+	commandList->OMSetRenderTargets(
+		numRTV, (RTV != nullptr ? &rawRTV : NULL),
+		RTsSingleHandleToDescriptorRange,
+		(DSV != nullptr ? &rawDSV : NULL));
+}
+
+void D3DRenderCommandList::omSetRenderTargets(
+	uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV)
+{
+	CHECK(numRTVs <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	CHECK(numRTVs > 0 || DSV != nullptr);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rawRTVs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT] = { NULL, };
+	D3D12_CPU_DESCRIPTOR_HANDLE rawDSV = { NULL };
+	for (uint32 i = 0; i < numRTVs; ++i)
+	{
+		rawRTVs[i] = static_cast<D3DRenderTargetView*>(RTVs[i])->getCPUHandle();
+	}
+	if (DSV != nullptr)
+	{
+		rawDSV = static_cast<D3DDepthStencilView*>(DSV)->getCPUHandle();
+	}
+
+	// Do I benefit much if they are contiguous? Anyway there can be at most 8 RTVs...
+	constexpr bool RTsSingleHandleToDescriptorRange = false;
+	commandList->OMSetRenderTargets(
+		numRTVs, (numRTVs > 0 ? rawRTVs : NULL),
+		RTsSingleHandleToDescriptorRange,
+		(DSV != nullptr ? &rawDSV : nullptr));
 }
 
 void D3DRenderCommandList::setPipelineState(PipelineState* state)

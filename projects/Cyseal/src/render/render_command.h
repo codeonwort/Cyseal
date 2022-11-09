@@ -98,8 +98,8 @@ public:
 	virtual void rsSetViewport(const Viewport& viewport) = 0;
 	virtual void rsSetScissorRect(const ScissorRect& scissorRect) = 0;
 
-	// #todo-rendercommand: MRT
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) = 0;
+	virtual void omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV) = 0;
 
 	// #todo-rendercommand: What is DestOffsetIn32BitValues in ID3D12GraphicsCommandList::SetGraphicsRoot32BitConstants() method?
 	virtual void setGraphicsRootConstant32(

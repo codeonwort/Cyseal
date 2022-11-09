@@ -135,7 +135,7 @@ void D3DSwapChain::createSwapchainImages()
 	{
 		auto rawResource = rawSwapChainBuffers[i].Get();
 		rawDevice->CreateRenderTargetView(rawResource, nullptr, rtvHeapHandle);
-		backBufferRTVs[i]->setRaw(rtvHeapHandle);
+		backBufferRTVs[i]->setCPUHandle(rtvHeapHandle);
 		rtvHeapHandle.ptr += descSizeRTV;
 	}
 }
