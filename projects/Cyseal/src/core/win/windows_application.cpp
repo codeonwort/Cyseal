@@ -176,6 +176,7 @@ LRESULT CALLBACK Win32WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 				UINT windowHeight = HIWORD(lParam);
 				if (windowWidth > 0 && windowHeight > 0)
 				{
+					winApp->internal_updateWindowSize(windowWidth, windowHeight);
 					winApp->onWindowResize(windowWidth, windowHeight);
 				}
 			}

@@ -24,6 +24,8 @@ public:
 	inline float getElapsedSecondsFromStart() const { return elapsedSecondsFromStart; }
 	inline void setFPSLimit(float limit) { min_elapsed = 1.0f / (max_fps = limit); }
 
+	void internal_updateWindowSize(uint32 inWidth, uint32 inHeight) { width = inWidth; height = inHeight; }
+
 protected:
 	virtual bool onInitialize() = 0;
 	virtual void onTick(float deltaSeconds) = 0;

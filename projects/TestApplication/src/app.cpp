@@ -50,6 +50,8 @@
 --------------------------------------------------------*/
 CysealEngine cysealEngine;
 
+DEFINE_LOG_CATEGORY_STATIC(LogApplication);
+
 bool TestApplication::onInitialize()
 {
 	CysealEngineCreateParams engineInit;
@@ -65,7 +67,6 @@ bool TestApplication::onInitialize()
 	createResources();
 
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
-	// #todo: Respond to window resize
 	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 	
 	return true;
@@ -93,8 +94,8 @@ void TestApplication::onTick(float deltaSeconds)
 	{
 		if (bViewportNeedsResize)
 		{
-			cysealEngine.getRenderDevice()->recreateSwapChain(
-				getHWND(), newViewportWidth, newViewportHeight);
+			cysealEngine.getRenderDevice()->recreateSwapChain(getHWND(), newViewportWidth, newViewportHeight);
+			cysealEngine.getRenderer()->recreateSceneTextures(newViewportWidth, newViewportHeight);
 			bViewportNeedsResize = false;
 		}
 
@@ -118,6 +119,8 @@ void TestApplication::onWindowResize(uint32 newWidth, uint32 newHeight)
 	bViewportNeedsResize = true;
 	newViewportWidth = newWidth;
 	newViewportHeight = newHeight;
+
+	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 }
 
 void TestApplication::createResources()

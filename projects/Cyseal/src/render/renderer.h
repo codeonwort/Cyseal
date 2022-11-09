@@ -18,4 +18,6 @@ public:
 	virtual void initialize(RenderDevice* renderDevice) = 0;
 	virtual void destroy() = 0;
 	virtual void render(const SceneProxy* scene, const Camera* camera) = 0;
+
+	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) = 0;
 };

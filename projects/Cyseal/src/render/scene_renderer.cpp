@@ -16,22 +16,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 	{
 		const uint32 sceneWidth = renderDevice->getSwapChain()->getBackbufferWidth();
 		const uint32 sceneHeight = renderDevice->getSwapChain()->getBackbufferHeight();
-
-		RT_sceneColor = renderDevice->createTexture(
-			TextureCreateParams::texture2D(
-				EPixelFormat::R32G32B32A32_FLOAT,
-				ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
-				sceneWidth, sceneHeight,
-				1, 1, 0));
-		RT_sceneColor->setDebugName(L"SceneColor");
-
-		RT_sceneDepth = renderDevice->createTexture(
-			TextureCreateParams::texture2D(
-				EPixelFormat::D24_UNORM_S8_UINT,
-				ETextureAccessFlags::DSV,
-				sceneWidth, sceneHeight,
-				1, 1, 0));
-		RT_sceneDepth->setDebugName(L"SceneDepth");
+		recreateSceneTextures(sceneWidth, sceneHeight);
 	}
 
 	// Render passes
@@ -98,7 +83,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		gpuScene->renderGPUScene(commandList, scene, camera);
 	}
 
-	// #todo: Depth PrePass
+	// #todo-renderer: Depth PrePass
 
 	// Base pass
 	// final target: RT_sceneColor, RT_sceneDepth
@@ -147,6 +132,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		};
 		commandList->resourceBarriers(_countof(barriers), barriers);
 
+		// #todo-renderer: Should not be here
 		commandList->omSetRenderTarget(currentBackBufferRTV, nullptr);
 
 		toneMapping->renderToneMapping(commandList, RT_sceneColor);
@@ -171,4 +157,23 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	swapChain->swapBackbuffer();
 
  	device->flushCommandQueue();
+}
+
+void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
+{
+	RT_sceneColor = device->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::R32G32B32A32_FLOAT,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
+			sceneWidth, sceneHeight,
+			1, 1, 0));
+	RT_sceneColor->setDebugName(L"SceneColor");
+
+	RT_sceneDepth = device->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::D24_UNORM_S8_UINT,
+			ETextureAccessFlags::DSV,
+			sceneWidth, sceneHeight,
+			1, 1, 0));
+	RT_sceneDepth->setDebugName(L"SceneDepth");
 }
