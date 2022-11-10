@@ -140,7 +140,7 @@ void D3DStructuredBuffer::initialize(
 		srvDesc.Buffer.StructureByteStride = stride;
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-		getD3DDevice()->allocateSRVHandle(srvHandle, srvDescriptorIndex);
+		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
 		device->CreateShaderResourceView(rawBuffer.Get(), &srvDesc, srvHandle);
 
 		srv = std::make_unique<D3DShaderResourceView>(this);
@@ -164,7 +164,7 @@ void D3DStructuredBuffer::initialize(
 		uavDesc.Buffer.CounterOffsetInBytes = counterOffsetInBytes;
 		uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
-		getD3DDevice()->allocateUAVHandle(uavHandle, uavDescriptorIndex);
+		getD3DDevice()->allocateUAVHandle(uavHeap, uavHandle, uavDescriptorIndex);
 		device->CreateUnorderedAccessView(rawBuffer.Get(), counterResource, &uavDesc, uavHandle);
 
 		uav = std::make_unique<D3DUnorderedAccessView>(this);

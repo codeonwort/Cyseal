@@ -59,10 +59,10 @@ public:
 
 	// #todo-renderdevice: Needs abstraction layer and release mechanism
 	// #todo-renderdevice: Actually they are abusing desc heaps of gTextureManager.
-	void allocateSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
-	void allocateRTVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
-	void allocateDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
-	void allocateUAVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
+	void allocateSRVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
+	void allocateRTVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
+	void allocateDSVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
+	void allocateUAVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
 
 private:
 	void getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter);

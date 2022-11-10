@@ -101,6 +101,9 @@ public:
 	virtual uint32 getSRVDescriptorIndex() const override { return srvDescriptorIndex; }
 	virtual uint32 getUAVDescriptorIndex() const override { return uavDescriptorIndex; }
 
+	virtual DescriptorHeap* getSourceSRVHeap() const override { return srvHeap; }
+	virtual DescriptorHeap* getSourceUAVHeap() const override { return uavHeap; }
+
 private:
 	WRL::ComPtr<ID3D12Resource> rawBuffer;
 	EBufferAccessFlags accessFlags;
@@ -115,6 +118,8 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE uavHandle = { NULL };
 	uint32 srvDescriptorIndex = 0xffffffff;
 	uint32 uavDescriptorIndex = 0xffffffff;
+	DescriptorHeap* srvHeap = nullptr;
+	DescriptorHeap* uavHeap = nullptr;
 
 	// #todo: Don't wanna hold an upload heap here...
 	// At least create it only if accessFlags has EBufferAccessFlags::CPU_WRITE.

@@ -243,4 +243,7 @@ public:
 	// Element index in the descriptor heap from which the descriptor was created.
 	virtual uint32 getSRVDescriptorIndex() const = 0;
 	virtual uint32 getUAVDescriptorIndex() const = 0;
+
+	virtual DescriptorHeap* getSourceSRVHeap() const = 0;
+	virtual DescriptorHeap* getSourceUAVHeap() const = 0;
 };

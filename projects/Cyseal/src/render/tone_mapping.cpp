@@ -122,7 +122,7 @@ void ToneMapping::renderToneMapping(RenderCommandList* commandList, Texture* sce
 		gRenderDevice->copyDescriptors(
 			1,
 			heaps[0], 0,
-			gTextureManager->getSRVHeap(), sceneColor->getSRVDescriptorIndex());
+			sceneColor->getSourceSRVHeap(), sceneColor->getSRVDescriptorIndex());
 		commandList->setGraphicsRootDescriptorTable(0, heaps[0], 0);
 	}
 

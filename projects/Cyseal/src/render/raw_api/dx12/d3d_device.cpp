@@ -229,7 +229,7 @@ void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32
 	swapChain->resize(width, height);
 }
 
-void D3DDevice::allocateSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
+void D3DDevice::allocateSRVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
 {
 	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getSRVHeap())->getRaw();
 	const uint32 viewIndex = gTextureManager->allocateSRVIndex();
@@ -237,11 +237,12 @@ void D3DDevice::allocateSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeCBV_SRV_UAV);
 
+	outSourceHeap = gTextureManager->getSRVHeap();
 	outHandle = handle;
 	outDescriptorIndex = viewIndex;
 }
 
-void D3DDevice::allocateRTVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
+void D3DDevice::allocateRTVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
 {
 	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getRTVHeap())->getRaw();
 	const uint32 viewIndex = gTextureManager->allocateRTVIndex();
@@ -249,11 +250,12 @@ void D3DDevice::allocateRTVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeRTV);
 
+	outSourceHeap = gTextureManager->getRTVHeap();
 	outHandle = handle;
 	outDescriptorIndex = viewIndex;
 }
 
-void D3DDevice::allocateDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
+void D3DDevice::allocateDSVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
 {
 	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getDSVHeap())->getRaw();
 	const uint32 viewIndex = gTextureManager->allocateDSVIndex();
@@ -261,11 +263,12 @@ void D3DDevice::allocateDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeDSV);
 
+	outSourceHeap = gTextureManager->getDSVHeap();
 	outHandle = handle;
 	outDescriptorIndex = viewIndex;
 }
 
-void D3DDevice::allocateUAVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
+void D3DDevice::allocateUAVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
 {
 	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getUAVHeap())->getRaw();
 	const uint32 viewIndex = gTextureManager->allocateUAVIndex();
@@ -273,6 +276,7 @@ void D3DDevice::allocateUAVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeCBV_SRV_UAV);
 
+	outSourceHeap = gTextureManager->getUAVHeap();
 	outHandle = handle;
 	outDescriptorIndex = viewIndex;
 }

@@ -81,7 +81,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	
 	if (0 != (params.accessFlags & ETextureAccessFlags::SRV))
 	{
-		// #todo-dx12: SRV ViewDimension
+		// #todo-texture: SRV ViewDimension
 		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -93,7 +93,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		srvDesc.Texture2D.PlaneSlice = 0;
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-		getD3DDevice()->allocateSRVHandle(srvHandle, srvDescriptorIndex);
+		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
 		device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHandle);
 
 		srv = std::make_unique<D3DShaderResourceView>(this);
@@ -102,7 +102,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::RTV))
 	{
-		// #todo-dx12: RTV ViewDimension
+		// #todo-texture: RTV ViewDimension
 		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
 
 		D3D12_RENDER_TARGET_VIEW_DESC viewDesc{};
@@ -111,7 +111,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		viewDesc.Texture2D.MipSlice = 0;
 		viewDesc.Texture2D.PlaneSlice = 0;
 
-		getD3DDevice()->allocateRTVHandle(rtvHandle, rtvDescriptorIndex);
+		getD3DDevice()->allocateRTVHandle(rtvHeap, rtvHandle, rtvDescriptorIndex);
 		device->CreateRenderTargetView(rawResource.Get(), &viewDesc, rtvHandle);
 
 		rtv = std::make_unique<D3DRenderTargetView>();
@@ -120,7 +120,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::DSV))
 	{
-		// #todo-dx12: DSV ViewDimension
+		// #todo-texture: DSV ViewDimension
 		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
 
 		D3D12_DEPTH_STENCIL_VIEW_DESC viewDesc;
@@ -129,7 +129,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		viewDesc.Flags = D3D12_DSV_FLAG_NONE;
 		viewDesc.Texture2D.MipSlice = 0;
 
-		getD3DDevice()->allocateDSVHandle(dsvHandle, dsvDescriptorIndex);
+		getD3DDevice()->allocateDSVHandle(dsvHeap, dsvHandle, dsvDescriptorIndex);
 		device->CreateDepthStencilView(rawResource.Get(), &viewDesc, dsvHandle);
 
 		dsv = std::make_unique<D3DDepthStencilView>();
@@ -138,7 +138,25 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::UAV))
 	{
-		// #todo-dx12: UAV
+		// #todo-texture: UAV ViewDimension
+		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
+
+		// #todo-renderdevice: UAV counter resource, but will it ever be needed?
+		// https://www.gamedev.net/forums/topic/711467-understanding-uav-counters/5444474/
+		ID3D12Resource* counterResource = NULL;
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc;
+		viewDesc.Format = textureDesc.Format;
+		viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		viewDesc.Texture2D.MipSlice = 0; // #todo-texture: UAV mipSlice and planeSlice
+		viewDesc.Texture2D.PlaneSlice = 0; // Initializing a single UAV here is not good...
+
+		getD3DDevice()->allocateUAVHandle(uavHeap, uavHandle, uavDescriptorIndex);
+		device->CreateUnorderedAccessView(rawResource.Get(), counterResource, &viewDesc, uavHandle);
+
+		uav = std::make_unique<D3DUnorderedAccessView>(this);
+		uav->setCPUHandle(uavHandle);
+
 		CHECK_NO_ENTRY();
 	}
 }
@@ -188,4 +206,9 @@ ShaderResourceView* D3DTexture::getSRV() const
 DepthStencilView* D3DTexture::getDSV() const
 {
 	return dsv.get();
+}
+
+UnorderedAccessView* D3DTexture::getUAV() const
+{
+	return uav.get();
 }

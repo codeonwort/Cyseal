@@ -279,7 +279,7 @@ void BasePass::updateMaterialParameters(
 		gRenderDevice->copyDescriptors(
 			1,
 			volatileHeap, descriptorStartOffset,
-			gTextureManager->getSRVHeap(), albedo->getSRVDescriptorIndex());
+			albedo->getSourceSRVHeap(), albedo->getSRVDescriptorIndex());
 		volatileAlbedoTextureIndex = payloadID;
 	}
 
