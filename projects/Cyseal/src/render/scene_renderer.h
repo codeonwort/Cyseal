@@ -24,6 +24,8 @@ private:
 	// #todo-renderer: Temporarily manage render targets in the renderer.
 	Texture* RT_sceneColor = nullptr;
 	Texture* RT_sceneDepth = nullptr; // Actually DS target but let's unify prefixes
+	// Gonna stick to forward shading, but render thin GBuffers like DOOM reboot series.
+	Texture* RT_thinGBufferA = nullptr; // #todo-renderer: Maybe switch to R10G10B10A2?
 
 	// Render passes
 	GPUScene* gpuScene = nullptr;

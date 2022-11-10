@@ -17,6 +17,7 @@
 
 // #todo-renderer: Acquire pixel format from Texture
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
+#define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
 
 struct SceneUniform
 {
@@ -143,8 +144,9 @@ void BasePass::initialize()
 		desc.depthstencilDesc       = DepthstencilDesc::StandardSceneDepth();
 		desc.sampleMask             = 0xffffffff;
 		desc.primitiveTopologyType  = EPrimitiveTopologyType::Triangle;
-		desc.numRenderTargets       = 1;
+		desc.numRenderTargets       = 2;
 		desc.rtvFormats[0]          = PF_sceneColor;
+		desc.rtvFormats[1]          = PF_thinGBufferA;
 		desc.sampleDesc.count       = swapchain->supports4xMSAA() ? 4 : 1;
 		desc.sampleDesc.quality     = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0;
 		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();

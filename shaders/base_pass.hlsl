@@ -82,7 +82,13 @@ Interpolants mainVS(VertexInput input)
 // ------------------------------------------------------------------------
 // Pixel shader
 
-float4 mainPS(Interpolants interpolants) : SV_TARGET
+struct PixelOutput
+{
+    float4 sceneColor   : SV_TARGET0;
+    float4 thinGBufferA : SV_TARGET1;
+};
+
+PixelOutput mainPS(Interpolants interpolants)
 {
     MeshData meshData = getMeshData();
     Material material = getMaterial();
@@ -109,8 +115,10 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     // Fake indirect lighting to distinguish with black background.
     diffuse += float3(0.02, 0.02, 0.02);
 
-    float3 outLuminance = diffuse + specular;
-    //float opacity = meshData.color.a;
+    float3 luminance = diffuse + specular;
 
-    return float4(outLuminance, 1.0);
+    PixelOutput output;
+    output.sceneColor = float4(luminance, 1.0);
+    output.thinGBufferA = float4(N, 1.0);
+    return output;
 }

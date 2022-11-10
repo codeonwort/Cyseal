@@ -34,6 +34,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 void SceneRenderer::destroy()
 {
 	delete RT_sceneColor;
+	delete RT_thinGBufferA;
 	delete RT_sceneDepth;
 
 	delete gpuScene;
@@ -84,29 +85,36 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	}
 
 	// #todo-renderer: Depth PrePass
+	{
+	}
 
 	// Base pass
-	// final target: RT_sceneColor, RT_sceneDepth
 	{
 		SCOPED_DRAW_EVENT(commandList, BasePass);
 
-		ResourceBarrier barrier{
-			EResourceBarrierType::Transition,
-			RT_sceneColor,
-			EGPUResourceState::PIXEL_SHADER_RESOURCE,
-			EGPUResourceState::RENDER_TARGET
+		ResourceBarrier barriers[] = {
+			{
+				EResourceBarrierType::Transition,
+				RT_sceneColor,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE,
+				EGPUResourceState::RENDER_TARGET
+			},
+			{
+				EResourceBarrierType::Transition,
+				RT_thinGBufferA,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE,
+				EGPUResourceState::RENDER_TARGET
+			}
 		};
-		commandList->resourceBarriers(1, &barrier);
+		commandList->resourceBarriers(_countof(barriers), barriers);
 
-		commandList->omSetRenderTarget(RT_sceneColor->getRTV(), RT_sceneDepth->getDSV());
+		RenderTargetView* RTVs[] = { RT_sceneColor->getRTV(), RT_thinGBufferA->getRTV() };
+		commandList->omSetRenderTargets(_countof(RTVs), RTVs, RT_sceneDepth->getDSV());
 
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		commandList->clearRenderTargetView(RT_sceneColor->getRTV(), clearColor);
-
-		commandList->clearDepthStencilView(
-			RT_sceneDepth->getDSV(),
-			EDepthClearFlags::DEPTH_STENCIL,
-			1.0f, 0);
+		commandList->clearRenderTargetView(RT_thinGBufferA->getRTV(), clearColor);
+		commandList->clearDepthStencilView(RT_sceneDepth->getDSV(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
 
 		basePass->renderBasePass(commandList, scene, camera, gpuScene->getCulledGPUSceneBuffer());
 	}
@@ -120,6 +128,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 			{
 				EResourceBarrierType::Transition,
 				RT_sceneColor,
+				EGPUResourceState::RENDER_TARGET,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE
+			},
+			{
+				EResourceBarrierType::Transition,
+				RT_thinGBufferA,
 				EGPUResourceState::RENDER_TARGET,
 				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
@@ -176,4 +190,12 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_sceneDepth->setDebugName(L"SceneDepth");
+
+	RT_thinGBufferA = device->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::R16G16B16A16_FLOAT,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
+			sceneWidth, sceneHeight,
+			1, 1, 0));
+	RT_thinGBufferA->setDebugName(L"ThinGBufferA");
 }
