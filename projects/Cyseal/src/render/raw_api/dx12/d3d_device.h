@@ -36,6 +36,8 @@ public:
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
 	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
 
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc) override;
+
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
 
 	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) override;

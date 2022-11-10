@@ -10,6 +10,8 @@
 #include "render/texture_manager.h"
 #include "util/logging.h"
 
+#include <d3dx12.h>
+
 // #todo-crossapi: Dynamic loading
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
@@ -434,6 +436,24 @@ PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& 
 	pipeline->initialize(device.Get(), d3d_desc);
 
 	return pipeline;
+}
+
+RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
+	const RaytracingPipelineStateObjectDesc& desc)
+{
+	CD3DX12_STATE_OBJECT_DESC d3d_desc{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
+
+	// #todo-wip-rt
+	// 1. DXIL library
+	// 2. Triangle hit group
+	// 3. Shader config
+	// 4. Local root signature and shader association
+	// 5. Global root signature
+	// 6. Pipeline config
+
+	D3DRaytracingPipelineStateObject* RTPSO = new D3DRaytracingPipelineStateObject;
+	RTPSO->initialize(device.Get(), d3d_desc);
+	return RTPSO;
 }
 
 DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)

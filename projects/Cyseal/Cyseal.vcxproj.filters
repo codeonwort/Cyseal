@@ -240,6 +240,9 @@
     <ClInclude Include="src\render\render_device_capabilities.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\ray_traced_reflections.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -378,6 +381,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\gpu_scene.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\ray_traced_reflections.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

@@ -320,7 +320,7 @@ struct ScissorRect
 };
 
 //////////////////////////////////////////////////////////////////////////
-// Pipeline state
+// Graphics & compute pipeline
 
 // D3D12_GRAPHICS_PIPELINE_STATE_DESC
 // VkGraphicsPipelineCreateInfo
@@ -368,4 +368,19 @@ class PipelineState
 {
 public:
 	virtual ~PipelineState() = default;
+};
+
+//////////////////////////////////////////////////////////////////////////
+// Raytracing pipeline
+
+struct RaytracingPipelineStateObjectDesc
+{
+	//
+};
+
+// ID3D12StateObject (RTPSO)
+class RaytracingPipelineStateObject
+{
+public:
+	virtual ~RaytracingPipelineStateObject() = default;
 };

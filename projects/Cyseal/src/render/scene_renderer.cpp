@@ -6,6 +6,7 @@
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
 #include "render/base_pass.h"
+#include "render/ray_traced_reflections.h"
 #include "render/tone_mapping.h"
 
 void SceneRenderer::initialize(RenderDevice* renderDevice)
@@ -27,6 +28,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		basePass = new BasePass;
 		basePass->initialize();
 
+		rtReflections = new RayTracedReflections;
+		rtReflections->initialize();
+
 		toneMapping = new ToneMapping;
 	}
 }
@@ -39,6 +43,7 @@ void SceneRenderer::destroy()
 
 	delete gpuScene;
 	delete basePass;
+	delete rtReflections;
 	delete toneMapping;
 }
 

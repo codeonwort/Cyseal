@@ -5,6 +5,7 @@
 class Texture;
 class GPUScene;
 class BasePass;
+class RayTracedReflections;
 class ToneMapping;
 
 class SceneRenderer final : public Renderer
@@ -30,5 +31,6 @@ private:
 	// Render passes
 	GPUScene* gpuScene = nullptr;
 	BasePass* basePass = nullptr;
+	RayTracedReflections* rtReflections = nullptr;
 	ToneMapping* toneMapping = nullptr;
 };

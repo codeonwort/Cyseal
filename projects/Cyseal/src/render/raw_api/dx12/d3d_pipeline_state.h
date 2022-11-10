@@ -33,6 +33,18 @@ private:
 	WRL::ComPtr<ID3D12PipelineState> rawPSO;
 };
 
+class D3DRaytracingPipelineStateObject : public RaytracingPipelineStateObject
+{
+public:
+	void initialize(ID3D12Device5* device, const D3D12_STATE_OBJECT_DESC& desc)
+	{
+		HR(device->CreateStateObject(&desc, IID_PPV_ARGS(&rawRTPSO)));
+	}
+	ID3D12StateObject* getRaw() const { return rawRTPSO.Get(); }
+private:
+	WRL::ComPtr<ID3D12StateObject> rawRTPSO;
+};
+
 class D3DRootSignature : public RootSignature
 {
 public:

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "util/logging.h"
 #include "pixel_format.h"
 #include "texture.h"
 #include "shader.h"
@@ -85,6 +86,8 @@ public:
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
 	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) = 0;
+	
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc) = 0;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
 
@@ -142,3 +145,4 @@ protected:
 };
 
 extern RenderDevice* gRenderDevice;
+DECLARE_LOG_CATEGORY(LogDevice);
