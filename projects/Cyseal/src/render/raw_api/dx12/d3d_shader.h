@@ -13,14 +13,9 @@ public:
 
 	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) override;
 
-	D3D12_SHADER_BYTECODE getBytecode() const
-	{
-		D3D12_SHADER_BYTECODE bc;
-		bc.pShaderBytecode = bytecodeBlob->GetBufferPointer();
-		bc.BytecodeLength = bytecodeBlob->GetBufferSize();
-		return bc;
-	}
+	D3D12_SHADER_BYTECODE getBytecode() const;
 
 private:
-	WRL::ComPtr<ID3DBlob> bytecodeBlob;
+	bool bInitialized = false;
+	WRL::ComPtr<IDxcBlob> bytecodeBlob;
 };

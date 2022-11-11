@@ -13,13 +13,27 @@
 // #todo-crossapi: Dynamic loading
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "dxcompiler.lib")
+#pragma comment(lib, "dxguid.lib")
 
 #if _DEBUG
 #include <dxgidebug.h>
-#pragma comment(lib, "dxguid.lib")
 #endif
 
+// https://github.com/microsoft/DirectXShaderCompiler/wiki/Shader-Model
+// SM 5.1: Dynamic indexing of descriptors within a shader
+// SM 6.0: Wave intrinsics / 64-bit int
+// SM 6.1: SV_ViewID / Barycentric semantics / GetAttributeAtVertex intrinsic
+// SM 6.2: float16 / Denorm mode selection
+// SM 6.3: DXR
+// SM 6.4: VRS / Low-precision packed dot product intrinsics / Library sub-objects for raytracing
+// SM 6.5: DXR 1.1 / Sampler Feedback / Mesh & amplication shaders / More Wave intrinsics
+// SM 6.6: New atomic ops / Dynamic resources / IsHelperLane()
+//         / Derivatives in compute & mesh & amp shaders / Pack & unpack intrinsics
+//         / WaveSize / Raytracing Payload Access Qualifiers
+// SM 6.7: https://devblogs.microsoft.com/directx/shader-model-6-7/
+#define CYSEAL_D3D_SHADER_MODEL_MINIMUM D3D_SHADER_MODEL_6_0 /* Minimum required SM to run Cyseal */
+#define CYSEAL_D3D_SHADER_MODEL_HIGHEST D3D_SHADER_MODEL_6_6 /* Highest SM that Cyseal recognizes */
 
 DEFINE_LOG_CATEGORY_STATIC(LogDirectX);
 
@@ -121,9 +135,12 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 			featureLevelCandidates.MaxSupportedFeatureLevel,
 			IID_PPV_ARGS(&device)));
 	}
-
+	
 	// Check capabilities
 	{
+		// #todo-dx12: Use d3dx12 feature support helper?
+	// https://devblogs.microsoft.com/directx/introducing-a-new-api-for-checking-feature-support-in-direct3d-12/
+
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 caps5 = {}; // DXR
 		D3D12_FEATURE_DATA_D3D12_OPTIONS6 caps6 = {}; // VRS
 		D3D12_FEATURE_DATA_D3D12_OPTIONS7 caps7 = {}; // Mesh shader, sampler feedback
@@ -218,10 +235,20 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 	rawCommandList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
-	// #todo-shader: Shader Model 6
-	D3D12_FEATURE_DATA_SHADER_MODEL SM = { D3D_SHADER_MODEL::D3D_SHADER_MODEL_5_1 };
+	// Shader management
+
+	D3D12_FEATURE_DATA_SHADER_MODEL SM = { CYSEAL_D3D_SHADER_MODEL_HIGHEST };
 	HR( device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &SM, sizeof(SM)) );
-	CHECK(SM.HighestShaderModel >= D3D_SHADER_MODEL::D3D_SHADER_MODEL_5_1);
+	if (SM.HighestShaderModel < CYSEAL_D3D_SHADER_MODEL_MINIMUM)
+	{
+		CYLOG(LogDirectX, Fatal, L"Current PC does not support minimum required Shader Model");
+		CHECK_NO_ENTRY();
+	}
+	highestShaderModel = SM.HighestShaderModel;
+
+	HR(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils)));
+	HR(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler)));
+	HR(dxcUtils->CreateDefaultIncludeHandler(&dxcIncludeHandler));
 }
 
 void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)

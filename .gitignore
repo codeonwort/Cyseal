@@ -1,8 +1,7 @@
-### StudyDirectX12 ###
+### Cyseal ###
 bin/
 intermediate/
-resource/
-
+external/
 
 
 # Created by https://www.gitignore.io/api/c++,visualstudio
