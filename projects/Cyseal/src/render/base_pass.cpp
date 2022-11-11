@@ -156,8 +156,8 @@ void BasePass::initialize()
 
 	// Cleanup
 	{
-		// #todo-renderer: Delete shader object
-		//delete shader;
+		delete shaderVS;
+		delete shaderPS;
 	}
 }
 

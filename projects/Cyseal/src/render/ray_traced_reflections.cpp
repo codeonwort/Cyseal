@@ -51,26 +51,25 @@ void RayTracedReflections::initialize()
 
 	// RTPSO
 	{
-		// Load shader
-		raygenShader = std::unique_ptr<ShaderStage>(
-			device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen"));
-		closestHitShader = std::unique_ptr<ShaderStage>(
-			device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit"));
-		missShader = std::unique_ptr<ShaderStage>(
-			device->createShader(EShaderStage::RT_MISS_SHADER, "RTR_Miss"));
-
+		ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen");
+		ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit");
+		ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "RTR_Miss");
 		raygenShader->loadFromFile(L"rt_reflection.hlsl", "MyRaygenShader");
 		closestHitShader->loadFromFile(L"rt_reflection.hlsl", "MyClosestHitShader");
 		missShader->loadFromFile(L"rt_reflection.hlsl", "MyMissShader");
 
 		// #todo-wip-rt: RTPSO desc
 		RaytracingPipelineStateObjectDesc desc;
-		desc.raygenShader = raygenShader.get();
-		desc.closestHitShader = closestHitShader.get();
-		desc.missShader = missShader.get();
+		desc.raygenShader = raygenShader;
+		desc.closestHitShader = closestHitShader;
+		desc.missShader = missShader;
 
 		RTPSO = std::unique_ptr<RaytracingPipelineStateObject>(
 			gRenderDevice->createRaytracingPipelineStateObject(desc));
+
+		delete raygenShader;
+		delete closestHitShader;
+		delete missShader;
 	}
 
 	// #todo-wip-rt: AS (not here; need an actual scene proxy to build AS)

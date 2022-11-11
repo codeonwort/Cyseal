@@ -100,8 +100,8 @@ ToneMapping::ToneMapping()
 
 	// Cleanup
 	{
-		// #todo-renderer
-		//delete shader;
+		delete shaderVS;
+		delete shaderPS;
 	}
 }
 
