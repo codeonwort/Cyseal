@@ -33,7 +33,7 @@ $zip_list  = @(
 	#>
 	,@(
 		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.7.2207/dxc_2022_07_18.zip',
-		'external/dxc',
+		'external',
 		'dxc_2022_07_18.zip',
 		'external/dxc'
 	)
@@ -80,11 +80,9 @@ function Unzip {
 	Param ($zip_filepath, $unzip_dir)
 	Write-Host "    Unzip to:", $unzip_dir
 	if (Not-A-Drill) {
-		<# Problem if zip and unzip dirs are same...
 		if (Test-Path $unzip_dir) {
 			Remove-Item -Recurse -Force $unzip_dir
 		}
-		#>
 		Expand-Archive -Path $zip_filepath -DestinationPath $unzip_dir
 	}
 }
@@ -118,3 +116,13 @@ if ($should_download) {
 } else {
 	Write-Host "Skip download due to -skipdownload" -ForegroundColor Green
 }
+
+#
+# Copy DXC binaries to bin/
+#
+Ensure-Subdirectory "$pwd/bin/Debug"
+Ensure-Subdirectory "$pwd/bin/Release"
+Copy-Item -Path "$pwd/external/dxc/bin/x64/dxcompiler.dll" -Destination "$pwd/bin/Debug"
+Copy-Item -Path "$pwd/external/dxc/bin/x64/dxcompiler.dll" -Destination "$pwd/bin/Release"
+Copy-Item -Path "$pwd/external/dxc/bin/x64/dxil.dll" -Destination "$pwd/bin/Debug"
+Copy-Item -Path "$pwd/external/dxc/bin/x64/dxil.dll" -Destination "$pwd/bin/Release"
