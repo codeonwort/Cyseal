@@ -14,10 +14,10 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxcompiler.lib")
+#pragma comment(lib, "dxguid.lib")
 
 #if _DEBUG
 #include <dxgidebug.h>
-#pragma comment(lib, "dxguid.lib")
 #endif
 
 // https://github.com/microsoft/DirectXShaderCompiler/wiki/Shader-Model
