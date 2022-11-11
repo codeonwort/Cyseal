@@ -124,6 +124,20 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		basePass->renderBasePass(commandList, scene, camera, gpuScene->getCulledGPUSceneBuffer());
 	}
 
+	// Ray Traced Reflections
+	if (device->getRaytracingTier() != ERaytracingTier::NotSupported)
+	{
+		// #todo-wip-rt: Renderer
+		// Insert resource barriers.
+		// Just clear RTR output if DXR is unavailable.
+		// Combine sceneColor with RTR.
+
+		rtReflections->renderRayTracedReflections(
+			commandList,
+			scene,
+			camera);
+	}
+
 	// Tone mapping
 	// final target: back buffer
 	{

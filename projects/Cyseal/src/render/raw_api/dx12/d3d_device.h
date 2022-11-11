@@ -76,16 +76,16 @@ private:
 	WRL::ComPtr<IDXGIFactory4>        dxgiFactory;
 
 	WRL::ComPtr<ID3D12Fence>          fence;
-	UINT                              currentFence;
+	UINT                              currentFence = 0;
 
-	UINT                              descSizeRTV;
-	UINT                              descSizeDSV;
-	UINT                              descSizeCBV_SRV_UAV;
-	UINT                              descSizeSampler;
-	UINT                              quality4xMSAA;
+	UINT                              descSizeRTV = 0;
+	UINT                              descSizeDSV = 0;
+	UINT                              descSizeCBV_SRV_UAV = 0;
+	UINT                              descSizeSampler = 0;
+	UINT                              quality4xMSAA = 1;
 
 	// Raw interfaces
-	ID3D12CommandQueue*               rawCommandQueue;
-	ID3D12GraphicsCommandList4*       rawCommandList;
-	D3DSwapChain*                     d3dSwapChain;
+	ID3D12CommandQueue*               rawCommandQueue = nullptr;
+	ID3D12GraphicsCommandList4*       rawCommandList = nullptr;
+	D3DSwapChain*                     d3dSwapChain = nullptr;
 };

@@ -10,8 +10,6 @@
 #include "render/texture_manager.h"
 #include "util/logging.h"
 
-#include <d3dx12.h>
-
 // #todo-crossapi: Dynamic loading
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
@@ -51,6 +49,7 @@ void reportD3DLiveObjects()
 }
 
 D3DDevice::D3DDevice()
+	: RenderDevice()
 {
 	std::atexit(reportD3DLiveObjects);
 }
@@ -168,8 +167,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	}
 
 	// 2. Create a ID3D12Fence and retrieve sizes of descriptors.
-	HR( device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)) );
-	currentFence = 0;
+	HR( device->CreateFence(currentFence, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)) );
 
 	descSizeRTV         = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descSizeDSV         = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
@@ -443,13 +441,16 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 {
 	CD3DX12_STATE_OBJECT_DESC d3d_desc{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
 
-	// #todo-wip-rt
+	// #todo-wip-rt: d3d RTPSO desc
 	// 1. DXIL library
 	// 2. Triangle hit group
 	// 3. Shader config
 	// 4. Local root signature and shader association
 	// 5. Global root signature
 	// 6. Pipeline config
+
+	//auto lib = d3d_desc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+	//D3D12_SHADER_BYTECODE libdxil = 
 
 	D3DRaytracingPipelineStateObject* RTPSO = new D3DRaytracingPipelineStateObject;
 	RTPSO->initialize(device.Get(), d3d_desc);

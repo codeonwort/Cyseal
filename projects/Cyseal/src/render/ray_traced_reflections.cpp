@@ -49,8 +49,25 @@ void RayTracedReflections::initialize()
 	// RTPSO
 	{
 		RaytracingPipelineStateObjectDesc desc;
+		// #todo-wip-rt: RTPSO desc
+
 		RTPSO = std::unique_ptr<RaytracingPipelineStateObject>(
 			gRenderDevice->createRaytracingPipelineStateObject(desc));
+	}
+
+	// #todo-wip-rt: AS (not here; need an actual scene proxy to build AS)
+	// Acceleration structure
+	{
+		// D3D12_RAYTRACING_GEOMETRY_DESC geomDesc{ ... };
+		// D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC blasDesc{ ... };
+		// D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC tlasDesc{ ... };
+		// BuildRaytracingAccelerationStructure();
+	}
+
+	// #todo-wip-rt: Shader table
+	// Shader table
+	{
+		//
 	}
 }
 
@@ -69,5 +86,11 @@ void RayTracedReflections::renderRayTracedReflections(
 		return;
 	}
 
-	//
+	// #todo-wip-rt: DispatchRays
+	// SetComputeRootSignature(globalRootSignature);
+	// SetDescriptorHeaps();
+	// SetComputeRootDescriptorTable();
+	// SetComputeRootDescriptorSRV();
+	// SetPipelineState1(RTPSO);
+	// DispatchRays(dispatchDesc);
 }
