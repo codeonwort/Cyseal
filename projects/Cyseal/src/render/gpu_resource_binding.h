@@ -223,17 +223,21 @@ struct StaticSamplerDesc
 };
 
 // D3D12_ROOT_SIGNATURE_FLAGS
-enum class ERootSignatureFlags : uint8
+enum class ERootSignatureFlags : uint32
 {
-	None                           = 0,
-	AllowInputAssemblerInputLayout = 0x1,
-	DenyVertexShaderRootAccess     = 0x2,
-	DenyHullShaderRootAccess       = 0x4,
-	DenyDomainShaderRootAccess     = 0x8,
-	DenyGeometryShaderRootAccess   = 0x10,
-	DenyPixelShaderRootAccess      = 0x20,
-	AllowStreamOutput              = 0x40,
-	LocalRootSignature             = 0x80
+	None                            = 0,
+	AllowInputAssemblerInputLayout  = 0x1,
+	DenyVertexShaderRootAccess      = 0x2,
+	DenyHullShaderRootAccess        = 0x4,
+	DenyDomainShaderRootAccess      = 0x8,
+	DenyGeometryShaderRootAccess    = 0x10,
+	DenyPixelShaderRootAccess       = 0x20,
+	AllowStreamOutput               = 0x40,
+	LocalRootSignature              = 0x80,
+	DenyAmplicationShaderRootAccess = 0x100,
+	DenyMeshShaderRootAccess        = 0x200,
+	CbvSrvUavHeapDirectlyIndexed    = 0x400,
+	SamplerHeapDirectlyIndexed      = 0x800,
 };
 ENUM_CLASS_FLAGS(ERootSignatureFlags);
 

@@ -6,6 +6,8 @@
 // Reference: 'D3D12RaytracingHelloWorld' sample in
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
+#define RTR_MAX_RECURSION 2
+
 struct RTRViewport
 {
 	float left;
@@ -32,8 +34,11 @@ void RayTracedReflections::initialize()
 
 	// Global root signature
 	{
+		DescriptorRange descRanges[1];
+		descRanges[0].init(EDescriptorRangeType::UAV, 1, 0, 0); // register(u0, space0)
+
 		RootParameter rootParameters[2];
-		rootParameters[0].initAsUAV(0, 0); // register(u0, space0)
+		rootParameters[0].initAsDescriptorTable(1, &descRanges[0]);
 		rootParameters[1].initAsSRV(0, 0); // register(t0, space0)
 
 		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
@@ -46,6 +51,7 @@ void RayTracedReflections::initialize()
 		rootParameters[0].initAsConstants(0, 0, sizeof(RayGenConstantBuffer) / 4); // register(b0, space0)
 
 		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
+		sigDesc.flags = ERootSignatureFlags::LocalRootSignature;
 		localRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
 	}
 
@@ -60,9 +66,15 @@ void RayTracedReflections::initialize()
 
 		// #todo-wip-rt: RTPSO desc
 		RaytracingPipelineStateObjectDesc desc;
+		desc.hitGroupName = L"MyHitGroup";
 		desc.raygenShader = raygenShader;
 		desc.closestHitShader = closestHitShader;
 		desc.missShader = missShader;
+		desc.raygenLocalRootSignature = localRootSignature.get();
+		desc.closestHitLocalRootSignature = nullptr;
+		desc.missLocalRootSignature = nullptr;
+		desc.globalRootSignature = globalRootSignature.get();
+		desc.maxTraceRecursionDepth = RTR_MAX_RECURSION;
 
 		RTPSO = std::unique_ptr<RaytracingPipelineStateObject>(
 			gRenderDevice->createRaytracingPipelineStateObject(desc));
@@ -84,7 +96,7 @@ void RayTracedReflections::initialize()
 	// #todo-wip-rt: Shader table
 	// Shader table
 	{
-		//
+		// See BuildShaderTables()
 	}
 }
 

@@ -468,20 +468,67 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 {
 	CD3DX12_STATE_OBJECT_DESC d3d_desc{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
 
-	// #todo-wip-rt: d3d RTPSO desc
-	// 1. DXIL library
-	// 2. Triangle hit group
-	// 3. Shader config
-	// 4. Local root signature and shader association
-	// 5. Global root signature
-	// 6. Pipeline config
-
-	//auto lib = d3d_desc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
-	// #todo-wip-rt: Which bytecode??? My shader stages are not a single blob.
-	//lib->SetDXILLibrary(&shaderBytecode);
+	// DXIL library
+	auto createRTShaderSubobject = [&](ShaderStage* shaderStage)
 	{
-		//lib->DefineExport(
+		if (shaderStage != nullptr)
+		{
+			D3DShaderStage* d3dShader = static_cast<D3DShaderStage*>(shaderStage);
+			D3D12_SHADER_BYTECODE shaderBytecode = d3dShader->getBytecode();
+
+			auto lib = d3d_desc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+			lib->SetDXILLibrary(&shaderBytecode);
+			lib->DefineExport(d3dShader->getEntryPoint());
+		}
+	};
+	createRTShaderSubobject(desc.raygenShader);
+	createRTShaderSubobject(desc.closestHitShader);
+	createRTShaderSubobject(desc.missShader);
+
+	// #todo-wip-rt: Correct hit group
+	// Hit group
+	auto hitGroup = d3d_desc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+	if (desc.closestHitShader != nullptr)
+	{
+		hitGroup->SetClosestHitShaderImport(
+			static_cast<D3DShaderStage*>(desc.closestHitShader)->getEntryPoint());
 	}
+	hitGroup->SetHitGroupExport(desc.hitGroupName.c_str());
+	hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+	// #todo-wip-rt: Correct shader config
+	// Shader config
+	auto shaderConfig = d3d_desc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
+	UINT payloadSize = 4 * sizeof(float); // float4 color
+	UINT attrSize = 2 * sizeof(float);    // float2 barycentrics
+	shaderConfig->Config(payloadSize, attrSize);
+
+	// Local root signature
+	auto createLocalRootSignature = [&](ShaderStage* shader, RootSignature* rootSig)
+	{
+		if (shader != nullptr && rootSig != nullptr)
+		{
+			auto shaderName = static_cast<D3DShaderStage*>(shader)->getEntryPoint();
+			auto d3dRootSig = static_cast<D3DRootSignature*>(rootSig)->getRaw();
+
+			auto localSig = d3d_desc.CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+			localSig->SetRootSignature(d3dRootSig);
+			auto assoc = d3d_desc.CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+			assoc->SetSubobjectToAssociate(*localSig);
+			assoc->AddExport(shaderName);
+		}
+	};
+	createLocalRootSignature(desc.raygenShader, desc.raygenLocalRootSignature);
+	createLocalRootSignature(desc.closestHitShader, desc.closestHitLocalRootSignature);
+	createLocalRootSignature(desc.missShader, desc.missLocalRootSignature);
+
+	// Global root signature
+	auto globalSig = d3d_desc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
+	globalSig->SetRootSignature(static_cast<D3DRootSignature*>(desc.globalRootSignature)->getRaw());
+
+	// Pipeline config
+	auto pipelineConfig = d3d_desc.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
+	pipelineConfig->Config(desc.maxTraceRecursionDepth);
 
 	D3DRaytracingPipelineStateObject* RTPSO = new D3DRaytracingPipelineStateObject;
 	RTPSO->initialize(device.Get(), d3d_desc);

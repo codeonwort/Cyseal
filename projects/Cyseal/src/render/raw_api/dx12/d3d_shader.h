@@ -15,7 +15,10 @@ public:
 
 	D3D12_SHADER_BYTECODE getBytecode() const;
 
+	const wchar_t* getEntryPoint() const { return wEntryPoint.c_str(); }
+
 private:
 	bool bInitialized = false;
 	WRL::ComPtr<IDxcBlob> bytecodeBlob;
+	std::wstring wEntryPoint;
 };

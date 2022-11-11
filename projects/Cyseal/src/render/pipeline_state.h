@@ -376,10 +376,18 @@ public:
 
 struct RaytracingPipelineStateObjectDesc
 {
-	//std::wstring hitGroupName;
+	std::wstring hitGroupName;
+
 	ShaderStage* raygenShader = nullptr;
 	ShaderStage* closestHitShader = nullptr;
 	ShaderStage* missShader = nullptr;
+
+	RootSignature* raygenLocalRootSignature = nullptr;
+	RootSignature* closestHitLocalRootSignature = nullptr;
+	RootSignature* missLocalRootSignature = nullptr;
+	RootSignature* globalRootSignature = nullptr;
+
+	uint32 maxTraceRecursionDepth = 1;
 };
 
 // ID3D12StateObject (RTPSO)
