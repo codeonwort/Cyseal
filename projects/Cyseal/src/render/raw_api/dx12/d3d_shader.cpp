@@ -50,27 +50,57 @@ static std::wstring getShaderDirectory()
 	return shaderDir;
 }
 
-// #todo-wip-dxc: Should return something that matches with D3DDevice::highestShaderModel
-static const wchar_t* getD3DShaderType(EShaderStage type)
+static const wchar_t* getD3DShaderModelString(D3D_SHADER_MODEL shaderModel)
 {
-	switch (type)
+	switch (shaderModel)
 	{
-		case EShaderStage::VERTEX_SHADER: return L"vs_6_6";
-		case EShaderStage::DOMAIN_SHADER: return L"ds_6_6";
-		case EShaderStage::HULL_SHADER: return L"hs_6_6";
-		case EShaderStage::GEOMETRY_SHADER: return L"gs_6_6";
-		case EShaderStage::PIXEL_SHADER: return L"ps_6_6";
-		case EShaderStage::COMPUTE_SHADER: return L"cs_6_6";
+		case D3D_SHADER_MODEL_6_0: return L"6_0";
+		case D3D_SHADER_MODEL_6_1: return L"6_1";
+		case D3D_SHADER_MODEL_6_2: return L"6_2";
+		case D3D_SHADER_MODEL_6_3: return L"6_3";
+		case D3D_SHADER_MODEL_6_4: return L"6_4";
+		case D3D_SHADER_MODEL_6_5: return L"6_5";
+		case D3D_SHADER_MODEL_6_6: return L"6_6";
+		case D3D_SHADER_MODEL_6_7: return L"6_7";
 		default: CHECK_NO_ENTRY();
 	}
-	return L"unknown";
+	return L"?_?";
+}
+static const wchar_t* getD3DShaderStagePrefix(EShaderStage stage)
+{
+	switch (stage)
+	{
+		case EShaderStage::VERTEX_SHADER:          return L"vs_";
+		case EShaderStage::HULL_SHADER:            return L"hs_";
+		case EShaderStage::DOMAIN_SHADER:          return L"ds_";
+		case EShaderStage::GEOMETRY_SHADER:        return L"gs_";
+		case EShaderStage::PIXEL_SHADER:           return L"ps_";
+		case EShaderStage::COMPUTE_SHADER:         return L"cs_";
+		case EShaderStage::MESH_SHADER:            return L"ms_";
+		case EShaderStage::AMPLICATION_SHADER:     return L"as_";
+		case EShaderStage::RT_RAYGEN_SHADER:
+		case EShaderStage::RT_ANYHIT_SHADER:
+		case EShaderStage::RT_CLOSESTHIT_SHADER:
+		case EShaderStage::RT_MISS_SHADER:
+		case EShaderStage::RT_INTERSECTION_SHADER: return L"lib_";
+		default: CHECK_NO_ENTRY();
+	}
+	return L"??_";
+}
+
+static std::wstring getD3DShaderProfile(D3D_SHADER_MODEL shaderModel, EShaderStage type)
+{
+	std::wstring profile = getD3DShaderStagePrefix(type);
+	profile += getD3DShaderModelString(shaderModel);
+	return profile;
 }
 
 void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* entryPoint)
 {
-	IDxcLibrary* library = getD3DDevice()->getDxcLibrary();
+	IDxcUtils* utils = getD3DDevice()->getDxcUtils();
 	IDxcCompiler3* compiler = getD3DDevice()->getDxcCompiler();
 	IDxcIncludeHandler* includeHandler = getD3DDevice()->getDxcIncludeHandler();
+	D3D_SHADER_MODEL highestSM = getD3DDevice()->getHighestShaderModel();
 
 	std::wstring fullpath = ResourceFinder::get().find(inFilename);
 	if (fullpath.size() == 0)
@@ -81,30 +111,26 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* entryPo
 
 	uint32 codePage = CP_UTF8;
 	WRL::ComPtr<IDxcBlobEncoding> sourceBlob;
-	HRESULT hr = library->CreateBlobFromFile(fullpath.c_str(), &codePage, &sourceBlob);
+	HRESULT hr = utils->LoadFile(fullpath.c_str(), &codePage, &sourceBlob);
 	if (FAILED(hr))
 	{
 		CYLOG(LogD3DShader, Fatal, L"Failed to create blob from: %s", fullpath.c_str());
 		CHECK_NO_ENTRY();
 	}
 
-	std::wstring shaderDir = getShaderDirectory();
+	std::wstring includeDir = getShaderDirectory();
+	std::wstring targetProfile = getD3DShaderProfile(highestSM, stageFlag);
 	std::wstring wEntryPoint;
 	str_to_wstr(entryPoint, wEntryPoint);
 
-	std::vector<LPCWSTR> arguments;
+	std::vector<LPCWSTR> arguments = {
+		L"-I", includeDir.c_str(),
+		L"-E", wEntryPoint.c_str(),
+		L"-T", targetProfile.c_str(),
+	};
 #if SKIP_SHADER_OPTIMIZATION
 	//arguments.push_back(DXC_ARG_DEBUG);
 #endif
-	// Include directory
-	arguments.push_back(L"-I");
-	arguments.push_back(shaderDir.c_str());
-	// Entry point
-	arguments.push_back(L"-E");
-	arguments.push_back(wEntryPoint.c_str());
-	// Target profile
-	arguments.push_back(L"-T");
-	arguments.push_back(getD3DShaderType(stageFlag));
 	
 	DxcBuffer sourceBuffer;
 	sourceBuffer.Ptr = sourceBlob->GetBufferPointer();

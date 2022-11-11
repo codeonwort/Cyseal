@@ -32,7 +32,7 @@
 //         / Derivatives in compute & mesh & amp shaders / Pack & unpack intrinsics
 //         / WaveSize / Raytracing Payload Access Qualifiers
 // SM 6.7: https://devblogs.microsoft.com/directx/shader-model-6-7/
-#define CYSEAL_D3D_SHADER_MODEL_MINIMUM D3D_SHADER_MODEL_5_1 /* Minimum required SM to run Cyseal */
+#define CYSEAL_D3D_SHADER_MODEL_MINIMUM D3D_SHADER_MODEL_6_0 /* Minimum required SM to run Cyseal */
 #define CYSEAL_D3D_SHADER_MODEL_HIGHEST D3D_SHADER_MODEL_6_6 /* Highest SM that Cyseal recognizes */
 
 DEFINE_LOG_CATEGORY_STATIC(LogDirectX);
@@ -246,9 +246,8 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	}
 	highestShaderModel = SM.HighestShaderModel;
 
-	HR(DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&dxcLibrary)));
-	HR(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler)));
 	HR(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils)));
+	HR(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler)));
 	HR(dxcUtils->CreateDefaultIncludeHandler(&dxcIncludeHandler));
 }
 
