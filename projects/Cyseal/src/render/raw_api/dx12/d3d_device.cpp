@@ -13,7 +13,7 @@
 // #todo-crossapi: Dynamic loading
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "dxcompiler.lib")
 
 #if _DEBUG
 #include <dxgidebug.h>
@@ -235,6 +235,8 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 
 	rawCommandList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
+	// Shader management
+
 	D3D12_FEATURE_DATA_SHADER_MODEL SM = { CYSEAL_D3D_SHADER_MODEL_HIGHEST };
 	HR( device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &SM, sizeof(SM)) );
 	if (SM.HighestShaderModel < CYSEAL_D3D_SHADER_MODEL_MINIMUM)
@@ -243,6 +245,11 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 		CHECK_NO_ENTRY();
 	}
 	highestShaderModel = SM.HighestShaderModel;
+
+	HR(DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&dxcLibrary)));
+	HR(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler)));
+	HR(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils)));
+	HR(dxcUtils->CreateDefaultIncludeHandler(&dxcIncludeHandler));
 }
 
 void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)

@@ -57,6 +57,10 @@ public:
 	inline ID3D12DeviceLatest* getRawDevice() const { return device.Get(); }
 	inline ID3D12CommandQueue* getRawCommandQueue() const { return rawCommandQueue; }
 
+	inline IDxcLibrary* getDxcLibrary() const { return dxcLibrary.Get(); }
+	inline IDxcCompiler3* getDxcCompiler() const { return dxcCompiler.Get(); }
+	inline IDxcIncludeHandler* getDxcIncludeHandler() const { return dxcIncludeHandler.Get(); }
+
 	// #todo-renderdevice: Needs abstraction layer and release mechanism
 	// #todo-renderdevice: Actually they are abusing desc heaps of gTextureManager.
 	void allocateSRVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
@@ -89,4 +93,10 @@ private:
 
 	// Shader Model
 	D3D_SHADER_MODEL                  highestShaderModel = D3D_SHADER_MODEL_5_1;
+
+	// DXC
+	WRL::ComPtr<IDxcLibrary>          dxcLibrary;
+	WRL::ComPtr<IDxcCompiler3>        dxcCompiler;
+	WRL::ComPtr<IDxcUtils>            dxcUtils;
+	WRL::ComPtr<IDxcIncludeHandler>   dxcIncludeHandler;
 };
