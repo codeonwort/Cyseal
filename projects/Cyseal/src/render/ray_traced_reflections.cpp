@@ -1,6 +1,7 @@
 #include "ray_traced_reflections.h"
 #include "render_device.h"
 #include "pipeline_state.h"
+#include "shader.h"
 
 // Reference: 'D3D12RaytracingHelloWorld' sample in
 // https://github.com/microsoft/DirectX-Graphics-Samples
@@ -27,6 +28,8 @@ void RayTracedReflections::initialize()
 		return;
 	}
 
+	RenderDevice* device = gRenderDevice;
+
 	// Global root signature
 	{
 		RootParameter rootParameters[2];
@@ -48,8 +51,23 @@ void RayTracedReflections::initialize()
 
 	// RTPSO
 	{
-		RaytracingPipelineStateObjectDesc desc;
+		// Load shader
+		raygenShader = std::unique_ptr<ShaderStage>(
+			device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen"));
+		closestHitShader = std::unique_ptr<ShaderStage>(
+			device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit"));
+		missShader = std::unique_ptr<ShaderStage>(
+			device->createShader(EShaderStage::RT_MISS_SHADER, "RTR_Miss"));
+
+		raygenShader->loadFromFile(L"rt_reflection.hlsl", "MyRaygenShader");
+		closestHitShader->loadFromFile(L"rt_reflection.hlsl", "MyClosestHitShader");
+		missShader->loadFromFile(L"rt_reflection.hlsl", "MyMissShader");
+
 		// #todo-wip-rt: RTPSO desc
+		RaytracingPipelineStateObjectDesc desc;
+		desc.raygenShader = raygenShader.get();
+		desc.closestHitShader = closestHitShader.get();
+		desc.missShader = missShader.get();
 
 		RTPSO = std::unique_ptr<RaytracingPipelineStateObject>(
 			gRenderDevice->createRaytracingPipelineStateObject(desc));

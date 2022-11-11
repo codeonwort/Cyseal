@@ -4,6 +4,7 @@
 #include "util/enum_util.h"
 #include "pixel_format.h"
 #include <vector>
+#include <string>
 
 class RootSignature;
 class ShaderStage;
@@ -375,7 +376,10 @@ public:
 
 struct RaytracingPipelineStateObjectDesc
 {
-	//
+	//std::wstring hitGroupName;
+	ShaderStage* raygenShader = nullptr;
+	ShaderStage* closestHitShader = nullptr;
+	ShaderStage* missShader = nullptr;
 };
 
 // ID3D12StateObject (RTPSO)

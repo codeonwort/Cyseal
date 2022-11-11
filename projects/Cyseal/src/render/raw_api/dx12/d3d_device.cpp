@@ -477,7 +477,11 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 	// 6. Pipeline config
 
 	//auto lib = d3d_desc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
-	//D3D12_SHADER_BYTECODE libdxil = 
+	// #todo-wip-rt: Which bytecode??? My shader stages are not a single blob.
+	//lib->SetDXILLibrary(&shaderBytecode);
+	{
+		//lib->DefineExport(
+	}
 
 	D3DRaytracingPipelineStateObject* RTPSO = new D3DRaytracingPipelineStateObject;
 	RTPSO->initialize(device.Get(), d3d_desc);

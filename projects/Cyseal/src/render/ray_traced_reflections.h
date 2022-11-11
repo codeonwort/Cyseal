@@ -7,6 +7,7 @@ class Material;
 class SceneProxy;
 class Camera;
 class RootSignature;
+class ShaderStage;
 class RaytracingPipelineStateObject;
 
 class RayTracedReflections final
@@ -28,4 +29,8 @@ private:
 	std::unique_ptr<RaytracingPipelineStateObject> RTPSO;
 	std::unique_ptr<RootSignature> globalRootSignature;
 	std::unique_ptr<RootSignature> localRootSignature;
+
+	std::unique_ptr<ShaderStage> raygenShader;
+	std::unique_ptr<ShaderStage> closestHitShader;
+	std::unique_ptr<ShaderStage> missShader;
 };
