@@ -5,7 +5,6 @@
 #include "core/assertion.h"
 
 #include <d3dcompiler.h>
-#include <Windows.h>
 
 #define SKIP_SHADER_OPTIMIZATION (_DEBUG)
 
@@ -13,7 +12,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogD3DShader);
 
 static const char* getD3DShaderType(EShaderStage type)
 {
-	// #todo-shader: Shader Model 6
+	// #todo-wip-dxc: Shader Model 6
 	switch (type)
 	{
 	case EShaderStage::VERTEX_SHADER:

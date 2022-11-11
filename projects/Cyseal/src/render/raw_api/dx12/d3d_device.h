@@ -86,4 +86,7 @@ private:
 	ID3D12CommandQueue*               rawCommandQueue;
 	ID3D12GraphicsCommandList4*       rawCommandList;
 	D3DSwapChain*                     d3dSwapChain;
+
+	// Shader Model
+	D3D_SHADER_MODEL                  highestShaderModel = D3D_SHADER_MODEL_5_1;
 };
