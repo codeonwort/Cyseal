@@ -41,7 +41,11 @@ private:
 
 	std::unique_ptr<RaytracingShaderTable> raygenShaderTable;
 	std::unique_ptr<RaytracingShaderTable> missShaderTable;
-	std::unique_ptr<RaytracingShaderTable> hitGroupTable;
+	std::unique_ptr<RaytracingShaderTable> hitGroupShaderTable;
+
+	std::unique_ptr<ShaderStage> raygenShader;
+	std::unique_ptr<ShaderStage> closestHitShader;
+	std::unique_ptr<ShaderStage> missShader;
 
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
 };

@@ -71,20 +71,22 @@ void RayTracedReflections::initialize()
 	}
 
 	// RTPSO
+	const wchar_t* hitGroupName = L"MyHitGroup";
 	{
-		ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen");
-		ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit");
-		ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "RTR_Miss");
+		raygenShader = std::unique_ptr<ShaderStage>(device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen"));
+		closestHitShader = std::unique_ptr<ShaderStage>(device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit"));
+		missShader = std::unique_ptr<ShaderStage>(device->createShader(EShaderStage::RT_MISS_SHADER, "RTR_Miss"));
+
 		raygenShader->loadFromFile(L"rt_reflection.hlsl", "MyRaygenShader");
 		closestHitShader->loadFromFile(L"rt_reflection.hlsl", "MyClosestHitShader");
 		missShader->loadFromFile(L"rt_reflection.hlsl", "MyMissShader");
 
 		// #todo-wip-rt: RTPSO desc
 		RaytracingPipelineStateObjectDesc desc;
-		desc.hitGroupName = L"MyHitGroup";
-		desc.raygenShader = raygenShader;
-		desc.closestHitShader = closestHitShader;
-		desc.missShader = missShader;
+		desc.hitGroupName = hitGroupName;
+		desc.raygenShader = raygenShader.get();
+		desc.closestHitShader = closestHitShader.get();
+		desc.missShader = missShader.get();
 		desc.raygenLocalRootSignature = localRootSignature.get();
 		desc.closestHitLocalRootSignature = nullptr;
 		desc.missLocalRootSignature = nullptr;
@@ -93,10 +95,6 @@ void RayTracedReflections::initialize()
 
 		RTPSO = std::unique_ptr<RaytracingPipelineStateObject>(
 			gRenderDevice->createRaytracingPipelineStateObject(desc));
-
-		delete raygenShader;
-		delete closestHitShader;
-		delete missShader;
 	}
 
 	// #todo-wip-rt: AS (not here; need an actual scene proxy to build AS)
@@ -109,9 +107,39 @@ void RayTracedReflections::initialize()
 	}
 
 	// #todo-wip-rt: Shader table
-	// Shader table
+	// Raygen shader table
 	{
-		//
+		struct RootArguments
+		{
+			RayGenConstantBuffer cb;
+		} rootArguments;
+		// #todo-wip-rt: Update in every tick
+		rootArguments.cb.viewport.left = 0.0f;
+		rootArguments.cb.viewport.right = (float)device->getSwapChain()->getBackbufferWidth();
+		rootArguments.cb.viewport.top = 0.0f;
+		rootArguments.cb.viewport.bottom = (float)device->getSwapChain()->getBackbufferHeight();
+
+		uint32 numShaderRecords = 1;
+		raygenShaderTable = std::unique_ptr<RaytracingShaderTable>(
+			device->createRaytracingShaderTable(
+				RTPSO.get(), numShaderRecords, sizeof(rootArguments), L"RayGenShaderTable"));
+		raygenShaderTable->uploadRecord(0, raygenShader.get(), &rootArguments, sizeof(rootArguments));
+	}
+	// Miss shader table
+	{
+		uint32 numShaderRecords = 1;
+		missShaderTable = std::unique_ptr<RaytracingShaderTable>(
+			device->createRaytracingShaderTable(
+				RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
+		missShaderTable->uploadRecord(0, missShader.get(), nullptr, 0);
+	}
+	// Hit gorup shader table
+	{
+		uint32 numShaderRecords = 1;
+		hitGroupShaderTable = std::unique_ptr<RaytracingShaderTable>(
+			device->createRaytracingShaderTable(
+				RTPSO.get(), numShaderRecords, 0, L"HitGroupShaderTable"));
+		hitGroupShaderTable->uploadRecord(0, hitGroupName, nullptr, 0);
 	}
 
 	volatileViewHeaps.resize(swapchainCount);
@@ -184,7 +212,7 @@ void RayTracedReflections::renderRayTracedReflections(
 	DispatchRaysDesc dispatchDesc;
 	dispatchDesc.raygenShaderTable = raygenShaderTable.get();
 	dispatchDesc.missShaderTable = missShaderTable.get();
-	dispatchDesc.hitGroupTable = hitGroupTable.get();
+	dispatchDesc.hitGroupTable = hitGroupShaderTable.get();
 	dispatchDesc.width = sceneWidth;
 	dispatchDesc.height = sceneHeight;
 	dispatchDesc.depth = 1;

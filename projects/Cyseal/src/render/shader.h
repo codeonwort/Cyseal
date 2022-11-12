@@ -43,6 +43,9 @@ public:
 
 	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) = 0;
 
+	virtual const wchar_t* getEntryPointW() = 0;
+	virtual const char* getEntryPointA() = 0;
+
 protected:
 	EShaderStage stageFlag;
 	std::string debugName;

@@ -87,7 +87,16 @@ public:
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
 	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) = 0;
 	
-	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc) = 0;
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
+		const RaytracingPipelineStateObjectDesc& desc) = 0;
+
+	// NOTE: shaderRecordSize = shaderIdentifierSize + rootArgumentSize,
+	// but shaderIdentifierSize is API-specific, so we specify only rootArgumentSize here.
+	virtual RaytracingShaderTable* createRaytracingShaderTable(
+		RaytracingPipelineStateObject* RTPSO,
+		uint32 numShaderRecords,
+		uint32 rootArgumentSize,
+		const wchar_t* debugName) = 0;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
 

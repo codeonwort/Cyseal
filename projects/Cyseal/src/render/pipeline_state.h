@@ -403,24 +403,25 @@ public:
 };
 
 // #todo-wip-rt: RaytracingShaderTable
-// Describes the arguments for a local root signature.
+// - Describes the arguments for a local root signature.
+// - For now, no struct for shader record.
+//   ( shader record = {shader identifier, local root arguments for the shader} )
 class RaytracingShaderTable
 {
 public:
-	RaytracingShaderTable(
-		uint32 inNumShaderRecords,
-		uint32 inShaderRecordSize,
-		const wchar_t* inResourceName)
-		: numShaderRecords(inNumShaderRecords)
-		, shaderRecordSize(inShaderRecordSize)
-		, resourceName(inResourceName)
-	{
-		//
-	}
-private:
-	uint32 numShaderRecords;
-	uint32 shaderRecordSize;
-	const wchar_t* resourceName;
+	virtual ~RaytracingShaderTable() = default;
+
+	virtual void uploadRecord(
+		uint32 recordIndex,
+		ShaderStage* raytracingShader,
+		void* rootArgumentData,
+		uint32 rootArgumentSize) = 0;
+
+	virtual void uploadRecord(
+		uint32 recordIndex,
+		const wchar_t* shaderExportName,
+		void* rootArgumentData,
+		uint32 rootArgumentSize) = 0;
 };
 
 // D3D12_DISPATCH_RAYS_DESC

@@ -478,7 +478,7 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 
 			auto lib = d3d_desc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
 			lib->SetDXILLibrary(&shaderBytecode);
-			lib->DefineExport(d3dShader->getEntryPoint());
+			lib->DefineExport(d3dShader->getEntryPointW());
 		}
 	};
 	createRTShaderSubobject(desc.raygenShader);
@@ -491,7 +491,7 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 	if (desc.closestHitShader != nullptr)
 	{
 		hitGroup->SetClosestHitShaderImport(
-			static_cast<D3DShaderStage*>(desc.closestHitShader)->getEntryPoint());
+			static_cast<D3DShaderStage*>(desc.closestHitShader)->getEntryPointW());
 	}
 	hitGroup->SetHitGroupExport(desc.hitGroupName.c_str());
 	hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
@@ -508,7 +508,7 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 	{
 		if (shader != nullptr && rootSig != nullptr)
 		{
-			auto shaderName = static_cast<D3DShaderStage*>(shader)->getEntryPoint();
+			auto shaderName = static_cast<D3DShaderStage*>(shader)->getEntryPointW();
 			auto d3dRootSig = static_cast<D3DRootSignature*>(rootSig)->getRaw();
 
 			auto localSig = d3d_desc.CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
@@ -533,6 +533,19 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 	D3DRaytracingPipelineStateObject* RTPSO = new D3DRaytracingPipelineStateObject;
 	RTPSO->initialize(device.Get(), d3d_desc);
 	return RTPSO;
+}
+
+RaytracingShaderTable* D3DDevice::createRaytracingShaderTable(
+	RaytracingPipelineStateObject* RTPSO,
+	uint32 numShaderRecords,
+	uint32 rootArgumentSize,
+	const wchar_t* debugName)
+{
+	auto d3dRTPSO = static_cast<D3DRaytracingPipelineStateObject*>(RTPSO);
+	D3DRaytracingShaderTable* table = new D3DRaytracingShaderTable(
+		device.Get(), d3dRTPSO, numShaderRecords, rootArgumentSize, debugName);
+
+	return table;
 }
 
 DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)

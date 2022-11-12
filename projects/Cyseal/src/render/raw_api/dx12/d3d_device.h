@@ -36,7 +36,14 @@ public:
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
 	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
 
-	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc) override;
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
+		const RaytracingPipelineStateObjectDesc& desc) override;
+
+	virtual RaytracingShaderTable* createRaytracingShaderTable(
+		RaytracingPipelineStateObject* RTPSO,
+		uint32 numShaderRecords,
+		uint32 rootArgumentSize,
+		const wchar_t* debugName) override;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
 
