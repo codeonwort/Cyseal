@@ -80,6 +80,8 @@ public:
 	// Pipeline state object (graphics & compute)
 
 	virtual void setPipelineState(PipelineState* state) = 0;
+	virtual void setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso) = 0;
+
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) = 0;
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) = 0;
 	virtual void setComputeRootSignature(RootSignature* rootSignature) = 0;
@@ -165,6 +167,11 @@ public:
 		uint32 threadGroupX,
 		uint32 threadGroupY,
 		uint32 threadGroupZ) = 0;
+
+	// ------------------------------------------------------------------------
+	// Raytracing pipeline
+
+	virtual void dispatchRays(const DispatchRaysDesc& dispatchDesc) = 0;
 
 	// ------------------------------------------------------------------------
 	// Auxiliaries

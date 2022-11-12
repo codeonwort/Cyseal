@@ -38,8 +38,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 void SceneRenderer::destroy()
 {
 	delete RT_sceneColor;
-	delete RT_thinGBufferA;
 	delete RT_sceneDepth;
+	delete RT_thinGBufferA;
+	delete RT_indirectSpecular;
 
 	delete gpuScene;
 	delete basePass;
@@ -57,6 +58,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	auto commandList          = device->getCommandList();
 	auto commandQueue         = device->getCommandQueue();
 
+	// #todo-renderer: Can be different due to resolution scaling
 	const uint32 sceneWidth = swapChain->getBackbufferWidth();
 	const uint32 sceneHeight = swapChain->getBackbufferHeight();
 
@@ -133,9 +135,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		// Combine sceneColor with RTR.
 
 		rtReflections->renderRayTracedReflections(
-			commandList,
-			scene,
-			camera);
+			commandList, scene, camera,
+			RT_thinGBufferA, RT_indirectSpecular,
+			sceneWidth, sceneHeight);
 	}
 
 	// Tone mapping
@@ -213,8 +215,16 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	RT_thinGBufferA = device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R16G16B16A16_FLOAT,
-			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_thinGBufferA->setDebugName(L"ThinGBufferA");
+
+	RT_indirectSpecular = device->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::R16G16B16A16_FLOAT,
+			ETextureAccessFlags::UAV | ETextureAccessFlags::SRV,
+			sceneWidth, sceneHeight,
+			1, 1, 0));
+	RT_indirectSpecular->setDebugName(L"IndirectSpecular");
 }

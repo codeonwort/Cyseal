@@ -156,8 +156,6 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 
 		uav = std::make_unique<D3DUnorderedAccessView>(this);
 		uav->setCPUHandle(uavHandle);
-
-		CHECK_NO_ENTRY();
 	}
 }
 

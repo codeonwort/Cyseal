@@ -1,12 +1,24 @@
 #include "ray_traced_reflections.h"
 #include "render_device.h"
+#include "swap_chain.h"
 #include "pipeline_state.h"
 #include "shader.h"
 
 // Reference: 'D3D12RaytracingHelloWorld' sample in
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
-#define RTR_MAX_RECURSION 2
+#define RTR_MAX_RECURSION            2
+#define RTR_MAX_VOLATILE_DESCRIPTORS 10
+
+namespace RTRRootParameters
+{
+	enum Value
+	{
+		OutputViewSlot = 0,
+		AccelerationStructureSlot,
+		Count
+	};
+}
 
 struct RTRViewport
 {
@@ -31,15 +43,18 @@ void RayTracedReflections::initialize()
 	}
 
 	RenderDevice* device = gRenderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
 	// Global root signature
 	{
 		DescriptorRange descRanges[1];
-		descRanges[0].init(EDescriptorRangeType::UAV, 1, 0, 0); // register(u0, space0)
+		// indirectSpecular = register(u0, space0)
+		// gbuffer          = register(u1, space0)
+		descRanges[0].init(EDescriptorRangeType::UAV, 2, 0, 0);
 
-		RootParameter rootParameters[2];
-		rootParameters[0].initAsDescriptorTable(1, &descRanges[0]);
-		rootParameters[1].initAsSRV(0, 0); // register(t0, space0)
+		RootParameter rootParameters[RTRRootParameters::Count];
+		rootParameters[RTRRootParameters::OutputViewSlot].initAsDescriptorTable(1, &descRanges[0]);
+		rootParameters[RTRRootParameters::AccelerationStructureSlot].initAsSRV(0, 0); // register(t0, space0)
 
 		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
 		globalRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
@@ -96,7 +111,23 @@ void RayTracedReflections::initialize()
 	// #todo-wip-rt: Shader table
 	// Shader table
 	{
-		// See BuildShaderTables()
+		//
+	}
+
+	volatileViewHeaps.resize(swapchainCount);
+	for (uint32 i = 0; i < swapchainCount; ++i)
+	{
+		DescriptorHeapDesc desc;
+		desc.type = EDescriptorHeapType::CBV_SRV_UAV;
+		desc.numDescriptors = RTR_MAX_VOLATILE_DESCRIPTORS;
+		desc.flags = EDescriptorHeapFlags::ShaderVisible;
+		desc.nodeMask = 0;
+
+		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
+
+		wchar_t debugName[256];
+		swprintf_s(debugName, L"RTR_VolatileViewHeap_%u", i);
+		volatileViewHeaps[i]->setDebugName(debugName);
 	}
 }
 
@@ -108,18 +139,54 @@ bool RayTracedReflections::isAvailable() const
 void RayTracedReflections::renderRayTracedReflections(
 	RenderCommandList* commandList,
 	const SceneProxy* scene,
-	const Camera* camera)
+	const Camera* camera,
+	Texture* thinGBufferATexture,
+	Texture* indirectSpecularTexture,
+	uint32 sceneWidth,
+	uint32 sceneHeight)
 {
 	if (isAvailable() == false)
 	{
 		return;
 	}
 
-	// #todo-wip-rt: DispatchRays
-	// SetComputeRootSignature(globalRootSignature);
-	// SetDescriptorHeaps();
-	// SetComputeRootDescriptorTable();
-	// SetComputeRootDescriptorSRV();
-	// SetPipelineState1(RTPSO);
-	// DispatchRays(dispatchDesc);
+	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+	DescriptorHeap* descriptorHeaps[] = { volatileViewHeaps[swapchainIndex].get() };
+
+	// Copy descriptors to volatile heap
+	DescriptorHeap* volatileHeap = descriptorHeaps[0];
+	const uint32 VOLATILE_DESC_IX_RENDERTARGET = 0;
+	const uint32 VOLATILE_DESC_IX_GBUFFER = 1;
+	const uint32 VOLATILE_DESC_IX_ACCELSTRUCT = 2;
+	// #todo-wip-rt: Replace with TLAS class
+	StructuredBuffer* TLAS = nullptr;
+	{
+		gRenderDevice->copyDescriptors(1,
+			volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
+			indirectSpecularTexture->getSourceUAVHeap(), indirectSpecularTexture->getUAVDescriptorIndex());
+		gRenderDevice->copyDescriptors(1,
+			volatileHeap, VOLATILE_DESC_IX_GBUFFER,
+			thinGBufferATexture->getSourceUAVHeap(), thinGBufferATexture->getUAVDescriptorIndex());
+		//gRenderDevice->copyDescriptors(1,
+		//	volatileHeap, VOLATILE_DESC_IX_ACCELSTRUCT,
+		//	TLAS->getSourceSRVHeap(), TLAS->getSRVDescriptorIndex());
+	}
+
+	commandList->setComputeRootSignature(globalRootSignature.get());
+
+	commandList->setDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	commandList->setComputeRootDescriptorTable(RTRRootParameters::OutputViewSlot,
+		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET);
+	//commandList->setComputeRootDescriptorSRV(RTRRootParameters::AccelerationStructureSlot, TLAS->getSRV());
+	
+	commandList->setRaytracingPipelineState(RTPSO.get());
+	
+	DispatchRaysDesc dispatchDesc;
+	dispatchDesc.raygenShaderTable = raygenShaderTable.get();
+	dispatchDesc.missShaderTable = missShaderTable.get();
+	dispatchDesc.hitGroupTable = hitGroupTable.get();
+	dispatchDesc.width = sceneWidth;
+	dispatchDesc.height = sceneHeight;
+	dispatchDesc.depth = 1;
+	commandList->dispatchRays(dispatchDesc);
 }

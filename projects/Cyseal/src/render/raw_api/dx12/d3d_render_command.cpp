@@ -267,6 +267,13 @@ void D3DRenderCommandList::setPipelineState(PipelineState* state)
 	commandList->SetPipelineState(rawState);
 }
 
+void D3DRenderCommandList::setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso)
+{
+	ID3D12StateObject* rawRTPSO
+		= static_cast<D3DRaytracingPipelineStateObject*>(rtpso)->getRaw();
+	commandList->SetPipelineState1(rawRTPSO);
+}
+
 void D3DRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature)
 {
 	auto rawSignature = static_cast<D3DRootSignature*>(rootSignature)->getRaw();
@@ -456,6 +463,11 @@ void D3DRenderCommandList::dispatchCompute(
 	uint32 threadGroupZ)
 {
 	commandList->Dispatch(threadGroupX, threadGroupY, threadGroupZ);
+}
+
+void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& dispatchDesc)
+{
+	// #todo-wip-rt: DXR dispatchRays()
 }
 
 void D3DRenderCommandList::beginEventMarker(const char* eventName)

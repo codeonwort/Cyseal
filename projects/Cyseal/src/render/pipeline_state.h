@@ -365,6 +365,7 @@ struct ComputePipelineDesc
 
 // ID3D12PipelineState
 // VkPipeline
+// NOTE: RTPSO is represented by RaytracingPipelineStateObject, not this.
 class PipelineState
 {
 public:
@@ -382,6 +383,10 @@ struct RaytracingPipelineStateObjectDesc
 	ShaderStage* closestHitShader = nullptr;
 	ShaderStage* missShader = nullptr;
 
+	// https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html#resource-binding
+	// Local root signature  : Arguments come from individual shader tables
+	// Global root signature : Arguments are shared across all raytracing shaders
+	//                         and compute PSOs on CommandLists
 	RootSignature* raygenLocalRootSignature = nullptr;
 	RootSignature* closestHitLocalRootSignature = nullptr;
 	RootSignature* missLocalRootSignature = nullptr;
@@ -395,4 +400,38 @@ class RaytracingPipelineStateObject
 {
 public:
 	virtual ~RaytracingPipelineStateObject() = default;
+};
+
+// #todo-wip-rt: RaytracingShaderTable
+// Describes the arguments for a local root signature.
+class RaytracingShaderTable
+{
+public:
+	RaytracingShaderTable(
+		uint32 inNumShaderRecords,
+		uint32 inShaderRecordSize,
+		const wchar_t* inResourceName)
+		: numShaderRecords(inNumShaderRecords)
+		, shaderRecordSize(inShaderRecordSize)
+		, resourceName(inResourceName)
+	{
+		//
+	}
+private:
+	uint32 numShaderRecords;
+	uint32 shaderRecordSize;
+	const wchar_t* resourceName;
+};
+
+// D3D12_DISPATCH_RAYS_DESC
+struct DispatchRaysDesc
+{
+	RaytracingShaderTable* raygenShaderTable = nullptr;
+	RaytracingShaderTable* missShaderTable = nullptr;
+	RaytracingShaderTable* hitGroupTable = nullptr;
+	//ShaderTable* callableShaderTable = nullptr; // #todo-wip-rt
+
+	uint32 width;
+	uint32 height;
+	uint32 depth;
 };
