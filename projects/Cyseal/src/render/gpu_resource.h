@@ -231,6 +231,9 @@ public:
 		uint32 bufferingCount) = 0;
 };
 
+//////////////////////////////////////////////////////////////////////////
+// StructuredBuffer
+
 class StructuredBuffer : public GPUResource
 {
 public:
@@ -273,9 +276,12 @@ ENUM_CLASS_FLAGS(ERaytracingGeometryFlags);
 // D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC
 struct RaytracingGeometryTrianglesDesc
 {
-	// #todo-wip-rt: Ugh... another GPU resource?
-	//               Need a BLAS transform buffer to hold all model matrices.
-	// D3D12_GPU_VIRTUAL_ADDRESS Transform3x4;
+	// #todo-wip-rt: No need to be a *structured* buffer,
+	// just currently easiest solution in my clunky abstraction.
+	// I have to refactor these buffer classes...
+	StructuredBuffer* transform3x4Buffer = nullptr;
+	uint32 transformIndex = 0;
+
 	EPixelFormat indexFormat;
 	EPixelFormat vertexFormat;
 	uint32 indexCount;

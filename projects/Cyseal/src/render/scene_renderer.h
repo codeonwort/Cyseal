@@ -1,8 +1,10 @@
 #pragma once
 
 #include "renderer.h"
+#include <memory>
 
 class Texture;
+class StructuredBuffer;
 class GPUScene;
 class BasePass;
 class RayTracedReflections;
@@ -35,6 +37,7 @@ private:
 	// #todo-wip-rt: Try specular GI with DXR
 	Texture* RT_indirectSpecular = nullptr;
 
+	std::unique_ptr<StructuredBuffer> blasTransformBuffer;
 	AccelerationStructure* accelStructure = nullptr;
 
 	// ------------------------------------------------------------------------
