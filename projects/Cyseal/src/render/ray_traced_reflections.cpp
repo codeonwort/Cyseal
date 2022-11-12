@@ -82,32 +82,24 @@ void RayTracedReflections::initialize()
 		closestHitShader->loadFromFile(L"rt_reflection.hlsl", "MyClosestHitShader");
 		missShader->loadFromFile(L"rt_reflection.hlsl", "MyMissShader");
 
-		// #todo-wip-rt: RTPSO desc
 		RaytracingPipelineStateObjectDesc desc;
-		desc.hitGroupName = hitGroupName;
-		desc.raygenShader = raygenShader.get();
-		desc.closestHitShader = closestHitShader.get();
-		desc.missShader = missShader.get();
-		desc.raygenLocalRootSignature = localRootSignature.get();
+		desc.hitGroupName                 = hitGroupName;
+		desc.raygenShader                 = raygenShader.get();
+		desc.closestHitShader             = closestHitShader.get();
+		desc.missShader                   = missShader.get();
+		desc.raygenLocalRootSignature     = localRootSignature.get();
 		desc.closestHitLocalRootSignature = nullptr;
-		desc.missLocalRootSignature = nullptr;
-		desc.globalRootSignature = globalRootSignature.get();
-		desc.maxTraceRecursionDepth = RTR_MAX_RECURSION;
+		desc.missLocalRootSignature       = nullptr;
+		desc.globalRootSignature          = globalRootSignature.get();
+		desc.maxTraceRecursionDepth       = RTR_MAX_RECURSION;
 
 		RTPSO = std::unique_ptr<RaytracingPipelineStateObject>(
 			gRenderDevice->createRaytracingPipelineStateObject(desc));
 	}
 
-	// #todo-wip-rt: AS (not here; need an actual scene proxy to build AS)
-	// Acceleration structure
-	{
-		// D3D12_RAYTRACING_GEOMETRY_DESC geomDesc{ ... };
-		// D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC blasDesc{ ... };
-		// D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC tlasDesc{ ... };
-		// BuildRaytracingAccelerationStructure();
-	}
+	// Acceleration Structure is built by SceneRenderer.
+	// ...
 
-	// #todo-wip-rt: Shader table
 	// Raygen shader table
 	{
 		struct RootArguments
@@ -195,9 +187,6 @@ void RayTracedReflections::renderRayTracedReflections(
 		gRenderDevice->copyDescriptors(1,
 			volatileHeap, VOLATILE_DESC_IX_GBUFFER,
 			thinGBufferATexture->getSourceUAVHeap(), thinGBufferATexture->getUAVDescriptorIndex());
-		//gRenderDevice->copyDescriptors(1,
-		//	volatileHeap, VOLATILE_DESC_IX_ACCELSTRUCT,
-		//	raytracingScene->getSourceSRVHeap(), raytracingScene->getSRVDescriptorIndex());
 	}
 
 	commandList->setComputeRootSignature(globalRootSignature.get());
@@ -205,7 +194,8 @@ void RayTracedReflections::renderRayTracedReflections(
 	commandList->setDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 	commandList->setComputeRootDescriptorTable(RTRRootParameters::OutputViewSlot,
 		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET);
-	//commandList->setComputeRootDescriptorSRV(RTRRootParameters::AccelerationStructureSlot, raytracingScene->getSRV());
+	commandList->setComputeRootDescriptorSRV(RTRRootParameters::AccelerationStructureSlot,
+		raytracingScene->getSRV());
 	
 	commandList->setRaytracingPipelineState(RTPSO.get());
 	

@@ -6,6 +6,7 @@ class RenderDevice;
 class VertexBuffer;
 class Texture;
 class StructuredBuffer;
+class AccelerationStructure;
 
 enum class EResourceViewDimension
 {
@@ -29,7 +30,7 @@ protected:
 	// #todo-resource-view: ByteBuffer? Or just buffer?
 	// Also no reason vertex/index buffers can't be used as SRV,
 	// though I've got no plan for such usage for now.
-	enum class ESource { Texture, StructuredBuffer };
+	enum class ESource { Texture, StructuredBuffer, AccelerationStructure };
 public:
 	ShaderResourceView(Texture* inOwner)
 		: ownerTexture(inOwner)
@@ -39,10 +40,15 @@ public:
 		: ownerStructuredBuffer(inOwner)
 		, source(ESource::StructuredBuffer)
 	{}
+	ShaderResourceView(AccelerationStructure* inOwner)
+		: ownerAccelStruct(inOwner)
+		, source(ESource::AccelerationStructure)
+	{}
 protected:
 	ESource source;
 	Texture* ownerTexture = nullptr;
 	StructuredBuffer* ownerStructuredBuffer = nullptr;
+	AccelerationStructure* ownerAccelStruct = nullptr;
 };
 
 class UnorderedAccessView

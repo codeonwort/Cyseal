@@ -5,6 +5,7 @@
 #include "d3d_buffer.h"
 #include "d3d_into.h"
 #include "core/assertion.h"
+
 #include <vector>
 
 #ifndef _DEBUG
@@ -481,25 +482,57 @@ AccelerationStructure* D3DRenderCommandList::buildRaytracingAccelerationStructur
 		= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS topLevelInputs{};
-	topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 	topLevelInputs.Flags = buildFlags;
 	topLevelInputs.NumDescs = 1;
-	topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+	topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	//topLevelInputs.InstanceDescs; // Later
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo{};
 	rawDevice->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &topLevelPrebuildInfo);
-	HR(topLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
+	CHECK(topLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS bottomLevelInputs{};
-	bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	bottomLevelInputs.Flags = buildFlags;
-	bottomLevelInputs.NumDescs = numGeomDesc;
 	bottomLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+	bottomLevelInputs.Flags = buildFlags;
+	bottomLevelInputs.NumDescs = (uint32)d3d_geomDescArray.size();
+	bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	bottomLevelInputs.pGeometryDescs = d3d_geomDescArray.data();
 
-	// #todo-wip-rt-here: AllocateUAVBuffer
-	// ...
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelPrebuildInfo{};
+	rawDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &bottomLevelPrebuildInfo);
+	CHECK(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
 
-	return nullptr;
+	D3DAccelerationStructure* accelStruct = new D3DAccelerationStructure;
+	accelStruct->initialize(
+		topLevelPrebuildInfo.ResultDataMaxSizeInBytes,
+		topLevelPrebuildInfo.ScratchDataSizeInBytes,
+		bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes,
+		bottomLevelPrebuildInfo.ScratchDataSizeInBytes);
+
+	D3D12_RAYTRACING_INSTANCE_DESC instanceDesc{};
+	instanceDesc.Transform[0][0] = instanceDesc.Transform[1][1] = instanceDesc.Transform[2][2] = 1;
+	instanceDesc.InstanceMask = 1;
+	instanceDesc.AccelerationStructure = accelStruct->getBLASGpuVirtualAddress();
+	accelStruct->uploadInstanceDescs(instanceDesc);
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC blasBuildDesc{};
+	blasBuildDesc.Inputs = bottomLevelInputs;
+	blasBuildDesc.ScratchAccelerationStructureData = accelStruct->getScratchGpuVirtualAddress();
+	blasBuildDesc.DestAccelerationStructureData = accelStruct->getBLASGpuVirtualAddress();
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC tlasBuildDesc{};
+	topLevelInputs.InstanceDescs = accelStruct->getInstanceDescGpuVirtualAddress();
+	tlasBuildDesc.Inputs = topLevelInputs;
+	tlasBuildDesc.DestAccelerationStructureData = accelStruct->getTLASGpuVirtualAddress();
+	tlasBuildDesc.ScratchAccelerationStructureData = accelStruct->getScratchGpuVirtualAddress();
+
+	commandList->BuildRaytracingAccelerationStructure(&blasBuildDesc, 0, nullptr);
+	auto barrierWaitBLAS = CD3DX12_RESOURCE_BARRIER::UAV(accelStruct->getBLASResource());
+	commandList->ResourceBarrier(1, &barrierWaitBLAS);
+	commandList->BuildRaytracingAccelerationStructure(&tlasBuildDesc, 0, nullptr);
+
+	return accelStruct;
 }
 
 void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& inDesc)

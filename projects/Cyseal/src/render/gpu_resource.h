@@ -273,7 +273,9 @@ ENUM_CLASS_FLAGS(ERaytracingGeometryFlags);
 // D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC
 struct RaytracingGeometryTrianglesDesc
 {
-	// D3D12_GPU_VIRTUAL_ADDRESS Transform3x4; // #todo-wip-rt
+	// #todo-wip-rt: Ugh... another GPU resource?
+	//               Need a BLAS transform buffer to hold all model matrices.
+	// D3D12_GPU_VIRTUAL_ADDRESS Transform3x4;
 	EPixelFormat indexFormat;
 	EPixelFormat vertexFormat;
 	uint32 indexCount;
@@ -294,13 +296,12 @@ struct RaytracingGeometryDesc
 	};
 };
 
-// #todo-wip-rt: AccelerationStructure
 class AccelerationStructure
 {
 public:
 	virtual ~AccelerationStructure() = default;
 
-	//virtual ShaderResourceView* getSRV() const = 0;
+	virtual ShaderResourceView* getSRV() const = 0;
 
 private:
 	//

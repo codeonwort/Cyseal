@@ -213,3 +213,99 @@ UnorderedAccessView* D3DStructuredBuffer::getUAV() const
 	CHECK(0 != (accessFlags & EBufferAccessFlags::UAV));
 	return uav.get();
 }
+
+//////////////////////////////////////////////////////////////////////////
+// D3DAccelerationStructure
+
+ShaderResourceView* D3DAccelerationStructure::getSRV() const
+{
+	return srv.get();
+}
+
+void D3DAccelerationStructure::initialize(
+	uint64 TLASResultMaxSize, uint64 TLASScratchSize,
+	uint64 BLASResultMaxSize, uint64 BLASScratchSize)
+{
+	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+	
+	allocateUAVBuffer(
+		(std::max)(TLASScratchSize, BLASScratchSize),
+		&scratchResource,
+		//D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		L"AccelStruct_ScratchBuffer");
+
+	allocateUAVBuffer(
+		TLASResultMaxSize,
+		&tlasResource,
+		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+		L"AccelStruct_TLAS");
+
+	allocateUAVBuffer(
+		BLASResultMaxSize,
+		&blasResource,
+		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+		L"AccelStruct_BLAS");
+
+	srv = std::make_unique<D3DShaderResourceView>(this);
+}
+
+void D3DAccelerationStructure::uploadInstanceDescs(
+	const D3D12_RAYTRACING_INSTANCE_DESC& instanceDesc)
+{
+	allocateUploadBuffer(
+		(void*)(&instanceDesc),
+		sizeof(instanceDesc),
+		&instanceDescBuffer,
+		L"AccelStruct_InstanceDesc");
+}
+
+void D3DAccelerationStructure::allocateUAVBuffer(
+	UINT64 bufferSize,
+	ID3D12Resource** ppResource,
+	D3D12_RESOURCE_STATES initialResourceState /*= D3D12_RESOURCE_STATE_COMMON*/,
+	const wchar_t* resourceName /*= nullptr*/)
+{
+	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+
+	auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	HR(device->CreateCommittedResource(
+		&uploadHeapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDesc,
+		initialResourceState,
+		nullptr,
+		IID_PPV_ARGS(ppResource)));
+	if (resourceName)
+	{
+		(*ppResource)->SetName(resourceName);
+	}
+}
+
+void D3DAccelerationStructure::allocateUploadBuffer(
+	void* pData,
+	UINT64 datasize,
+	ID3D12Resource** ppResource,
+	const wchar_t* resourceName /*= nullptr*/)
+{
+	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+
+	auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(datasize);
+	HR(device->CreateCommittedResource(
+		&uploadHeapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(ppResource)));
+	if (resourceName)
+	{
+		(*ppResource)->SetName(resourceName);
+	}
+	void* pMappedData;
+	(*ppResource)->Map(0, nullptr, &pMappedData);
+	memcpy(pMappedData, pData, datasize);
+	(*ppResource)->Unmap(0, nullptr);
+}

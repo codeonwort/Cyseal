@@ -29,6 +29,10 @@ D3D12_GPU_VIRTUAL_ADDRESS D3DShaderResourceView::getGPUVirtualAddress()
 	{
 		return static_cast<D3DStructuredBuffer*>(ownerStructuredBuffer)->getGPUVirtualAddress();
 	}
+	else if (source == ShaderResourceView::ESource::AccelerationStructure)
+	{
+		return static_cast<D3DAccelerationStructure*>(ownerAccelStruct)->getTLASGpuVirtualAddress();
+	}
 	CHECK_NO_ENTRY();
 	return 0;
 }

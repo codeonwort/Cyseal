@@ -125,3 +125,53 @@ private:
 	// At least create it only if accessFlags has EBufferAccessFlags::CPU_WRITE.
 	WRL::ComPtr<ID3D12Resource> rawUploadBuffer;
 };
+
+class D3DAccelerationStructure : public AccelerationStructure
+{
+public:
+	virtual ShaderResourceView* getSRV() const override;
+
+	void initialize(
+		uint64 TLASResultMaxSize, uint64 TLASScratchSize,
+		uint64 BLASResultMaxSize, uint64 BLASScratchSize);
+
+	void uploadInstanceDescs(
+		const D3D12_RAYTRACING_INSTANCE_DESC& instanceDesc);
+
+	inline D3D12_GPU_VIRTUAL_ADDRESS getScratchGpuVirtualAddress() const {
+		return scratchResource->GetGPUVirtualAddress();
+	}
+	inline D3D12_GPU_VIRTUAL_ADDRESS getTLASGpuVirtualAddress() const {
+		return tlasResource->GetGPUVirtualAddress();
+	}
+	inline D3D12_GPU_VIRTUAL_ADDRESS getBLASGpuVirtualAddress() const {
+		return blasResource->GetGPUVirtualAddress();
+	}
+	inline D3D12_GPU_VIRTUAL_ADDRESS getInstanceDescGpuVirtualAddress() const {
+		return instanceDescBuffer->GetGPUVirtualAddress();
+	}
+
+	inline ID3D12Resource* getBLASResource() const { return blasResource.Get(); }
+
+private:
+	// #todo-dx12: Promote to common utils.
+	// They are all around in my D3D wrapper classes...
+	void allocateUAVBuffer(
+		UINT64 bufferSize,
+		ID3D12Resource** ppResource,
+		D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON,
+		const wchar_t* resourceName = nullptr);
+
+	void allocateUploadBuffer(
+		void* pData,
+		UINT64 datasize,
+		ID3D12Resource** ppResource,
+		const wchar_t* resourceName = nullptr);
+
+	std::unique_ptr<D3DShaderResourceView> srv;
+
+	WRL::ComPtr<ID3D12Resource> scratchResource;
+	WRL::ComPtr<ID3D12Resource> blasResource;
+	WRL::ComPtr<ID3D12Resource> tlasResource;
+	WRL::ComPtr<ID3D12Resource> instanceDescBuffer;
+};

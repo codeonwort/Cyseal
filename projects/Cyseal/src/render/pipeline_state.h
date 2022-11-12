@@ -402,7 +402,6 @@ public:
 	virtual ~RaytracingPipelineStateObject() = default;
 };
 
-// #todo-wip-rt: RaytracingShaderTable
 // - Describes the arguments for a local root signature.
 // - For now, no struct for shader record.
 //   ( shader record = {shader identifier, local root arguments for the shader} )

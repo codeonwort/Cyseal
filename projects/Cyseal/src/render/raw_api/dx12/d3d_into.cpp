@@ -88,7 +88,7 @@ namespace into_d3d
 			D3D12_VERTEX_BUFFER_VIEW vbuf = static_cast<D3DVertexBuffer*>(inDesc.triangles.vertexBuffer)->getView();
 			D3D12_INDEX_BUFFER_VIEW ibuf = static_cast<D3DIndexBuffer*>(inDesc.triangles.indexBuffer)->getView();
 
-			outDesc.Triangles.Transform3x4 = 0;
+			outDesc.Triangles.Transform3x4 = 0; // #todo-wip-rt: BLAS Transform
 			outDesc.Triangles.IndexFormat = pixelFormat(inDesc.triangles.indexFormat);
 			outDesc.Triangles.VertexFormat = pixelFormat(inDesc.triangles.vertexFormat);
 			outDesc.Triangles.IndexCount = inDesc.triangles.indexCount;

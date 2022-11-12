@@ -282,7 +282,6 @@ void SceneRenderer::rebuildAccelerationStructure(
 		}
 	}
 
-	// #todo-wip-rt: Build AS
 	accelStructure = commandList->buildRaytracingAccelerationStructure(
 		(uint32)geomDescArray.size(), geomDescArray.data());
 }
