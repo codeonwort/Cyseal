@@ -146,6 +146,10 @@ public:
 	// ------------------------------------------------------------------------
 	// Raytracing pipeline
 
+	virtual AccelerationStructure* buildRaytracingAccelerationStructure(
+		uint32 numGeomDesc,
+		RaytracingGeometryDesc* geomDescArray) override;
+
 	virtual void dispatchRays(const DispatchRaysDesc& dispatchDesc) override;
 
 	// ------------------------------------------------------------------------

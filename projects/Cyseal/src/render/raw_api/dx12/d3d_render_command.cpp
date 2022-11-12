@@ -465,9 +465,70 @@ void D3DRenderCommandList::dispatchCompute(
 	commandList->Dispatch(threadGroupX, threadGroupY, threadGroupZ);
 }
 
-void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& dispatchDesc)
+AccelerationStructure* D3DRenderCommandList::buildRaytracingAccelerationStructure(
+	uint32 numGeomDesc,
+	RaytracingGeometryDesc* geomDescArray)
 {
-	// #todo-wip-rt: DXR dispatchRays()
+	ID3D12DeviceLatest* rawDevice = device->getRawDevice();
+
+	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> d3d_geomDescArray(numGeomDesc);
+	for (uint32 i = 0; i < numGeomDesc; ++i)
+	{
+		into_d3d::raytracingGeometryDesc(geomDescArray[i], d3d_geomDescArray[i]);
+	}
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags
+		= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS topLevelInputs{};
+	topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	topLevelInputs.Flags = buildFlags;
+	topLevelInputs.NumDescs = 1;
+	topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo{};
+	rawDevice->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &topLevelPrebuildInfo);
+	HR(topLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS bottomLevelInputs{};
+	bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	bottomLevelInputs.Flags = buildFlags;
+	bottomLevelInputs.NumDescs = numGeomDesc;
+	bottomLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+
+	// #todo-wip-rt-here: AllocateUAVBuffer
+	// ...
+
+	return nullptr;
+}
+
+void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& inDesc)
+{
+	auto getGpuAddress = [](RaytracingShaderTable* table) {
+		return static_cast<D3DRaytracingShaderTable*>(table)->getGpuVirtualAddress();
+	};
+	auto getSizeInBytes = [](RaytracingShaderTable* table) {
+		return static_cast<D3DRaytracingShaderTable*>(table)->getSizeInBytes();
+	};
+	auto getStrideInBytes = [](RaytracingShaderTable* table) {
+		return static_cast<D3DRaytracingShaderTable*>(table)->getStrideInBytes();
+	};
+
+	D3D12_DISPATCH_RAYS_DESC desc{};
+	desc.RayGenerationShaderRecord.StartAddress = getGpuAddress(inDesc.raygenShaderTable);
+	desc.RayGenerationShaderRecord.SizeInBytes = getSizeInBytes(inDesc.raygenShaderTable);
+	desc.MissShaderTable.StartAddress = getGpuAddress(inDesc.missShaderTable);
+	desc.MissShaderTable.SizeInBytes = getSizeInBytes(inDesc.missShaderTable);
+	desc.MissShaderTable.StrideInBytes = getStrideInBytes(inDesc.missShaderTable);
+	desc.HitGroupTable.StartAddress = getGpuAddress(inDesc.hitGroupTable);
+	desc.HitGroupTable.SizeInBytes = getSizeInBytes(inDesc.hitGroupTable);
+	desc.HitGroupTable.StrideInBytes = getStrideInBytes(inDesc.hitGroupTable);
+	// #todo-wip-rt: CallableShaderTable
+	desc.Width = inDesc.width;
+	desc.Height = inDesc.height;
+	desc.Depth = inDesc.depth;
+
+	commandList->DispatchRays(&desc);
 }
 
 void D3DRenderCommandList::beginEventMarker(const char* eventName)

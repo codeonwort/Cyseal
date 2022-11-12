@@ -15,6 +15,8 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) override;
 
+	virtual uint32 getVertexCount() const override { return vertexCount; };
+
 	void setDebugName(const wchar_t* inDebugName);
 
 	inline D3D12_VERTEX_BUFFER_VIEW getView() const { return view; }
@@ -28,6 +30,8 @@ private:
 
 	uint64 offsetInDefaultBuffer = 0;
 	D3D12_VERTEX_BUFFER_VIEW view;
+
+	uint32 vertexCount = 0;
 };
 
 class D3DIndexBuffer : public IndexBuffer
@@ -39,7 +43,8 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) override;
 
-	virtual uint32 getIndexCount() override { return indexCount; }
+	virtual uint32 getIndexCount() const override { return indexCount; }
+	virtual EPixelFormat getIndexFormat() const override { return indexFormat; }
 
 	void setDebugName(const wchar_t* inDebugName);
 
@@ -55,4 +60,5 @@ private:
 	uint64 offsetInDefaultBuffer = 0;
 
 	uint32 indexCount = 0;
+	EPixelFormat indexFormat = EPixelFormat::R32_UINT;
 };

@@ -20,6 +20,7 @@ public:
 	DirectionalLight sun;
 private:
 	std::vector<StaticMesh*> staticMeshes;
+	bool bRebuildRaytracingScene = false;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -31,4 +32,6 @@ class SceneProxy
 public:
 	DirectionalLight sun;
 	std::vector<StaticMesh*> staticMeshes;
+
+	bool bRebuildRaytracingScene = false;
 };

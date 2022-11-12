@@ -7,6 +7,9 @@ SceneProxy* Scene::createProxy()
 
 	proxy->sun = sun;
 	proxy->staticMeshes = staticMeshes;
+	proxy->bRebuildRaytracingScene = bRebuildRaytracingScene;
+
+	bRebuildRaytracingScene = false;
 
 	return proxy;
 }
@@ -14,4 +17,5 @@ SceneProxy* Scene::createProxy()
 void Scene::addStaticMesh(StaticMesh* staticMesh)
 {
 	staticMeshes.push_back(staticMesh);
+	bRebuildRaytracingScene = true;
 }

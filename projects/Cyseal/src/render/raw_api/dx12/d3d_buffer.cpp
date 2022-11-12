@@ -108,6 +108,8 @@ void D3DVertexBuffer::updateData(RenderCommandList* commandList, void* data, uin
 		offsetInDefaultBuffer, data, view.SizeInBytes);
 
 	view.StrideInBytes  = strideInBytes;
+
+	vertexCount = (uint32)(view.SizeInBytes / strideInBytes);
 }
 
 
@@ -143,6 +145,8 @@ void D3DIndexBuffer::initializeWithinPool(IndexBufferPool* pool, uint64 offsetIn
 
 void D3DIndexBuffer::updateData(RenderCommandList* commandList, void* data, EPixelFormat format)
 {
+	indexFormat = format;
+
 	DXGI_FORMAT d3dFormat = DXGI_FORMAT_UNKNOWN;
 	uint32 sizeInBytes = view.SizeInBytes;
 

@@ -128,6 +128,13 @@ public:
 		}
 	}
 
+	inline D3D12_GPU_VIRTUAL_ADDRESS getGpuVirtualAddress() const
+	{
+		return rawUploadBuffer->GetGPUVirtualAddress();
+	}
+	inline uint32 getSizeInBytes() const { return rawUploadBufferSize; }
+	inline uint32 getStrideInBytes() const { return shaderRecordSize; }
+
 private:
 	void allocateUploadBuffer(
 		ID3D12Device* d3dDevice,

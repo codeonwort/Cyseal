@@ -2,6 +2,7 @@
 #include "render_device.h"
 #include "swap_chain.h"
 #include "pipeline_state.h"
+#include "gpu_resource.h"
 #include "shader.h"
 
 // Reference: 'D3D12RaytracingHelloWorld' sample in
@@ -168,6 +169,7 @@ void RayTracedReflections::renderRayTracedReflections(
 	RenderCommandList* commandList,
 	const SceneProxy* scene,
 	const Camera* camera,
+	AccelerationStructure* raytracingScene,
 	Texture* thinGBufferATexture,
 	Texture* indirectSpecularTexture,
 	uint32 sceneWidth,
@@ -186,8 +188,6 @@ void RayTracedReflections::renderRayTracedReflections(
 	const uint32 VOLATILE_DESC_IX_RENDERTARGET = 0;
 	const uint32 VOLATILE_DESC_IX_GBUFFER = 1;
 	const uint32 VOLATILE_DESC_IX_ACCELSTRUCT = 2;
-	// #todo-wip-rt: Replace with TLAS class
-	StructuredBuffer* TLAS = nullptr;
 	{
 		gRenderDevice->copyDescriptors(1,
 			volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
@@ -197,7 +197,7 @@ void RayTracedReflections::renderRayTracedReflections(
 			thinGBufferATexture->getSourceUAVHeap(), thinGBufferATexture->getUAVDescriptorIndex());
 		//gRenderDevice->copyDescriptors(1,
 		//	volatileHeap, VOLATILE_DESC_IX_ACCELSTRUCT,
-		//	TLAS->getSourceSRVHeap(), TLAS->getSRVDescriptorIndex());
+		//	raytracingScene->getSourceSRVHeap(), raytracingScene->getSRVDescriptorIndex());
 	}
 
 	commandList->setComputeRootSignature(globalRootSignature.get());
@@ -205,7 +205,7 @@ void RayTracedReflections::renderRayTracedReflections(
 	commandList->setDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 	commandList->setComputeRootDescriptorTable(RTRRootParameters::OutputViewSlot,
 		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET);
-	//commandList->setComputeRootDescriptorSRV(RTRRootParameters::AccelerationStructureSlot, TLAS->getSRV());
+	//commandList->setComputeRootDescriptorSRV(RTRRootParameters::AccelerationStructureSlot, raytracingScene->getSRV());
 	
 	commandList->setRaytracingPipelineState(RTPSO.get());
 	

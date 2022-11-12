@@ -14,6 +14,7 @@ class ShaderStage;
 class RaytracingPipelineStateObject;
 class RaytracingShaderTable;
 class DescriptorHeap;
+class AccelerationStructure;
 
 class RayTracedReflections final
 {
@@ -26,6 +27,7 @@ public:
 		RenderCommandList* commandList,
 		const SceneProxy* scene,
 		const Camera* camera,
+		AccelerationStructure* raytracingScene,
 		Texture* thinGBufferATexture,
 		Texture* indirectSpecularTexture,
 		uint32 sceneWidth,

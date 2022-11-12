@@ -18,6 +18,8 @@ public:
 	virtual void render(const SceneProxy* scene, const Camera* camera) override;
 
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) override;
+	
+	void rebuildAccelerationStructure(RenderCommandList* commandList, const SceneProxy* scene);
 
 private:
 	RenderDevice* device = nullptr;
@@ -32,6 +34,8 @@ private:
 
 	// #todo-wip-rt: Try specular GI with DXR
 	Texture* RT_indirectSpecular = nullptr;
+
+	AccelerationStructure* accelStructure = nullptr;
 
 	// ------------------------------------------------------------------------
 	// Render passes

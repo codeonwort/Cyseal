@@ -439,4 +439,33 @@ namespace into_d3d
 	}
 
 	D3D12_RESOURCE_BARRIER resourceBarrier(const ResourceBarrier& barrier);
+
+	inline D3D12_RAYTRACING_GEOMETRY_TYPE raytracingGeometryType(ERaytracingGeometryType inType)
+	{
+		switch (inType)
+		{
+			case ERaytracingGeometryType::Triangles: return D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+			case ERaytracingGeometryType::ProceduralPrimitiveAABB: return D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+	}
+
+	inline D3D12_RAYTRACING_GEOMETRY_FLAGS raytracingGeometryFlags(ERaytracingGeometryFlags inFlags)
+	{
+		D3D12_RAYTRACING_GEOMETRY_FLAGS flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+		if (0 != (inFlags & ERaytracingGeometryFlags::Opaque))
+		{
+			flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+		}
+		if (0 != (inFlags & ERaytracingGeometryFlags::NoDuplicateAnyhitInvocation))
+		{
+			flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION;
+		}
+		return flags;
+	}
+
+	void raytracingGeometryDesc(
+		const RaytracingGeometryDesc& inDesc,
+		D3D12_RAYTRACING_GEOMETRY_DESC& outDesc);
 }

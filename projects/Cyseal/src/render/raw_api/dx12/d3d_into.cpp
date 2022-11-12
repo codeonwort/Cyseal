@@ -2,6 +2,7 @@
 #include "d3d_shader.h"
 #include "d3d_pipeline_state.h"
 #include "d3d_resource.h"
+#include "d3d_buffer.h"
 
 namespace into_d3d
 {
@@ -75,6 +76,36 @@ namespace into_d3d
 				break;
 		}
 		return d3dBarrier;
+	}
+
+	void raytracingGeometryDesc(const RaytracingGeometryDesc& inDesc, D3D12_RAYTRACING_GEOMETRY_DESC& outDesc)
+	{
+		outDesc.Type = raytracingGeometryType(inDesc.type);
+		outDesc.Flags = raytracingGeometryFlags(inDesc.flags);
+
+		if (inDesc.type == ERaytracingGeometryType::Triangles)
+		{
+			D3D12_VERTEX_BUFFER_VIEW vbuf = static_cast<D3DVertexBuffer*>(inDesc.triangles.vertexBuffer)->getView();
+			D3D12_INDEX_BUFFER_VIEW ibuf = static_cast<D3DIndexBuffer*>(inDesc.triangles.indexBuffer)->getView();
+
+			outDesc.Triangles.Transform3x4 = 0;
+			outDesc.Triangles.IndexFormat = pixelFormat(inDesc.triangles.indexFormat);
+			outDesc.Triangles.VertexFormat = pixelFormat(inDesc.triangles.vertexFormat);
+			outDesc.Triangles.IndexCount = inDesc.triangles.indexCount;
+			outDesc.Triangles.VertexCount = inDesc.triangles.vertexCount;
+			outDesc.Triangles.IndexBuffer = ibuf.BufferLocation;
+			outDesc.Triangles.VertexBuffer.StartAddress = vbuf.BufferLocation;
+			outDesc.Triangles.VertexBuffer.StrideInBytes = vbuf.StrideInBytes;
+		}
+		else if (inDesc.type == ERaytracingGeometryType::ProceduralPrimitiveAABB)
+		{
+			// #todo-wip-rt: AABB
+			CHECK_NO_ENTRY();
+		}
+		else
+		{
+			CHECK_NO_ENTRY();
+		}
 	}
 
 }

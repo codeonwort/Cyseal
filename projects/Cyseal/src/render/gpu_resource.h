@@ -176,6 +176,8 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) = 0;
 
+	virtual uint32 getVertexCount() const = 0;
+
 	VertexBufferPool* internal_getParentPool() { return parentPool; }
 
 protected:
@@ -201,7 +203,8 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) = 0;
 
-	virtual uint32 getIndexCount() = 0;
+	virtual uint32 getIndexCount() const = 0;
+	virtual EPixelFormat getIndexFormat() const = 0;
 
 protected:
 	// Null if a committed resource.
@@ -246,4 +249,59 @@ public:
 
 	virtual DescriptorHeap* getSourceSRVHeap() const = 0;
 	virtual DescriptorHeap* getSourceUAVHeap() const = 0;
+};
+
+//////////////////////////////////////////////////////////////////////////
+// Raytracing resource
+
+// D3D12_RAYTRACING_GEOMETRY_TYPE
+enum class ERaytracingGeometryType
+{
+	Triangles,
+	ProceduralPrimitiveAABB
+};
+
+// D3D12_RAYTRACING_GEOMETRY_FLAGS
+enum class ERaytracingGeometryFlags : uint32
+{
+	None                        = 0,
+	Opaque                      = 1 << 0,
+	NoDuplicateAnyhitInvocation = 1 << 1
+};
+ENUM_CLASS_FLAGS(ERaytracingGeometryFlags);
+
+// D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC
+struct RaytracingGeometryTrianglesDesc
+{
+	// D3D12_GPU_VIRTUAL_ADDRESS Transform3x4; // #todo-wip-rt
+	EPixelFormat indexFormat;
+	EPixelFormat vertexFormat;
+	uint32 indexCount;
+	uint32 vertexCount;
+	IndexBuffer* indexBuffer;
+	VertexBuffer* vertexBuffer;
+};
+
+// D3D12_RAYTRACING_GEOMETRY_DESC
+struct RaytracingGeometryDesc
+{
+	ERaytracingGeometryType type;
+	ERaytracingGeometryFlags flags;
+	union
+	{
+		RaytracingGeometryTrianglesDesc triangles;
+		// #todo-wip-rt: AABBs
+	};
+};
+
+// #todo-wip-rt: AccelerationStructure
+class AccelerationStructure
+{
+public:
+	virtual ~AccelerationStructure() = default;
+
+	//virtual ShaderResourceView* getSRV() const = 0;
+
+private:
+	//
 };

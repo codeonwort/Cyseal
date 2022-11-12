@@ -8,6 +8,7 @@
 #include "render/base_pass.h"
 #include "render/ray_traced_reflections.h"
 #include "render/tone_mapping.h"
+#include "render/vertex_buffer_pool.h"
 
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
@@ -46,6 +47,11 @@ void SceneRenderer::destroy()
 	delete basePass;
 	delete rtReflections;
 	delete toneMapping;
+
+	if (accelStructure != nullptr)
+	{
+		delete accelStructure; accelStructure = nullptr;
+	}
 }
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
@@ -91,6 +97,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		gpuScene->renderGPUScene(commandList, scene, camera);
 	}
 
+	if (scene->bRebuildRaytracingScene)
+	{
+		SCOPED_DRAW_EVENT(commandList, RaytracingScene);
+
+		rebuildAccelerationStructure(commandList, scene);
+	}
+
 	// #todo-renderer: Depth PrePass
 	{
 	}
@@ -129,13 +142,15 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	// Ray Traced Reflections
 	if (device->getRaytracingTier() != ERaytracingTier::NotSupported)
 	{
+		SCOPED_DRAW_EVENT(commandList, RayTracedReflections);
+
 		// #todo-wip-rt: Renderer
 		// Insert resource barriers.
 		// Just clear RTR output if DXR is unavailable.
 		// Combine sceneColor with RTR.
 
 		rtReflections->renderRayTracedReflections(
-			commandList, scene, camera,
+			commandList, scene, camera, accelStructure,
 			RT_thinGBufferA, RT_indirectSpecular,
 			sceneWidth, sceneHeight);
 	}
@@ -227,4 +242,47 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_indirectSpecular->setDebugName(L"IndirectSpecular");
+}
+
+void SceneRenderer::rebuildAccelerationStructure(
+	RenderCommandList* commandList,
+	const SceneProxy* scene)
+{
+	// #todo-wip-rt: For now rebuild every BLAS even for a single change.
+
+	// - Entire scene is a TLAS that contains one instance of a BLAS.
+	// - That BLAS contains all sections of all StaticMesh.
+	
+	const uint32 LOD = 0; // #todo-wip-rt: LOD for BLAS
+	std::vector<RaytracingGeometryDesc> geomDescArray;
+
+	for (StaticMesh* staticMesh : scene->staticMeshes)
+	{
+		for (const StaticMeshSection& section : staticMesh->getSections(LOD))
+		{
+			VertexBuffer* vertexBuffer = section.positionBuffer;
+			IndexBuffer* indexBuffer = section.indexBuffer;
+
+			RaytracingGeometryDesc geomDesc;
+			geomDesc.type = ERaytracingGeometryType::Triangles;
+			geomDesc.triangles.indexFormat = indexBuffer->getIndexFormat();
+			geomDesc.triangles.vertexFormat = EPixelFormat::R32G32B32_FLOAT;
+			geomDesc.triangles.indexCount = indexBuffer->getIndexCount();
+			geomDesc.triangles.vertexCount = vertexBuffer->getVertexCount();
+			geomDesc.triangles.indexBuffer = indexBuffer;
+			geomDesc.triangles.vertexBuffer = vertexBuffer;
+
+			// NOTE from Microsoft D3D12RaytracingHelloWorld sample:
+			// Mark the geometry as opaque.
+			// PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
+			// Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
+			geomDesc.flags = ERaytracingGeometryFlags::Opaque;
+
+			geomDescArray.emplace_back(geomDesc);
+		}
+	}
+
+	// #todo-wip-rt: Build AS
+	accelStructure = commandList->buildRaytracingAccelerationStructure(
+		(uint32)geomDescArray.size(), geomDescArray.data());
 }
