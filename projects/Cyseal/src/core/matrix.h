@@ -27,6 +27,8 @@ public:
 		memcpy_s(m, sizeof(m), I, sizeof(I));
 	}
 
+	Matrix inverse();
+
 	inline void copyFrom(float* data)
 	{
 		memcpy_s(m, sizeof(m), data, sizeof(m));

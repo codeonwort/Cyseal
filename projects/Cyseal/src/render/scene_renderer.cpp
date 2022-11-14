@@ -12,14 +12,20 @@
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 
+// Should match with common.hlsl
 struct SceneUniform
 {
 	Float4x4 viewMatrix;
 	Float4x4 projMatrix;
 	Float4x4 viewProjMatrix;
 
-	vec3 sunDirection; float _pad0;
-	vec3 sunIlluminance; float _pad1;
+	Float4x4 viewInvMatrix;
+	Float4x4 projInvMatrix;
+	Float4x4 viewProjInvMatrix;
+
+	vec3 cameraPosition; float _pad0;
+	vec3 sunDirection;   float _pad1;
+	vec3 sunIlluminance; float _pad2;
 };
 
 void SceneRenderer::initialize(RenderDevice* renderDevice)
@@ -292,11 +298,17 @@ void SceneRenderer::updateSceneUniform(
 	const Camera* camera)
 {
 	SceneUniform uboData;
-	uboData.viewMatrix     = camera->getViewMatrix();
-	uboData.projMatrix     = camera->getProjMatrix();
-	uboData.viewProjMatrix = camera->getViewProjMatrix();
-	uboData.sunDirection   = scene->sun.direction;
-	uboData.sunIlluminance = scene->sun.illuminance;
+	uboData.viewMatrix        = camera->getViewMatrix();
+	uboData.projMatrix        = camera->getProjMatrix();
+	uboData.viewProjMatrix    = camera->getViewProjMatrix();
+
+	uboData.viewInvMatrix     = camera->getViewInvMatrix();
+	uboData.projInvMatrix     = camera->getProjInvMatrix();
+	uboData.viewProjInvMatrix = camera->getViewProjInvMatrix();
+
+	uboData.cameraPosition    = camera->getPosition();
+	uboData.sunDirection      = scene->sun.direction;
+	uboData.sunIlluminance    = scene->sun.illuminance;
 	
 	sceneUniformCBV->upload(&uboData, sizeof(uboData), swapchainIndex);
 }

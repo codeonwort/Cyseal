@@ -392,6 +392,9 @@ struct RaytracingPipelineStateObjectDesc
 	RootSignature* missLocalRootSignature = nullptr;
 	RootSignature* globalRootSignature = nullptr;
 
+	uint32 maxPayloadSizeInBytes = 0;
+	uint32 maxAttributeSizeInBytes = 0;
+
 	uint32 maxTraceRecursionDepth = 1;
 };
 

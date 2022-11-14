@@ -23,6 +23,15 @@
 
 //*********************************************************
 //#include "RaytracingHlslCompat.h"
+#define MATERIAL_ID_NONE          0
+#define MATERIAL_ID_DEFAULTLIT    1
+
+// Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+// TMin should be kept small to prevent missing geometry at close contact areas.
+// #todo: See 'Ray Tracing Gems' series.
+#define RAYGEN_T_MIN              0.001
+#define RAYGEN_T_MAX              10000.0
+
 struct Viewport
 {
     float left;
@@ -38,10 +47,11 @@ struct RayGenConstantBuffer
 //*********************************************************
 
 // Global root signature
-RaytracingAccelerationStructure      Scene        : register(t0, space0);
-RWTexture2D<float4>                  RenderTarget : register(u0, space0);
-RWTexture2D<float4>                  gbufferA     : register(u1, space0);
-ConstantBuffer<SceneUniform>         sceneUniform : register(b0, space0);
+RaytracingAccelerationStructure rtScene      : register(t0, space0);
+RWTexture2D<float4>             renderTarget : register(u0, space0);
+// #todo: Not visible from raygen record, but only visible hitgroup record.
+RWTexture2D<float4>             gbufferA     : register(u1, space0);
+ConstantBuffer<SceneUniform>    sceneUniform : register(b0, space0);
 
 // Local root signature (raygen)
 ConstantBuffer<RayGenConstantBuffer> g_rayGenCB   : register(b0, space1);
@@ -49,7 +59,9 @@ ConstantBuffer<RayGenConstantBuffer> g_rayGenCB   : register(b0, space1);
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload
 {
-    float4 color;
+    float3 surfaceNormal;
+    uint   materialID;
+    float  hitTime;
 };
 
 bool IsInsideViewport(float2 p, Viewport viewport)
@@ -58,54 +70,103 @@ bool IsInsideViewport(float2 p, Viewport viewport)
         && (p.y >= viewport.top && p.y <= viewport.bottom);
 }
 
+void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
+{
+    float2 xy = float2(texel)+0.5;
+    float2 screenPos = (xy / DispatchRaysDimensions().xy) * 2.0 - 1.0;
+    screenPos.y = -screenPos.y;
+
+    float4 worldPos = mul(float4(screenPos, 0.0, 1.0), sceneUniform.viewProjInvMatrix);
+    worldPos.xyz /= worldPos.w;
+
+    origin = sceneUniform.cameraPosition.xyz;
+    direction = normalize(worldPos.xyz - origin);
+}
+
 [shader("raygeneration")]
 void MyRaygenShader()
 {
-    float2 lerpValues = (float2)DispatchRaysIndex() / (float2)DispatchRaysDimensions();
+    float3 rayOrigin, rayDir;
+    generateCameraRay(DispatchRaysIndex().xy, rayOrigin, rayDir);
 
-    // Orthographic projection since we're raytracing in screen space.
-    float3 rayDir = float3(0, 0, 1);
-    float3 origin = float3(
-        lerp(g_rayGenCB.viewport.left, g_rayGenCB.viewport.right, lerpValues.x),
-        lerp(g_rayGenCB.viewport.top, g_rayGenCB.viewport.bottom, lerpValues.y),
-        0.0f);
-
-    //if (IsInsideViewport(origin.xy, g_rayGenCB.stencil))
-    if (IsInsideViewport(origin.xy, g_rayGenCB.viewport))
+    // Actually no need to do RT for primary visibility.
+    // We can reconstruct surface normal and worldPos from gbuffers and sceneDepth.
+    // I'm just practicing DXR here.
+    RayPayload primaryPayload = { float3(0, 0, 0), MATERIAL_ID_NONE, -1.0 };
     {
         // Trace the ray.
         // Set the ray's extents.
         RayDesc ray;
-        ray.Origin = origin;
+        ray.Origin = rayOrigin;
         ray.Direction = rayDir;
-        // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
-        // TMin should be kept small to prevent missing geometry at close contact areas.
-        ray.TMin = 0.001;
-        ray.TMax = 10000.0;
-        RayPayload payload = { float4(0, 0, 0, 0) };
-        TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
+        ray.TMin = RAYGEN_T_MIN;
+        ray.TMax = RAYGEN_T_MAX;
 
-        // Write the raytraced color to the output texture.
-        RenderTarget[DispatchRaysIndex().xy] = payload.color;
+        // #todo: Only bottom-left spike ball is being hit
+        TraceRay(rtScene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, primaryPayload);
+    }
+
+    if (primaryPayload.materialID != MATERIAL_ID_NONE)
+    {
+        renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 0);
+        //renderTarget[DispatchRaysIndex().xy] = float4(0.5 + 0.5 * primaryPayload.surfaceNormal, 0);
     }
     else
     {
-        // Render interpolated DispatchRaysIndex outside the stencil window
-        RenderTarget[DispatchRaysIndex().xy] = float4(lerpValues, 0, 1);
+        renderTarget[DispatchRaysIndex().xy] = float4(1, 0, 0, 0);
     }
+
+#if 0
+    RayPayload secondaryPayload = { float3(0, 0, 0), MATERIAL_ID_NONE, -1.0 };
+    if (primaryPayload.materialID != MATERIAL_ID_NONE)
+    {
+        RayDesc ray;
+        ray.Origin = primaryPayload.hitTime * rayDir + rayOrigin;
+        ray.Direction = primaryPayload.surfaceNormal;
+        ray.TMin = RAYGEN_T_MIN;
+        ray.TMax = RAYGEN_T_MAX;
+
+        TraceRay(rtScene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, secondaryPayload);
+    }
+
+    if (RAYGEN_T_MIN < secondaryPayload.hitTime && secondaryPayload.hitTime < RAYGEN_T_MAX)
+    {
+        renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 0);
+    }
+    else
+    {
+        renderTarget[DispatchRaysIndex().xy] = float4(1, 0, 0, 0);
+    }
+#endif
 }
 
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
-    float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-    payload.color = float4(barycentrics, 1);
+    //float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
+    //payload.surfaceNormal = float4(barycentrics, 1);
+
+    // Temp logic for primary visibility
+    // TODO: Read vertex normal from vertex buffers
+    {
+        float4 hitPos = float4(WorldRayOrigin() + RayTCurrent() * WorldRayDirection(), 1.0);
+        hitPos = mul(hitPos, sceneUniform.viewProjMatrix);
+        hitPos.xyz /= hitPos.w;
+        hitPos.xy = 2.0 * hitPos.xy - 1.0;
+
+        uint2 texel = uint2(hitPos.xy * DispatchRaysDimensions().xy);
+        payload.surfaceNormal = gbufferA[texel].xyz;
+    }
+
+    payload.materialID = MATERIAL_ID_DEFAULTLIT;
+    payload.hitTime = RayTCurrent();
 }
 
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
-    payload.color = float4(0, 0, 0, 1);
+    payload.materialID = MATERIAL_ID_NONE;
+    payload.hitTime = -1.0;
 }
 
 #endif // RAYTRACING_HLSL

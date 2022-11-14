@@ -6,7 +6,7 @@
 #include "gpu_resource_view.h"
 #include "shader.h"
 
-// Reference: 'D3D12RaytracingHelloWorld' sample in
+// Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
 #define RTR_MAX_RECURSION            2
@@ -97,6 +97,8 @@ void RayTracedReflections::initialize()
 		desc.closestHitLocalRootSignature = nullptr;
 		desc.missLocalRootSignature       = nullptr;
 		desc.globalRootSignature          = globalRootSignature.get();
+		desc.maxPayloadSizeInBytes        = 4 * (3 + 1 + 1); // surfaceNormal, materialID, hitTime
+		desc.maxAttributeSizeInBytes      = 4 * 2; // barycentrics
 		desc.maxTraceRecursionDepth       = RTR_MAX_RECURSION;
 
 		RTPSO = std::unique_ptr<RaytracingPipelineStateObject>(

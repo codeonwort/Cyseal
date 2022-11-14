@@ -496,12 +496,10 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 	hitGroup->SetHitGroupExport(desc.hitGroupName.c_str());
 	hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
-	// #todo-wip-rt: Correct shader config
 	// Shader config
 	auto shaderConfig = d3d_desc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
-	UINT payloadSize = 4 * sizeof(float); // float4 color
-	UINT attrSize = 2 * sizeof(float);    // float2 barycentrics
-	shaderConfig->Config(payloadSize, attrSize);
+	CHECK(desc.maxAttributeSizeInBytes < D3D12_RAYTRACING_MAX_ATTRIBUTE_SIZE_IN_BYTES);
+	shaderConfig->Config(desc.maxPayloadSizeInBytes, desc.maxAttributeSizeInBytes);
 
 	// Local root signature
 	auto createLocalRootSignature = [&](ShaderStage* shader, RootSignature* rootSig)
