@@ -12,6 +12,8 @@
 #ifndef RAYTRACING_HLSL
 #define RAYTRACING_HLSL
 
+#include "common.hlsl"
+
 //#ifndef SHADER_STAGE
 //    #error Definition of SHADER_STAGE must be provided
 //#endif
@@ -35,9 +37,14 @@ struct RayGenConstantBuffer
 };
 //*********************************************************
 
-RaytracingAccelerationStructure Scene : register(t0, space0);
-RWTexture2D<float4> RenderTarget : register(u0);
-ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0);
+// Global root signature
+RaytracingAccelerationStructure      Scene        : register(t0, space0);
+RWTexture2D<float4>                  RenderTarget : register(u0, space0);
+RWTexture2D<float4>                  gbufferA     : register(u1, space0);
+ConstantBuffer<SceneUniform>         sceneUniform : register(b0, space0);
+
+// Local root signature (raygen)
+ConstantBuffer<RayGenConstantBuffer> g_rayGenCB   : register(b0, space1);
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload

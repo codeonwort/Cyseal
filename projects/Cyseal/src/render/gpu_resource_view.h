@@ -3,6 +3,7 @@
 #include "core/int_types.h"
 
 class RenderDevice;
+class DescriptorHeap;
 class VertexBuffer;
 class Texture;
 class StructuredBuffer;
@@ -78,5 +79,6 @@ public:
 
 	virtual void upload(void* data, uint32 sizeInBytes, uint32 bufferingIndex) = 0;
 
+	virtual DescriptorHeap* getSourceHeap() = 0;
 	virtual uint32 getDescriptorIndexInHeap(uint32 bufferingIndex) const = 0;
 };

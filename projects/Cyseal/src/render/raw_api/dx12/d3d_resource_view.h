@@ -6,6 +6,7 @@
 
 class D3DConstantBuffer;
 class D3DStructuredBuffer;
+class DescriptorHeap;
 
 class D3DRenderTargetView : public RenderTargetView
 {
@@ -57,17 +58,23 @@ private:
 class D3DConstantBufferView : public ConstantBufferView
 {
 public:
-	D3DConstantBufferView(D3DConstantBuffer* inBuffer, uint32 inOffsetInBuffer, uint32 inSizeAligned, uint32 inBufferingCount)
+	D3DConstantBufferView(D3DConstantBuffer* inBuffer, DescriptorHeap* inSourceHeap, uint32 inOffsetInBuffer, uint32 inSizeAligned, uint32 inBufferingCount)
 		: buffer(inBuffer)
+		, sourceHeap(inSourceHeap)
 		, offsetInBuffer(inOffsetInBuffer)
 		, sizeAligned(inSizeAligned)
 	{
 		descriptorIndexArray.resize(inBufferingCount, 0xffffffff);
 	}
 
-	virtual void upload(void* data, uint32 sizeInBytes, uint32 bufferingIndex);
+	virtual void upload(void* data, uint32 sizeInBytes, uint32 bufferingIndex) override;
 
-	virtual uint32 getDescriptorIndexInHeap(uint32 bufferingIndex) const
+	virtual DescriptorHeap* getSourceHeap() override
+	{
+		return sourceHeap;
+	}
+
+	virtual uint32 getDescriptorIndexInHeap(uint32 bufferingIndex) const override
 	{
 		return descriptorIndexArray[bufferingIndex];
 	}
@@ -81,6 +88,7 @@ public:
 
 private:
 	D3DConstantBuffer* buffer;
+	DescriptorHeap* sourceHeap;
 	uint32 offsetInBuffer;
 	uint32 sizeAligned;
 	std::vector<uint32> descriptorIndexArray;

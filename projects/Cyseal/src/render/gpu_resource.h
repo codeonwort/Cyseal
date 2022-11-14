@@ -217,7 +217,7 @@ protected:
 class ConstantBuffer : public GPUResource
 {
 public:
-	~ConstantBuffer() = default;
+	virtual ~ConstantBuffer() = default;
 
 	virtual void initialize(uint32 sizeInBytes) = 0;
 

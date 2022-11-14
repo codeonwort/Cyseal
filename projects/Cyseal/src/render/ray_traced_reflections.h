@@ -15,6 +15,7 @@ class RaytracingPipelineStateObject;
 class RaytracingShaderTable;
 class DescriptorHeap;
 class AccelerationStructure;
+class ConstantBufferView;
 
 class RayTracedReflections final
 {
@@ -27,6 +28,7 @@ public:
 		RenderCommandList* commandList,
 		const SceneProxy* scene,
 		const Camera* camera,
+		ConstantBufferView* sceneUniformBuffer,
 		AccelerationStructure* raytracingScene,
 		Texture* thinGBufferATexture,
 		Texture* indirectSpecularTexture,
@@ -39,7 +41,7 @@ private:
 private:
 	std::unique_ptr<RaytracingPipelineStateObject> RTPSO;
 	std::unique_ptr<RootSignature> globalRootSignature;
-	std::unique_ptr<RootSignature> localRootSignature;
+	std::unique_ptr<RootSignature> raygenLocalRootSignature;
 
 	std::unique_ptr<RaytracingShaderTable> raygenShaderTable;
 	std::unique_ptr<RaytracingShaderTable> missShaderTable;

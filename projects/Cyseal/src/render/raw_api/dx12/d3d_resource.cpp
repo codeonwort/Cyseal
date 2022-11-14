@@ -53,7 +53,9 @@ ConstantBufferView* D3DConstantBuffer::allocateCBV(
 	ID3D12Device* rawDevice = d3dDevice->getRawDevice();
 	ID3D12DescriptorHeap* rawDescHeap = d3dDescHeap->getRaw();
 
-	D3DConstantBufferView* cbv = new D3DConstantBufferView(this, allocatedBytes, sizeAligned, bufferingCount);
+	D3DConstantBufferView* cbv = new D3DConstantBufferView(
+		this, descHeap, allocatedBytes, sizeAligned, bufferingCount);
+
 	for (uint32 bufferingIx = 0; bufferingIx < bufferingCount; ++bufferingIx)
 	{
 		D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc;

@@ -1,10 +1,18 @@
 #pragma once
 
 #include "renderer.h"
+
+// #todo-wip-rt: Why build error if this is absent?
+// (error in unique_ptr + ConstantBufferView)
+#include "gpu_resource_view.h"
+
 #include <memory>
 
 class Texture;
 class StructuredBuffer;
+class ConstantBuffer;
+class DescriptorHeap;
+class ConstantBufferView;
 class GPUScene;
 class BasePass;
 class RayTracedReflections;
@@ -21,6 +29,11 @@ public:
 
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) override;
 	
+	void updateSceneUniform(
+		uint32 swapchainIndex,
+		const SceneProxy* scene,
+		const Camera* camera);
+
 	void rebuildAccelerationStructure(RenderCommandList* commandList, const SceneProxy* scene);
 
 private:
@@ -36,6 +49,11 @@ private:
 
 	// #todo-wip-rt: Try specular GI with DXR
 	Texture* RT_indirectSpecular = nullptr;
+
+	// #todo-renderer: Temp dedicated memory and desc heap for scene uniforms
+	std::unique_ptr<ConstantBuffer> sceneUniformMemory;
+	std::unique_ptr<DescriptorHeap> sceneUniformDescriptorHeap;
+	std::unique_ptr<ConstantBufferView> sceneUniformCBV;
 
 	std::unique_ptr<StructuredBuffer> blasTransformBuffer;
 	AccelerationStructure* accelStructure = nullptr;

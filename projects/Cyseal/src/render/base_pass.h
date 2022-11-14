@@ -20,6 +20,7 @@ public:
 		RenderCommandList* commandList,
 		const SceneProxy* scene,
 		const Camera* camera,
+		ConstantBufferView* sceneUniformBuffer,
 		StructuredBuffer* gpuSceneBuffer);
 
 private:
@@ -27,6 +28,7 @@ private:
 	void bindRootParameters(
 		RenderCommandList* cmdList,
 		uint32 inNumPayloads,
+		ConstantBufferView* sceneUniform,
 		StructuredBuffer* gpuSceneBuffer);
 
 	void updateMaterialParameters(
@@ -42,7 +44,6 @@ private:
 	std::unique_ptr<ConstantBuffer> constantBufferMemory;
 	std::unique_ptr<DescriptorHeap> cbvStagingHeap;
 	std::vector<std::unique_ptr<ConstantBufferView>> materialCBVs;
-	std::unique_ptr<ConstantBufferView> sceneUniformCBV;
 
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
 	// #todo-sampler: Maybe need a volatileSamplerHeap in similar way?

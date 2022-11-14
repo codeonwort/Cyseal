@@ -10,15 +10,50 @@
 #include "render/tone_mapping.h"
 #include "render/vertex_buffer_pool.h"
 
+#define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
+
+struct SceneUniform
+{
+	Float4x4 viewMatrix;
+	Float4x4 projMatrix;
+	Float4x4 viewProjMatrix;
+
+	vec3 sunDirection; float _pad0;
+	vec3 sunIlluminance; float _pad1;
+};
+
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
-
+	
 	// Scene textures
 	{
 		const uint32 sceneWidth = renderDevice->getSwapChain()->getBackbufferWidth();
 		const uint32 sceneHeight = renderDevice->getSwapChain()->getBackbufferHeight();
 		recreateSceneTextures(sceneWidth, sceneHeight);
+	}
+
+	// Scene uniforms
+	{
+		const uint32 swapchainCount = renderDevice->getSwapChain()->getBufferCount();
+		CHECK(sizeof(SceneUniform) * swapchainCount <= SCENE_UNIFORM_MEMORY_POOL_SIZE);
+
+		sceneUniformMemory = std::unique_ptr<ConstantBuffer>(
+			device->createConstantBuffer(SCENE_UNIFORM_MEMORY_POOL_SIZE));
+
+		{
+			DescriptorHeapDesc desc;
+			desc.type = EDescriptorHeapType::CBV;
+			desc.numDescriptors = swapchainCount;
+			desc.flags = EDescriptorHeapFlags::None;
+			desc.nodeMask = 0;
+			sceneUniformDescriptorHeap = std::unique_ptr<DescriptorHeap>(
+				device->createDescriptorHeap(desc));
+		}
+
+		sceneUniformCBV = std::unique_ptr<ConstantBufferView>(
+			sceneUniformMemory->allocateCBV(
+				sceneUniformDescriptorHeap.get(), sizeof(SceneUniform), swapchainCount));
 	}
 
 	// Render passes
@@ -91,6 +126,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	scissorRect.bottom = sceneHeight;
  	commandList->rsSetScissorRect(scissorRect);
 
+	updateSceneUniform(backbufferIndex, scene, camera);
+
 	{
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
 
@@ -136,7 +173,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		commandList->clearRenderTargetView(RT_thinGBufferA->getRTV(), clearColor);
 		commandList->clearDepthStencilView(RT_sceneDepth->getDSV(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
 
-		basePass->renderBasePass(commandList, scene, camera, gpuScene->getCulledGPUSceneBuffer());
+		basePass->renderBasePass(
+			commandList, scene, camera,
+			sceneUniformCBV.get(),
+			gpuScene->getCulledGPUSceneBuffer());
 	}
 
 	// Ray Traced Reflections
@@ -150,7 +190,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		// Combine sceneColor with RTR.
 
 		rtReflections->renderRayTracedReflections(
-			commandList, scene, camera, accelStructure,
+			commandList, scene, camera,
+			sceneUniformCBV.get(),
+			accelStructure,
 			RT_thinGBufferA, RT_indirectSpecular,
 			sceneWidth, sceneHeight);
 	}
@@ -242,6 +284,21 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_indirectSpecular->setDebugName(L"IndirectSpecular");
+}
+
+void SceneRenderer::updateSceneUniform(
+	uint32 swapchainIndex,
+	const SceneProxy* scene,
+	const Camera* camera)
+{
+	SceneUniform uboData;
+	uboData.viewMatrix     = camera->getViewMatrix();
+	uboData.projMatrix     = camera->getProjMatrix();
+	uboData.viewProjMatrix = camera->getViewProjMatrix();
+	uboData.sunDirection   = scene->sun.direction;
+	uboData.sunIlluminance = scene->sun.illuminance;
+	
+	sceneUniformCBV->upload(&uboData, sizeof(uboData), swapchainIndex);
 }
 
 void SceneRenderer::rebuildAccelerationStructure(

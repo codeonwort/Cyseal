@@ -3,6 +3,7 @@
 #include "swap_chain.h"
 #include "pipeline_state.h"
 #include "gpu_resource.h"
+#include "gpu_resource_view.h"
 #include "shader.h"
 
 // Reference: 'D3D12RaytracingHelloWorld' sample in
@@ -17,6 +18,7 @@ namespace RTRRootParameters
 	{
 		OutputViewSlot = 0,
 		AccelerationStructureSlot,
+		SceneUniformSlot,
 		Count
 	};
 }
@@ -32,6 +34,7 @@ struct RTRViewport
 struct RayGenConstantBuffer
 {
 	RTRViewport viewport;
+	Float4x4 viewMatrix;
 };
 static_assert(sizeof(RayGenConstantBuffer) % 4 == 0);
 
@@ -48,14 +51,17 @@ void RayTracedReflections::initialize()
 
 	// Global root signature
 	{
-		DescriptorRange descRanges[1];
+		DescriptorRange descRanges[2];
 		// indirectSpecular = register(u0, space0)
 		// gbuffer          = register(u1, space0)
 		descRanges[0].init(EDescriptorRangeType::UAV, 2, 0, 0);
+		// sceneUniform     = register(b0, space0)
+		descRanges[1].init(EDescriptorRangeType::CBV, 1, 0, 0);
 
 		RootParameter rootParameters[RTRRootParameters::Count];
 		rootParameters[RTRRootParameters::OutputViewSlot].initAsDescriptorTable(1, &descRanges[0]);
 		rootParameters[RTRRootParameters::AccelerationStructureSlot].initAsSRV(0, 0); // register(t0, space0)
+		rootParameters[RTRRootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descRanges[1]); // register(b0, space0)
 
 		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
 		globalRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
@@ -64,11 +70,11 @@ void RayTracedReflections::initialize()
 	// Local root signature
 	{
 		RootParameter rootParameters[1];
-		rootParameters[0].initAsConstants(0, 0, sizeof(RayGenConstantBuffer) / 4); // register(b0, space0)
+		rootParameters[0].initAsConstants(0, 1, sizeof(RayGenConstantBuffer) / 4); // register(b0, space1)
 
 		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
 		sigDesc.flags = ERootSignatureFlags::LocalRootSignature;
-		localRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
+		raygenLocalRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
 	}
 
 	// RTPSO
@@ -87,7 +93,7 @@ void RayTracedReflections::initialize()
 		desc.raygenShader                 = raygenShader.get();
 		desc.closestHitShader             = closestHitShader.get();
 		desc.missShader                   = missShader.get();
-		desc.raygenLocalRootSignature     = localRootSignature.get();
+		desc.raygenLocalRootSignature     = raygenLocalRootSignature.get();
 		desc.closestHitLocalRootSignature = nullptr;
 		desc.missLocalRootSignature       = nullptr;
 		desc.globalRootSignature          = globalRootSignature.get();
@@ -126,7 +132,7 @@ void RayTracedReflections::initialize()
 				RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
 		missShaderTable->uploadRecord(0, missShader.get(), nullptr, 0);
 	}
-	// Hit gorup shader table
+	// Hit group shader table
 	{
 		uint32 numShaderRecords = 1;
 		hitGroupShaderTable = std::unique_ptr<RaytracingShaderTable>(
@@ -161,6 +167,7 @@ void RayTracedReflections::renderRayTracedReflections(
 	RenderCommandList* commandList,
 	const SceneProxy* scene,
 	const Camera* camera,
+	ConstantBufferView* sceneUniformBuffer,
 	AccelerationStructure* raytracingScene,
 	Texture* thinGBufferATexture,
 	Texture* indirectSpecularTexture,
@@ -179,7 +186,8 @@ void RayTracedReflections::renderRayTracedReflections(
 	DescriptorHeap* volatileHeap = descriptorHeaps[0];
 	const uint32 VOLATILE_DESC_IX_RENDERTARGET = 0;
 	const uint32 VOLATILE_DESC_IX_GBUFFER = 1;
-	const uint32 VOLATILE_DESC_IX_ACCELSTRUCT = 2;
+	//const uint32 VOLATILE_DESC_IX_ACCELSTRUCT = 2; // Directly bound; no table.
+	const uint32 VOLATILE_DESC_IX_SCENEUNIFORM = 2;
 	{
 		gRenderDevice->copyDescriptors(1,
 			volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
@@ -187,6 +195,9 @@ void RayTracedReflections::renderRayTracedReflections(
 		gRenderDevice->copyDescriptors(1,
 			volatileHeap, VOLATILE_DESC_IX_GBUFFER,
 			thinGBufferATexture->getSourceUAVHeap(), thinGBufferATexture->getUAVDescriptorIndex());
+		gRenderDevice->copyDescriptors(1,
+			volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM,
+			sceneUniformBuffer->getSourceHeap(), sceneUniformBuffer->getDescriptorIndexInHeap(swapchainIndex));
 	}
 
 	commandList->setComputeRootSignature(globalRootSignature.get());
@@ -196,6 +207,8 @@ void RayTracedReflections::renderRayTracedReflections(
 		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET);
 	commandList->setComputeRootDescriptorSRV(RTRRootParameters::AccelerationStructureSlot,
 		raytracingScene->getSRV());
+	commandList->setComputeRootDescriptorTable(RTRRootParameters::SceneUniformSlot,
+		volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM);
 	
 	commandList->setRaytracingPipelineState(RTPSO.get());
 	

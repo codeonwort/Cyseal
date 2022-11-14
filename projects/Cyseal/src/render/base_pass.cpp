@@ -19,16 +19,6 @@
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 #define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
 
-struct SceneUniform
-{
-	Float4x4 viewMatrix;
-	Float4x4 projMatrix;
-	Float4x4 viewProjMatrix;
-
-	vec3 sunDirection; float _pad0;
-	vec3 sunIlluminance; float _pad1;
-};
-
 struct MaterialConstants
 {
 	float albedoMultiplier[4] = { 1, 1, 1, 1 };
@@ -98,8 +88,6 @@ void BasePass::initialize()
 		materialCBVs[i] = std::unique_ptr<ConstantBufferView>(
 			constantBufferMemory->allocateCBV(cbvStagingHeap.get(), sizeof(MaterialConstants), swapchainCount));
 	}
-	sceneUniformCBV = std::unique_ptr<ConstantBufferView>(
-		constantBufferMemory->allocateCBV(cbvStagingHeap.get(), sizeof(SceneUniform), swapchainCount));
 
 	// Create volatile heaps for CBVs, SRVs, and UAVs for each frame
 	volatileViewHeaps.resize(swapchainCount);
@@ -165,6 +153,7 @@ void BasePass::renderBasePass(
 	RenderCommandList* commandList,
 	const SceneProxy* scene,
 	const Camera* camera,
+	ConstantBufferView* sceneUniformBuffer,
 	StructuredBuffer* gpuSceneBuffer)
 {
 	// #todo-renderer: Support other topologies
@@ -187,20 +176,7 @@ void BasePass::renderBasePass(
 	{
 		numVolatileDescriptors += (uint32)mesh->getSections(LOD).size();
 	}
-	bindRootParameters(commandList, numVolatileDescriptors, gpuSceneBuffer);
-
-	// Update scene uniform buffer
-	{
-		SceneUniform uboData;
-		uboData.viewMatrix = camera->getViewMatrix();
-		uboData.projMatrix = camera->getProjMatrix();
-		uboData.viewProjMatrix = camera->getViewProjMatrix();
-		uboData.sunDirection = scene->sun.direction;
-		uboData.sunIlluminance = scene->sun.illuminance;
-
-		const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-		sceneUniformCBV->upload(&uboData, sizeof(uboData), frameIndex);
-	}
+	bindRootParameters(commandList, numVolatileDescriptors, sceneUniformBuffer, gpuSceneBuffer);
 
 	// #todo-indirect-draw: Do it
 	uint32 payloadID = 0;
@@ -228,6 +204,7 @@ void BasePass::renderBasePass(
 void BasePass::bindRootParameters(
 	RenderCommandList* cmdList,
 	uint32 inNumPayloads,
+	ConstantBufferView* sceneUniform,
 	StructuredBuffer* gpuSceneBuffer)
 {
 	CHECK(inNumPayloads <= MAX_VOLATILE_DESCRIPTORS);
@@ -246,7 +223,7 @@ void BasePass::bindRootParameters(
 	gRenderDevice->copyDescriptors(
 		1,
 		volatileHeap, 0,
-		cbvStagingHeap.get(), sceneUniformCBV->getDescriptorIndexInHeap(frameIndex));
+		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap(frameIndex));
 	cmdList->setGraphicsRootDescriptorTable(1, volatileHeap, 0);
 
 	cmdList->setGraphicsRootDescriptorSRV(2, gpuSceneBuffer->getSRV());
