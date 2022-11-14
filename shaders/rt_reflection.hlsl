@@ -49,7 +49,6 @@ struct RayGenConstantBuffer
 // Global root signature
 RaytracingAccelerationStructure rtScene      : register(t0, space0);
 RWTexture2D<float4>             renderTarget : register(u0, space0);
-// #todo: Not visible from raygen record, but only visible hitgroup record.
 RWTexture2D<float4>             gbufferA     : register(u1, space0);
 ConstantBuffer<SceneUniform>    sceneUniform : register(b0, space0);
 
@@ -72,7 +71,7 @@ bool IsInsideViewport(float2 p, Viewport viewport)
 
 void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
 {
-    float2 xy = float2(texel)+0.5;
+    float2 xy = float2(texel) + 0.5;
     float2 screenPos = (xy / DispatchRaysDimensions().xy) * 2.0 - 1.0;
     screenPos.y = -screenPos.y;
 
@@ -102,18 +101,34 @@ void MyRaygenShader()
         ray.TMin = RAYGEN_T_MIN;
         ray.TMax = RAYGEN_T_MAX;
 
-        // #todo: Only bottom-left spike ball is being hit
-        TraceRay(rtScene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, primaryPayload);
+        uint instanceInclusionMask = ~0; // Do not ignore anything
+        uint rayContributionToHitGroupIndex = 0;
+        // #todo: Need to satisfy one of following conditions.
+        //        I don't understand hit groups enough yet...
+        // 1) numShaderRecords for hitGroupShaderTable is 1 and this is 0
+        // 2) numShaderRecords for hitGroupShaderTable is N and this is 1
+        //    where N = number of geometries
+        uint multiplierForGeometryContributionToHitGroupIndex = 0;
+        uint missShaderIndex = 0;
+        TraceRay(
+            rtScene,
+            RAY_FLAG_NONE,
+            instanceInclusionMask,
+            rayContributionToHitGroupIndex,
+            multiplierForGeometryContributionToHitGroupIndex,
+            missShaderIndex,
+            ray,
+            primaryPayload);
     }
 
     if (primaryPayload.materialID != MATERIAL_ID_NONE)
     {
-        renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 0);
-        //renderTarget[DispatchRaysIndex().xy] = float4(0.5 + 0.5 * primaryPayload.surfaceNormal, 0);
+        //renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 0);
+        renderTarget[DispatchRaysIndex().xy] = float4(0.5 + 0.5 * primaryPayload.surfaceNormal, 0);
     }
     else
     {
-        renderTarget[DispatchRaysIndex().xy] = float4(1, 0, 0, 0);
+        renderTarget[DispatchRaysIndex().xy] = float4(0, 0, 0, 0);
     }
 
 #if 0
@@ -143,16 +158,21 @@ void MyRaygenShader()
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
+    // #todo: Read surface data
+    // - surface normal
+    // - albedo
+    // - metallic/roughness
+    
     //float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
     //payload.surfaceNormal = float4(barycentrics, 1);
 
     // Temp logic for primary visibility
-    // TODO: Read vertex normal from vertex buffers
     {
         float4 hitPos = float4(WorldRayOrigin() + RayTCurrent() * WorldRayDirection(), 1.0);
         hitPos = mul(hitPos, sceneUniform.viewProjMatrix);
+        hitPos.y = -hitPos.y;
         hitPos.xyz /= hitPos.w;
-        hitPos.xy = 2.0 * hitPos.xy - 1.0;
+        hitPos.xy = 0.5 + 0.5 * hitPos.xy;
 
         uint2 texel = uint2(hitPos.xy * DispatchRaysDimensions().xy);
         payload.surfaceNormal = gbufferA[texel].xyz;

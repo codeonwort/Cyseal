@@ -45,7 +45,8 @@ float3 ACESFitted(float3 color)
 // ------------------------------------------------------------------------
 // Resource bindings
 
-Texture2D sceneColor : register(t0);
+Texture2D sceneColor           : register(t0);
+Texture2D indirectSpecular     : register(t1);
 SamplerState sceneColorSampler : register(s0);
 
 // ------------------------------------------------------------------------
@@ -77,6 +78,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     screenUV.y = 1.0 - screenUV.y;
 
     float4 color = sceneColor.SampleLevel(sceneColorSampler, screenUV, 0.0);
+    color.rgb += indirectSpecular.SampleLevel(sceneColorSampler, screenUV, 0.0).rgb;
 
     // Reinhard tone mapper
     //color.rgb = float3(1.0, 1.0, 1.0) - exp(-color.rgb * EXPOSURE);

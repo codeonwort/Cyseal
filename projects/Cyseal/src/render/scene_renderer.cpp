@@ -186,14 +186,23 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	}
 
 	// Ray Traced Reflections
-	if (device->getRaytracingTier() != ERaytracingTier::NotSupported)
+	if (device->getRaytracingTier() == ERaytracingTier::NotSupported)
+	{
+		// #todo-wip-rt: Clear RT_indirectSpecular to black.
+	}
+	else
 	{
 		SCOPED_DRAW_EVENT(commandList, RayTracedReflections);
 
-		// #todo-wip-rt: Renderer
-		// Insert resource barriers.
-		// Just clear RTR output if DXR is unavailable.
-		// Combine sceneColor with RTR.
+		ResourceBarrier barriers[] = {
+			{
+				EResourceBarrierType::Transition,
+				RT_indirectSpecular,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE,
+				EGPUResourceState::UNORDERED_ACCESS
+			}
+		};
+		commandList->resourceBarriers(_countof(barriers), barriers);
 
 		rtReflections->renderRayTracedReflections(
 			commandList, scene, camera,
@@ -223,6 +232,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 			},
 			{
 				EResourceBarrierType::Transition,
+				RT_indirectSpecular,
+				EGPUResourceState::UNORDERED_ACCESS,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE
+			},
+			{
+				EResourceBarrierType::Transition,
 				currentBackBuffer,
 				EGPUResourceState::PRESENT,
 				EGPUResourceState::RENDER_TARGET
@@ -233,7 +248,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		// #todo-renderer: Should not be here
 		commandList->omSetRenderTarget(currentBackBufferRTV, nullptr);
 
-		toneMapping->renderToneMapping(commandList, RT_sceneColor);
+		toneMapping->renderToneMapping(
+			commandList,
+			RT_sceneColor,
+			RT_indirectSpecular);
 	}
 
 	//////////////////////////////////////////////////////////////////////////

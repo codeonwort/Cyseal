@@ -140,7 +140,10 @@ void RayTracedReflections::initialize()
 		hitGroupShaderTable = std::unique_ptr<RaytracingShaderTable>(
 			device->createRaytracingShaderTable(
 				RTPSO.get(), numShaderRecords, 0, L"HitGroupShaderTable"));
-		hitGroupShaderTable->uploadRecord(0, hitGroupName, nullptr, 0);
+		for (uint32 i = 0; i < numShaderRecords; ++i)
+		{
+			hitGroupShaderTable->uploadRecord(i, hitGroupName, nullptr, 0);
+		}
 	}
 
 	volatileViewHeaps.resize(swapchainCount);

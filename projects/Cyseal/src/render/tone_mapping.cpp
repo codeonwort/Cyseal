@@ -23,7 +23,9 @@ ToneMapping::ToneMapping()
 		RootParameter slotRootParameters[NUM_ROOT_PARAMETERS];
 
 		DescriptorRange descriptorRange;
-		descriptorRange.init(EDescriptorRangeType::SRV, 1, 0 /* c0 */);
+		// sceneColor       : register(t0)
+		// indirectSpecular : register(t1)
+		descriptorRange.init(EDescriptorRangeType::SRV, 2, 0);
 
 		slotRootParameters[0].initAsDescriptorTable(1, &descriptorRange);
 
@@ -105,7 +107,10 @@ ToneMapping::ToneMapping()
 	}
 }
 
-void ToneMapping::renderToneMapping(RenderCommandList* commandList, Texture* sceneColor)
+void ToneMapping::renderToneMapping(
+	RenderCommandList* commandList,
+	Texture* sceneColor,
+	Texture* indirectSpecular)
 {
 	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
@@ -123,6 +128,10 @@ void ToneMapping::renderToneMapping(RenderCommandList* commandList, Texture* sce
 			1,
 			heaps[0], 0,
 			sceneColor->getSourceSRVHeap(), sceneColor->getSRVDescriptorIndex());
+		gRenderDevice->copyDescriptors(
+			1,
+			heaps[0], 1,
+			indirectSpecular->getSourceSRVHeap(), indirectSpecular->getSRVDescriptorIndex());
 		commandList->setGraphicsRootDescriptorTable(0, heaps[0], 0);
 	}
 
