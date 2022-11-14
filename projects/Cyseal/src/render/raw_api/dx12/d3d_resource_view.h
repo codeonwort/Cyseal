@@ -34,6 +34,7 @@ public:
 	D3DShaderResourceView(Texture* inOwner) : ShaderResourceView(inOwner) {}
 	D3DShaderResourceView(StructuredBuffer* inOwner) : ShaderResourceView(inOwner) {}
 	D3DShaderResourceView(AccelerationStructure* inOwner) : ShaderResourceView(inOwner) {}
+	D3DShaderResourceView(IndexBuffer* inOwner) : ShaderResourceView(inOwner) {}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return cpuHandle; }
 	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE inHandle) { cpuHandle = inHandle; }

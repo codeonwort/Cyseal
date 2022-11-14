@@ -9,6 +9,8 @@
 //
 //*********************************************************
 
+// https://learn.microsoft.com/en-us/windows/win32/direct3d12/direct3d-12-raytracing-hlsl-reference
+
 #ifndef RAYTRACING_HLSL
 #define RAYTRACING_HLSL
 
@@ -34,20 +36,21 @@
 
 struct Viewport
 {
-    float left;
-    float top;
-    float right;
-    float bottom;
+	float left;
+	float top;
+	float right;
+	float bottom;
 };
 
 struct RayGenConstantBuffer
 {
-    Viewport viewport;
+	Viewport viewport;
 };
 //*********************************************************
 
 // Global root signature
 RaytracingAccelerationStructure rtScene      : register(t0, space0);
+ByteAddressBuffer               gIndexBuffer : register(t1, space0);
 RWTexture2D<float4>             renderTarget : register(u0, space0);
 RWTexture2D<float4>             gbufferA     : register(u1, space0);
 ConstantBuffer<SceneUniform>    sceneUniform : register(b0, space0);
@@ -58,135 +61,143 @@ ConstantBuffer<RayGenConstantBuffer> g_rayGenCB   : register(b0, space1);
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload
 {
-    float3 surfaceNormal;
-    uint   materialID;
-    float  hitTime;
+	float3 surfaceNormal;
+	uint   materialID;
+	float  hitTime;
 };
 
 bool IsInsideViewport(float2 p, Viewport viewport)
 {
-    return (p.x >= viewport.left && p.x <= viewport.right)
-        && (p.y >= viewport.top && p.y <= viewport.bottom);
+	return (p.x >= viewport.left && p.x <= viewport.right)
+		&& (p.y >= viewport.top && p.y <= viewport.bottom);
 }
 
 void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
 {
-    float2 xy = float2(texel) + 0.5;
-    float2 screenPos = (xy / DispatchRaysDimensions().xy) * 2.0 - 1.0;
-    screenPos.y = -screenPos.y;
+	float2 xy = float2(texel) + 0.5;
+	float2 screenPos = (xy / DispatchRaysDimensions().xy) * 2.0 - 1.0;
+	screenPos.y = -screenPos.y;
 
-    float4 worldPos = mul(float4(screenPos, 0.0, 1.0), sceneUniform.viewProjInvMatrix);
-    worldPos.xyz /= worldPos.w;
+	float4 worldPos = mul(float4(screenPos, 0.0, 1.0), sceneUniform.viewProjInvMatrix);
+	worldPos.xyz /= worldPos.w;
 
-    origin = sceneUniform.cameraPosition.xyz;
-    direction = normalize(worldPos.xyz - origin);
+	origin = sceneUniform.cameraPosition.xyz;
+	direction = normalize(worldPos.xyz - origin);
 }
 
 [shader("raygeneration")]
 void MyRaygenShader()
 {
-    float3 rayOrigin, rayDir;
-    generateCameraRay(DispatchRaysIndex().xy, rayOrigin, rayDir);
+	float3 rayOrigin, rayDir;
+	generateCameraRay(DispatchRaysIndex().xy, rayOrigin, rayDir);
 
-    // Actually no need to do RT for primary visibility.
-    // We can reconstruct surface normal and worldPos from gbuffers and sceneDepth.
-    // I'm just practicing DXR here.
-    RayPayload primaryPayload = { float3(0, 0, 0), MATERIAL_ID_NONE, -1.0 };
-    {
-        // Trace the ray.
-        // Set the ray's extents.
-        RayDesc ray;
-        ray.Origin = rayOrigin;
-        ray.Direction = rayDir;
-        ray.TMin = RAYGEN_T_MIN;
-        ray.TMax = RAYGEN_T_MAX;
+	// Actually no need to do RT for primary visibility.
+	// We can reconstruct surface normal and worldPos from gbuffers and sceneDepth.
+	// I'm just practicing DXR here.
+	RayPayload primaryPayload = { float3(0, 0, 0), MATERIAL_ID_NONE, -1.0 };
+	{
+		// Trace the ray.
+		// Set the ray's extents.
+		RayDesc ray;
+		ray.Origin = rayOrigin;
+		ray.Direction = rayDir;
+		ray.TMin = RAYGEN_T_MIN;
+		ray.TMax = RAYGEN_T_MAX;
 
-        uint instanceInclusionMask = ~0; // Do not ignore anything
-        uint rayContributionToHitGroupIndex = 0;
-        // #todo: Need to satisfy one of following conditions.
-        //        I don't understand hit groups enough yet...
-        // 1) numShaderRecords for hitGroupShaderTable is 1 and this is 0
-        // 2) numShaderRecords for hitGroupShaderTable is N and this is 1
-        //    where N = number of geometries
-        uint multiplierForGeometryContributionToHitGroupIndex = 0;
-        uint missShaderIndex = 0;
-        TraceRay(
-            rtScene,
-            RAY_FLAG_NONE,
-            instanceInclusionMask,
-            rayContributionToHitGroupIndex,
-            multiplierForGeometryContributionToHitGroupIndex,
-            missShaderIndex,
-            ray,
-            primaryPayload);
-    }
+		uint instanceInclusionMask = ~0; // Do not ignore anything
+		uint rayContributionToHitGroupIndex = 0;
+		// #todo: Need to satisfy one of following conditions.
+		//        I don't understand hit groups enough yet...
+		// 1) numShaderRecords for hitGroupShaderTable is 1 and this is 0
+		// 2) numShaderRecords for hitGroupShaderTable is N and this is 1
+		//    where N = number of geometries
+		uint multiplierForGeometryContributionToHitGroupIndex = 0;
+		uint missShaderIndex = 0;
+		TraceRay(
+			rtScene,
+			RAY_FLAG_NONE,
+			instanceInclusionMask,
+			rayContributionToHitGroupIndex,
+			multiplierForGeometryContributionToHitGroupIndex,
+			missShaderIndex,
+			ray,
+			primaryPayload);
+	}
 
-    if (primaryPayload.materialID != MATERIAL_ID_NONE)
-    {
-        //renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 0);
-        renderTarget[DispatchRaysIndex().xy] = float4(0.5 + 0.5 * primaryPayload.surfaceNormal, 0);
-    }
-    else
-    {
-        renderTarget[DispatchRaysIndex().xy] = float4(0, 0, 0, 0);
-    }
+	if (primaryPayload.materialID != MATERIAL_ID_NONE)
+	{
+		//renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 0);
+		renderTarget[DispatchRaysIndex().xy] = float4(0.5 + 0.5 * primaryPayload.surfaceNormal, 0);
+	}
+	else
+	{
+		renderTarget[DispatchRaysIndex().xy] = float4(0, 0, 0, 0);
+	}
 
 #if 0
-    RayPayload secondaryPayload = { float3(0, 0, 0), MATERIAL_ID_NONE, -1.0 };
-    if (primaryPayload.materialID != MATERIAL_ID_NONE)
-    {
-        RayDesc ray;
-        ray.Origin = primaryPayload.hitTime * rayDir + rayOrigin;
-        ray.Direction = primaryPayload.surfaceNormal;
-        ray.TMin = RAYGEN_T_MIN;
-        ray.TMax = RAYGEN_T_MAX;
+	RayPayload secondaryPayload = { float3(0, 0, 0), MATERIAL_ID_NONE, -1.0 };
+	if (primaryPayload.materialID != MATERIAL_ID_NONE)
+	{
+		RayDesc ray;
+		ray.Origin = primaryPayload.hitTime * rayDir + rayOrigin;
+		ray.Direction = primaryPayload.surfaceNormal;
+		ray.TMin = RAYGEN_T_MIN;
+		ray.TMax = RAYGEN_T_MAX;
 
-        TraceRay(rtScene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, secondaryPayload);
-    }
+		TraceRay(rtScene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, secondaryPayload);
+	}
 
-    if (RAYGEN_T_MIN < secondaryPayload.hitTime && secondaryPayload.hitTime < RAYGEN_T_MAX)
-    {
-        renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 0);
-    }
-    else
-    {
-        renderTarget[DispatchRaysIndex().xy] = float4(1, 0, 0, 0);
-    }
+	if (RAYGEN_T_MIN < secondaryPayload.hitTime && secondaryPayload.hitTime < RAYGEN_T_MAX)
+	{
+		renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 0);
+	}
+	else
+	{
+		renderTarget[DispatchRaysIndex().xy] = float4(1, 0, 0, 0);
+	}
 #endif
 }
 
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
-    // #todo: Read surface data
-    // - surface normal
-    // - albedo
-    // - metallic/roughness
-    
-    //float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-    //payload.surfaceNormal = float4(barycentrics, 1);
+	// #todo: Read surface data
+	// - surface normal
+	// - albedo
+	// - metallic/roughness
+	
+	// Get the base index of the triangle's first 32 bit index.
+	uint triangleIndexStride = 3 * 4; // 4 = sizeof(uint32)
+	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
+	// baseIndex += offset_in_index_pool (how?)
+	// #todo: Read index/vertex buffers
 
-    // Temp logic for primary visibility
-    {
-        float4 hitPos = float4(WorldRayOrigin() + RayTCurrent() * WorldRayDirection(), 1.0);
-        hitPos = mul(hitPos, sceneUniform.viewProjMatrix);
-        hitPos.y = -hitPos.y;
-        hitPos.xyz /= hitPos.w;
-        hitPos.xy = 0.5 + 0.5 * hitPos.xy;
+	uint3 indices = gIndexBuffer.Load3(baseIndex);
 
-        uint2 texel = uint2(hitPos.xy * DispatchRaysDimensions().xy);
-        payload.surfaceNormal = gbufferA[texel].xyz;
-    }
+	//float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
+	//payload.surfaceNormal = float4(barycentrics, 1);
 
-    payload.materialID = MATERIAL_ID_DEFAULTLIT;
-    payload.hitTime = RayTCurrent();
+	// Temp logic for primary visibility
+	{
+		float4 hitPos = float4(WorldRayOrigin() + RayTCurrent() * WorldRayDirection(), 1.0);
+		hitPos = mul(hitPos, sceneUniform.viewProjMatrix);
+		hitPos.y = -hitPos.y;
+		hitPos.xyz /= hitPos.w;
+		hitPos.xy = 0.5 + 0.5 * hitPos.xy;
+
+		uint2 texel = uint2(hitPos.xy * DispatchRaysDimensions().xy);
+		payload.surfaceNormal = gbufferA[texel].xyz;
+	}
+
+	payload.materialID = MATERIAL_ID_DEFAULTLIT;
+	payload.hitTime = RayTCurrent();
 }
 
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
-    payload.materialID = MATERIAL_ID_NONE;
-    payload.hitTime = -1.0;
+	payload.materialID = MATERIAL_ID_NONE;
+	payload.hitTime = -1.0;
 }
 
 #endif // RAYTRACING_HLSL

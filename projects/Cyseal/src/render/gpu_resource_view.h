@@ -6,6 +6,7 @@ class RenderDevice;
 class DescriptorHeap;
 class VertexBuffer;
 class Texture;
+class IndexBuffer;
 class StructuredBuffer;
 class AccelerationStructure;
 
@@ -31,7 +32,7 @@ protected:
 	// #todo-resource-view: ByteBuffer? Or just buffer?
 	// Also no reason vertex/index buffers can't be used as SRV,
 	// though I've got no plan for such usage for now.
-	enum class ESource { Texture, StructuredBuffer, AccelerationStructure };
+	enum class ESource { Texture, StructuredBuffer, AccelerationStructure, IndexBuffer };
 public:
 	ShaderResourceView(Texture* inOwner)
 		: ownerTexture(inOwner)
@@ -45,11 +46,17 @@ public:
 		: ownerAccelStruct(inOwner)
 		, source(ESource::AccelerationStructure)
 	{}
+	ShaderResourceView(IndexBuffer* inOwner)
+		: ownerIndexBuffer(inOwner)
+		, source(ESource::IndexBuffer)
+	{}
+	virtual ~ShaderResourceView() = default;
 protected:
 	ESource source;
 	Texture* ownerTexture = nullptr;
 	StructuredBuffer* ownerStructuredBuffer = nullptr;
 	AccelerationStructure* ownerAccelStruct = nullptr;
+	IndexBuffer* ownerIndexBuffer = nullptr;
 };
 
 class UnorderedAccessView

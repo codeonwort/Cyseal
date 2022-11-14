@@ -182,7 +182,7 @@ void TestApplication::createResources()
 					//indexBufferLODs[geomIx][lod] = gRenderDevice->createIndexBuffer(G.getIndexBufferTotalBytes());
 					positionBufferLODs[geomIx][lod] = gVertexBufferPool->suballocate(G.getPositionBufferTotalBytes());
 					nonPositionBufferLODs[geomIx][lod] = gVertexBufferPool->suballocate(G.getNonPositionBufferTotalBytes());
-					indexBufferLODs[geomIx][lod] = gIndexBufferPool->suballocate(G.getIndexBufferTotalBytes());
+					indexBufferLODs[geomIx][lod] = gIndexBufferPool->suballocate(G.getIndexBufferTotalBytes(), G.getIndexFormat());
 
 					positionBufferLODs[geomIx][lod]->updateData(&commandList, G.getPositionBlob(), G.getPositionStride());
 					nonPositionBufferLODs[geomIx][lod]->updateData(&commandList, G.getNonPositionBlob(), G.getNonPositionStride());
@@ -269,7 +269,7 @@ void TestApplication::createResources()
 			{
 				positionBuffer = gVertexBufferPool->suballocate(planeGeometry.getPositionBufferTotalBytes());
 				nonPositionBuffer = gVertexBufferPool->suballocate(planeGeometry.getNonPositionBufferTotalBytes());
-				indexBuffer = gIndexBufferPool->suballocate(planeGeometry.getIndexBufferTotalBytes());
+				indexBuffer = gIndexBufferPool->suballocate(planeGeometry.getIndexBufferTotalBytes(), planeGeometry.getIndexFormat());
 
 				positionBuffer->updateData(&commandList, planeGeometry.getPositionBlob(), planeGeometry.getPositionStride());
 				nonPositionBuffer->updateData(&commandList, planeGeometry.getNonPositionBlob(), planeGeometry.getNonPositionStride());

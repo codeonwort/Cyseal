@@ -2,9 +2,13 @@
 
 #include "render/gpu_resource.h"
 #include "d3d_util.h"
+#include "d3d_resource_view.h"
+
+#include <memory>
 
 class RenderDevice;
 class D3DDevice;
+class D3DShaderResourceView;
 
 class D3DVertexBuffer : public VertexBuffer
 {
@@ -37,11 +41,13 @@ private:
 class D3DIndexBuffer : public IndexBuffer
 {
 public:
-	virtual void initialize(uint32 sizeInBytes) override;
+	virtual void initialize(uint32 sizeInBytes, EPixelFormat format) override;
 
 	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) override;
+
+	virtual ShaderResourceView* getByteAddressView() override;
 
 	virtual uint32 getIndexCount() const override { return indexCount; }
 	virtual EPixelFormat getIndexFormat() const override { return indexFormat; }
@@ -49,6 +55,7 @@ public:
 	void setDebugName(const wchar_t* inDebugName);
 
 	inline D3D12_INDEX_BUFFER_VIEW getView() const { return view; }
+	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const;
 
 private:
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;
@@ -61,4 +68,10 @@ private:
 
 	uint32 indexCount = 0;
 	EPixelFormat indexFormat = EPixelFormat::R32_UINT;
+
+	std::unique_ptr<D3DShaderResourceView> srv;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = { NULL };
+	uint32 srvDescriptorIndex = 0xffffffff;
+	DescriptorHeap* srvHeap = nullptr;
 };

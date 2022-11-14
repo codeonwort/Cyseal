@@ -28,7 +28,8 @@ MeshData getMeshData() { return gpuSceneBuffer[pushConstants.objectId]; }
 
 struct Material
 {
-    float4 albedoMultiplier;
+    float3 albedoMultiplier;
+    float  roughness;
     uint   albedoTextureIndex; float3 _pad0;
 };
 ConstantBuffer<Material> materials[]        : register(b0, space1); // bindless in another space

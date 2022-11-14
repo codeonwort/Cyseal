@@ -4,6 +4,7 @@
 #include "d3d_render_command.h"
 #include "core/assertion.h"
 #include "render/vertex_buffer_pool.h"
+#include "render/gpu_resource_view.h"
 
 WRL::ComPtr<ID3D12Resource> createDefaultBuffer(UINT64 byteSize)
 {
@@ -122,13 +123,35 @@ void D3DVertexBuffer::setDebugName(const wchar_t* inDebugName)
 //////////////////////////////////////////////////////////////////////////
 // D3DIndexBuffer
 
-void D3DIndexBuffer::initialize(uint32 sizeInBytes)
+void D3DIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format)
 {
+	CHECK(format == EPixelFormat::R16_UINT || format == EPixelFormat::R32_UINT);
+	auto device = getD3DDevice()->getRawDevice();
+
+	indexFormat = format;
 	defaultBuffer = createDefaultBuffer(sizeInBytes);
 
 	view.BufferLocation = defaultBuffer->GetGPUVirtualAddress();
 	view.SizeInBytes = sizeInBytes;
 	//view.Format is set in updateData().
+
+	// Create raw view
+	if (format != EPixelFormat::UNKNOWN)
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Buffer.NumElements = sizeInBytes / 4;
+		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+		srvDesc.Buffer.StructureByteStride = 0;
+
+		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
+		device->CreateShaderResourceView(defaultBuffer.Get(), &srvDesc, srvHandle);
+
+		srv = std::make_unique<D3DShaderResourceView>(this);
+		srv->setCPUHandle(srvHandle);
+	}
 }
 
 void D3DIndexBuffer::initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
@@ -145,7 +168,7 @@ void D3DIndexBuffer::initializeWithinPool(IndexBufferPool* pool, uint64 offsetIn
 
 void D3DIndexBuffer::updateData(RenderCommandList* commandList, void* data, EPixelFormat format)
 {
-	indexFormat = format;
+	CHECK(indexFormat == format);
 
 	DXGI_FORMAT d3dFormat = DXGI_FORMAT_UNKNOWN;
 	uint32 sizeInBytes = view.SizeInBytes;
@@ -172,8 +195,19 @@ void D3DIndexBuffer::updateData(RenderCommandList* commandList, void* data, EPix
 	view.Format = d3dFormat;
 }
 
+ShaderResourceView* D3DIndexBuffer::getByteAddressView()
+{
+	CHECK(srv != nullptr);
+	return srv.get();
+}
+
 void D3DIndexBuffer::setDebugName(const wchar_t* inDebugName)
 {
 	CHECK(parentPool == nullptr);
 	defaultBuffer->SetName(inDebugName);
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS D3DIndexBuffer::getGPUVirtualAddress() const
+{
+	return defaultBuffer->GetGPUVirtualAddress();
 }

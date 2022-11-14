@@ -21,7 +21,8 @@
 
 struct MaterialConstants
 {
-	float albedoMultiplier[4] = { 1, 1, 1, 1 };
+	float albedoMultiplier[3] = { 1, 1, 1 };
+	float roughness = 0.0f;
 	uint32 albedoTextureIndex; vec3 _pad0;
 };
 
@@ -269,6 +270,7 @@ void BasePass::updateMaterialParameters(
 		{
 			memcpy_s(payload.albedoMultiplier, sizeof(payload.albedoMultiplier),
 				material->albedoMultiplier, sizeof(material->albedoMultiplier));
+			payload.roughness = material->roughness;
 		}
 		payload.albedoTextureIndex = volatileAlbedoTextureIndex;
 

@@ -197,11 +197,17 @@ struct IndexBufferCreateParams
 class IndexBuffer : public GPUResource
 {
 public:
-	virtual void initialize(uint32 sizeInBytes) = 0;
+	virtual void initialize(uint32 sizeInBytes, EPixelFormat format) = 0;
 
-	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
+	virtual void initializeWithinPool(
+		IndexBufferPool* pool,
+		uint64 offsetInPool,
+		uint32 sizeInBytes) = 0;
 
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) = 0;
+
+	// To bind as a ByteAddressBuffer in HLSL.
+	virtual ShaderResourceView* getByteAddressView() = 0;
 
 	virtual uint32 getIndexCount() const = 0;
 	virtual EPixelFormat getIndexFormat() const = 0;
@@ -308,7 +314,4 @@ public:
 	virtual ~AccelerationStructure() = default;
 
 	virtual ShaderResourceView* getSRV() const = 0;
-
-private:
-	//
 };

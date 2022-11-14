@@ -50,7 +50,10 @@ void IndexBufferPool::initialize(uint64 totalBytes)
 	CHECK(pool == nullptr);
 
 	poolSize = totalBytes;
-	pool = gRenderDevice->createIndexBuffer((uint32)totalBytes, L"GlobalIndexBufferPool");
+	pool = gRenderDevice->createIndexBuffer(
+		(uint32)totalBytes,
+		EPixelFormat::R32_UINT,
+		L"GlobalIndexBufferPool");
 
 	const float size_mb = (float)totalBytes / (1024 * 1024);
 	CYLOG(LogEngine, Log, L"Index buffer pool: %.2f MiB", size_mb);
@@ -63,7 +66,7 @@ void IndexBufferPool::destroy()
 	pool = nullptr;
 }
 
-IndexBuffer* IndexBufferPool::suballocate(uint32 sizeInBytes)
+IndexBuffer* IndexBufferPool::suballocate(uint32 sizeInBytes, EPixelFormat format)
 {
 	if (currentOffset + sizeInBytes >= poolSize)
 	{
@@ -72,7 +75,12 @@ IndexBuffer* IndexBufferPool::suballocate(uint32 sizeInBytes)
 		return nullptr;
 	}
 
-	IndexBuffer* buffer = gRenderDevice->createIndexBuffer(this, currentOffset, sizeInBytes);
+	IndexBuffer* buffer = gRenderDevice->createIndexBuffer(
+		this,
+		currentOffset,
+		sizeInBytes,
+		format);
+	
 	currentOffset += sizeInBytes;
 
 	return buffer;

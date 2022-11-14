@@ -4,6 +4,7 @@
 #include "pipeline_state.h"
 #include "gpu_resource.h"
 #include "gpu_resource_view.h"
+#include "vertex_buffer_pool.h"
 #include "shader.h"
 
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
@@ -19,6 +20,7 @@ namespace RTRRootParameters
 		OutputViewSlot = 0,
 		AccelerationStructureSlot,
 		SceneUniformSlot,
+		GlobalIndexBufferSlot,
 		Count
 	};
 }
@@ -62,6 +64,7 @@ void RayTracedReflections::initialize()
 		rootParameters[RTRRootParameters::OutputViewSlot].initAsDescriptorTable(1, &descRanges[0]);
 		rootParameters[RTRRootParameters::AccelerationStructureSlot].initAsSRV(0, 0); // register(t0, space0)
 		rootParameters[RTRRootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descRanges[1]); // register(b0, space0)
+		rootParameters[RTRRootParameters::GlobalIndexBufferSlot].initAsSRV(1, 0); // register(t1, space0)
 
 		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
 		globalRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
@@ -214,6 +217,8 @@ void RayTracedReflections::renderRayTracedReflections(
 		raytracingScene->getSRV());
 	commandList->setComputeRootDescriptorTable(RTRRootParameters::SceneUniformSlot,
 		volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM);
+	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalIndexBufferSlot,
+		gIndexBufferPool->internal_getPoolBuffer()->getByteAddressView());
 	
 	commandList->setRaytracingPipelineState(RTPSO.get());
 	

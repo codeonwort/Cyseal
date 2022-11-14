@@ -42,14 +42,14 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 
 	// Subsystems
 	{
+		gTextureManager = new TextureManager;
+		gTextureManager->initialize();
+
 		gVertexBufferPool = new VertexBufferPool;
 		gVertexBufferPool->initialize(VERTEX_BUFFER_POOL_SIZE);
 
 		gIndexBufferPool = new IndexBufferPool;
 		gIndexBufferPool->initialize(INDEX_BUFFER_POOL_SIZE);
-
-		gTextureManager = new TextureManager;
-		gTextureManager->initialize();
 	}
 
 	// Rendering

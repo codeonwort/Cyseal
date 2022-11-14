@@ -54,7 +54,7 @@ public:
 	void initialize(uint64 totalBytes);
 	void destroy();
 
-	IndexBuffer* suballocate(uint32 sizeInBytes);
+	IndexBuffer* suballocate(uint32 sizeInBytes, EPixelFormat format);
 
 	// #todo-vram-pool: deallocate()
 	// ...
