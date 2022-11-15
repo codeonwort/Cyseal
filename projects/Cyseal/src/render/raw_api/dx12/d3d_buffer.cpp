@@ -86,6 +86,25 @@ void D3DVertexBuffer::initialize(uint32 sizeInBytes)
 	view.BufferLocation = defaultBuffer->GetGPUVirtualAddress();
 	view.SizeInBytes = sizeInBytes;
 	//view.StrideInBytes = strideInBytes; // Set in updateData().
+
+	// Create raw view
+	{
+		auto device = getD3DDevice()->getRawDevice();
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Buffer.NumElements = sizeInBytes / 4;
+		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+		srvDesc.Buffer.StructureByteStride = 0;
+
+		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
+		device->CreateShaderResourceView(defaultBuffer.Get(), &srvDesc, srvHandle);
+
+		srv = std::make_unique<D3DShaderResourceView>(this);
+		srv->setCPUHandle(srvHandle);
+	}
 }
 
 void D3DVertexBuffer::initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
@@ -114,10 +133,21 @@ void D3DVertexBuffer::updateData(RenderCommandList* commandList, void* data, uin
 }
 
 
+ShaderResourceView* D3DVertexBuffer::getByteAddressView() const
+{
+	CHECK(srv != nullptr);
+	return srv.get();
+}
+
 void D3DVertexBuffer::setDebugName(const wchar_t* inDebugName)
 {
 	CHECK(parentPool == nullptr);
 	defaultBuffer->SetName(inDebugName);
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS D3DVertexBuffer::getGPUVirtualAddress() const
+{
+	return defaultBuffer->GetGPUVirtualAddress();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -195,7 +225,7 @@ void D3DIndexBuffer::updateData(RenderCommandList* commandList, void* data, EPix
 	view.Format = d3dFormat;
 }
 
-ShaderResourceView* D3DIndexBuffer::getByteAddressView()
+ShaderResourceView* D3DIndexBuffer::getByteAddressView() const
 {
 	CHECK(srv != nullptr);
 	return srv.get();

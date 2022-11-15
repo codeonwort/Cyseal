@@ -21,6 +21,7 @@ namespace RTRRootParameters
 		AccelerationStructureSlot,
 		SceneUniformSlot,
 		GlobalIndexBufferSlot,
+		GlobalVertexBufferSlot,
 		Count
 	};
 }
@@ -60,11 +61,19 @@ void RayTracedReflections::initialize()
 		// sceneUniform     = register(b0, space0)
 		descRanges[1].init(EDescriptorRangeType::CBV, 1, 0, 0);
 
+		// https://learn.microsoft.com/en-us/windows/win32/direct3d12/root-signature-limits
+		// Let's be careful of root signature limit as my parameters are growing a little bit...
+		// max size         = 64 dwords
+		// descriptor table = 1 dword
+		// root constant    = 1 dword
+		// root descriptor  = 2 dwords
+
 		RootParameter rootParameters[RTRRootParameters::Count];
 		rootParameters[RTRRootParameters::OutputViewSlot].initAsDescriptorTable(1, &descRanges[0]);
 		rootParameters[RTRRootParameters::AccelerationStructureSlot].initAsSRV(0, 0); // register(t0, space0)
 		rootParameters[RTRRootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descRanges[1]); // register(b0, space0)
 		rootParameters[RTRRootParameters::GlobalIndexBufferSlot].initAsSRV(1, 0); // register(t1, space0)
+		rootParameters[RTRRootParameters::GlobalVertexBufferSlot].initAsSRV(2, 0); // register(t2, space0)
 
 		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
 		globalRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
@@ -219,6 +228,8 @@ void RayTracedReflections::renderRayTracedReflections(
 		volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM);
 	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalIndexBufferSlot,
 		gIndexBufferPool->internal_getPoolBuffer()->getByteAddressView());
+	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalVertexBufferSlot,
+		gVertexBufferPool->internal_getPoolBuffer()->getByteAddressView());
 	
 	commandList->setRaytracingPipelineState(RTPSO.get());
 	

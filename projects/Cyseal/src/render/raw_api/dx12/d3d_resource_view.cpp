@@ -20,7 +20,7 @@ D3D12_GPU_VIRTUAL_ADDRESS D3DConstantBufferView::getGPUVirtualAddress()
 //////////////////////////////////////////////////////////////////////////
 // D3DShaderResourceView
 
-D3D12_GPU_VIRTUAL_ADDRESS D3DShaderResourceView::getGPUVirtualAddress()
+D3D12_GPU_VIRTUAL_ADDRESS D3DShaderResourceView::getGPUVirtualAddress() const
 {
 	if (source == ShaderResourceView::ESource::Texture)
 	{
@@ -38,6 +38,10 @@ D3D12_GPU_VIRTUAL_ADDRESS D3DShaderResourceView::getGPUVirtualAddress()
 	{
 		return static_cast<D3DIndexBuffer*>(ownerIndexBuffer)->getGPUVirtualAddress();
 	}
+	else if (source == ShaderResourceView::ESource::VertexBuffer)
+	{
+		return static_cast<D3DVertexBuffer*>(ownerVertexBuffer)->getGPUVirtualAddress();
+	}
 	CHECK_NO_ENTRY();
 	return 0;
 }
@@ -45,7 +49,7 @@ D3D12_GPU_VIRTUAL_ADDRESS D3DShaderResourceView::getGPUVirtualAddress()
 //////////////////////////////////////////////////////////////////////////
 // D3DUnorderedAccessView
 
-D3D12_GPU_VIRTUAL_ADDRESS D3DUnorderedAccessView::getGPUVirtualAddress()
+D3D12_GPU_VIRTUAL_ADDRESS D3DUnorderedAccessView::getGPUVirtualAddress() const
 {
 	if (source == UnorderedAccessView::ESource::Texture)
 	{

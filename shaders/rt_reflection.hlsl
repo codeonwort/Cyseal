@@ -49,11 +49,12 @@ struct RayGenConstantBuffer
 //*********************************************************
 
 // Global root signature
-RaytracingAccelerationStructure rtScene      : register(t0, space0);
-ByteAddressBuffer               gIndexBuffer : register(t1, space0);
-RWTexture2D<float4>             renderTarget : register(u0, space0);
-RWTexture2D<float4>             gbufferA     : register(u1, space0);
-ConstantBuffer<SceneUniform>    sceneUniform : register(b0, space0);
+RaytracingAccelerationStructure rtScene       : register(t0, space0);
+ByteAddressBuffer               gIndexBuffer  : register(t1, space0);
+ByteAddressBuffer               gVertexBuffer : register(t2, space0);
+RWTexture2D<float4>             renderTarget  : register(u0, space0);
+RWTexture2D<float4>             gbufferA      : register(u1, space0);
+ConstantBuffer<SceneUniform>    sceneUniform  : register(b0, space0);
 
 // Local root signature (raygen)
 ConstantBuffer<RayGenConstantBuffer> g_rayGenCB   : register(b0, space1);
@@ -173,6 +174,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 	// #todo: Read index/vertex buffers
 
 	uint3 indices = gIndexBuffer.Load3(baseIndex);
+	float v1 = gVertexBuffer.Load<float>(0);
 
 	//float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
 	//payload.surfaceNormal = float4(barycentrics, 1);
@@ -187,6 +189,10 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
 		uint2 texel = uint2(hitPos.xy * DispatchRaysDimensions().xy);
 		payload.surfaceNormal = gbufferA[texel].xyz;
+		
+		// Just to make index/vertex buffers visible in a PIX capture.
+		payload.surfaceNormal.x += 0.00001 * float(indices.x);
+		payload.surfaceNormal.y += 0.00001 * v1;
 	}
 
 	payload.materialID = MATERIAL_ID_DEFAULTLIT;

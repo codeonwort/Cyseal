@@ -19,11 +19,14 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) override;
 
+	virtual ShaderResourceView* getByteAddressView() const override;
+
 	virtual uint32 getVertexCount() const override { return vertexCount; };
 
 	void setDebugName(const wchar_t* inDebugName);
 
 	inline D3D12_VERTEX_BUFFER_VIEW getVertexBufferView() const { return view; }
+	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const;
 
 private:
 	// Own buffer or reference to the global buffer.
@@ -36,6 +39,12 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW view;
 
 	uint32 vertexCount = 0;
+
+	std::unique_ptr<D3DShaderResourceView> srv;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = { NULL };
+	uint32 srvDescriptorIndex = 0xffffffff;
+	DescriptorHeap* srvHeap = nullptr;
 };
 
 class D3DIndexBuffer : public IndexBuffer
@@ -47,7 +56,7 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) override;
 
-	virtual ShaderResourceView* getByteAddressView() override;
+	virtual ShaderResourceView* getByteAddressView() const override;
 
 	virtual uint32 getIndexCount() const override { return indexCount; }
 	virtual EPixelFormat getIndexFormat() const override { return indexFormat; }

@@ -29,10 +29,8 @@ class DepthStencilView
 class ShaderResourceView
 {
 protected:
-	// #todo-resource-view: ByteBuffer? Or just buffer?
-	// Also no reason vertex/index buffers can't be used as SRV,
-	// though I've got no plan for such usage for now.
-	enum class ESource { Texture, StructuredBuffer, AccelerationStructure, IndexBuffer };
+	// #todo-resource-view: At least merge structured/index/vertex buffers...
+	enum class ESource { Texture, StructuredBuffer, AccelerationStructure, IndexBuffer, VertexBuffer };
 public:
 	ShaderResourceView(Texture* inOwner)
 		: ownerTexture(inOwner)
@@ -50,6 +48,10 @@ public:
 		: ownerIndexBuffer(inOwner)
 		, source(ESource::IndexBuffer)
 	{}
+	ShaderResourceView(VertexBuffer* inOwner)
+		: ownerVertexBuffer(inOwner)
+		, source(ESource::VertexBuffer)
+	{}
 	virtual ~ShaderResourceView() = default;
 protected:
 	ESource source;
@@ -57,6 +59,7 @@ protected:
 	StructuredBuffer* ownerStructuredBuffer = nullptr;
 	AccelerationStructure* ownerAccelStruct = nullptr;
 	IndexBuffer* ownerIndexBuffer = nullptr;
+	VertexBuffer* ownerVertexBuffer = nullptr;
 };
 
 class UnorderedAccessView

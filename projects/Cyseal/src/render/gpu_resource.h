@@ -176,9 +176,14 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) = 0;
 
+	// #todo-wip-rt: Microsoft DXR sample uses StructuredBuffer for vertex buffer
+	// but my vbuf layout is nontrivial.
+	// To bind as a ByteAddressBuffer in HLSL.
+	virtual ShaderResourceView* getByteAddressView() const = 0;
+
 	virtual uint32 getVertexCount() const = 0;
 
-	VertexBufferPool* internal_getParentPool() { return parentPool; }
+	VertexBufferPool* internal_getParentPool() const { return parentPool; }
 
 protected:
 	// Null if a committed resource.
@@ -207,7 +212,7 @@ public:
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) = 0;
 
 	// To bind as a ByteAddressBuffer in HLSL.
-	virtual ShaderResourceView* getByteAddressView() = 0;
+	virtual ShaderResourceView* getByteAddressView() const = 0;
 
 	virtual uint32 getIndexCount() const = 0;
 	virtual EPixelFormat getIndexFormat() const = 0;
