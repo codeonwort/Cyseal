@@ -41,9 +41,9 @@ void BasePass::initialize()
 		// See: https://github.com/microsoft/DirectXShaderCompiler/blob/main/docs/SPIR-V.rst#hlsl-register-and-vulkan-binding
 		
 		DescriptorRange descriptorRanges[3];
-		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1 /*b1*/);
-		descriptorRanges[1].init(EDescriptorRangeType::CBV, (uint32)(-1), 0, 1 /*space1*/);
-		descriptorRanges[2].init(EDescriptorRangeType::SRV, (uint32)(-1), 0, 1 /*space1*/);
+		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1,            1, 0); // register(b1, space0)
+		descriptorRanges[1].init(EDescriptorRangeType::CBV, (uint32)(-1), 0, 1); // register(b0, space1)
+		descriptorRanges[2].init(EDescriptorRangeType::SRV, (uint32)(-1), 0, 1); // register(t0, space1)
 
 		rootParameters[0].initAsConstants(0 /*b0*/, 0, 1); // object ID
 		rootParameters[1].initAsDescriptorTable(1, &descriptorRanges[0]); // scene uniform
@@ -55,7 +55,7 @@ void BasePass::initialize()
 		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
 
 		memset(staticSamplers + 0, 0, sizeof(staticSamplers[0]));
-		staticSamplers[0].filter = ETextureFilter::MIN_MAG_MIP_POINT;
+		staticSamplers[0].filter = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT;
 		staticSamplers[0].addressU = ETextureAddressMode::Wrap;
 		staticSamplers[0].addressV = ETextureAddressMode::Wrap;
 		staticSamplers[0].addressW = ETextureAddressMode::Wrap;
@@ -177,6 +177,7 @@ void BasePass::renderBasePass(
 	{
 		numVolatileDescriptors += (uint32)mesh->getSections(LOD).size();
 	}
+	tempNumMaterialPayloads = numVolatileDescriptors;
 	bindRootParameters(commandList, numVolatileDescriptors, sceneUniformBuffer, gpuSceneBuffer);
 
 	// #todo-indirect-draw: Do it
@@ -274,11 +275,12 @@ void BasePass::updateMaterialParameters(
 		}
 		payload.albedoTextureIndex = volatileAlbedoTextureIndex;
 
-		materialCBVs[payloadID]->upload(&payload, sizeof(payload), frameIndex);
+		ConstantBufferView* cbv = materialCBVs[payloadID].get();
+		cbv->upload(&payload, sizeof(payload), frameIndex);
 
 		gRenderDevice->copyDescriptors(
 			1,
 			volatileHeap, 1 + payloadID,
-			cbvStagingHeap.get(), materialCBVs[payloadID]->getDescriptorIndexInHeap(frameIndex));
+			cbv->getSourceHeap(), cbv->getDescriptorIndexInHeap(frameIndex));
 	}
 }

@@ -6,12 +6,19 @@
 #include "gpu_resource_view.h"
 #include "vertex_buffer_pool.h"
 #include "shader.h"
+#include "static_mesh.h"
+
+// #todo-wip-rt: Temp
+#include "base_pass.h"
+#include "texture_manager.h"
+#include "material.h"
 
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
 #define RTR_MAX_RECURSION            2
-#define RTR_MAX_VOLATILE_DESCRIPTORS 10
+// #todo-wip-rt: 1024 for materials
+#define RTR_MAX_VOLATILE_DESCRIPTORS (10 + 1024)
 // #todo-rtr: Should be variable
 #define RTR_MAX_STATIC_MESHES        101
 
@@ -25,9 +32,28 @@ namespace RTRRootParameters
 		GlobalIndexBufferSlot,
 		GlobalVertexBufferSlot,
 		GPUSceneSlot,
+		MaterialConstantsSlot,
+		MaterialTexturesSlot,
 		Count
 	};
 }
+
+// Just to calculate size in bytes.
+// Should match with RayPayload in rt_reflection.hlsl.
+struct RTRRayPayload
+{
+	float  surfaceNormal[3];
+	float  roughness;
+	float  albedo[3];
+	float  hitTime;
+	uint32 objectID;
+};
+// Just to calculate size in bytes.
+// Should match with MyAttributes in rt_reflection.hlsl.
+struct RTRTriangleIntersectionAttributes
+{
+	float texcoord[2];
+};
 
 struct RTRViewport
 {
@@ -62,12 +88,15 @@ void RayTracedReflections::initialize()
 
 	// Global root signature
 	{
-		DescriptorRange descRanges[2];
+		DescriptorRange descRanges[4];
 		// indirectSpecular = register(u0, space0)
 		// gbuffer          = register(u1, space0)
 		descRanges[0].init(EDescriptorRangeType::UAV, 2, 0, 0);
 		// sceneUniform     = register(b0, space0)
 		descRanges[1].init(EDescriptorRangeType::CBV, 1, 0, 0);
+		// material CBVs & SRVs (bindless)
+		descRanges[2].init(EDescriptorRangeType::CBV, (uint32)(-1), 0, 3); // register(b0, space3)
+		descRanges[3].init(EDescriptorRangeType::SRV, (uint32)(-1), 0, 3); // register(t0, space3)
 
 		// https://learn.microsoft.com/en-us/windows/win32/direct3d12/root-signature-limits
 		// Let's be careful of root signature limit as my parameters are growing a little bit...
@@ -84,7 +113,21 @@ void RayTracedReflections::initialize()
 		rootParameters[RTRRootParameters::GlobalVertexBufferSlot].initAsSRV(2, 0); // register(t2, space0)
 		rootParameters[RTRRootParameters::GPUSceneSlot].initAsSRV(3, 0); // register(t3, space0)
 
-		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
+		rootParameters[RTRRootParameters::MaterialConstantsSlot].initAsDescriptorTable(1, &descRanges[2]);
+		rootParameters[RTRRootParameters::MaterialTexturesSlot].initAsDescriptorTable(1, &descRanges[3]);
+
+		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
+		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
+		memset(staticSamplers + 0, 0, sizeof(staticSamplers[0]));
+		staticSamplers[0].filter = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT;
+		staticSamplers[0].addressU = ETextureAddressMode::Wrap;
+		staticSamplers[0].addressV = ETextureAddressMode::Wrap;
+		staticSamplers[0].addressW = ETextureAddressMode::Wrap;
+		staticSamplers[0].shaderVisibility = EShaderVisibility::All;
+
+		RootSignatureDesc sigDesc(
+			_countof(rootParameters), rootParameters,
+			NUM_STATIC_SAMPLERS, staticSamplers);
 		globalRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
 	}
 
@@ -126,8 +169,8 @@ void RayTracedReflections::initialize()
 		desc.closestHitLocalRootSignature = closestHitLocalRootSignature.get();
 		desc.missLocalRootSignature       = nullptr;
 		desc.globalRootSignature          = globalRootSignature.get();
-		desc.maxPayloadSizeInBytes        = 4 * (3 + 1 + 1); // surfaceNormal, materialID, hitTime
-		desc.maxAttributeSizeInBytes      = 4 * 2; // barycentrics
+		desc.maxPayloadSizeInBytes        = sizeof(RTRRayPayload);
+		desc.maxAttributeSizeInBytes      = sizeof(RTRTriangleIntersectionAttributes);
 		desc.maxTraceRecursionDepth       = RTR_MAX_RECURSION;
 
 		RTPSO = std::unique_ptr<RaytracingPipelineStateObject>(
@@ -215,7 +258,8 @@ void RayTracedReflections::renderRayTracedReflections(
 	Texture* thinGBufferATexture,
 	Texture* indirectSpecularTexture,
 	uint32 sceneWidth,
-	uint32 sceneHeight)
+	uint32 sceneHeight,
+	BasePass* tempBasePass)
 {
 	if (isAvailable() == false)
 	{
@@ -225,12 +269,17 @@ void RayTracedReflections::renderRayTracedReflections(
 	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 	DescriptorHeap* descriptorHeaps[] = { volatileViewHeaps[swapchainIndex].get() };
 
+	// #todo: Count material payloads
+	// Copy material descriptors
+
 	// Copy descriptors to volatile heap
 	DescriptorHeap* volatileHeap = descriptorHeaps[0];
 	const uint32 VOLATILE_DESC_IX_RENDERTARGET = 0;
 	const uint32 VOLATILE_DESC_IX_GBUFFER = 1;
 	//const uint32 VOLATILE_DESC_IX_ACCELSTRUCT = 2; // Directly bound; no table.
 	const uint32 VOLATILE_DESC_IX_SCENEUNIFORM = 2;
+	const uint32 VOLATILE_DESC_IX_MATERIAL_CBV = 3;
+	const uint32 VOLATILE_DESC_IX_MATERIAL_SRV = 3 + tempBasePass->getNumMaterialPayloads();
 	{
 		gRenderDevice->copyDescriptors(1,
 			volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
@@ -241,6 +290,35 @@ void RayTracedReflections::renderRayTracedReflections(
 		gRenderDevice->copyDescriptors(1,
 			volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM,
 			sceneUniformBuffer->getSourceHeap(), sceneUniformBuffer->getDescriptorIndexInHeap(swapchainIndex));
+	}
+	// #todo-wip-rt: Temp material binding
+	{
+		const uint32 LOD = 0;
+		uint32 payloadID = 0;
+		for (const StaticMesh* mesh : scene->staticMeshes)
+		{
+			for (const StaticMeshSection& section : mesh->getSections(LOD))
+			{
+				ConstantBufferView* cbv = tempBasePass->getMaterialCBV(payloadID);
+				gRenderDevice->copyDescriptors(1,
+					volatileHeap, VOLATILE_DESC_IX_MATERIAL_CBV + payloadID,
+					cbv->getSourceHeap(), cbv->getDescriptorIndexInHeap(swapchainIndex));
+
+				Material* material = section.material;
+				Texture* albedo = gTextureManager->getSystemTextureGrey2D();
+				if (material && material->albedoTexture)
+				{
+					albedo = material->albedoTexture;
+				}
+				gRenderDevice->copyDescriptors(
+					1,
+					volatileHeap, VOLATILE_DESC_IX_MATERIAL_SRV + payloadID,
+					albedo->getSourceSRVHeap(), albedo->getSRVDescriptorIndex());
+				
+				++payloadID;
+			}
+		}
+		CHECK(payloadID == tempBasePass->getNumMaterialPayloads());
 	}
 
 	commandList->setComputeRootSignature(globalRootSignature.get());
@@ -258,6 +336,10 @@ void RayTracedReflections::renderRayTracedReflections(
 		gVertexBufferPool->internal_getPoolBuffer()->getByteAddressView());
 	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GPUSceneSlot,
 		gpuScene->getSRV());
+	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialConstantsSlot,
+		volatileHeap, VOLATILE_DESC_IX_MATERIAL_CBV);
+	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialTexturesSlot,
+		volatileHeap, VOLATILE_DESC_IX_MATERIAL_SRV);
 	
 	commandList->setRaytracingPipelineState(RTPSO.get());
 	

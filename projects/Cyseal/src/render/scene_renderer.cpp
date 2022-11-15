@@ -210,7 +210,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 			accelStructure,
 			gpuScene->getGPUSceneBuffer(), // Not the culled one!
 			RT_thinGBufferA, RT_indirectSpecular,
-			sceneWidth, sceneHeight);
+			sceneWidth, sceneHeight,
+			basePass);
 	}
 
 	// Tone mapping

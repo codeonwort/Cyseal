@@ -23,6 +23,10 @@ public:
 		ConstantBufferView* sceneUniformBuffer,
 		StructuredBuffer* gpuSceneBuffer);
 
+	// #todo-wip-rt: Temp utils
+	uint32 getNumMaterialPayloads() const { return tempNumMaterialPayloads; }
+	ConstantBufferView* getMaterialCBV(uint32 payloadID) const { return materialCBVs[payloadID].get(); }
+
 private:
 	// Bind root parameters for the current root signature
 	void bindRootParameters(
@@ -47,4 +51,7 @@ private:
 
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
 	// #todo-sampler: Maybe need a volatileSamplerHeap in similar way?
+
+	// #todo-wip-rt: Temp utils
+	uint32 tempNumMaterialPayloads = 0;
 };

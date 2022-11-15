@@ -72,13 +72,34 @@ ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0, space1);
 // Local root signature (closest hit)
 ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
 
+// Material binding
+#define TEMP_MAX_SRVS 1024
+ConstantBuffer<Material> materials[]        : register(b0, space3); // bindless in another space
+Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless in another space
+SamplerState albedoSampler                  : register(s0);
+
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload
 {
 	float3 surfaceNormal;
-	uint   objectID;
+	float  roughness;
+
+	float3 albedo;
 	float  hitTime;
+
+	uint   objectID;
 };
+
+RayPayload createRayPayload()
+{
+	RayPayload payload;
+	payload.surfaceNormal = float3(0, 0, 0);
+	payload.roughness     = 1.0;
+	payload.albedo        = float3(0, 0, 0);
+	payload.hitTime       = -1.0;
+	payload.objectID      = OBJECT_ID_NONE;
+	return payload;
+}
 
 bool IsInsideViewport(float2 p, Viewport viewport)
 {
@@ -108,7 +129,7 @@ void MyRaygenShader()
 	// Actually no need to do RT for primary visibility.
 	// We can reconstruct surface normal and worldPos from gbuffers and sceneDepth.
 	// I'm just practicing DXR here.
-	RayPayload primaryPayload = { float3(0, 0, 0), OBJECT_ID_NONE, -1.0 };
+	RayPayload primaryPayload = createRayPayload();
 	{
 		// Trace the ray.
 		// Set the ray's extents.
@@ -138,38 +159,46 @@ void MyRaygenShader()
 			primaryPayload);
 	}
 
-	if (primaryPayload.objectID != OBJECT_ID_NONE)
+	bool bReflective = (primaryPayload.objectID != OBJECT_ID_NONE) && (primaryPayload.roughness < 1.0);
+	RayPayload secondaryPayload = createRayPayload();
+
+	if (bReflective)
 	{
-		renderTarget[DispatchRaysIndex().xy]
-			= float4(0.5 + 0.5 * primaryPayload.surfaceNormal, primaryPayload.objectID);
+		RayDesc ray;
+		ray.Origin = (primaryPayload.hitTime * rayDir + rayOrigin);
+		ray.Origin += 0.001 * primaryPayload.surfaceNormal; // Slightly push origin
+		ray.Direction = primaryPayload.surfaceNormal;
+		ray.TMin = RAYGEN_T_MIN;
+		ray.TMax = RAYGEN_T_MAX;
+
+		uint instanceInclusionMask = ~0; // Do not ignore anything
+		uint rayContributionToHitGroupIndex = 0;
+		// #todo: Need to satisfy one of following conditions.
+		//        I don't understand hit groups enough yet...
+		// 1) numShaderRecords for hitGroupShaderTable is 1 and this is 0
+		// 2) numShaderRecords for hitGroupShaderTable is N and this is 1
+		//    where N = number of geometries
+		uint multiplierForGeometryContributionToHitGroupIndex = 1;
+		uint missShaderIndex = 0;
+		TraceRay(
+			rtScene,
+			RAY_FLAG_NONE,
+			instanceInclusionMask,
+			rayContributionToHitGroupIndex,
+			multiplierForGeometryContributionToHitGroupIndex,
+			missShaderIndex,
+			ray,
+			secondaryPayload);
+	}
+
+	if (secondaryPayload.objectID != OBJECT_ID_NONE)
+	{
+		renderTarget[DispatchRaysIndex().xy] = float4(secondaryPayload.albedo, secondaryPayload.objectID);
 	}
 	else
 	{
 		renderTarget[DispatchRaysIndex().xy] = float4(0, 0, 0, OBJECT_ID_NONE);
 	}
-
-#if 0
-	RayPayload secondaryPayload = { float3(0, 0, 0), OBJECT_ID_NONE, -1.0 };
-	if (primaryPayload.objectID != OBJECT_ID_NONE)
-	{
-		RayDesc ray;
-		ray.Origin = primaryPayload.hitTime * rayDir + rayOrigin;
-		ray.Direction = primaryPayload.surfaceNormal;
-		ray.TMin = RAYGEN_T_MIN;
-		ray.TMax = RAYGEN_T_MAX;
-
-		TraceRay(rtScene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, secondaryPayload);
-	}
-
-	if (RAYGEN_T_MIN < secondaryPayload.hitTime && secondaryPayload.hitTime < RAYGEN_T_MAX)
-	{
-		renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 0);
-	}
-	else
-	{
-		renderTarget[DispatchRaysIndex().xy] = float4(1, 0, 0, 0);
-	}
-#endif
 }
 
 [shader("closesthit")]
@@ -201,14 +230,25 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 		1 - attr.barycentrics.x - attr.barycentrics.y,
 		attr.barycentrics.x,
 		attr.barycentrics.y);
+	
+	float2 texcoord = barycentrics.x * v0.texcoord
+		+ barycentrics.y * v1.texcoord
+		+ barycentrics.z * v2.texcoord;
+
+	Material material = materials[objectID];
+	Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
 
 	payload.surfaceNormal = normalize(
 		barycentrics.x * v0.normal
 		+ barycentrics.y * v1.normal
 		+ barycentrics.z * v2.normal);
 
-	payload.objectID = objectID;
+	payload.roughness = material.roughness;
+	payload.albedo = albedoTex.SampleLevel(albedoSampler, texcoord, 0.0).rgb
+		* material.albedoMultiplier.rgb;
+
 	payload.hitTime = RayTCurrent();
+	payload.objectID = objectID;
 }
 
 [shader("miss")]

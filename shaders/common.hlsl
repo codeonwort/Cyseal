@@ -7,6 +7,13 @@ struct MeshData
     uint     _pad0;
 };
 
+struct Material
+{
+    float3 albedoMultiplier;
+    float  roughness;
+    uint   albedoTextureIndex; float3 _pad0;
+};
+
 struct SceneUniform
 {
     float4x4 viewMatrix;

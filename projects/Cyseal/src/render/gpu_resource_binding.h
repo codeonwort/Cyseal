@@ -11,12 +11,13 @@
 // D3D12_SHADER_VISIBILITY
 enum class EShaderVisibility : uint8
 {
-	All      = 0,
+	All      = 0, // Compute always use this; so does RT.
 	Vertex   = 1,
 	Hull     = 2,
 	Domain   = 3,
 	Geometry = 4,
 	Pixel    = 5
+	// #todo-renderdevice: Amplication, Mesh
 };
 
 // D3D12_ROOT_PARAMETER_TYPE

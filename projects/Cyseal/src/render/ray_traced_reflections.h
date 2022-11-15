@@ -18,6 +18,9 @@ class AccelerationStructure;
 class ConstantBufferView;
 class StructuredBuffer;
 
+// #todo-wip-rt: Temp
+class BasePass;
+
 class RayTracedReflections final
 {
 public:
@@ -35,7 +38,8 @@ public:
 		Texture* thinGBufferATexture,
 		Texture* indirectSpecularTexture,
 		uint32 sceneWidth,
-		uint32 sceneHeight);
+		uint32 sceneHeight,
+		BasePass* tempBasePass);
 
 private:
 	//void something();

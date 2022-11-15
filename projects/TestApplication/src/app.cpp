@@ -134,10 +134,13 @@ void TestApplication::createResources()
 	{
 		const float phase = Cymath::randFloatRange(0.0f, 6.28f);
 		const float spike = Cymath::randFloatRange(0.0f, 1.0f);
+#if 1
 		ProceduralGeometry::spikeBall(3, phase, spike, geometriesLODs[i][0]);
 		ProceduralGeometry::spikeBall(1, phase, spike, geometriesLODs[i][1]);
-		//ProceduralGeometry::icosphere(3, geometriesLODs[i][0]);
-		//ProceduralGeometry::icosphere(1, geometriesLODs[i][1]);
+#else
+		ProceduralGeometry::icosphere(3, geometriesLODs[i][0]);
+		ProceduralGeometry::icosphere(1, geometriesLODs[i][1]);
+#endif
 	}
 
 	// #todo: Unload image memory when GPU upload is done.
@@ -233,6 +236,7 @@ void TestApplication::createResources()
 				material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
 				material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
 				material->albedoMultiplier[2] = 0.0f;
+				material->roughness = Cymath::randFloat() < 0.5f ? 0.0f : 1.0f;
 
 				staticMesh->addSection(
 					lod,
@@ -284,7 +288,11 @@ void TestApplication::createResources()
 		ibuffersToDelete.push_back(indexBuffer);
 
 		Material* material = new Material;
+		material->albedoMultiplier[0] = 1.0f;
+		material->albedoMultiplier[1] = 0.0f;
+		material->albedoMultiplier[2] = 0.0f;
 		material->albedoTexture = albedoTexture;
+		material->roughness = 0.0f;
 
 		ground = new StaticMesh;
 		ground->addSection(0, positionBuffer, nonPositionBuffer, indexBuffer, material);
