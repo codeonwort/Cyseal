@@ -1,6 +1,10 @@
 struct MeshData
 {
     float4x4 modelMatrix;
+    uint     positionBufferOffset;
+    uint     nonPositionBufferOffset;
+    uint     indexBufferOffset;
+    uint     _pad0;
 };
 
 struct SceneUniform

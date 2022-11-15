@@ -183,6 +183,9 @@ public:
 
 	virtual uint32 getVertexCount() const = 0;
 
+	// offsetInPool
+	virtual uint64 getBufferOffsetInBytes() const = 0;
+
 	VertexBufferPool* internal_getParentPool() const { return parentPool; }
 
 protected:
@@ -216,6 +219,9 @@ public:
 
 	virtual uint32 getIndexCount() const = 0;
 	virtual EPixelFormat getIndexFormat() const = 0;
+
+	// offsetInPool
+	virtual uint64 getBufferOffsetInBytes() const = 0;
 
 protected:
 	// Null if a committed resource.

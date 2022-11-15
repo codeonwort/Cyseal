@@ -208,6 +208,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 			commandList, scene, camera,
 			sceneUniformCBV.get(),
 			accelStructure,
+			gpuScene->getGPUSceneBuffer(), // Not the culled one!
 			RT_thinGBufferA, RT_indirectSpecular,
 			sceneWidth, sceneHeight);
 	}

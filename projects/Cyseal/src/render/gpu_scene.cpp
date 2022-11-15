@@ -8,9 +8,14 @@
 
 #define MAX_SCENE_ELEMENTS 1024
 
+// See MeshData in common.hlsl
 struct GPUSceneItem
 {
 	Float4x4 modelTransform; // localToWorld
+	uint32   positionBufferOffset;
+	uint32   nonPositionBufferOffset;
+	uint32   indexBufferOffset;
+	uint32   _pad0;
 };
 
 void GPUScene::initialize()
@@ -81,6 +86,10 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 		{
 			const StaticMeshSection& section = sm->getSections(LOD)[j];
 			sceneData[k].modelTransform = sm->getTransform().getMatrix();
+			// #todo: uint64 offset
+			sceneData[k].positionBufferOffset    = (uint32)section.positionBuffer->getBufferOffsetInBytes();
+			sceneData[k].nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getBufferOffsetInBytes();
+			sceneData[k].indexBufferOffset       = (uint32)section.indexBuffer->getBufferOffsetInBytes();
 			++k;
 		}
 	}

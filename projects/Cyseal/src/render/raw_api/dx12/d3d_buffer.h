@@ -23,6 +23,8 @@ public:
 
 	virtual uint32 getVertexCount() const override { return vertexCount; };
 
+	virtual uint64 getBufferOffsetInBytes() const override { return offsetInDefaultBuffer; }
+
 	void setDebugName(const wchar_t* inDebugName);
 
 	inline D3D12_VERTEX_BUFFER_VIEW getVertexBufferView() const { return view; }
@@ -65,6 +67,9 @@ public:
 
 	inline D3D12_INDEX_BUFFER_VIEW getIndexBufferView() const { return view; }
 	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const;
+
+	// offsetInPool
+	virtual uint64 getBufferOffsetInBytes() const { return offsetInDefaultBuffer; }
 
 private:
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;

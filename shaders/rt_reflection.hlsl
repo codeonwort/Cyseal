@@ -25,14 +25,19 @@
 
 //*********************************************************
 //#include "RaytracingHlslCompat.h"
-#define MATERIAL_ID_NONE          0
-#define MATERIAL_ID_DEFAULTLIT    1
+#define OBJECT_ID_NONE            0xffff
 
 // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
 // TMin should be kept small to prevent missing geometry at close contact areas.
 // #todo: See 'Ray Tracing Gems' series.
 #define RAYGEN_T_MIN              0.001
 #define RAYGEN_T_MAX              10000.0
+
+struct VertexAttributes
+{
+	float3 normal;
+	float2 texcoord;
+};
 
 struct Viewport
 {
@@ -46,24 +51,32 @@ struct RayGenConstantBuffer
 {
 	Viewport viewport;
 };
+struct ClosestHitPushConstants
+{
+	uint objectID;
+};
 //*********************************************************
 
 // Global root signature
-RaytracingAccelerationStructure rtScene       : register(t0, space0);
-ByteAddressBuffer               gIndexBuffer  : register(t1, space0);
-ByteAddressBuffer               gVertexBuffer : register(t2, space0);
-RWTexture2D<float4>             renderTarget  : register(u0, space0);
-RWTexture2D<float4>             gbufferA      : register(u1, space0);
-ConstantBuffer<SceneUniform>    sceneUniform  : register(b0, space0);
+RaytracingAccelerationStructure rtScene        : register(t0, space0);
+ByteAddressBuffer               gIndexBuffer   : register(t1, space0);
+ByteAddressBuffer               gVertexBuffer  : register(t2, space0);
+StructuredBuffer<MeshData>      gpuSceneBuffer : register(t3, space0);
+RWTexture2D<float4>             renderTarget   : register(u0, space0);
+RWTexture2D<float4>             gbufferA       : register(u1, space0);
+ConstantBuffer<SceneUniform>    sceneUniform   : register(b0, space0);
 
 // Local root signature (raygen)
-ConstantBuffer<RayGenConstantBuffer> g_rayGenCB   : register(b0, space1);
+ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0, space1);
+
+// Local root signature (closest hit)
+ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload
 {
 	float3 surfaceNormal;
-	uint   materialID;
+	uint   objectID;
 	float  hitTime;
 };
 
@@ -95,7 +108,7 @@ void MyRaygenShader()
 	// Actually no need to do RT for primary visibility.
 	// We can reconstruct surface normal and worldPos from gbuffers and sceneDepth.
 	// I'm just practicing DXR here.
-	RayPayload primaryPayload = { float3(0, 0, 0), MATERIAL_ID_NONE, -1.0 };
+	RayPayload primaryPayload = { float3(0, 0, 0), OBJECT_ID_NONE, -1.0 };
 	{
 		// Trace the ray.
 		// Set the ray's extents.
@@ -112,7 +125,7 @@ void MyRaygenShader()
 		// 1) numShaderRecords for hitGroupShaderTable is 1 and this is 0
 		// 2) numShaderRecords for hitGroupShaderTable is N and this is 1
 		//    where N = number of geometries
-		uint multiplierForGeometryContributionToHitGroupIndex = 0;
+		uint multiplierForGeometryContributionToHitGroupIndex = 1;
 		uint missShaderIndex = 0;
 		TraceRay(
 			rtScene,
@@ -125,19 +138,19 @@ void MyRaygenShader()
 			primaryPayload);
 	}
 
-	if (primaryPayload.materialID != MATERIAL_ID_NONE)
+	if (primaryPayload.objectID != OBJECT_ID_NONE)
 	{
-		//renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 0);
-		renderTarget[DispatchRaysIndex().xy] = float4(0.5 + 0.5 * primaryPayload.surfaceNormal, 0);
+		renderTarget[DispatchRaysIndex().xy]
+			= float4(0.5 + 0.5 * primaryPayload.surfaceNormal, primaryPayload.objectID);
 	}
 	else
 	{
-		renderTarget[DispatchRaysIndex().xy] = float4(0, 0, 0, 0);
+		renderTarget[DispatchRaysIndex().xy] = float4(0, 0, 0, OBJECT_ID_NONE);
 	}
 
 #if 0
-	RayPayload secondaryPayload = { float3(0, 0, 0), MATERIAL_ID_NONE, -1.0 };
-	if (primaryPayload.materialID != MATERIAL_ID_NONE)
+	RayPayload secondaryPayload = { float3(0, 0, 0), OBJECT_ID_NONE, -1.0 };
+	if (primaryPayload.objectID != OBJECT_ID_NONE)
 	{
 		RayDesc ray;
 		ray.Origin = primaryPayload.hitTime * rayDir + rayOrigin;
@@ -162,47 +175,46 @@ void MyRaygenShader()
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
-	// #todo: Read surface data
-	// - surface normal
-	// - albedo
-	// - metallic/roughness
+	// #todo: I have no idea how is this automatically updated?
+	// All I did is creating a bunch of shader records for hit group
+	// and suddenly this value is equal to geometry index.
+	uint objectID = g_closestHitCB.objectID;
+
+	MeshData meshData = gpuSceneBuffer[objectID];
 	
 	// Get the base index of the triangle's first 32 bit index.
 	uint triangleIndexStride = 3 * 4; // 4 = sizeof(uint32)
 	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-	// baseIndex += offset_in_index_pool (how?)
-	// #todo: Read index/vertex buffers
+	baseIndex += meshData.indexBufferOffset;
+	uint3 indices = gIndexBuffer.Load<uint3>(baseIndex);
 
-	uint3 indices = gIndexBuffer.Load3(baseIndex);
-	float v1 = gVertexBuffer.Load<float>(0);
+	// position = float3 = 12 bytes
+	float3 p0 = gVertexBuffer.Load<float3>(meshData.positionBufferOffset + 12 * indices.x);
+	float3 p1 = gVertexBuffer.Load<float3>(meshData.positionBufferOffset + 12 * indices.y);
+	float3 p2 = gVertexBuffer.Load<float3>(meshData.positionBufferOffset + 12 * indices.z);
+	// normal, texcoord = float3, float2 = 20 bytes
+	VertexAttributes v0 = gVertexBuffer.Load<VertexAttributes>(meshData.nonPositionBufferOffset + 20 * indices.x);
+	VertexAttributes v1 = gVertexBuffer.Load<VertexAttributes>(meshData.nonPositionBufferOffset + 20 * indices.y);
+	VertexAttributes v2 = gVertexBuffer.Load<VertexAttributes>(meshData.nonPositionBufferOffset + 20 * indices.z);
 
-	//float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-	//payload.surfaceNormal = float4(barycentrics, 1);
+	float3 barycentrics = float3(
+		1 - attr.barycentrics.x - attr.barycentrics.y,
+		attr.barycentrics.x,
+		attr.barycentrics.y);
 
-	// Temp logic for primary visibility
-	{
-		float4 hitPos = float4(WorldRayOrigin() + RayTCurrent() * WorldRayDirection(), 1.0);
-		hitPos = mul(hitPos, sceneUniform.viewProjMatrix);
-		hitPos.y = -hitPos.y;
-		hitPos.xyz /= hitPos.w;
-		hitPos.xy = 0.5 + 0.5 * hitPos.xy;
+	payload.surfaceNormal = normalize(
+		barycentrics.x * v0.normal
+		+ barycentrics.y * v1.normal
+		+ barycentrics.z * v2.normal);
 
-		uint2 texel = uint2(hitPos.xy * DispatchRaysDimensions().xy);
-		payload.surfaceNormal = gbufferA[texel].xyz;
-		
-		// Just to make index/vertex buffers visible in a PIX capture.
-		payload.surfaceNormal.x += 0.00001 * float(indices.x);
-		payload.surfaceNormal.y += 0.00001 * v1;
-	}
-
-	payload.materialID = MATERIAL_ID_DEFAULTLIT;
+	payload.objectID = objectID;
 	payload.hitTime = RayTCurrent();
 }
 
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
-	payload.materialID = MATERIAL_ID_NONE;
+	payload.objectID = OBJECT_ID_NONE;
 	payload.hitTime = -1.0;
 }
 

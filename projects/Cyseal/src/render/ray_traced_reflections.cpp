@@ -12,6 +12,8 @@
 
 #define RTR_MAX_RECURSION            2
 #define RTR_MAX_VOLATILE_DESCRIPTORS 10
+// #todo-rtr: Should be variable
+#define RTR_MAX_STATIC_MESHES        101
 
 namespace RTRRootParameters
 {
@@ -22,6 +24,7 @@ namespace RTRRootParameters
 		SceneUniformSlot,
 		GlobalIndexBufferSlot,
 		GlobalVertexBufferSlot,
+		GPUSceneSlot,
 		Count
 	};
 }
@@ -39,7 +42,12 @@ struct RayGenConstantBuffer
 	RTRViewport viewport;
 	Float4x4 viewMatrix;
 };
+struct ClosestHitPushConstants
+{
+	uint32 materialID;
+};
 static_assert(sizeof(RayGenConstantBuffer) % 4 == 0);
+static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
 
 void RayTracedReflections::initialize()
 {
@@ -74,6 +82,7 @@ void RayTracedReflections::initialize()
 		rootParameters[RTRRootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descRanges[1]); // register(b0, space0)
 		rootParameters[RTRRootParameters::GlobalIndexBufferSlot].initAsSRV(1, 0); // register(t1, space0)
 		rootParameters[RTRRootParameters::GlobalVertexBufferSlot].initAsSRV(2, 0); // register(t2, space0)
+		rootParameters[RTRRootParameters::GPUSceneSlot].initAsSRV(3, 0); // register(t3, space0)
 
 		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
 		globalRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
@@ -87,6 +96,14 @@ void RayTracedReflections::initialize()
 		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
 		sigDesc.flags = ERootSignatureFlags::LocalRootSignature;
 		raygenLocalRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
+	}
+	{
+		RootParameter rootParameters[1];
+		rootParameters[0].initAsConstants(0, 2, sizeof(ClosestHitPushConstants) / 4); // register(b0, space2)
+
+		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
+		sigDesc.flags = ERootSignatureFlags::LocalRootSignature;
+		closestHitLocalRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
 	}
 
 	// RTPSO
@@ -106,7 +123,7 @@ void RayTracedReflections::initialize()
 		desc.closestHitShader             = closestHitShader.get();
 		desc.missShader                   = missShader.get();
 		desc.raygenLocalRootSignature     = raygenLocalRootSignature.get();
-		desc.closestHitLocalRootSignature = nullptr;
+		desc.closestHitLocalRootSignature = closestHitLocalRootSignature.get();
 		desc.missLocalRootSignature       = nullptr;
 		desc.globalRootSignature          = globalRootSignature.get();
 		desc.maxPayloadSizeInBytes        = 4 * (3 + 1 + 1); // surfaceNormal, materialID, hitTime
@@ -148,13 +165,21 @@ void RayTracedReflections::initialize()
 	}
 	// Hit group shader table
 	{
-		uint32 numShaderRecords = 1;
+		struct RootArguments
+		{
+			ClosestHitPushConstants pushConstants;
+		};
+		uint32 numShaderRecords = RTR_MAX_STATIC_MESHES;
+
 		hitGroupShaderTable = std::unique_ptr<RaytracingShaderTable>(
 			device->createRaytracingShaderTable(
-				RTPSO.get(), numShaderRecords, 0, L"HitGroupShaderTable"));
+				RTPSO.get(), numShaderRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
 		for (uint32 i = 0; i < numShaderRecords; ++i)
 		{
-			hitGroupShaderTable->uploadRecord(i, hitGroupName, nullptr, 0);
+			uint32 materialID = i;
+			RootArguments rootArguments{ materialID };
+
+			hitGroupShaderTable->uploadRecord(i, hitGroupName, &rootArguments, sizeof(rootArguments));
 		}
 	}
 
@@ -186,6 +211,7 @@ void RayTracedReflections::renderRayTracedReflections(
 	const Camera* camera,
 	ConstantBufferView* sceneUniformBuffer,
 	AccelerationStructure* raytracingScene,
+	StructuredBuffer* gpuScene,
 	Texture* thinGBufferATexture,
 	Texture* indirectSpecularTexture,
 	uint32 sceneWidth,
@@ -230,6 +256,8 @@ void RayTracedReflections::renderRayTracedReflections(
 		gIndexBufferPool->internal_getPoolBuffer()->getByteAddressView());
 	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalVertexBufferSlot,
 		gVertexBufferPool->internal_getPoolBuffer()->getByteAddressView());
+	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GPUSceneSlot,
+		gpuScene->getSRV());
 	
 	commandList->setRaytracingPipelineState(RTPSO.get());
 	
