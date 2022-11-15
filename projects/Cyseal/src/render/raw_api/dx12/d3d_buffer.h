@@ -23,7 +23,7 @@ public:
 
 	void setDebugName(const wchar_t* inDebugName);
 
-	inline D3D12_VERTEX_BUFFER_VIEW getView() const { return view; }
+	inline D3D12_VERTEX_BUFFER_VIEW getVertexBufferView() const { return view; }
 
 private:
 	// Own buffer or reference to the global buffer.
@@ -54,7 +54,7 @@ public:
 
 	void setDebugName(const wchar_t* inDebugName);
 
-	inline D3D12_INDEX_BUFFER_VIEW getView() const { return view; }
+	inline D3D12_INDEX_BUFFER_VIEW getIndexBufferView() const { return view; }
 	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const;
 
 private:

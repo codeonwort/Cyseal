@@ -85,8 +85,8 @@ namespace into_d3d
 
 		if (inDesc.type == ERaytracingGeometryType::Triangles)
 		{
-			D3D12_VERTEX_BUFFER_VIEW vbuf = static_cast<D3DVertexBuffer*>(inDesc.triangles.vertexBuffer)->getView();
-			D3D12_INDEX_BUFFER_VIEW ibuf = static_cast<D3DIndexBuffer*>(inDesc.triangles.indexBuffer)->getView();
+			D3D12_VERTEX_BUFFER_VIEW vbuf = static_cast<D3DVertexBuffer*>(inDesc.triangles.vertexBuffer)->getVertexBufferView();
+			D3D12_INDEX_BUFFER_VIEW ibuf = static_cast<D3DIndexBuffer*>(inDesc.triangles.indexBuffer)->getIndexBufferView();
 
 			if (inDesc.triangles.transform3x4Buffer == nullptr)
 			{

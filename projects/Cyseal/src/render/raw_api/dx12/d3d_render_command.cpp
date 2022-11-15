@@ -145,7 +145,7 @@ void D3DRenderCommandList::iaSetVertexBuffers(
 	for (uint32 i = 0; i < numViews; ++i)
 	{
 		auto buffer = static_cast<D3DVertexBuffer*>(vertexBuffers[i]);
-		views[i] = buffer->getView();
+		views[i] = buffer->getVertexBufferView();
 	}
 
 	commandList->IASetVertexBuffers(startSlot, numViews, &views[0]);
@@ -154,7 +154,7 @@ void D3DRenderCommandList::iaSetVertexBuffers(
 void D3DRenderCommandList::iaSetIndexBuffer(IndexBuffer* indexBuffer)
 {
 	auto buffer = static_cast<D3DIndexBuffer*>(indexBuffer);
-	commandList->IASetIndexBuffer(&buffer->getView());
+	commandList->IASetIndexBuffer(&buffer->getIndexBufferView());
 }
 
 void D3DRenderCommandList::rsSetViewport(const Viewport& viewport)
