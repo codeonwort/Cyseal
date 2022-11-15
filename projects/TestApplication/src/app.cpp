@@ -31,19 +31,20 @@
 #endif
 #define WINDOW_TYPE          EWindowType::WINDOWED
 
-#define CAMERA_POSITION      vec3(0.0f, 0.0f, 20.0f)
+#define CAMERA_POSITION      vec3(0.0f, 0.0f, 30.0f)
 #define CAMERA_LOOKAT        vec3(0.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
 #define CAMERA_FOV_Y         70.0f
 #define CAMERA_Z_NEAR        1.0f
 #define CAMERA_Z_FAR         10000.0f
 
-#define MESH_ROWS            10
-#define MESH_COLS            10
-#define MESH_GROUP_CENTER    vec3(0.0f, 0.0f, 0.0f)
-#define MESH_SPACE_X         2.0f
-#define MESH_SPACE_Y         2.0f
-#define MESH_SCALE           0.5f
+#define MESH_ROWS            3
+#define MESH_COLS            6
+#define MESH_GROUP_CENTER    vec3(0.0f, 10.0f, 0.0f)
+#define MESH_SPACE_X         10.0f
+#define MESH_SPACE_Y         8.0f
+#define MESH_SPACE_Z         4.0f
+#define MESH_SCALE           3.0f
 
 /* -------------------------------------------------------
 					APPLICATION
@@ -87,8 +88,9 @@ void TestApplication::onTick(float deltaSeconds)
 		vec3 posDelta = vec3(10.0f * sinf(elapsed), 0.0f, 5.0f * cosf(elapsed));
 		// #todo-wip-rt: Test DXR under moving camera
 		camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
-		ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
-		ground->getTransform().setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
+		// Moving camera is OK, but mismatch between an animated mesh and its BLAS; Need to update the BLAS.
+		//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
+		//ground->getTransform().setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
 	}
 
 	// #todo: Move rendering loop to engine
@@ -133,7 +135,7 @@ void TestApplication::createResources()
 	for (uint32 i = 0; i < NUM_GEOM_ASSETS; ++i)
 	{
 		const float phase = Cymath::randFloatRange(0.0f, 6.28f);
-		const float spike = Cymath::randFloatRange(0.0f, 1.0f);
+		const float spike = Cymath::randFloatRange(0.0f, 0.2f);
 #if 1
 		ProceduralGeometry::spikeBall(3, phase, spike, geometriesLODs[i][0]);
 		ProceduralGeometry::spikeBall(1, phase, spike, geometriesLODs[i][1]);
@@ -236,7 +238,8 @@ void TestApplication::createResources()
 				material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
 				material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
 				material->albedoMultiplier[2] = 0.0f;
-				material->roughness = Cymath::randFloat() < 0.5f ? 0.0f : 1.0f;
+				//material->roughness = Cymath::randFloat() < 0.5f ? 0.0f : 1.0f;
+				material->roughness = 0.0f;
 
 				staticMesh->addSection(
 					lod,
@@ -249,6 +252,7 @@ void TestApplication::createResources()
 			vec3 pos = MESH_GROUP_CENTER;
 			pos.x = x0 + col * MESH_SPACE_X;
 			pos.y = y0 + row * MESH_SPACE_Y;
+			pos.z -= row * MESH_SPACE_Z;
 
 			staticMesh->getTransform().setPosition(pos);
 			staticMesh->getTransform().setScale(MESH_SCALE);
@@ -288,9 +292,9 @@ void TestApplication::createResources()
 		ibuffersToDelete.push_back(indexBuffer);
 
 		Material* material = new Material;
-		material->albedoMultiplier[0] = 1.0f;
-		material->albedoMultiplier[1] = 0.0f;
-		material->albedoMultiplier[2] = 0.0f;
+		material->albedoMultiplier[0] = 0.1f;
+		material->albedoMultiplier[1] = 0.1f;
+		material->albedoMultiplier[2] = 0.1f;
 		material->albedoTexture = albedoTexture;
 		material->roughness = 0.0f;
 
