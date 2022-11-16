@@ -188,7 +188,31 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	// Ray Traced Reflections
 	if (device->getRaytracingTier() == ERaytracingTier::NotSupported)
 	{
-		// #todo-wip-rt: Clear RT_indirectSpecular to black.
+		SCOPED_DRAW_EVENT(commandList, ClearRayTracedReflections);
+
+		ResourceBarrier barriersBefore[] = {
+			{
+				EResourceBarrierType::Transition,
+				RT_indirectSpecular,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE,
+				EGPUResourceState::RENDER_TARGET
+			}
+		};
+		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+
+		// Clear RTR as a render target, every frame. (not so ideal but works)
+		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		commandList->clearRenderTargetView(RT_indirectSpecular->getRTV(), clearColor);
+
+		ResourceBarrier barriersAfter[] = {
+			{
+				EResourceBarrierType::Transition,
+				RT_indirectSpecular,
+				EGPUResourceState::RENDER_TARGET,
+				EGPUResourceState::UNORDERED_ACCESS
+			}
+		};
+		commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
 	}
 	else
 	{
@@ -306,7 +330,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	RT_indirectSpecular = device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R16G16B16A16_FLOAT,
-			ETextureAccessFlags::UAV | ETextureAccessFlags::SRV,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_indirectSpecular->setDebugName(L"IndirectSpecular");

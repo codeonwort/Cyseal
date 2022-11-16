@@ -139,7 +139,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	// Check capabilities
 	{
 		// #todo-dx12: Use d3dx12 feature support helper?
-	// https://devblogs.microsoft.com/directx/introducing-a-new-api-for-checking-feature-support-in-direct3d-12/
+		// https://devblogs.microsoft.com/directx/introducing-a-new-api-for-checking-feature-support-in-direct3d-12/
 
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 caps5 = {}; // DXR
 		D3D12_FEATURE_DATA_D3D12_OPTIONS6 caps6 = {}; // VRS
@@ -177,10 +177,16 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 		}
 
 		CYLOG(LogDirectX, Log, L"=== Hardware capabilities ===");
-		CYLOG(LogDirectX, Log, L"DXR             requested=%S\t\tactual=%S", toString(createParams.raytracingTier), toString(raytracingTier));
-		CYLOG(LogDirectX, Log, L"VRS             requested=%S\t\tactual=%S", toString(createParams.vrsTier), toString(vrsTier));
-		CYLOG(LogDirectX, Log, L"MeshShader      requested=%S\t\tactual=%S", toString(createParams.meshShaderTier), toString(meshShaderTier));
-		CYLOG(LogDirectX, Log, L"SamplerFeedback requested=%S\t\tactual=%S", toString(createParams.samplerFeedbackTier), toString(samplerFeedbackTier));
+		CYLOG(LogDirectX, Log, L"> min(requested, maxSupported) tiers will be used");
+		CYLOG(LogDirectX, Log, L"Cap: DXR             requested=%S\tmaxSupported=%S", toString(createParams.raytracingTier), toString(raytracingTier));
+		CYLOG(LogDirectX, Log, L"Cap: VRS             requested=%S\tmaxSupported=%S", toString(createParams.vrsTier), toString(vrsTier));
+		CYLOG(LogDirectX, Log, L"Cap: MeshShader      requested=%S\tmaxSupported=%S", toString(createParams.meshShaderTier), toString(meshShaderTier));
+		CYLOG(LogDirectX, Log, L"Cap: SamplerFeedback requested=%S\tmaxSupported=%S", toString(createParams.samplerFeedbackTier), toString(samplerFeedbackTier));
+
+		raytracingTier = static_cast<ERaytracingTier>((std::min)((uint8)createParams.raytracingTier, (uint8)raytracingTier));
+		vrsTier = static_cast<EVariableShadingRateTier>((std::min)((uint8)createParams.vrsTier, (uint8)vrsTier));
+		meshShaderTier = static_cast<EMeshShaderTier>((std::min)((uint8)createParams.meshShaderTier, (uint8)meshShaderTier));
+		samplerFeedbackTier = static_cast<ESamplerFeedbackTier>((std::min)((uint8)createParams.samplerFeedbackTier, (uint8)samplerFeedbackTier));
 	}
 
 	// 2. Create a ID3D12Fence and retrieve sizes of descriptors.

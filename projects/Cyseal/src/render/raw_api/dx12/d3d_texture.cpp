@@ -58,8 +58,9 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	}
 
+	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 	HR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&textureDesc,
 		initialState,
@@ -70,10 +71,12 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	{
 		const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, 1);
 
+		auto uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		auto uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
 		HR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			&uploadHeapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+			&uploadBufferDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&textureUploadHeap)));

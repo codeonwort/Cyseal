@@ -12,10 +12,12 @@ WRL::ComPtr<ID3D12Resource> createDefaultBuffer(UINT64 byteSize)
 
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;
 
+	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
 	HR( device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+			&bufferDesc,
 			D3D12_RESOURCE_STATE_COMMON,
 			nullptr,
 			IID_PPV_ARGS(defaultBuffer.GetAddressOf())) );
@@ -33,10 +35,12 @@ void updateDefaultBuffer(
 {
 	auto device = getD3DDevice()->getRawDevice();
 
+	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
 	HR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+		&bufferDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
@@ -46,10 +50,11 @@ void updateDefaultBuffer(
 	subResourceData.RowPitch = byteSize;
 	subResourceData.SlicePitch = subResourceData.RowPitch;
 
-	commandList->ResourceBarrier(1,
-		&CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			D3D12_RESOURCE_STATE_COPY_DEST));
+	auto barrierDesc = CD3DX12_RESOURCE_BARRIER::Transition(
+		defaultBuffer.Get(),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_COPY_DEST);
+	commandList->ResourceBarrier(1, &barrierDesc);
 
 #if 0
 	// This util can't specify default buffer offset :/
@@ -68,11 +73,11 @@ void updateDefaultBuffer(
 		byteSize);
 #endif
 
-	commandList->ResourceBarrier(1,
-		&CD3DX12_RESOURCE_BARRIER::Transition(
-			defaultBuffer.Get(),
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			D3D12_RESOURCE_STATE_GENERIC_READ));
+	auto barrierAfterDesc = CD3DX12_RESOURCE_BARRIER::Transition(
+		defaultBuffer.Get(),
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_STATE_GENERIC_READ);
+	commandList->ResourceBarrier(1, &barrierAfterDesc);
 }
 
 //////////////////////////////////////////////////////////////////////////

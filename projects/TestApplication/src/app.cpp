@@ -32,6 +32,8 @@
 #endif
 #define WINDOW_TYPE          EWindowType::WINDOWED
 
+#define RAYTRACING_TIER      ERaytracingTier::MaxTier
+
 #define CAMERA_POSITION      vec3(0.0f, 0.0f, 30.0f)
 #define CAMERA_LOOKAT        vec3(0.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
@@ -65,6 +67,7 @@ bool TestApplication::onInitialize()
 	engineInit.renderDevice.windowType         = WINDOW_TYPE;
 	engineInit.renderDevice.windowWidth        = getWindowWidth();
 	engineInit.renderDevice.windowHeight       = getWindowHeight();
+	engineInit.renderDevice.raytracingTier     = RAYTRACING_TIER;
 	engineInit.rendererType                    = RENDERER_TYPE;
 
 	cysealEngine.startup(engineInit);

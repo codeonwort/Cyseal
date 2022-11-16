@@ -154,7 +154,8 @@ void D3DRenderCommandList::iaSetVertexBuffers(
 void D3DRenderCommandList::iaSetIndexBuffer(IndexBuffer* indexBuffer)
 {
 	auto buffer = static_cast<D3DIndexBuffer*>(indexBuffer);
-	commandList->IASetIndexBuffer(&buffer->getIndexBufferView());
+	auto viewDesc = buffer->getIndexBufferView();
+	commandList->IASetIndexBuffer(&viewDesc);
 }
 
 void D3DRenderCommandList::rsSetViewport(const Viewport& viewport)
