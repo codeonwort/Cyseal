@@ -441,7 +441,7 @@ struct DispatchRaysDesc
 	RaytracingShaderTable* raygenShaderTable = nullptr;
 	RaytracingShaderTable* missShaderTable = nullptr;
 	RaytracingShaderTable* hitGroupTable = nullptr;
-	//ShaderTable* callableShaderTable = nullptr; // #todo-wip-rt
+	//ShaderTable* callableShaderTable = nullptr; // #todo-dxr: callableShaderTable
 
 	uint32 width;
 	uint32 height;

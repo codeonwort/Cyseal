@@ -109,7 +109,7 @@ namespace into_d3d
 		}
 		else if (inDesc.type == ERaytracingGeometryType::ProceduralPrimitiveAABB)
 		{
-			// #todo-wip-rt: AABB
+			// #todo-dxr: ProceduralPrimitiveAABB
 			CHECK_NO_ENTRY();
 		}
 		else

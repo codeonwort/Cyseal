@@ -530,7 +530,11 @@ void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& inDesc)
 	desc.HitGroupTable.StartAddress = getGpuAddress(inDesc.hitGroupTable);
 	desc.HitGroupTable.SizeInBytes = getSizeInBytes(inDesc.hitGroupTable);
 	desc.HitGroupTable.StrideInBytes = getStrideInBytes(inDesc.hitGroupTable);
-	// #todo-wip-rt: CallableShaderTable
+	// #todo-dxr: CallableShaderTable for dispatchRays()
+	//desc.CallableShaderTable.StartAddress = 0;
+	//desc.CallableShaderTable.SizeInBytes = 0;
+	//desc.CallableShaderTable.StrideInBytes = 0;
+	
 	desc.Width = inDesc.width;
 	desc.Height = inDesc.height;
 	desc.Depth = inDesc.depth;

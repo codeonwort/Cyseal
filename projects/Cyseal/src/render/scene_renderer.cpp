@@ -159,7 +159,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		{
 			StaticMesh* staticMesh = scene->staticMeshes[i];
 
-			// #todo-wip-rt: Filter out stationary objects
+			// #todo-wip: Filter out stationary objects
 			bool bStationary = false;
 			if (bStationary)
 			{

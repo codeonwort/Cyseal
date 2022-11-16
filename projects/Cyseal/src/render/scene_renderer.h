@@ -1,9 +1,6 @@
 #pragma once
 
 #include "renderer.h"
-
-// #todo-wip-rt: Why build error if this is absent?
-// (error in unique_ptr + ConstantBufferView)
 #include "gpu_resource_view.h"
 
 #include <memory>

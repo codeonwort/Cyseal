@@ -293,7 +293,7 @@ ENUM_CLASS_FLAGS(ERaytracingGeometryFlags);
 // D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC
 struct RaytracingGeometryTrianglesDesc
 {
-	// #todo-wip-rt: No need to be a *structured* buffer,
+	// #todo-wip: No need to be a *structured* buffer,
 	// just currently easiest solution in my clunky abstraction.
 	// I have to refactor these buffer classes...
 	StructuredBuffer* transform3x4Buffer = nullptr;
