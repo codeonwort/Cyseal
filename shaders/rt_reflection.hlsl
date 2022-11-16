@@ -39,17 +39,9 @@ struct VertexAttributes
 	float2 texcoord;
 };
 
-struct Viewport
-{
-	float left;
-	float top;
-	float right;
-	float bottom;
-};
-
 struct RayGenConstantBuffer
 {
-	Viewport viewport;
+	float4x4 dummyValue;
 };
 struct ClosestHitPushConstants
 {
@@ -99,12 +91,6 @@ RayPayload createRayPayload()
 	payload.hitTime       = -1.0;
 	payload.objectID      = OBJECT_ID_NONE;
 	return payload;
-}
-
-bool IsInsideViewport(float2 p, Viewport viewport)
-{
-	return (p.x >= viewport.left && p.x <= viewport.right)
-		&& (p.y >= viewport.top && p.y <= viewport.bottom);
 }
 
 void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)

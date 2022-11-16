@@ -55,18 +55,9 @@ struct RTRTriangleIntersectionAttributes
 	float texcoord[2];
 };
 
-struct RTRViewport
-{
-	float left;
-	float top;
-	float right;
-	float bottom;
-};
-
 struct RayGenConstantBuffer
 {
-	RTRViewport viewport;
-	Float4x4 viewMatrix;
+	Float4x4 dummyValue;
 };
 struct ClosestHitPushConstants
 {
@@ -187,11 +178,7 @@ void RayTracedReflections::initialize()
 		{
 			RayGenConstantBuffer cb;
 		} rootArguments;
-		// #todo-wip-rt: Update in every tick
-		rootArguments.cb.viewport.left = 0.0f;
-		rootArguments.cb.viewport.right = (float)device->getSwapChain()->getBackbufferWidth();
-		rootArguments.cb.viewport.top = 0.0f;
-		rootArguments.cb.viewport.bottom = (float)device->getSwapChain()->getBackbufferHeight();
+		::memset(&(rootArguments.cb.dummyValue), 0, sizeof(rootArguments.cb.dummyValue));
 
 		uint32 numShaderRecords = 1;
 		raygenShaderTable = std::unique_ptr<RaytracingShaderTable>(
