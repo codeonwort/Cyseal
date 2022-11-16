@@ -83,19 +83,35 @@ uint32 TextureManager::allocateUAVIndex()
 
 void TextureManager::createSystemTextures()
 {
-	uint8 grey2DData[] = { 127, 127, 127, 255 };
+	struct InitSysTex
+	{
+		uint8 color[4];
+		Texture** texturePtr;
+		const wchar_t* debugName;
+	};
 
-	Texture*& grey2DPtr = systemTexture_grey2D;
+	InitSysTex initTable[] = {
+		{ { 127, 127, 127, 255 }, &systemTexture_grey2D , L"Texture_SystemGrey2D"  },
+		{ { 255, 255, 255, 255 }, &systemTexture_white2D, L"Texture_SystemWhite2D" },
+		{ { 000, 000, 000, 255 }, &systemTexture_black2D, L"Texture_SystemBlack2D" },
+		{ { 255, 000, 000, 255 }, &systemTexture_red2D  , L"Texture_SystemRed2D"   },
+		{ { 000, 255, 000, 255 }, &systemTexture_green2D, L"Texture_SystemGreen2D" },
+		{ { 000, 000, 255, 255 }, &systemTexture_blue2D , L"Texture_SystemBlue2D"  },
+	};
 	ENQUEUE_RENDER_COMMAND(CreateSystemTextureGrey2D)(
-		[&grey2DPtr, &grey2DData](RenderCommandList& commandList)
+		[initTable](RenderCommandList& commandList)
 		{
-			TextureCreateParams params = TextureCreateParams::texture2D(
-				EPixelFormat::R8G8B8A8_UNORM,
-				ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
-				1, 1, 1);
-			grey2DPtr = gRenderDevice->createTexture(params);
-			grey2DPtr->uploadData(commandList, grey2DData, 4, 4);
-			grey2DPtr->setDebugName(L"Texture_SystemGrey2D");
+			for (uint32 i = 0; i < _countof(initTable); ++i)
+			{
+				TextureCreateParams params = TextureCreateParams::texture2D(
+					EPixelFormat::R8G8B8A8_UNORM,
+					ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
+					1, 1, 1);
+				Texture* tex = gRenderDevice->createTexture(params);
+				*(initTable[i].texturePtr) = tex;
+				tex->uploadData(commandList, initTable[i].color, 4, 4);
+				tex->setDebugName(initTable[i].debugName);
+			}
 		}
 	);
 	FLUSH_RENDER_COMMANDS();

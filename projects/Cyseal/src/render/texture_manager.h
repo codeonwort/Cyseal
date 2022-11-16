@@ -29,7 +29,12 @@ public:
 	DescriptorHeap* getDSVHeap() const { return dsvHeap.get(); }
 	DescriptorHeap* getUAVHeap() const { return uavHeap.get(); }
 
-	Texture* getSystemTextureGrey2D() const { return systemTexture_grey2D; }
+	Texture* getSystemTextureGrey2D()  const { return systemTexture_grey2D;  }
+	Texture* getSystemTextureWhite2D() const { return systemTexture_white2D; }
+	Texture* getSystemTextureBlack2D() const { return systemTexture_black2D; }
+	Texture* getSystemTextureRed2D()   const { return systemTexture_red2D;   }
+	Texture* getSystemTextureGreen2D() const { return systemTexture_green2D; }
+	Texture* getSystemTextureBlue2D()  const { return systemTexture_blue2D;  }
 
 private:
 	void createSystemTextures();
@@ -47,7 +52,12 @@ private:
 	uint32 nextDSVIndex = 0;
 	uint32 nextUAVIndex = 0;
 
-	Texture* systemTexture_grey2D = nullptr;
+	Texture* systemTexture_grey2D  = nullptr;
+	Texture* systemTexture_white2D = nullptr;
+	Texture* systemTexture_black2D = nullptr;
+	Texture* systemTexture_red2D   = nullptr;
+	Texture* systemTexture_green2D = nullptr;
+	Texture* systemTexture_blue2D  = nullptr;
 };
 
 extern TextureManager* gTextureManager;

@@ -5,6 +5,7 @@
 #include "render/gpu_resource.h"
 #include "render/vertex_buffer_pool.h"
 #include "render/render_device_capabilities.h"
+#include "render/texture_manager.h"
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
 #include "loader/image_loader.h"
@@ -253,6 +254,7 @@ void TestApplication::createResources()
 			pos.x = x0 + col * MESH_SPACE_X;
 			pos.y = y0 + row * MESH_SPACE_Y;
 			pos.z -= row * MESH_SPACE_Z;
+			pos.x += (row & 1) * 0.5f * MESH_SPACE_X;
 
 			staticMesh->getTransform().setPosition(pos);
 			staticMesh->getTransform().setScale(MESH_SCALE);
@@ -295,7 +297,7 @@ void TestApplication::createResources()
 		material->albedoMultiplier[0] = 0.1f;
 		material->albedoMultiplier[1] = 0.1f;
 		material->albedoMultiplier[2] = 0.1f;
-		material->albedoTexture = albedoTexture;
+		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
 		material->roughness = 0.0f;
 
 		ground = new StaticMesh;
