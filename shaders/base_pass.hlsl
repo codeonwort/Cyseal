@@ -107,9 +107,6 @@ PixelOutput mainPS(Interpolants interpolants)
         diffuse += albedo * Li * NdotL;
     }
 
-    // Fake indirect lighting to distinguish with black background.
-    diffuse += float3(0.02, 0.02, 0.02);
-
     float3 luminance = diffuse + specular;
 
     PixelOutput output;

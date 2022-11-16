@@ -18,6 +18,8 @@ struct Geometry
 	void reserveNumVertices(size_t num);
 	void reserveNumIndices(size_t num);
 
+	void recalculateNormals();
+
 	void finalize();
 
 	inline uint32 getPositionStride() const

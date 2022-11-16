@@ -13,6 +13,13 @@ namespace ProceduralGeometry
 		uint32 numCellsX = 1, uint32 numCellsY = 1,
 		EPlaneNormal up = EPlaneNormal::Z);
 
+	void crumpedPaper(
+		Geometry& outGeometry,
+		float sizeX, float sizeY,
+		uint32 numCellsX, uint32 numCellsY,
+		float peak,
+		EPlaneNormal up = EPlaneNormal::Z);
+
 	// Default: Axis-aligned unit cube
 	void cube(
 		Geometry& outGeometry,

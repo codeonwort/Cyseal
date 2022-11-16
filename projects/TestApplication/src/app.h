@@ -29,6 +29,7 @@ private:
 	Texture* albedoTexture = nullptr;
 	std::vector<StaticMesh*> balls;
 	StaticMesh* ground = nullptr;
+	StaticMesh* wallA = nullptr;
 
 	bool bViewportNeedsResize = false;
 	uint32 newViewportWidth = 0;

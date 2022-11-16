@@ -68,6 +68,28 @@ namespace ProceduralGeometry
 		outGeometry.finalize();
 	}
 
+	void crumpedPaper(
+		Geometry& outGeometry,
+		float sizeX, float sizeY,
+		uint32 numCellsX, uint32 numCellsY,
+		float peak,
+		EPlaneNormal up /*= EPlaneNormal::Z*/)
+	{
+		ProceduralGeometry::plane(outGeometry, sizeX, sizeY, numCellsX, numCellsY, up);
+
+		// Add random spike
+		for (size_t i = 0; i < outGeometry.positions.size(); ++i)
+		{
+			vec3 v = outGeometry.normals[i];
+			v *= peak * Cymath::randFloat();
+
+			outGeometry.positions[i] += v;
+		}
+
+		outGeometry.recalculateNormals();
+		outGeometry.finalize();
+	}
+
 	void cube(
 		Geometry& outGeometry,
 		float sizeX /*= 1.0f*/, float sizeY /*= 1.0f*/, float sizeZ /*= 1.0f*/)
@@ -302,29 +324,7 @@ namespace ProceduralGeometry
 			t += 0.137f;
 		}
 
-		// Recalculate vertex normals
-		outGeometry.normals.resize(outGeometry.positions.size(), vec3(0.0f, 0.0f, 0.0f));
-		for (uint32 i = 0; i < outGeometry.indices.size(); i += 3)
-		{
-			uint32 i0 = outGeometry.indices[i + 0];
-			uint32 i1 = outGeometry.indices[i + 1];
-			uint32 i2 = outGeometry.indices[i + 2];
-
-			vec3 p1 = outGeometry.positions[i1] - outGeometry.positions[i0];
-			vec3 p2 = outGeometry.positions[i2] - outGeometry.positions[i0];
-			vec3 n = cross(p1, p2);
-			if (dot(n, n) > 1e-6)
-			{
-				n = normalize(n);
-				outGeometry.normals[i0] += n;
-				outGeometry.normals[i1] += n;
-				outGeometry.normals[i2] += n;
-			}
-		}
-		for (uint32 i = 0; i < outGeometry.normals.size(); ++i)
-		{
-			outGeometry.normals[i] = normalize(outGeometry.normals[i]);
-		}
+		outGeometry.recalculateNormals();
 		outGeometry.finalize();
 	}
 

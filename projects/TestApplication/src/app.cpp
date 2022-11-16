@@ -47,6 +47,9 @@
 #define MESH_SPACE_Z         4.0f
 #define MESH_SCALE           3.0f
 
+#define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
+#define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
+
 /* -------------------------------------------------------
 					APPLICATION
 --------------------------------------------------------*/
@@ -254,6 +257,7 @@ void TestApplication::createResources()
 			pos.x = x0 + col * MESH_SPACE_X;
 			pos.y = y0 + row * MESH_SPACE_Y;
 			pos.z -= row * MESH_SPACE_Z;
+			pos.z += 2.0f * col * MESH_SPACE_Z / MESH_COLS;
 			pos.x += (row & 1) * 0.5f * MESH_SPACE_X;
 
 			staticMesh->getTransform().setPosition(pos);
@@ -269,8 +273,10 @@ void TestApplication::createResources()
 	// Ground
 	{
 		Geometry planeGeometry;
-		ProceduralGeometry::plane(planeGeometry,
-			100.0f, 100.0f, 1, 1, ProceduralGeometry::EPlaneNormal::Y);
+		ProceduralGeometry::crumpedPaper(planeGeometry,
+			50.0f, 50.0f, 8, 8,
+			5.0f,
+			ProceduralGeometry::EPlaneNormal::Y);
 
 		VertexBuffer* positionBuffer;
 		VertexBuffer* nonPositionBuffer;
@@ -295,10 +301,10 @@ void TestApplication::createResources()
 		ibuffersToDelete.push_back(indexBuffer);
 
 		Material* material = new Material;
-		material->albedoMultiplier[0] = 0.1f;
-		material->albedoMultiplier[1] = 0.1f;
-		material->albedoMultiplier[2] = 0.1f;
-		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
+		material->albedoMultiplier[0] = 1.0f;
+		material->albedoMultiplier[1] = 1.0f;
+		material->albedoMultiplier[2] = 1.0f;
+		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
 		material->roughness = 0.0f;
 
 		ground = new StaticMesh;
@@ -308,8 +314,53 @@ void TestApplication::createResources()
 		scene.addStaticMesh(ground);
 	}
 
-	scene.sun.direction = normalize(vec3(0.0f, -1.0f, -1.0f));
-	scene.sun.illuminance = 10.0f * vec3(1.0f, 1.0f, 1.0f);
+	// wallA
+	{
+		Geometry planeGeometry;
+		ProceduralGeometry::crumpedPaper(planeGeometry,
+			50.0f, 50.0f, 16, 16,
+			0.0f,
+			ProceduralGeometry::EPlaneNormal::X);
+
+		VertexBuffer* positionBuffer;
+		VertexBuffer* nonPositionBuffer;
+		IndexBuffer* indexBuffer;
+		ENQUEUE_RENDER_COMMAND(UploadGroundMesh)(
+			[&planeGeometry, &positionBuffer, &nonPositionBuffer, &indexBuffer](RenderCommandList& commandList)
+			{
+				positionBuffer = gVertexBufferPool->suballocate(planeGeometry.getPositionBufferTotalBytes());
+				nonPositionBuffer = gVertexBufferPool->suballocate(planeGeometry.getNonPositionBufferTotalBytes());
+				indexBuffer = gIndexBufferPool->suballocate(planeGeometry.getIndexBufferTotalBytes(), planeGeometry.getIndexFormat());
+
+				positionBuffer->updateData(&commandList, planeGeometry.getPositionBlob(), planeGeometry.getPositionStride());
+				nonPositionBuffer->updateData(&commandList, planeGeometry.getNonPositionBlob(), planeGeometry.getNonPositionStride());
+				indexBuffer->updateData(&commandList, planeGeometry.getIndexBlob(), planeGeometry.getIndexFormat());
+			}
+		);
+		FLUSH_RENDER_COMMANDS();
+
+		// #todo: Temp prevent memory leak
+		vbuffersToDelete.push_back(positionBuffer);
+		vbuffersToDelete.push_back(nonPositionBuffer);
+		ibuffersToDelete.push_back(indexBuffer);
+
+		Material* material = new Material;
+		material->albedoMultiplier[0] = 1.0f;
+		material->albedoMultiplier[1] = 1.0f;
+		material->albedoMultiplier[2] = 1.0f;
+		material->albedoTexture = gTextureManager->getSystemTextureGreen2D();
+		material->roughness = 0.0f;
+
+		wallA = new StaticMesh;
+		wallA->addSection(0, positionBuffer, nonPositionBuffer, indexBuffer, material);
+		wallA->getTransform().setPosition(vec3(x0 - MESH_SPACE_X, 0.0f, 0.0f));
+		wallA->getTransform().setRotation(vec3(0.0f, 0.0f, 1.0f), -10.0f);
+
+		scene.addStaticMesh(wallA);
+	}
+
+	scene.sun.direction = SUN_DIRECTION;
+	scene.sun.illuminance = SUN_ILLUMINANCE;
 }
 
 void TestApplication::destroyResources()
@@ -327,4 +378,5 @@ void TestApplication::destroyResources()
 	balls.clear();
 
 	delete ground;
+	delete wallA;
 }
