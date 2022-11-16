@@ -320,9 +320,9 @@ struct RaytracingGeometryDesc
 };
 
 // D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC
-struct BLASInstanceDesc
+struct BLASInstanceInitDesc
 {
-	BLASInstanceDesc()
+	BLASInstanceInitDesc()
 	{
 		::memset(instanceTransform, 0, sizeof(instanceTransform));
 		instanceTransform[0][0] = 1.0f;
@@ -334,10 +334,21 @@ struct BLASInstanceDesc
 	float instanceTransform[3][4];
 };
 
+struct BLASInstanceUpdateDesc
+{
+	uint32 blasIndex;
+	float instanceTransform[3][4];
+};
+
 class AccelerationStructure
 {
 public:
 	virtual ~AccelerationStructure() = default;
+
+	virtual void rebuildTLAS(
+		RenderCommandList* commandList,
+		uint32 numInstanceUpdates,
+		const BLASInstanceUpdateDesc* updateDescs) = 0;
 
 	virtual ShaderResourceView* getSRV() const = 0;
 };

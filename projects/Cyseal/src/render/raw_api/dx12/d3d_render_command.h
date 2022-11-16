@@ -148,7 +148,7 @@ public:
 
 	virtual AccelerationStructure* buildRaytracingAccelerationStructure(
 		uint32 numBLASDesc,
-		BLASInstanceDesc* blasDescArray) override;
+		BLASInstanceInitDesc* blasDescArray) override;
 
 	virtual void dispatchRays(const DispatchRaysDesc& dispatchDesc) override;
 

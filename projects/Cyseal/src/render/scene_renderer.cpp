@@ -109,6 +109,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	const uint32 sceneWidth = swapChain->getBackbufferWidth();
 	const uint32 sceneHeight = swapChain->getBackbufferHeight();
 
+	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
+
 	commandAllocator->reset();
 	// #todo-dx12: Is it OK to reset a command list with a different allocator
 	// than which was passed to ID3D12Device::CreateCommandList()?
@@ -123,14 +125,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	viewport.height   = static_cast<float>(sceneHeight);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
- 	commandList->rsSetViewport(viewport);
+	commandList->rsSetViewport(viewport);
 
 	ScissorRect scissorRect;
 	scissorRect.left   = 0;
 	scissorRect.top    = 0;
 	scissorRect.right  = sceneWidth;
 	scissorRect.bottom = sceneHeight;
- 	commandList->rsSetScissorRect(scissorRect);
+	commandList->rsSetScissorRect(scissorRect);
 
 	updateSceneUniform(backbufferIndex, scene, camera);
 
@@ -140,11 +142,39 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		gpuScene->renderGPUScene(commandList, scene, camera);
 	}
 
-	if (scene->bRebuildRaytracingScene)
+	if (bSupportsRaytracing && scene->bRebuildRaytracingScene)
 	{
-		SCOPED_DRAW_EVENT(commandList, RaytracingScene);
+		SCOPED_DRAW_EVENT(commandList, CreateRaytracingScene);
 
+		// Recreate every BLAS
 		rebuildAccelerationStructure(commandList, scene);
+	}
+
+	if (bSupportsRaytracing && !scene->bRebuildRaytracingScene)
+	{
+		SCOPED_DRAW_EVENT(commandList, UpdateRaytracingScene);
+
+		std::vector<BLASInstanceUpdateDesc> updateDescs(scene->staticMeshes.size());
+		for (size_t i = 0; i < scene->staticMeshes.size(); ++i)
+		{
+			StaticMesh* staticMesh = scene->staticMeshes[i];
+
+			// #todo-wip-rt: Filter out stationary objects
+			bool bStationary = false;
+			if (bStationary)
+			{
+				continue;
+			}
+
+			Float4x4 modelMatrix = staticMesh->getTransform().getMatrix(); // row-major
+			memcpy(updateDescs[i].instanceTransform[0], modelMatrix.m[0], sizeof(float) * 4);
+			memcpy(updateDescs[i].instanceTransform[1], modelMatrix.m[1], sizeof(float) * 4);
+			memcpy(updateDescs[i].instanceTransform[2], modelMatrix.m[2], sizeof(float) * 4);
+
+			updateDescs[i].blasIndex = (uint32)i;
+		}
+		// Keep all BLAS geometries, only update transforms of BLAS instances.
+		accelStructure->rebuildTLAS(commandList, (uint32)updateDescs.size(), updateDescs.data());
 	}
 
 	// #todo-renderer: Depth PrePass
@@ -186,7 +216,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	}
 
 	// Ray Traced Reflections
-	if (device->getRaytracingTier() == ERaytracingTier::NotSupported)
+	if (!bSupportsRaytracing)
 	{
 		SCOPED_DRAW_EVENT(commandList, ClearRayTracedReflections);
 
@@ -361,7 +391,6 @@ void SceneRenderer::rebuildAccelerationStructure(
 	RenderCommandList* commandList,
 	const SceneProxy* scene)
 {
-	// #todo-wip-rt: For now rebuild every BLAS even for a single change.
 	// - Entire scene is a TLAS that contains a list of BLAS instances.
 	// - Each BLAS contains all sections of each StaticMesh.
 
@@ -369,11 +398,11 @@ void SceneRenderer::rebuildAccelerationStructure(
 	const uint32 LOD = 0; // #todo-wip-rt: LOD for BLAS
 
 	// Prepare BLAS instances.
-	std::vector<BLASInstanceDesc> blasDescArray(numStaticMeshes);
+	std::vector<BLASInstanceInitDesc> blasDescArray(numStaticMeshes);
 	for (uint32 staticMeshIndex = 0; staticMeshIndex < numStaticMeshes; ++staticMeshIndex)
 	{
 		StaticMesh* staticMesh = scene->staticMeshes[staticMeshIndex];
-		BLASInstanceDesc& blasDesc = blasDescArray[staticMeshIndex];
+		BLASInstanceInitDesc& blasDesc = blasDescArray[staticMeshIndex];
 
 		Float4x4 modelMatrix = staticMesh->getTransform().getMatrix(); // row-major
 		memcpy(blasDesc.instanceTransform[0], modelMatrix.m[0], sizeof(float) * 4);

@@ -256,7 +256,7 @@ void D3DAccelerationStructure::initialize(uint32 numBLAS)
 void D3DAccelerationStructure::buildBLAS(
 	ID3D12GraphicsCommandList4* commandList,
 	uint32 blasIndex,
-	const BLASInstanceDesc& blasDesc,
+	const BLASInstanceInitDesc& blasInitDesc,
 	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& bottomLevelInputs)
 {
 	CHECK(blasIndex < totalBLAS);
@@ -282,9 +282,9 @@ void D3DAccelerationStructure::buildBLAS(
 		debugName);
 
 	D3D12_RAYTRACING_INSTANCE_DESC instanceDesc{};
-	memcpy(instanceDesc.Transform[0], blasDesc.instanceTransform[0], sizeof(float) * 4);
-	memcpy(instanceDesc.Transform[1], blasDesc.instanceTransform[1], sizeof(float) * 4);
-	memcpy(instanceDesc.Transform[2], blasDesc.instanceTransform[2], sizeof(float) * 4);
+	memcpy(instanceDesc.Transform[0], blasInitDesc.instanceTransform[0], sizeof(float) * 4);
+	memcpy(instanceDesc.Transform[1], blasInitDesc.instanceTransform[1], sizeof(float) * 4);
+	memcpy(instanceDesc.Transform[2], blasInitDesc.instanceTransform[2], sizeof(float) * 4);
 	instanceDesc.InstanceID = 0;
 	instanceDesc.InstanceMask = 1;
 	instanceDesc.InstanceContributionToHitGroupIndex = blasIndex;
@@ -319,6 +319,7 @@ void D3DAccelerationStructure::buildTLAS(
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
 {
 	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+	tlasBuildFlags = buildFlags;
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS topLevelInputs{};
 	topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
@@ -343,6 +344,47 @@ void D3DAccelerationStructure::buildTLAS(
 		&tlasResource,
 		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
 		L"AccelStruct_TLAS");
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC tlasBuildDesc{};
+	tlasBuildDesc.Inputs = topLevelInputs;
+	tlasBuildDesc.DestAccelerationStructureData = getTLASGpuVirtualAddress();
+	tlasBuildDesc.ScratchAccelerationStructureData = tlasScratchResource->GetGPUVirtualAddress();
+
+	commandList->BuildRaytracingAccelerationStructure(&tlasBuildDesc, 0, nullptr);
+}
+
+void D3DAccelerationStructure::rebuildTLAS(
+	RenderCommandList* commandListWrapper,
+	uint32 numInstanceUpdates,
+	const BLASInstanceUpdateDesc* updateDescs)
+{
+	ID3D12GraphicsCommandList4* commandList = static_cast<D3DRenderCommandList*>(commandListWrapper)->getRaw();
+	
+	for (uint32 i = 0; i < numInstanceUpdates; ++i)
+	{
+		const uint32 blasIndex = updateDescs[i].blasIndex;
+		CHECK(blasIndex < totalBLAS);
+
+		uint8* destPtr = instanceDescMapPtr + (blasIndex * sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+
+		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc{};
+		memcpy_s(&instanceDesc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC),
+			destPtr, sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+
+		memcpy(instanceDesc.Transform[0], updateDescs[i].instanceTransform[0], sizeof(float) * 4);
+		memcpy(instanceDesc.Transform[1], updateDescs[i].instanceTransform[1], sizeof(float) * 4);
+		memcpy(instanceDesc.Transform[2], updateDescs[i].instanceTransform[2], sizeof(float) * 4);
+
+		memcpy_s(destPtr, sizeof(D3D12_RAYTRACING_INSTANCE_DESC),
+			&instanceDesc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+	}
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS topLevelInputs{};
+	topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+	topLevelInputs.Flags = tlasBuildFlags;
+	topLevelInputs.NumDescs = totalBLAS;
+	topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	topLevelInputs.InstanceDescs = instanceDescBuffer->GetGPUVirtualAddress();
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC tlasBuildDesc{};
 	tlasBuildDesc.Inputs = topLevelInputs;

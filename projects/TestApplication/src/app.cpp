@@ -91,15 +91,28 @@ void TestApplication::onTick(float deltaSeconds)
 	setWindowTitle(std::wstring(buf));
 
 	// #todo-app: Control camera by user input
+	// Animate camera to see if raytracing is actually working in world space.
 	{
 		static float elapsed = 0.0f;
-		elapsed += deltaSeconds;
-		vec3 posDelta = vec3(10.0f * sinf(elapsed), 0.0f, 5.0f * cosf(elapsed));
-		// #todo-wip-rt: Test DXR under moving camera
+		elapsed += 0.5f * deltaSeconds;
+		vec3 posDelta = vec3(5.0f * sinf(elapsed), 0.0f, 3.0f * cosf(elapsed));
 		camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
-		// Moving camera is OK, but mismatch between an animated mesh and its BLAS; Need to update the BLAS.
 		//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
-		//ground->getTransform().setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
+		ground->getTransform().setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
+	}
+
+	// Animate balls to see if update of BLAS instance transforms is going well.
+	static float ballTime = 0.0f;
+	ballTime += deltaSeconds;
+	for (size_t i = 0; i < balls.size(); ++i)
+	{
+		vec3 p = ballOriginalPos[i];
+		if (i % 3 == 0) p.x += 2.0f * Cymath::cos(ballTime);
+		else if (i % 3 == 1) p.y += 2.0f * Cymath::cos(ballTime);
+		else if (i % 3 == 2) p.z += 2.0f * Cymath::cos(ballTime);
+		balls[i]->getTransform().setPosition(p);
+
+		balls[i]->getTransform().setScale(MESH_SCALE * (1.0f + 0.3f * Cymath::sin(i + ballTime)));
 	}
 
 	// #todo: Move rendering loop to engine
@@ -270,6 +283,7 @@ void TestApplication::createResources()
 
 			scene.addStaticMesh(staticMesh);
 			balls.push_back(staticMesh);
+			ballOriginalPos.push_back(pos);
 
 			currentGeomIx = (currentGeomIx + 1) % NUM_GEOM_ASSETS;
 		}

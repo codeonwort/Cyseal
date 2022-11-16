@@ -469,7 +469,7 @@ void D3DRenderCommandList::dispatchCompute(
 
 AccelerationStructure* D3DRenderCommandList::buildRaytracingAccelerationStructure(
 	uint32 numBLASDesc,
-	BLASInstanceDesc* blasDescArray)
+	BLASInstanceInitDesc* blasDescArray)
 {
 	ID3D12DeviceLatest* rawDevice = device->getRawDevice();
 

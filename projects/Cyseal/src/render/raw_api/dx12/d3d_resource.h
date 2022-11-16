@@ -138,7 +138,7 @@ public:
 	void buildBLAS(
 		ID3D12GraphicsCommandList4* commandList,
 		uint32 blasIndex,
-		const BLASInstanceDesc& blasDesc,
+		const BLASInstanceInitDesc& blasDesc,
 		const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& bottomLevelInputs);
 
 	void waitForBLASBuild(ID3D12GraphicsCommandList4* commandList);
@@ -146,6 +146,11 @@ public:
 	void buildTLAS(
 		ID3D12GraphicsCommandList4* commandList,
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
+
+	virtual void rebuildTLAS(
+		RenderCommandList* commandList,
+		uint32 numInstanceUpdates,
+		const BLASInstanceUpdateDesc* updateDescs) override;
 
 	// TLAS is bound as SRV when setting root parameters.
 	inline D3D12_GPU_VIRTUAL_ADDRESS getTLASGpuVirtualAddress() const {
@@ -173,6 +178,7 @@ private:
 	std::vector<WRL::ComPtr<ID3D12Resource>> blasResourceArray;
 	std::vector<WRL::ComPtr<ID3D12Resource>> blasScratchResourceArray;
 
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS tlasBuildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
 	WRL::ComPtr<ID3D12Resource> tlasResource;
 	WRL::ComPtr<ID3D12Resource> tlasScratchResource;
 
