@@ -368,32 +368,17 @@ void SceneRenderer::rebuildAccelerationStructure(
 	const uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	const uint32 LOD = 0; // #todo-wip-rt: LOD for BLAS
 
-	// 1. Prepare BLAS transform buffer. (48 = sizeof(Transform3x4))
-	blasTransformBuffer = std::unique_ptr<StructuredBuffer>(
-		device->createStructuredBuffer(numStaticMeshes, 48, EBufferAccessFlags::CPU_WRITE));
-	struct Transform3x4
-	{
-		float m[3][4]; // row-major
-	};
-	std::vector<Transform3x4> transformData(numStaticMeshes);
-	for (uint32 i = 0; i < numStaticMeshes; ++i)
-	{
-		Float4x4 model = scene->staticMeshes[i]->getTransform().getMatrix(); // row-major
-		memcpy(transformData[i].m[0], model.m[0], sizeof(float) * 4);
-		memcpy(transformData[i].m[1], model.m[1], sizeof(float) * 4);
-		memcpy(transformData[i].m[2], model.m[2], sizeof(float) * 4);
-	}
-	blasTransformBuffer->uploadData(commandList,
-		transformData.data(),
-		(uint32)(transformData.size() * sizeof(Transform3x4)),
-		0);
-
-	// 2. Prepare BLAS geometry descriptions.
+	// Prepare BLAS instances.
 	std::vector<BLASInstanceDesc> blasDescArray(numStaticMeshes);
 	for (uint32 staticMeshIndex = 0; staticMeshIndex < numStaticMeshes; ++staticMeshIndex)
 	{
 		StaticMesh* staticMesh = scene->staticMeshes[staticMeshIndex];
 		BLASInstanceDesc& blasDesc = blasDescArray[staticMeshIndex];
+
+		Float4x4 modelMatrix = staticMesh->getTransform().getMatrix(); // row-major
+		memcpy(blasDesc.instanceTransform[0], modelMatrix.m[0], sizeof(float) * 4);
+		memcpy(blasDesc.instanceTransform[1], modelMatrix.m[1], sizeof(float) * 4);
+		memcpy(blasDesc.instanceTransform[2], modelMatrix.m[2], sizeof(float) * 4);
 
 		for (const StaticMeshSection& section : staticMesh->getSections(LOD))
 		{
@@ -402,8 +387,9 @@ void SceneRenderer::rebuildAccelerationStructure(
 
 			RaytracingGeometryDesc geomDesc{};
 			geomDesc.type = ERaytracingGeometryType::Triangles;
-			geomDesc.triangles.transform3x4Buffer = blasTransformBuffer.get();
-			geomDesc.triangles.transformIndex = staticMeshIndex;
+			// modelMatrix is applied as BLAS instance transform, not as geometry transform.
+			//geomDesc.triangles.transform3x4Buffer = blasTransformBuffer.get();
+			//geomDesc.triangles.transformIndex = staticMeshIndex;
 			geomDesc.triangles.indexFormat = indexBuffer->getIndexFormat();
 			geomDesc.triangles.vertexFormat = EPixelFormat::R32G32B32_FLOAT;
 			geomDesc.triangles.indexCount = indexBuffer->getIndexCount();
@@ -421,7 +407,7 @@ void SceneRenderer::rebuildAccelerationStructure(
 		}
 	}
 
-	// 3. Build acceleration structure.
+	// Build acceleration structure.
 	accelStructure = commandList->buildRaytracingAccelerationStructure(
 		(uint32)blasDescArray.size(), blasDescArray.data());
 }

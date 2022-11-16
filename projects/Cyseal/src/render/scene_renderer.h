@@ -54,7 +54,6 @@ private:
 	std::unique_ptr<DescriptorHeap> sceneUniformDescriptorHeap;
 	std::unique_ptr<ConstantBufferView> sceneUniformCBV;
 
-	std::unique_ptr<StructuredBuffer> blasTransformBuffer;
 	AccelerationStructure* accelStructure = nullptr;
 
 	// ------------------------------------------------------------------------

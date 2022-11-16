@@ -256,6 +256,7 @@ void D3DAccelerationStructure::initialize(uint32 numBLAS)
 void D3DAccelerationStructure::buildBLAS(
 	ID3D12GraphicsCommandList4* commandList,
 	uint32 blasIndex,
+	const BLASInstanceDesc& blasDesc,
 	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& bottomLevelInputs)
 {
 	CHECK(blasIndex < totalBLAS);
@@ -281,9 +282,9 @@ void D3DAccelerationStructure::buildBLAS(
 		debugName);
 
 	D3D12_RAYTRACING_INSTANCE_DESC instanceDesc{};
-	instanceDesc.Transform[0][0] = 1.0f; // #todo-wip-rt: Temp identity matrix
-	instanceDesc.Transform[1][1] = 1.0f;
-	instanceDesc.Transform[2][2] = 1.0f;
+	memcpy(instanceDesc.Transform[0], blasDesc.instanceTransform[0], sizeof(float) * 4);
+	memcpy(instanceDesc.Transform[1], blasDesc.instanceTransform[1], sizeof(float) * 4);
+	memcpy(instanceDesc.Transform[2], blasDesc.instanceTransform[2], sizeof(float) * 4);
 	instanceDesc.InstanceID = 0;
 	instanceDesc.InstanceMask = 1;
 	instanceDesc.InstanceContributionToHitGroupIndex = blasIndex;

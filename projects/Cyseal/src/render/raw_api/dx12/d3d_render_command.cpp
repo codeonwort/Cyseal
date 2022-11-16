@@ -499,7 +499,7 @@ AccelerationStructure* D3DRenderCommandList::buildRaytracingAccelerationStructur
 		bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 		bottomLevelInputs.pGeometryDescs = d3d_geomDescArray.data();
 
-		accelStruct->buildBLAS(commandList.Get(), blasIndex, bottomLevelInputs);
+		accelStruct->buildBLAS(commandList.Get(), blasIndex, blasDescArray[blasIndex], bottomLevelInputs);
 	}
 
 	accelStruct->waitForBLASBuild(commandList.Get());

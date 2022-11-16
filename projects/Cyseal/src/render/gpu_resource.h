@@ -322,7 +322,16 @@ struct RaytracingGeometryDesc
 // D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC
 struct BLASInstanceDesc
 {
+	BLASInstanceDesc()
+	{
+		::memset(instanceTransform, 0, sizeof(instanceTransform));
+		instanceTransform[0][0] = 1.0f;
+		instanceTransform[1][1] = 1.0f;
+		instanceTransform[2][2] = 1.0f;
+	}
+
 	std::vector<RaytracingGeometryDesc> geomDescs;
+	float instanceTransform[3][4];
 };
 
 class AccelerationStructure

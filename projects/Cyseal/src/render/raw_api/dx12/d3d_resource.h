@@ -138,6 +138,7 @@ public:
 	void buildBLAS(
 		ID3D12GraphicsCommandList4* commandList,
 		uint32 blasIndex,
+		const BLASInstanceDesc& blasDesc,
 		const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& bottomLevelInputs);
 
 	void waitForBLASBuild(ID3D12GraphicsCommandList4* commandList);
