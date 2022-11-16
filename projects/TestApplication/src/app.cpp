@@ -138,11 +138,11 @@ void TestApplication::createResources()
 		const float phase = Cymath::randFloatRange(0.0f, 6.28f);
 		const float spike = Cymath::randFloatRange(0.0f, 0.2f);
 #if 1
-		ProceduralGeometry::spikeBall(3, phase, spike, geometriesLODs[i][0]);
-		ProceduralGeometry::spikeBall(1, phase, spike, geometriesLODs[i][1]);
+		ProceduralGeometry::spikeBall(geometriesLODs[i][0], 3, phase, spike);
+		ProceduralGeometry::spikeBall(geometriesLODs[i][1], 1, phase, spike);
 #else
-		ProceduralGeometry::icosphere(3, geometriesLODs[i][0]);
-		ProceduralGeometry::icosphere(1, geometriesLODs[i][1]);
+		ProceduralGeometry::icosphere(geometriesLODs[i][0], 3);
+		ProceduralGeometry::icosphere(geometriesLODs[i][1], 1);
 #endif
 	}
 
@@ -269,7 +269,8 @@ void TestApplication::createResources()
 	// Ground
 	{
 		Geometry planeGeometry;
-		ProceduralGeometry::plane(planeGeometry, 100.0f, 100.0f, 1, 1, ProceduralGeometry::EPlaneNormal::Y);
+		ProceduralGeometry::plane(planeGeometry,
+			100.0f, 100.0f, 1, 1, ProceduralGeometry::EPlaneNormal::Y);
 
 		VertexBuffer* positionBuffer;
 		VertexBuffer* nonPositionBuffer;

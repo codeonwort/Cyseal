@@ -8,7 +8,7 @@ namespace ProceduralGeometry
 
 	void plane(
 		Geometry& outGeometry,
-		float sizeX, float sizeY,
+		float sizeX /*= 1.0f */, float sizeY /*= 1.0f */,
 		uint32 numCellsX /*= 1*/, uint32 numCellsY /*= 1*/,
 		EPlaneNormal up /*= EPlaneNormal::Z*/)
 	{
@@ -18,7 +18,7 @@ namespace ProceduralGeometry
 		const float segW = sizeX / numCellsX, segH = sizeY / numCellsY;
 		const float x0 = -0.5f * sizeY, y0 = -0.5f * sizeY;
 
-		outGeometry.initNumVertices(numVertices);
+		outGeometry.resizeNumVertices(numVertices);
 		outGeometry.indices.resize(numCellsX * numCellsY * 6);
 
 		auto& positions = outGeometry.positions;
@@ -68,8 +68,87 @@ namespace ProceduralGeometry
 		outGeometry.finalize();
 	}
 
+	void cube(
+		Geometry& outGeometry,
+		float sizeX /*= 1.0f*/, float sizeY /*= 1.0f*/, float sizeZ /*= 1.0f*/)
+	{
+		outGeometry.reserveNumVertices(24);
+		outGeometry.reserveNumIndices(36);
+
+		float x = 0.5f * sizeX;
+		float y = 0.5f * sizeY;
+		float z = 0.5f * sizeZ;
+
+		auto pushNormals = [ns = &(outGeometry.normals)](const vec3& n) {
+			for (auto i = 0; i < 4; ++i) ns->push_back(n);
+		};
+		auto pushIndices = [ix = &(outGeometry.indices)](uint32 baseIx) {
+			ix->push_back(baseIx + 0); ix->push_back(baseIx + 2); ix->push_back(baseIx + 1);
+			ix->push_back(baseIx + 0); ix->push_back(baseIx + 3); ix->push_back(baseIx + 2);
+		};
+
+		// front
+		outGeometry.positions.push_back(vec3(-x, +y, +z));
+		outGeometry.positions.push_back(vec3(+x, +y, +z));
+		outGeometry.positions.push_back(vec3(+x, -y, +z));
+		outGeometry.positions.push_back(vec3(-x, -y, +z));
+		pushNormals(vec3(0.0f, 0.0f, 1.0f));
+		pushIndices(0);
+
+		// back
+		outGeometry.positions.push_back(vec3(+x, +y, -z));
+		outGeometry.positions.push_back(vec3(-x, +y, -z));
+		outGeometry.positions.push_back(vec3(-x, -y, -z));
+		outGeometry.positions.push_back(vec3(+x, -y, -z));
+		pushNormals(vec3(0.0f, 0.0f, -1.0f));
+		pushIndices(4);
+
+		// right
+		outGeometry.positions.push_back(vec3(+x, +y, +z));
+		outGeometry.positions.push_back(vec3(+x, +y, -z));
+		outGeometry.positions.push_back(vec3(+x, -y, -z));
+		outGeometry.positions.push_back(vec3(+x, -y, +z));
+		pushNormals(vec3(0.0f, 0.0f, 1.0f));
+		pushIndices(8);
+
+		// left
+		outGeometry.positions.push_back(vec3(-x, +y, -z));
+		outGeometry.positions.push_back(vec3(-x, +y, +z));
+		outGeometry.positions.push_back(vec3(-x, -y, +z));
+		outGeometry.positions.push_back(vec3(-x, -y, -z));
+		pushNormals(vec3(0.0f, 0.0f, -1.0f));
+		pushIndices(12);
+
+		// up
+		outGeometry.positions.push_back(vec3(-x, +y, -z));
+		outGeometry.positions.push_back(vec3(+x, +y, -z));
+		outGeometry.positions.push_back(vec3(+x, +y, +z));
+		outGeometry.positions.push_back(vec3(-x, +y, +z));
+		pushNormals(vec3(0.0f, 1.0f, 0.0f));
+		pushIndices(16);
+
+		// down
+		outGeometry.positions.push_back(vec3(-x, -y, +z));
+		outGeometry.positions.push_back(vec3(+x, -y, +z));
+		outGeometry.positions.push_back(vec3(+x, -y, -z));
+		outGeometry.positions.push_back(vec3(-x, -y, -z));
+		pushNormals(vec3(0.0f, -1.0f, 0.0f));
+		pushIndices(20);
+
+		// Same texcoord distribution for all faces
+		for (auto i = 0; i < 6; ++i)
+		{
+			outGeometry.texcoords.push_back(vec2(0.0f, 0.0f));
+			outGeometry.texcoords.push_back(vec2(1.0f, 0.0f));
+			outGeometry.texcoords.push_back(vec2(1.0f, 1.0f));
+			outGeometry.texcoords.push_back(vec2(0.0f, 1.0f));
+		}
+
+		outGeometry.finalize();
+	}
+
 	// http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
-	void icosphere(uint32 iterations, Geometry& outGeometry)
+	void icosphere(Geometry& outGeometry, uint32 iterations)
 	{
 		std::map<int64, int32> middlePointIndexCache;
 		int32 index = 0;
@@ -190,7 +269,7 @@ namespace ProceduralGeometry
 		}
 
 		// done, now add triangles to mesh
-		outGeometry.initNumVertices(tempPositions.size());
+		outGeometry.resizeNumVertices(tempPositions.size());
 		for (size_t i = 0; i < tempPositions.size(); ++i)
 		{
 			outGeometry.positions[i] = tempPositions[i];
@@ -208,9 +287,11 @@ namespace ProceduralGeometry
 		outGeometry.finalize();
 	}
 
-	void spikeBall(uint32 subdivisions, float phase, float peak, Geometry& outGeometry)
+	void spikeBall(
+		Geometry& outGeometry,
+		uint32 subdivisions, float phase, float peak)
 	{
-		icosphere(subdivisions, outGeometry);
+		icosphere(outGeometry, subdivisions);
 
 		// Add random spike
 		float t = phase;

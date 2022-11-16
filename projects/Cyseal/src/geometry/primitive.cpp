@@ -1,10 +1,31 @@
 #include "primitive.h"
 
-void Geometry::initNumVertices(size_t num)
+void Geometry::resizeNumVertices(size_t num)
 {
 	positions.resize(num);
 	normals.resize(num);
 	texcoords.resize(num);
+}
+
+void Geometry::resizeNumIndices(size_t num)
+{
+	indices.resize(num);
+}
+
+void Geometry::reserveNumVertices(size_t num)
+{
+	positions.clear();
+	normals.clear();
+	texcoords.clear();
+	positions.reserve(num);
+	normals.reserve(num);
+	texcoords.reserve(num);
+}
+
+void Geometry::reserveNumIndices(size_t num)
+{
+	indices.clear();
+	indices.reserve(num);
 }
 
 void Geometry::finalize()
