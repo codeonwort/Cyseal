@@ -54,7 +54,10 @@ void TextureManager::initialize()
 
 void TextureManager::destroy()
 {
-	delete systemTexture_grey2D;
+	for (Texture* tex : systemTextures)
+	{
+		delete tex;
+	}
 }
 
 uint32 TextureManager::allocateSRVIndex()
@@ -98,8 +101,9 @@ void TextureManager::createSystemTextures()
 		{ { 000, 255, 000, 255 }, &systemTexture_green2D, L"Texture_SystemGreen2D" },
 		{ { 000, 000, 255, 255 }, &systemTexture_blue2D , L"Texture_SystemBlue2D"  },
 	};
+	std::vector<Texture*>* systemTexturesPtr = &systemTextures;
 	ENQUEUE_RENDER_COMMAND(CreateSystemTextureGrey2D)(
-		[initTable](RenderCommandList& commandList)
+		[&initTable, systemTexturesPtr](RenderCommandList& commandList)
 		{
 			for (uint32 i = 0; i < _countof(initTable); ++i)
 			{
@@ -107,10 +111,13 @@ void TextureManager::createSystemTextures()
 					EPixelFormat::R8G8B8A8_UNORM,
 					ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
 					1, 1, 1);
+				
 				Texture* tex = gRenderDevice->createTexture(params);
-				*(initTable[i].texturePtr) = tex;
 				tex->uploadData(commandList, initTable[i].color, 4, 4);
 				tex->setDebugName(initTable[i].debugName);
+
+				*(initTable[i].texturePtr) = tex;
+				systemTexturesPtr->push_back(tex);
 			}
 		}
 	);

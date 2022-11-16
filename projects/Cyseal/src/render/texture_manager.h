@@ -4,6 +4,7 @@
 #include "gpu_resource_binding.h"
 
 #include <memory>
+#include <vector>
 
 class Texture;
 
@@ -58,6 +59,7 @@ private:
 	Texture* systemTexture_red2D   = nullptr;
 	Texture* systemTexture_green2D = nullptr;
 	Texture* systemTexture_blue2D  = nullptr;
+	std::vector<Texture*> systemTextures;
 };
 
 extern TextureManager* gTextureManager;
