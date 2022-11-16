@@ -222,47 +222,133 @@ UnorderedAccessView* D3DStructuredBuffer::getUAV() const
 //////////////////////////////////////////////////////////////////////////
 // D3DAccelerationStructure
 
+D3DAccelerationStructure::~D3DAccelerationStructure()
+{
+	if (instanceDescBuffer)
+	{
+		instanceDescBuffer->Unmap(0, 0);
+	}
+}
+
 ShaderResourceView* D3DAccelerationStructure::getSRV() const
 {
 	return srv.get();
 }
 
-void D3DAccelerationStructure::initialize(
-	uint64 TLASResultMaxSize, uint64 TLASScratchSize,
-	uint64 BLASResultMaxSize, uint64 BLASScratchSize)
+void D3DAccelerationStructure::initialize(uint32 numBLAS)
 {
 	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+	totalBLAS = numBLAS;
 	
-	allocateUAVBuffer(
-		(std::max)(TLASScratchSize, BLASScratchSize),
-		&scratchResource,
-		//D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_COMMON,
-		L"AccelStruct_ScratchBuffer");
+	blasScratchResourceArray.resize(totalBLAS);
+	blasResourceArray.resize(totalBLAS);
 
-	allocateUAVBuffer(
-		TLASResultMaxSize,
-		&tlasResource,
-		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
-		L"AccelStruct_TLAS");
-
-	allocateUAVBuffer(
-		BLASResultMaxSize,
-		&blasResource,
-		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
-		L"AccelStruct_BLAS");
+	allocateUploadBuffer(
+		nullptr,
+		totalBLAS * sizeof(D3D12_RAYTRACING_INSTANCE_DESC),
+		&instanceDescBuffer,
+		L"AccelStruct_InstanceDesc");
+	instanceDescBuffer->Map(0, nullptr, (void**)(&instanceDescMapPtr));
 
 	srv = std::make_unique<D3DShaderResourceView>(this);
 }
 
-void D3DAccelerationStructure::uploadInstanceDescs(
-	const D3D12_RAYTRACING_INSTANCE_DESC& instanceDesc)
+void D3DAccelerationStructure::buildBLAS(
+	ID3D12GraphicsCommandList4* commandList,
+	uint32 blasIndex,
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& bottomLevelInputs)
 {
-	allocateUploadBuffer(
-		(void*)(&instanceDesc),
-		sizeof(instanceDesc),
-		&instanceDescBuffer,
-		L"AccelStruct_InstanceDesc");
+	CHECK(blasIndex < totalBLAS);
+	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo{};
+	device->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &prebuildInfo);
+	CHECK(prebuildInfo.ResultDataMaxSizeInBytes > 0);
+
+	wchar_t debugName[256];
+	swprintf_s(debugName, L"AccelStruct_BLASScratchBuffer_%u", blasIndex);
+	allocateUAVBuffer(
+		prebuildInfo.ScratchDataSizeInBytes,
+		&blasScratchResourceArray[blasIndex],
+		D3D12_RESOURCE_STATE_COMMON,
+		debugName);
+
+	swprintf_s(debugName, L"AccelStruct_BLAS_%u", blasIndex);
+	allocateUAVBuffer(
+		prebuildInfo.ResultDataMaxSizeInBytes,
+		&blasResourceArray[blasIndex],
+		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+		debugName);
+
+	D3D12_RAYTRACING_INSTANCE_DESC instanceDesc{};
+	instanceDesc.Transform[0][0] = 1.0f; // #todo-wip-rt: Temp identity matrix
+	instanceDesc.Transform[1][1] = 1.0f;
+	instanceDesc.Transform[2][2] = 1.0f;
+	instanceDesc.InstanceID = 0;
+	instanceDesc.InstanceMask = 1;
+	instanceDesc.InstanceContributionToHitGroupIndex = blasIndex;
+	instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+	instanceDesc.AccelerationStructure = blasResourceArray[blasIndex]->GetGPUVirtualAddress();
+
+	uint8* destPtr = instanceDescMapPtr + (blasIndex * sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+	memcpy_s(destPtr, sizeof(D3D12_RAYTRACING_INSTANCE_DESC),
+		&instanceDesc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC blasBuildDesc{};
+	blasBuildDesc.Inputs = bottomLevelInputs;
+	blasBuildDesc.ScratchAccelerationStructureData = blasScratchResourceArray[blasIndex]->GetGPUVirtualAddress();
+	blasBuildDesc.DestAccelerationStructureData = blasResourceArray[blasIndex]->GetGPUVirtualAddress();
+
+	commandList->BuildRaytracingAccelerationStructure(&blasBuildDesc, 0, nullptr);
+}
+
+void D3DAccelerationStructure::waitForBLASBuild(ID3D12GraphicsCommandList4* commandList)
+{
+	// UAV barrier for TLAS build
+	std::vector<CD3DX12_RESOURCE_BARRIER> blasWaitBarriers(totalBLAS);
+	for (uint32 i = 0; i < totalBLAS; ++i)
+	{
+		blasWaitBarriers[i] = CD3DX12_RESOURCE_BARRIER::UAV(blasResourceArray[i].Get());
+	}
+	commandList->ResourceBarrier(totalBLAS, blasWaitBarriers.data());
+}
+
+void D3DAccelerationStructure::buildTLAS(
+	ID3D12GraphicsCommandList4* commandList,
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
+{
+	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS topLevelInputs{};
+	topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+	topLevelInputs.Flags = buildFlags;
+	topLevelInputs.NumDescs = totalBLAS;
+	topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	topLevelInputs.InstanceDescs = instanceDescBuffer->GetGPUVirtualAddress();
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo{};
+	device->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &prebuildInfo);
+	CHECK(prebuildInfo.ResultDataMaxSizeInBytes > 0);
+
+	allocateUAVBuffer(
+		prebuildInfo.ScratchDataSizeInBytes,
+		&tlasScratchResource,
+		//D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		L"AccelStruct_TLASScratchBuffer");
+
+	allocateUAVBuffer(
+		prebuildInfo.ResultDataMaxSizeInBytes,
+		&tlasResource,
+		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+		L"AccelStruct_TLAS");
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC tlasBuildDesc{};
+	tlasBuildDesc.Inputs = topLevelInputs;
+	tlasBuildDesc.DestAccelerationStructureData = getTLASGpuVirtualAddress();
+	tlasBuildDesc.ScratchAccelerationStructureData = tlasScratchResource->GetGPUVirtualAddress();
+
+	commandList->BuildRaytracingAccelerationStructure(&tlasBuildDesc, 0, nullptr);
 }
 
 void D3DAccelerationStructure::allocateUAVBuffer(
@@ -305,12 +391,15 @@ void D3DAccelerationStructure::allocateUploadBuffer(
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(ppResource)));
-	if (resourceName)
+	if (resourceName != nullptr)
 	{
 		(*ppResource)->SetName(resourceName);
 	}
-	void* pMappedData;
-	(*ppResource)->Map(0, nullptr, &pMappedData);
-	memcpy(pMappedData, pData, datasize);
-	(*ppResource)->Unmap(0, nullptr);
+	if (pData != nullptr)
+	{
+		void* pMappedData;
+		(*ppResource)->Map(0, nullptr, &pMappedData);
+		memcpy(pMappedData, pData, datasize);
+		(*ppResource)->Unmap(0, nullptr);
+	}
 }

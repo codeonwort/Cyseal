@@ -68,7 +68,7 @@ namespace ProceduralGeometry
 		outGeometry.finalize();
 	}
 
-	void crumpedPaper(
+	void crumpledPaper(
 		Geometry& outGeometry,
 		float sizeX, float sizeY,
 		uint32 numCellsX, uint32 numCellsY,

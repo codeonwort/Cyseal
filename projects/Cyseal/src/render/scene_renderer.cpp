@@ -362,14 +362,13 @@ void SceneRenderer::rebuildAccelerationStructure(
 	const SceneProxy* scene)
 {
 	// #todo-wip-rt: For now rebuild every BLAS even for a single change.
-	// - Entire scene is a TLAS that contains one instance of a BLAS.
-	// - That BLAS contains all sections of all StaticMesh.
+	// - Entire scene is a TLAS that contains a list of BLAS instances.
+	// - Each BLAS contains all sections of each StaticMesh.
 
 	const uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	const uint32 LOD = 0; // #todo-wip-rt: LOD for BLAS
-	std::vector<RaytracingGeometryDesc> geomDescArray;
 
-	// 1. Prepare BLAS transform buffer.
+	// 1. Prepare BLAS transform buffer. (48 = sizeof(Transform3x4))
 	blasTransformBuffer = std::unique_ptr<StructuredBuffer>(
 		device->createStructuredBuffer(numStaticMeshes, 48, EBufferAccessFlags::CPU_WRITE));
 	struct Transform3x4
@@ -390,9 +389,12 @@ void SceneRenderer::rebuildAccelerationStructure(
 		0);
 
 	// 2. Prepare BLAS geometry descriptions.
+	std::vector<BLASInstanceDesc> blasDescArray(numStaticMeshes);
 	for (uint32 staticMeshIndex = 0; staticMeshIndex < numStaticMeshes; ++staticMeshIndex)
 	{
 		StaticMesh* staticMesh = scene->staticMeshes[staticMeshIndex];
+		BLASInstanceDesc& blasDesc = blasDescArray[staticMeshIndex];
+
 		for (const StaticMeshSection& section : staticMesh->getSections(LOD))
 		{
 			VertexBuffer* vertexBuffer = section.positionBuffer;
@@ -415,11 +417,11 @@ void SceneRenderer::rebuildAccelerationStructure(
 			// Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
 			geomDesc.flags = ERaytracingGeometryFlags::Opaque;
 
-			geomDescArray.emplace_back(geomDesc);
+			blasDesc.geomDescs.emplace_back(geomDesc);
 		}
 	}
 
 	// 3. Build acceleration structure.
 	accelStructure = commandList->buildRaytracingAccelerationStructure(
-		(uint32)geomDescArray.size(), geomDescArray.data());
+		(uint32)blasDescArray.size(), blasDescArray.data());
 }

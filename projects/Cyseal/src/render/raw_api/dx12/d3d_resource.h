@@ -129,29 +129,27 @@ private:
 class D3DAccelerationStructure : public AccelerationStructure
 {
 public:
+	virtual ~D3DAccelerationStructure();
+
 	virtual ShaderResourceView* getSRV() const override;
 
-	void initialize(
-		uint64 TLASResultMaxSize, uint64 TLASScratchSize,
-		uint64 BLASResultMaxSize, uint64 BLASScratchSize);
+	void initialize(uint32 numBLAS);
 
-	void uploadInstanceDescs(
-		const D3D12_RAYTRACING_INSTANCE_DESC& instanceDesc);
+	void buildBLAS(
+		ID3D12GraphicsCommandList4* commandList,
+		uint32 blasIndex,
+		const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& bottomLevelInputs);
 
-	inline D3D12_GPU_VIRTUAL_ADDRESS getScratchGpuVirtualAddress() const {
-		return scratchResource->GetGPUVirtualAddress();
-	}
+	void waitForBLASBuild(ID3D12GraphicsCommandList4* commandList);
+
+	void buildTLAS(
+		ID3D12GraphicsCommandList4* commandList,
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
+
+	// TLAS is bound as SRV when setting root parameters.
 	inline D3D12_GPU_VIRTUAL_ADDRESS getTLASGpuVirtualAddress() const {
 		return tlasResource->GetGPUVirtualAddress();
 	}
-	inline D3D12_GPU_VIRTUAL_ADDRESS getBLASGpuVirtualAddress() const {
-		return blasResource->GetGPUVirtualAddress();
-	}
-	inline D3D12_GPU_VIRTUAL_ADDRESS getInstanceDescGpuVirtualAddress() const {
-		return instanceDescBuffer->GetGPUVirtualAddress();
-	}
-
-	inline ID3D12Resource* getBLASResource() const { return blasResource.Get(); }
 
 private:
 	// #todo-dx12: Promote to common utils.
@@ -170,8 +168,13 @@ private:
 
 	std::unique_ptr<D3DShaderResourceView> srv;
 
-	WRL::ComPtr<ID3D12Resource> scratchResource;
-	WRL::ComPtr<ID3D12Resource> blasResource;
+	uint32 totalBLAS = 0;
+	std::vector<WRL::ComPtr<ID3D12Resource>> blasResourceArray;
+	std::vector<WRL::ComPtr<ID3D12Resource>> blasScratchResourceArray;
+
 	WRL::ComPtr<ID3D12Resource> tlasResource;
+	WRL::ComPtr<ID3D12Resource> tlasScratchResource;
+
 	WRL::ComPtr<ID3D12Resource> instanceDescBuffer;
+	uint8* instanceDescMapPtr = nullptr;
 };

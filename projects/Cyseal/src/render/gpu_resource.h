@@ -4,6 +4,8 @@
 #include "util/enum_util.h"
 #include "pixel_format.h"
 
+#include <vector>
+
 class VertexBufferPool;
 class IndexBufferPool;
 class ConstantBufferView;
@@ -317,6 +319,12 @@ struct RaytracingGeometryDesc
 		RaytracingGeometryTrianglesDesc triangles;
 		// #todo-wip-rt: AABBs
 	};
+};
+
+// D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC
+struct BLASInstanceDesc
+{
+	std::vector<RaytracingGeometryDesc> geomDescs;
 };
 
 class AccelerationStructure

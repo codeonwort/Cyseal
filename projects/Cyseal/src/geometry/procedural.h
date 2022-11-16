@@ -13,7 +13,7 @@ namespace ProceduralGeometry
 		uint32 numCellsX = 1, uint32 numCellsY = 1,
 		EPlaneNormal up = EPlaneNormal::Z);
 
-	void crumpedPaper(
+	void crumpledPaper(
 		Geometry& outGeometry,
 		float sizeX, float sizeY,
 		uint32 numCellsX, uint32 numCellsY,

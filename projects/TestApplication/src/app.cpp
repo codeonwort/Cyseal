@@ -49,6 +49,8 @@
 #define MESH_SPACE_Z         4.0f
 #define MESH_SCALE           3.0f
 
+#define CRUMPLED_WORLD       1
+
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
@@ -143,7 +145,7 @@ void TestApplication::createResources()
 	{
 		const float phase = Cymath::randFloatRange(0.0f, 6.28f);
 		const float spike = Cymath::randFloatRange(0.0f, 0.2f);
-#if 1
+#if CRUMPLED_WORLD
 		ProceduralGeometry::spikeBall(geometriesLODs[i][0], 3, phase, spike);
 		ProceduralGeometry::spikeBall(geometriesLODs[i][1], 1, phase, spike);
 #else
@@ -276,10 +278,16 @@ void TestApplication::createResources()
 	// Ground
 	{
 		Geometry planeGeometry;
-		ProceduralGeometry::crumpedPaper(planeGeometry,
-			50.0f, 50.0f, 8, 8,
-			5.0f,
+#if CRUMPLED_WORLD
+		ProceduralGeometry::crumpledPaper(planeGeometry,
+			100.0f, 100.0f, 16, 16,
+			2.0f,
 			ProceduralGeometry::EPlaneNormal::Y);
+#else
+		ProceduralGeometry::plane(planeGeometry,
+			100.0f, 100.0f, 2, 2,
+			ProceduralGeometry::EPlaneNormal::Y);
+#endif
 
 		VertexBuffer* positionBuffer;
 		VertexBuffer* nonPositionBuffer;
@@ -320,10 +328,16 @@ void TestApplication::createResources()
 	// wallA
 	{
 		Geometry planeGeometry;
-		ProceduralGeometry::crumpedPaper(planeGeometry,
+#if CRUMPLED_WORLD
+		ProceduralGeometry::crumpledPaper(planeGeometry,
 			50.0f, 50.0f, 16, 16,
-			0.0f,
+			1.0f,
 			ProceduralGeometry::EPlaneNormal::X);
+#else
+		ProceduralGeometry::plane(planeGeometry,
+			50.0f, 50.0f, 2, 2,
+			ProceduralGeometry::EPlaneNormal::X);
+#endif
 
 		VertexBuffer* positionBuffer;
 		VertexBuffer* nonPositionBuffer;

@@ -172,8 +172,8 @@ public:
 	// Raytracing pipeline
 
 	virtual AccelerationStructure* buildRaytracingAccelerationStructure(
-		uint32 numGeomDesc,
-		RaytracingGeometryDesc* geomDescArray) = 0;
+		uint32 numBLASDesc,
+		BLASInstanceDesc* blasDescArray) = 0;
 
 	virtual void dispatchRays(const DispatchRaysDesc& dispatchDesc) = 0;
 
