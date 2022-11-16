@@ -20,10 +20,12 @@ void D3DConstantBuffer::initialize(uint32 sizeInBytes)
 
 	// Create a committed resource
 	ID3D12Device* device = static_cast<D3DDevice*>(gRenderDevice)->getRawDevice();
+	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes);
 	HR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes),
+		&bufferDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&memoryPool)));
@@ -110,10 +112,12 @@ void D3DStructuredBuffer::initialize(
 
 	// Create a committed resource
 	ID3D12Device* device = static_cast<D3DDevice*>(gRenderDevice)->getRawDevice();
+	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(totalBytes, resourceFlags);
 	HR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(totalBytes, resourceFlags),
+		&bufferDesc,
 		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
 		IID_PPV_ARGS(&rawBuffer)));
@@ -121,10 +125,12 @@ void D3DStructuredBuffer::initialize(
 	// Upload heap if required
 	if (0 != (accessFlags & EBufferAccessFlags::CPU_WRITE))
 	{
+		auto uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		auto uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(totalBytes);
 		HR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			&uploadHeapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
+			&uploadBufferDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(rawUploadBuffer.GetAddressOf())));
@@ -183,10 +189,9 @@ void D3DStructuredBuffer::uploadData(
 	CHECK(0 != (accessFlags & EBufferAccessFlags::CPU_WRITE));
 	ID3D12GraphicsCommandList* cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 	
-	cmdList->ResourceBarrier(1,
-		&CD3DX12_RESOURCE_BARRIER::Transition(rawBuffer.Get(),
-			D3D12_RESOURCE_STATE_COMMON,
-			D3D12_RESOURCE_STATE_COPY_DEST));
+	auto barrierBefore = CD3DX12_RESOURCE_BARRIER::Transition(
+		rawBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+	cmdList->ResourceBarrier(1, &barrierBefore);
 
 	void* mapPtr;
 	rawUploadBuffer->Map(0, nullptr, &mapPtr);
@@ -198,11 +203,9 @@ void D3DStructuredBuffer::uploadData(
 		rawUploadBuffer.Get(), 0,
 		sizeInBytes);
 
-	cmdList->ResourceBarrier(1,
-		&CD3DX12_RESOURCE_BARRIER::Transition(
-			rawBuffer.Get(),
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			D3D12_RESOURCE_STATE_COMMON));
+	auto barrierAfter = CD3DX12_RESOURCE_BARRIER::Transition(
+		rawBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+	cmdList->ResourceBarrier(1, &barrierAfter);
 }
 
 ShaderResourceView* D3DStructuredBuffer::getSRV() const
