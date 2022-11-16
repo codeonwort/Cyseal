@@ -465,6 +465,17 @@ namespace into_d3d
 		return flags;
 	}
 
+	inline D3D12_HIT_GROUP_TYPE hitGroupType(ERaytracingHitGroupType inType)
+	{
+		switch (inType)
+		{
+			case ERaytracingHitGroupType::Triangles:           return D3D12_HIT_GROUP_TYPE_TRIANGLES;
+			case ERaytracingHitGroupType::ProceduralPrimitive: return D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_HIT_GROUP_TYPE_TRIANGLES;
+	}
+
 	void raytracingGeometryDesc(
 		const RaytracingGeometryDesc& inDesc,
 		D3D12_RAYTRACING_GEOMETRY_DESC& outDesc);

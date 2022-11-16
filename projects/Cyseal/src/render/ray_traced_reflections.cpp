@@ -8,7 +8,7 @@
 #include "shader.h"
 #include "static_mesh.h"
 
-// #todo-wip-rt: Temp
+// #todo-wip-rt: Temp include
 #include "base_pass.h"
 #include "texture_manager.h"
 #include "material.h"
@@ -19,7 +19,7 @@
 #define RTR_MAX_RECURSION            2
 // #todo-wip-rt: 1024 for materials
 #define RTR_MAX_VOLATILE_DESCRIPTORS (10 + 1024)
-// #todo-rtr: Should be variable
+// #todo-wip-rt: Should be variable
 #define RTR_MAX_STATIC_MESHES        101
 
 namespace RTRRootParameters
@@ -162,6 +162,7 @@ void RayTracedReflections::initialize()
 
 		RaytracingPipelineStateObjectDesc desc;
 		desc.hitGroupName                 = hitGroupName;
+		desc.hitGroupType                 = ERaytracingHitGroupType::Triangles;
 		desc.raygenShader                 = raygenShader.get();
 		desc.closestHitShader             = closestHitShader.get();
 		desc.missShader                   = missShader.get();

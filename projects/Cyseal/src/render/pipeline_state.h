@@ -375,13 +375,22 @@ public:
 //////////////////////////////////////////////////////////////////////////
 // Raytracing pipeline
 
+// D3D12_HIT_GROUP_TYPE
+enum class ERaytracingHitGroupType
+{
+	Triangles,
+	ProceduralPrimitive
+};
+
 struct RaytracingPipelineStateObjectDesc
 {
 	std::wstring hitGroupName;
+	ERaytracingHitGroupType hitGroupType = ERaytracingHitGroupType::Triangles;
 
 	ShaderStage* raygenShader = nullptr;
 	ShaderStage* closestHitShader = nullptr;
 	ShaderStage* missShader = nullptr;
+	// #todo-dxr: anyHitShader, intersectionShader
 
 	// https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html#resource-binding
 	// Local root signature  : Arguments come from individual shader tables

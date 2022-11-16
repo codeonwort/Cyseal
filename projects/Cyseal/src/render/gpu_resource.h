@@ -178,8 +178,6 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) = 0;
 
-	// #todo-wip-rt: Microsoft DXR sample uses StructuredBuffer for vertex buffer
-	// but my vbuf layout is nontrivial.
 	// To bind as a ByteAddressBuffer in HLSL.
 	virtual ShaderResourceView* getByteAddressView() const = 0;
 
@@ -317,7 +315,7 @@ struct RaytracingGeometryDesc
 	union
 	{
 		RaytracingGeometryTrianglesDesc triangles;
-		// #todo-wip-rt: AABBs
+		// #todo-dxr: RaytracingGeometryAABBsDesc
 	};
 };
 

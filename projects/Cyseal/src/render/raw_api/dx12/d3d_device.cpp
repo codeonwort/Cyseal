@@ -497,7 +497,6 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 	createRTShaderSubobject(desc.closestHitShader);
 	createRTShaderSubobject(desc.missShader);
 
-	// #todo-wip-rt: Correct hit group
 	// Hit group
 	auto hitGroup = d3d_desc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
 	if (desc.closestHitShader != nullptr)
@@ -505,8 +504,9 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 		hitGroup->SetClosestHitShaderImport(
 			static_cast<D3DShaderStage*>(desc.closestHitShader)->getEntryPointW());
 	}
+	// #todo-dxr: anyHitShader, intersectionShader
 	hitGroup->SetHitGroupExport(desc.hitGroupName.c_str());
-	hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+	hitGroup->SetHitGroupType(into_d3d::hitGroupType(desc.hitGroupType));
 
 	// Shader config
 	auto shaderConfig = d3d_desc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();

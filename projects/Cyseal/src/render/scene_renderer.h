@@ -47,7 +47,6 @@ private:
 	// Gonna stick to forward shading, but render thin GBuffers like DOOM reboot series.
 	Texture* RT_thinGBufferA = nullptr; // #todo-renderer: Maybe switch to R10G10B10A2?
 
-	// #todo-wip-rt: Try specular GI with DXR
 	Texture* RT_indirectSpecular = nullptr;
 
 	// #todo-renderer: Temp dedicated memory and desc heap for scene uniforms
