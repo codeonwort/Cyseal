@@ -12,43 +12,6 @@ TextureManager* gTextureManager = nullptr;
 
 void TextureManager::initialize()
 {
-	{
-		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::SRV;
-		desc.numDescriptors = MAX_SRV_DESCRIPTORS;
-		desc.flags = EDescriptorHeapFlags::None;
-		desc.nodeMask = 0;
-
-		srvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
-	}
-	{
-		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::RTV;
-		desc.numDescriptors = MAX_RTV_DESCRIPTORS;
-		desc.flags = EDescriptorHeapFlags::None;
-		desc.nodeMask = 0;
-
-		rtvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
-	}
-	{
-		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::DSV;
-		desc.numDescriptors = MAX_DSV_DESCRIPTORS;
-		desc.flags = EDescriptorHeapFlags::None;
-		desc.nodeMask = 0;
-
-		dsvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
-	}
-	{
-		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::UAV;
-		desc.numDescriptors = MAX_UAV_DESCRIPTORS;
-		desc.flags = EDescriptorHeapFlags::None;
-		desc.nodeMask = 0;
-
-		uavHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
-	}
-
 	createSystemTextures();
 }
 
@@ -58,30 +21,6 @@ void TextureManager::destroy()
 	{
 		delete tex;
 	}
-}
-
-uint32 TextureManager::allocateSRVIndex()
-{
-	CHECK(nextSRVIndex < MAX_SRV_DESCRIPTORS);
-	return nextSRVIndex++;
-}
-
-uint32 TextureManager::allocateRTVIndex()
-{
-	CHECK(nextSRVIndex < MAX_SRV_DESCRIPTORS);
-	return nextSRVIndex++;
-}
-
-uint32 TextureManager::allocateDSVIndex()
-{
-	CHECK(nextDSVIndex < MAX_DSV_DESCRIPTORS);
-	return nextDSVIndex++;
-}
-
-uint32 TextureManager::allocateUAVIndex()
-{
-	CHECK(nextUAVIndex < MAX_UAV_DESCRIPTORS);
-	return nextUAVIndex++;
 }
 
 void TextureManager::createSystemTextures()

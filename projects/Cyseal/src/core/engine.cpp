@@ -6,6 +6,7 @@
 
 #include "render/null_renderer.h"
 #include "render/scene_renderer.h"
+#include "render/global_descriptor_heaps.h"
 #include "render/texture_manager.h"
 #include "render/vertex_buffer_pool.h"
 
@@ -42,14 +43,17 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 
 	// Subsystems
 	{
-		gTextureManager = new TextureManager;
-		gTextureManager->initialize();
+		gDescriptorHeaps = new GlobalDescriptorHeaps;
+		gDescriptorHeaps->initialize();
 
 		gVertexBufferPool = new VertexBufferPool;
 		gVertexBufferPool->initialize(VERTEX_BUFFER_POOL_SIZE);
 
 		gIndexBufferPool = new IndexBufferPool;
 		gIndexBufferPool->initialize(INDEX_BUFFER_POOL_SIZE);
+
+		gTextureManager = new TextureManager;
+		gTextureManager->initialize();
 	}
 
 	// Rendering
@@ -74,6 +78,9 @@ void CysealEngine::shutdown()
 
 	// Subsystems
 	{
+		delete gDescriptorHeaps;
+		gDescriptorHeaps = nullptr;
+
 		gVertexBufferPool->destroy();
 		delete gVertexBufferPool;
 		gVertexBufferPool = nullptr;
