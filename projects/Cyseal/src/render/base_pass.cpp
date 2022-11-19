@@ -200,7 +200,7 @@ void BasePass::bindRootParameters(
 		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap(frameIndex));
 	cmdList->setGraphicsRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, sceneUniformDescIx);
 
-	cmdList->setGraphicsRootDescriptorSRV(RootParameters::GPUSceneSlot, gpuScene->getCulledGPUSceneBuffer()->getSRV());
+	cmdList->setGraphicsRootDescriptorSRV(RootParameters::GPUSceneSlot, gpuScene->getCulledGPUSceneBufferSRV());
 	
 	// Material CBV and SRV
 	uint32 materialCBVBaseIndex, materialCBVCount;

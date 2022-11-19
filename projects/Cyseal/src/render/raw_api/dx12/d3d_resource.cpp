@@ -135,18 +135,6 @@ void D3DStructuredBuffer::initialize(
 			nullptr,
 			IID_PPV_ARGS(rawUploadBuffer.GetAddressOf())));
 	}
-
-	// SRV
-	{
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                     = EPixelFormat::UNKNOWN;
-		srvDesc.viewDimension              = ESRVDimension::Buffer;
-		srvDesc.buffer.firstElement        = 0;
-		srvDesc.buffer.numElements         = numElements;
-		srvDesc.buffer.structureByteStride = stride;
-		srvDesc.buffer.flags               = EBufferSRVFlags::None;
-		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
-	}
 }
 
 void D3DStructuredBuffer::uploadData(
@@ -175,11 +163,6 @@ void D3DStructuredBuffer::uploadData(
 	auto barrierAfter = CD3DX12_RESOURCE_BARRIER::Transition(
 		rawBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
 	cmdList->ResourceBarrier(1, &barrierAfter);
-}
-
-ShaderResourceView* D3DStructuredBuffer::getSRV() const
-{
-	return srv.get();
 }
 
 //////////////////////////////////////////////////////////////////////////

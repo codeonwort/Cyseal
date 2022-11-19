@@ -75,8 +75,6 @@ public:
 		void* data,
 		uint32 sizeInBytes,
 		uint32 destOffsetInBytes) override;
-	
-	virtual ShaderResourceView* getSRV() const override;
 
 	virtual void* getRawResource() const override { return rawBuffer.Get(); }
 
@@ -86,8 +84,6 @@ private:
 	uint32 totalBytes = 0;
 	uint32 numElements = 0;
 	uint32 stride = 0;
-
-	std::unique_ptr<ShaderResourceView> srv;
 
 	// #todo: Don't wanna hold an upload heap here...
 	// At least create it only if accessFlags has EBufferAccessFlags::CPU_WRITE.

@@ -8,12 +8,13 @@
 
 class PipelineState;
 class RootSignature;
-class StructuredBuffer;
 class RenderCommandList;
 class SceneProxy;
 class Camera;
 class DescriptorHeap;
+class StructuredBuffer;
 class ConstantBuffer;
+class ShaderResourceView;
 class UnorderedAccessView;
 
 struct MaterialConstants
@@ -34,6 +35,9 @@ public:
 	StructuredBuffer* getGPUSceneBuffer() const;
 	StructuredBuffer* getCulledGPUSceneBuffer() const;
 
+	ShaderResourceView* getGPUSceneBufferSRV() const;
+	ShaderResourceView* getCulledGPUSceneBufferSRV() const;
+
 	// Copy material CBV/SRV descriptors to 'destHeap', starting from its 'destBaseIndex'.
 	// This method will copy a variable number of descriptors, so other descriptors
 	// unrelated to material descriptors can be bound starting from 'outNextAvailableIndex'.
@@ -47,12 +51,17 @@ private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
 
+	// GPU scene buffers
 	std::unique_ptr<StructuredBuffer> gpuSceneBuffer;
 	std::unique_ptr<StructuredBuffer> culledGpuSceneBuffer;
 
+	// GPU scene buffer views
+	std::unique_ptr<ShaderResourceView> gpuSceneBufferSRV;
+	std::unique_ptr<ShaderResourceView> culledGpuSceneBufferSRV;
 	std::unique_ptr<UnorderedAccessView> gpuSceneBufferUAV;
 	std::unique_ptr<UnorderedAccessView> culledGpuSceneBufferUAV;
 
+	// Bindless materials
 	std::unique_ptr<ConstantBuffer> materialCBVMemory;
 	std::unique_ptr<DescriptorHeap> materialCBVHeap;
 	std::unique_ptr<DescriptorHeap> materialSRVHeap;

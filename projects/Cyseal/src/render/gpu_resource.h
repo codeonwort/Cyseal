@@ -256,8 +256,6 @@ public:
 		void* data,
 		uint32 sizeInBytes,
 		uint32 destOffsetInBytes) = 0;
-
-	virtual ShaderResourceView* getSRV() const = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////

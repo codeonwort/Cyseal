@@ -26,24 +26,50 @@ struct GPUSceneItem
 
 void GPUScene::initialize()
 {
+	const uint32 viewNumElements = MAX_SCENE_ELEMENTS;
+	const uint32 viewStride = sizeof(GPUSceneItem);
+
 	gpuSceneBuffer = std::unique_ptr<StructuredBuffer>(
 		gRenderDevice->createStructuredBuffer(
-			MAX_SCENE_ELEMENTS,
-			sizeof(GPUSceneItem),
+			viewNumElements,
+			viewStride,
 			EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV));
+
 	culledGpuSceneBuffer = std::unique_ptr<StructuredBuffer>(
 		gRenderDevice->createStructuredBuffer(
-			MAX_SCENE_ELEMENTS,
-			sizeof(GPUSceneItem),
+			viewNumElements,
+			viewStride,
 			EBufferAccessFlags::UAV));
 
+	{
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                     = EPixelFormat::UNKNOWN;
+		srvDesc.viewDimension              = ESRVDimension::Buffer;
+		srvDesc.buffer.firstElement        = 0;
+		srvDesc.buffer.numElements         = viewNumElements;
+		srvDesc.buffer.structureByteStride = viewStride;
+		srvDesc.buffer.flags               = EBufferSRVFlags::None;
+		gpuSceneBufferSRV = std::unique_ptr<ShaderResourceView>(
+			gRenderDevice->createSRV(gpuSceneBuffer.get(), srvDesc));
+	}
+	{
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                     = EPixelFormat::UNKNOWN;
+		srvDesc.viewDimension              = ESRVDimension::Buffer;
+		srvDesc.buffer.firstElement        = 0;
+		srvDesc.buffer.numElements         = viewNumElements;
+		srvDesc.buffer.structureByteStride = viewStride;
+		srvDesc.buffer.flags               = EBufferSRVFlags::None;
+		culledGpuSceneBufferSRV = std::unique_ptr<ShaderResourceView>(
+			gRenderDevice->createSRV(culledGpuSceneBuffer.get(), srvDesc));
+	}
 	{
 		UnorderedAccessViewDesc uavDesc{};
 		uavDesc.format                      = EPixelFormat::UNKNOWN;
 		uavDesc.viewDimension               = EUAVDimension::Buffer;
 		uavDesc.buffer.firstElement         = 0;
-		uavDesc.buffer.numElements          = MAX_SCENE_ELEMENTS;
-		uavDesc.buffer.structureByteStride  = sizeof(GPUSceneItem);
+		uavDesc.buffer.numElements          = viewNumElements;
+		uavDesc.buffer.structureByteStride  = viewStride;
 		uavDesc.buffer.counterOffsetInBytes = 0;
 		uavDesc.buffer.flags                = EBufferUAVFlags::None;
 		gpuSceneBufferUAV = std::unique_ptr<UnorderedAccessView>(
@@ -54,8 +80,8 @@ void GPUScene::initialize()
 		uavDesc.format                      = EPixelFormat::UNKNOWN;
 		uavDesc.viewDimension               = EUAVDimension::Buffer;
 		uavDesc.buffer.firstElement         = 0;
-		uavDesc.buffer.numElements          = MAX_SCENE_ELEMENTS;
-		uavDesc.buffer.structureByteStride  = sizeof(GPUSceneItem);
+		uavDesc.buffer.numElements          = viewNumElements;
+		uavDesc.buffer.structureByteStride  = viewStride;
 		uavDesc.buffer.counterOffsetInBytes = 0;
 		uavDesc.buffer.flags                = EBufferUAVFlags::None;
 		culledGpuSceneBufferUAV = std::unique_ptr<UnorderedAccessView>(
@@ -257,6 +283,16 @@ StructuredBuffer* GPUScene::getGPUSceneBuffer() const
 StructuredBuffer* GPUScene::getCulledGPUSceneBuffer() const
 {
 	return culledGpuSceneBuffer.get();
+}
+
+ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
+{
+	return gpuSceneBufferSRV.get();
+}
+
+ShaderResourceView* GPUScene::getCulledGPUSceneBufferSRV() const
+{
+	return culledGpuSceneBufferSRV.get();
 }
 
 void GPUScene::copyMaterialDescriptors(
