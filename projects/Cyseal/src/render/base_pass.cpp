@@ -18,6 +18,19 @@
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 #define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
 
+namespace RootParameters
+{
+	enum BasePass
+	{
+		ObjectIDSlot = 0,
+		SceneUniformSlot,
+		GPUSceneSlot,
+		MaterialConstantsSlot,
+		MaterialTexturesSlot,
+		Count
+	};
+};
+
 void BasePass::initialize()
 {
 	RenderDevice* device = gRenderDevice;
@@ -26,8 +39,7 @@ void BasePass::initialize()
 
 	// Root signature
 	{
-		constexpr uint32 NUM_ROOT_PARAMETERS = 5;
-		RootParameter rootParameters[NUM_ROOT_PARAMETERS];
+		RootParameter rootParameters[RootParameters::Count];
 		
 		// #todo-vulkan: Careful with HLSL register space used here.
 		// See: https://github.com/microsoft/DirectXShaderCompiler/blob/main/docs/SPIR-V.rst#hlsl-register-and-vulkan-binding
@@ -37,11 +49,11 @@ void BasePass::initialize()
 		descriptorRanges[1].init(EDescriptorRangeType::CBV, (uint32)(-1), 0, 1); // register(b0, space1)
 		descriptorRanges[2].init(EDescriptorRangeType::SRV, (uint32)(-1), 0, 1); // register(t0, space1)
 
-		rootParameters[0].initAsConstants(0 /*b0*/, 0, 1); // object ID
-		rootParameters[1].initAsDescriptorTable(1, &descriptorRanges[0]); // scene uniform
-		rootParameters[2].initAsSRV(0 /*t0*/, 0);                         // gpu scene
-		rootParameters[3].initAsDescriptorTable(1, &descriptorRanges[1]); // material CBV
-		rootParameters[4].initAsDescriptorTable(1, &descriptorRanges[2]); // material SRV
+		rootParameters[RootParameters::ObjectIDSlot].initAsConstants(0, 0, 1); // register(b0, space0)
+		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
+		rootParameters[RootParameters::GPUSceneSlot].initAsSRV(0, 0); // register(t0, space0)
+		rootParameters[RootParameters::MaterialConstantsSlot].initAsDescriptorTable(1, &descriptorRanges[1]);
+		rootParameters[RootParameters::MaterialTexturesSlot].initAsDescriptorTable(1, &descriptorRanges[2]);
 
 		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
 		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
@@ -54,7 +66,7 @@ void BasePass::initialize()
 		staticSamplers[0].shaderVisibility = EShaderVisibility::Pixel;
 
 		RootSignatureDesc rootSigDesc(
-			NUM_ROOT_PARAMETERS,
+			RootParameters::Count,
 			rootParameters,
 			NUM_STATIC_SAMPLERS,
 			staticSamplers,
@@ -152,7 +164,7 @@ void BasePass::renderBasePass(
 	{
 		for (const StaticMeshSection& section : mesh->getSections(LOD))
 		{
-			commandList->setGraphicsRootConstant32(0, payloadID, 0);
+			commandList->setGraphicsRootConstant32(RootParameters::ObjectIDSlot, payloadID, 0);
 
 			VertexBuffer* vertexBuffers[] = { section.positionBuffer,section.nonPositionBuffer };
 			commandList->iaSetVertexBuffers(0, 2, vertexBuffers);
@@ -180,13 +192,14 @@ void BasePass::bindRootParameters(
 	cmdList->setDescriptorHeaps(1, heaps);
 
 	// Scene uniform
+	constexpr uint32 sceneUniformDescIx = 0;
 	gRenderDevice->copyDescriptors(
 		1,
-		volatileHeap, 0,
+		volatileHeap, sceneUniformDescIx,
 		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap(frameIndex));
-	cmdList->setGraphicsRootDescriptorTable(1, volatileHeap, 0);
+	cmdList->setGraphicsRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, sceneUniformDescIx);
 
-	cmdList->setGraphicsRootDescriptorSRV(2, gpuScene->getCulledGPUSceneBuffer()->getSRV());
+	cmdList->setGraphicsRootDescriptorSRV(RootParameters::GPUSceneSlot, gpuScene->getCulledGPUSceneBuffer()->getSRV());
 	
 	// Material CBV and SRV
 	uint32 materialCBVBaseIndex, materialCBVCount;
@@ -197,6 +210,6 @@ void BasePass::bindRootParameters(
 		materialCBVBaseIndex, materialCBVCount,
 		materialSRVBaseIndex, materialSRVCount,
 		freeDescriptorIndexAfterMaterials);
-	cmdList->setGraphicsRootDescriptorTable(3, volatileHeap, materialCBVBaseIndex);
-	cmdList->setGraphicsRootDescriptorTable(4, volatileHeap, materialSRVBaseIndex);
+	cmdList->setGraphicsRootDescriptorTable(RootParameters::MaterialConstantsSlot, volatileHeap, materialCBVBaseIndex);
+	cmdList->setGraphicsRootDescriptorTable(RootParameters::MaterialTexturesSlot, volatileHeap, materialSRVBaseIndex);
 }
