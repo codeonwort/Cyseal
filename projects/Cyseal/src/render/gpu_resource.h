@@ -181,9 +181,6 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) = 0;
 
-	// To bind as a ByteAddressBuffer in HLSL.
-	virtual ShaderResourceView* getByteAddressView() const = 0;
-
 	virtual uint32 getVertexCount() const = 0;
 
 	// offsetInPool
@@ -216,9 +213,6 @@ public:
 		uint32 sizeInBytes) = 0;
 
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) = 0;
-
-	// To bind as a ByteAddressBuffer in HLSL.
-	virtual ShaderResourceView* getByteAddressView() const = 0;
 
 	virtual uint32 getIndexCount() const = 0;
 	virtual EPixelFormat getIndexFormat() const = 0;

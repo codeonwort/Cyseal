@@ -19,8 +19,6 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) override;
 
-	virtual ShaderResourceView* getByteAddressView() const override;
-
 	virtual uint32 getVertexCount() const override { return vertexCount; };
 
 	virtual uint64 getBufferOffsetInBytes() const override { return offsetInDefaultBuffer; }
@@ -42,8 +40,6 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW view;
 
 	uint32 vertexCount = 0;
-
-	std::unique_ptr<ShaderResourceView> srv;
 };
 
 class D3DIndexBuffer : public IndexBuffer
@@ -54,8 +50,6 @@ public:
 	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) override;
-
-	virtual ShaderResourceView* getByteAddressView() const override;
 
 	virtual uint32 getIndexCount() const override { return indexCount; }
 	virtual EPixelFormat getIndexFormat() const override { return indexFormat; }
@@ -81,6 +75,4 @@ private:
 
 	uint32 indexCount = 0;
 	EPixelFormat indexFormat = EPixelFormat::R32_UINT;
-
-	std::unique_ptr<ShaderResourceView> srv;
 };

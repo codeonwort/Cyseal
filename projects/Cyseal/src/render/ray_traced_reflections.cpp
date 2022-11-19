@@ -293,9 +293,9 @@ void RayTracedReflections::renderRayTracedReflections(
 	commandList->setComputeRootDescriptorTable(RTRRootParameters::SceneUniformSlot,
 		volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM);
 	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalIndexBufferSlot,
-		gIndexBufferPool->internal_getPoolBuffer()->getByteAddressView());
+		gIndexBufferPool->getByteAddressBufferView());
 	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalVertexBufferSlot,
-		gVertexBufferPool->internal_getPoolBuffer()->getByteAddressView());
+		gVertexBufferPool->getByteAddressBufferView());
 	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GPUSceneSlot,
 		gpuScene->getGPUSceneBuffer()->getSRV());
 	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialConstantsSlot,

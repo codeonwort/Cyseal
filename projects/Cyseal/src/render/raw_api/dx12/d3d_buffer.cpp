@@ -91,19 +91,6 @@ void D3DVertexBuffer::initialize(uint32 sizeInBytes)
 	view.BufferLocation = defaultBuffer->GetGPUVirtualAddress();
 	view.SizeInBytes = sizeInBytes;
 	//view.StrideInBytes = strideInBytes; // Set in updateData().
-
-	// Create raw view
-	{
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                     = EPixelFormat::R32_TYPELESS;
-		srvDesc.viewDimension              = ESRVDimension::Buffer;
-		srvDesc.buffer.firstElement        = 0;
-		srvDesc.buffer.numElements         = sizeInBytes / 4;
-		srvDesc.buffer.structureByteStride = 0;
-		srvDesc.buffer.flags               = EBufferSRVFlags::Raw;
-
-		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
-	}
 }
 
 void D3DVertexBuffer::initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
@@ -131,13 +118,6 @@ void D3DVertexBuffer::updateData(RenderCommandList* commandList, void* data, uin
 	vertexCount = (uint32)(view.SizeInBytes / strideInBytes);
 }
 
-
-ShaderResourceView* D3DVertexBuffer::getByteAddressView() const
-{
-	CHECK(srv != nullptr);
-	return srv.get();
-}
-
 void D3DVertexBuffer::setDebugName(const wchar_t* inDebugName)
 {
 	CHECK(parentPool == nullptr);
@@ -158,20 +138,6 @@ void D3DIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format)
 	view.BufferLocation = defaultBuffer->GetGPUVirtualAddress();
 	view.SizeInBytes = sizeInBytes;
 	//view.Format is set in updateData().
-
-	// Create raw view
-	if (format != EPixelFormat::UNKNOWN)
-	{
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                     = EPixelFormat::R32_TYPELESS;
-		srvDesc.viewDimension              = ESRVDimension::Buffer;
-		srvDesc.buffer.firstElement        = 0;
-		srvDesc.buffer.numElements         = sizeInBytes / 4;
-		srvDesc.buffer.structureByteStride = 0;
-		srvDesc.buffer.flags               = EBufferSRVFlags::Raw;
-
-		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
-	}
 }
 
 void D3DIndexBuffer::initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
@@ -213,12 +179,6 @@ void D3DIndexBuffer::updateData(RenderCommandList* commandList, void* data, EPix
 		offsetInDefaultBuffer, data, sizeInBytes);
 
 	view.Format = d3dFormat;
-}
-
-ShaderResourceView* D3DIndexBuffer::getByteAddressView() const
-{
-	CHECK(srv != nullptr);
-	return srv.get();
 }
 
 void D3DIndexBuffer::setDebugName(const wchar_t* inDebugName)
