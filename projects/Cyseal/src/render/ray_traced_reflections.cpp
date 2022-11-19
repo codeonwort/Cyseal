@@ -7,11 +7,7 @@
 #include "vertex_buffer_pool.h"
 #include "shader.h"
 #include "static_mesh.h"
-
-// #todo-wip-rt: Temp include
-#include "base_pass.h"
-#include "texture_manager.h"
-#include "material.h"
+#include "gpu_scene.h"
 
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples
@@ -242,12 +238,11 @@ void RayTracedReflections::renderRayTracedReflections(
 	const Camera* camera,
 	ConstantBufferView* sceneUniformBuffer,
 	AccelerationStructure* raytracingScene,
-	StructuredBuffer* gpuScene,
+	GPUScene* gpuScene,
 	Texture* thinGBufferATexture,
 	Texture* indirectSpecularTexture,
 	uint32 sceneWidth,
-	uint32 sceneHeight,
-	BasePass* tempBasePass)
+	uint32 sceneHeight)
 {
 	if (isAvailable() == false)
 	{
@@ -257,57 +252,36 @@ void RayTracedReflections::renderRayTracedReflections(
 	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 	DescriptorHeap* descriptorHeaps[] = { volatileViewHeaps[swapchainIndex].get() };
 
-	// #todo: Count material payloads
-	// Copy material descriptors
+	//////////////////////////////////////////////////////////////////////////
+	// Copy descriptors to the volatile heap
 
-	// Copy descriptors to volatile heap
 	DescriptorHeap* volatileHeap = descriptorHeaps[0];
 	const uint32 VOLATILE_DESC_IX_RENDERTARGET = 0;
 	const uint32 VOLATILE_DESC_IX_GBUFFER = 1;
 	//const uint32 VOLATILE_DESC_IX_ACCELSTRUCT = 2; // Directly bound; no table.
 	const uint32 VOLATILE_DESC_IX_SCENEUNIFORM = 2;
-	const uint32 VOLATILE_DESC_IX_MATERIAL_CBV = 3;
-	const uint32 VOLATILE_DESC_IX_MATERIAL_SRV = 3 + tempBasePass->getNumMaterialPayloads();
-	{
-		gRenderDevice->copyDescriptors(1,
-			volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
-			indirectSpecularTexture->getSourceUAVHeap(), indirectSpecularTexture->getUAVDescriptorIndex());
-		gRenderDevice->copyDescriptors(1,
-			volatileHeap, VOLATILE_DESC_IX_GBUFFER,
-			thinGBufferATexture->getSourceUAVHeap(), thinGBufferATexture->getUAVDescriptorIndex());
-		gRenderDevice->copyDescriptors(1,
-			volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM,
-			sceneUniformBuffer->getSourceHeap(), sceneUniformBuffer->getDescriptorIndexInHeap(swapchainIndex));
-	}
-	// #todo-wip-rt: Temp material binding
-	{
-		const uint32 LOD = 0;
-		uint32 payloadID = 0;
-		for (const StaticMesh* mesh : scene->staticMeshes)
-		{
-			for (const StaticMeshSection& section : mesh->getSections(LOD))
-			{
-				ConstantBufferView* cbv = tempBasePass->getMaterialCBV(payloadID);
-				gRenderDevice->copyDescriptors(1,
-					volatileHeap, VOLATILE_DESC_IX_MATERIAL_CBV + payloadID,
-					cbv->getSourceHeap(), cbv->getDescriptorIndexInHeap(swapchainIndex));
 
-				Material* material = section.material;
-				Texture* albedo = gTextureManager->getSystemTextureGrey2D();
-				if (material && material->albedoTexture)
-				{
-					albedo = material->albedoTexture;
-				}
-				gRenderDevice->copyDescriptors(
-					1,
-					volatileHeap, VOLATILE_DESC_IX_MATERIAL_SRV + payloadID,
-					albedo->getSourceSRVHeap(), albedo->getSRVDescriptorIndex());
-				
-				++payloadID;
-			}
-		}
-		CHECK(payloadID == tempBasePass->getNumMaterialPayloads());
-	}
+	uint32 VOLATILE_DESC_IX_MATERIAL_CBV, unusedMaterialCBVCount;
+	uint32 VOLATILE_DESC_IX_MATERIAL_SRV, unusedMaterialSRVCount;
+	uint32 VOLATILE_DESC_IX_NEXT_FREE;
+
+	gRenderDevice->copyDescriptors(1,
+		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
+		indirectSpecularTexture->getSourceUAVHeap(), indirectSpecularTexture->getUAVDescriptorIndex());
+	gRenderDevice->copyDescriptors(1,
+		volatileHeap, VOLATILE_DESC_IX_GBUFFER,
+		thinGBufferATexture->getSourceUAVHeap(), thinGBufferATexture->getUAVDescriptorIndex());
+	gRenderDevice->copyDescriptors(1,
+		volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM,
+		sceneUniformBuffer->getSourceHeap(), sceneUniformBuffer->getDescriptorIndexInHeap(swapchainIndex));
+	gpuScene->copyMaterialDescriptors(
+		volatileHeap, 3,
+		VOLATILE_DESC_IX_MATERIAL_CBV, unusedMaterialCBVCount,
+		VOLATILE_DESC_IX_MATERIAL_SRV, unusedMaterialSRVCount,
+		VOLATILE_DESC_IX_NEXT_FREE);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Set root parameters
 
 	commandList->setComputeRootSignature(globalRootSignature.get());
 
@@ -323,7 +297,7 @@ void RayTracedReflections::renderRayTracedReflections(
 	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalVertexBufferSlot,
 		gVertexBufferPool->internal_getPoolBuffer()->getByteAddressView());
 	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GPUSceneSlot,
-		gpuScene->getSRV());
+		gpuScene->getGPUSceneBuffer()->getSRV());
 	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialConstantsSlot,
 		volatileHeap, VOLATILE_DESC_IX_MATERIAL_CBV);
 	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialTexturesSlot,

@@ -16,10 +16,7 @@ class RaytracingShaderTable;
 class DescriptorHeap;
 class AccelerationStructure;
 class ConstantBufferView;
-class StructuredBuffer;
-
-// #todo-wip-rt: Temp
-class BasePass;
+class GPUScene;
 
 class RayTracedReflections final
 {
@@ -34,12 +31,11 @@ public:
 		const Camera* camera,
 		ConstantBufferView* sceneUniformBuffer,
 		AccelerationStructure* raytracingScene,
-		StructuredBuffer* gpuScene,
+		GPUScene* gpuScene,
 		Texture* thinGBufferATexture,
 		Texture* indirectSpecularTexture,
 		uint32 sceneWidth,
-		uint32 sceneHeight,
-		BasePass* tempBasePass);
+		uint32 sceneHeight);
 
 private:
 	//void something();

@@ -212,7 +212,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		basePass->renderBasePass(
 			commandList, scene, camera,
 			sceneUniformCBV.get(),
-			gpuScene->getCulledGPUSceneBuffer());
+			gpuScene);
 	}
 
 	// Ray Traced Reflections
@@ -262,10 +262,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 			commandList, scene, camera,
 			sceneUniformCBV.get(),
 			accelStructure,
-			gpuScene->getGPUSceneBuffer(), // Not the culled one!
+			gpuScene,
 			RT_thinGBufferA, RT_indirectSpecular,
-			sceneWidth, sceneHeight,
-			basePass);
+			sceneWidth, sceneHeight);
 	}
 
 	// Tone mapping
