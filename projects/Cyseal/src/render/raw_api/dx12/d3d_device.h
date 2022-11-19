@@ -54,6 +54,7 @@ public:
 		EBufferAccessFlags accessFlags) override;
 
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) override;
+	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) override;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,

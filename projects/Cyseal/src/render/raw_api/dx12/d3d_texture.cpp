@@ -141,20 +141,15 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		// #todo-texture: UAV ViewDimension
 		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
 
-		// #todo-renderdevice: UAV counter resource, but will it ever be needed?
-		// https://www.gamedev.net/forums/topic/711467-understanding-uav-counters/5444474/
-		ID3D12Resource* counterResource = NULL;
+		UnorderedAccessViewDesc uavDesc{};
+		uavDesc.format               = createParams.format;
+		uavDesc.viewDimension        = EUAVDimension::Texture2D;
+		uavDesc.texture2D.mipSlice   = 0;
+		uavDesc.texture2D.planeSlice = 0;
 
-		D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc;
-		viewDesc.Format = textureDesc.Format;
-		viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		viewDesc.Texture2D.MipSlice = 0; // #todo-texture: UAV mipSlice and planeSlice
-		viewDesc.Texture2D.PlaneSlice = 0; // Initializing a single UAV here is not good...
-
-		getD3DDevice()->allocateUAVHandle(uavHeap, uavHandle, uavDescriptorIndex);
-		device->CreateUnorderedAccessView(rawResource.Get(), counterResource, &viewDesc, uavHandle);
-
-		uav = std::make_unique<D3DUnorderedAccessView>(this, uavHandle);
+		uav = std::unique_ptr<UnorderedAccessView>(gRenderDevice->createUAV(this, uavDesc));
+		uavHeap = uav->getSourceHeap();
+		uavDescriptorIndex = uav->getDescriptorIndexInHeap();
 	}
 }
 

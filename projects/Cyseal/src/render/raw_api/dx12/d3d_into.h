@@ -562,4 +562,68 @@ namespace into_d3d
 		}
 		return desc;
 	}
+
+	inline D3D12_UAV_DIMENSION uavDimension(EUAVDimension inDimension)
+	{
+		switch (inDimension)
+		{
+			case EUAVDimension::Unknown:        return D3D12_UAV_DIMENSION_UNKNOWN;
+			case EUAVDimension::Buffer:         return D3D12_UAV_DIMENSION_BUFFER;
+			case EUAVDimension::Texture1D:      return D3D12_UAV_DIMENSION_TEXTURE1D;
+			case EUAVDimension::Texture1DArray: return D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
+			case EUAVDimension::Texture2D:      return D3D12_UAV_DIMENSION_TEXTURE2D;
+			case EUAVDimension::Texture2DArray: return D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+			case EUAVDimension::Texture3D:      return D3D12_UAV_DIMENSION_TEXTURE3D;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_UAV_DIMENSION_UNKNOWN;
+	}
+
+	inline D3D12_BUFFER_UAV_FLAGS bufferUAVFlags(EBufferUAVFlags inFlags)
+	{
+		D3D12_BUFFER_UAV_FLAGS flags = D3D12_BUFFER_UAV_FLAG_NONE;
+		if (0 != (inFlags & EBufferUAVFlags::Raw))
+		{
+			flags |= D3D12_BUFFER_UAV_FLAG_RAW;
+		}
+		return flags;
+	}
+
+	inline D3D12_BUFFER_UAV bufferUAVDesc(const BufferUAVDesc& inDesc)
+	{
+		D3D12_BUFFER_UAV desc{};
+		desc.FirstElement         = inDesc.firstElement;
+		desc.NumElements          = inDesc.numElements;
+		desc.StructureByteStride  = inDesc.structureByteStride;
+		desc.CounterOffsetInBytes = inDesc.counterOffsetInBytes;
+		desc.Flags                = into_d3d::bufferUAVFlags(inDesc.flags);
+		return desc;
+	}
+
+	inline D3D12_TEX2D_UAV texture2DUAVDesc(const Texture2DUAVDesc& inDesc)
+	{
+		D3D12_TEX2D_UAV desc{};
+		desc.MipSlice = inDesc.mipSlice;
+		desc.PlaneSlice = inDesc.planeSlice;
+		return desc;
+	}
+
+	inline D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc(const UnorderedAccessViewDesc& inDesc)
+	{
+		D3D12_UNORDERED_ACCESS_VIEW_DESC desc{};
+		desc.Format        = into_d3d::pixelFormat(inDesc.format);
+		desc.ViewDimension = into_d3d::uavDimension(inDesc.viewDimension);
+		switch (inDesc.viewDimension)
+		{
+			case EUAVDimension::Unknown:        CHECK_NO_ENTRY(); break;
+			case EUAVDimension::Buffer:         desc.Buffer = into_d3d::bufferUAVDesc(inDesc.buffer); break;
+			case EUAVDimension::Texture1D:      CHECK_NO_ENTRY(); break;
+			case EUAVDimension::Texture2D:      desc.Texture2D = into_d3d::texture2DUAVDesc(inDesc.texture2D); break;
+			case EUAVDimension::Texture2DArray: CHECK_NO_ENTRY(); break;
+			case EUAVDimension::Texture3D:      CHECK_NO_ENTRY(); break;
+			default:                            CHECK_NO_ENTRY(); break;
+		}
+		return desc;
+	}
+
 }

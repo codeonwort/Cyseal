@@ -51,7 +51,7 @@ private:
 	std::unique_ptr<D3DRenderTargetView> rtv;
 	std::unique_ptr<ShaderResourceView> srv;
 	std::unique_ptr<D3DDepthStencilView> dsv;
-	std::unique_ptr<D3DUnorderedAccessView> uav;
+	std::unique_ptr<UnorderedAccessView> uav;
 
 	// Source descriptor heaps from which this texture allocated its descriptors.
 	DescriptorHeap* srvHeap = nullptr;

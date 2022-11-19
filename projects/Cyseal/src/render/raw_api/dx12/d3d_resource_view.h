@@ -46,8 +46,12 @@ private:
 class D3DUnorderedAccessView : public UnorderedAccessView
 {
 public:
-	D3DUnorderedAccessView(GPUResource* inOwner, D3D12_CPU_DESCRIPTOR_HANDLE inCpuHandle)
-		: UnorderedAccessView(inOwner)
+	D3DUnorderedAccessView(
+			GPUResource* inOwner,
+			DescriptorHeap* inSourceHeap,
+			uint32 inDescriptorIndex,
+			D3D12_CPU_DESCRIPTOR_HANDLE inCpuHandle)
+		: UnorderedAccessView(inOwner, inSourceHeap, inDescriptorIndex)
 		, cpuHandle(inCpuHandle)
 	{}
 

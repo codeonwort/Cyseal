@@ -109,6 +109,7 @@ public:
 		EBufferAccessFlags accessFlags) = 0;
 
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) = 0;
+	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) = 0;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,

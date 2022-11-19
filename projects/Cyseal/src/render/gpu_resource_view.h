@@ -9,7 +9,7 @@ class DescriptorHeap;
 class GPUResource;
 
 //////////////////////////////////////////////////////////////////////////
-// View create infos
+// ShaderResourceView create info
 
 // D3D12_SRV_DIMENSION
 enum class ESRVDimension
@@ -69,6 +69,59 @@ struct ShaderResourceViewDesc
 };
 
 //////////////////////////////////////////////////////////////////////////
+// UnorderedAccessView create info
+
+// D3D12_UAV_DIMENSION
+enum class EUAVDimension
+{
+	Unknown,
+	Buffer,
+	Texture1D,
+	Texture1DArray,
+	Texture2D,
+	Texture2DArray,
+	Texture3D
+};
+
+// D3D12_BUFFER_UAV_FLAGS
+enum class EBufferUAVFlags : uint8
+{
+	None = 0,
+	Raw  = 1 << 0,
+};
+ENUM_CLASS_FLAGS(EBufferUAVFlags);
+
+// D3D12_BUFFER_UAV
+struct BufferUAVDesc
+{
+	uint64 firstElement;
+	uint32 numElements;
+	uint32 structureByteStride;
+	uint64 counterOffsetInBytes;
+	EBufferUAVFlags flags;
+};
+
+// D3D12_TEX2D_UAV
+struct Texture2DUAVDesc
+{
+	uint32 mipSlice   = 0;
+	uint32 planeSlice = 0;
+};
+
+// D3D12_UNORDERED_ACCESS_VIEW_DESC
+struct UnorderedAccessViewDesc
+{
+	EPixelFormat format;
+	EUAVDimension viewDimension;
+	union
+	{
+		BufferUAVDesc buffer;
+		Texture2DUAVDesc texture2D;
+		// #todo-dx12: Texture1DUAVDesc, Texture1DArrayUAVDesc, Texture2DArrayUAVDesc, Texture3DUAVDesc
+	};
+};
+
+//////////////////////////////////////////////////////////////////////////
 // View wrapper classes
 
 class RenderTargetView
@@ -102,11 +155,21 @@ protected:
 class UnorderedAccessView
 {
 public:
-	UnorderedAccessView(GPUResource* inOwner) : ownerResource(inOwner) {}
+	UnorderedAccessView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex)
+		: ownerResource(inOwner)
+		, sourceHeap(inSourceHeap)
+		, descriptorIndex(inDescriptorIndex)
+	{}
+
 	virtual ~UnorderedAccessView() = default;
 
+	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
+	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
+
 protected:
-	GPUResource* ownerResource = nullptr;
+	GPUResource* ownerResource;
+	DescriptorHeap* sourceHeap;
+	uint32 descriptorIndex;
 };
 
 class ConstantBufferView

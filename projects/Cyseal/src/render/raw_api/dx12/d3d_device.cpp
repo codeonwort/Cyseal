@@ -598,8 +598,30 @@ ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, const ShaderR
 	ID3D12Resource* d3dResource = into_d3d::id3d12Resource(gpuResource);
 	device->CreateShaderResourceView(d3dResource, &d3dDesc, cpuHandle);
 
-	D3DShaderResourceView* srv = new D3DShaderResourceView(gpuResource, sourceHeap, descriptorIndex, cpuHandle);
+	D3DShaderResourceView* srv = new D3DShaderResourceView(
+		gpuResource, sourceHeap, descriptorIndex, cpuHandle);
 	return srv;
+}
+
+UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams)
+{
+	D3D12_UNORDERED_ACCESS_VIEW_DESC d3dDesc = into_d3d::uavDesc(createParams);
+
+	DescriptorHeap* sourceHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+	uint32 descriptorIndex;
+	allocateUAVHandle(sourceHeap, cpuHandle, descriptorIndex);
+
+	// #todo-renderdevice: UAV counter resource, but will it ever be needed?
+	// https://www.gamedev.net/forums/topic/711467-understanding-uav-counters/5444474/
+	ID3D12Resource* counterResource = NULL;
+
+	ID3D12Resource* d3dResource = into_d3d::id3d12Resource(gpuResource);
+	device->CreateUnorderedAccessView(d3dResource, counterResource, &d3dDesc, cpuHandle);
+
+	D3DUnorderedAccessView* uav = new D3DUnorderedAccessView(
+		gpuResource, sourceHeap, descriptorIndex, cpuHandle);
+	return uav;
 }
 
 void D3DDevice::copyDescriptors(

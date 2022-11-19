@@ -89,11 +89,7 @@ private:
 	uint32 stride = 0;
 
 	std::unique_ptr<ShaderResourceView> srv;
-	std::unique_ptr<D3DUnorderedAccessView> uav;
-
-	D3D12_CPU_DESCRIPTOR_HANDLE uavHandle = { NULL };
-	uint32 uavDescriptorIndex = 0xffffffff;
-	DescriptorHeap* uavHeap = nullptr;
+	std::unique_ptr<UnorderedAccessView> uav;
 
 	// #todo: Don't wanna hold an upload heap here...
 	// At least create it only if accessFlags has EBufferAccessFlags::CPU_WRITE.

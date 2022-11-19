@@ -151,24 +151,15 @@ void D3DStructuredBuffer::initialize(
 	// UAV
 	if (0 != (accessFlags & EBufferAccessFlags::UAV))
 	{
-		// #todo-renderdevice: UAV counter resource, but will it ever be needed?
-		// https://www.gamedev.net/forums/topic/711467-understanding-uav-counters/5444474/
-		ID3D12Resource* counterResource = NULL;
-		uint64 counterOffsetInBytes = 0;
-
-		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
-		uavDesc.Format = DXGI_FORMAT_UNKNOWN;
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-		uavDesc.Buffer.FirstElement = 0;
-		uavDesc.Buffer.NumElements = numElements;
-		uavDesc.Buffer.StructureByteStride = stride;
-		uavDesc.Buffer.CounterOffsetInBytes = counterOffsetInBytes;
-		uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-
-		getD3DDevice()->allocateUAVHandle(uavHeap, uavHandle, uavDescriptorIndex);
-		device->CreateUnorderedAccessView(rawBuffer.Get(), counterResource, &uavDesc, uavHandle);
-
-		uav = std::make_unique<D3DUnorderedAccessView>(this, uavHandle);
+		UnorderedAccessViewDesc uavDesc{};
+		uavDesc.format                      = EPixelFormat::UNKNOWN;
+		uavDesc.viewDimension               = EUAVDimension::Buffer;
+		uavDesc.buffer.firstElement         = 0;
+		uavDesc.buffer.numElements          = numElements;
+		uavDesc.buffer.structureByteStride  = stride;
+		uavDesc.buffer.counterOffsetInBytes = 0;
+		uavDesc.buffer.flags                = EBufferUAVFlags::None;
+		uav = std::unique_ptr<UnorderedAccessView>(gRenderDevice->createUAV(this, uavDesc));
 	}
 }
 
