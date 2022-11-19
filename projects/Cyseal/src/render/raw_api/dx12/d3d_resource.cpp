@@ -138,20 +138,14 @@ void D3DStructuredBuffer::initialize(
 
 	// SRV
 	{
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		// Shader4ComponentMapping must be D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING (0x1688) for structured buffers.
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Buffer.FirstElement = 0;
-		srvDesc.Buffer.NumElements = numElements;
-		srvDesc.Buffer.StructureByteStride = stride;
-		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-
-		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
-		device->CreateShaderResourceView(rawBuffer.Get(), &srvDesc, srvHandle);
-
-		srv = std::make_unique<D3DShaderResourceView>(this, srvHandle);
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                     = EPixelFormat::UNKNOWN;
+		srvDesc.viewDimension              = ESRVDimension::Buffer;
+		srvDesc.buffer.firstElement        = 0;
+		srvDesc.buffer.numElements         = numElements;
+		srvDesc.buffer.structureByteStride = stride;
+		srvDesc.buffer.flags               = EBufferSRVFlags::None;
+		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
 	}
 
 	// UAV
@@ -249,7 +243,7 @@ void D3DAccelerationStructure::initialize(uint32 numBLAS)
 	instanceDescBuffer->Map(0, nullptr, (void**)(&instanceDescMapPtr));
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { NULL };
-	srv = std::make_unique<D3DShaderResourceView>(this, cpuHandle);
+	srv = std::make_unique<D3DShaderResourceView>(this, nullptr, 0xffffffff, cpuHandle);
 }
 
 void D3DAccelerationStructure::buildBLAS(

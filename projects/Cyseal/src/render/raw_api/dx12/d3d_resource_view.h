@@ -31,8 +31,8 @@ private:
 class D3DShaderResourceView : public ShaderResourceView
 {
 public:
-	D3DShaderResourceView(GPUResource* inOwner, D3D12_CPU_DESCRIPTOR_HANDLE inCpuHandle)
-		: ShaderResourceView(inOwner)
+	D3DShaderResourceView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, D3D12_CPU_DESCRIPTOR_HANDLE inCpuHandle)
+		: ShaderResourceView(inOwner, inSourceHeap, inDescriptorIndex)
 		, cpuHandle(inCpuHandle)
 	{}
 

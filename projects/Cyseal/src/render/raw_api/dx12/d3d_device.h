@@ -53,7 +53,7 @@ public:
 		uint32 stride,
 		EBufferAccessFlags accessFlags) override;
 
-	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, ShaderResourceViewDesc& createParams) override;
+	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) override;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,

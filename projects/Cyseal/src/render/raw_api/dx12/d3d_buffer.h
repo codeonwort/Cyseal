@@ -43,11 +43,7 @@ private:
 
 	uint32 vertexCount = 0;
 
-	std::unique_ptr<D3DShaderResourceView> srv;
-
-	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = { NULL };
-	uint32 srvDescriptorIndex = 0xffffffff;
-	DescriptorHeap* srvHeap = nullptr;
+	std::unique_ptr<ShaderResourceView> srv;
 };
 
 class D3DIndexBuffer : public IndexBuffer
@@ -86,9 +82,5 @@ private:
 	uint32 indexCount = 0;
 	EPixelFormat indexFormat = EPixelFormat::R32_UINT;
 
-	std::unique_ptr<D3DShaderResourceView> srv;
-
-	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = { NULL };
-	uint32 srvDescriptorIndex = 0xffffffff;
-	DescriptorHeap* srvHeap = nullptr;
+	std::unique_ptr<ShaderResourceView> srv;
 };

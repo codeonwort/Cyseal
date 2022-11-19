@@ -79,13 +79,6 @@ public:
 	virtual ShaderResourceView* getSRV() const override;
 	virtual UnorderedAccessView* getUAV() const override;
 
-	// Element index in the descriptor heap from which the descriptor was created.
-	virtual uint32 getSRVDescriptorIndex() const override { return srvDescriptorIndex; }
-	virtual uint32 getUAVDescriptorIndex() const override { return uavDescriptorIndex; }
-
-	virtual DescriptorHeap* getSourceSRVHeap() const override { return srvHeap; }
-	virtual DescriptorHeap* getSourceUAVHeap() const override { return uavHeap; }
-
 	virtual void* getRawResource() const override { return rawBuffer.Get(); }
 
 private:
@@ -95,14 +88,11 @@ private:
 	uint32 numElements = 0;
 	uint32 stride = 0;
 
-	std::unique_ptr<D3DShaderResourceView> srv;
+	std::unique_ptr<ShaderResourceView> srv;
 	std::unique_ptr<D3DUnorderedAccessView> uav;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = { NULL };
 	D3D12_CPU_DESCRIPTOR_HANDLE uavHandle = { NULL };
-	uint32 srvDescriptorIndex = 0xffffffff;
 	uint32 uavDescriptorIndex = 0xffffffff;
-	DescriptorHeap* srvHeap = nullptr;
 	DescriptorHeap* uavHeap = nullptr;
 
 	// #todo: Don't wanna hold an upload heap here...

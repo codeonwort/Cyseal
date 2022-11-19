@@ -87,19 +87,17 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		// #todo-texture: SRV ViewDimension
 		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
 
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		srvDesc.Format = textureDesc.Format;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Texture2D.MostDetailedMip = 0;
-		srvDesc.Texture2D.MipLevels = textureDesc.MipLevels;
-		srvDesc.Texture2D.PlaneSlice = 0;
-		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                    = createParams.format;
+		srvDesc.viewDimension             = ESRVDimension::Texture2D;
+		srvDesc.texture2D.mostDetailedMip = 0;
+		srvDesc.texture2D.mipLevels       = textureDesc.MipLevels;
+		srvDesc.texture2D.planeSlice      = 0;
+		srvDesc.texture2D.minLODClamp     = 0.0f;
 
-		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
-		device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHandle);
-
-		srv = std::make_unique<D3DShaderResourceView>(this, srvHandle);
+		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
+		srvHeap = srv->getSourceHeap();
+		srvDescriptorIndex = srv->getDescriptorIndexInHeap();
 	}
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::RTV))

@@ -94,20 +94,15 @@ void D3DVertexBuffer::initialize(uint32 sizeInBytes)
 
 	// Create raw view
 	{
-		auto device = getD3DDevice()->getRawDevice();
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                     = EPixelFormat::R32_TYPELESS;
+		srvDesc.viewDimension              = ESRVDimension::Buffer;
+		srvDesc.buffer.firstElement        = 0;
+		srvDesc.buffer.numElements         = sizeInBytes / 4;
+		srvDesc.buffer.structureByteStride = 0;
+		srvDesc.buffer.flags               = EBufferSRVFlags::Raw;
 
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-		srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Buffer.NumElements = sizeInBytes / 4;
-		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
-		srvDesc.Buffer.StructureByteStride = 0;
-
-		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
-		device->CreateShaderResourceView(defaultBuffer.Get(), &srvDesc, srvHandle);
-
-		srv = std::make_unique<D3DShaderResourceView>(this, srvHandle);
+		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
 	}
 }
 
@@ -167,18 +162,15 @@ void D3DIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format)
 	// Create raw view
 	if (format != EPixelFormat::UNKNOWN)
 	{
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-		srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Buffer.NumElements = sizeInBytes / 4;
-		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
-		srvDesc.Buffer.StructureByteStride = 0;
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                     = EPixelFormat::R32_TYPELESS;
+		srvDesc.viewDimension              = ESRVDimension::Buffer;
+		srvDesc.buffer.firstElement        = 0;
+		srvDesc.buffer.numElements         = sizeInBytes / 4;
+		srvDesc.buffer.structureByteStride = 0;
+		srvDesc.buffer.flags               = EBufferSRVFlags::Raw;
 
-		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
-		device->CreateShaderResourceView(defaultBuffer.Get(), &srvDesc, srvHandle);
-
-		srv = std::make_unique<D3DShaderResourceView>(this, srvHandle);
+		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
 	}
 }
 

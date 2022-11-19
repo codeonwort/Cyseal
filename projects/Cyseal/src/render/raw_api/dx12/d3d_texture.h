@@ -40,7 +40,6 @@ private:
 	WRL::ComPtr<ID3D12Resource> rawResource;
 	TextureCreateParams createParams;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = { NULL };
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = { NULL };
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = { NULL };
 	D3D12_CPU_DESCRIPTOR_HANDLE uavHandle = { NULL };
@@ -50,7 +49,7 @@ private:
 	uint32 uavDescriptorIndex = 0xffffffff;
 
 	std::unique_ptr<D3DRenderTargetView> rtv;
-	std::unique_ptr<D3DShaderResourceView> srv;
+	std::unique_ptr<ShaderResourceView> srv;
 	std::unique_ptr<D3DDepthStencilView> dsv;
 	std::unique_ptr<D3DUnorderedAccessView> uav;
 

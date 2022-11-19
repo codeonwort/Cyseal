@@ -542,22 +542,23 @@ namespace into_d3d
 		D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
 		desc.Format                  = into_d3d::pixelFormat(inDesc.format);
 		desc.ViewDimension           = into_d3d::srvDimension(inDesc.viewDimension);
+		// NOTE: Shader4ComponentMapping must be D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING (0x1688) for structured buffers.
 		desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		switch (inDesc.viewDimension)
 		{
-			case ESRVDimension::Unknown:                           CHECK_NO_ENTRY();
-			case ESRVDimension::Buffer:                            desc.Buffer = into_d3d::bufferSRVDesc(inDesc.buffer);
-			case ESRVDimension::Texture1D:                         CHECK_NO_ENTRY();
-			case ESRVDimension::Texture1DArray:                    CHECK_NO_ENTRY();
-			case ESRVDimension::Texture2D:						   desc.Texture2D = into_d3d::texture2DSRVDesc(inDesc.texture2D);
-			case ESRVDimension::Texture2DArray:                    CHECK_NO_ENTRY();
-			case ESRVDimension::Texture2DMultiSampled:             CHECK_NO_ENTRY();
-			case ESRVDimension::Texture2DMultiSampledArray:        CHECK_NO_ENTRY();
-			case ESRVDimension::Texture3D:                         CHECK_NO_ENTRY();
-			case ESRVDimension::TextureCube:                       CHECK_NO_ENTRY();
-			case ESRVDimension::TextureCubeArray:                  CHECK_NO_ENTRY();
-			case ESRVDimension::RaytracingAccelerationStructure:   CHECK_NO_ENTRY();
-			default:                                               CHECK_NO_ENTRY();
+			case ESRVDimension::Unknown:                           CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Buffer:                            desc.Buffer = into_d3d::bufferSRVDesc(inDesc.buffer); break;
+			case ESRVDimension::Texture1D:                         CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture1DArray:                    CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture2D:                         desc.Texture2D = into_d3d::texture2DSRVDesc(inDesc.texture2D); break;
+			case ESRVDimension::Texture2DArray:                    CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture2DMultiSampled:             CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture2DMultiSampledArray:        CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture3D:                         CHECK_NO_ENTRY(); break;
+			case ESRVDimension::TextureCube:                       CHECK_NO_ENTRY(); break;
+			case ESRVDimension::TextureCubeArray:                  CHECK_NO_ENTRY(); break;
+			case ESRVDimension::RaytracingAccelerationStructure:   CHECK_NO_ENTRY(); break;
+			default:                                               CHECK_NO_ENTRY(); break;
 		}
 		return desc;
 	}

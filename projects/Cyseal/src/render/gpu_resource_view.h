@@ -85,15 +85,21 @@ class DepthStencilView
 class ShaderResourceView
 {
 public:
-	ShaderResourceView(GPUResource* inOwner) : ownerResource(inOwner) {}
+	ShaderResourceView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex)
+		: ownerResource(inOwner)
+		, sourceHeap(inSourceHeap)
+		, descriptorIndex(inDescriptorIndex)
+	{}
+	
 	virtual ~ShaderResourceView() = default;
 
-	// #todo-wip-rt
-	//virtual DescriptorHeap* getSourceHeap() = 0;
-	//virtual uint32 getDescriptorIndexInHeap() const = 0;
+	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
+	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
 
 protected:
-	GPUResource* ownerResource = nullptr;
+	GPUResource* ownerResource;
+	DescriptorHeap* sourceHeap;
+	uint32 descriptorIndex;
 };
 
 class UnorderedAccessView
