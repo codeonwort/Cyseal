@@ -258,7 +258,6 @@ public:
 		uint32 destOffsetInBytes) = 0;
 
 	virtual ShaderResourceView* getSRV() const = 0;
-	virtual UnorderedAccessView* getUAV() const = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////

@@ -14,6 +14,7 @@ class SceneProxy;
 class Camera;
 class DescriptorHeap;
 class ConstantBuffer;
+class UnorderedAccessView;
 
 struct MaterialConstants
 {
@@ -48,6 +49,9 @@ private:
 
 	std::unique_ptr<StructuredBuffer> gpuSceneBuffer;
 	std::unique_ptr<StructuredBuffer> culledGpuSceneBuffer;
+
+	std::unique_ptr<UnorderedAccessView> gpuSceneBufferUAV;
+	std::unique_ptr<UnorderedAccessView> culledGpuSceneBufferUAV;
 
 	std::unique_ptr<ConstantBuffer> materialCBVMemory;
 	std::unique_ptr<DescriptorHeap> materialCBVHeap;

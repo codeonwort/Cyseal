@@ -37,6 +37,31 @@ void GPUScene::initialize()
 			sizeof(GPUSceneItem),
 			EBufferAccessFlags::UAV));
 
+	{
+		UnorderedAccessViewDesc uavDesc{};
+		uavDesc.format                      = EPixelFormat::UNKNOWN;
+		uavDesc.viewDimension               = EUAVDimension::Buffer;
+		uavDesc.buffer.firstElement         = 0;
+		uavDesc.buffer.numElements          = MAX_SCENE_ELEMENTS;
+		uavDesc.buffer.structureByteStride  = sizeof(GPUSceneItem);
+		uavDesc.buffer.counterOffsetInBytes = 0;
+		uavDesc.buffer.flags                = EBufferUAVFlags::None;
+		gpuSceneBufferUAV = std::unique_ptr<UnorderedAccessView>(
+			gRenderDevice->createUAV(gpuSceneBuffer.get(), uavDesc));
+	}
+	{
+		UnorderedAccessViewDesc uavDesc{};
+		uavDesc.format                      = EPixelFormat::UNKNOWN;
+		uavDesc.viewDimension               = EUAVDimension::Buffer;
+		uavDesc.buffer.firstElement         = 0;
+		uavDesc.buffer.numElements          = MAX_SCENE_ELEMENTS;
+		uavDesc.buffer.structureByteStride  = sizeof(GPUSceneItem);
+		uavDesc.buffer.counterOffsetInBytes = 0;
+		uavDesc.buffer.flags                = EBufferUAVFlags::None;
+		culledGpuSceneBufferUAV = std::unique_ptr<UnorderedAccessView>(
+			gRenderDevice->createUAV(culledGpuSceneBuffer.get(), uavDesc));
+	}
+
 	// Root signature
 	{
 		constexpr uint32 NUM_ROOT_PARAMETERS = 3;
@@ -202,8 +227,8 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 	commandList->setComputeRootSignature(rootSignature.get());
 
 	commandList->setComputeRootConstant32(0, numMeshSections, 0);
-	commandList->setComputeRootDescriptorUAV(1, gpuSceneBuffer->getUAV());
-	commandList->setComputeRootDescriptorUAV(2, culledGpuSceneBuffer->getUAV());
+	commandList->setComputeRootDescriptorUAV(1, gpuSceneBufferUAV.get());
+	commandList->setComputeRootDescriptorUAV(2, culledGpuSceneBufferUAV.get());
 
 	commandList->dispatchCompute(numMeshSections, 1, 1);
 

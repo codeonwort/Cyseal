@@ -147,20 +147,6 @@ void D3DStructuredBuffer::initialize(
 		srvDesc.buffer.flags               = EBufferSRVFlags::None;
 		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
 	}
-
-	// UAV
-	if (0 != (accessFlags & EBufferAccessFlags::UAV))
-	{
-		UnorderedAccessViewDesc uavDesc{};
-		uavDesc.format                      = EPixelFormat::UNKNOWN;
-		uavDesc.viewDimension               = EUAVDimension::Buffer;
-		uavDesc.buffer.firstElement         = 0;
-		uavDesc.buffer.numElements          = numElements;
-		uavDesc.buffer.structureByteStride  = stride;
-		uavDesc.buffer.counterOffsetInBytes = 0;
-		uavDesc.buffer.flags                = EBufferUAVFlags::None;
-		uav = std::unique_ptr<UnorderedAccessView>(gRenderDevice->createUAV(this, uavDesc));
-	}
 }
 
 void D3DStructuredBuffer::uploadData(
@@ -194,12 +180,6 @@ void D3DStructuredBuffer::uploadData(
 ShaderResourceView* D3DStructuredBuffer::getSRV() const
 {
 	return srv.get();
-}
-
-UnorderedAccessView* D3DStructuredBuffer::getUAV() const
-{
-	CHECK(0 != (accessFlags & EBufferAccessFlags::UAV));
-	return uav.get();
 }
 
 //////////////////////////////////////////////////////////////////////////
