@@ -3,6 +3,7 @@
 #include "core/assertion.h"
 #include "render/pipeline_state.h"
 #include "render/gpu_resource.h"
+#include "render/gpu_resource_view.h"
 #include "render/gpu_resource_binding.h"
 #include "d3d_util.h"
 #include <vector>
@@ -479,4 +480,55 @@ namespace into_d3d
 	void raytracingGeometryDesc(
 		const RaytracingGeometryDesc& inDesc,
 		D3D12_RAYTRACING_GEOMETRY_DESC& outDesc);
+
+	inline D3D12_SRV_DIMENSION srvDimension(ESRVDimension inDimension)
+	{
+		switch (inDimension)
+		{
+			case ESRVDimension::Unknown:                         return D3D12_SRV_DIMENSION_UNKNOWN;
+			case ESRVDimension::Buffer:                          return D3D12_SRV_DIMENSION_BUFFER;
+			case ESRVDimension::Texture1D:						 return D3D12_SRV_DIMENSION_TEXTURE1D;
+			case ESRVDimension::Texture1DArray:					 return D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
+			case ESRVDimension::Texture2D:						 return D3D12_SRV_DIMENSION_TEXTURE2D;
+			case ESRVDimension::Texture2DArray:					 return D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+			case ESRVDimension::Texture2DMultiSampled:			 return D3D12_SRV_DIMENSION_TEXTURE2DMS;
+			case ESRVDimension::Texture2DMultiSampledArray:		 return D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
+			case ESRVDimension::Texture3D:						 return D3D12_SRV_DIMENSION_TEXTURE3D;
+			case ESRVDimension::TextureCube:					 return D3D12_SRV_DIMENSION_TEXTURECUBE;
+			case ESRVDimension::TextureCubeArray:				 return D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
+			case ESRVDimension::RaytracingAccelerationStructure: return D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_SRV_DIMENSION_UNKNOWN;
+	}
+
+	inline D3D12_BUFFER_SRV_FLAGS bufferSRVFlags(EBufferSRVFlags inFlags)
+	{
+		D3D12_BUFFER_SRV_FLAGS flags = D3D12_BUFFER_SRV_FLAG_NONE;
+		if (0 != (inFlags & EBufferSRVFlags::Raw))
+		{
+			flags |= D3D12_BUFFER_SRV_FLAG_RAW;
+		}
+		return flags;
+	}
+
+	inline D3D12_BUFFER_SRV bufferSRVDesc(BufferSRVDesc inDesc)
+	{
+		D3D12_BUFFER_SRV desc{};
+		desc.FirstElement        = inDesc.firstElement;
+		desc.NumElements         = inDesc.numElements;
+		desc.StructureByteStride = inDesc.structureByteStride;
+		desc.Flags               = into_d3d::bufferSRVFlags(inDesc.flags);
+		return desc;
+	}
+
+	inline D3D12_TEX2D_SRV texture2DSRVDesc(Texture2DSRVDesc inDesc)
+	{
+		D3D12_TEX2D_SRV desc{};
+		desc.MostDetailedMip     = inDesc.mostDetailedMip;
+		desc.MipLevels           = inDesc.mipLevels;
+		desc.PlaneSlice          = inDesc.planeSlice;
+		desc.ResourceMinLODClamp = inDesc.minLODClamp;
+		return desc;
+	}
 }
