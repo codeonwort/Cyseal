@@ -31,16 +31,13 @@ private:
 class D3DShaderResourceView : public ShaderResourceView
 {
 public:
-	D3DShaderResourceView(Texture* inOwner) : ShaderResourceView(inOwner) {}
-	D3DShaderResourceView(StructuredBuffer* inOwner) : ShaderResourceView(inOwner) {}
-	D3DShaderResourceView(AccelerationStructure* inOwner) : ShaderResourceView(inOwner) {}
-	D3DShaderResourceView(IndexBuffer* inOwner) : ShaderResourceView(inOwner) {}
-	D3DShaderResourceView(VertexBuffer* inOwner) : ShaderResourceView(inOwner) {}
+	D3DShaderResourceView(GPUResource* inOwner, D3D12_CPU_DESCRIPTOR_HANDLE inCpuHandle)
+		: ShaderResourceView(inOwner)
+		, cpuHandle(inCpuHandle)
+	{}
 
 	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const;
-
 	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return cpuHandle; }
-	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE inHandle) { cpuHandle = inHandle; }
 	
 private:
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { NULL };
@@ -49,13 +46,13 @@ private:
 class D3DUnorderedAccessView : public UnorderedAccessView
 {
 public:
-	D3DUnorderedAccessView(Texture* inOwner) : UnorderedAccessView(inOwner) {}
-	D3DUnorderedAccessView(StructuredBuffer* inOwner) : UnorderedAccessView(inOwner) {}
+	D3DUnorderedAccessView(GPUResource* inOwner, D3D12_CPU_DESCRIPTOR_HANDLE inCpuHandle)
+		: UnorderedAccessView(inOwner)
+		, cpuHandle(inCpuHandle)
+	{}
 
 	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const;
-
 	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return cpuHandle; }
-	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE inHandle) { cpuHandle = inHandle; }
 	
 private:
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { NULL };

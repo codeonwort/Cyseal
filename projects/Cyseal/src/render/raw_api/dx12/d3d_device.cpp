@@ -586,6 +586,22 @@ StructuredBuffer* D3DDevice::createStructuredBuffer(
 	return buffer;
 }
 
+ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, ShaderResourceViewDesc& createParams)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC d3dDesc = into_d3d::srvDesc(createParams);
+
+	DescriptorHeap* sourceHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+	uint32 descriptorIndex;
+	allocateSRVHandle(sourceHeap, cpuHandle, descriptorIndex);
+
+	ID3D12Resource* d3dResource = into_d3d::id3d12Resource(gpuResource);
+	device->CreateShaderResourceView(d3dResource, &d3dDesc, cpuHandle);
+
+	D3DShaderResourceView* srv = new D3DShaderResourceView(gpuResource, cpuHandle);
+	return srv;
+}
+
 void D3DDevice::copyDescriptors(
 	uint32 numDescriptors,
 	DescriptorHeap* destHeap,

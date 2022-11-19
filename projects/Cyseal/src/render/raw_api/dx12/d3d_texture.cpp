@@ -66,7 +66,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		initialState,
 		bNeedsClearValue ? &optClearValue : nullptr,
 		IID_PPV_ARGS(&rawResource)));
-	
+
 	if (0 != (params.accessFlags & ETextureAccessFlags::CPU_WRITE))
 	{
 		const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, 1);
@@ -99,8 +99,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
 		device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHandle);
 
-		srv = std::make_unique<D3DShaderResourceView>(this);
-		srv->setCPUHandle(srvHandle);
+		srv = std::make_unique<D3DShaderResourceView>(this, srvHandle);
 	}
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::RTV))
@@ -157,14 +156,8 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		getD3DDevice()->allocateUAVHandle(uavHeap, uavHandle, uavDescriptorIndex);
 		device->CreateUnorderedAccessView(rawResource.Get(), counterResource, &viewDesc, uavHandle);
 
-		uav = std::make_unique<D3DUnorderedAccessView>(this);
-		uav->setCPUHandle(uavHandle);
+		uav = std::make_unique<D3DUnorderedAccessView>(this, uavHandle);
 	}
-}
-
-D3D12_GPU_VIRTUAL_ADDRESS D3DTexture::getGPUVirtualAddress() const
-{
-	return rawResource->GetGPUVirtualAddress();
 }
 
 void D3DTexture::uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch)

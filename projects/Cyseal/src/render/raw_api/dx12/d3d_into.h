@@ -56,6 +56,11 @@ namespace into_d3d
 		std::vector<D3D12_INPUT_ELEMENT_DESC*> inputElements;
 	};
 
+	inline ID3D12Resource* id3d12Resource(GPUResource* inResource)
+	{
+		return reinterpret_cast<ID3D12Resource*>(inResource->getRawResource());
+	}
+
 	inline D3D12_BLEND blend(EBlend inBlend)
 	{
 		return static_cast<D3D12_BLEND>(inBlend);
@@ -512,7 +517,7 @@ namespace into_d3d
 		return flags;
 	}
 
-	inline D3D12_BUFFER_SRV bufferSRVDesc(BufferSRVDesc inDesc)
+	inline D3D12_BUFFER_SRV bufferSRVDesc(const BufferSRVDesc& inDesc)
 	{
 		D3D12_BUFFER_SRV desc{};
 		desc.FirstElement        = inDesc.firstElement;
@@ -522,13 +527,38 @@ namespace into_d3d
 		return desc;
 	}
 
-	inline D3D12_TEX2D_SRV texture2DSRVDesc(Texture2DSRVDesc inDesc)
+	inline D3D12_TEX2D_SRV texture2DSRVDesc(const Texture2DSRVDesc& inDesc)
 	{
 		D3D12_TEX2D_SRV desc{};
 		desc.MostDetailedMip     = inDesc.mostDetailedMip;
 		desc.MipLevels           = inDesc.mipLevels;
 		desc.PlaneSlice          = inDesc.planeSlice;
 		desc.ResourceMinLODClamp = inDesc.minLODClamp;
+		return desc;
+	}
+
+	inline D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc(const ShaderResourceViewDesc& inDesc)
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+		desc.Format                  = into_d3d::pixelFormat(inDesc.format);
+		desc.ViewDimension           = into_d3d::srvDimension(inDesc.viewDimension);
+		desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		switch (inDesc.viewDimension)
+		{
+			case ESRVDimension::Unknown:                           CHECK_NO_ENTRY();
+			case ESRVDimension::Buffer:                            desc.Buffer = into_d3d::bufferSRVDesc(inDesc.buffer);
+			case ESRVDimension::Texture1D:                         CHECK_NO_ENTRY();
+			case ESRVDimension::Texture1DArray:                    CHECK_NO_ENTRY();
+			case ESRVDimension::Texture2D:						   desc.Texture2D = into_d3d::texture2DSRVDesc(inDesc.texture2D);
+			case ESRVDimension::Texture2DArray:                    CHECK_NO_ENTRY();
+			case ESRVDimension::Texture2DMultiSampled:             CHECK_NO_ENTRY();
+			case ESRVDimension::Texture2DMultiSampledArray:        CHECK_NO_ENTRY();
+			case ESRVDimension::Texture3D:                         CHECK_NO_ENTRY();
+			case ESRVDimension::TextureCube:                       CHECK_NO_ENTRY();
+			case ESRVDimension::TextureCubeArray:                  CHECK_NO_ENTRY();
+			case ESRVDimension::RaytracingAccelerationStructure:   CHECK_NO_ENTRY();
+			default:                                               CHECK_NO_ENTRY();
+		}
 		return desc;
 	}
 }

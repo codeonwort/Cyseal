@@ -6,11 +6,7 @@
 
 class RenderDevice;
 class DescriptorHeap;
-class VertexBuffer;
-class Texture;
-class IndexBuffer;
-class StructuredBuffer;
-class AccelerationStructure;
+class GPUResource;
 
 //////////////////////////////////////////////////////////////////////////
 // View create infos
@@ -88,30 +84,8 @@ class DepthStencilView
 
 class ShaderResourceView
 {
-protected:
-	// #todo-wip-rt: At least merge structured/index/vertex buffers...
-	enum class ESource { Texture, StructuredBuffer, AccelerationStructure, IndexBuffer, VertexBuffer };
 public:
-	ShaderResourceView(Texture* inOwner)
-		: ownerTexture(inOwner)
-		, source(ESource::Texture)
-	{}
-	ShaderResourceView(StructuredBuffer* inOwner)
-		: ownerStructuredBuffer(inOwner)
-		, source(ESource::StructuredBuffer)
-	{}
-	ShaderResourceView(AccelerationStructure* inOwner)
-		: ownerAccelStruct(inOwner)
-		, source(ESource::AccelerationStructure)
-	{}
-	ShaderResourceView(IndexBuffer* inOwner)
-		: ownerIndexBuffer(inOwner)
-		, source(ESource::IndexBuffer)
-	{}
-	ShaderResourceView(VertexBuffer* inOwner)
-		: ownerVertexBuffer(inOwner)
-		, source(ESource::VertexBuffer)
-	{}
+	ShaderResourceView(GPUResource* inOwner) : ownerResource(inOwner) {}
 	virtual ~ShaderResourceView() = default;
 
 	// #todo-wip-rt
@@ -119,32 +93,17 @@ public:
 	//virtual uint32 getDescriptorIndexInHeap() const = 0;
 
 protected:
-	ESource source;
-	Texture* ownerTexture = nullptr;
-	StructuredBuffer* ownerStructuredBuffer = nullptr;
-	AccelerationStructure* ownerAccelStruct = nullptr;
-	IndexBuffer* ownerIndexBuffer = nullptr;
-	VertexBuffer* ownerVertexBuffer = nullptr;
+	GPUResource* ownerResource = nullptr;
 };
 
 class UnorderedAccessView
 {
-protected:
-	// #todo-wip-rt: Same problem with ShaderResourceView::ESource
-	enum class ESource { Texture, StructuredBuffer };
 public:
-	UnorderedAccessView(Texture* inOwner)
-		: ownerTexture(inOwner)
-		, source(ESource::Texture)
-	{}
-	UnorderedAccessView(StructuredBuffer* inOwner)
-		: ownerStructuredBuffer(inOwner)
-		, source(ESource::StructuredBuffer)
-	{}
+	UnorderedAccessView(GPUResource* inOwner) : ownerResource(inOwner) {}
+	virtual ~UnorderedAccessView() = default;
+
 protected:
-	ESource source;
-	Texture* ownerTexture = nullptr;
-	StructuredBuffer* ownerStructuredBuffer = nullptr;
+	GPUResource* ownerResource = nullptr;
 };
 
 class ConstantBufferView

@@ -6,6 +6,7 @@
 #include "texture.h"
 #include "shader.h"
 #include "render_device_capabilities.h"
+#include "gpu_resource_view.h"
 
 class SwapChain;
 class RenderCommandAllocator;
@@ -100,11 +101,15 @@ public:
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
 
+	// #todo-wip: createBuffer() + createConstantBufferView() or createStructuredBufferView()
 	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) = 0;
 	virtual StructuredBuffer* createStructuredBuffer(
 		uint32 numElements,
 		uint32 stride,
 		EBufferAccessFlags accessFlags) = 0;
+
+	// #todo-wip-rt: Replace createStructuredBuffer() with this
+	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, ShaderResourceViewDesc& createParams) = 0;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,

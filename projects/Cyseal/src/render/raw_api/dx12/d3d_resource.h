@@ -9,19 +9,6 @@
 class D3DShaderResourceView;
 class D3DUnorderedAccessView;
 
-// #todo: Maybe not needed
-class D3DResource : public GPUResource
-{
-
-public:
-	inline ID3D12Resource* getRaw() const { return rawResource; }
-	inline void setRaw(ID3D12Resource* raw) { rawResource = raw; }
-	
-protected:
-	ID3D12Resource* rawResource;
-
-};
-
 // --------------------------------------------------------------
 
 // https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nn-d3d12-id3d12descriptorheap
@@ -89,11 +76,6 @@ public:
 		uint32 sizeInBytes,
 		uint32 destOffsetInBytes) override;
 	
-	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const
-	{
-		return rawBuffer->GetGPUVirtualAddress();
-	}
-
 	virtual ShaderResourceView* getSRV() const override;
 	virtual UnorderedAccessView* getUAV() const override;
 
@@ -103,6 +85,8 @@ public:
 
 	virtual DescriptorHeap* getSourceSRVHeap() const override { return srvHeap; }
 	virtual DescriptorHeap* getSourceUAVHeap() const override { return uavHeap; }
+
+	virtual void* getRawResource() const override { return rawBuffer.Get(); }
 
 private:
 	WRL::ComPtr<ID3D12Resource> rawBuffer;
@@ -130,6 +114,8 @@ class D3DAccelerationStructure : public AccelerationStructure
 {
 public:
 	virtual ~D3DAccelerationStructure();
+
+	virtual void* getRawResource() const override { return tlasResource.Get(); }
 
 	virtual ShaderResourceView* getSRV() const override;
 

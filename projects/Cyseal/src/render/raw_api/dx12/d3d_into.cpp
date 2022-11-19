@@ -52,15 +52,13 @@ namespace into_d3d
 
 	D3D12_RESOURCE_BARRIER resourceBarrier(const ResourceBarrier& barrier)
 	{
-		ID3D12Resource* d3dResource = static_cast<D3DResource*>(barrier.resource)->getRaw();
-
 		D3D12_RESOURCE_BARRIER d3dBarrier;
 		d3dBarrier.Type = (D3D12_RESOURCE_BARRIER_TYPE)barrier.type;
 		d3dBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 		switch (barrier.type)
 		{
 			case EResourceBarrierType::Transition:
-				d3dBarrier.Transition.pResource = d3dResource;
+				d3dBarrier.Transition.pResource = into_d3d::id3d12Resource(barrier.resource);
 				// #todo-barrier: Subresource index?
 				d3dBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 				d3dBarrier.Transition.StateBefore = (D3D12_RESOURCE_STATES)barrier.stateBefore;
@@ -95,7 +93,7 @@ namespace into_d3d
 			else
 			{
 				D3DStructuredBuffer* tbuf = static_cast<D3DStructuredBuffer*>(inDesc.triangles.transform3x4Buffer);
-				D3D12_GPU_VIRTUAL_ADDRESS addr = tbuf->getGPUVirtualAddress();
+				D3D12_GPU_VIRTUAL_ADDRESS addr = into_d3d::id3d12Resource(tbuf)->GetGPUVirtualAddress();
 				addr += inDesc.triangles.transformIndex * 48; // 48 = sizeof(transform3x4)
 				outDesc.Triangles.Transform3x4 = addr;
 			}

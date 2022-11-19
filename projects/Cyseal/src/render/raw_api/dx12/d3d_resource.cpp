@@ -151,8 +151,7 @@ void D3DStructuredBuffer::initialize(
 		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
 		device->CreateShaderResourceView(rawBuffer.Get(), &srvDesc, srvHandle);
 
-		srv = std::make_unique<D3DShaderResourceView>(this);
-		srv->setCPUHandle(srvHandle);
+		srv = std::make_unique<D3DShaderResourceView>(this, srvHandle);
 	}
 
 	// UAV
@@ -175,8 +174,7 @@ void D3DStructuredBuffer::initialize(
 		getD3DDevice()->allocateUAVHandle(uavHeap, uavHandle, uavDescriptorIndex);
 		device->CreateUnorderedAccessView(rawBuffer.Get(), counterResource, &uavDesc, uavHandle);
 
-		uav = std::make_unique<D3DUnorderedAccessView>(this);
-		uav->setCPUHandle(uavHandle);
+		uav = std::make_unique<D3DUnorderedAccessView>(this, uavHandle);
 	}
 }
 
@@ -250,7 +248,8 @@ void D3DAccelerationStructure::initialize(uint32 numBLAS)
 		L"AccelStruct_InstanceDesc");
 	instanceDescBuffer->Map(0, nullptr, (void**)(&instanceDescMapPtr));
 
-	srv = std::make_unique<D3DShaderResourceView>(this);
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { NULL };
+	srv = std::make_unique<D3DShaderResourceView>(this, cpuHandle);
 }
 
 void D3DAccelerationStructure::buildBLAS(

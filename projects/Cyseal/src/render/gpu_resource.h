@@ -117,13 +117,16 @@ enum class EDepthClearFlags : uint8
 };
 ENUM_CLASS_FLAGS(EDepthClearFlags);
 
-// #todo: Maybe not needed
-// Base class for buffers and textures
+// Base class for GPU resources (buffers, textures, accel structs, ...)
 // ID3D12Resource
 class GPUResource
 {
 public:
 	virtual ~GPUResource() {}
+
+	// D3D12: ID3D12Resource
+	virtual void* getRawResource() const { CHECK_NO_ENTRY(); return nullptr; }
+	virtual void setRawResource(void* inRawResource) { CHECK_NO_ENTRY(); }
 };
 
 // #todo-barrier: There are 3 types of barriers (transition, aliasing, and UAV)
@@ -340,7 +343,7 @@ struct BLASInstanceUpdateDesc
 	float instanceTransform[3][4];
 };
 
-class AccelerationStructure
+class AccelerationStructure : public GPUResource
 {
 public:
 	virtual ~AccelerationStructure() = default;

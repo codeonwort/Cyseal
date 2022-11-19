@@ -107,8 +107,7 @@ void D3DVertexBuffer::initialize(uint32 sizeInBytes)
 		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
 		device->CreateShaderResourceView(defaultBuffer.Get(), &srvDesc, srvHandle);
 
-		srv = std::make_unique<D3DShaderResourceView>(this);
-		srv->setCPUHandle(srvHandle);
+		srv = std::make_unique<D3DShaderResourceView>(this, srvHandle);
 	}
 }
 
@@ -150,11 +149,6 @@ void D3DVertexBuffer::setDebugName(const wchar_t* inDebugName)
 	defaultBuffer->SetName(inDebugName);
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS D3DVertexBuffer::getGPUVirtualAddress() const
-{
-	return defaultBuffer->GetGPUVirtualAddress();
-}
-
 //////////////////////////////////////////////////////////////////////////
 // D3DIndexBuffer
 
@@ -184,8 +178,7 @@ void D3DIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format)
 		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
 		device->CreateShaderResourceView(defaultBuffer.Get(), &srvDesc, srvHandle);
 
-		srv = std::make_unique<D3DShaderResourceView>(this);
-		srv->setCPUHandle(srvHandle);
+		srv = std::make_unique<D3DShaderResourceView>(this, srvHandle);
 	}
 }
 

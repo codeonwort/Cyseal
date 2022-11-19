@@ -9,6 +9,18 @@ class D3DDevice;
 class D3DResource;
 class D3DRenderTargetView;
 
+class D3DSwapChainBuffer : public GPUResource
+{
+public:
+	virtual void* getRawResource() const override { return raw; }
+	virtual void setRawResource(void* inRawResource) override
+	{
+		raw = reinterpret_cast<ID3D12Resource*>(inRawResource);
+	}
+private:
+	ID3D12Resource* raw = nullptr;
+};
+
 class D3DSwapChain : public SwapChain
 {
 public:
@@ -40,7 +52,7 @@ private:
 
 	D3DDevice* device;
 
-	std::unique_ptr<D3DResource> swapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
+	std::unique_ptr<D3DSwapChainBuffer> swapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
 	std::unique_ptr<D3DRenderTargetView> backBufferRTVs[SWAP_CHAIN_BUFFER_COUNT];
 
 	WRL::ComPtr<IDXGISwapChain3> rawSwapChain;

@@ -16,8 +16,6 @@ class D3DTexture : public Texture
 public:
 	void initialize(const TextureCreateParams& params);
 
-	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const;
-
 	virtual void uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch) override;
 	virtual void setDebugName(const wchar_t* debugName) override;
 
@@ -35,6 +33,8 @@ public:
 	virtual DescriptorHeap* getSourceRTVHeap() const override { return rtvHeap; }
 	virtual DescriptorHeap* getSourceDSVHeap() const override { return dsvHeap; }
 	virtual DescriptorHeap* getSourceUAVHeap() const override { return uavHeap; }
+
+	virtual void* getRawResource() const override { return rawResource.Get(); }
 
 private:
 	WRL::ComPtr<ID3D12Resource> rawResource;
