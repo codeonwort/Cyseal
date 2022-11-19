@@ -11,6 +11,7 @@
 #include "vertex_buffer_pool.h"
 #include "gpu_scene.h"
 
+// #todo-wip: See gpu_scene.cpp
 // At least (sceneUniform CBV + material CBVs + material SRVs)
 #define MAX_VOLATILE_DESCRIPTORS         2049
 

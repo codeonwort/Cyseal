@@ -108,7 +108,6 @@ public:
 		uint32 stride,
 		EBufferAccessFlags accessFlags) = 0;
 
-	// #todo-wip-rt: Replace createStructuredBuffer() with this
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) = 0;
 
 	virtual void copyDescriptors(

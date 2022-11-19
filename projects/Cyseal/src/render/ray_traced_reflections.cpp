@@ -13,10 +13,10 @@
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
 #define RTR_MAX_RECURSION            2
-// #todo-wip-rt: 1024 for materials
-#define RTR_MAX_VOLATILE_DESCRIPTORS (10 + 1024)
-// #todo-wip-rt: Should be variable
-#define RTR_MAX_STATIC_MESHES        101
+
+// #todo-wip: See gpu_scene.cpp
+#define RTR_MAX_VOLATILE_DESCRIPTORS (10 + 256 + 256)
+#define RTR_MAX_STATIC_MESHES        256
 
 namespace RTRRootParameters
 {

@@ -55,6 +55,7 @@ public:
     virtual void uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch) = 0;
     virtual void setDebugName(const wchar_t* debugName) = 0;
 
+    // #todo-wip: A Texture should not internally hold its views.
     virtual RenderTargetView* getRTV() const = 0;
     virtual ShaderResourceView* getSRV() const = 0;
     virtual DepthStencilView* getDSV() const = 0;

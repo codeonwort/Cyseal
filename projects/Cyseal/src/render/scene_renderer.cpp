@@ -394,7 +394,7 @@ void SceneRenderer::rebuildAccelerationStructure(
 	// - Each BLAS contains all sections of each StaticMesh.
 
 	const uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
-	const uint32 LOD = 0; // #todo-wip-rt: LOD for BLAS
+	const uint32 LOD = 0; // #todo-lod: LOD for BLAS geometries
 
 	// Prepare BLAS instances.
 	std::vector<BLASInstanceInitDesc> blasDescArray(numStaticMeshes);

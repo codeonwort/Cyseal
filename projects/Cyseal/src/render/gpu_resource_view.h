@@ -11,9 +11,6 @@ class GPUResource;
 //////////////////////////////////////////////////////////////////////////
 // View create infos
 
-// #todo-wip-rt: Create SRVs with these structs.
-// A buffer or texture object should not hold their views internally.
-
 // D3D12_SRV_DIMENSION
 enum class ESRVDimension
 {

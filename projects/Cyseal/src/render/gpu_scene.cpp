@@ -8,6 +8,7 @@
 #include "core/matrix.h"
 #include "world/scene.h"
 
+// #todo-wip: Should not be constants
 #define MAX_SCENE_ELEMENTS           256
 #define MATERIAL_MEMORY_POOL_SIZE    (640 * 1024) // 640 KiB
 #define MAX_MATERIAL_CBVs            (MAX_SCENE_ELEMENTS)
@@ -102,7 +103,7 @@ void GPUScene::initialize()
 
 void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera)
 {
-	const uint32 LOD = 0; // #todo-wip: LOD
+	const uint32 LOD = 0; // #todo-lod: LOD
 	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
 	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
