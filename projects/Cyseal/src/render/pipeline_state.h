@@ -4,6 +4,7 @@
 #include "util/enum_util.h"
 #include "pixel_format.h"
 #include <vector>
+#include <string>
 
 class RootSignature;
 class ShaderStage;
@@ -320,7 +321,7 @@ struct ScissorRect
 };
 
 //////////////////////////////////////////////////////////////////////////
-// Pipeline state
+// Graphics & compute pipeline
 
 // D3D12_GRAPHICS_PIPELINE_STATE_DESC
 // VkGraphicsPipelineCreateInfo
@@ -364,8 +365,85 @@ struct ComputePipelineDesc
 
 // ID3D12PipelineState
 // VkPipeline
+// NOTE: RTPSO is represented by RaytracingPipelineStateObject, not this.
 class PipelineState
 {
 public:
 	virtual ~PipelineState() = default;
+};
+
+//////////////////////////////////////////////////////////////////////////
+// Raytracing pipeline
+
+// D3D12_HIT_GROUP_TYPE
+enum class ERaytracingHitGroupType
+{
+	Triangles,
+	ProceduralPrimitive
+};
+
+struct RaytracingPipelineStateObjectDesc
+{
+	std::wstring hitGroupName;
+	ERaytracingHitGroupType hitGroupType = ERaytracingHitGroupType::Triangles;
+
+	ShaderStage* raygenShader = nullptr;
+	ShaderStage* closestHitShader = nullptr;
+	ShaderStage* missShader = nullptr;
+	// #todo-dxr: anyHitShader, intersectionShader
+
+	// https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html#resource-binding
+	// Local root signature  : Arguments come from individual shader tables
+	// Global root signature : Arguments are shared across all raytracing shaders
+	//                         and compute PSOs on CommandLists
+	RootSignature* raygenLocalRootSignature = nullptr;
+	RootSignature* closestHitLocalRootSignature = nullptr;
+	RootSignature* missLocalRootSignature = nullptr;
+	RootSignature* globalRootSignature = nullptr;
+
+	uint32 maxPayloadSizeInBytes = 0;
+	uint32 maxAttributeSizeInBytes = 0;
+
+	uint32 maxTraceRecursionDepth = 1;
+};
+
+// ID3D12StateObject (RTPSO)
+class RaytracingPipelineStateObject
+{
+public:
+	virtual ~RaytracingPipelineStateObject() = default;
+};
+
+// - Describes the arguments for a local root signature.
+// - For now, no struct for shader record.
+//   ( shader record = {shader identifier, local root arguments for the shader} )
+class RaytracingShaderTable
+{
+public:
+	virtual ~RaytracingShaderTable() = default;
+
+	virtual void uploadRecord(
+		uint32 recordIndex,
+		ShaderStage* raytracingShader,
+		void* rootArgumentData,
+		uint32 rootArgumentSize) = 0;
+
+	virtual void uploadRecord(
+		uint32 recordIndex,
+		const wchar_t* shaderExportName,
+		void* rootArgumentData,
+		uint32 rootArgumentSize) = 0;
+};
+
+// D3D12_DISPATCH_RAYS_DESC
+struct DispatchRaysDesc
+{
+	RaytracingShaderTable* raygenShaderTable = nullptr;
+	RaytracingShaderTable* missShaderTable = nullptr;
+	RaytracingShaderTable* hitGroupTable = nullptr;
+	//ShaderTable* callableShaderTable = nullptr; // #todo-dxr: callableShaderTable
+
+	uint32 width;
+	uint32 height;
+	uint32 depth;
 };

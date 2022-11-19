@@ -8,7 +8,7 @@ D3DSwapChain::D3DSwapChain()
 {
 	for (auto i = 0u; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{
-		swapChainBuffers[i] = std::make_unique<D3DResource>();
+		swapChainBuffers[i] = std::make_unique<D3DSwapChainBuffer>();
 		backBufferRTVs[i] = std::make_unique<D3DRenderTargetView>();
 	}
 }
@@ -78,7 +78,7 @@ void D3DSwapChain::resize(uint32 newWidth, uint32 newHeight)
 
 	for (auto i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{
-		swapChainBuffers[i]->setRaw(nullptr);
+		swapChainBuffers[i]->setRawResource(nullptr);
 		rawSwapChainBuffers[i].Reset();
 	}
 	rawSwapChain->ResizeBuffers(
@@ -121,7 +121,7 @@ void D3DSwapChain::createSwapchainImages()
 	{
 		auto bufferPtr = rawSwapChainBuffers[i].GetAddressOf();
 		HR(rawSwapChain->GetBuffer(i, IID_PPV_ARGS(bufferPtr)));
-		swapChainBuffers[i]->setRaw(rawSwapChainBuffers[i].Get());
+		swapChainBuffers[i]->setRawResource(rawSwapChainBuffers[i].Get());
 
 		wchar_t debugName[256];
 		swprintf_s(debugName, L"Backbuffer%u", i);

@@ -1,5 +1,7 @@
 #include "d3d_resource_view.h"
 #include "d3d_resource.h"
+#include "d3d_buffer.h"
+#include "d3d_into.h"
 
 //////////////////////////////////////////////////////////////////////////
 // D3DConstantBufferView
@@ -19,33 +21,15 @@ D3D12_GPU_VIRTUAL_ADDRESS D3DConstantBufferView::getGPUVirtualAddress()
 //////////////////////////////////////////////////////////////////////////
 // D3DShaderResourceView
 
-D3D12_GPU_VIRTUAL_ADDRESS D3DShaderResourceView::getGPUVirtualAddress()
+D3D12_GPU_VIRTUAL_ADDRESS D3DShaderResourceView::getGPUVirtualAddress() const
 {
-	if (source == ShaderResourceView::ESource::Texture)
-	{
-		return static_cast<D3DTexture*>(ownerTexture)->getGPUVirtualAddress();
-	}
-	else if (source == ShaderResourceView::ESource::StructuredBuffer)
-	{
-		return static_cast<D3DStructuredBuffer*>(ownerStructuredBuffer)->getGPUVirtualAddress();
-	}
-	CHECK_NO_ENTRY();
-	return 0;
+	return into_d3d::id3d12Resource(ownerResource)->GetGPUVirtualAddress();
 }
 
 //////////////////////////////////////////////////////////////////////////
 // D3DUnorderedAccessView
 
-D3D12_GPU_VIRTUAL_ADDRESS D3DUnorderedAccessView::getGPUVirtualAddress()
+D3D12_GPU_VIRTUAL_ADDRESS D3DUnorderedAccessView::getGPUVirtualAddress() const
 {
-	if (source == UnorderedAccessView::ESource::Texture)
-	{
-		return static_cast<D3DTexture*>(ownerTexture)->getGPUVirtualAddress();
-	}
-	else if (source == UnorderedAccessView::ESource::StructuredBuffer)
-	{
-		return static_cast<D3DStructuredBuffer*>(ownerStructuredBuffer)->getGPUVirtualAddress();
-	}
-	CHECK_NO_ENTRY();
-	return 0;
+	return into_d3d::id3d12Resource(ownerResource)->GetGPUVirtualAddress();
 }

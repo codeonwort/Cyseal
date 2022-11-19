@@ -4,6 +4,7 @@
 #include "d3d_render_command.h"
 #include "core/assertion.h"
 #include "render/vertex_buffer_pool.h"
+#include "render/gpu_resource_view.h"
 
 WRL::ComPtr<ID3D12Resource> createDefaultBuffer(UINT64 byteSize)
 {
@@ -11,10 +12,12 @@ WRL::ComPtr<ID3D12Resource> createDefaultBuffer(UINT64 byteSize)
 
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;
 
+	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
 	HR( device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+			&bufferDesc,
 			D3D12_RESOURCE_STATE_COMMON,
 			nullptr,
 			IID_PPV_ARGS(defaultBuffer.GetAddressOf())) );
@@ -32,10 +35,12 @@ void updateDefaultBuffer(
 {
 	auto device = getD3DDevice()->getRawDevice();
 
+	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
 	HR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+		&bufferDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
@@ -45,10 +50,11 @@ void updateDefaultBuffer(
 	subResourceData.RowPitch = byteSize;
 	subResourceData.SlicePitch = subResourceData.RowPitch;
 
-	commandList->ResourceBarrier(1,
-		&CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			D3D12_RESOURCE_STATE_COPY_DEST));
+	auto barrierDesc = CD3DX12_RESOURCE_BARRIER::Transition(
+		defaultBuffer.Get(),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_COPY_DEST);
+	commandList->ResourceBarrier(1, &barrierDesc);
 
 #if 0
 	// This util can't specify default buffer offset :/
@@ -67,11 +73,11 @@ void updateDefaultBuffer(
 		byteSize);
 #endif
 
-	commandList->ResourceBarrier(1,
-		&CD3DX12_RESOURCE_BARRIER::Transition(
-			defaultBuffer.Get(),
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			D3D12_RESOURCE_STATE_GENERIC_READ));
+	auto barrierAfterDesc = CD3DX12_RESOURCE_BARRIER::Transition(
+		defaultBuffer.Get(),
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_STATE_GENERIC_READ);
+	commandList->ResourceBarrier(1, &barrierAfterDesc);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -108,8 +114,9 @@ void D3DVertexBuffer::updateData(RenderCommandList* commandList, void* data, uin
 		offsetInDefaultBuffer, data, view.SizeInBytes);
 
 	view.StrideInBytes  = strideInBytes;
-}
 
+	vertexCount = (uint32)(view.SizeInBytes / strideInBytes);
+}
 
 void D3DVertexBuffer::setDebugName(const wchar_t* inDebugName)
 {
@@ -120,8 +127,12 @@ void D3DVertexBuffer::setDebugName(const wchar_t* inDebugName)
 //////////////////////////////////////////////////////////////////////////
 // D3DIndexBuffer
 
-void D3DIndexBuffer::initialize(uint32 sizeInBytes)
+void D3DIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format)
 {
+	CHECK(format == EPixelFormat::R16_UINT || format == EPixelFormat::R32_UINT);
+	auto device = getD3DDevice()->getRawDevice();
+
+	indexFormat = format;
 	defaultBuffer = createDefaultBuffer(sizeInBytes);
 
 	view.BufferLocation = defaultBuffer->GetGPUVirtualAddress();
@@ -143,6 +154,8 @@ void D3DIndexBuffer::initializeWithinPool(IndexBufferPool* pool, uint64 offsetIn
 
 void D3DIndexBuffer::updateData(RenderCommandList* commandList, void* data, EPixelFormat format)
 {
+	CHECK(indexFormat == format);
+
 	DXGI_FORMAT d3dFormat = DXGI_FORMAT_UNKNOWN;
 	uint32 sizeInBytes = view.SizeInBytes;
 
@@ -172,4 +185,9 @@ void D3DIndexBuffer::setDebugName(const wchar_t* inDebugName)
 {
 	CHECK(parentPool == nullptr);
 	defaultBuffer->SetName(inDebugName);
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS D3DIndexBuffer::getGPUVirtualAddress() const
+{
+	return defaultBuffer->GetGPUVirtualAddress();
 }

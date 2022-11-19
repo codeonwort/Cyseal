@@ -11,12 +11,13 @@
 // D3D12_SHADER_VISIBILITY
 enum class EShaderVisibility : uint8
 {
-	All      = 0,
+	All      = 0, // Compute always use this; so does RT.
 	Vertex   = 1,
 	Hull     = 2,
 	Domain   = 3,
 	Geometry = 4,
 	Pixel    = 5
+	// #todo-renderdevice: Amplication, Mesh
 };
 
 // D3D12_ROOT_PARAMETER_TYPE
@@ -223,17 +224,21 @@ struct StaticSamplerDesc
 };
 
 // D3D12_ROOT_SIGNATURE_FLAGS
-enum class ERootSignatureFlags : uint8
+enum class ERootSignatureFlags : uint32
 {
-	None                           = 0,
-	AllowInputAssemblerInputLayout = 0x1,
-	DenyVertexShaderRootAccess     = 0x2,
-	DenyHullShaderRootAccess       = 0x4,
-	DenyDomainShaderRootAccess     = 0x8,
-	DenyGeometryShaderRootAccess   = 0x10,
-	DenyPixelShaderRootAccess      = 0x20,
-	AllowStreamOutput              = 0x40,
-	LocalRootSignature             = 0x80
+	None                            = 0,
+	AllowInputAssemblerInputLayout  = 0x1,
+	DenyVertexShaderRootAccess      = 0x2,
+	DenyHullShaderRootAccess        = 0x4,
+	DenyDomainShaderRootAccess      = 0x8,
+	DenyGeometryShaderRootAccess    = 0x10,
+	DenyPixelShaderRootAccess       = 0x20,
+	AllowStreamOutput               = 0x40,
+	LocalRootSignature              = 0x80,
+	DenyAmplicationShaderRootAccess = 0x100,
+	DenyMeshShaderRootAccess        = 0x200,
+	CbvSrvUavHeapDirectlyIndexed    = 0x400,
+	SamplerHeapDirectlyIndexed      = 0x800,
 };
 ENUM_CLASS_FLAGS(ERootSignatureFlags);
 

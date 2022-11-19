@@ -1,10 +1,12 @@
 #pragma once
 
 #include "core/types.h"
+#include "util/logging.h"
 #include "pixel_format.h"
 #include "texture.h"
 #include "shader.h"
 #include "render_device_capabilities.h"
+#include "gpu_resource_view.h"
 
 class SwapChain;
 class RenderCommandAllocator;
@@ -75,8 +77,8 @@ public:
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName = nullptr) = 0;
 	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
 
-	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName = nullptr) = 0;
-	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
+	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, const wchar_t* inDebugName = nullptr) = 0;
+	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes, EPixelFormat format) = 0;
 
 	virtual Texture* createTexture(const TextureCreateParams& createParams) = 0;
 
@@ -85,14 +87,28 @@ public:
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
 	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) = 0;
+	
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
+		const RaytracingPipelineStateObjectDesc& desc) = 0;
+
+	// NOTE: shaderRecordSize = shaderIdentifierSize + rootArgumentSize,
+	// but shaderIdentifierSize is API-specific, so we specify only rootArgumentSize here.
+	virtual RaytracingShaderTable* createRaytracingShaderTable(
+		RaytracingPipelineStateObject* RTPSO,
+		uint32 numShaderRecords,
+		uint32 rootArgumentSize,
+		const wchar_t* debugName) = 0;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
 
+	// #todo-wip: createBuffer() + createConstantBufferView() or createStructuredBufferView()
 	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) = 0;
 	virtual StructuredBuffer* createStructuredBuffer(
 		uint32 numElements,
 		uint32 stride,
 		EBufferAccessFlags accessFlags) = 0;
+
+	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) = 0;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,
@@ -142,3 +158,4 @@ protected:
 };
 
 extern RenderDevice* gRenderDevice;
+DECLARE_LOG_CATEGORY(LogDevice);

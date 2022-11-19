@@ -4,6 +4,8 @@
 #include "util/enum_util.h"
 #include "pixel_format.h"
 
+#include <vector>
+
 class VertexBufferPool;
 class IndexBufferPool;
 class ConstantBufferView;
@@ -115,13 +117,16 @@ enum class EDepthClearFlags : uint8
 };
 ENUM_CLASS_FLAGS(EDepthClearFlags);
 
-// #todo: Maybe not needed
-// Base class for buffers and textures
+// Base class for GPU resources (buffers, textures, accel structs, ...)
 // ID3D12Resource
 class GPUResource
 {
 public:
 	virtual ~GPUResource() {}
+
+	// D3D12: ID3D12Resource
+	virtual void* getRawResource() const { CHECK_NO_ENTRY(); return nullptr; }
+	virtual void setRawResource(void* inRawResource) { CHECK_NO_ENTRY(); }
 };
 
 // #todo-barrier: There are 3 types of barriers (transition, aliasing, and UAV)
@@ -176,7 +181,12 @@ public:
 
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) = 0;
 
-	VertexBufferPool* internal_getParentPool() { return parentPool; }
+	virtual uint32 getVertexCount() const = 0;
+
+	// offsetInPool
+	virtual uint64 getBufferOffsetInBytes() const = 0;
+
+	VertexBufferPool* internal_getParentPool() const { return parentPool; }
 
 protected:
 	// Null if a committed resource.
@@ -195,13 +205,20 @@ struct IndexBufferCreateParams
 class IndexBuffer : public GPUResource
 {
 public:
-	virtual void initialize(uint32 sizeInBytes) = 0;
+	virtual void initialize(uint32 sizeInBytes, EPixelFormat format) = 0;
 
-	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
+	virtual void initializeWithinPool(
+		IndexBufferPool* pool,
+		uint64 offsetInPool,
+		uint32 sizeInBytes) = 0;
 
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) = 0;
 
-	virtual uint32 getIndexCount() = 0;
+	virtual uint32 getIndexCount() const = 0;
+	virtual EPixelFormat getIndexFormat() const = 0;
+
+	// offsetInPool
+	virtual uint64 getBufferOffsetInBytes() const = 0;
 
 protected:
 	// Null if a committed resource.
@@ -214,7 +231,7 @@ protected:
 class ConstantBuffer : public GPUResource
 {
 public:
-	~ConstantBuffer() = default;
+	virtual ~ConstantBuffer() = default;
 
 	virtual void initialize(uint32 sizeInBytes) = 0;
 
@@ -228,6 +245,9 @@ public:
 		uint32 bufferingCount) = 0;
 };
 
+//////////////////////////////////////////////////////////////////////////
+// StructuredBuffer
+
 class StructuredBuffer : public GPUResource
 {
 public:
@@ -239,11 +259,86 @@ public:
 
 	virtual ShaderResourceView* getSRV() const = 0;
 	virtual UnorderedAccessView* getUAV() const = 0;
+};
 
-	// Element index in the descriptor heap from which the descriptor was created.
-	virtual uint32 getSRVDescriptorIndex() const = 0;
-	virtual uint32 getUAVDescriptorIndex() const = 0;
+//////////////////////////////////////////////////////////////////////////
+// Raytracing resource
 
-	virtual DescriptorHeap* getSourceSRVHeap() const = 0;
-	virtual DescriptorHeap* getSourceUAVHeap() const = 0;
+// D3D12_RAYTRACING_GEOMETRY_TYPE
+enum class ERaytracingGeometryType
+{
+	Triangles,
+	ProceduralPrimitiveAABB
+};
+
+// D3D12_RAYTRACING_GEOMETRY_FLAGS
+enum class ERaytracingGeometryFlags : uint32
+{
+	None                        = 0,
+	Opaque                      = 1 << 0,
+	NoDuplicateAnyhitInvocation = 1 << 1
+};
+ENUM_CLASS_FLAGS(ERaytracingGeometryFlags);
+
+// D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC
+struct RaytracingGeometryTrianglesDesc
+{
+	// #todo-wip: No need to be a *structured* buffer,
+	// just currently easiest solution in my clunky abstraction.
+	// I have to refactor these buffer classes...
+	StructuredBuffer* transform3x4Buffer = nullptr;
+	uint32 transformIndex = 0;
+
+	EPixelFormat indexFormat;
+	EPixelFormat vertexFormat;
+	uint32 indexCount;
+	uint32 vertexCount;
+	IndexBuffer* indexBuffer;
+	VertexBuffer* vertexBuffer;
+};
+
+// D3D12_RAYTRACING_GEOMETRY_DESC
+struct RaytracingGeometryDesc
+{
+	ERaytracingGeometryType type;
+	ERaytracingGeometryFlags flags;
+	union
+	{
+		RaytracingGeometryTrianglesDesc triangles;
+		// #todo-dxr: RaytracingGeometryAABBsDesc
+	};
+};
+
+// D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC
+struct BLASInstanceInitDesc
+{
+	BLASInstanceInitDesc()
+	{
+		::memset(instanceTransform, 0, sizeof(instanceTransform));
+		instanceTransform[0][0] = 1.0f;
+		instanceTransform[1][1] = 1.0f;
+		instanceTransform[2][2] = 1.0f;
+	}
+
+	std::vector<RaytracingGeometryDesc> geomDescs;
+	float instanceTransform[3][4];
+};
+
+struct BLASInstanceUpdateDesc
+{
+	uint32 blasIndex;
+	float instanceTransform[3][4];
+};
+
+class AccelerationStructure : public GPUResource
+{
+public:
+	virtual ~AccelerationStructure() = default;
+
+	virtual void rebuildTLAS(
+		RenderCommandList* commandList,
+		uint32 numInstanceUpdates,
+		const BLASInstanceUpdateDesc* updateDescs) = 0;
+
+	virtual ShaderResourceView* getSRV() const = 0;
 };

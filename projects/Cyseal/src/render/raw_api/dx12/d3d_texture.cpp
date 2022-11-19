@@ -58,22 +58,25 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	}
 
+	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 	HR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&textureDesc,
 		initialState,
 		bNeedsClearValue ? &optClearValue : nullptr,
 		IID_PPV_ARGS(&rawResource)));
-	
+
 	if (0 != (params.accessFlags & ETextureAccessFlags::CPU_WRITE))
 	{
 		const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, 1);
 
+		auto uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		auto uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
 		HR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			&uploadHeapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+			&uploadBufferDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&textureUploadHeap)));
@@ -84,20 +87,17 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		// #todo-texture: SRV ViewDimension
 		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
 
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		srvDesc.Format = textureDesc.Format;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Texture2D.MostDetailedMip = 0;
-		srvDesc.Texture2D.MipLevels = textureDesc.MipLevels;
-		srvDesc.Texture2D.PlaneSlice = 0;
-		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                    = createParams.format;
+		srvDesc.viewDimension             = ESRVDimension::Texture2D;
+		srvDesc.texture2D.mostDetailedMip = 0;
+		srvDesc.texture2D.mipLevels       = textureDesc.MipLevels;
+		srvDesc.texture2D.planeSlice      = 0;
+		srvDesc.texture2D.minLODClamp     = 0.0f;
 
-		getD3DDevice()->allocateSRVHandle(srvHeap, srvHandle, srvDescriptorIndex);
-		device->CreateShaderResourceView(rawResource.Get(), &srvDesc, srvHandle);
-
-		srv = std::make_unique<D3DShaderResourceView>(this);
-		srv->setCPUHandle(srvHandle);
+		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
+		srvHeap = srv->getSourceHeap();
+		srvDescriptorIndex = srv->getDescriptorIndexInHeap();
 	}
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::RTV))
@@ -154,16 +154,8 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		getD3DDevice()->allocateUAVHandle(uavHeap, uavHandle, uavDescriptorIndex);
 		device->CreateUnorderedAccessView(rawResource.Get(), counterResource, &viewDesc, uavHandle);
 
-		uav = std::make_unique<D3DUnorderedAccessView>(this);
-		uav->setCPUHandle(uavHandle);
-
-		CHECK_NO_ENTRY();
+		uav = std::make_unique<D3DUnorderedAccessView>(this, uavHandle);
 	}
-}
-
-D3D12_GPU_VIRTUAL_ADDRESS D3DTexture::getGPUVirtualAddress() const
-{
-	return rawResource->GetGPUVirtualAddress();
 }
 
 void D3DTexture::uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch)

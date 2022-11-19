@@ -52,7 +52,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Lib>
@@ -66,7 +66,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
@@ -99,6 +99,7 @@
     <ClInclude Include="src\loader\image_loader.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
     <ClInclude Include="src\render\base_pass.h" />
+    <ClInclude Include="src\render\global_descriptor_heaps.h" />
     <ClInclude Include="src\render\gpu_scene.h" />
     <ClInclude Include="src\render\null_renderer.h" />
     <ClInclude Include="src\render\raw_api\dx12\d3d_into.h" />
@@ -110,6 +111,7 @@
     <ClInclude Include="src\render\raw_api\vulkan\vk_resource_view.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_texture.h" />
     <ClInclude Include="src\render\raw_api\vulkan\vk_win32.h" />
+    <ClInclude Include="src\render\ray_traced_reflections.h" />
     <ClInclude Include="src\render\render_device_capabilities.h" />
     <ClInclude Include="src\render\scene_renderer.h" />
     <ClInclude Include="src\render\material.h" />
@@ -166,6 +168,7 @@
     <ClCompile Include="src\loader\image_loader.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\base_pass.cpp" />
+    <ClCompile Include="src\render\global_descriptor_heaps.cpp" />
     <ClCompile Include="src\render\gpu_scene.cpp" />
     <ClCompile Include="src\render\null_renderer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_into.cpp" />
@@ -175,6 +178,7 @@
     <ClCompile Include="src\render\raw_api\vulkan\vk_render_command.cpp" />
     <ClCompile Include="src\render\raw_api\vulkan\vk_texture.cpp" />
     <ClCompile Include="src\render\raw_api\vulkan\vk_win32.cpp" />
+    <ClCompile Include="src\render\ray_traced_reflections.cpp" />
     <ClCompile Include="src\render\scene_renderer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_buffer.cpp" />
     <ClCompile Include="src\render\raw_api\dx12\d3d_device.cpp" />

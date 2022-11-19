@@ -5,6 +5,7 @@
 #include "d3d_buffer.h"
 #include "d3d_into.h"
 #include "core/assertion.h"
+
 #include <vector>
 
 #ifndef _DEBUG
@@ -144,7 +145,7 @@ void D3DRenderCommandList::iaSetVertexBuffers(
 	for (uint32 i = 0; i < numViews; ++i)
 	{
 		auto buffer = static_cast<D3DVertexBuffer*>(vertexBuffers[i]);
-		views[i] = buffer->getView();
+		views[i] = buffer->getVertexBufferView();
 	}
 
 	commandList->IASetVertexBuffers(startSlot, numViews, &views[0]);
@@ -153,7 +154,8 @@ void D3DRenderCommandList::iaSetVertexBuffers(
 void D3DRenderCommandList::iaSetIndexBuffer(IndexBuffer* indexBuffer)
 {
 	auto buffer = static_cast<D3DIndexBuffer*>(indexBuffer);
-	commandList->IASetIndexBuffer(&buffer->getView());
+	auto viewDesc = buffer->getIndexBufferView();
+	commandList->IASetIndexBuffer(&viewDesc);
 }
 
 void D3DRenderCommandList::rsSetViewport(const Viewport& viewport)
@@ -265,6 +267,13 @@ void D3DRenderCommandList::setPipelineState(PipelineState* state)
 {
 	auto rawState = static_cast<D3DGraphicsPipelineState*>(state)->getRaw();
 	commandList->SetPipelineState(rawState);
+}
+
+void D3DRenderCommandList::setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso)
+{
+	ID3D12StateObject* rawRTPSO
+		= static_cast<D3DRaytracingPipelineStateObject*>(rtpso)->getRaw();
+	commandList->SetPipelineState1(rawRTPSO);
 }
 
 void D3DRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature)
@@ -456,6 +465,81 @@ void D3DRenderCommandList::dispatchCompute(
 	uint32 threadGroupZ)
 {
 	commandList->Dispatch(threadGroupX, threadGroupY, threadGroupZ);
+}
+
+AccelerationStructure* D3DRenderCommandList::buildRaytracingAccelerationStructure(
+	uint32 numBLASDesc,
+	BLASInstanceInitDesc* blasDescArray)
+{
+	ID3D12DeviceLatest* rawDevice = device->getRawDevice();
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags
+		= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+
+	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDescArray(numBLASDesc);
+
+	D3DAccelerationStructure* accelStruct = new D3DAccelerationStructure;
+	accelStruct->initialize(numBLASDesc);
+
+	for (uint32 blasIndex = 0; blasIndex < numBLASDesc; ++blasIndex)
+	{
+		const auto& geomDescArray = blasDescArray[blasIndex].geomDescs;
+		const uint32 numGeomDesc = (uint32)geomDescArray.size();
+
+		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> d3d_geomDescArray(numGeomDesc);
+		for (uint32 i = 0; i < numGeomDesc; ++i)
+		{
+			into_d3d::raytracingGeometryDesc(geomDescArray[i], d3d_geomDescArray[i]);
+		}
+
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS bottomLevelInputs{};
+		bottomLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+		bottomLevelInputs.Flags = buildFlags;
+		bottomLevelInputs.NumDescs = (uint32)d3d_geomDescArray.size();
+		bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+		bottomLevelInputs.pGeometryDescs = d3d_geomDescArray.data();
+
+		accelStruct->buildBLAS(commandList.Get(), blasIndex, blasDescArray[blasIndex], bottomLevelInputs);
+	}
+
+	accelStruct->waitForBLASBuild(commandList.Get());
+
+	accelStruct->buildTLAS(commandList.Get(), buildFlags);
+
+	return accelStruct;
+}
+
+void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& inDesc)
+{
+	auto getGpuAddress = [](RaytracingShaderTable* table) {
+		return static_cast<D3DRaytracingShaderTable*>(table)->getGpuVirtualAddress();
+	};
+	auto getSizeInBytes = [](RaytracingShaderTable* table) {
+		return static_cast<D3DRaytracingShaderTable*>(table)->getSizeInBytes();
+	};
+	auto getStrideInBytes = [](RaytracingShaderTable* table) {
+		return static_cast<D3DRaytracingShaderTable*>(table)->getStrideInBytes();
+	};
+
+	D3D12_DISPATCH_RAYS_DESC desc{};
+	desc.RayGenerationShaderRecord.StartAddress = getGpuAddress(inDesc.raygenShaderTable);
+	desc.RayGenerationShaderRecord.SizeInBytes = getSizeInBytes(inDesc.raygenShaderTable);
+	desc.MissShaderTable.StartAddress = getGpuAddress(inDesc.missShaderTable);
+	desc.MissShaderTable.SizeInBytes = getSizeInBytes(inDesc.missShaderTable);
+	desc.MissShaderTable.StrideInBytes = getStrideInBytes(inDesc.missShaderTable);
+	desc.HitGroupTable.StartAddress = getGpuAddress(inDesc.hitGroupTable);
+	desc.HitGroupTable.SizeInBytes = getSizeInBytes(inDesc.hitGroupTable);
+	desc.HitGroupTable.StrideInBytes = getStrideInBytes(inDesc.hitGroupTable);
+	// #todo-dxr: CallableShaderTable for dispatchRays()
+	//desc.CallableShaderTable.StartAddress = 0;
+	//desc.CallableShaderTable.SizeInBytes = 0;
+	//desc.CallableShaderTable.StrideInBytes = 0;
+	
+	desc.Width = inDesc.width;
+	desc.Height = inDesc.height;
+	desc.Depth = inDesc.depth;
+
+	commandList->DispatchRays(&desc);
 }
 
 void D3DRenderCommandList::beginEventMarker(const char* eventName)

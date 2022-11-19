@@ -58,9 +58,11 @@ public:
 		uint8_t stencil) override;
 
 	// ------------------------------------------------------------------------
-	// Pipeline state object (graphics & compute)
+	// Pipeline state (graphics, compute, raytracing)
 
 	virtual void setPipelineState(PipelineState* state) override;
+	virtual void setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso) override;
+
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override;
 	virtual void setGraphicsRootSignature(RootSignature* rootSignature) override;
 	virtual void setComputeRootSignature(RootSignature* rootSignature) override;
@@ -140,6 +142,15 @@ public:
 		uint32 threadGroupX,
 		uint32 threadGroupY,
 		uint32 threadGroupZ) override;
+
+	// ------------------------------------------------------------------------
+	// Raytracing pipeline
+
+	virtual AccelerationStructure* buildRaytracingAccelerationStructure(
+		uint32 numBLASDesc,
+		BLASInstanceInitDesc* blasDescArray) override;
+
+	virtual void dispatchRays(const DispatchRaysDesc& dispatchDesc) override;
 
 	// ------------------------------------------------------------------------
 	// Auxiliaries

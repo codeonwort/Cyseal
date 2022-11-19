@@ -13,6 +13,10 @@ public:
 	{
 	}
 
+	inline vec3 getPosition() const { return position; }
+	inline quaternion getRotation() const { return rotation; }
+	inline vec3 getScale() const { return scale; }
+
 	void setPosition(const vec3& newPosition);
 	void setRotation(const vec3& axis, float angle);
 	void setScale(float newScale);

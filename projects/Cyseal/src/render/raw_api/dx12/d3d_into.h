@@ -3,6 +3,7 @@
 #include "core/assertion.h"
 #include "render/pipeline_state.h"
 #include "render/gpu_resource.h"
+#include "render/gpu_resource_view.h"
 #include "render/gpu_resource_binding.h"
 #include "d3d_util.h"
 #include <vector>
@@ -54,6 +55,11 @@ namespace into_d3d
 		std::vector<D3D12_STATIC_SAMPLER_DESC*> staticSamplers;
 		std::vector<D3D12_INPUT_ELEMENT_DESC*> inputElements;
 	};
+
+	inline ID3D12Resource* id3d12Resource(GPUResource* inResource)
+	{
+		return reinterpret_cast<ID3D12Resource*>(inResource->getRawResource());
+	}
 
 	inline D3D12_BLEND blend(EBlend inBlend)
 	{
@@ -439,4 +445,121 @@ namespace into_d3d
 	}
 
 	D3D12_RESOURCE_BARRIER resourceBarrier(const ResourceBarrier& barrier);
+
+	inline D3D12_RAYTRACING_GEOMETRY_TYPE raytracingGeometryType(ERaytracingGeometryType inType)
+	{
+		switch (inType)
+		{
+			case ERaytracingGeometryType::Triangles: return D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+			case ERaytracingGeometryType::ProceduralPrimitiveAABB: return D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+	}
+
+	inline D3D12_RAYTRACING_GEOMETRY_FLAGS raytracingGeometryFlags(ERaytracingGeometryFlags inFlags)
+	{
+		D3D12_RAYTRACING_GEOMETRY_FLAGS flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+		if (0 != (inFlags & ERaytracingGeometryFlags::Opaque))
+		{
+			flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+		}
+		if (0 != (inFlags & ERaytracingGeometryFlags::NoDuplicateAnyhitInvocation))
+		{
+			flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION;
+		}
+		return flags;
+	}
+
+	inline D3D12_HIT_GROUP_TYPE hitGroupType(ERaytracingHitGroupType inType)
+	{
+		switch (inType)
+		{
+			case ERaytracingHitGroupType::Triangles:           return D3D12_HIT_GROUP_TYPE_TRIANGLES;
+			case ERaytracingHitGroupType::ProceduralPrimitive: return D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_HIT_GROUP_TYPE_TRIANGLES;
+	}
+
+	void raytracingGeometryDesc(
+		const RaytracingGeometryDesc& inDesc,
+		D3D12_RAYTRACING_GEOMETRY_DESC& outDesc);
+
+	inline D3D12_SRV_DIMENSION srvDimension(ESRVDimension inDimension)
+	{
+		switch (inDimension)
+		{
+			case ESRVDimension::Unknown:                         return D3D12_SRV_DIMENSION_UNKNOWN;
+			case ESRVDimension::Buffer:                          return D3D12_SRV_DIMENSION_BUFFER;
+			case ESRVDimension::Texture1D:						 return D3D12_SRV_DIMENSION_TEXTURE1D;
+			case ESRVDimension::Texture1DArray:					 return D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
+			case ESRVDimension::Texture2D:						 return D3D12_SRV_DIMENSION_TEXTURE2D;
+			case ESRVDimension::Texture2DArray:					 return D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+			case ESRVDimension::Texture2DMultiSampled:			 return D3D12_SRV_DIMENSION_TEXTURE2DMS;
+			case ESRVDimension::Texture2DMultiSampledArray:		 return D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
+			case ESRVDimension::Texture3D:						 return D3D12_SRV_DIMENSION_TEXTURE3D;
+			case ESRVDimension::TextureCube:					 return D3D12_SRV_DIMENSION_TEXTURECUBE;
+			case ESRVDimension::TextureCubeArray:				 return D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
+			case ESRVDimension::RaytracingAccelerationStructure: return D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_SRV_DIMENSION_UNKNOWN;
+	}
+
+	inline D3D12_BUFFER_SRV_FLAGS bufferSRVFlags(EBufferSRVFlags inFlags)
+	{
+		D3D12_BUFFER_SRV_FLAGS flags = D3D12_BUFFER_SRV_FLAG_NONE;
+		if (0 != (inFlags & EBufferSRVFlags::Raw))
+		{
+			flags |= D3D12_BUFFER_SRV_FLAG_RAW;
+		}
+		return flags;
+	}
+
+	inline D3D12_BUFFER_SRV bufferSRVDesc(const BufferSRVDesc& inDesc)
+	{
+		D3D12_BUFFER_SRV desc{};
+		desc.FirstElement        = inDesc.firstElement;
+		desc.NumElements         = inDesc.numElements;
+		desc.StructureByteStride = inDesc.structureByteStride;
+		desc.Flags               = into_d3d::bufferSRVFlags(inDesc.flags);
+		return desc;
+	}
+
+	inline D3D12_TEX2D_SRV texture2DSRVDesc(const Texture2DSRVDesc& inDesc)
+	{
+		D3D12_TEX2D_SRV desc{};
+		desc.MostDetailedMip     = inDesc.mostDetailedMip;
+		desc.MipLevels           = inDesc.mipLevels;
+		desc.PlaneSlice          = inDesc.planeSlice;
+		desc.ResourceMinLODClamp = inDesc.minLODClamp;
+		return desc;
+	}
+
+	inline D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc(const ShaderResourceViewDesc& inDesc)
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+		desc.Format                  = into_d3d::pixelFormat(inDesc.format);
+		desc.ViewDimension           = into_d3d::srvDimension(inDesc.viewDimension);
+		// NOTE: Shader4ComponentMapping must be D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING (0x1688) for structured buffers.
+		desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		switch (inDesc.viewDimension)
+		{
+			case ESRVDimension::Unknown:                           CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Buffer:                            desc.Buffer = into_d3d::bufferSRVDesc(inDesc.buffer); break;
+			case ESRVDimension::Texture1D:                         CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture1DArray:                    CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture2D:                         desc.Texture2D = into_d3d::texture2DSRVDesc(inDesc.texture2D); break;
+			case ESRVDimension::Texture2DArray:                    CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture2DMultiSampled:             CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture2DMultiSampledArray:        CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture3D:                         CHECK_NO_ENTRY(); break;
+			case ESRVDimension::TextureCube:                       CHECK_NO_ENTRY(); break;
+			case ESRVDimension::TextureCubeArray:                  CHECK_NO_ENTRY(); break;
+			case ESRVDimension::RaytracingAccelerationStructure:   CHECK_NO_ENTRY(); break;
+			default:                                               CHECK_NO_ENTRY(); break;
+		}
+		return desc;
+	}
 }

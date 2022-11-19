@@ -7,7 +7,7 @@
 #include "d3d_pipeline_state.h"
 #include "d3d_into.h"
 #include "core/assertion.h"
-#include "render/texture_manager.h"
+#include "render/global_descriptor_heaps.h"
 #include "util/logging.h"
 
 // #todo-crossapi: Dynamic loading
@@ -63,6 +63,7 @@ void reportD3DLiveObjects()
 }
 
 D3DDevice::D3DDevice()
+	: RenderDevice()
 {
 	std::atexit(reportD3DLiveObjects);
 }
@@ -138,7 +139,7 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 	// Check capabilities
 	{
 		// #todo-dx12: Use d3dx12 feature support helper?
-	// https://devblogs.microsoft.com/directx/introducing-a-new-api-for-checking-feature-support-in-direct3d-12/
+		// https://devblogs.microsoft.com/directx/introducing-a-new-api-for-checking-feature-support-in-direct3d-12/
 
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 caps5 = {}; // DXR
 		D3D12_FEATURE_DATA_D3D12_OPTIONS6 caps6 = {}; // VRS
@@ -176,15 +177,20 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 		}
 
 		CYLOG(LogDirectX, Log, L"=== Hardware capabilities ===");
-		CYLOG(LogDirectX, Log, L"DXR             requested=%S\t\tactual=%S", toString(createParams.raytracingTier), toString(raytracingTier));
-		CYLOG(LogDirectX, Log, L"VRS             requested=%S\t\tactual=%S", toString(createParams.vrsTier), toString(vrsTier));
-		CYLOG(LogDirectX, Log, L"MeshShader      requested=%S\t\tactual=%S", toString(createParams.meshShaderTier), toString(meshShaderTier));
-		CYLOG(LogDirectX, Log, L"SamplerFeedback requested=%S\t\tactual=%S", toString(createParams.samplerFeedbackTier), toString(samplerFeedbackTier));
+		CYLOG(LogDirectX, Log, L"> min(requested, maxSupported) tiers will be used");
+		CYLOG(LogDirectX, Log, L"Cap: DXR             requested=%S\tmaxSupported=%S", toString(createParams.raytracingTier), toString(raytracingTier));
+		CYLOG(LogDirectX, Log, L"Cap: VRS             requested=%S\tmaxSupported=%S", toString(createParams.vrsTier), toString(vrsTier));
+		CYLOG(LogDirectX, Log, L"Cap: MeshShader      requested=%S\tmaxSupported=%S", toString(createParams.meshShaderTier), toString(meshShaderTier));
+		CYLOG(LogDirectX, Log, L"Cap: SamplerFeedback requested=%S\tmaxSupported=%S", toString(createParams.samplerFeedbackTier), toString(samplerFeedbackTier));
+
+		raytracingTier = static_cast<ERaytracingTier>((std::min)((uint8)createParams.raytracingTier, (uint8)raytracingTier));
+		vrsTier = static_cast<EVariableShadingRateTier>((std::min)((uint8)createParams.vrsTier, (uint8)vrsTier));
+		meshShaderTier = static_cast<EMeshShaderTier>((std::min)((uint8)createParams.meshShaderTier, (uint8)meshShaderTier));
+		samplerFeedbackTier = static_cast<ESamplerFeedbackTier>((std::min)((uint8)createParams.samplerFeedbackTier, (uint8)samplerFeedbackTier));
 	}
 
 	// 2. Create a ID3D12Fence and retrieve sizes of descriptors.
-	HR( device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)) );
-	currentFence = 0;
+	HR( device->CreateFence(currentFence, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)) );
 
 	descSizeRTV         = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descSizeDSV         = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
@@ -258,52 +264,52 @@ void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32
 
 void D3DDevice::allocateSRVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
 {
-	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getSRVHeap())->getRaw();
-	const uint32 viewIndex = gTextureManager->allocateSRVIndex();
+	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getSRVHeap())->getRaw();
+	const uint32 viewIndex = gDescriptorHeaps->allocateSRVIndex();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeCBV_SRV_UAV);
 
-	outSourceHeap = gTextureManager->getSRVHeap();
+	outSourceHeap = gDescriptorHeaps->getSRVHeap();
 	outHandle = handle;
 	outDescriptorIndex = viewIndex;
 }
 
 void D3DDevice::allocateRTVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
 {
-	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getRTVHeap())->getRaw();
-	const uint32 viewIndex = gTextureManager->allocateRTVIndex();
+	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getRTVHeap())->getRaw();
+	const uint32 viewIndex = gDescriptorHeaps->allocateRTVIndex();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeRTV);
 
-	outSourceHeap = gTextureManager->getRTVHeap();
+	outSourceHeap = gDescriptorHeaps->getRTVHeap();
 	outHandle = handle;
 	outDescriptorIndex = viewIndex;
 }
 
 void D3DDevice::allocateDSVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
 {
-	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getDSVHeap())->getRaw();
-	const uint32 viewIndex = gTextureManager->allocateDSVIndex();
+	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getDSVHeap())->getRaw();
+	const uint32 viewIndex = gDescriptorHeaps->allocateDSVIndex();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeDSV);
 
-	outSourceHeap = gTextureManager->getDSVHeap();
+	outSourceHeap = gDescriptorHeaps->getDSVHeap();
 	outHandle = handle;
 	outDescriptorIndex = viewIndex;
 }
 
 void D3DDevice::allocateUAVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
 {
-	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gTextureManager->getUAVHeap())->getRaw();
-	const uint32 viewIndex = gTextureManager->allocateUAVIndex();
+	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getUAVHeap())->getRaw();
+	const uint32 viewIndex = gDescriptorHeaps->allocateUAVIndex();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeCBV_SRV_UAV);
 
-	outSourceHeap = gTextureManager->getUAVHeap();
+	outSourceHeap = gDescriptorHeaps->getUAVHeap();
 	outHandle = handle;
 	outDescriptorIndex = viewIndex;
 }
@@ -375,17 +381,21 @@ VertexBuffer* D3DDevice::createVertexBuffer(uint32 sizeInBytes, const wchar_t* i
 	return buffer;
 }
 
-VertexBuffer* D3DDevice::createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
+VertexBuffer* D3DDevice::createVertexBuffer(
+	VertexBufferPool* pool, uint64 offsetInPool,
+	uint32 sizeInBytes)
 {
 	D3DVertexBuffer* buffer = new D3DVertexBuffer;
 	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
 
-IndexBuffer* D3DDevice::createIndexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)
+IndexBuffer* D3DDevice::createIndexBuffer(
+	uint32 sizeInBytes, EPixelFormat format,
+	const wchar_t* inDebugName)
 {
 	D3DIndexBuffer* buffer = new D3DIndexBuffer;
-	buffer->initialize(sizeInBytes);
+	buffer->initialize(sizeInBytes, format);
 	if (inDebugName != nullptr)
 	{
 		buffer->setDebugName(inDebugName);
@@ -393,7 +403,9 @@ IndexBuffer* D3DDevice::createIndexBuffer(uint32 sizeInBytes, const wchar_t* inD
 	return buffer;
 }
 
-IndexBuffer* D3DDevice::createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
+IndexBuffer* D3DDevice::createIndexBuffer(
+	IndexBufferPool* pool, uint64 offsetInPool,
+	uint32 sizeInBytes, EPixelFormat format)
 {
 	D3DIndexBuffer* buffer = new D3DIndexBuffer;
 	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
@@ -463,6 +475,89 @@ PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& 
 	return pipeline;
 }
 
+RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
+	const RaytracingPipelineStateObjectDesc& desc)
+{
+	CD3DX12_STATE_OBJECT_DESC d3d_desc{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
+
+	// DXIL library
+	auto createRTShaderSubobject = [&](ShaderStage* shaderStage)
+	{
+		if (shaderStage != nullptr)
+		{
+			D3DShaderStage* d3dShader = static_cast<D3DShaderStage*>(shaderStage);
+			D3D12_SHADER_BYTECODE shaderBytecode = d3dShader->getBytecode();
+
+			auto lib = d3d_desc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+			lib->SetDXILLibrary(&shaderBytecode);
+			lib->DefineExport(d3dShader->getEntryPointW());
+		}
+	};
+	createRTShaderSubobject(desc.raygenShader);
+	createRTShaderSubobject(desc.closestHitShader);
+	createRTShaderSubobject(desc.missShader);
+
+	// Hit group
+	auto hitGroup = d3d_desc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+	if (desc.closestHitShader != nullptr)
+	{
+		hitGroup->SetClosestHitShaderImport(
+			static_cast<D3DShaderStage*>(desc.closestHitShader)->getEntryPointW());
+	}
+	// #todo-dxr: anyHitShader, intersectionShader
+	hitGroup->SetHitGroupExport(desc.hitGroupName.c_str());
+	hitGroup->SetHitGroupType(into_d3d::hitGroupType(desc.hitGroupType));
+
+	// Shader config
+	auto shaderConfig = d3d_desc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
+	CHECK(desc.maxAttributeSizeInBytes < D3D12_RAYTRACING_MAX_ATTRIBUTE_SIZE_IN_BYTES);
+	shaderConfig->Config(desc.maxPayloadSizeInBytes, desc.maxAttributeSizeInBytes);
+
+	// Local root signature
+	auto createLocalRootSignature = [&](ShaderStage* shader, RootSignature* rootSig)
+	{
+		if (shader != nullptr && rootSig != nullptr)
+		{
+			auto shaderName = static_cast<D3DShaderStage*>(shader)->getEntryPointW();
+			auto d3dRootSig = static_cast<D3DRootSignature*>(rootSig)->getRaw();
+
+			auto localSig = d3d_desc.CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+			localSig->SetRootSignature(d3dRootSig);
+			auto assoc = d3d_desc.CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+			assoc->SetSubobjectToAssociate(*localSig);
+			assoc->AddExport(shaderName);
+		}
+	};
+	createLocalRootSignature(desc.raygenShader, desc.raygenLocalRootSignature);
+	createLocalRootSignature(desc.closestHitShader, desc.closestHitLocalRootSignature);
+	createLocalRootSignature(desc.missShader, desc.missLocalRootSignature);
+
+	// Global root signature
+	auto globalSig = d3d_desc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
+	globalSig->SetRootSignature(static_cast<D3DRootSignature*>(desc.globalRootSignature)->getRaw());
+
+	// Pipeline config
+	auto pipelineConfig = d3d_desc.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
+	pipelineConfig->Config(desc.maxTraceRecursionDepth);
+
+	D3DRaytracingPipelineStateObject* RTPSO = new D3DRaytracingPipelineStateObject;
+	RTPSO->initialize(device.Get(), d3d_desc);
+	return RTPSO;
+}
+
+RaytracingShaderTable* D3DDevice::createRaytracingShaderTable(
+	RaytracingPipelineStateObject* RTPSO,
+	uint32 numShaderRecords,
+	uint32 rootArgumentSize,
+	const wchar_t* debugName)
+{
+	auto d3dRTPSO = static_cast<D3DRaytracingPipelineStateObject*>(RTPSO);
+	D3DRaytracingShaderTable* table = new D3DRaytracingShaderTable(
+		device.Get(), d3dRTPSO, numShaderRecords, rootArgumentSize, debugName);
+
+	return table;
+}
+
 DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
 {
 	D3D12_DESCRIPTOR_HEAP_DESC d3d_desc;
@@ -489,6 +584,22 @@ StructuredBuffer* D3DDevice::createStructuredBuffer(
 	D3DStructuredBuffer* buffer = new D3DStructuredBuffer;
 	buffer->initialize(numElements, stride, accessFlags);
 	return buffer;
+}
+
+ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC d3dDesc = into_d3d::srvDesc(createParams);
+
+	DescriptorHeap* sourceHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+	uint32 descriptorIndex;
+	allocateSRVHandle(sourceHeap, cpuHandle, descriptorIndex);
+
+	ID3D12Resource* d3dResource = into_d3d::id3d12Resource(gpuResource);
+	device->CreateShaderResourceView(d3dResource, &d3dDesc, cpuHandle);
+
+	D3DShaderResourceView* srv = new D3DShaderResourceView(gpuResource, sourceHeap, descriptorIndex, cpuHandle);
+	return srv;
 }
 
 void D3DDevice::copyDescriptors(

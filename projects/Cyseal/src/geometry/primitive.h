@@ -12,7 +12,13 @@ struct Geometry
 	std::vector<vec2> texcoords;
 	std::vector<uint32> indices;
 
-	void initNumVertices(size_t num);
+	void resizeNumVertices(size_t num); // CAUTION: Don't use push_back()
+	void resizeNumIndices(size_t num);  // CAUTION: Don't use push_back()
+
+	void reserveNumVertices(size_t num);
+	void reserveNumIndices(size_t num);
+
+	void recalculateNormals();
 
 	void finalize();
 

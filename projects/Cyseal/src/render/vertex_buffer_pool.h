@@ -14,6 +14,8 @@
 #include <memory>
 #include <vector>
 
+class ShaderResourceView;
+
 // #todo-vram-pool: Implement free list with this.
 struct BufferPoolItem
 {
@@ -35,6 +37,8 @@ public:
 	inline uint64 getTotalBytes() const { return poolSize; }
 	inline uint64 getUsedBytes() const { return currentOffset; }
 	inline uint64 getAvailableBytes() const { return poolSize - currentOffset; }
+
+	ShaderResourceView* getByteAddressBufferView() const;
 	
 public:
 	VertexBuffer* internal_getPoolBuffer() const { return pool; }
@@ -42,6 +46,8 @@ public:
 private:
 	uint64 poolSize = 0;
 	VertexBuffer* pool = nullptr;
+
+	std::unique_ptr<ShaderResourceView> srv; // ByteAddressBuffer view
 	
 	// #todo-vram-pool: Only increment for now. Need a free list.
 	uint64 currentOffset = 0;
@@ -54,7 +60,7 @@ public:
 	void initialize(uint64 totalBytes);
 	void destroy();
 
-	IndexBuffer* suballocate(uint32 sizeInBytes);
+	IndexBuffer* suballocate(uint32 sizeInBytes, EPixelFormat format);
 
 	// #todo-vram-pool: deallocate()
 	// ...
@@ -63,12 +69,16 @@ public:
 	inline uint64 getUsedBytes() const { return currentOffset; }
 	inline uint64 getAvailableBytes() const { return poolSize - currentOffset; }
 
+	ShaderResourceView* getByteAddressBufferView() const;
+
 public:
 	IndexBuffer* internal_getPoolBuffer() const { return pool; }
 
 private:
 	uint64 poolSize = 0;
 	IndexBuffer* pool = nullptr;
+
+	std::unique_ptr<ShaderResourceView> srv; // ByteAddressBuffer view
 
 	// #todo-vram-pool: Only increment for now. Need a free list.
 	uint64 currentOffset = 0;

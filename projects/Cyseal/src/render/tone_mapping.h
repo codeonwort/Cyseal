@@ -15,7 +15,8 @@ public:
 
 	void renderToneMapping(
 		RenderCommandList* commandList,
-		Texture* sceneColor);
+		Texture* sceneColor,
+		Texture* indirectSpecular);
 
 private:
 	std::unique_ptr<PipelineState> pipelineState;

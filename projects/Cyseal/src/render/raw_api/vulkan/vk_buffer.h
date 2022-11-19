@@ -1,5 +1,7 @@
 #pragma once
 
+#if COMPILE_BACKEND_VULKAN
+
 #include "render/gpu_resource.h"
 #include <vulkan/vulkan_core.h>
 
@@ -52,3 +54,5 @@ private:
 	uint32 indexCount = 0;
 	VkIndexType vkIndexType = VK_INDEX_TYPE_MAX_ENUM;
 };
+
+#endif // COMPILE_BACKEND_VULKAN

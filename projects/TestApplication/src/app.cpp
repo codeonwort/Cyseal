@@ -5,6 +5,7 @@
 #include "render/gpu_resource.h"
 #include "render/vertex_buffer_pool.h"
 #include "render/render_device_capabilities.h"
+#include "render/texture_manager.h"
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
 #include "loader/image_loader.h"
@@ -31,19 +32,27 @@
 #endif
 #define WINDOW_TYPE          EWindowType::WINDOWED
 
-#define CAMERA_POSITION      vec3(0.0f, 0.0f, 20.0f)
+#define RAYTRACING_TIER      ERaytracingTier::MaxTier
+
+#define CAMERA_POSITION      vec3(0.0f, 0.0f, 30.0f)
 #define CAMERA_LOOKAT        vec3(0.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
 #define CAMERA_FOV_Y         70.0f
 #define CAMERA_Z_NEAR        1.0f
 #define CAMERA_Z_FAR         10000.0f
 
-#define MESH_ROWS            10
-#define MESH_COLS            10
-#define MESH_GROUP_CENTER    vec3(0.0f, 0.0f, 0.0f)
-#define MESH_SPACE_X         2.0f
-#define MESH_SPACE_Y         2.0f
-#define MESH_SCALE           0.5f
+#define MESH_ROWS            3
+#define MESH_COLS            6
+#define MESH_GROUP_CENTER    vec3(0.0f, 10.0f, 0.0f)
+#define MESH_SPACE_X         10.0f
+#define MESH_SPACE_Y         8.0f
+#define MESH_SPACE_Z         4.0f
+#define MESH_SCALE           3.0f
+
+#define CRUMPLED_WORLD       1
+
+#define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
+#define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
 /* -------------------------------------------------------
 					APPLICATION
@@ -60,6 +69,7 @@ bool TestApplication::onInitialize()
 	engineInit.renderDevice.windowType         = WINDOW_TYPE;
 	engineInit.renderDevice.windowWidth        = getWindowWidth();
 	engineInit.renderDevice.windowHeight       = getWindowHeight();
+	engineInit.renderDevice.raytracingTier     = RAYTRACING_TIER;
 	engineInit.rendererType                    = RENDERER_TYPE;
 
 	cysealEngine.startup(engineInit);
@@ -81,13 +91,28 @@ void TestApplication::onTick(float deltaSeconds)
 	setWindowTitle(std::wstring(buf));
 
 	// #todo-app: Control camera by user input
+	// Animate camera to see if raytracing is actually working in world space.
 	{
 		static float elapsed = 0.0f;
-		elapsed += deltaSeconds;
-		vec3 posDelta = vec3(10.0f * sinf(elapsed), 0.0f, 5.0f * cosf(elapsed));
-		//camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
-		ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
+		elapsed += 0.5f * deltaSeconds;
+		vec3 posDelta = vec3(5.0f * sinf(elapsed), 0.0f, 3.0f * cosf(elapsed));
+		camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
+		//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
 		ground->getTransform().setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
+	}
+
+	// Animate balls to see if update of BLAS instance transforms is going well.
+	static float ballTime = 0.0f;
+	ballTime += deltaSeconds;
+	for (size_t i = 0; i < balls.size(); ++i)
+	{
+		vec3 p = ballOriginalPos[i];
+		if (i % 3 == 0) p.x += 2.0f * Cymath::cos(ballTime);
+		else if (i % 3 == 1) p.y += 2.0f * Cymath::cos(ballTime);
+		else if (i % 3 == 2) p.z += 2.0f * Cymath::cos(ballTime);
+		balls[i]->getTransform().setPosition(p);
+
+		balls[i]->getTransform().setScale(MESH_SCALE * (1.0f + 0.3f * Cymath::sin(i + ballTime)));
 	}
 
 	// #todo: Move rendering loop to engine
@@ -132,11 +157,14 @@ void TestApplication::createResources()
 	for (uint32 i = 0; i < NUM_GEOM_ASSETS; ++i)
 	{
 		const float phase = Cymath::randFloatRange(0.0f, 6.28f);
-		const float spike = Cymath::randFloatRange(0.0f, 1.0f);
-		ProceduralGeometry::spikeBall(3, phase, spike, geometriesLODs[i][0]);
-		ProceduralGeometry::spikeBall(1, phase, spike, geometriesLODs[i][1]);
-		//ProceduralGeometry::icosphere(3, geometriesLODs[i][0]);
-		//ProceduralGeometry::icosphere(1, geometriesLODs[i][1]);
+		const float spike = Cymath::randFloatRange(0.0f, 0.2f);
+#if CRUMPLED_WORLD
+		ProceduralGeometry::spikeBall(geometriesLODs[i][0], 3, phase, spike);
+		ProceduralGeometry::spikeBall(geometriesLODs[i][1], 1, phase, spike);
+#else
+		ProceduralGeometry::icosphere(geometriesLODs[i][0], 3);
+		ProceduralGeometry::icosphere(geometriesLODs[i][1], 1);
+#endif
 	}
 
 	// #todo: Unload image memory when GPU upload is done.
@@ -181,7 +209,7 @@ void TestApplication::createResources()
 					//indexBufferLODs[geomIx][lod] = gRenderDevice->createIndexBuffer(G.getIndexBufferTotalBytes());
 					positionBufferLODs[geomIx][lod] = gVertexBufferPool->suballocate(G.getPositionBufferTotalBytes());
 					nonPositionBufferLODs[geomIx][lod] = gVertexBufferPool->suballocate(G.getNonPositionBufferTotalBytes());
-					indexBufferLODs[geomIx][lod] = gIndexBufferPool->suballocate(G.getIndexBufferTotalBytes());
+					indexBufferLODs[geomIx][lod] = gIndexBufferPool->suballocate(G.getIndexBufferTotalBytes(), G.getIndexFormat());
 
 					positionBufferLODs[geomIx][lod]->updateData(&commandList, G.getPositionBlob(), G.getPositionStride());
 					nonPositionBufferLODs[geomIx][lod]->updateData(&commandList, G.getNonPositionBlob(), G.getNonPositionStride());
@@ -232,6 +260,8 @@ void TestApplication::createResources()
 				material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
 				material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
 				material->albedoMultiplier[2] = 0.0f;
+				//material->roughness = Cymath::randFloat() < 0.5f ? 0.0f : 1.0f;
+				material->roughness = 0.0f;
 
 				staticMesh->addSection(
 					lod,
@@ -244,12 +274,16 @@ void TestApplication::createResources()
 			vec3 pos = MESH_GROUP_CENTER;
 			pos.x = x0 + col * MESH_SPACE_X;
 			pos.y = y0 + row * MESH_SPACE_Y;
+			pos.z -= row * MESH_SPACE_Z;
+			pos.z += 2.0f * col * MESH_SPACE_Z / MESH_COLS;
+			pos.x += (row & 1) * 0.5f * MESH_SPACE_X;
 
 			staticMesh->getTransform().setPosition(pos);
 			staticMesh->getTransform().setScale(MESH_SCALE);
 
 			scene.addStaticMesh(staticMesh);
 			balls.push_back(staticMesh);
+			ballOriginalPos.push_back(pos);
 
 			currentGeomIx = (currentGeomIx + 1) % NUM_GEOM_ASSETS;
 		}
@@ -258,7 +292,16 @@ void TestApplication::createResources()
 	// Ground
 	{
 		Geometry planeGeometry;
-		ProceduralGeometry::plane(planeGeometry, 100.0f, 100.0f, 1, 1, ProceduralGeometry::EPlaneNormal::Y);
+#if CRUMPLED_WORLD
+		ProceduralGeometry::crumpledPaper(planeGeometry,
+			100.0f, 100.0f, 16, 16,
+			2.0f,
+			ProceduralGeometry::EPlaneNormal::Y);
+#else
+		ProceduralGeometry::plane(planeGeometry,
+			100.0f, 100.0f, 2, 2,
+			ProceduralGeometry::EPlaneNormal::Y);
+#endif
 
 		VertexBuffer* positionBuffer;
 		VertexBuffer* nonPositionBuffer;
@@ -268,7 +311,7 @@ void TestApplication::createResources()
 			{
 				positionBuffer = gVertexBufferPool->suballocate(planeGeometry.getPositionBufferTotalBytes());
 				nonPositionBuffer = gVertexBufferPool->suballocate(planeGeometry.getNonPositionBufferTotalBytes());
-				indexBuffer = gIndexBufferPool->suballocate(planeGeometry.getIndexBufferTotalBytes());
+				indexBuffer = gIndexBufferPool->suballocate(planeGeometry.getIndexBufferTotalBytes(), planeGeometry.getIndexFormat());
 
 				positionBuffer->updateData(&commandList, planeGeometry.getPositionBlob(), planeGeometry.getPositionStride());
 				nonPositionBuffer->updateData(&commandList, planeGeometry.getNonPositionBlob(), planeGeometry.getNonPositionStride());
@@ -283,7 +326,11 @@ void TestApplication::createResources()
 		ibuffersToDelete.push_back(indexBuffer);
 
 		Material* material = new Material;
-		material->albedoTexture = albedoTexture;
+		material->albedoMultiplier[0] = 1.0f;
+		material->albedoMultiplier[1] = 1.0f;
+		material->albedoMultiplier[2] = 1.0f;
+		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
+		material->roughness = 0.0f;
 
 		ground = new StaticMesh;
 		ground->addSection(0, positionBuffer, nonPositionBuffer, indexBuffer, material);
@@ -292,8 +339,59 @@ void TestApplication::createResources()
 		scene.addStaticMesh(ground);
 	}
 
-	scene.sun.direction = normalize(vec3(0.0f, -1.0f, -1.0f));
-	scene.sun.illuminance = 10.0f * vec3(1.0f, 1.0f, 1.0f);
+	// wallA
+	{
+		Geometry planeGeometry;
+#if CRUMPLED_WORLD
+		ProceduralGeometry::crumpledPaper(planeGeometry,
+			50.0f, 50.0f, 16, 16,
+			1.0f,
+			ProceduralGeometry::EPlaneNormal::X);
+#else
+		ProceduralGeometry::plane(planeGeometry,
+			50.0f, 50.0f, 2, 2,
+			ProceduralGeometry::EPlaneNormal::X);
+#endif
+
+		VertexBuffer* positionBuffer;
+		VertexBuffer* nonPositionBuffer;
+		IndexBuffer* indexBuffer;
+		ENQUEUE_RENDER_COMMAND(UploadGroundMesh)(
+			[&planeGeometry, &positionBuffer, &nonPositionBuffer, &indexBuffer](RenderCommandList& commandList)
+			{
+				positionBuffer = gVertexBufferPool->suballocate(planeGeometry.getPositionBufferTotalBytes());
+				nonPositionBuffer = gVertexBufferPool->suballocate(planeGeometry.getNonPositionBufferTotalBytes());
+				indexBuffer = gIndexBufferPool->suballocate(planeGeometry.getIndexBufferTotalBytes(), planeGeometry.getIndexFormat());
+
+				positionBuffer->updateData(&commandList, planeGeometry.getPositionBlob(), planeGeometry.getPositionStride());
+				nonPositionBuffer->updateData(&commandList, planeGeometry.getNonPositionBlob(), planeGeometry.getNonPositionStride());
+				indexBuffer->updateData(&commandList, planeGeometry.getIndexBlob(), planeGeometry.getIndexFormat());
+			}
+		);
+		FLUSH_RENDER_COMMANDS();
+
+		// #todo: Temp prevent memory leak
+		vbuffersToDelete.push_back(positionBuffer);
+		vbuffersToDelete.push_back(nonPositionBuffer);
+		ibuffersToDelete.push_back(indexBuffer);
+
+		Material* material = new Material;
+		material->albedoMultiplier[0] = 1.0f;
+		material->albedoMultiplier[1] = 1.0f;
+		material->albedoMultiplier[2] = 1.0f;
+		material->albedoTexture = gTextureManager->getSystemTextureGreen2D();
+		material->roughness = 0.0f;
+
+		wallA = new StaticMesh;
+		wallA->addSection(0, positionBuffer, nonPositionBuffer, indexBuffer, material);
+		wallA->getTransform().setPosition(vec3(x0 - MESH_SPACE_X, 0.0f, 0.0f));
+		wallA->getTransform().setRotation(vec3(0.0f, 0.0f, 1.0f), -10.0f);
+
+		scene.addStaticMesh(wallA);
+	}
+
+	scene.sun.direction = SUN_DIRECTION;
+	scene.sun.illuminance = SUN_ILLUMINANCE;
 }
 
 void TestApplication::destroyResources()
@@ -311,4 +409,5 @@ void TestApplication::destroyResources()
 	balls.clear();
 
 	delete ground;
+	delete wallA;
 }

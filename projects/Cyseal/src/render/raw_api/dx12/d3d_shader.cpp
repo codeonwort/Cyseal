@@ -120,7 +120,6 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* entryPo
 
 	std::wstring includeDir = getShaderDirectory();
 	std::wstring targetProfile = getD3DShaderProfile(highestSM, stageFlag);
-	std::wstring wEntryPoint;
 	str_to_wstr(entryPoint, wEntryPoint);
 
 	std::vector<LPCWSTR> arguments = {

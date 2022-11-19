@@ -26,11 +26,6 @@ MeshData getMeshData() { return gpuSceneBuffer[pushConstants.objectId]; }
 // ------------------------------------------------------------------------
 // Resource bindings (material-specific)
 
-struct Material
-{
-    float4 albedoMultiplier;
-    uint   albedoTextureIndex; float3 _pad0;
-};
 ConstantBuffer<Material> materials[]        : register(b0, space1); // bindless in another space
 Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space1); // bindless in another space
 SamplerState albedoSampler                  : register(s0);
@@ -111,9 +106,6 @@ PixelOutput mainPS(Interpolants interpolants)
         float NdotL = max(0.0, dot(N, Wi));
         diffuse += albedo * Li * NdotL;
     }
-
-    // Fake indirect lighting to distinguish with black background.
-    diffuse += float3(0.02, 0.02, 0.02);
 
     float3 luminance = diffuse + specular;
 

@@ -1,16 +1,27 @@
 #include "gpu_scene.h"
 #include "gpu_resource.h"
 #include "render_device.h"
+#include "swap_chain.h"
 #include "static_mesh.h"
 #include "material.h"
+#include "texture_manager.h"
 #include "core/matrix.h"
 #include "world/scene.h"
 
-#define MAX_SCENE_ELEMENTS 1024
+// #todo-wip: Should not be constants
+#define MAX_SCENE_ELEMENTS           256
+#define MATERIAL_MEMORY_POOL_SIZE    (640 * 1024) // 640 KiB
+#define MAX_MATERIAL_CBVs            (MAX_SCENE_ELEMENTS)
+#define MAX_MATERIAL_SRVs            (MAX_SCENE_ELEMENTS)
 
+// See MeshData in common.hlsl
 struct GPUSceneItem
 {
 	Float4x4 modelTransform; // localToWorld
+	uint32   positionBufferOffset;
+	uint32   nonPositionBufferOffset;
+	uint32   indexBufferOffset;
+	uint32   _pad0;
 };
 
 void GPUScene::initialize()
@@ -54,16 +65,93 @@ void GPUScene::initialize()
 
 		pipelineState = std::unique_ptr<PipelineState>(gRenderDevice->createComputePipelineState(desc));
 	}
+
+	//////////////////////////////////////////////////////////////////////////
+	// Bindless materials
+
+	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+
+	materialCBVMemory = std::unique_ptr<ConstantBuffer>(
+		gRenderDevice->createConstantBuffer(MATERIAL_MEMORY_POOL_SIZE));
+
+	{
+		DescriptorHeapDesc desc;
+		desc.type = EDescriptorHeapType::CBV;
+		desc.numDescriptors = MAX_MATERIAL_CBVs * swapchainCount;
+		desc.flags = EDescriptorHeapFlags::None;
+		desc.nodeMask = 0;
+
+		materialCBVHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
+	}
+	{
+		DescriptorHeapDesc desc;
+		desc.type = EDescriptorHeapType::SRV;
+		desc.numDescriptors = MAX_MATERIAL_SRVs * swapchainCount;
+		desc.flags = EDescriptorHeapFlags::None;
+		desc.nodeMask = 0;
+
+		materialSRVHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
+	}
+
+	materialCBVs.resize(MAX_MATERIAL_CBVs);
+	for (size_t i = 0; i < materialCBVs.size(); ++i)
+	{
+		materialCBVs[i] = std::unique_ptr<ConstantBufferView>(
+			materialCBVMemory->allocateCBV(materialCBVHeap.get(), sizeof(MaterialConstants), swapchainCount));
+	}
 }
 
 void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera)
 {
+	const uint32 LOD = 0; // #todo-lod: LOD
+	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+
 	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	uint32 numMeshSections = 0;
-	uint32 LOD = 0; // #todo-wip: LOD
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
 		numMeshSections += (uint32)(scene->staticMeshes[i]->getSections(LOD).size());
+	}
+
+	// Prepare bindless materials
+	currentMaterialSRVCount = 0;
+	currentMaterialCBVCount = 0;
+	for (uint32 i = 0; i < numStaticMeshes; ++i)
+	{
+		StaticMesh* staticMesh = scene->staticMeshes[i];
+		for (const StaticMeshSection& section : staticMesh->getSections(LOD))
+		{
+			Material* const material = section.material;
+
+			// SRV
+			Texture* albedo = gTextureManager->getSystemTextureGrey2D();
+			if (material != nullptr)
+			{
+				albedo = material->albedoTexture;
+			}
+
+			gRenderDevice->copyDescriptors(
+				1,
+				materialSRVHeap.get(), currentMaterialSRVCount,
+				albedo->getSourceSRVHeap(), albedo->getSRVDescriptorIndex());
+
+			// CBV
+			MaterialConstants constants;
+			if (material != nullptr)
+			{
+				memcpy_s(constants.albedoMultiplier, sizeof(constants.albedoMultiplier),
+					material->albedoMultiplier, sizeof(material->albedoMultiplier));
+				constants.roughness = material->roughness;
+			}
+			constants.albedoTextureIndex = currentMaterialSRVCount;
+
+			ConstantBufferView* cbv = materialCBVs[currentMaterialCBVCount].get();
+			cbv->upload(&constants, sizeof(constants), swapchainIndex);
+
+			// #todo-wip: Currently always increment even if duplicate items are generated.
+			++currentMaterialSRVCount;
+			++currentMaterialCBVCount;
+		}
 	}
 	
 	// #todo-wip: Skip upload if scene has not changed.
@@ -81,6 +169,10 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 		{
 			const StaticMeshSection& section = sm->getSections(LOD)[j];
 			sceneData[k].modelTransform = sm->getTransform().getMatrix();
+			// #todo: uint64 offset
+			sceneData[k].positionBufferOffset    = (uint32)section.positionBuffer->getBufferOffsetInBytes();
+			sceneData[k].nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getBufferOffsetInBytes();
+			sceneData[k].indexBufferOffset       = (uint32)section.indexBuffer->getBufferOffsetInBytes();
 			++k;
 		}
 	}
@@ -140,4 +232,37 @@ StructuredBuffer* GPUScene::getGPUSceneBuffer() const
 StructuredBuffer* GPUScene::getCulledGPUSceneBuffer() const
 {
 	return culledGpuSceneBuffer.get();
+}
+
+void GPUScene::copyMaterialDescriptors(
+	DescriptorHeap* destHeap, uint32 destBaseIndex,
+	uint32& outCBVBaseIndex, uint32& outCBVCount,
+	uint32& outSRVBaseIndex, uint32& outSRVCount,
+	uint32& outNextAvailableIndex)
+{
+	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+
+	outCBVBaseIndex = destBaseIndex;
+	outCBVCount = currentMaterialCBVCount;
+
+	outSRVBaseIndex = destBaseIndex + currentMaterialCBVCount;
+	outSRVCount = currentMaterialSRVCount;
+
+	outNextAvailableIndex = outSRVBaseIndex + outSRVCount;
+
+	// #todo-wip: Can't copy descriptors at once because
+	// CBVs for the same swapchain index are not contiguous in memory.
+	for (uint32 i = 0; i < currentMaterialCBVCount; ++i)
+	{
+		ConstantBufferView* cbv = materialCBVs[i].get();
+		gRenderDevice->copyDescriptors(
+			1,
+			destHeap, outCBVBaseIndex + i,
+			cbv->getSourceHeap(), cbv->getDescriptorIndexInHeap(swapchainIndex));
+	}
+
+	gRenderDevice->copyDescriptors(
+		currentMaterialSRVCount,
+		destHeap, outSRVBaseIndex,
+		materialSRVHeap.get(), 0);
 }

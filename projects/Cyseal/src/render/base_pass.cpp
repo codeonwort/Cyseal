@@ -9,30 +9,27 @@
 #include "material.h"
 #include "static_mesh.h"
 #include "vertex_buffer_pool.h"
+#include "gpu_scene.h"
 
-#define MAX_STAGING_CBVs                 1024
-#define MAX_MATERIAL_CBVs                128          // (Should be >= num meshes in the scene)
-#define MAX_VOLATILE_DESCRIPTORS         1024         // (>= scene uniform cbv + material cbvs)
-#define CONSTANT_BUFFER_MEMORY_POOL_SIZE (640 * 1024) // 640 KiB
+// #todo-wip: See gpu_scene.cpp
+// At least (sceneUniform CBV + material CBVs + material SRVs)
+#define MAX_VOLATILE_DESCRIPTORS         2049
 
 // #todo-renderer: Acquire pixel format from Texture
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 #define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
 
-struct SceneUniform
+namespace RootParameters
 {
-	Float4x4 viewMatrix;
-	Float4x4 projMatrix;
-	Float4x4 viewProjMatrix;
-
-	vec3 sunDirection; float _pad0;
-	vec3 sunIlluminance; float _pad1;
-};
-
-struct MaterialConstants
-{
-	float albedoMultiplier[4] = { 1, 1, 1, 1 };
-	uint32 albedoTextureIndex; vec3 _pad0;
+	enum BasePass
+	{
+		ObjectIDSlot = 0,
+		SceneUniformSlot,
+		GPUSceneSlot,
+		MaterialConstantsSlot,
+		MaterialTexturesSlot,
+		Count
+	};
 };
 
 void BasePass::initialize()
@@ -43,35 +40,34 @@ void BasePass::initialize()
 
 	// Root signature
 	{
-		constexpr uint32 NUM_ROOT_PARAMETERS = 5;
-		RootParameter rootParameters[NUM_ROOT_PARAMETERS];
+		RootParameter rootParameters[RootParameters::Count];
 		
 		// #todo-vulkan: Careful with HLSL register space used here.
 		// See: https://github.com/microsoft/DirectXShaderCompiler/blob/main/docs/SPIR-V.rst#hlsl-register-and-vulkan-binding
 		
 		DescriptorRange descriptorRanges[3];
-		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1 /*b1*/);
-		descriptorRanges[1].init(EDescriptorRangeType::CBV, (uint32)(-1), 0, 1 /*space1*/);
-		descriptorRanges[2].init(EDescriptorRangeType::SRV, (uint32)(-1), 0, 1 /*space1*/);
+		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1,            1, 0); // register(b1, space0)
+		descriptorRanges[1].init(EDescriptorRangeType::CBV, (uint32)(-1), 0, 1); // register(b0, space1)
+		descriptorRanges[2].init(EDescriptorRangeType::SRV, (uint32)(-1), 0, 1); // register(t0, space1)
 
-		rootParameters[0].initAsConstants(0 /*b0*/, 0, 1); // object ID
-		rootParameters[1].initAsDescriptorTable(1, &descriptorRanges[0]); // scene uniform
-		rootParameters[2].initAsSRV(0 /*t0*/, 0);                         // gpu scene
-		rootParameters[3].initAsDescriptorTable(1, &descriptorRanges[1]); // material CBV
-		rootParameters[4].initAsDescriptorTable(1, &descriptorRanges[2]); // material SRV
+		rootParameters[RootParameters::ObjectIDSlot].initAsConstants(0, 0, 1); // register(b0, space0)
+		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
+		rootParameters[RootParameters::GPUSceneSlot].initAsSRV(0, 0); // register(t0, space0)
+		rootParameters[RootParameters::MaterialConstantsSlot].initAsDescriptorTable(1, &descriptorRanges[1]);
+		rootParameters[RootParameters::MaterialTexturesSlot].initAsDescriptorTable(1, &descriptorRanges[2]);
 
 		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
 		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
 
 		memset(staticSamplers + 0, 0, sizeof(staticSamplers[0]));
-		staticSamplers[0].filter = ETextureFilter::MIN_MAG_MIP_POINT;
+		staticSamplers[0].filter = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT;
 		staticSamplers[0].addressU = ETextureAddressMode::Wrap;
 		staticSamplers[0].addressV = ETextureAddressMode::Wrap;
 		staticSamplers[0].addressW = ETextureAddressMode::Wrap;
 		staticSamplers[0].shaderVisibility = EShaderVisibility::Pixel;
 
 		RootSignatureDesc rootSigDesc(
-			NUM_ROOT_PARAMETERS,
+			RootParameters::Count,
 			rootParameters,
 			NUM_STATIC_SAMPLERS,
 			staticSamplers,
@@ -79,27 +75,6 @@ void BasePass::initialize()
 
 		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
 	}
-
-	// Create constant buffer - memory pool, descriptor heap, cbv
-	constantBufferMemory = std::unique_ptr<ConstantBuffer>(
-		device->createConstantBuffer(CONSTANT_BUFFER_MEMORY_POOL_SIZE));
-	{
-		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::CBV;
-		desc.numDescriptors = MAX_STAGING_CBVs;
-		desc.flags = EDescriptorHeapFlags::None;
-		desc.nodeMask = 0;
-
-		cbvStagingHeap = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
-	}
-	materialCBVs.resize(MAX_MATERIAL_CBVs);
-	for (uint32 i = 0; i < materialCBVs.size(); ++i)
-	{
-		materialCBVs[i] = std::unique_ptr<ConstantBufferView>(
-			constantBufferMemory->allocateCBV(cbvStagingHeap.get(), sizeof(MaterialConstants), swapchainCount));
-	}
-	sceneUniformCBV = std::unique_ptr<ConstantBufferView>(
-		constantBufferMemory->allocateCBV(cbvStagingHeap.get(), sizeof(SceneUniform), swapchainCount));
 
 	// Create volatile heaps for CBVs, SRVs, and UAVs for each frame
 	volatileViewHeaps.resize(swapchainCount);
@@ -156,8 +131,8 @@ void BasePass::initialize()
 
 	// Cleanup
 	{
-		// #todo-renderer: Delete shader object
-		//delete shader;
+		delete shaderVS;
+		delete shaderPS;
 	}
 }
 
@@ -165,7 +140,8 @@ void BasePass::renderBasePass(
 	RenderCommandList* commandList,
 	const SceneProxy* scene,
 	const Camera* camera,
-	StructuredBuffer* gpuSceneBuffer)
+	ConstantBufferView* sceneUniformBuffer,
+	GPUScene* gpuScene)
 {
 	// #todo-renderer: Support other topologies
 	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
@@ -181,26 +157,7 @@ void BasePass::renderBasePass(
 	// #todo-lod: LOD selection
 	const uint32 LOD = 0;
 
-	// #todo-renderer: There might be duplicate descriptors between meshes. Need a drawcall sorting mechanism.
-	uint32 numVolatileDescriptors = 0;
-	for (const StaticMesh* mesh : scene->staticMeshes)
-	{
-		numVolatileDescriptors += (uint32)mesh->getSections(LOD).size();
-	}
-	bindRootParameters(commandList, numVolatileDescriptors, gpuSceneBuffer);
-
-	// Update scene uniform buffer
-	{
-		SceneUniform uboData;
-		uboData.viewMatrix = camera->getViewMatrix();
-		uboData.projMatrix = camera->getProjMatrix();
-		uboData.viewProjMatrix = camera->getViewProjMatrix();
-		uboData.sunDirection = scene->sun.direction;
-		uboData.sunIlluminance = scene->sun.illuminance;
-
-		const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-		sceneUniformCBV->upload(&uboData, sizeof(uboData), frameIndex);
-	}
+	bindRootParameters(commandList, sceneUniformBuffer, gpuScene);
 
 	// #todo-indirect-draw: Do it
 	uint32 payloadID = 0;
@@ -208,12 +165,7 @@ void BasePass::renderBasePass(
 	{
 		for (const StaticMeshSection& section : mesh->getSections(LOD))
 		{
-			commandList->setGraphicsRootConstant32(0, payloadID, 0);
-			updateMaterialParameters(
-				commandList,
-				numVolatileDescriptors,
-				payloadID,
-				section.material);
+			commandList->setGraphicsRootConstant32(RootParameters::ObjectIDSlot, payloadID, 0);
 
 			VertexBuffer* vertexBuffers[] = { section.positionBuffer,section.nonPositionBuffer };
 			commandList->iaSetVertexBuffers(0, 2, vertexBuffers);
@@ -227,11 +179,9 @@ void BasePass::renderBasePass(
 
 void BasePass::bindRootParameters(
 	RenderCommandList* cmdList,
-	uint32 inNumPayloads,
-	StructuredBuffer* gpuSceneBuffer)
+	ConstantBufferView* sceneUniform,
+	GPUScene* gpuScene)
 {
-	CHECK(inNumPayloads <= MAX_VOLATILE_DESCRIPTORS);
-
 	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
 	// slot0: Updated per drawcall, not here
@@ -243,63 +193,24 @@ void BasePass::bindRootParameters(
 	cmdList->setDescriptorHeaps(1, heaps);
 
 	// Scene uniform
+	constexpr uint32 sceneUniformDescIx = 0;
 	gRenderDevice->copyDescriptors(
 		1,
-		volatileHeap, 0,
-		cbvStagingHeap.get(), sceneUniformCBV->getDescriptorIndexInHeap(frameIndex));
-	cmdList->setGraphicsRootDescriptorTable(1, volatileHeap, 0);
+		volatileHeap, sceneUniformDescIx,
+		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap(frameIndex));
+	cmdList->setGraphicsRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, sceneUniformDescIx);
 
-	cmdList->setGraphicsRootDescriptorSRV(2, gpuSceneBuffer->getSRV());
-
+	cmdList->setGraphicsRootDescriptorSRV(RootParameters::GPUSceneSlot, gpuScene->getCulledGPUSceneBuffer()->getSRV());
+	
 	// Material CBV and SRV
-	cmdList->setGraphicsRootDescriptorTable(3, volatileHeap, 1);
-	cmdList->setGraphicsRootDescriptorTable(4, volatileHeap, 1 + inNumPayloads);
-}
-
-// #todo-wip: Descriptors are being duplicated even if they refer to the same material
-void BasePass::updateMaterialParameters(
-	RenderCommandList* cmdList,
-	uint32 totalPayloads,
-	uint32 payloadID,
-	Material* material)
-{
-	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-	DescriptorHeap* volatileHeap = volatileViewHeaps[frameIndex].get();
-
-	// SRV
-	uint32 volatileAlbedoTextureIndex;
-	{
-		Texture* albedo = gTextureManager->getSystemTextureGrey2D();
-		if (material && material->albedoTexture)
-		{
-			albedo = material->albedoTexture;
-		}
-
-		uint32 descriptorStartOffset = 1 + totalPayloads;
-		descriptorStartOffset += payloadID;
-
-		gRenderDevice->copyDescriptors(
-			1,
-			volatileHeap, descriptorStartOffset,
-			albedo->getSourceSRVHeap(), albedo->getSRVDescriptorIndex());
-		volatileAlbedoTextureIndex = payloadID;
-	}
-
-	// CBV
-	{
-		MaterialConstants payload;
-		if (material)
-		{
-			memcpy_s(payload.albedoMultiplier, sizeof(payload.albedoMultiplier),
-				material->albedoMultiplier, sizeof(material->albedoMultiplier));
-		}
-		payload.albedoTextureIndex = volatileAlbedoTextureIndex;
-
-		materialCBVs[payloadID]->upload(&payload, sizeof(payload), frameIndex);
-
-		gRenderDevice->copyDescriptors(
-			1,
-			volatileHeap, 1 + payloadID,
-			cbvStagingHeap.get(), materialCBVs[payloadID]->getDescriptorIndexInHeap(frameIndex));
-	}
+	uint32 materialCBVBaseIndex, materialCBVCount;
+	uint32 materialSRVBaseIndex, materialSRVCount;
+	uint32 freeDescriptorIndexAfterMaterials;
+	gpuScene->copyMaterialDescriptors(
+		volatileHeap, 1,
+		materialCBVBaseIndex, materialCBVCount,
+		materialSRVBaseIndex, materialSRVCount,
+		freeDescriptorIndexAfterMaterials);
+	cmdList->setGraphicsRootDescriptorTable(RootParameters::MaterialConstantsSlot, volatileHeap, materialCBVBaseIndex);
+	cmdList->setGraphicsRootDescriptorTable(RootParameters::MaterialTexturesSlot, volatileHeap, materialSRVBaseIndex);
 }

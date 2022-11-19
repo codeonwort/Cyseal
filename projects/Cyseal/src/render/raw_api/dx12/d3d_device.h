@@ -25,8 +25,8 @@ public:
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName) override;
 	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 
-	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName) override;
-	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
+	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, const wchar_t* inDebugName) override;
+	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes, EPixelFormat format) override;
 
 	virtual Texture* createTexture(const TextureCreateParams& createParams) override;
 
@@ -36,6 +36,15 @@ public:
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
 	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
 
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
+		const RaytracingPipelineStateObjectDesc& desc) override;
+
+	virtual RaytracingShaderTable* createRaytracingShaderTable(
+		RaytracingPipelineStateObject* RTPSO,
+		uint32 numShaderRecords,
+		uint32 rootArgumentSize,
+		const wchar_t* debugName) override;
+
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
 
 	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) override;
@@ -43,6 +52,8 @@ public:
 		uint32 numElements,
 		uint32 stride,
 		EBufferAccessFlags accessFlags) override;
+
+	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) override;
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,
@@ -79,18 +90,18 @@ private:
 	WRL::ComPtr<IDXGIFactory4>        dxgiFactory;
 
 	WRL::ComPtr<ID3D12Fence>          fence;
-	UINT                              currentFence;
+	UINT                              currentFence = 0;
 
-	UINT                              descSizeRTV;
-	UINT                              descSizeDSV;
-	UINT                              descSizeCBV_SRV_UAV;
-	UINT                              descSizeSampler;
-	UINT                              quality4xMSAA;
+	UINT                              descSizeRTV = 0;
+	UINT                              descSizeDSV = 0;
+	UINT                              descSizeCBV_SRV_UAV = 0;
+	UINT                              descSizeSampler = 0;
+	UINT                              quality4xMSAA = 1;
 
 	// Raw interfaces
-	ID3D12CommandQueue*               rawCommandQueue;
-	ID3D12GraphicsCommandList4*       rawCommandList;
-	D3DSwapChain*                     d3dSwapChain;
+	ID3D12CommandQueue*               rawCommandQueue = nullptr;
+	ID3D12GraphicsCommandList4*       rawCommandList = nullptr;
+	D3DSwapChain*                     d3dSwapChain = nullptr;
 
 	// Shader Model
 	D3D_SHADER_MODEL                  highestShaderModel = D3D_SHADER_MODEL_6_0;
