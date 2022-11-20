@@ -5,7 +5,6 @@
 #include "d3d_texture.h"
 
 class D3DConstantBuffer;
-class D3DStructuredBuffer;
 class DescriptorHeap;
 
 class D3DRenderTargetView : public RenderTargetView

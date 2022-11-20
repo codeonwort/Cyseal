@@ -45,7 +45,6 @@ enum class EGPUResourceState : uint32
 };
 
 // D3D12_RESOURCE_FLAGS (my buffer variant)
-// For StructuredBuffer
 enum class EBufferAccessFlags : uint32
 {
 	NONE      = 0,
@@ -239,7 +238,6 @@ protected:
 //////////////////////////////////////////////////////////////////////////
 // Buffer
 
-// #todo-wip: Replace StructuredBuffer with this
 // A generic buffer that maintains its own committed resource.
 // It's main purpose is to serve GPU memory for various buffer views.
 // CBV, SRV, and UAVs can be created from a buffer.
@@ -293,19 +291,6 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////
-// StructuredBuffer
-
-class StructuredBuffer : public GPUResource
-{
-public:
-	virtual void uploadData(
-		RenderCommandList* commandList,
-		void* data,
-		uint32 sizeInBytes,
-		uint32 destOffsetInBytes) = 0;
-};
-
-//////////////////////////////////////////////////////////////////////////
 // Raytracing resource
 
 // D3D12_RAYTRACING_GEOMETRY_TYPE
@@ -327,10 +312,9 @@ ENUM_CLASS_FLAGS(ERaytracingGeometryFlags);
 // D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC
 struct RaytracingGeometryTrianglesDesc
 {
-	// #todo-wip: No need to be a *structured* buffer,
-	// just currently easiest solution in my clunky abstraction.
-	// I have to refactor these buffer classes...
-	StructuredBuffer* transform3x4Buffer = nullptr;
+	// Assumes this buffer contains a series of 3x4 matrices in compact,
+	// So that k-th matrix starts from (48 * k * transformIndex) of this buffer.
+	Buffer* transform3x4Buffer = nullptr;
 	uint32 transformIndex = 0;
 
 	EPixelFormat indexFormat;

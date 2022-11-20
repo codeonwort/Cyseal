@@ -92,7 +92,7 @@ namespace into_d3d
 			}
 			else
 			{
-				D3DStructuredBuffer* tbuf = static_cast<D3DStructuredBuffer*>(inDesc.triangles.transform3x4Buffer);
+				D3DBuffer* tbuf = static_cast<D3DBuffer*>(inDesc.triangles.transform3x4Buffer);
 				D3D12_GPU_VIRTUAL_ADDRESS addr = into_d3d::id3d12Resource(tbuf)->GetGPUVirtualAddress();
 				addr += inDesc.triangles.transformIndex * 48; // 48 = sizeof(transform3x4)
 				outDesc.Triangles.Transform3x4 = addr;

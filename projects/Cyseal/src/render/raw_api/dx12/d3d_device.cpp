@@ -583,16 +583,6 @@ ConstantBuffer* D3DDevice::createConstantBuffer(uint32 totalBytes)
 	return cb;
 }
 
-StructuredBuffer* D3DDevice::createStructuredBuffer(
-	uint32 numElements,
-	uint32 stride,
-	EBufferAccessFlags accessFlags)
-{
-	D3DStructuredBuffer* buffer = new D3DStructuredBuffer;
-	buffer->initialize(numElements, stride, accessFlags);
-	return buffer;
-}
-
 ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
 {
 	D3D12_SHADER_RESOURCE_VIEW_DESC d3dDesc = into_d3d::srvDesc(createParams);

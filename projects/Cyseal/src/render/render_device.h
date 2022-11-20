@@ -102,12 +102,8 @@ public:
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
 
-	// #todo-wip: createBuffer() + createConstantBufferView() or createStructuredBufferView()
+	// #todo-wip: createBuffer() + createConstantBufferView()
 	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) = 0;
-	virtual StructuredBuffer* createStructuredBuffer(
-		uint32 numElements,
-		uint32 stride,
-		EBufferAccessFlags accessFlags) = 0;
 
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) = 0;
 	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) = 0;
