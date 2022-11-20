@@ -29,18 +29,21 @@ void GPUScene::initialize()
 	const uint32 viewNumElements = MAX_SCENE_ELEMENTS;
 	const uint32 viewStride = sizeof(GPUSceneItem);
 
-	gpuSceneBuffer = std::unique_ptr<StructuredBuffer>(
-		gRenderDevice->createStructuredBuffer(
-			viewNumElements,
-			viewStride,
-			EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV));
-
-	culledGpuSceneBuffer = std::unique_ptr<StructuredBuffer>(
-		gRenderDevice->createStructuredBuffer(
-			viewNumElements,
-			viewStride,
-			EBufferAccessFlags::UAV));
-
+	gpuSceneBuffer = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = viewStride * viewNumElements,
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+		}
+	));
+	culledGpuSceneBuffer = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = viewStride * viewNumElements,
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::UAV,
+		}
+	));
+	
 	{
 		ShaderResourceViewDesc srvDesc{};
 		srvDesc.format                     = EPixelFormat::UNKNOWN;
@@ -227,7 +230,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 			++k;
 		}
 	}
-	gpuSceneBuffer->uploadData(
+	gpuSceneBuffer->singleWriteToGPU(
 		commandList,
 		sceneData.data(),
 		(uint32)(sizeof(GPUSceneItem) * sceneData.size()),
@@ -273,16 +276,6 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 		}
 	};
 	commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
-}
-
-StructuredBuffer* GPUScene::getGPUSceneBuffer() const
-{
-	return gpuSceneBuffer.get();
-}
-
-StructuredBuffer* GPUScene::getCulledGPUSceneBuffer() const
-{
-	return culledGpuSceneBuffer.get();
 }
 
 ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const

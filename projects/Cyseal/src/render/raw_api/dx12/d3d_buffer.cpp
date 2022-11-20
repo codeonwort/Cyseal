@@ -210,11 +210,13 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 
 	auto device = getD3DDevice()->getRawDevice();
 
+	// NOTE: alignment should be 0 or 65536 for buffers.
+	
 	// default buffer
 	{
 		D3D12_RESOURCE_FLAGS resourceFlags = into_d3d::bufferResourceFlags(createParams.accessFlags);
 		auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes);
+		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes, resourceFlags, createParams.alignment);
 		HR(device->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
@@ -227,7 +229,7 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 	if (0 != (createParams.accessFlags & EBufferAccessFlags::CPU_WRITE))
 	{
 		auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes);
+		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes, D3D12_RESOURCE_FLAG_NONE, createParams.alignment);
 		HR(device->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,

@@ -17,6 +17,8 @@ public:
 	virtual void initialize(const BufferCreateParams& inCreateParams) override;
 	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) override;
 
+	virtual void* getRawResource() const { return defaultBuffer.Get(); }
+
 private:
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;
 

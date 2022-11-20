@@ -6,7 +6,6 @@
 #include <memory>
 
 class Texture;
-class StructuredBuffer;
 class ConstantBuffer;
 class DescriptorHeap;
 class ConstantBufferView;

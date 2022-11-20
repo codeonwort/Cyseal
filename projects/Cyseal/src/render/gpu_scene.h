@@ -6,16 +6,16 @@
 #include <vector>
 #include <memory>
 
+class RenderCommandList;
 class PipelineState;
 class RootSignature;
-class RenderCommandList;
-class SceneProxy;
-class Camera;
 class DescriptorHeap;
-class StructuredBuffer;
+class Buffer;
 class ConstantBuffer;
 class ShaderResourceView;
 class UnorderedAccessView;
+class SceneProxy;
+class Camera;
 
 struct MaterialConstants
 {
@@ -31,9 +31,6 @@ class GPUScene final
 public:
 	void initialize();
 	void renderGPUScene(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera);
-
-	StructuredBuffer* getGPUSceneBuffer() const;
-	StructuredBuffer* getCulledGPUSceneBuffer() const;
 
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 	ShaderResourceView* getCulledGPUSceneBufferSRV() const;
@@ -52,8 +49,8 @@ private:
 	std::unique_ptr<RootSignature> rootSignature;
 
 	// GPU scene buffers
-	std::unique_ptr<StructuredBuffer> gpuSceneBuffer;
-	std::unique_ptr<StructuredBuffer> culledGpuSceneBuffer;
+	std::unique_ptr<Buffer> gpuSceneBuffer;
+	std::unique_ptr<Buffer> culledGpuSceneBuffer;
 
 	// GPU scene buffer views
 	std::unique_ptr<ShaderResourceView> gpuSceneBufferSRV;
