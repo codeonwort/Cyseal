@@ -14,6 +14,17 @@
 #define MAX_MATERIAL_CBVs            (MAX_SCENE_ELEMENTS)
 #define MAX_MATERIAL_SRVs            (MAX_SCENE_ELEMENTS)
 
+namespace RootParameters
+{
+	enum Value
+	{
+		PushConstantsSlot = 0,
+		GPUSceneSlot,
+		CulledGPUSceneSlot,
+		Count
+	};
+}
+
 // See MeshData in common.hlsl
 struct GPUSceneItem
 {
@@ -93,14 +104,13 @@ void GPUScene::initialize()
 
 	// Root signature
 	{
-		constexpr uint32 NUM_ROOT_PARAMETERS = 3;
-		RootParameter rootParameters[NUM_ROOT_PARAMETERS];
-		rootParameters[0].initAsConstants(0 /*b0*/, 0, 1); // numElements
-		rootParameters[1].initAsUAV(0 /*u0 */, 0);         // gpuSceneBuffer
-		rootParameters[2].initAsUAV(1 /*u1 */, 0);         // culledGpuSceneBuffer
+		RootParameter rootParameters[RootParameters::Count];
+		rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1); // register(b0, space0) = numElements
+		rootParameters[RootParameters::GPUSceneSlot].initAsUAV(0, 0);               // register(u0, space0)
+		rootParameters[RootParameters::CulledGPUSceneSlot].initAsUAV(1, 0);         // register(u1, space0)
 
 		RootSignatureDesc rootSigDesc(
-			NUM_ROOT_PARAMETERS,
+			RootParameters::Count,
 			rootParameters,
 			0, nullptr,
 			ERootSignatureFlags::None);
@@ -255,9 +265,9 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 	commandList->setPipelineState(pipelineState.get());
 	commandList->setComputeRootSignature(rootSignature.get());
 
-	commandList->setComputeRootConstant32(0, numMeshSections, 0);
-	commandList->setComputeRootDescriptorUAV(1, gpuSceneBufferUAV.get());
-	commandList->setComputeRootDescriptorUAV(2, culledGpuSceneBufferUAV.get());
+	commandList->setComputeRootConstant32(RootParameters::PushConstantsSlot, numMeshSections, 0);
+	commandList->setComputeRootDescriptorUAV(RootParameters::GPUSceneSlot, gpuSceneBufferUAV.get());
+	commandList->setComputeRootDescriptorUAV(RootParameters::CulledGPUSceneSlot, culledGpuSceneBufferUAV.get());
 
 	commandList->dispatchCompute(numMeshSections, 1, 1);
 
