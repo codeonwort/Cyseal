@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/assertion.h"
 #include "util/enum_util.h"
 #include "pixel_format.h"
 
@@ -43,13 +44,22 @@ enum class EGPUResourceState : uint32
 	VIDEO_PROCESS_WRITE        = 0x80000
 };
 
+// D3D12_RESOURCE_FLAGS (my buffer variant)
 // For StructuredBuffer
 enum class EBufferAccessFlags : uint32
 {
+	NONE      = 0,
 	UAV       = 1 << 0,
 	CPU_WRITE = 1 << 1,
 };
 ENUM_CLASS_FLAGS(EBufferAccessFlags);
+
+struct BufferCreateParams
+{
+	uint64             sizeInBytes;
+	uint32             alignment   = 0;
+	EBufferAccessFlags accessFlags = EBufferAccessFlags::NONE;
+};
 
 enum class ETextureDimension : uint8
 {
@@ -59,6 +69,7 @@ enum class ETextureDimension : uint8
     TEXTURE3D = 3
 };
 
+// D3D12_RESOURCE_FLAGS (my texture variant)
 enum class ETextureAccessFlags : uint32
 {
     SRV          = 1 << 0,
@@ -223,6 +234,42 @@ public:
 protected:
 	// Null if a committed resource.
 	IndexBufferPool* parentPool = nullptr;
+};
+
+//////////////////////////////////////////////////////////////////////////
+// Buffer
+
+// #todo-wip: Replace StructuredBuffer with this
+// A generic buffer that maintains its own committed resource.
+// It's main purpose is to serve GPU memory for various buffer views.
+// CBV, SRV, and UAVs can be created from a buffer.
+class Buffer : public GPUResource
+{
+public:
+	struct UploadDesc
+	{
+		void*  srcData;
+		uint32 sizeInBytes;
+		uint64 destOffsetInBytes;
+	};
+
+	virtual void initialize(const BufferCreateParams& inCreateParams)
+	{
+		createParams = inCreateParams;
+		CHECK(createParams.sizeInBytes > 0);
+		// ... subclasses do remaining work
+	}
+
+	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) = 0;
+	
+	void singleWriteToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes, uint64 destOffsetInBytes)
+	{
+		UploadDesc desc{ srcData, sizeInBytes, destOffsetInBytes };
+		writeToGPU(commandList, 1, &desc);
+	}
+
+protected:
+	BufferCreateParams createParams;
 };
 
 //////////////////////////////////////////////////////////////////////////

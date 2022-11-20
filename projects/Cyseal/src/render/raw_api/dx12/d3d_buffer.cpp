@@ -1,6 +1,7 @@
 #include "d3d_buffer.h"
 #include "d3d_device.h"
 #include "d3d_util.h"
+#include "d3d_into.h"
 #include "d3d_render_command.h"
 #include "core/assertion.h"
 #include "render/vertex_buffer_pool.h"
@@ -190,4 +191,85 @@ void D3DIndexBuffer::setDebugName(const wchar_t* inDebugName)
 D3D12_GPU_VIRTUAL_ADDRESS D3DIndexBuffer::getGPUVirtualAddress() const
 {
 	return defaultBuffer->GetGPUVirtualAddress();
+}
+
+//////////////////////////////////////////////////////////////////////////
+// D3DBuffer
+
+D3DBuffer::~D3DBuffer()
+{
+	if (uploadBuffer != nullptr)
+	{
+		uploadBuffer->Unmap(0, nullptr);
+	}
+}
+
+void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
+{
+	Buffer::initialize(inCreateParams);
+
+	auto device = getD3DDevice()->getRawDevice();
+
+	// default buffer
+	{
+		D3D12_RESOURCE_FLAGS resourceFlags = into_d3d::bufferResourceFlags(createParams.accessFlags);
+		auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes);
+		HR(device->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&bufferDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
+	}
+	// upload buffer (if requested)
+	if (0 != (createParams.accessFlags & EBufferAccessFlags::CPU_WRITE))
+	{
+		auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes);
+		HR(device->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&bufferDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
+
+		CD3DX12_RANGE readRange(0, 0);
+		HR(uploadBuffer->Map(0, &readRange, reinterpret_cast<void**>(&uploadMapPtr)));
+		CHECK(uploadMapPtr != nullptr);
+	}
+}
+
+void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs)
+{
+	CHECK(0 != (createParams.accessFlags & EBufferAccessFlags::CPU_WRITE));
+	for (uint32 i = 0; i < numUploads; ++i)
+	{
+		CHECK((createParams.alignment == 0) || (uploadDescs[i].destOffsetInBytes % createParams.alignment == 0));
+		CHECK(uploadDescs[i].destOffsetInBytes + uploadDescs[i].sizeInBytes < createParams.sizeInBytes);
+	}
+
+	ID3D12GraphicsCommandList* cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
+
+	auto barrierBefore = CD3DX12_RESOURCE_BARRIER::Transition(
+		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+	cmdList->ResourceBarrier(1, &barrierBefore);
+
+	for (uint32 i = 0; i < numUploads; ++i)
+	{
+		const UploadDesc& desc = uploadDescs[i];
+		::memcpy_s(uploadMapPtr + desc.destOffsetInBytes, desc.sizeInBytes, desc.srcData, desc.sizeInBytes);
+
+		// #todo-renderdevice: Merge buffer copy regions if contiguous
+		cmdList->CopyBufferRegion(
+			defaultBuffer.Get(), desc.destOffsetInBytes,
+			uploadBuffer.Get(), desc.destOffsetInBytes,
+			desc.sizeInBytes);
+	}
+
+	auto barrierAfter = CD3DX12_RESOURCE_BARRIER::Transition(
+		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+	cmdList->ResourceBarrier(1, &barrierAfter);
 }

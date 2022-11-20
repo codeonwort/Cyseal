@@ -626,4 +626,14 @@ namespace into_d3d
 		return desc;
 	}
 
+	inline D3D12_RESOURCE_FLAGS bufferResourceFlags(EBufferAccessFlags inFlags)
+	{
+		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
+		if (0 != (inFlags & EBufferAccessFlags::UAV))
+		{
+			flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		}
+		return flags;
+	}
+
 }

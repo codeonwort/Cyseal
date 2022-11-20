@@ -80,6 +80,7 @@ public:
 	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, const wchar_t* inDebugName = nullptr) = 0;
 	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes, EPixelFormat format) = 0;
 
+	virtual Buffer* createBuffer(const BufferCreateParams& createParams) = 0;
 	virtual Texture* createTexture(const TextureCreateParams& createParams) = 0;
 
 	virtual ShaderStage* createShader(EShaderStage shaderStage, const char* debugName) = 0;

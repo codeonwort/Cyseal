@@ -10,6 +10,22 @@ class RenderDevice;
 class D3DDevice;
 class D3DShaderResourceView;
 
+class D3DBuffer : public Buffer
+{
+public:
+	virtual ~D3DBuffer();
+	virtual void initialize(const BufferCreateParams& inCreateParams) override;
+	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) override;
+
+private:
+	WRL::ComPtr<ID3D12Resource> defaultBuffer;
+
+	// #todo-renderdevice: Always holding an upload buffer
+	// as the same size as the default buffer is inefficient.
+	WRL::ComPtr<ID3D12Resource> uploadBuffer;
+	uint8* uploadMapPtr = nullptr;
+};
+
 class D3DVertexBuffer : public VertexBuffer
 {
 public:

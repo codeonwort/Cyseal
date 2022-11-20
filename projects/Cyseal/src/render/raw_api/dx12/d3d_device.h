@@ -28,6 +28,7 @@ public:
 	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, const wchar_t* inDebugName) override;
 	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes, EPixelFormat format) override;
 
+	virtual Buffer* createBuffer(const BufferCreateParams& createParams) override;
 	virtual Texture* createTexture(const TextureCreateParams& createParams) override;
 
 	virtual ShaderStage* createShader(EShaderStage shaderStage, const char* debugName) override;

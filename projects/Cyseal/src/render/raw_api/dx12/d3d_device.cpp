@@ -412,6 +412,13 @@ IndexBuffer* D3DDevice::createIndexBuffer(
 	return buffer;
 }
 
+Buffer* D3DDevice::createBuffer(const BufferCreateParams& createParams)
+{
+	D3DBuffer* buffer = new D3DBuffer;
+	buffer->initialize(createParams);
+	return buffer;
+}
+
 Texture* D3DDevice::createTexture(const TextureCreateParams& createParams)
 {
 	D3DTexture* texture = new D3DTexture;
