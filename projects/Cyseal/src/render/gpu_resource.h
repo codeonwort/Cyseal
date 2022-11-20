@@ -7,16 +7,20 @@
 
 #include <vector>
 
+class RenderCommandList;
+class DescriptorHeap;
+
 class VertexBufferPool;
 class IndexBufferPool;
-class ConstantBufferView;
-class ShaderResourceView;
-class UnorderedAccessView;
-class DescriptorHeap;
-class RenderCommandList;
 
-// GPU Resources = Buffers + Textures
-// #todo: merge with texture.h?
+class ConstantBufferView;
+class RenderTargetView;
+class ShaderResourceView;
+class DepthStencilView;
+class UnorderedAccessView;
+
+// GPU Resources = Anything resides in GPU-visible memory
+// (buffers, textures, acceleration structures, ...)
 
 enum class EGPUResourceState : uint32
 {
@@ -288,6 +292,38 @@ public:
 		DescriptorHeap* descHeap,
 		uint32 sizeInBytes,
 		uint32 bufferingCount) = 0;
+};
+
+//////////////////////////////////////////////////////////////////////////
+// Texture
+
+class Texture : public GPUResource
+{
+public:
+	virtual void uploadData(
+		RenderCommandList& commandList,
+		const void* buffer,
+		uint64 rowPitch,
+		uint64 slicePitch) = 0;
+	
+	virtual void setDebugName(const wchar_t* debugName) = 0;
+
+	// #todo-wip: A Texture should not internally hold its views.
+	virtual RenderTargetView*    getRTV() const = 0;
+	virtual ShaderResourceView*  getSRV() const = 0;
+	virtual DepthStencilView*    getDSV() const = 0;
+	virtual UnorderedAccessView* getUAV() const = 0;
+
+	// Element index in the descriptor heap from which the descriptor was created.
+	virtual uint32 getSRVDescriptorIndex() const = 0;
+	virtual uint32 getRTVDescriptorIndex() const = 0;
+	virtual uint32 getDSVDescriptorIndex() const = 0;
+	virtual uint32 getUAVDescriptorIndex() const = 0;
+
+	virtual DescriptorHeap* getSourceSRVHeap() const = 0;
+	virtual DescriptorHeap* getSourceRTVHeap() const = 0;
+	virtual DescriptorHeap* getSourceDSVHeap() const = 0;
+	virtual DescriptorHeap* getSourceUAVHeap() const = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////

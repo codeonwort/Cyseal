@@ -1,7 +1,6 @@
 #pragma once
 
 #include "render/gpu_resource.h"
-#include "render/texture.h"
 #include "d3d_util.h"
 
 class RenderTargetView;

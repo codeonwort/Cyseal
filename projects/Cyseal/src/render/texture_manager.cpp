@@ -1,6 +1,7 @@
 #include "texture_manager.h"
 #include "render_device.h"
-#include "texture.h"
+#include "render_command.h"
+#include "gpu_resource.h"
 #include "core/assertion.h"
 
 #define MAX_SRV_DESCRIPTORS 1024

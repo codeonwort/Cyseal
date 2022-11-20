@@ -63,7 +63,8 @@ struct ShaderResourceViewDesc
 	union
 	{
 		BufferSRVDesc buffer;
-		// #todo-wip: Other fields
+		// #todo-renderdevice: Other fields (tex1d, tex2darray, tex3d, texcube, ..)
+		// See D3D12_SHADER_RESOURCE_VIEW_DESC for full list.
 		Texture2DSRVDesc texture2D;
 	};
 };

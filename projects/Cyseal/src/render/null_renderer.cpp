@@ -1,4 +1,5 @@
 #include "null_renderer.h"
+#include "render_command.h"
 #include "swap_chain.h"
 
 #define EMPTY_LOOP 1

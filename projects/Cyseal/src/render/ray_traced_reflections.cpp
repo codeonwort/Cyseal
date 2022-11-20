@@ -1,5 +1,6 @@
 #include "ray_traced_reflections.h"
 #include "render_device.h"
+#include "render_command.h"
 #include "swap_chain.h"
 #include "pipeline_state.h"
 #include "gpu_resource.h"

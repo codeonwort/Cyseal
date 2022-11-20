@@ -5,7 +5,6 @@
 #include "shader.h"
 #include "render_command.h"
 #include "texture_manager.h"
-#include "texture.h"
 
 // Currently only for sceneColor SRV
 #define MAX_VOLATILE_DESCRIPTORS 2

@@ -4,7 +4,6 @@
 
 #include "vk_resource_view.h"
 #include "render/gpu_resource.h"
-#include "render/texture.h"
 
 #include <vulkan/vulkan_core.h>
 

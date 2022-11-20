@@ -1,6 +1,7 @@
 #include "gpu_scene.h"
 #include "gpu_resource.h"
 #include "render_device.h"
+#include "render_command.h"
 #include "swap_chain.h"
 #include "static_mesh.h"
 #include "material.h"

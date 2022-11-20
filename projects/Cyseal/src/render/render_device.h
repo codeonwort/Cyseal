@@ -2,28 +2,26 @@
 
 #include "core/types.h"
 #include "util/logging.h"
-#include "pixel_format.h"
-#include "texture.h"
-#include "shader.h"
-#include "render_device_capabilities.h"
+#include "gpu_resource.h"
 #include "gpu_resource_view.h"
+#include "pipeline_state.h"
+#include "shader.h"
+#include "pixel_format.h"
+#include "render_device_capabilities.h"
 
-class SwapChain;
 class RenderCommandAllocator;
 class RenderCommandList;
 class RenderCommandQueue;
 class GPUResource;
-class DepthStencilView;
-class VertexBuffer;
+class SwapChain;
 class VertexBufferPool;
-class IndexBuffer;
+class IndexBufferPool;
 struct RootSignatureDesc;
 class RootSignature;
 struct GraphicsPipelineDesc;
 class PipelineState;
 struct DescriptorHeapDesc;
 class DescriptorHeap;
-class ConstantBuffer;
 
 enum class ERenderDeviceRawAPI
 {

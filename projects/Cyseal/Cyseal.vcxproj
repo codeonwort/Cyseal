@@ -141,7 +141,6 @@
     <ClInclude Include="src\render\shader.h" />
     <ClInclude Include="src\render\static_mesh.h" />
     <ClInclude Include="src\render\swap_chain.h" />
-    <ClInclude Include="src\render\texture.h" />
     <ClInclude Include="src\render\texture_manager.h" />
     <ClInclude Include="src\render\tone_mapping.h" />
     <ClInclude Include="src\render\vertex_buffer_pool.h" />
