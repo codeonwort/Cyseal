@@ -302,6 +302,25 @@ namespace into_d3d
 		return static_cast<D3D12_PRIMITIVE_TOPOLOGY_TYPE>(inType);
 	}
 
+	inline D3D12_PRIMITIVE_TOPOLOGY primitiveTopology(EPrimitiveTopology topology)
+	{
+		switch (topology)
+		{
+			case EPrimitiveTopology::UNDEFINED:         return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+			case EPrimitiveTopology::POINTLIST:         return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+			case EPrimitiveTopology::LINELIST:          return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+			case EPrimitiveTopology::LINESTRIP:         return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+			case EPrimitiveTopology::TRIANGLELIST:      return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			case EPrimitiveTopology::TRIANGLESTRIP:     return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+			case EPrimitiveTopology::LINELIST_ADJ:      return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
+			case EPrimitiveTopology::LINESTRIP_ADJ:     return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ;
+			case EPrimitiveTopology::TRIANGLELIST_ADJ:  return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
+			case EPrimitiveTopology::TRIANGLESTRIP_ADJ: return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
+		}
+		CHECK_NO_ENTRY();
+		return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+	}
+
 	inline DXGI_FORMAT pixelFormat(EPixelFormat inFormat)
 	{
 		switch (inFormat)

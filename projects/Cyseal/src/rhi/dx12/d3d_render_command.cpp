@@ -86,51 +86,9 @@ void D3DRenderCommandList::close()
 	HR( commandList->Close() );
 }
 
-// #todo: move to into_d3d namespace (d3d_pipeline_state.h)
-static D3D12_PRIMITIVE_TOPOLOGY getD3DPrimitiveTopology(EPrimitiveTopology topology)
-{
-	switch (topology)
-	{
-	case EPrimitiveTopology::UNDEFINED:
-		return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
-		break;
-	case EPrimitiveTopology::POINTLIST:
-		return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-		break;
-	case EPrimitiveTopology::LINELIST:
-		return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
-		break;
-	case EPrimitiveTopology::LINESTRIP:
-		return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
-		break;
-	case EPrimitiveTopology::TRIANGLELIST:
-		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		break;
-	case EPrimitiveTopology::TRIANGLESTRIP:
-		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-		break;
-	case EPrimitiveTopology::LINELIST_ADJ:
-		return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
-		break;
-	case EPrimitiveTopology::LINESTRIP_ADJ:
-		return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ;
-		break;
-	case EPrimitiveTopology::TRIANGLELIST_ADJ:
-		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
-		break;
-	case EPrimitiveTopology::TRIANGLESTRIP_ADJ:
-		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
-		break;
-	default:
-		CHECK_NO_ENTRY();
-		break;
-	}
-	return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
-}
-
 void D3DRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology topology)
 {
-	auto d3dTopology = getD3DPrimitiveTopology(topology);
+	D3D12_PRIMITIVE_TOPOLOGY d3dTopology = into_d3d::primitiveTopology(topology);
 	commandList->IASetPrimitiveTopology(d3dTopology);
 }
 
