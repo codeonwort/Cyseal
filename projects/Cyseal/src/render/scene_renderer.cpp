@@ -154,27 +154,32 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	{
 		SCOPED_DRAW_EVENT(commandList, UpdateRaytracingScene);
 
-		std::vector<BLASInstanceUpdateDesc> updateDescs(scene->staticMeshes.size());
+		std::vector<BLASInstanceUpdateDesc> updateDescs;
+		updateDescs.reserve(scene->staticMeshes.size());
 		for (size_t i = 0; i < scene->staticMeshes.size(); ++i)
 		{
 			StaticMesh* staticMesh = scene->staticMeshes[i];
+			Float4x4 modelMatrix = staticMesh->getTransformMatrix(); // row-major
 
-			// #todo-wip: Filter out stationary objects
-			bool bStationary = false;
-			if (bStationary)
+			if (staticMesh->isTransformDirty() == false)
 			{
 				continue;
 			}
 
-			Float4x4 modelMatrix = staticMesh->getTransformMatrix(); // row-major
-			memcpy(updateDescs[i].instanceTransform[0], modelMatrix.m[0], sizeof(float) * 4);
-			memcpy(updateDescs[i].instanceTransform[1], modelMatrix.m[1], sizeof(float) * 4);
-			memcpy(updateDescs[i].instanceTransform[2], modelMatrix.m[2], sizeof(float) * 4);
-
-			updateDescs[i].blasIndex = (uint32)i;
+			BLASInstanceUpdateDesc desc{};
+			memcpy(desc.instanceTransform[0], modelMatrix.m[0], sizeof(float) * 4);
+			memcpy(desc.instanceTransform[1], modelMatrix.m[1], sizeof(float) * 4);
+			memcpy(desc.instanceTransform[2], modelMatrix.m[2], sizeof(float) * 4);
+			desc.blasIndex = (uint32)i;
+			
+			updateDescs.emplace_back(desc);
 		}
-		// Keep all BLAS geometries, only update transforms of BLAS instances.
-		accelStructure->rebuildTLAS(commandList, (uint32)updateDescs.size(), updateDescs.data());
+		if (updateDescs.size() > 0)
+		{
+			// Keep all BLAS geometries and only update transforms of BLAS instances.
+			// #todo-async-compute: Building accel structure can be moved to async compute pipeline.
+			accelStructure->rebuildTLAS(commandList, (uint32)updateDescs.size(), updateDescs.data());
+		}
 	}
 
 	// #todo-renderer: Depth PrePass
