@@ -1,7 +1,7 @@
 #pragma once
 
-#include "render/gpu_resource.h"
-#include "render/gpu_resource_binding.h"
+#include "rhi/gpu_resource.h"
+#include "rhi/gpu_resource_binding.h"
 #include "core/assertion.h"
 #include "d3d_util.h"
 #include <memory>

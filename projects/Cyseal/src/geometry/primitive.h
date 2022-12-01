@@ -2,7 +2,7 @@
 
 #include "core/types.h"
 #include "core/assertion.h"
-#include "render/pixel_format.h"
+#include "rhi/pixel_format.h"
 #include <vector>
 
 struct Geometry

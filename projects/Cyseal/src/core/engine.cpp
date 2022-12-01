@@ -4,17 +4,17 @@
 #include "util/unit_test.h"
 #include "util/resource_finder.h"
 
+#include "rhi/global_descriptor_heaps.h"
+#include "rhi/texture_manager.h"
+#include "rhi/vertex_buffer_pool.h"
 #include "render/null_renderer.h"
 #include "render/scene_renderer.h"
-#include "render/global_descriptor_heaps.h"
-#include "render/texture_manager.h"
-#include "render/vertex_buffer_pool.h"
 
 #if COMPILE_BACKEND_DX12
-	#include "render/raw_api/dx12/d3d_device.h"
+	#include "rhi/dx12/d3d_device.h"
 #endif
 #if COMPILE_BACKEND_VULKAN
-	#include "render/raw_api/vulkan/vk_device.h"
+	#include "rhi/vulkan/vk_device.h"
 #endif
 
 #define VERTEX_BUFFER_POOL_SIZE (64 * 1024 * 1024) // 64 MiB

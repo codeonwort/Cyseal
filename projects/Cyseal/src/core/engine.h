@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/render_device.h"
+#include "rhi/render_device.h"
 #include "render/renderer.h"
 #include "core/int_types.h"
 #include "util/logging.h"

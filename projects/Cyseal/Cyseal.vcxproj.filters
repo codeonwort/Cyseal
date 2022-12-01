@@ -24,7 +24,7 @@
     <ClInclude Include="src\core\assertion.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\render_device.h">
+    <ClInclude Include="src\rhi\render_device.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\util\unit_test.h">
@@ -33,13 +33,13 @@
     <ClInclude Include="src\util\profiling.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_device.h">
+    <ClInclude Include="src\rhi\dx12\d3d_device.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_device.h">
+    <ClInclude Include="src\rhi\vulkan\vk_device.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_util.h">
+    <ClInclude Include="src\rhi\dx12\d3d_util.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\world\scene.h">
@@ -54,49 +54,46 @@
     <ClInclude Include="src\world\camera.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\render_command.h">
+    <ClInclude Include="src\rhi\render_command.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_render_command.h">
+    <ClInclude Include="src\rhi\dx12\d3d_render_command.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\swap_chain.h">
+    <ClInclude Include="src\rhi\swap_chain.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_swap_chain.h">
+    <ClInclude Include="src\rhi\dx12\d3d_swap_chain.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\pixel_format.h">
+    <ClInclude Include="src\rhi\pixel_format.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\static_mesh.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\gpu_resource_view.h">
+    <ClInclude Include="src\rhi\gpu_resource_view.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\gpu_resource.h">
+    <ClInclude Include="src\rhi\gpu_resource.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_resource.h">
+    <ClInclude Include="src\rhi\dx12\d3d_resource.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\util\enum_util.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_resource_view.h">
+    <ClInclude Include="src\rhi\dx12\d3d_resource_view.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_buffer.h">
+    <ClInclude Include="src\rhi\dx12\d3d_buffer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\world\static_mesh.h">
+    <ClInclude Include="src\rhi\shader.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\shader.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_shader.h">
+    <ClInclude Include="src\rhi\dx12\d3d_shader.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\base_pass.h">
@@ -105,10 +102,10 @@
     <ClInclude Include="src\render\render_pass.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\pipeline_state.h">
+    <ClInclude Include="src\rhi\pipeline_state.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_pipeline_state.h">
+    <ClInclude Include="src\rhi\dx12\d3d_pipeline_state.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\util\resource_finder.h">
@@ -141,16 +138,16 @@
     <ClInclude Include="src\core\cymath.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_swapchain.h">
+    <ClInclude Include="src\rhi\vulkan\vk_swapchain.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_shader.h">
+    <ClInclude Include="src\rhi\vulkan\vk_shader.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\gpu_resource_binding.h">
+    <ClInclude Include="src\rhi\gpu_resource_binding.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_utils.h">
+    <ClInclude Include="src\rhi\vulkan\vk_utils.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\core\critical_section.h">
@@ -162,10 +159,10 @@
     <ClInclude Include="src\loader\image_loader.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_texture.h">
+    <ClInclude Include="src\rhi\dx12\d3d_texture.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\texture_manager.h">
+    <ClInclude Include="src\rhi\texture_manager.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\material.h">
@@ -180,22 +177,22 @@
     <ClInclude Include="src\core\platform.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_render_command.h">
+    <ClInclude Include="src\rhi\vulkan\vk_render_command.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_texture.h">
+    <ClInclude Include="src\rhi\vulkan\vk_texture.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_buffer.h">
+    <ClInclude Include="src\rhi\vulkan\vk_buffer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\tone_mapping.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\vertex_buffer_pool.h">
+    <ClInclude Include="src\rhi\vertex_buffer_pool.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_win32.h">
+    <ClInclude Include="src\rhi\vulkan\vk_win32.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\null_renderer.h">
@@ -204,22 +201,22 @@
     <ClInclude Include="src\util\string_conversion.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_resource_view.h">
+    <ClInclude Include="src\rhi\vulkan\vk_resource_view.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_pipeline_state.h">
+    <ClInclude Include="src\rhi\vulkan\vk_pipeline_state.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_into.h">
+    <ClInclude Include="src\rhi\vulkan\vk_into.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\vulkan\vk_descriptor.h">
+    <ClInclude Include="src\rhi\vulkan\vk_descriptor.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\world\light.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\raw_api\dx12\d3d_into.h">
+    <ClInclude Include="src\rhi\dx12\d3d_into.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\geometry\procedural.h">
@@ -234,13 +231,13 @@
     <ClInclude Include="src\render\gpu_scene.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\render_device_capabilities.h">
+    <ClInclude Include="src\rhi\render_device_capabilities.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\render\ray_traced_reflections.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\global_descriptor_heaps.h">
+    <ClInclude Include="src\rhi\global_descriptor_heaps.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
@@ -257,37 +254,37 @@
     <ClCompile Include="src\util\profiling.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_device.cpp">
+    <ClCompile Include="src\rhi\dx12\d3d_device.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_util.cpp">
+    <ClCompile Include="src\rhi\dx12\d3d_util.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\scene_renderer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_swap_chain.cpp">
+    <ClCompile Include="src\rhi\dx12\d3d_swap_chain.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\swap_chain.cpp">
+    <ClCompile Include="src\rhi\swap_chain.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\render_device.cpp">
+    <ClCompile Include="src\rhi\render_device.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_render_command.cpp">
+    <ClCompile Include="src\rhi\dx12\d3d_render_command.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\render_command.cpp">
+    <ClCompile Include="src\rhi\render_command.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_buffer.cpp">
+    <ClCompile Include="src\rhi\dx12\d3d_buffer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\world\scene.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_shader.cpp">
+    <ClCompile Include="src\rhi\dx12\d3d_shader.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\util\resource_finder.cpp">
@@ -305,19 +302,19 @@
     <ClCompile Include="src\world\camera.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\vulkan\vk_device.cpp">
+    <ClCompile Include="src\rhi\vulkan\vk_device.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\base_pass.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\vulkan\vk_shader.cpp">
+    <ClCompile Include="src\rhi\vulkan\vk_shader.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\vulkan\vk_utils.cpp">
+    <ClCompile Include="src\rhi\vulkan\vk_utils.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\vulkan\vk_swapchain.cpp">
+    <ClCompile Include="src\rhi\vulkan\vk_swapchain.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\core\critical_section.cpp">
@@ -329,10 +326,10 @@
     <ClCompile Include="src\loader\image_loader.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_texture.cpp">
+    <ClCompile Include="src\rhi\dx12\d3d_texture.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\texture_manager.cpp">
+    <ClCompile Include="src\rhi\texture_manager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\core\win\windows_application.cpp">
@@ -344,13 +341,13 @@
     <ClCompile Include="src\render\tone_mapping.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\vertex_buffer_pool.cpp">
+    <ClCompile Include="src\rhi\vertex_buffer_pool.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\vulkan\vk_win32.cpp">
+    <ClCompile Include="src\rhi\vulkan\vk_win32.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\vulkan\vk_render_command.cpp">
+    <ClCompile Include="src\rhi\vulkan\vk_render_command.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\null_renderer.cpp">
@@ -359,19 +356,19 @@
     <ClCompile Include="src\util\string_conversion.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\vulkan\vk_texture.cpp">
+    <ClCompile Include="src\rhi\vulkan\vk_texture.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\vulkan\vk_buffer.cpp">
+    <ClCompile Include="src\rhi\vulkan\vk_buffer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_resource.cpp">
+    <ClCompile Include="src\rhi\dx12\d3d_resource.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_resource_view.cpp">
+    <ClCompile Include="src\rhi\dx12\d3d_resource_view.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\raw_api\dx12\d3d_into.cpp">
+    <ClCompile Include="src\rhi\dx12\d3d_into.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\geometry\procedural.cpp">
@@ -386,7 +383,7 @@
     <ClCompile Include="src\render\ray_traced_reflections.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\global_descriptor_heaps.cpp">
+    <ClCompile Include="src\rhi\global_descriptor_heaps.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/vec3.h"
-#include "gpu_resource_view.h"
+#include "rhi/gpu_resource_view.h"
 
 #include <vector>
 #include <memory>

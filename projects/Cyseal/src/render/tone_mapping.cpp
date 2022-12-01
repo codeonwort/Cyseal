@@ -1,10 +1,10 @@
 #include "tone_mapping.h"
-#include "render_device.h"
-#include "swap_chain.h"
-#include "gpu_resource_binding.h"
-#include "shader.h"
-#include "render_command.h"
-#include "texture_manager.h"
+#include "rhi/render_device.h"
+#include "rhi/swap_chain.h"
+#include "rhi/gpu_resource_binding.h"
+#include "rhi/shader.h"
+#include "rhi/render_command.h"
+#include "rhi/texture_manager.h"
 
 // Currently only for sceneColor SRV
 #define MAX_VOLATILE_DESCRIPTORS 2

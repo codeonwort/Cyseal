@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/render_command.h"
+#include "rhi/render_command.h"
 #include "d3d_device.h"
 #include "d3d_util.h"
 

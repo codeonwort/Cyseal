@@ -2,7 +2,7 @@
 #include "d3d_resource_view.h"
 #include "d3d_device.h"
 #include "d3d_render_command.h"
-#include "render/render_device.h"
+#include "rhi/render_device.h"
 
 //////////////////////////////////////////////////////////////////////////
 // D3DConstantBuffer

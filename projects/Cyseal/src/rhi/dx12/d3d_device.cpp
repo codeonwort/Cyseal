@@ -6,8 +6,8 @@
 #include "d3d_resource_view.h"
 #include "d3d_pipeline_state.h"
 #include "d3d_into.h"
+#include "rhi/global_descriptor_heaps.h"
 #include "core/assertion.h"
-#include "render/global_descriptor_heaps.h"
 #include "util/logging.h"
 
 // #todo-crossapi: Dynamic loading

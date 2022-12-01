@@ -1,10 +1,10 @@
 #pragma once
 
 #include "core/assertion.h"
-#include "render/pipeline_state.h"
-#include "render/gpu_resource.h"
-#include "render/gpu_resource_view.h"
-#include "render/gpu_resource_binding.h"
+#include "rhi/pipeline_state.h"
+#include "rhi/gpu_resource.h"
+#include "rhi/gpu_resource_view.h"
+#include "rhi/gpu_resource_binding.h"
 #include "d3d_util.h"
 #include <vector>
 

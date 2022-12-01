@@ -2,7 +2,7 @@
 
 #include "d3d_util.h"
 #include "d3d_resource.h"
-#include "render/swap_chain.h"
+#include "rhi/swap_chain.h"
 #include <memory>
 
 class D3DDevice;

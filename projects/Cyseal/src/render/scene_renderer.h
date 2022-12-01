@@ -1,7 +1,7 @@
 #pragma once
 
 #include "renderer.h"
-#include "gpu_resource_view.h"
+#include "rhi/gpu_resource_view.h"
 
 #include <memory>
 

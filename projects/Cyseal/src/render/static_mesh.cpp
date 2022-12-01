@@ -1,5 +1,5 @@
 #include "static_mesh.h"
-#include "gpu_resource.h"
+#include "rhi/gpu_resource.h"
 
 StaticMesh::~StaticMesh()
 {

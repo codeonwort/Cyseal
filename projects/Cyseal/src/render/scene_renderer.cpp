@@ -1,14 +1,14 @@
 #include "scene_renderer.h"
 #include "core/assertion.h"
-#include "render/render_command.h"
-#include "render/gpu_resource.h"
-#include "render/swap_chain.h"
+#include "rhi/render_command.h"
+#include "rhi/gpu_resource.h"
+#include "rhi/swap_chain.h"
+#include "rhi/vertex_buffer_pool.h"
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
 #include "render/base_pass.h"
 #include "render/ray_traced_reflections.h"
 #include "render/tone_mapping.h"
-#include "render/vertex_buffer_pool.h"
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 

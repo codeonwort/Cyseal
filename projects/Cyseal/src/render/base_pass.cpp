@@ -1,15 +1,16 @@
 #include "base_pass.h"
-#include "render_device.h"
-#include "swap_chain.h"
-#include "gpu_resource_binding.h"
-#include "gpu_resource_view.h"
-#include "shader.h"
-#include "render_command.h"
-#include "texture_manager.h"
 #include "material.h"
 #include "static_mesh.h"
-#include "vertex_buffer_pool.h"
 #include "gpu_scene.h"
+
+#include "rhi/render_device.h"
+#include "rhi/swap_chain.h"
+#include "rhi/gpu_resource_binding.h"
+#include "rhi/gpu_resource_view.h"
+#include "rhi/shader.h"
+#include "rhi/render_command.h"
+#include "rhi/texture_manager.h"
+#include "rhi/vertex_buffer_pool.h"
 
 // #todo-wip: See gpu_scene.cpp
 // At least (sceneUniform CBV + material CBVs + material SRVs)

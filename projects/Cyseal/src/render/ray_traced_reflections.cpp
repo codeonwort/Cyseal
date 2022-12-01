@@ -1,14 +1,15 @@
 #include "ray_traced_reflections.h"
-#include "render_device.h"
-#include "render_command.h"
-#include "swap_chain.h"
-#include "pipeline_state.h"
-#include "gpu_resource.h"
-#include "gpu_resource_view.h"
-#include "vertex_buffer_pool.h"
-#include "shader.h"
 #include "static_mesh.h"
 #include "gpu_scene.h"
+
+#include "rhi/render_device.h"
+#include "rhi/render_command.h"
+#include "rhi/swap_chain.h"
+#include "rhi/pipeline_state.h"
+#include "rhi/gpu_resource.h"
+#include "rhi/gpu_resource_view.h"
+#include "rhi/vertex_buffer_pool.h"
+#include "rhi/shader.h"
 
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples

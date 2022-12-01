@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render_device.h"
+#include "rhi/render_device.h"
 #include "world/camera.h"
 #include "world/scene.h"
 

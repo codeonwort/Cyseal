@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/shader.h"
+#include "rhi/shader.h"
 #include "d3d_util.h"
 #include <d3dcommon.h>
 

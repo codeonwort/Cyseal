@@ -3,9 +3,9 @@
 #include "d3d_util.h"
 #include "d3d_into.h"
 #include "d3d_render_command.h"
+#include "rhi/vertex_buffer_pool.h"
+#include "rhi/gpu_resource_view.h"
 #include "core/assertion.h"
-#include "render/vertex_buffer_pool.h"
-#include "render/gpu_resource_view.h"
 
 WRL::ComPtr<ID3D12Resource> createDefaultBuffer(UINT64 byteSize)
 {
