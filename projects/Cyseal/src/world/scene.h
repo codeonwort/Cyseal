@@ -30,6 +30,9 @@ private:
 class SceneProxy
 {
 public:
+	// #todo-renderthread: Not needed if there is a real render thread.
+	void tempCleanupOriginalScene();
+
 	DirectionalLight sun;
 	std::vector<StaticMesh*> staticMeshes;
 

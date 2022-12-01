@@ -233,7 +233,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 		for (uint32 j = 0; j < smSections; ++j)
 		{
 			const StaticMeshSection& section = sm->getSections(LOD)[j];
-			sceneData[k].modelTransform = sm->getTransform().getMatrix();
+			sceneData[k].modelTransform = sm->getTransformMatrix();
 			// #todo: uint64 offset
 			sceneData[k].positionBufferOffset    = (uint32)section.positionBuffer->getBufferOffsetInBytes();
 			sceneData[k].nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getBufferOffsetInBytes();

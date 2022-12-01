@@ -99,7 +99,7 @@ void TestApplication::onTick(float deltaSeconds)
 		vec3 posDelta = vec3(5.0f * sinf(elapsed), 0.0f, 3.0f * cosf(elapsed));
 		camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
 		//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
-		ground->getTransform().setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
+		ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
 	}
 
 	// Animate balls to see if update of BLAS instance transforms is going well.
@@ -111,9 +111,9 @@ void TestApplication::onTick(float deltaSeconds)
 		if (i % 3 == 0) p.x += 2.0f * Cymath::cos(ballTime);
 		else if (i % 3 == 1) p.y += 2.0f * Cymath::cos(ballTime);
 		else if (i % 3 == 2) p.z += 2.0f * Cymath::cos(ballTime);
-		balls[i]->getTransform().setPosition(p);
+		balls[i]->setPosition(p);
 
-		balls[i]->getTransform().setScale(MESH_SCALE * (1.0f + 0.3f * Cymath::sin(i + ballTime)));
+		balls[i]->setScale(MESH_SCALE * (1.0f + 0.3f * Cymath::sin(i + ballTime)));
 	}
 
 	// #todo: Move rendering loop to engine
@@ -279,8 +279,8 @@ void TestApplication::createResources()
 			pos.z += 2.0f * col * MESH_SPACE_Z / MESH_COLS;
 			pos.x += (row & 1) * 0.5f * MESH_SPACE_X;
 
-			staticMesh->getTransform().setPosition(pos);
-			staticMesh->getTransform().setScale(MESH_SCALE);
+			staticMesh->setPosition(pos);
+			staticMesh->setScale(MESH_SCALE);
 
 			scene.addStaticMesh(staticMesh);
 			balls.push_back(staticMesh);
@@ -335,7 +335,7 @@ void TestApplication::createResources()
 
 		ground = new StaticMesh;
 		ground->addSection(0, positionBuffer, nonPositionBuffer, indexBuffer, material);
-		ground->getTransform().setPosition(vec3(0.0f, -10.0f, 0.0f));
+		ground->setPosition(vec3(0.0f, -10.0f, 0.0f));
 
 		scene.addStaticMesh(ground);
 	}
@@ -385,8 +385,8 @@ void TestApplication::createResources()
 
 		wallA = new StaticMesh;
 		wallA->addSection(0, positionBuffer, nonPositionBuffer, indexBuffer, material);
-		wallA->getTransform().setPosition(vec3(x0 - MESH_SPACE_X, 0.0f, 0.0f));
-		wallA->getTransform().setRotation(vec3(0.0f, 0.0f, 1.0f), -10.0f);
+		wallA->setPosition(vec3(x0 - MESH_SPACE_X, 0.0f, 0.0f));
+		wallA->setRotation(vec3(0.0f, 0.0f, 1.0f), -10.0f);
 
 		scene.addStaticMesh(wallA);
 	}

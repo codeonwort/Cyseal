@@ -3,13 +3,12 @@
 #include "core/matrix.h"
 #include "core/quaternion.h"
 
+// Traditional Scale-Rotation-Translation matrix
 class Transform
 {
 
 public:
 	Transform()
-		: bDirty(false)
-		, scale(vec3(1.0f, 1.0f, 1.0f))
 	{
 	}
 
@@ -29,11 +28,11 @@ public:
 private:
 	void updateMatrix() const;
 
-	vec3 position;
+	vec3       position = vec3(0.0f, 0.0f, 0.0f);
 	quaternion rotation;
-	vec3 scale;
+	vec3       scale    = vec3(1.0f, 1.0f, 1.0f);
 
-	mutable bool bDirty;
+	mutable bool bDirty = false;
 	mutable Matrix m;
 
 };

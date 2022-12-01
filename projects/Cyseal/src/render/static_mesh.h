@@ -39,11 +39,38 @@ public:
 		return LODs[lod].sections;
 	}
 
-	inline Transform& getTransform() { return transform; }
-	inline const Transform& getTransform() const { return transform; }
+	inline vec3 getPosition() const { return transform.getPosition(); }
+	inline quaternion getRotation() const { return transform.getRotation(); }
+	inline vec3 getScale() const { return transform.getScale(); }
+
+	inline void setPosition(const vec3& newPosition)
+	{
+		transform.setPosition(newPosition);
+		bTransformDirty = true;
+	}
+	inline void setRotation(const vec3& axis, float angle)
+	{
+		transform.setRotation(axis, angle);
+		bTransformDirty = true;
+	}
+	inline void setScale(float newScale)
+	{
+		setScale(vec3(newScale, newScale, newScale));
+	}
+	inline void setScale(const vec3& newScale)
+	{
+		transform.setScale(newScale);
+		bTransformDirty = true;
+	}
+
+	inline Matrix getTransformMatrix() { return transform.getMatrix(); }
+	inline const Matrix& getTransformMatrix() const { return transform.getMatrix(); }
+	inline bool isTransformDirty() const { return bTransformDirty; }
+	inline void clearDirtyFlags() { bTransformDirty = false; }
 
 private:
 	std::vector<StaticMeshLOD> LODs;
 
 	Transform transform;
+	bool bTransformDirty = false;
 };
