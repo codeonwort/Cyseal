@@ -2,6 +2,7 @@
 #include "material.h"
 #include "static_mesh.h"
 #include "gpu_scene.h"
+#include "util/logging.h"
 
 #include "rhi/render_device.h"
 #include "rhi/swap_chain.h"
@@ -12,13 +13,11 @@
 #include "rhi/texture_manager.h"
 #include "rhi/vertex_buffer_pool.h"
 
-// #todo-wip: See gpu_scene.cpp
-// At least (sceneUniform CBV + material CBVs + material SRVs)
-#define MAX_VOLATILE_DESCRIPTORS         2049
-
 // Force MRT formats for now.
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 #define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
+
+DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
 namespace RootParameters
 {
@@ -75,23 +74,6 @@ void BasePass::initialize()
 			ERootSignatureFlags::AllowInputAssemblerInputLayout);
 
 		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
-	}
-
-	// Create volatile heaps for CBVs, SRVs, and UAVs for each frame
-	volatileViewHeaps.resize(swapchainCount);
-	for (uint32 i = 0; i < swapchainCount; ++i)
-	{
-		DescriptorHeapDesc desc;
-		desc.type           = EDescriptorHeapType::CBV_SRV_UAV;
-		desc.numDescriptors = MAX_VOLATILE_DESCRIPTORS;
-		desc.flags          = EDescriptorHeapFlags::ShaderVisible;
-		desc.nodeMask       = 0;
-
-		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
-
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"BasePass_VolatileViewHeap_%u", i);
-		volatileViewHeaps[i]->setDebugName(debugName);
 	}
 
 	// Create input layout
@@ -152,9 +134,25 @@ void BasePass::renderBasePass(
 	CHECK(RT_sceneColor->getCreateParams().format == PF_sceneColor);
 	CHECK(RT_thinGBufferA->getCreateParams().format == PF_thinGBufferA);
 
+	// Resize volatile heaps if needed.
+	{
+		uint32 materialCBVCount, materialSRVCount;
+		gpuScene->queryMaterialDescriptorsCount(materialCBVCount, materialSRVCount);
+
+		uint32 requiredVolatiles = 0;
+		requiredVolatiles += 1; // scene uniform
+		requiredVolatiles += materialCBVCount;
+		requiredVolatiles += materialSRVCount;
+
+		if (requiredVolatiles > totalVolatileDescriptors)
+		{
+			resizeVolatileHeaps(requiredVolatiles);
+		}
+	}
+
 	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
-	//   Setting a PSO does not change the root signature.
-	//   The application must call a dedicated API for setting the root signature.
+	// Setting a PSO does not change the root signature.
+	// The application must call a dedicated API for setting the root signature.
 	commandList->setPipelineState(pipelineState.get());
 	commandList->setGraphicsRootSignature(rootSignature.get());
 	
@@ -219,4 +217,30 @@ void BasePass::bindRootParameters(
 		freeDescriptorIndexAfterMaterials);
 	cmdList->setGraphicsRootDescriptorTable(RootParameters::MaterialConstantsSlot, volatileHeap, materialCBVBaseIndex);
 	cmdList->setGraphicsRootDescriptorTable(RootParameters::MaterialTexturesSlot, volatileHeap, materialSRVBaseIndex);
+}
+
+void BasePass::resizeVolatileHeaps(uint32 maxDescriptors)
+{
+	totalVolatileDescriptors = maxDescriptors;
+
+	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+
+	volatileViewHeaps.resize(swapchainCount);
+	for (uint32 i = 0; i < swapchainCount; ++i)
+	{
+		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+			DescriptorHeapDesc{
+				.type           = EDescriptorHeapType::CBV_SRV_UAV,
+				.numDescriptors = maxDescriptors,
+				.flags          = EDescriptorHeapFlags::ShaderVisible,
+				.nodeMask       = 0,
+			}
+		));
+
+		wchar_t debugName[256];
+		swprintf_s(debugName, L"BasePass_VolatileViewHeap_%u", i);
+		volatileViewHeaps[i]->setDebugName(debugName);
+	}
+
+	CYLOG(LogBasePass, Log, L"Resize volatile heap: %u descriptors", maxDescriptors);
 }

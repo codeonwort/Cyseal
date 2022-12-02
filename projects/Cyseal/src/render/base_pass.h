@@ -34,10 +34,13 @@ private:
 		ConstantBufferView* sceneUniform,
 		GPUScene* gpuScene);
 
+	void resizeVolatileHeaps(uint32 maxDescriptors);
+
 private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
 
+	uint32 totalVolatileDescriptors = 0;
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
 	// #todo-sampler: Maybe need a volatileSamplerHeap in similar way?
 };

@@ -35,6 +35,10 @@ public:
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 	ShaderResourceView* getCulledGPUSceneBufferSRV() const;
 
+	// Query how many descriptors are needed.
+	// Use this before copyMaterialDescriptors() if you're unsure the dest heap is big enough.
+	void queryMaterialDescriptorsCount(uint32& outCBVCount, uint32& outSRVCount);
+
 	// Copy material CBV/SRV descriptors to 'destHeap', starting from its 'destBaseIndex'.
 	// This method will copy a variable number of descriptors, so other descriptors
 	// unrelated to material descriptors can be bound starting from 'outNextAvailableIndex'.

@@ -207,6 +207,12 @@ ShaderResourceView* GPUScene::getCulledGPUSceneBufferSRV() const
 	return culledGpuSceneBufferSRV.get();
 }
 
+void GPUScene::queryMaterialDescriptorsCount(uint32& outCBVCount, uint32& outSRVCount)
+{
+	outCBVCount = currentMaterialCBVCount;
+	outSRVCount = currentMaterialSRVCount;
+}
+
 void GPUScene::copyMaterialDescriptors(
 	DescriptorHeap* destHeap, uint32 destBaseIndex,
 	uint32& outCBVBaseIndex, uint32& outCBVCount,
