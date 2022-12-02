@@ -11,6 +11,7 @@ class Material;
 class SceneProxy;
 class Camera;
 class GPUScene;
+class Texture;
 
 class BasePass final
 {
@@ -22,7 +23,9 @@ public:
 		const SceneProxy* scene,
 		const Camera* camera,
 		ConstantBufferView* sceneUniformBuffer,
-		GPUScene* gpuScene);
+		GPUScene* gpuScene,
+		Texture* RT_sceneColor,
+		Texture* RT_thinGBufferA);
 
 private:
 	// Bind root parameters for the current root signature

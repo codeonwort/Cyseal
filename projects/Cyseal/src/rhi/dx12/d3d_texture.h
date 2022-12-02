@@ -15,6 +15,8 @@ class D3DTexture : public Texture
 public:
 	void initialize(const TextureCreateParams& params);
 
+	virtual const TextureCreateParams& getCreateParams() const override { return createParams; }
+
 	virtual void uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch) override;
 	virtual void setDebugName(const wchar_t* debugName) override;
 

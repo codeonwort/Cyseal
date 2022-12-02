@@ -217,7 +217,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		basePass->renderBasePass(
 			commandList, scene, camera,
 			sceneUniformCBV.get(),
-			gpuScene);
+			gpuScene,
+			RT_sceneColor, RT_thinGBufferA);
 	}
 
 	// Ray Traced Reflections

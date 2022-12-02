@@ -16,7 +16,7 @@
 // At least (sceneUniform CBV + material CBVs + material SRVs)
 #define MAX_VOLATILE_DESCRIPTORS         2049
 
-// #todo-renderer: Acquire pixel format from Texture
+// Force MRT formats for now.
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 #define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
 
@@ -142,10 +142,15 @@ void BasePass::renderBasePass(
 	const SceneProxy* scene,
 	const Camera* camera,
 	ConstantBufferView* sceneUniformBuffer,
-	GPUScene* gpuScene)
+	GPUScene* gpuScene,
+	Texture* RT_sceneColor,
+	Texture* RT_thinGBufferA)
 {
 	// #todo-renderer: Support other topologies
 	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
+
+	CHECK(RT_sceneColor->getCreateParams().format == PF_sceneColor);
+	CHECK(RT_thinGBufferA->getCreateParams().format == PF_thinGBufferA);
 
 	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
 	//   Setting a PSO does not change the root signature.

@@ -300,6 +300,8 @@ public:
 class Texture : public GPUResource
 {
 public:
+	virtual const TextureCreateParams& getCreateParams() const = 0;
+
 	virtual void uploadData(
 		RenderCommandList& commandList,
 		const void* buffer,
