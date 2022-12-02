@@ -8,12 +8,11 @@
 #include "rhi/texture_manager.h"
 #include "core/matrix.h"
 #include "world/scene.h"
+#include "util/logging.h"
 
-// #todo-wip: Should not be constants
-#define MAX_SCENE_ELEMENTS           256
-#define MATERIAL_MEMORY_POOL_SIZE    (640 * 1024) // 640 KiB
-#define MAX_MATERIAL_CBVs            (MAX_SCENE_ELEMENTS)
-#define MAX_MATERIAL_SRVs            (MAX_SCENE_ELEMENTS)
+DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
+
+#define DEFAULT_MAX_SCENE_ELEMENTS   256
 
 namespace RootParameters
 {
@@ -38,70 +37,8 @@ struct GPUSceneItem
 
 void GPUScene::initialize()
 {
-	const uint32 viewNumElements = MAX_SCENE_ELEMENTS;
-	const uint32 viewStride = sizeof(GPUSceneItem);
-
-	gpuSceneBuffer = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
-		BufferCreateParams{
-			.sizeInBytes = viewStride * viewNumElements,
-			.alignment   = 0,
-			.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
-		}
-	));
-	culledGpuSceneBuffer = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
-		BufferCreateParams{
-			.sizeInBytes = viewStride * viewNumElements,
-			.alignment   = 0,
-			.accessFlags = EBufferAccessFlags::UAV,
-		}
-	));
-	
-	{
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                     = EPixelFormat::UNKNOWN;
-		srvDesc.viewDimension              = ESRVDimension::Buffer;
-		srvDesc.buffer.firstElement        = 0;
-		srvDesc.buffer.numElements         = viewNumElements;
-		srvDesc.buffer.structureByteStride = viewStride;
-		srvDesc.buffer.flags               = EBufferSRVFlags::None;
-		gpuSceneBufferSRV = std::unique_ptr<ShaderResourceView>(
-			gRenderDevice->createSRV(gpuSceneBuffer.get(), srvDesc));
-	}
-	{
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                     = EPixelFormat::UNKNOWN;
-		srvDesc.viewDimension              = ESRVDimension::Buffer;
-		srvDesc.buffer.firstElement        = 0;
-		srvDesc.buffer.numElements         = viewNumElements;
-		srvDesc.buffer.structureByteStride = viewStride;
-		srvDesc.buffer.flags               = EBufferSRVFlags::None;
-		culledGpuSceneBufferSRV = std::unique_ptr<ShaderResourceView>(
-			gRenderDevice->createSRV(culledGpuSceneBuffer.get(), srvDesc));
-	}
-	{
-		UnorderedAccessViewDesc uavDesc{};
-		uavDesc.format                      = EPixelFormat::UNKNOWN;
-		uavDesc.viewDimension               = EUAVDimension::Buffer;
-		uavDesc.buffer.firstElement         = 0;
-		uavDesc.buffer.numElements          = viewNumElements;
-		uavDesc.buffer.structureByteStride  = viewStride;
-		uavDesc.buffer.counterOffsetInBytes = 0;
-		uavDesc.buffer.flags                = EBufferUAVFlags::None;
-		gpuSceneBufferUAV = std::unique_ptr<UnorderedAccessView>(
-			gRenderDevice->createUAV(gpuSceneBuffer.get(), uavDesc));
-	}
-	{
-		UnorderedAccessViewDesc uavDesc{};
-		uavDesc.format                      = EPixelFormat::UNKNOWN;
-		uavDesc.viewDimension               = EUAVDimension::Buffer;
-		uavDesc.buffer.firstElement         = 0;
-		uavDesc.buffer.numElements          = viewNumElements;
-		uavDesc.buffer.structureByteStride  = viewStride;
-		uavDesc.buffer.counterOffsetInBytes = 0;
-		uavDesc.buffer.flags                = EBufferUAVFlags::None;
-		culledGpuSceneBufferUAV = std::unique_ptr<UnorderedAccessView>(
-			gRenderDevice->createUAV(culledGpuSceneBuffer.get(), uavDesc));
-	}
+	resizeGPUSceneBuffers(DEFAULT_MAX_SCENE_ELEMENTS);
+	resizeMaterialBuffers(DEFAULT_MAX_SCENE_ELEMENTS, DEFAULT_MAX_SCENE_ELEMENTS);
 
 	// Root signature
 	{
@@ -123,47 +60,13 @@ void GPUScene::initialize()
 	shaderCS->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
 	// PSO
-	{
-		ComputePipelineDesc desc;
-		desc.rootSignature = rootSignature.get();
-		desc.cs = shaderCS;
-
-		pipelineState = std::unique_ptr<PipelineState>(gRenderDevice->createComputePipelineState(desc));
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-	// Bindless materials
-
-	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
-
-	materialCBVMemory = std::unique_ptr<ConstantBuffer>(
-		gRenderDevice->createConstantBuffer(MATERIAL_MEMORY_POOL_SIZE));
-
-	{
-		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::CBV;
-		desc.numDescriptors = MAX_MATERIAL_CBVs * swapchainCount;
-		desc.flags = EDescriptorHeapFlags::None;
-		desc.nodeMask = 0;
-
-		materialCBVHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
-	}
-	{
-		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::SRV;
-		desc.numDescriptors = MAX_MATERIAL_SRVs * swapchainCount;
-		desc.flags = EDescriptorHeapFlags::None;
-		desc.nodeMask = 0;
-
-		materialSRVHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
-	}
-
-	materialCBVs.resize(MAX_MATERIAL_CBVs);
-	for (size_t i = 0; i < materialCBVs.size(); ++i)
-	{
-		materialCBVs[i] = std::unique_ptr<ConstantBufferView>(
-			materialCBVMemory->allocateCBV(materialCBVHeap.get(), sizeof(MaterialConstants), swapchainCount));
-	}
+	pipelineState = std::unique_ptr<PipelineState>(gRenderDevice->createComputePipelineState(
+		ComputePipelineDesc{
+			.rootSignature = rootSignature.get(),
+			.cs            = shaderCS,
+			.nodeMask      = 0
+		}
+	));
 }
 
 void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera)
@@ -217,6 +120,11 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 			++currentMaterialSRVCount;
 			++currentMaterialCBVCount;
 		}
+	}
+
+	if (numMeshSections > gpuSceneMaxElements) {
+		resizeGPUSceneBuffers(numMeshSections);
+		resizeMaterialBuffers(numMeshSections, numMeshSections);
 	}
 	
 	// #todo-wip: Skip upload if scene has not changed.
@@ -330,4 +238,117 @@ void GPUScene::copyMaterialDescriptors(
 		currentMaterialSRVCount,
 		destHeap, outSRVBaseIndex,
 		materialSRVHeap.get(), 0);
+}
+
+void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
+{
+	gpuSceneMaxElements = maxElements;
+	const uint32 viewStride = sizeof(GPUSceneItem);
+
+	gpuSceneBuffer = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = viewStride * gpuSceneMaxElements,
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+		}
+	));
+	culledGpuSceneBuffer = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = viewStride * gpuSceneMaxElements,
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::UAV,
+		}
+	));
+	
+	{
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                     = EPixelFormat::UNKNOWN;
+		srvDesc.viewDimension              = ESRVDimension::Buffer;
+		srvDesc.buffer.firstElement        = 0;
+		srvDesc.buffer.numElements         = gpuSceneMaxElements;
+		srvDesc.buffer.structureByteStride = viewStride;
+		srvDesc.buffer.flags               = EBufferSRVFlags::None;
+		gpuSceneBufferSRV = std::unique_ptr<ShaderResourceView>(
+			gRenderDevice->createSRV(gpuSceneBuffer.get(), srvDesc));
+	}
+	{
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                     = EPixelFormat::UNKNOWN;
+		srvDesc.viewDimension              = ESRVDimension::Buffer;
+		srvDesc.buffer.firstElement        = 0;
+		srvDesc.buffer.numElements         = gpuSceneMaxElements;
+		srvDesc.buffer.structureByteStride = viewStride;
+		srvDesc.buffer.flags               = EBufferSRVFlags::None;
+		culledGpuSceneBufferSRV = std::unique_ptr<ShaderResourceView>(
+			gRenderDevice->createSRV(culledGpuSceneBuffer.get(), srvDesc));
+	}
+	{
+		UnorderedAccessViewDesc uavDesc{};
+		uavDesc.format                      = EPixelFormat::UNKNOWN;
+		uavDesc.viewDimension               = EUAVDimension::Buffer;
+		uavDesc.buffer.firstElement         = 0;
+		uavDesc.buffer.numElements          = gpuSceneMaxElements;
+		uavDesc.buffer.structureByteStride  = viewStride;
+		uavDesc.buffer.counterOffsetInBytes = 0;
+		uavDesc.buffer.flags                = EBufferUAVFlags::None;
+		gpuSceneBufferUAV = std::unique_ptr<UnorderedAccessView>(
+			gRenderDevice->createUAV(gpuSceneBuffer.get(), uavDesc));
+	}
+	{
+		UnorderedAccessViewDesc uavDesc{};
+		uavDesc.format                      = EPixelFormat::UNKNOWN;
+		uavDesc.viewDimension               = EUAVDimension::Buffer;
+		uavDesc.buffer.firstElement         = 0;
+		uavDesc.buffer.numElements          = gpuSceneMaxElements;
+		uavDesc.buffer.structureByteStride  = viewStride;
+		uavDesc.buffer.counterOffsetInBytes = 0;
+		uavDesc.buffer.flags                = EBufferUAVFlags::None;
+		culledGpuSceneBufferUAV = std::unique_ptr<UnorderedAccessView>(
+			gRenderDevice->createUAV(culledGpuSceneBuffer.get(), uavDesc));
+	}
+}
+
+// Bindless materials
+void GPUScene::resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount)
+{
+	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+
+	auto align = [](uint32 size, uint32 alignment) -> uint32
+	{
+		return (size + (alignment - 1)) & ~(alignment - 1);
+	};
+
+	uint32 materialMemoryPoolSize = align(sizeof(MaterialConstants), 256) * maxCBVCount * swapchainCount;
+	materialMemoryPoolSize = align(materialMemoryPoolSize, 65536);
+
+	CYLOG(LogGPUScene, Log, L"Resize material constants memory: %u bytes (%.3f MiB)",
+		materialMemoryPoolSize, (float)materialMemoryPoolSize / (1024.0f * 1024.0f));
+
+	materialCBVMemory = std::unique_ptr<ConstantBuffer>(
+		gRenderDevice->createConstantBuffer(materialMemoryPoolSize));
+
+	materialCBVHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		DescriptorHeapDesc{
+			.type           = EDescriptorHeapType::CBV,
+			.numDescriptors = maxCBVCount * swapchainCount,
+			.flags          = EDescriptorHeapFlags::None,
+			.nodeMask       = 0,
+		}
+	));
+
+	materialSRVHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		DescriptorHeapDesc{
+			.type           = EDescriptorHeapType::SRV,
+			.numDescriptors = maxSRVCount * swapchainCount,
+			.flags          = EDescriptorHeapFlags::None,
+			.nodeMask       = 0,
+		}
+	));
+
+	materialCBVs.resize(maxCBVCount);
+	for (size_t i = 0; i < materialCBVs.size(); ++i)
+	{
+		materialCBVs[i] = std::unique_ptr<ConstantBufferView>(
+			materialCBVMemory->allocateCBV(materialCBVHeap.get(), sizeof(MaterialConstants), swapchainCount));
+	}
 }

@@ -41,10 +41,10 @@ ConstantBufferView* D3DConstantBuffer::allocateCBV(
 	uint32 sizeInBytes,
 	uint32 bufferingCount)
 {
-	CHECK(bufferingCount >= 1);
+	CHECK(bufferingCount >= 1 && sizeInBytes > 0);
 
 	uint32 sizeAligned = (sizeInBytes + 255) & ~255;
-	if (allocatedBytes + sizeAligned * bufferingCount >= totalBytes)
+	if (allocatedBytes + sizeAligned * bufferingCount > totalBytes)
 	{
 		CHECK_NO_ENTRY(); // For now make sure we don't reach here.
 		return nullptr;

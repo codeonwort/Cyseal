@@ -45,10 +45,15 @@ public:
 		uint32& outNextAvailableIndex);
 
 private:
+	void resizeGPUSceneBuffers(uint32 maxElements);
+	void resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount);
+
+private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
 
 	// GPU scene buffers
+	uint32 gpuSceneMaxElements = 0;
 	std::unique_ptr<Buffer> gpuSceneBuffer;
 	std::unique_ptr<Buffer> culledGpuSceneBuffer;
 
