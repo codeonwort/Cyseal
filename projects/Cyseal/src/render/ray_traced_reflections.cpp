@@ -1,6 +1,7 @@
 #include "ray_traced_reflections.h"
 #include "static_mesh.h"
 #include "gpu_scene.h"
+#include "util/logging.h"
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
@@ -15,10 +16,9 @@
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
 #define RTR_MAX_RECURSION            2
+#define RTR_HIT_GROUP_NAME           L"RTR_HitGroup"
 
-// #todo-wip: See gpu_scene.cpp
-#define RTR_MAX_VOLATILE_DESCRIPTORS (10 + 256 + 256)
-#define RTR_MAX_STATIC_MESHES        256
+DEFINE_LOG_CATEGORY_STATIC(LogRayTracedReflections);
 
 namespace RTRRootParameters
 {
@@ -139,7 +139,6 @@ void RayTracedReflections::initialize()
 	}
 
 	// RTPSO
-	const wchar_t* hitGroupName = L"MyHitGroup";
 	{
 		raygenShader = std::unique_ptr<ShaderStage>(device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen"));
 		closestHitShader = std::unique_ptr<ShaderStage>(device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit"));
@@ -150,7 +149,7 @@ void RayTracedReflections::initialize()
 		missShader->loadFromFile(L"rt_reflection.hlsl", "MyMissShader");
 
 		RaytracingPipelineStateObjectDesc desc;
-		desc.hitGroupName                 = hitGroupName;
+		desc.hitGroupName                 = RTR_HIT_GROUP_NAME;
 		desc.hitGroupType                 = ERaytracingHitGroupType::Triangles;
 		desc.raygenShader                 = raygenShader.get();
 		desc.closestHitShader             = closestHitShader.get();
@@ -192,41 +191,8 @@ void RayTracedReflections::initialize()
 				RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
 		missShaderTable->uploadRecord(0, missShader.get(), nullptr, 0);
 	}
-	// Hit group shader table
-	{
-		struct RootArguments
-		{
-			ClosestHitPushConstants pushConstants;
-		};
-		uint32 numShaderRecords = RTR_MAX_STATIC_MESHES;
-
-		hitGroupShaderTable = std::unique_ptr<RaytracingShaderTable>(
-			device->createRaytracingShaderTable(
-				RTPSO.get(), numShaderRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
-		for (uint32 i = 0; i < numShaderRecords; ++i)
-		{
-			uint32 materialID = i;
-			RootArguments rootArguments{ materialID };
-
-			hitGroupShaderTable->uploadRecord(i, hitGroupName, &rootArguments, sizeof(rootArguments));
-		}
-	}
-
-	volatileViewHeaps.resize(swapchainCount);
-	for (uint32 i = 0; i < swapchainCount; ++i)
-	{
-		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::CBV_SRV_UAV;
-		desc.numDescriptors = RTR_MAX_VOLATILE_DESCRIPTORS;
-		desc.flags = EDescriptorHeapFlags::ShaderVisible;
-		desc.nodeMask = 0;
-
-		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
-
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"RTR_VolatileViewHeap_%u", i);
-		volatileViewHeaps[i]->setDebugName(debugName);
-	}
+	// Hit group shader table is created in resizeHitGroupShaderTable().
+	// ...
 }
 
 bool RayTracedReflections::isAvailable() const
@@ -249,6 +215,31 @@ void RayTracedReflections::renderRayTracedReflections(
 	if (isAvailable() == false)
 	{
 		return;
+	}
+
+	// Resize volatile heaps if needed.
+	{
+		uint32 materialCBVCount, materialSRVCount;
+		gpuScene->queryMaterialDescriptorsCount(materialCBVCount, materialSRVCount);
+
+		uint32 requiredVolatiles = 0;
+		requiredVolatiles += 3; // render target, gbufferA, scene uniform
+		requiredVolatiles += materialCBVCount;
+		requiredVolatiles += materialSRVCount;
+
+		if (requiredVolatiles > totalVolatileDescriptors)
+		{
+			resizeVolatileHeaps(requiredVolatiles);
+		}
+	}
+
+	// Resize hit group shader table if needed.
+	{
+		uint32 requiredRecordCount = (uint32)scene->staticMeshes.size();
+		if (requiredRecordCount > totalHitGroupShaderRecord)
+		{
+			resizeHitGroupShaderTable(requiredRecordCount);
+		}
 	}
 
 	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
@@ -315,4 +306,57 @@ void RayTracedReflections::renderRayTracedReflections(
 	dispatchDesc.height = sceneHeight;
 	dispatchDesc.depth = 1;
 	commandList->dispatchRays(dispatchDesc);
+}
+
+void RayTracedReflections::resizeVolatileHeaps(uint32 maxDescriptors)
+{
+	totalVolatileDescriptors = maxDescriptors;
+
+	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+
+	volatileViewHeaps.resize(swapchainCount);
+	for (uint32 i = 0; i < swapchainCount; ++i)
+	{
+		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+			DescriptorHeapDesc{
+				.type           = EDescriptorHeapType::CBV_SRV_UAV,
+				.numDescriptors = maxDescriptors,
+				.flags          = EDescriptorHeapFlags::ShaderVisible,
+				.nodeMask       = 0,
+			}
+		));
+
+		wchar_t debugName[256];
+		swprintf_s(debugName, L"RTR_VolatileViewHeap_%u", i);
+		volatileViewHeaps[i]->setDebugName(debugName);
+	}
+
+	CYLOG(LogRayTracedReflections, Log, L"Resize volatile heap: %u descriptors", maxDescriptors);
+}
+
+void RayTracedReflections::resizeHitGroupShaderTable(uint32 maxRecords)
+{
+	totalHitGroupShaderRecord = maxRecords;
+
+	struct RootArguments
+	{
+		ClosestHitPushConstants pushConstants;
+	};
+
+	hitGroupShaderTable = std::unique_ptr<RaytracingShaderTable>(
+		gRenderDevice->createRaytracingShaderTable(
+			RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
+
+	for (uint32 i = 0; i < maxRecords; ++i)
+	{
+		RootArguments rootArguments{
+			.pushConstants = ClosestHitPushConstants{
+				.materialID = i
+			}
+		};
+
+		hitGroupShaderTable->uploadRecord(i, RTR_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
+	}
+
+	CYLOG(LogRayTracedReflections, Log, L"Resize hit group shader table: %u records", maxRecords);
 }

@@ -38,7 +38,8 @@ public:
 		uint32 sceneHeight);
 
 private:
-	//void something();
+	void resizeVolatileHeaps(uint32 maxDescriptors);
+	void resizeHitGroupShaderTable(uint32 maxRecords);
 
 private:
 	std::unique_ptr<RaytracingPipelineStateObject> RTPSO;
@@ -49,10 +50,12 @@ private:
 	std::unique_ptr<RaytracingShaderTable> raygenShaderTable;
 	std::unique_ptr<RaytracingShaderTable> missShaderTable;
 	std::unique_ptr<RaytracingShaderTable> hitGroupShaderTable;
+	uint32 totalHitGroupShaderRecord = 0;
 
 	std::unique_ptr<ShaderStage> raygenShader;
 	std::unique_ptr<ShaderStage> closestHitShader;
 	std::unique_ptr<ShaderStage> missShader;
 
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
+	uint32 totalVolatileDescriptors = 0;
 };
