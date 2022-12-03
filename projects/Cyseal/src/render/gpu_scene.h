@@ -68,10 +68,10 @@ private:
 	std::unique_ptr<UnorderedAccessView> culledGpuSceneBufferUAV;
 
 	// Bindless materials
-	std::unique_ptr<ConstantBuffer> materialCBVMemory;
+	std::unique_ptr<Buffer> materialCBVMemory;
 	std::unique_ptr<DescriptorHeap> materialCBVHeap;
 	std::unique_ptr<DescriptorHeap> materialSRVHeap;
-	std::vector<std::unique_ptr<ConstantBufferView>> materialCBVs;
+	std::vector<std::vector<std::unique_ptr<ConstantBufferView>>> materialCBVsPerFrame;
 	uint32 currentMaterialCBVCount = 0;
 	uint32 currentMaterialSRVCount = 0;
 };

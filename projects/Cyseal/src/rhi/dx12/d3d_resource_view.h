@@ -4,7 +4,7 @@
 #include "d3d_util.h"
 #include "d3d_texture.h"
 
-class D3DConstantBuffer;
+class D3DBuffer;
 class DescriptorHeap;
 
 class D3DRenderTargetView : public RenderTargetView
@@ -64,38 +64,29 @@ private:
 class D3DConstantBufferView : public ConstantBufferView
 {
 public:
-	D3DConstantBufferView(D3DConstantBuffer* inBuffer, DescriptorHeap* inSourceHeap, uint32 inOffsetInBuffer, uint32 inSizeAligned, uint32 inBufferingCount)
+	D3DConstantBufferView(D3DBuffer* inBuffer, DescriptorHeap* inSourceHeap, uint32 inOffsetInBuffer, uint32 inSizeAligned)
 		: buffer(inBuffer)
 		, sourceHeap(inSourceHeap)
 		, offsetInBuffer(inOffsetInBuffer)
 		, sizeAligned(inSizeAligned)
 	{
-		descriptorIndexArray.resize(inBufferingCount, 0xffffffff);
+		descriptorIndex = 0xffffffff;
 	}
 
-	virtual void upload(void* data, uint32 sizeInBytes, uint32 bufferingIndex) override;
+	virtual void writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes) override;
 
-	virtual DescriptorHeap* getSourceHeap() override
-	{
-		return sourceHeap;
-	}
+	virtual DescriptorHeap* getSourceHeap() override { return sourceHeap; }
 
-	virtual uint32 getDescriptorIndexInHeap(uint32 bufferingIndex) const override
-	{
-		return descriptorIndexArray[bufferingIndex];
-	}
+	virtual uint32 getDescriptorIndexInHeap() const override { return descriptorIndex; }
 
-	void initialize(uint32 inDescriptorIndex, uint32 inBufferingIndex)
-	{
-		descriptorIndexArray[inBufferingIndex] = inDescriptorIndex;
-	}
+	void initialize(uint32 inDescriptorIndex) { descriptorIndex = inDescriptorIndex; }
 
 	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress();
 
 private:
-	D3DConstantBuffer* buffer;
+	D3DBuffer* buffer;
 	DescriptorHeap* sourceHeap;
 	uint32 offsetInBuffer;
 	uint32 sizeAligned;
-	std::vector<uint32> descriptorIndexArray;
+	uint32 descriptorIndex;
 };

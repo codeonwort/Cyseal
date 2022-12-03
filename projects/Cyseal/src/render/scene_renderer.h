@@ -5,8 +5,8 @@
 
 #include <memory>
 
+class Buffer;
 class Texture;
-class ConstantBuffer;
 class DescriptorHeap;
 class ConstantBufferView;
 class GPUScene;
@@ -26,6 +26,7 @@ public:
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) override;
 	
 	void updateSceneUniform(
+		RenderCommandList* commandList,
 		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera);
@@ -46,9 +47,9 @@ private:
 	Texture* RT_indirectSpecular = nullptr;
 
 	// #todo-renderer: Temp dedicated memory and desc heap for scene uniforms
-	std::unique_ptr<ConstantBuffer> sceneUniformMemory;
+	std::unique_ptr<Buffer> sceneUniformMemory;
 	std::unique_ptr<DescriptorHeap> sceneUniformDescriptorHeap;
-	std::unique_ptr<ConstantBufferView> sceneUniformCBV;
+	std::vector<std::unique_ptr<ConstantBufferView>> sceneUniformCBVs;
 
 	AccelerationStructure* accelStructure = nullptr;
 

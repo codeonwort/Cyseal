@@ -7,6 +7,7 @@
 class RenderDevice;
 class DescriptorHeap;
 class GPUResource;
+class RenderCommandList;
 
 //////////////////////////////////////////////////////////////////////////
 // ShaderResourceView create info
@@ -178,8 +179,8 @@ class ConstantBufferView
 public:
 	virtual ~ConstantBufferView() = default;
 
-	virtual void upload(void* data, uint32 sizeInBytes, uint32 bufferingIndex) = 0;
+	virtual void writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes) = 0;
 
 	virtual DescriptorHeap* getSourceHeap() = 0;
-	virtual uint32 getDescriptorIndexInHeap(uint32 bufferingIndex) const = 0;
+	virtual uint32 getDescriptorIndexInHeap() const = 0;
 };

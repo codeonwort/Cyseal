@@ -44,22 +44,40 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		const uint32 swapchainCount = renderDevice->getSwapChain()->getBufferCount();
 		CHECK(sizeof(SceneUniform) * swapchainCount <= SCENE_UNIFORM_MEMORY_POOL_SIZE);
 
-		sceneUniformMemory = std::unique_ptr<ConstantBuffer>(
-			device->createConstantBuffer(SCENE_UNIFORM_MEMORY_POOL_SIZE));
+		sceneUniformMemory = std::unique_ptr<Buffer>(device->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = SCENE_UNIFORM_MEMORY_POOL_SIZE,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE,
+			}
+		));
 
+		sceneUniformDescriptorHeap = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(
+			DescriptorHeapDesc{
+				.type           = EDescriptorHeapType::CBV,
+				.numDescriptors = swapchainCount,
+				.flags          = EDescriptorHeapFlags::None,
+				.nodeMask       = 0,
+			}
+		));
+
+		auto align = [](uint32 size, uint32 alignment) -> uint32
 		{
-			DescriptorHeapDesc desc;
-			desc.type = EDescriptorHeapType::CBV;
-			desc.numDescriptors = swapchainCount;
-			desc.flags = EDescriptorHeapFlags::None;
-			desc.nodeMask = 0;
-			sceneUniformDescriptorHeap = std::unique_ptr<DescriptorHeap>(
-				device->createDescriptorHeap(desc));
+			return (size + (alignment - 1)) & ~(alignment - 1);
+		};
+		uint32 bufferOffset = 0;
+		sceneUniformCBVs.resize(swapchainCount);
+		for (uint32 i = 0; i < swapchainCount; ++i)
+		{
+			sceneUniformCBVs[i] = std::unique_ptr<ConstantBufferView>(
+				gRenderDevice->createCBV(
+					sceneUniformMemory.get(), 
+					sceneUniformDescriptorHeap.get(),
+					sizeof(SceneUniform),
+					bufferOffset));
+			// #todo-rhi: Somehow hide this alignment from rhi level?
+			bufferOffset += align(sizeof(SceneUniform), 256);
 		}
-
-		sceneUniformCBV = std::unique_ptr<ConstantBufferView>(
-			sceneUniformMemory->allocateCBV(
-				sceneUniformDescriptorHeap.get(), sizeof(SceneUniform), swapchainCount));
 	}
 
 	// Render passes
@@ -134,7 +152,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	scissorRect.bottom = sceneHeight;
 	commandList->rsSetScissorRect(scissorRect);
 
-	updateSceneUniform(backbufferIndex, scene, camera);
+	updateSceneUniform(commandList, backbufferIndex, scene, camera);
 
 	{
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
@@ -216,7 +234,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 		basePass->renderBasePass(
 			commandList, scene, camera,
-			sceneUniformCBV.get(),
+			sceneUniformCBVs[backbufferIndex].get(),
 			gpuScene,
 			RT_sceneColor, RT_thinGBufferA);
 	}
@@ -266,7 +284,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 		rtReflections->renderRayTracedReflections(
 			commandList, scene, camera,
-			sceneUniformCBV.get(),
+			sceneUniformCBVs[backbufferIndex].get(),
 			accelStructure,
 			gpuScene,
 			RT_thinGBufferA, RT_indirectSpecular,
@@ -374,6 +392,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 }
 
 void SceneRenderer::updateSceneUniform(
+	RenderCommandList* commandList,
 	uint32 swapchainIndex,
 	const SceneProxy* scene,
 	const Camera* camera)
@@ -391,7 +410,7 @@ void SceneRenderer::updateSceneUniform(
 	uboData.sunDirection      = scene->sun.direction;
 	uboData.sunIlluminance    = scene->sun.illuminance;
 	
-	sceneUniformCBV->upload(&uboData, sizeof(uboData), swapchainIndex);
+	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &uboData, sizeof(uboData));
 }
 
 void SceneRenderer::rebuildAccelerationStructure(

@@ -201,7 +201,7 @@ void BasePass::bindRootParameters(
 	gRenderDevice->copyDescriptors(
 		1,
 		volatileHeap, sceneUniformDescIx,
-		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap(frameIndex));
+		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap());
 	cmdList->setGraphicsRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, sceneUniformDescIx);
 
 	cmdList->setGraphicsRootDescriptorSRV(RootParameters::GPUSceneSlot, gpuScene->getCulledGPUSceneBufferSRV());

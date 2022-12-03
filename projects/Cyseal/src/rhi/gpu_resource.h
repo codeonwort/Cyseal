@@ -275,26 +275,6 @@ protected:
 };
 
 //////////////////////////////////////////////////////////////////////////
-// Constant buffer memory
-// D3D12 committed resource (resource + implicit heap)
-class ConstantBuffer : public GPUResource
-{
-public:
-	virtual ~ConstantBuffer() = default;
-
-	virtual void initialize(uint32 sizeInBytes) = 0;
-
-	// #todo-wip: Is it alright to make buffering a built-in feature of CBV?
-	//            -> Not good. See base_pass.cpp. Maybe instancing parameter will be better.
-	// 'bufferingCount' : Same as the swapchain image count if this CBV will be dynamic per frame.
-	// Returns null if out of memory.
-	virtual ConstantBufferView* allocateCBV(
-		DescriptorHeap* descHeap,
-		uint32 sizeInBytes,
-		uint32 bufferingCount) = 0;
-};
-
-//////////////////////////////////////////////////////////////////////////
 // Texture
 
 class Texture : public GPUResource

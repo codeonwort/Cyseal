@@ -74,6 +74,8 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 	const uint32 LOD = 0; // #todo-lod: LOD
 	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
+	auto& materialCBVs = materialCBVsPerFrame[swapchainIndex];
+
 	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	uint32 numMeshSections = 0;
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
@@ -114,7 +116,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 			constants.albedoTextureIndex = currentMaterialSRVCount;
 
 			ConstantBufferView* cbv = materialCBVs[currentMaterialCBVCount].get();
-			cbv->upload(&constants, sizeof(constants), swapchainIndex);
+			cbv->writeToGPU(commandList, &constants, sizeof(constants));
 
 			// #todo-wip: Currently always increment even if duplicate items are generated.
 			++currentMaterialSRVCount;
@@ -233,11 +235,11 @@ void GPUScene::copyMaterialDescriptors(
 	// CBVs for the same swapchain index are not contiguous in memory.
 	for (uint32 i = 0; i < currentMaterialCBVCount; ++i)
 	{
-		ConstantBufferView* cbv = materialCBVs[i].get();
+		ConstantBufferView* cbv = materialCBVsPerFrame[swapchainIndex][i].get();
 		gRenderDevice->copyDescriptors(
 			1,
 			destHeap, outCBVBaseIndex + i,
-			cbv->getSourceHeap(), cbv->getDescriptorIndexInHeap(swapchainIndex));
+			cbv->getSourceHeap(), cbv->getDescriptorIndexInHeap());
 	}
 
 	gRenderDevice->copyDescriptors(
@@ -324,14 +326,20 @@ void GPUScene::resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount)
 		return (size + (alignment - 1)) & ~(alignment - 1);
 	};
 
+	// #todo-rhi: D3D12-specific alignments
 	uint32 materialMemoryPoolSize = align(sizeof(MaterialConstants), 256) * maxCBVCount * swapchainCount;
 	materialMemoryPoolSize = align(materialMemoryPoolSize, 65536);
 
 	CYLOG(LogGPUScene, Log, L"Resize material constants memory: %u bytes (%.3f MiB)",
 		materialMemoryPoolSize, (float)materialMemoryPoolSize / (1024.0f * 1024.0f));
 
-	materialCBVMemory = std::unique_ptr<ConstantBuffer>(
-		gRenderDevice->createConstantBuffer(materialMemoryPoolSize));
+	materialCBVMemory = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = materialMemoryPoolSize,
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::CPU_WRITE,
+		}
+	));
 
 	materialCBVHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
 		DescriptorHeapDesc{
@@ -351,10 +359,22 @@ void GPUScene::resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount)
 		}
 	));
 
-	materialCBVs.resize(maxCBVCount);
-	for (size_t i = 0; i < materialCBVs.size(); ++i)
+	materialCBVsPerFrame.resize(swapchainCount);
+	uint32 cbMemoryOffset = 0;
+	for (uint32 swapchainIx = 0; swapchainIx < swapchainCount; ++swapchainIx)
 	{
-		materialCBVs[i] = std::unique_ptr<ConstantBufferView>(
-			materialCBVMemory->allocateCBV(materialCBVHeap.get(), sizeof(MaterialConstants), swapchainCount));
+		auto& materialCBVs = materialCBVsPerFrame[swapchainIx];
+		materialCBVs.resize(maxCBVCount);
+		for (size_t i = 0; i < materialCBVs.size(); ++i)
+		{
+			materialCBVs[i] = std::unique_ptr<ConstantBufferView>(
+				gRenderDevice->createCBV(
+					materialCBVMemory.get(),
+					materialCBVHeap.get(),
+					sizeof(MaterialConstants),
+					cbMemoryOffset));
+			// #todo-rhi: Somehow hide this alignment from rhi level?
+			cbMemoryOffset += align(sizeof(MaterialConstants), 256);
+		}
 	}
 }

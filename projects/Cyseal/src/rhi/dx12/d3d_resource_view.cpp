@@ -6,16 +6,15 @@
 //////////////////////////////////////////////////////////////////////////
 // D3DConstantBufferView
 
-void D3DConstantBufferView::upload(void* data, uint32 sizeInBytes, uint32 bufferingIndex)
+void D3DConstantBufferView::writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes)
 {
 	CHECK(sizeInBytes <= sizeAligned);
-	uint8* destPtr = buffer->mapPtr + offsetInBuffer + (sizeAligned * bufferingIndex);
-	::memcpy_s(destPtr, sizeInBytes, data, sizeInBytes);
+	buffer->singleWriteToGPU(commandList, srcData, sizeInBytes, offsetInBuffer);
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS D3DConstantBufferView::getGPUVirtualAddress()
 {
-	return buffer->getGPUVirtualAddress() + offsetInBuffer;
+	return into_d3d::id3d12Resource(buffer)->GetGPUVirtualAddress() + offsetInBuffer;
 }
 
 //////////////////////////////////////////////////////////////////////////

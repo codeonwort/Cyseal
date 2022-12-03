@@ -35,33 +35,6 @@ private:
 	WRL::ComPtr<ID3D12DescriptorHeap> rawState;
 };
 
-// https://www.braynzarsoft.net/viewtutorial/q16390-directx-12-constant-buffers-root-descriptor-tables
-class D3DConstantBuffer : public ConstantBuffer
-{
-	friend class D3DConstantBufferView;
-
-public:
-	~D3DConstantBuffer();
-
-	virtual void initialize(uint32 sizeInBytes);
-
-	virtual ConstantBufferView* allocateCBV(DescriptorHeap* descHeap, uint32 sizeInBytes, uint32 bufferingCount);
-
-	void destroy();
-
-	// NOTE: CBVs should add their offset.
-	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const
-	{
-		return memoryPool->GetGPUVirtualAddress();
-	}
-
-private:
-	WRL::ComPtr<ID3D12Resource> memoryPool;
-	uint32 totalBytes = 0;
-	uint32 allocatedBytes = 0;
-	uint8* mapPtr = nullptr;
-};
-
 class D3DAccelerationStructure : public AccelerationStructure
 {
 public:

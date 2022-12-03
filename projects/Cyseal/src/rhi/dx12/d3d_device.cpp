@@ -576,11 +576,35 @@ DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
 	return heap;
 }
 
-ConstantBuffer* D3DDevice::createConstantBuffer(uint32 totalBytes)
+ConstantBufferView* D3DDevice::createCBV(
+	Buffer* buffer,
+	DescriptorHeap* descriptorHeap,
+	uint32 sizeInBytes,
+	uint32 offsetInBytes)
 {
-	D3DConstantBuffer* cb = new D3DConstantBuffer;
-	cb->initialize(totalBytes);
-	return cb;
+	CHECK(offsetInBytes % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0); // 256
+
+	D3DDevice* d3dDevice = static_cast<D3DDevice*>(gRenderDevice);
+	D3DBuffer* d3dBuffer = static_cast<D3DBuffer*>(buffer);
+	ID3D12DescriptorHeap* id3d12Heap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	uint32 sizeAligned = align(sizeInBytes, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+
+	D3DConstantBufferView* cbv = new D3DConstantBufferView(
+		d3dBuffer, descriptorHeap, offsetInBytes, sizeAligned);
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc;
+	viewDesc.BufferLocation = into_d3d::id3d12Resource(buffer)->GetGPUVirtualAddress() + offsetInBytes;
+	viewDesc.SizeInBytes = sizeAligned;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = id3d12Heap->GetCPUDescriptorHandleForHeapStart();
+	uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
+	cpuHandle.ptr += descriptorIndex * d3dDevice->getDescriptorSizeCbvSrvUav();
+
+	d3dDevice->getRawDevice()->CreateConstantBufferView(&viewDesc, cpuHandle);
+
+	cbv->initialize(descriptorIndex);
+
+	return cbv;
 }
 
 ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)

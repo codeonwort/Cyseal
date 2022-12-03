@@ -266,7 +266,7 @@ void RayTracedReflections::renderRayTracedReflections(
 		thinGBufferATexture->getSourceUAVHeap(), thinGBufferATexture->getUAVDescriptorIndex());
 	gRenderDevice->copyDescriptors(1,
 		volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM,
-		sceneUniformBuffer->getSourceHeap(), sceneUniformBuffer->getDescriptorIndexInHeap(swapchainIndex));
+		sceneUniformBuffer->getSourceHeap(), sceneUniformBuffer->getDescriptorIndexInHeap());
 	gpuScene->copyMaterialDescriptors(
 		volatileHeap, 3,
 		VOLATILE_DESC_IX_MATERIAL_CBV, unusedMaterialCBVCount,
