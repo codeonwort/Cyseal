@@ -88,8 +88,6 @@ public:
 	inline VkSemaphore getVkImageAvailableSemaphore() const { return vkImageAvailableSemaphore; }
 	inline VkSemaphore getVkRenderFinishedSemaphore() const { return vkRenderFinishedSemaphore; }
 
-	void copyVkBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize srcOffset, VkDeviceSize dstOffset, VkDeviceSize bufferSize);
-
 	void beginVkDebugMarker(VkCommandBuffer& cmdBuffer, const char* debugName, uint32 color = 0x000000);
 	void endVkDebugMarker(VkCommandBuffer& cmdBuffer);
 	void setObjectDebugName(
