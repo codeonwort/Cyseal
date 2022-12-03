@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vk_device.h"
-#include "render/resource_binding.h"
+#include "rhi/gpu_resource_binding.h"
 #include "util/string_conversion.h"
 
 class VulkanDescriptorPool : public DescriptorHeap

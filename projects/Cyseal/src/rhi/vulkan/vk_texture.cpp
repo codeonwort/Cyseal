@@ -89,18 +89,46 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 
 	if (0 != (inParams.accessFlags & ETextureAccessFlags::SRV))
 	{
+		// #todo-vulkan: SRV ViewDimension
+		CHECK(textureDesc.imageType == VkImageType::VK_IMAGE_TYPE_2D);
+
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                    = createParams.format;
+		srvDesc.viewDimension             = ESRVDimension::Texture2D;
+		srvDesc.texture2D.mostDetailedMip = 0;
+		srvDesc.texture2D.mipLevels       = textureDesc.mipLevels;
+		srvDesc.texture2D.planeSlice      = 0;
+		srvDesc.texture2D.minLODClamp     = 0.0f;
+
+		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
+		srvHeap = srv->getSourceHeap();
+		srvDescriptorIndex = srv->getDescriptorIndexInHeap();
+
 		vkSRV = colorImageView;
-		srv = std::make_unique<VulkanShaderResourceView>(this, vkSRV);
 	}
+
 	if (0 != (inParams.accessFlags & ETextureAccessFlags::RTV))
 	{
 		vkRTV = colorImageView;
 		rtv = std::make_unique<VulkanRenderTargetView>(vkRTV);
 	}
+
 	if (0 != (inParams.accessFlags & ETextureAccessFlags::UAV))
 	{
+		// #todo-vulkan: UAV ViewDimension
+		CHECK(textureDesc.imageType == VkImageType::VK_IMAGE_TYPE_2D);
+
+		UnorderedAccessViewDesc uavDesc{};
+		uavDesc.format               = createParams.format;
+		uavDesc.viewDimension        = EUAVDimension::Texture2D;
+		uavDesc.texture2D.mipSlice   = 0;
+		uavDesc.texture2D.planeSlice = 0;
+
+		uav = std::unique_ptr<UnorderedAccessView>(gRenderDevice->createUAV(this, uavDesc));
+		uavHeap = uav->getSourceHeap();
+		uavDescriptorIndex = uav->getDescriptorIndexInHeap();
+
 		vkUAV = colorImageView;
-		uav = std::make_unique<VulkanUnorderedAccessView>(vkUAV);
 	}
 
 	if (0 != (inParams.accessFlags & ETextureAccessFlags::DSV))
@@ -147,28 +175,24 @@ void VulkanTexture::setDebugName(const wchar_t* debugNameW)
 		debugNameA.c_str());
 }
 
-uint32 VulkanTexture::getSRVDescriptorIndex() const
+RenderTargetView* VulkanTexture::getRTV() const
 {
-	// #todo-vulkan
-	return 0;
+	return rtv.get();
 }
 
-uint32 VulkanTexture::getRTVDescriptorIndex() const
+ShaderResourceView* VulkanTexture::getSRV() const
 {
-	// #todo-vulkan
-	return 0;
+	return srv.get();
 }
 
-uint32 VulkanTexture::getDSVDescriptorIndex() const
+DepthStencilView* VulkanTexture::getDSV() const
 {
-	// #todo-vulkan
-	return 0;
+	return dsv.get();
 }
 
-uint32 VulkanTexture::getUAVDescriptorIndex() const
+UnorderedAccessView* VulkanTexture::getUAV() const
 {
-	// #todo-vulkan
-	return 0;
+	return uav.get();
 }
 
 #endif // COMPILE_BACKEND_VULKAN

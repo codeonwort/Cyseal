@@ -14,7 +14,7 @@
 #include "vk_into.h"
 #include "core/platform.h"
 #include "core/assertion.h"
-#include "render/swap_chain.h"
+#include "rhi/swap_chain.h"
 
 #include <vulkan/vulkan.h>
 
@@ -105,6 +105,11 @@ static bool checkVkDebugMarkerSupport(VkPhysicalDevice physDevice)
 	}
 
 	return false;
+}
+
+VkDevice getVkDevice()
+{
+	return static_cast<VulkanDevice*>(gRenderDevice)->getRaw();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -343,17 +348,16 @@ void VulkanDevice::flushCommandQueue()
 	CHECK(ret == VK_SUCCESS);
 }
 
-bool VulkanDevice::supportsRayTracing()
-{
-	// #todo-vulkan: vk_nv_ray_tracing
-	CHECK_NO_ENTRY();
-	return false;
-}
-
 VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)
 {
 	VulkanVertexBuffer* buffer = new VulkanVertexBuffer;
 	buffer->initialize(sizeInBytes);
+	if (inDebugName != nullptr)
+	{
+		std::string debugNameA;
+		wstr_to_str(inDebugName, debugNameA);
+		setObjectDebugName(VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, (uint64)buffer->getVkBuffer(), debugNameA.c_str());
+	}
 	return buffer;
 }
 
@@ -364,18 +368,30 @@ VertexBuffer* VulkanDevice::createVertexBuffer(VertexBufferPool* pool, uint64 of
 	return buffer;
 }
 
-IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)
+IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, const wchar_t* inDebugName)
 {
 	VulkanIndexBuffer* buffer = new VulkanIndexBuffer;
-	buffer->initialize(sizeInBytes);
+	buffer->initialize(sizeInBytes, format);
+	if (inDebugName != nullptr)
+	{
+		std::string debugNameA;
+		wstr_to_str(inDebugName, debugNameA);
+		setObjectDebugName(VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, (uint64)buffer->getVkBuffer(), debugNameA.c_str());
+	}
 	return buffer;
 }
 
-IndexBuffer* VulkanDevice::createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
+IndexBuffer* VulkanDevice::createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes, EPixelFormat format)
 {
 	VulkanIndexBuffer* buffer = new VulkanIndexBuffer;
-	//buffer->initialize(data, sizeInBytes, format);
+	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
+}
+
+Buffer* VulkanDevice::createBuffer(const BufferCreateParams& createParams)
+{
+	// #todo-vulkan
+	return nullptr;
 }
 
 Texture* VulkanDevice::createTexture(const TextureCreateParams& createParams)
@@ -630,6 +646,24 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	return nullptr;
 }
 
+PipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc& desc)
+{
+	// #todo-vulkan
+	return nullptr;
+}
+
+RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc)
+{
+	// #todo-vulkan
+	return nullptr;
+}
+
+RaytracingShaderTable* VulkanDevice::createRaytracingShaderTable(RaytracingPipelineStateObject* RTPSO, uint32 numShaderRecords, uint32 rootArgumentSize, const wchar_t* debugName)
+{
+	// #todo-vulkan
+	return nullptr;
+}
+
 DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inDesc)
 {
 	VkDescriptorPoolSize poolSize{};
@@ -655,10 +689,57 @@ DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inD
 	return heap;
 }
 
-ConstantBuffer* VulkanDevice::createConstantBuffer(uint32 totalBytes)
+ConstantBufferView* VulkanDevice::createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes)
 {
 	// #todo-vulkan
-	CHECK_NO_ENTRY();
+	return nullptr;
+}
+
+ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
+{
+	VulkanShaderResourceView* srv = nullptr;
+
+	if (createParams.viewDimension == ESRVDimension::Buffer)
+	{
+		// #todo-vulkan
+	}
+	else if (createParams.viewDimension == ESRVDimension::Texture2D)
+	{
+		VkImageViewCreateInfo createInfo{
+			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.pNext            = nullptr,
+			.flags            = 0,
+			.image            = (VkImage)(gpuResource->getRawResource()),
+			.viewType         = into_vk::imageViewType(createParams.viewDimension),
+			.format           = into_vk::pixelFormat(createParams.format),
+			.components       = VkComponentSwizzle{},
+			.subresourceRange = VkImageSubresourceRange{
+				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel   = createParams.texture2D.mostDetailedMip,
+				.levelCount     = createParams.texture2D.mipLevels,
+				.baseArrayLayer = 0,
+				.layerCount     = 1,
+			}
+		};
+
+		VkImageView vkImageView = VK_NULL_HANDLE;
+		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
+		CHECK(vkRet == VK_SUCCESS);
+
+		srv = new VulkanShaderResourceView(gpuResource, vkImageView);
+	}
+	else
+	{
+		// #todo-vulkan
+		CHECK_NO_ENTRY();
+	}
+
+	return srv;
+}
+
+UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams)
+{
+	// #todo-vulkan
 	return nullptr;
 }
 
@@ -671,18 +752,6 @@ void VulkanDevice::copyDescriptors(
 {
 	// #todo-vulkan
 	CHECK_NO_ENTRY();
-}
-
-void VulkanDevice::copyVkBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize bufferSize)
-{
-	VkCommandPool cmdPool = getTempCommandPool();
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands(vkDevice, cmdPool);
-
-	VkBufferCopy copyRegion{};
-	copyRegion.size = bufferSize;
-	vkCmdCopyBuffer(commandBuffer, src, dst, 1, &copyRegion);
-
-	endSingleTimeCommands(vkDevice, cmdPool, vkGraphicsQueue, commandBuffer);
 }
 
 void VulkanDevice::beginVkDebugMarker(

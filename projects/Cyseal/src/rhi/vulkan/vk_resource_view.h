@@ -2,7 +2,7 @@
 
 #if COMPILE_BACKEND_VULKAN
 
-#include "render/gpu_resource_view.h"
+#include "rhi/gpu_resource_view.h"
 #include <vulkan/vulkan_core.h>
 
 class VulkanRenderTargetView : public RenderTargetView
@@ -26,19 +26,26 @@ private:
 class VulkanShaderResourceView : public ShaderResourceView
 {
 public:
-	VulkanShaderResourceView(Texture* inOwner, VkImageView inHandle)
-		: ShaderResourceView(inOwner)
-		, handle(inHandle)
+	VulkanShaderResourceView(GPUResource* inOwner, VkImageView inVkImageView)
+		: ShaderResourceView(inOwner, /*inSourceHeap*/nullptr, /*inDescriptorIndex*/0xffffffff)
+		, vkImageView(inVkImageView)
 	{}
-	VkImageView getRaw() const { return handle; }
+	VkImageView getVkImageView() const { return vkImageView; }
 private:
-	VkImageView handle = VK_NULL_HANDLE;
+	VkImageView vkImageView = VK_NULL_HANDLE;
 };
 
 class VulkanUnorderedAccessView : public UnorderedAccessView
 {
 public:
-	VulkanUnorderedAccessView(VkImageView inHandle) : handle(inHandle) {}
+	VulkanUnorderedAccessView(
+		GPUResource* inOwner,
+		DescriptorHeap* inSourceHeap,
+		uint32 inDescriptorIndex,
+		VkImageView inHandle)
+		: UnorderedAccessView(inOwner, inSourceHeap, inDescriptorIndex)
+		, handle(inHandle)
+	{}
 	VkImageView getRaw() const { return handle; }
 private:
 	VkImageView handle = VK_NULL_HANDLE;

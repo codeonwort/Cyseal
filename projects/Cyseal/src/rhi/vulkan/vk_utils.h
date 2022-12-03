@@ -61,29 +61,40 @@ inline bool hasStencilComponent(VkFormat format)
 
 inline VkCommandBuffer beginSingleTimeCommands(VkDevice device, VkCommandPool commandPool)
 {
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = commandPool;
-	allocInfo.commandBufferCount = 1;
+	VkCommandBufferAllocateInfo allocInfo{
+		.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+		.pNext              = nullptr,
+		.commandPool        = commandPool,
+		.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+		.commandBufferCount = 1,
+	};
+	VkCommandBufferBeginInfo beginInfo{
+		.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.pNext            = nullptr,
+		.flags            = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+		.pInheritanceInfo = nullptr,
+	};
 	VkCommandBuffer commandBuffer;
 	vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	vkBeginCommandBuffer(commandBuffer, &beginInfo);
 	return commandBuffer;
 }
 
-inline void endSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue, VkCommandBuffer commandBuffer)
+inline void endSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer)
 {
+	VkSubmitInfo submitInfo{
+		.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.pNext                = nullptr,
+		.waitSemaphoreCount   = 0,
+		.pWaitDstStageMask    = nullptr,
+		.commandBufferCount   = 1,
+		.pCommandBuffers      = &commandBuffer,
+		.signalSemaphoreCount = 0,
+		.pSignalSemaphores    = nullptr,
+	};
 	vkEndCommandBuffer(commandBuffer);
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
-	vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(graphicsQueue);
+	vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(queue);
 	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 

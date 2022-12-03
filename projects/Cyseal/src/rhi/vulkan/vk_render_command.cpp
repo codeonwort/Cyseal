@@ -111,6 +111,52 @@ void VulkanRenderCommandList::close()
 	CHECK(ret == VK_SUCCESS);
 }
 
+void VulkanRenderCommandList::resourceBarriers(uint32 numBarriers, const ResourceBarrier* barriers)
+{
+	// #todo-vulkan
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
+{
+	// #todo-vulkan
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void VulkanRenderCommandList::clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil)
+{
+	// #todo-vulkan
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void VulkanRenderCommandList::setPipelineState(PipelineState* state)
+{
+	// #todo-vulkan
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void VulkanRenderCommandList::setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps)
+{
+	// #todo-vulkan
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void VulkanRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature)
+{
+	// #todo-vulkan
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void VulkanRenderCommandList::setComputeRootSignature(RootSignature* rootSignature)
+{
+	// #todo-vulkan
+}
+
 void VulkanRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology inTopology)
 {
 	// The PSO should be created with VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY
@@ -163,6 +209,49 @@ void VulkanRenderCommandList::rsSetScissorRect(const ScissorRect& scissorRect)
 	vkCmdSetScissor(currentCommandBuffer, 0, 1, &vkScissor);
 }
 
+void VulkanRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV)
+{
+	// #todo-vulkan
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::setGraphicsRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues)
+{
+	// #todo-vulkan
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void VulkanRenderCommandList::setGraphicsRootConstant32Array(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::setGraphicsRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap, uint32 descriptorStartOffset)
+{
+	// #todo-vulkan
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void VulkanRenderCommandList::setGraphicsRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::setGraphicsRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::setGraphicsRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav)
+{
+	// #todo-vulkan
+}
+
 void VulkanRenderCommandList::drawIndexedInstanced(
 	uint32 indexCountPerInstance,
 	uint32 instanceCount,
@@ -191,6 +280,52 @@ void VulkanRenderCommandList::drawInstanced(
 		instanceCount,
 		startVertexLocation,
 		startInstanceLocation);
+}
+
+void VulkanRenderCommandList::setComputeRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::setComputeRootConstant32Array(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::setComputeRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::setComputeRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::setComputeRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap, uint32 descriptorStartOffset)
+{
+	// #todo-vulkan
+}
+
+void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
+{
+	// #todo-vulkan
+}
+
+AccelerationStructure* VulkanRenderCommandList::buildRaytracingAccelerationStructure(uint32 numBLASDesc, BLASInstanceInitDesc* blasDescArray)
+{
+	// #todo-vulkan
+	return nullptr;
+}
+
+void VulkanRenderCommandList::dispatchRays(const DispatchRaysDesc& dispatchDesc)
+{
+	// #todo-vulkan
 }
 
 void VulkanRenderCommandList::beginEventMarker(const char* eventName)

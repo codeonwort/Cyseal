@@ -41,9 +41,10 @@ VulkanShaderStage::~VulkanShaderStage()
 	vkDestroyShaderModule(device->getRaw(), vkModule, nullptr);
 }
 
-void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* entryPoint)
+void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint)
 {
-	entryPointName = entryPoint;
+	aEntryPoint = inEntryPoint;
+	str_to_wstr(inEntryPoint, wEntryPoint);
 
 	std::wstring hlslPathW = ResourceFinder::get().find(inFilename);
 	CHECK(hlslPathW.size() > 0);
@@ -59,7 +60,7 @@ void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* entr
 	std::string spirvPath = hlslPath.substr(0, hlslPath.find(".hlsl")) + ".spv";
 	char cmd[512];
 	sprintf_s(cmd, "%s -S %s -e %s -o %s -V -D %s",
-		glslang, shaderTypeStr, entryPoint, spirvPath.c_str(), hlslPath.c_str());
+		glslang, shaderTypeStr, inEntryPoint, spirvPath.c_str(), hlslPath.c_str());
 	std::system(cmd);
 #else
 	#error Not implemented yet

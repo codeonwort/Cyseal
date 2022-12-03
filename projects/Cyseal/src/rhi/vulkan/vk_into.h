@@ -3,7 +3,8 @@
 #if COMPILE_BACKEND_VULKAN
 
 #include "core/assertion.h"
-#include "render/pipeline_state.h"
+#include "rhi/pipeline_state.h"
+#include "rhi/gpu_resource_binding.h"
 
 #include <vulkan/vulkan_core.h>
 #include <algorithm>
@@ -420,6 +421,27 @@ namespace into_vk
 		desc.format = into_vk::pixelFormat(inElement.format);
 		desc.offset = inElement.alignedByteOffset;
 		return desc;
+	}
+
+	inline VkImageViewType imageViewType(ESRVDimension inSRVDimension)
+	{
+		switch (inSRVDimension)
+		{
+			//case ESRVDimension::Unknown: return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			//case ESRVDimension::Buffer: return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case ESRVDimension::Texture1D:                  return VK_IMAGE_VIEW_TYPE_1D;
+			case ESRVDimension::Texture1DArray:             return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+			case ESRVDimension::Texture2D:                  return VK_IMAGE_VIEW_TYPE_2D;
+			case ESRVDimension::Texture2DArray:             return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			case ESRVDimension::Texture2DMultiSampled:      return VK_IMAGE_VIEW_TYPE_2D;
+			case ESRVDimension::Texture2DMultiSampledArray: return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			case ESRVDimension::Texture3D:                  return VK_IMAGE_VIEW_TYPE_3D;
+			case ESRVDimension::TextureCube:                return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			case ESRVDimension::TextureCubeArray:           return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+			//case ESRVDimension::RaytracingAccelerationStructure: return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+		}
+		CHECK_NO_ENTRY();
+		return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
 	}
 }
 

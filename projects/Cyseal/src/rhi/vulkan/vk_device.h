@@ -1,15 +1,10 @@
 #pragma once
 
-#include "rhi/render_device.h"
-
-#if !COMPILE_BACKEND_VULKAN
-
-class VulkanDevice : public RenderDevice {};
-
-#else // COMPILE_BACKEND_VULKAN
+#if COMPILE_BACKEND_VULKAN
 
 #include "vk_utils.h"
 #include "util/logging.h"
+#include "rhi/render_device.h"
 
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -17,6 +12,8 @@ class VulkanDevice : public RenderDevice {};
 DECLARE_LOG_CATEGORY(LogVulkan);
 
 class VulkanSwapchain;
+
+VkDevice getVkDevice();
 
 class VulkanDevice : public RenderDevice
 {
@@ -32,24 +29,43 @@ public:
 
 	virtual void flushCommandQueue() override;
 
-	virtual bool supportsRayTracing() override;
+	//////////////////////////////////////////////////////////////////////////
+	// Create
 
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName) override;
 	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 
-	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName) override;
-	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
-
+	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, const wchar_t* inDebugName) override;
+	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes, EPixelFormat format) override;
+	
+	virtual Buffer* createBuffer(const BufferCreateParams& createParams) override;
 	virtual Texture* createTexture(const TextureCreateParams& createParams) override;
 
 	virtual ShaderStage* createShader(EShaderStage shaderStage, const char* debugName) override;
 
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;
+
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
+
+	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
+
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
+		const RaytracingPipelineStateObjectDesc& desc) override;
+
+	virtual RaytracingShaderTable* createRaytracingShaderTable(
+		RaytracingPipelineStateObject* RTPSO,
+		uint32 numShaderRecords,
+		uint32 rootArgumentSize,
+		const wchar_t* debugName) override;
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
 
-	virtual ConstantBuffer* createConstantBuffer(uint32 totalBytes) override;
+	virtual ConstantBufferView* createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes) override;
+	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) override;
+	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) override;
+
+	//////////////////////////////////////////////////////////////////////////
+	// Copy
 
 	virtual void copyDescriptors(
 		uint32 numDescriptors,
@@ -58,7 +74,9 @@ public:
 		DescriptorHeap* srcHeap,
 		uint32 srcHeapDescriptorStartOffset) override;
 
+	//////////////////////////////////////////////////////////////////////////
 	// Internal use only
+
 	inline VkDevice getRaw() const { return vkDevice; }
 	inline VkPhysicalDevice getVkPhysicalDevice() const { return vkPhysicalDevice; }
 	inline VkSurfaceKHR getVkSurface() const { return vkSurface; }
@@ -66,8 +84,6 @@ public:
 	inline VkQueue getVkPresentQueue() const { return vkPresentQueue; }
 	inline VkSemaphore getVkImageAvailableSemaphore() const { return vkImageAvailableSemaphore; }
 	inline VkSemaphore getVkRenderFinishedSemaphore() const { return vkRenderFinishedSemaphore; }
-
-	void copyVkBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize bufferSize);
 
 	void beginVkDebugMarker(VkCommandBuffer& cmdBuffer, const char* debugName, uint32 color = 0x000000);
 	void endVkDebugMarker(VkCommandBuffer& cmdBuffer);

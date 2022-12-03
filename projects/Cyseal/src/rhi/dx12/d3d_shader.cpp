@@ -95,7 +95,7 @@ static std::wstring getD3DShaderProfile(D3D_SHADER_MODEL shaderModel, EShaderSta
 	return profile;
 }
 
-void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* entryPoint)
+void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint)
 {
 	IDxcUtils* utils = getD3DDevice()->getDxcUtils();
 	IDxcCompiler3* compiler = getD3DDevice()->getDxcCompiler();
@@ -120,7 +120,8 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* entryPo
 
 	std::wstring includeDir = getShaderDirectory();
 	std::wstring targetProfile = getD3DShaderProfile(highestSM, stageFlag);
-	str_to_wstr(entryPoint, wEntryPoint);
+	aEntryPoint = inEntryPoint;
+	str_to_wstr(inEntryPoint, wEntryPoint);
 
 	std::vector<LPCWSTR> arguments = {
 		L"-I", includeDir.c_str(),

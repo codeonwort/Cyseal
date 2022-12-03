@@ -139,6 +139,7 @@ public:
 	virtual ~GPUResource() {}
 
 	// D3D12: ID3D12Resource
+	// Vulkan: VkBuffer or VkImage
 	virtual void* getRawResource() const { CHECK_NO_ENTRY(); return nullptr; }
 	virtual void setRawResource(void* inRawResource) { CHECK_NO_ENTRY(); }
 };
