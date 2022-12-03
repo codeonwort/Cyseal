@@ -231,21 +231,27 @@ void GPUScene::copyMaterialDescriptors(
 
 	outNextAvailableIndex = outSRVBaseIndex + outSRVCount;
 
-	// #todo-wip: Can't copy descriptors at once because
-	// CBVs for the same swapchain index are not contiguous in memory.
-	for (uint32 i = 0; i < currentMaterialCBVCount; ++i)
+	if (currentMaterialCBVCount > 0)
 	{
-		ConstantBufferView* cbv = materialCBVsPerFrame[swapchainIndex][i].get();
+		// #todo-rhi: It assumes continuous gRenderDevice->createCBV() calls result in
+		// continuous descriptor indices in the same heap.
+		// But once I implement dealloc mechanism for descriptor allocation that assumption might break.
+		// I need something like gRenderDevice->createCBVsContiuous() that guarantees
+		// continuous allocation.
+		ConstantBufferView* firstCBV = materialCBVsPerFrame[swapchainIndex][0].get();
 		gRenderDevice->copyDescriptors(
-			1,
-			destHeap, outCBVBaseIndex + i,
-			cbv->getSourceHeap(), cbv->getDescriptorIndexInHeap());
+			currentMaterialCBVCount,
+			destHeap, outCBVBaseIndex,
+			materialCBVHeap.get(), firstCBV->getDescriptorIndexInHeap());
 	}
 
-	gRenderDevice->copyDescriptors(
-		currentMaterialSRVCount,
-		destHeap, outSRVBaseIndex,
-		materialSRVHeap.get(), 0);
+	if (currentMaterialSRVCount > 0)
+	{
+		gRenderDevice->copyDescriptors(
+			currentMaterialSRVCount,
+			destHeap, outSRVBaseIndex,
+			materialSRVHeap.get(), 0);
+	}
 }
 
 void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
