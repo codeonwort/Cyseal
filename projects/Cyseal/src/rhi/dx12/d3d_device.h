@@ -97,7 +97,6 @@ private:
 
 	// Raw interfaces
 	ID3D12CommandQueue*               rawCommandQueue = nullptr;
-	ID3D12GraphicsCommandList4*       rawCommandList = nullptr;
 	D3DSwapChain*                     d3dSwapChain = nullptr;
 
 	// Shader Model

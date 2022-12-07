@@ -308,10 +308,11 @@ void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
 			RenderCommandAllocator* allocator = new VulkanRenderCommandAllocator;
 			allocator->initialize(this);
 			commandAllocators.push_back(allocator);
-		}
 
-		commandList = new VulkanRenderCommandList;
-		commandList->initialize(this);
+			RenderCommandList* commandList = new VulkanRenderCommandList;
+			commandList->initialize(this);
+			commandLists.push_back(commandList);
+		}
 	}
 
 	swapChain->initialize(

@@ -62,8 +62,8 @@ class RenderDevice
 {
 	
 public:
-	RenderDevice();
-	virtual ~RenderDevice();
+	RenderDevice() = default;
+	virtual ~RenderDevice() = default;
 
 	virtual void initialize(const RenderDeviceCreateParams& createParams) = 0;
 
@@ -116,7 +116,7 @@ public:
 	inline SwapChain* getSwapChain() const { return swapChain; }
 
 	inline RenderCommandAllocator* getCommandAllocator(uint32 swapchainIndex) const { return commandAllocators[swapchainIndex]; }
-	inline RenderCommandList* getCommandList() const { return commandList; }
+	inline RenderCommandList* getCommandList(uint32 swapchainIndex) const { return commandLists[swapchainIndex]; }
 	inline RenderCommandQueue* getCommandQueue() const { return commandQueue; }
 
 	inline ERaytracingTier getRaytracingTier() const { return raytracingTier; }
@@ -134,15 +134,18 @@ protected:
 	// Command allocators should hold memory for render commands while GPU is accessing them,
 	// but command lists can immediately reset after a recording set is done.
 	// So, it would be...
-	// 0. Prepare alloc0 and alloc1 for double buffering
-	// 1. cmdList->reset(alloc0)
-	// 2. Record commands
-	// 3. Wait until commands allocated in alloc1 are finished
-	// 4. Submit commands allocated in alloc0 to the queue
-	// 5. Repeat 1~4, but allocators swapped.
+	//   0. Prepare alloc0 and alloc1 for double buffering
+	//   1. cmdList->reset(alloc0)
+	//   2. Record commands
+	//   3. Wait until commands allocated in alloc1 are finished
+	//   4. Submit commands allocated in alloc0 to the queue
+	//   5. Repeat 1~4, but allocators swapped.
+	// Therefore only one command list is needed in theory, but
+	// RenderCommandList also has some utils like customCommands and deferredDeallocs.
+	// So I'll just create command lists as many as allocators.
 	std::vector<RenderCommandAllocator*> commandAllocators;
+	std::vector<RenderCommandList*> commandLists;
 	RenderCommandQueue* commandQueue = nullptr; // Primary graphics queue. Later other queues can be added (e.g., async compute queue).
-	RenderCommandList* commandList = nullptr;
 
 	// Capabilities
 	ERaytracingTier raytracingTier = ERaytracingTier::NotSupported;

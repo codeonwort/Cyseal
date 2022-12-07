@@ -18,11 +18,11 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera)
 {
 #if EMPTY_LOOP
 	auto swapChain = device->getSwapChain();
-	uint32 backbufferIndex = swapChain->getCurrentBackbufferIndex();
+	uint32 swapchainIndex = swapChain->getCurrentBackbufferIndex();
 	auto currentBackBuffer = swapChain->getCurrentBackbuffer();
 	auto currentBackBufferRTV = swapChain->getCurrentBackbufferRTV();
-	auto commandAllocator = device->getCommandAllocator(backbufferIndex);
-	auto commandList = device->getCommandList();
+	auto commandAllocator = device->getCommandAllocator(swapchainIndex);
+	auto commandList = device->getCommandList(swapchainIndex);
 	auto commandQueue = device->getCommandQueue();
 
 	commandAllocator->reset();

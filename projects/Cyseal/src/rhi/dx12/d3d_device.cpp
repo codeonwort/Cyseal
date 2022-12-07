@@ -75,8 +75,11 @@ D3DDevice::~D3DDevice()
 	{
 		delete commandAllocators[i];
 	}
+	for (size_t i = 0; i < commandLists.size(); ++i)
+	{
+		delete commandLists[i];
+	}
 	delete commandQueue;
-	delete commandList;
 }
 
 void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
@@ -234,12 +237,11 @@ void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
 		RenderCommandAllocator* allocator = new D3DRenderCommandAllocator;
 		allocator->initialize(this);
 		commandAllocators.push_back(allocator);
+
+		RenderCommandList* commandList = new D3DRenderCommandList;
+		commandList->initialize(this);
+		commandLists.push_back(commandList);
 	}
-
-	commandList = new D3DRenderCommandList;
-	commandList->initialize(this);
-
-	rawCommandList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
 	// Shader management
 

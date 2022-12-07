@@ -116,11 +116,11 @@ void SceneRenderer::destroy()
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 {
 	auto swapChain            = device->getSwapChain();
-	uint32 backbufferIndex    = swapChain->getCurrentBackbufferIndex();
+	uint32 swapchainIndex    = swapChain->getCurrentBackbufferIndex();
 	auto currentBackBuffer    = swapChain->getCurrentBackbuffer();
 	auto currentBackBufferRTV = swapChain->getCurrentBackbufferRTV();
-	auto commandAllocator     = device->getCommandAllocator(backbufferIndex);
-	auto commandList          = device->getCommandList();
+	auto commandAllocator     = device->getCommandAllocator(swapchainIndex);
+	auto commandList          = device->getCommandList(swapchainIndex);
 	auto commandQueue         = device->getCommandQueue();
 
 	// #todo-renderer: Can be different due to resolution scaling
@@ -152,7 +152,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	scissorRect.bottom = sceneHeight;
 	commandList->rsSetScissorRect(scissorRect);
 
-	updateSceneUniform(commandList, backbufferIndex, scene, camera);
+	updateSceneUniform(commandList, swapchainIndex, scene, camera);
 
 	{
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
@@ -234,7 +234,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 		basePass->renderBasePass(
 			commandList, scene, camera,
-			sceneUniformCBVs[backbufferIndex].get(),
+			sceneUniformCBVs[swapchainIndex].get(),
 			gpuScene,
 			RT_sceneColor, RT_thinGBufferA);
 	}
@@ -284,7 +284,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 		rtReflections->renderRayTracedReflections(
 			commandList, scene, camera,
-			sceneUniformCBVs[backbufferIndex].get(),
+			sceneUniformCBVs[swapchainIndex].get(),
 			accelStructure,
 			gpuScene,
 			RT_thinGBufferA, RT_indirectSpecular,

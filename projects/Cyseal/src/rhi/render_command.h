@@ -22,7 +22,7 @@ class RenderCommandQueue
 {
 	
 public:
-	virtual ~RenderCommandQueue();
+	virtual ~RenderCommandQueue() = default;
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
 	virtual void executeCommandList(class RenderCommandList* commandList) = 0;
@@ -35,7 +35,7 @@ class RenderCommandAllocator
 {
 
 public:
-	virtual ~RenderCommandAllocator();
+	virtual ~RenderCommandAllocator() = default;
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
 	virtual void reset() = 0;
@@ -49,7 +49,7 @@ class RenderCommandList
 public:
 	using CustomCommandType = std::function<void(RenderCommandList&)>;
 
-	virtual ~RenderCommandList();
+	virtual ~RenderCommandList() = default;
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
 
@@ -200,6 +200,10 @@ struct EnqueueCustomRenderCommand
 {
 	EnqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda);
 };
+
+#define ENQUEUE_RENDER_COMMAND(CommandName) EnqueueCustomRenderCommand CommandName
+
+#if 0
 // #todo-rendercommand: Resets the list and only executes custom commands registered so far.
 // Just a hack due to incomplete render command list support.
 struct FlushRenderCommands
@@ -207,11 +211,10 @@ struct FlushRenderCommands
 	FlushRenderCommands();
 };
 
-#define ENQUEUE_RENDER_COMMAND(CommandName) EnqueueCustomRenderCommand CommandName
-
 #define FLUSH_RENDER_COMMANDS_INTERNAL(x, y) x ## y
 #define FLUSH_RENDER_COMMANDS_INTERNAL2(x, y) FLUSH_RENDER_COMMANDS_INTERNAL(x, y)
 #define FLUSH_RENDER_COMMANDS() FlushRenderCommands FLUSH_RENDER_COMMANDS_INTERNAL2(flushRenderCommands_, __LINE__)
+#endif
 
 struct ScopedDrawEvent
 {

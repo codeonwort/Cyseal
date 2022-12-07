@@ -2,18 +2,6 @@
 #include "render_device.h"
 #include "swap_chain.h"
 
-RenderCommandQueue::~RenderCommandQueue()
-{
-}
-
-RenderCommandAllocator::~RenderCommandAllocator()
-{
-}
-
-RenderCommandList::~RenderCommandList()
-{
-}
-
 void RenderCommandList::enqueueCustomCommand(CustomCommandType lambda)
 {
 	customCommands.push_back(lambda);
@@ -46,16 +34,19 @@ void RenderCommandList::executeDeferredDealloc()
 
 EnqueueCustomRenderCommand::EnqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda)
 {
-	RenderCommandList* commandList = gRenderDevice->getCommandList();
+	uint32 swapchainIx = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+
+	RenderCommandList* commandList = gRenderDevice->getCommandList(swapchainIx);
 	commandList->enqueueCustomCommand(inLambda);
 }
 
+#if 0
 FlushRenderCommands::FlushRenderCommands()
 {
-	uint32 backbufferIx = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+	uint32 swapchainIx = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
-	RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator(backbufferIx);
-	RenderCommandList* commandList = gRenderDevice->getCommandList();
+	RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator(swapchainIx);
+	RenderCommandList* commandList = gRenderDevice->getCommandList(swapchainIx);
 	RenderCommandQueue* commandQueue = gRenderDevice->getCommandQueue();
 
 	commandAllocator->reset();
@@ -66,3 +57,4 @@ FlushRenderCommands::FlushRenderCommands()
 
 	gRenderDevice->flushCommandQueue();
 }
+#endif
