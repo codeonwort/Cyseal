@@ -9,6 +9,7 @@
 #include "render/base_pass.h"
 #include "render/ray_traced_reflections.h"
 #include "render/tone_mapping.h"
+#include "util/profiling.h"
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 
@@ -372,7 +373,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	swapChain->present();
 	swapChain->swapBackbuffer();
 
- 	device->flushCommandQueue();
+	{
+		SCOPED_CPU_EVENT(WaitForGPU);
+
+		device->flushCommandQueue();
+	}
+
+	commandList->executeDeferredDealloc();
 
 	const_cast<SceneProxy*>(scene)->tempCleanupOriginalScene();
 }

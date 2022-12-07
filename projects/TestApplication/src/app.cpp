@@ -11,6 +11,7 @@
 #include "geometry/procedural.h"
 #include "loader/image_loader.h"
 #include "world/gpu_resource_asset.h"
+#include "util/profiling.h"
 
 #include <algorithm>
 
@@ -88,39 +89,45 @@ bool TestApplication::onInitialize()
 
 void TestApplication::onTick(float deltaSeconds)
 {
-	wchar_t buf[256];
-	float newFPS = 1.0f / deltaSeconds;
-	framesPerSecond += 0.05f * (newFPS - framesPerSecond);
-	swprintf_s(buf, L"Hello World / FPS: %.2f", framesPerSecond);
-	setWindowTitle(std::wstring(buf));
-
-	// #todo-app: Control camera by user input
-	// Animate camera to see if raytracing is actually working in world space.
 	{
-		static float elapsed = 0.0f;
-		elapsed += 0.5f * deltaSeconds;
-		vec3 posDelta = vec3(5.0f * sinf(elapsed), 0.0f, 3.0f * cosf(elapsed));
-		camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
-		//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
-		ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
-	}
+		SCOPED_CPU_EVENT(WorldLogic);
 
-	// Animate balls to see if update of BLAS instance transforms is going well.
-	static float ballTime = 0.0f;
-	ballTime += deltaSeconds;
-	for (size_t i = 0; i < balls.size(); ++i)
-	{
-		vec3 p = ballOriginalPos[i];
-		if (i % 3 == 0) p.x += 2.0f * Cymath::cos(ballTime);
-		else if (i % 3 == 1) p.y += 2.0f * Cymath::cos(ballTime);
-		else if (i % 3 == 2) p.z += 2.0f * Cymath::cos(ballTime);
-		balls[i]->setPosition(p);
+		wchar_t buf[256];
+		float newFPS = 1.0f / deltaSeconds;
+		framesPerSecond += 0.05f * (newFPS - framesPerSecond);
+		swprintf_s(buf, L"Hello World / FPS: %.2f", framesPerSecond);
+		setWindowTitle(std::wstring(buf));
 
-		balls[i]->setScale(MESH_SCALE * (1.0f + 0.3f * Cymath::sin(i + ballTime)));
+		// #todo-app: Control camera by user input
+		// Animate camera to see if raytracing is actually working in world space.
+		{
+			static float elapsed = 0.0f;
+			elapsed += 0.5f * deltaSeconds;
+			vec3 posDelta = vec3(5.0f * sinf(elapsed), 0.0f, 3.0f * cosf(elapsed));
+			camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
+			//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
+			ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
+		}
+
+		// Animate balls to see if update of BLAS instance transforms is going well.
+		static float ballTime = 0.0f;
+		ballTime += deltaSeconds;
+		for (size_t i = 0; i < balls.size(); ++i)
+		{
+			vec3 p = ballOriginalPos[i];
+			if (i % 3 == 0) p.x += 2.0f * Cymath::cos(ballTime);
+			else if (i % 3 == 1) p.y += 2.0f * Cymath::cos(ballTime);
+			else if (i % 3 == 2) p.z += 2.0f * Cymath::cos(ballTime);
+			balls[i]->setPosition(p);
+
+			balls[i]->setScale(MESH_SCALE * (1.0f + 0.3f * Cymath::sin(i + ballTime)));
+		}
 	}
 
 	// #todo: Move rendering loop to engine
 	{
+		SCOPED_CPU_EVENT(ExecuteRenderer);
+
 		if (bViewportNeedsResize)
 		{
 			cysealEngine.getRenderDevice()->recreateSwapChain(getHWND(), newViewportWidth, newViewportHeight);

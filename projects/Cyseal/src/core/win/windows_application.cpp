@@ -1,5 +1,6 @@
 #include "windows_application.h"
 #include "core/assertion.h"
+#include "util/profiling.h"
 
 LRESULT CALLBACK Win32WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 ATOM Win32RegisterClass(HINSTANCE hInstance, const wchar_t* windowClassName);
@@ -74,6 +75,7 @@ EApplicationReturnCode WindowsApplication::launch(const ApplicationCreateParams&
 	::QueryPerformanceCounter(&time_prev);
 
 	MSG msg;
+	static uint32 frameNumber = 0;
 	while (true)
 	{
 		::QueryPerformanceCounter(&time_curr);
@@ -82,6 +84,10 @@ EApplicationReturnCode WindowsApplication::launch(const ApplicationCreateParams&
 
 		if (max_fps > 0.001f && deltaSeconds > min_elapsed)
 		{
+			char eventName[64];
+			sprintf_s(eventName, "Frame %u", frameNumber++);
+			SCOPED_CPU_EVENT_STRING(eventName);
+
 			onTick(deltaSeconds);
 			time_prev = time_curr;
 		}
