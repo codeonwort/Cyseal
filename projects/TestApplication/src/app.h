@@ -3,9 +3,9 @@
 #include "core/win/windows_application.h"
 #include "world/scene.h"
 #include "world/camera.h"
+#include "world/gpu_resource_asset.h"
 #include <vector>
 
-class TextureAsset;
 class StaticMesh;
 
 class TestApplication : public WindowsApplication
@@ -26,7 +26,7 @@ private:
 	Scene scene;
 	Camera camera;
 
-	TextureAsset* albedoTexture = nullptr;
+	std::shared_ptr<TextureAsset> albedoTexture;
 	std::vector<StaticMesh*> balls;
 	std::vector<vec3> ballOriginalPos;
 	StaticMesh* ground = nullptr;

@@ -240,7 +240,7 @@
     <ClInclude Include="src\rhi\global_descriptor_heaps.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\world\texture.h">
+    <ClInclude Include="src\world\gpu_resource_asset.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

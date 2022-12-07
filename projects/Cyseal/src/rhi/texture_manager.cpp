@@ -26,7 +26,7 @@ void TextureManager::createSystemTextures()
 	struct InitSysTex
 	{
 		uint8 color[4];
-		std::shared_ptr<Texture>& texturePtr;
+		std::shared_ptr<TextureAsset>& texturePtr;
 		const wchar_t* debugName;
 	};
 
@@ -55,7 +55,7 @@ void TextureManager::createSystemTextures()
 				tex->uploadData(commandList, desc.color, 4, 4);
 				tex->setDebugName(desc.debugName);
 
-				desc.texturePtr = std::shared_ptr<Texture>(tex);
+				desc.texturePtr = std::shared_ptr<TextureAsset>(new TextureAsset(std::shared_ptr<Texture>(tex)));
 			}
 			commandList.enqueueDeferredDealloc(initTablePtr);
 		}

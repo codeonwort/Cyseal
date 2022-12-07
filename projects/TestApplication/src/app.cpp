@@ -10,9 +10,9 @@
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
 #include "loader/image_loader.h"
+#include "world/gpu_resource_asset.h"
 
 #include <algorithm>
-#include "world/texture.h"
 
 /* -------------------------------------------------------
 					CONFIGURATION
@@ -223,8 +223,8 @@ void TestApplication::createResources()
 	);
 	FLUSH_RENDER_COMMANDS();
 
-	albedoTexture = new TextureAsset;
-	TextureAsset* textureAssetPtr = albedoTexture;
+	albedoTexture = std::make_shared<TextureAsset>();
+	auto textureAssetPtr = albedoTexture;
 	ENQUEUE_RENDER_COMMAND(CreateTexture)(
 		[textureAssetPtr, imageBlob](RenderCommandList& commandList)
 		{
@@ -339,7 +339,7 @@ void TestApplication::createResources()
 		material->albedoMultiplier[0] = 1.0f;
 		material->albedoMultiplier[1] = 1.0f;
 		material->albedoMultiplier[2] = 1.0f;
-		material->albedoTexture = new TextureAsset(gTextureManager->getSystemTextureGrey2D());
+		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
 		material->roughness = 0.0f;
 
 		ground = new StaticMesh;
@@ -389,7 +389,7 @@ void TestApplication::createResources()
 		material->albedoMultiplier[0] = 1.0f;
 		material->albedoMultiplier[1] = 1.0f;
 		material->albedoMultiplier[2] = 1.0f;
-		material->albedoTexture = new TextureAsset(gTextureManager->getSystemTextureGreen2D());
+		material->albedoTexture = gTextureManager->getSystemTextureGreen2D();
 		material->roughness = 0.0f;
 
 		wallA = new StaticMesh;
@@ -406,7 +406,7 @@ void TestApplication::createResources()
 
 void TestApplication::destroyResources()
 {
-	delete albedoTexture;
+	albedoTexture.reset();
 
 	// #todo: Temp prevent memory leak
 	for (VertexBuffer* vbuf : vbuffersToDelete) delete vbuf;

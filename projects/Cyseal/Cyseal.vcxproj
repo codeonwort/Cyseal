@@ -153,7 +153,7 @@
     <ClInclude Include="src\world\camera.h" />
     <ClInclude Include="src\world\light.h" />
     <ClInclude Include="src\world\scene.h" />
-    <ClInclude Include="src\world\texture.h" />
+    <ClInclude Include="src\world\gpu_resource_asset.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\core\critical_section.cpp" />
