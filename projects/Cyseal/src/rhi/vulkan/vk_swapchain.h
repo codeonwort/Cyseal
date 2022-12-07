@@ -35,11 +35,11 @@ public:
 
 	virtual void present() override;
 	virtual void swapBackbuffer() override;
-	virtual uint32 getBufferCount() override { return swapchainImageCount; }
+	virtual uint32 getBufferCount() const override { return swapchainImageCount; }
 
 	virtual uint32 getCurrentBackbufferIndex() const override;
-	virtual GPUResource* getCurrentBackbuffer() const override;
-	virtual RenderTargetView* getCurrentBackbufferRTV() const override;
+	virtual GPUResource* getSwapchainBuffer(uint32 ix) const override;
+	virtual RenderTargetView* getSwapchainBufferRTV(uint32 ix) const override;
 
 private:
 	VulkanDevice* deviceWrapper = nullptr;

@@ -115,13 +115,30 @@ void SceneRenderer::destroy()
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 {
+	// true: render for current swapchain, record for next swapchain.
+	// false: record for current swapchain, render for current swapchain.
+	bool bDoubleBuffering     = device->getCreateParams().bDoubleBuffering;
+
+	auto commandQueue         = device->getCommandQueue();
 	auto swapChain            = device->getSwapChain();
-	uint32 swapchainIndex    = swapChain->getCurrentBackbufferIndex();
-	auto currentBackBuffer    = swapChain->getCurrentBackbuffer();
-	auto currentBackBufferRTV = swapChain->getCurrentBackbufferRTV();
+	uint32 swapchainIndex     = bDoubleBuffering ? swapChain->getNextBackbufferIndex() : swapChain->getCurrentBackbufferIndex();
+
+	auto swapchainBuffer      = swapChain->getSwapchainBuffer(swapchainIndex);
+	auto swapchainBufferRTV   = swapChain->getSwapchainBufferRTV(swapchainIndex);
 	auto commandAllocator     = device->getCommandAllocator(swapchainIndex);
 	auto commandList          = device->getCommandList(swapchainIndex);
-	auto commandQueue         = device->getCommandQueue();
+
+	if (bDoubleBuffering)
+	{
+		uint32 ix = swapChain->getCurrentBackbufferIndex();
+		auto cmdAllocator = device->getCommandAllocator(ix);
+		auto cmdList = device->getCommandList(ix);
+
+		if (cmdAllocator->isValid())
+		{
+			commandQueue->executeCommandList(cmdList);
+		}
+	}
 
 	// #todo-renderer: Can be different due to resolution scaling
 	const uint32 sceneWidth = swapChain->getBackbufferWidth();
@@ -317,7 +334,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 			},
 			{
 				EResourceBarrierType::Transition,
-				currentBackBuffer,
+				swapchainBuffer,
 				EGPUResourceState::PRESENT,
 				EGPUResourceState::RENDER_TARGET
 			}
@@ -325,7 +342,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		commandList->resourceBarriers(_countof(barriers), barriers);
 
 		// #todo-renderer: Should not be here
-		commandList->omSetRenderTarget(currentBackBufferRTV, nullptr);
+		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
 
 		toneMapping->renderToneMapping(
 			commandList,
@@ -338,15 +355,19 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 
 	ResourceBarrier presentBarrier{
 		EResourceBarrierType::Transition,
-		currentBackBuffer,
+		swapchainBuffer,
 		EGPUResourceState::RENDER_TARGET,
 		EGPUResourceState::PRESENT
 	};
 	commandList->resourceBarriers(1, &presentBarrier);
 
 	commandList->close();
+	commandAllocator->markValid();
 
-	commandQueue->executeCommandList(commandList);
+	if (!bDoubleBuffering)
+	{
+		commandQueue->executeCommandList(commandList);
+	}
 
 	swapChain->present();
 	swapChain->swapBackbuffer();

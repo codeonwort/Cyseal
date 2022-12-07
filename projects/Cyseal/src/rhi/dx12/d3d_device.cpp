@@ -82,7 +82,7 @@ D3DDevice::~D3DDevice()
 	delete commandQueue;
 }
 
-void D3DDevice::initialize(const RenderDeviceCreateParams& createParams)
+void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 {
 	UINT dxgiFactoryFlags = 0;
 

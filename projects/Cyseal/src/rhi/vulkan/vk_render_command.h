@@ -25,10 +25,11 @@ class VulkanRenderCommandAllocator : public RenderCommandAllocator
 public:
 	virtual void initialize(RenderDevice* renderDevice) override;
 
-	virtual void reset() override;
-
 	inline VkCommandPool getRawCommandPool() const { return vkCommandPool; }
 	inline VkCommandBuffer getRawCommandBuffer() const { return vkCommandBuffer; }
+
+protected:
+	virtual void onReset() override;
 
 private:
 	VkDevice vkDevice = VK_NULL_HANDLE;

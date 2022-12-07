@@ -119,7 +119,7 @@ VulkanDevice::~VulkanDevice()
 	// #todo-vulkan
 }
 
-void VulkanDevice::initialize(const RenderDeviceCreateParams& createParams)
+void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 {
 	CYLOG(LogVulkan, Log, TEXT("=== Initialize Vulkan ==="));
 

@@ -77,7 +77,7 @@ void VulkanRenderCommandAllocator::initialize(RenderDevice* renderDevice)
 	}
 }
 
-void VulkanRenderCommandAllocator::reset()
+void VulkanRenderCommandAllocator::onReset()
 {
 	vkResetCommandBuffer(vkCommandBuffer, 0);
 	//vkResetCommandPool(vkDevice, vkCommandPool, 0);

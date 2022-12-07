@@ -23,7 +23,7 @@ public:
 	VulkanDevice() = default;
 	~VulkanDevice();
 
-	virtual void initialize(const RenderDeviceCreateParams& createParams) override;
+	virtual void onInitialize(const RenderDeviceCreateParams& createParams) override;
 
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;
 

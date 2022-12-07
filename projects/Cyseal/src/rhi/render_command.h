@@ -38,8 +38,21 @@ public:
 	virtual ~RenderCommandAllocator() = default;
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
-	virtual void reset() = 0;
 
+	inline void reset()
+	{
+		bValid = false;
+		onReset();
+	}
+
+	inline void markValid() { bValid = true; }
+	inline bool isValid() const { return bValid; }
+
+protected:
+	virtual void onReset() = 0;
+
+private:
+	bool bValid = false;
 };
 
 // ID3D12CommandList

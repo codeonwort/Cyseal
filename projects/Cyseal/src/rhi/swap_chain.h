@@ -26,11 +26,16 @@ public:
 
 	virtual void present() = 0;
 	virtual void swapBackbuffer() = 0;
-	virtual uint32 getBufferCount() = 0;
+	virtual uint32 getBufferCount() const = 0;
+
+	uint32 getNextBackbufferIndex() const
+	{
+		return (getCurrentBackbufferIndex() + 1) % getBufferCount();
+	}
 
 	virtual uint32 getCurrentBackbufferIndex() const = 0;
-	virtual GPUResource* getCurrentBackbuffer() const = 0;
-	virtual RenderTargetView* getCurrentBackbufferRTV() const = 0;
+	virtual GPUResource* getSwapchainBuffer(uint32 ix) const = 0;
+	virtual RenderTargetView* getSwapchainBufferRTV(uint32 ix) const = 0;
 
 	inline uint32 getBackbufferWidth() const { return backbufferWidth; }
 	inline uint32 getBackbufferHeight() const { return backbufferHeight; }

@@ -47,7 +47,7 @@ void D3DRenderCommandAllocator::initialize(RenderDevice* renderDevice)
 	);
 }
 
-void D3DRenderCommandAllocator::reset()
+void D3DRenderCommandAllocator::onReset()
 {
 	HR( allocator->Reset() );
 }

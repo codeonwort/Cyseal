@@ -23,9 +23,11 @@ class D3DRenderCommandAllocator : public RenderCommandAllocator
 {
 public:
 	virtual void initialize(RenderDevice* renderDevice) override;
-	virtual void reset() override;
 
 	inline ID3D12CommandAllocator* getRaw() const { return allocator.Get(); }
+
+protected:
+	virtual void onReset() override;
 
 private:
 	D3DDevice* device;

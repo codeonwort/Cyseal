@@ -273,13 +273,13 @@ uint32 VulkanSwapchain::getCurrentBackbufferIndex() const
 	return currentBackbufferIx;
 }
 
-GPUResource* VulkanSwapchain::getCurrentBackbuffer() const
+GPUResource* VulkanSwapchain::getSwapchainBuffer(uint32 ix) const
 {
 	// #todo-vulkan
 	return nullptr;
 }
 
-RenderTargetView* VulkanSwapchain::getCurrentBackbufferRTV() const
+RenderTargetView* VulkanSwapchain::getSwapchainBufferRTV(uint32 ix) const
 {
 	// #todo-vulkan
 	return nullptr;

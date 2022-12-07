@@ -103,14 +103,14 @@ uint32 D3DSwapChain::getCurrentBackbufferIndex() const
 	return rawSwapChain->GetCurrentBackBufferIndex();
 }
 
-GPUResource* D3DSwapChain::getCurrentBackbuffer() const
+GPUResource* D3DSwapChain::getSwapchainBuffer(uint32 ix) const
 {
-	return swapChainBuffers[getCurrentBackbufferIndex()].get();
+	return swapChainBuffers[ix].get();
 }
 
-RenderTargetView* D3DSwapChain::getCurrentBackbufferRTV() const
+RenderTargetView* D3DSwapChain::getSwapchainBufferRTV(uint32 ix) const
 {
-	return backBufferRTVs[getCurrentBackbufferIndex()].get();
+	return backBufferRTVs[ix].get();
 }
 
 void D3DSwapChain::createSwapchainImages()

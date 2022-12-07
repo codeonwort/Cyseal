@@ -49,6 +49,8 @@ struct RenderDeviceCreateParams
 
 	bool enableDebugLayer = true;   // Enable debug layer (dx) or validation layer (vk)
 
+	bool bDoubleBuffering = true;
+
 	// #todo-renderdevice: These are not renderdevice params. Move to somewhere.
 	// or leave here as initial values.
 	EWindowType windowType = EWindowType::WINDOWED;
@@ -65,7 +67,12 @@ public:
 	RenderDevice() = default;
 	virtual ~RenderDevice() = default;
 
-	virtual void initialize(const RenderDeviceCreateParams& createParams) = 0;
+	void initialize(const RenderDeviceCreateParams& inCreateParams)
+	{
+		createParams = inCreateParams;
+		onInitialize(createParams);
+	}
+	virtual void onInitialize(const RenderDeviceCreateParams& createParams) = 0;
 
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) = 0;
 
@@ -111,6 +118,8 @@ public:
 		DescriptorHeap* srcHeap,
 		uint32 srcHeapDescriptorStartOffset) = 0;
 
+	inline const RenderDeviceCreateParams& getCreateParams() const { return createParams; }
+
 	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }
 	inline EPixelFormat getBackbufferDepthFormat() const { return backbufferDepthFormat; }
 	inline SwapChain* getSwapChain() const { return swapChain; }
@@ -125,6 +134,8 @@ public:
 	inline ESamplerFeedbackTier getSamplerFeedbackTier() const { return samplerFeedbackTier; }
 
 protected:
+	RenderDeviceCreateParams createParams;
+
 	// #todo-renderdevice: Move backbuffer formats to swapchain
 	EPixelFormat            backbufferFormat = EPixelFormat::R8G8B8A8_UNORM;
 	EPixelFormat            backbufferDepthFormat = EPixelFormat::D24_UNORM_S8_UINT;

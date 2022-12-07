@@ -39,11 +39,11 @@ public:
 
 	virtual void present() override;
 	virtual void swapBackbuffer() override;
-	virtual uint32 getBufferCount() override { return SWAP_CHAIN_BUFFER_COUNT; }
+	virtual uint32 getBufferCount() const override { return SWAP_CHAIN_BUFFER_COUNT; }
 
 	virtual uint32 getCurrentBackbufferIndex() const override;
-	virtual GPUResource* getCurrentBackbuffer() const override;
-	virtual RenderTargetView* getCurrentBackbufferRTV() const override;
+	virtual GPUResource* getSwapchainBuffer(uint32 ix) const override;
+	virtual RenderTargetView* getSwapchainBufferRTV(uint32 ix) const override;
 
 	inline IDXGISwapChain* getRaw() const { return rawSwapChain.Get(); }
 

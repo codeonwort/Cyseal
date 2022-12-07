@@ -34,6 +34,7 @@
 #endif
 #define WINDOW_TYPE          EWindowType::WINDOWED
 
+#define DOUBLE_BUFFERING     true
 #define RAYTRACING_TIER      ERaytracingTier::MaxTier
 
 #define CAMERA_POSITION      vec3(0.0f, 0.0f, 30.0f)
@@ -72,6 +73,7 @@ bool TestApplication::onInitialize()
 	engineInit.renderDevice.windowWidth        = getWindowWidth();
 	engineInit.renderDevice.windowHeight       = getWindowHeight();
 	engineInit.renderDevice.raytracingTier     = RAYTRACING_TIER;
+	engineInit.renderDevice.bDoubleBuffering   = DOUBLE_BUFFERING;
 	engineInit.rendererType                    = RENDERER_TYPE;
 
 	cysealEngine.startup(engineInit);
