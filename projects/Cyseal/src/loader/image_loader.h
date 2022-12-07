@@ -27,8 +27,8 @@ struct ImageLoadData
 class ImageLoader
 {
 public:
-	// Returns true if successful, false otherwise.
-	bool load(const std::wstring& path, ImageLoadData& outData);
+	// Returns null if failed.
+	ImageLoadData* load(const std::wstring& path);
 
 private:
 	//

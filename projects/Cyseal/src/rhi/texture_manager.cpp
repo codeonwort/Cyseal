@@ -18,10 +18,7 @@ void TextureManager::initialize()
 
 void TextureManager::destroy()
 {
-	for (Texture* tex : systemTextures)
-	{
-		delete tex;
-	}
+	//
 }
 
 void TextureManager::createSystemTextures()
@@ -29,37 +26,38 @@ void TextureManager::createSystemTextures()
 	struct InitSysTex
 	{
 		uint8 color[4];
-		Texture** texturePtr;
+		std::shared_ptr<Texture>& texturePtr;
 		const wchar_t* debugName;
 	};
 
-	InitSysTex initTable[] = {
-		{ { 127, 127, 127, 255 }, &systemTexture_grey2D , L"Texture_SystemGrey2D"  },
-		{ { 255, 255, 255, 255 }, &systemTexture_white2D, L"Texture_SystemWhite2D" },
-		{ { 000, 000, 000, 255 }, &systemTexture_black2D, L"Texture_SystemBlack2D" },
-		{ { 255, 000, 000, 255 }, &systemTexture_red2D  , L"Texture_SystemRed2D"   },
-		{ { 000, 255, 000, 255 }, &systemTexture_green2D, L"Texture_SystemGreen2D" },
-		{ { 000, 000, 255, 255 }, &systemTexture_blue2D , L"Texture_SystemBlue2D"  },
-	};
-	std::vector<Texture*>* systemTexturesPtr = &systemTextures;
-	ENQUEUE_RENDER_COMMAND(CreateSystemTextureGrey2D)(
-		[&initTable, systemTexturesPtr](RenderCommandList& commandList)
+	std::vector<InitSysTex>* initTablePtr = new std::vector<InitSysTex>({
+		{ { 127, 127, 127, 255 }, systemTexture_grey2D , L"Texture_SystemGrey2D"  },
+		{ { 255, 255, 255, 255 }, systemTexture_white2D, L"Texture_SystemWhite2D" },
+		{ { 000, 000, 000, 255 }, systemTexture_black2D, L"Texture_SystemBlack2D" },
+		{ { 255, 000, 000, 255 }, systemTexture_red2D  , L"Texture_SystemRed2D"   },
+		{ { 000, 255, 000, 255 }, systemTexture_green2D, L"Texture_SystemGreen2D" },
+		{ { 000, 000, 255, 255 }, systemTexture_blue2D , L"Texture_SystemBlue2D"  },
+	});
+
+	ENQUEUE_RENDER_COMMAND(CreateSystemTextures)(
+		[initTablePtr](RenderCommandList& commandList)
 		{
-			for (uint32 i = 0; i < _countof(initTable); ++i)
+			for (size_t ix = 0; ix < initTablePtr->size(); ++ix)
 			{
 				TextureCreateParams params = TextureCreateParams::texture2D(
 					EPixelFormat::R8G8B8A8_UNORM,
 					ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
 					1, 1, 1);
+
+				const InitSysTex& desc = (*initTablePtr)[ix];
 				
 				Texture* tex = gRenderDevice->createTexture(params);
-				tex->uploadData(commandList, initTable[i].color, 4, 4);
-				tex->setDebugName(initTable[i].debugName);
+				tex->uploadData(commandList, desc.color, 4, 4);
+				tex->setDebugName(desc.debugName);
 
-				*(initTable[i].texturePtr) = tex;
-				systemTexturesPtr->push_back(tex);
+				desc.texturePtr = std::shared_ptr<Texture>(tex);
 			}
+			commandList.enqueueDeferredDealloc(initTablePtr);
 		}
 	);
-	FLUSH_RENDER_COMMANDS();
 }

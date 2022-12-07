@@ -7,27 +7,34 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-bool loadImage_internal(char const* filename, ImageLoadData& outData)
+ImageLoadData* loadImage_internal(char const* filename)
 {
 	int width, height, numComponents;
 	unsigned char* buffer = ::stbi_load(filename, &width, &height, &numComponents, 0);
 
-	outData.buffer = reinterpret_cast<uint8*>(buffer);
-	outData.length = static_cast<uint32>(width * height * numComponents);
-	outData.width = static_cast<uint32>(width);
-	outData.height = static_cast<uint32>(height);
-	outData.numComponents = static_cast<uint32>(numComponents);
+	if (buffer == nullptr)
+	{
+		return nullptr;
+	}
 
-	return buffer != nullptr;
+	ImageLoadData* imageBlob = new ImageLoadData;
+
+	imageBlob->buffer = reinterpret_cast<uint8*>(buffer);
+	imageBlob->length = static_cast<uint32>(width * height * numComponents);
+	imageBlob->width = static_cast<uint32>(width);
+	imageBlob->height = static_cast<uint32>(height);
+	imageBlob->numComponents = static_cast<uint32>(numComponents);
+
+	return imageBlob;
 }
 
 // ------------------------------------------------
 // ImageLoader
 
-bool ImageLoader::load(const std::wstring& path, ImageLoadData& outData)
+ImageLoadData* ImageLoader::load(const std::wstring& path)
 {
 	std::wstring wsPath = ResourceFinder::get().find(path);
 	std::string sPath;
 	wstr_to_str(wsPath, sPath);
-	return loadImage_internal(sPath.c_str(), outData);
+	return loadImage_internal(sPath.c_str());
 }

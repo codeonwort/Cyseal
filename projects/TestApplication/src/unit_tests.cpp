@@ -31,9 +31,8 @@ class UnitTestImageLoader : public UnitTest
 	virtual bool runTest() override
 	{
 		ImageLoader loader;
-		ImageLoadData loadData;
-		bool success = loader.load(L"bee.png", loadData);
-		CYLOG(LogTemp, Log, TEXT("Test image loader: %s"), success ? TEXT("Success") : TEXT("Failed"));
+		ImageLoadData* loadData = loader.load(L"bee.png");
+		CYLOG(LogTemp, Log, TEXT("Test image loader: %s"), loadData != nullptr ? TEXT("Success") : TEXT("Failed"));
 		return true;
 	}
 };

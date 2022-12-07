@@ -5,7 +5,7 @@
 #include "world/camera.h"
 #include <vector>
 
-class Texture;
+class TextureAsset;
 class StaticMesh;
 
 class TestApplication : public WindowsApplication
@@ -26,7 +26,7 @@ private:
 	Scene scene;
 	Camera camera;
 
-	Texture* albedoTexture = nullptr;
+	TextureAsset* albedoTexture = nullptr;
 	std::vector<StaticMesh*> balls;
 	std::vector<vec3> ballOriginalPos;
 	StaticMesh* ground = nullptr;

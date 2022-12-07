@@ -240,6 +240,9 @@
     <ClInclude Include="src\rhi\global_descriptor_heaps.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\world\texture.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">

@@ -19,23 +19,22 @@ public:
 	void initialize();
 	void destroy();
 
-	Texture* getSystemTextureGrey2D()  const { return systemTexture_grey2D;  }
-	Texture* getSystemTextureWhite2D() const { return systemTexture_white2D; }
-	Texture* getSystemTextureBlack2D() const { return systemTexture_black2D; }
-	Texture* getSystemTextureRed2D()   const { return systemTexture_red2D;   }
-	Texture* getSystemTextureGreen2D() const { return systemTexture_green2D; }
-	Texture* getSystemTextureBlue2D()  const { return systemTexture_blue2D;  }
+	std::shared_ptr<Texture> getSystemTextureGrey2D()  const { return systemTexture_grey2D;  }
+	std::shared_ptr<Texture> getSystemTextureWhite2D() const { return systemTexture_white2D; }
+	std::shared_ptr<Texture> getSystemTextureBlack2D() const { return systemTexture_black2D; }
+	std::shared_ptr<Texture> getSystemTextureRed2D()   const { return systemTexture_red2D;   }
+	std::shared_ptr<Texture> getSystemTextureGreen2D() const { return systemTexture_green2D; }
+	std::shared_ptr<Texture> getSystemTextureBlue2D()  const { return systemTexture_blue2D;  }
 
 private:
 	void createSystemTextures();
 
-	Texture* systemTexture_grey2D  = nullptr;
-	Texture* systemTexture_white2D = nullptr;
-	Texture* systemTexture_black2D = nullptr;
-	Texture* systemTexture_red2D   = nullptr;
-	Texture* systemTexture_green2D = nullptr;
-	Texture* systemTexture_blue2D  = nullptr;
-	std::vector<Texture*> systemTextures;
+	std::shared_ptr<Texture> systemTexture_grey2D  = nullptr;
+	std::shared_ptr<Texture> systemTexture_white2D = nullptr;
+	std::shared_ptr<Texture> systemTexture_black2D = nullptr;
+	std::shared_ptr<Texture> systemTexture_red2D   = nullptr;
+	std::shared_ptr<Texture> systemTexture_green2D = nullptr;
+	std::shared_ptr<Texture> systemTexture_blue2D  = nullptr;
 };
 
 extern TextureManager* gTextureManager;

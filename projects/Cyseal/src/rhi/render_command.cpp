@@ -28,6 +28,20 @@ void RenderCommandList::executeCustomCommands()
 	customCommands.clear();
 }
 
+void RenderCommandList::enqueueDeferredDealloc(void* addrToDelete)
+{
+	deferredDeallocs.push_back(addrToDelete);
+}
+
+void RenderCommandList::executeDeferredDealloc()
+{
+	for (void* addr : deferredDeallocs)
+	{
+		delete addr;
+	}
+	deferredDeallocs.clear();
+}
+
 // ---------------------------------------------------------------------
 
 EnqueueCustomRenderCommand::EnqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda)

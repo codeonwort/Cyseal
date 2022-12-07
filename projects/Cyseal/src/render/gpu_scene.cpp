@@ -8,6 +8,7 @@
 #include "rhi/texture_manager.h"
 #include "core/matrix.h"
 #include "world/scene.h"
+#include "world/texture.h"
 #include "util/logging.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
@@ -94,10 +95,10 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 			Material* const material = section.material;
 
 			// SRV
-			Texture* albedo = gTextureManager->getSystemTextureGrey2D();
+			auto albedo = gTextureManager->getSystemTextureGrey2D();
 			if (material != nullptr)
 			{
-				albedo = material->albedoTexture;
+				albedo = material->albedoTexture->getGPUResource();
 			}
 
 			gRenderDevice->copyDescriptors(

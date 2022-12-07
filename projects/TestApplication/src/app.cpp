@@ -12,6 +12,7 @@
 #include "loader/image_loader.h"
 
 #include <algorithm>
+#include "world/texture.h"
 
 /* -------------------------------------------------------
 					CONFIGURATION
@@ -168,26 +169,27 @@ void TestApplication::createResources()
 #endif
 	}
 
-	// #todo: Unload image memory when GPU upload is done.
-	ImageLoader loader;
-	ImageLoadData loadData;
-	if (loader.load(L"bee.png", loadData) == false)
+	ImageLoader imageLoader;
+	ImageLoadData* imageBlob = imageLoader.load(L"bee.png");
+	if (imageBlob == nullptr)
 	{
+		imageBlob = new ImageLoadData;
+
 		// Fill random image
-		loadData.numComponents = 4;
-		loadData.width = 256;
-		loadData.height = 256;
-		loadData.length = 256 * 256 * 4;
-		loadData.buffer = new uint8[loadData.length];
+		imageBlob->numComponents = 4;
+		imageBlob->width = 256;
+		imageBlob->height = 256;
+		imageBlob->length = 256 * 256 * 4;
+		imageBlob->buffer = new uint8[imageBlob->length];
 		int32 p = 0;
 		for (int32 y = 0; y < 256; ++y)
 		{
 			for (int32 x = 0; x < 256; ++x)
 			{
-				loadData.buffer[p] = x ^ y;
-				loadData.buffer[p+1] = x ^ y;
-				loadData.buffer[p+2] = x ^ y;
-				loadData.buffer[p+3] = 0xff;
+				imageBlob->buffer[p] = x ^ y;
+				imageBlob->buffer[p+1] = x ^ y;
+				imageBlob->buffer[p+2] = x ^ y;
+				imageBlob->buffer[p+3] = 0xff;
 				p += 4;
 			}
 		}
@@ -219,20 +221,27 @@ void TestApplication::createResources()
 			}
 		}
 	);
-	Texture*& texturePtr = albedoTexture;
+	FLUSH_RENDER_COMMANDS();
+
+	albedoTexture = new TextureAsset;
+	TextureAsset* textureAssetPtr = albedoTexture;
 	ENQUEUE_RENDER_COMMAND(CreateTexture)(
-		[&texturePtr, &loadData](RenderCommandList& commandList)
+		[textureAssetPtr, imageBlob](RenderCommandList& commandList)
 		{
 			TextureCreateParams params = TextureCreateParams::texture2D(
 				EPixelFormat::R8G8B8A8_UNORM,
 				ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
-				loadData.width, loadData.height, 1);
-			texturePtr = gRenderDevice->createTexture(params);
-			texturePtr->uploadData(commandList, loadData.buffer, loadData.getRowPitch(), loadData.getSlicePitch());
-			texturePtr->setDebugName(TEXT("Texture_test"));
+				imageBlob->width, imageBlob->height, 1);
+
+			Texture* texture = gRenderDevice->createTexture(params);
+			texture->uploadData(commandList, imageBlob->buffer, imageBlob->getRowPitch(), imageBlob->getSlicePitch());
+			texture->setDebugName(TEXT("Texture_albedoTest"));
+
+			textureAssetPtr->setGPUResource(std::shared_ptr<Texture>(texture));
+
+			commandList.enqueueDeferredDealloc(imageBlob);
 		}
 	);
-	FLUSH_RENDER_COMMANDS();
 
 	// #todo: Temp prevent memory leak
 	for (uint32 geomIx = 0; geomIx < NUM_GEOM_ASSETS; ++geomIx)
@@ -330,7 +339,7 @@ void TestApplication::createResources()
 		material->albedoMultiplier[0] = 1.0f;
 		material->albedoMultiplier[1] = 1.0f;
 		material->albedoMultiplier[2] = 1.0f;
-		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
+		material->albedoTexture = new TextureAsset(gTextureManager->getSystemTextureGrey2D());
 		material->roughness = 0.0f;
 
 		ground = new StaticMesh;
@@ -380,7 +389,7 @@ void TestApplication::createResources()
 		material->albedoMultiplier[0] = 1.0f;
 		material->albedoMultiplier[1] = 1.0f;
 		material->albedoMultiplier[2] = 1.0f;
-		material->albedoTexture = gTextureManager->getSystemTextureGreen2D();
+		material->albedoTexture = new TextureAsset(gTextureManager->getSystemTextureGreen2D());
 		material->roughness = 0.0f;
 
 		wallA = new StaticMesh;

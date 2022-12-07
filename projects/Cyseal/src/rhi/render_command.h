@@ -186,8 +186,12 @@ public:
 	void enqueueCustomCommand(CustomCommandType lambda);
 	void executeCustomCommands();
 
+	void enqueueDeferredDealloc(void* addrToDelete);
+	void executeDeferredDealloc();
+
 private:
 	std::vector<CustomCommandType> customCommands;
+	std::vector<void*> deferredDeallocs; // Free'd after all GPU works for this command list is done.
 };
 
 // #todo-rendercommand: Currently every custom commands are executed prior to whole internal rendering pipeline.
