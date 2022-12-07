@@ -266,7 +266,7 @@ void TestApplication::createResources()
 
 			for (uint32 lod = 0; lod < NUM_LODs; ++lod)
 			{
-				Material* material = new Material;
+				auto material = std::make_shared<Material>();
 				material->albedoTexture = albedoTexture;
 				material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
 				material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
@@ -336,7 +336,7 @@ void TestApplication::createResources()
 			}
 		);
 
-		Material* material = new Material;
+		auto material = std::make_shared<Material>();
 		material->albedoMultiplier[0] = 1.0f;
 		material->albedoMultiplier[1] = 1.0f;
 		material->albedoMultiplier[2] = 1.0f;
@@ -386,7 +386,7 @@ void TestApplication::createResources()
 			}
 		);
 
-		Material* material = new Material;
+		auto material = std::make_shared<Material>();
 		material->albedoMultiplier[0] = 1.0f;
 		material->albedoMultiplier[1] = 1.0f;
 		material->albedoMultiplier[2] = 1.0f;

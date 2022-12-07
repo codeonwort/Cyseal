@@ -2,19 +2,16 @@
 
 #include "core/core_minimal.h"
 #include "geometry/transform.h"
+#include "render/material.h"
 #include "world/gpu_resource_asset.h"
 #include <vector>
-
-class VertexBuffer;
-class IndexBuffer;
-class Material;
 
 struct StaticMeshSection
 {
 	std::shared_ptr<VertexBufferAsset> positionBuffer;
 	std::shared_ptr<VertexBufferAsset> nonPositionBuffer;
 	std::shared_ptr<IndexBufferAsset>  indexBuffer;
-	Material* material = nullptr;
+	std::shared_ptr<Material> material;
 };
 
 struct StaticMeshLOD
@@ -30,7 +27,7 @@ public:
 		std::shared_ptr<VertexBufferAsset> positionBuffer,
 		std::shared_ptr<VertexBufferAsset> nonPositionBuffer,
 		std::shared_ptr<IndexBufferAsset> indexBuffer,
-		Material* material);
+		std::shared_ptr<Material> material);
 
 	inline const std::vector<StaticMeshSection>& getSections(uint32 lod) const
 	{

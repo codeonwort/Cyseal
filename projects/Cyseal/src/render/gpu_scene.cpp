@@ -92,7 +92,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 		StaticMesh* staticMesh = scene->staticMeshes[i];
 		for (const StaticMeshSection& section : staticMesh->getSections(LOD))
 		{
-			Material* const material = section.material;
+			Material* const material = section.material.get();
 
 			// SRV
 			auto albedo = gTextureManager->getSystemTextureGrey2D()->getGPUResource();
