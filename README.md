@@ -4,12 +4,12 @@ A toy rendering engine to experiment with DX12 and Vulkan.
 
 # Environment
 
-* IDE: Visual Studio 2022
+* Graphics API: DirectX 12 / Vulkan (WIP)
 * Language: C++20
-* Backend: DirectX 12 / Vulkan (WIP)
+* OS: Windows 11
+* IDE: Visual Studio 2022
 
-NOTE: Some third-party libraries are directly included in the project,
-living in the `libraries` directory. Others are downloaded via `Setup.ps1` script.
+Run `Setup.ps1`, build `CysealSolution.sln`, and launch the test project.
 
 # WIP
 
