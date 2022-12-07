@@ -26,7 +26,6 @@ private:
 	Scene scene;
 	Camera camera;
 
-	std::shared_ptr<TextureAsset> albedoTexture;
 	std::vector<StaticMesh*> balls;
 	std::vector<vec3> ballOriginalPos;
 	StaticMesh* ground = nullptr;
@@ -37,8 +36,4 @@ private:
 	uint32 newViewportHeight = 0;
 
 	float framesPerSecond = 0.0f;
-
-private:
-	std::vector<class VertexBuffer*> vbuffersToDelete;
-	std::vector<class IndexBuffer*> ibuffersToDelete;
 };

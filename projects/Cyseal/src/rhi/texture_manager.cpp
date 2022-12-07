@@ -30,6 +30,13 @@ void TextureManager::createSystemTextures()
 		const wchar_t* debugName;
 	};
 
+	systemTexture_grey2D = std::make_shared<TextureAsset>();
+	systemTexture_white2D = std::make_shared<TextureAsset>();
+	systemTexture_black2D = std::make_shared<TextureAsset>();
+	systemTexture_red2D = std::make_shared<TextureAsset>();
+	systemTexture_green2D = std::make_shared<TextureAsset>();
+	systemTexture_blue2D = std::make_shared<TextureAsset>();
+
 	std::vector<InitSysTex>* initTablePtr = new std::vector<InitSysTex>({
 		{ { 127, 127, 127, 255 }, systemTexture_grey2D , L"Texture_SystemGrey2D"  },
 		{ { 255, 255, 255, 255 }, systemTexture_white2D, L"Texture_SystemWhite2D" },
@@ -55,7 +62,7 @@ void TextureManager::createSystemTextures()
 				tex->uploadData(commandList, desc.color, 4, 4);
 				tex->setDebugName(desc.debugName);
 
-				desc.texturePtr = std::shared_ptr<TextureAsset>(new TextureAsset(std::shared_ptr<Texture>(tex)));
+				desc.texturePtr->setGPUResource(std::shared_ptr<Texture>(tex));
 			}
 			commandList.enqueueDeferredDealloc(initTablePtr);
 		}

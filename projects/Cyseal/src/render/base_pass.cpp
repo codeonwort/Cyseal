@@ -171,10 +171,15 @@ void BasePass::renderBasePass(
 		{
 			commandList->setGraphicsRootConstant32(RootParameters::ObjectIDSlot, payloadID, 0);
 
-			VertexBuffer* vertexBuffers[] = { section.positionBuffer,section.nonPositionBuffer };
+			VertexBuffer* vertexBuffers[] = {
+				section.positionBuffer->getGPUResource().get(),
+				section.nonPositionBuffer->getGPUResource().get()
+			};
+			auto indexBuffer = section.indexBuffer->getGPUResource().get();
+
 			commandList->iaSetVertexBuffers(0, 2, vertexBuffers);
-			commandList->iaSetIndexBuffer(section.indexBuffer);
-			commandList->drawIndexedInstanced(section.indexBuffer->getIndexCount(), 1, 0, 0, 0);
+			commandList->iaSetIndexBuffer(indexBuffer);
+			commandList->drawIndexedInstanced(indexBuffer->getIndexCount(), 1, 0, 0, 0);
 
 			++payloadID;
 		}

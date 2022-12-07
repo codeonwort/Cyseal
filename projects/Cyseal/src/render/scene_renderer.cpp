@@ -437,8 +437,8 @@ void SceneRenderer::rebuildAccelerationStructure(
 
 		for (const StaticMeshSection& section : staticMesh->getSections(LOD))
 		{
-			VertexBuffer* vertexBuffer = section.positionBuffer;
-			IndexBuffer* indexBuffer = section.indexBuffer;
+			VertexBuffer* vertexBuffer = section.positionBuffer->getGPUResource().get();
+			IndexBuffer* indexBuffer = section.indexBuffer->getGPUResource().get();
 
 			RaytracingGeometryDesc geomDesc{};
 			geomDesc.type = ERaytracingGeometryType::Triangles;

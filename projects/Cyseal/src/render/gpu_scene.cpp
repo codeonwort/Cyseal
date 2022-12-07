@@ -96,7 +96,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 
 			// SRV
 			auto albedo = gTextureManager->getSystemTextureGrey2D()->getGPUResource();
-			if (material != nullptr)
+			if (material != nullptr && material->albedoTexture != nullptr)
 			{
 				albedo = material->albedoTexture->getGPUResource();
 			}
@@ -146,9 +146,9 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 			const StaticMeshSection& section = sm->getSections(LOD)[j];
 			sceneData[k].modelTransform = sm->getTransformMatrix();
 			// #todo: uint64 offset
-			sceneData[k].positionBufferOffset    = (uint32)section.positionBuffer->getBufferOffsetInBytes();
-			sceneData[k].nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getBufferOffsetInBytes();
-			sceneData[k].indexBufferOffset       = (uint32)section.indexBuffer->getBufferOffsetInBytes();
+			sceneData[k].positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes();
+			sceneData[k].nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes();
+			sceneData[k].indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes();
 			++k;
 		}
 	}
