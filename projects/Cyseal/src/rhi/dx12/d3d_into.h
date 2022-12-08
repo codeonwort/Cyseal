@@ -670,6 +670,9 @@ namespace into_d3d
 
 	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc);
 
+	uint32 calcIndirectArgumentByteStride(const IndirectArgumentDesc& inDesc);
+	uint32 calcCommandSignatureByteStride(const CommandSignatureDesc& inDesc, uint32& outPaddingBytes);
+
 	void commandSignature(
 		const CommandSignatureDesc& inDesc,
 		D3D12_COMMAND_SIGNATURE_DESC& outDesc,

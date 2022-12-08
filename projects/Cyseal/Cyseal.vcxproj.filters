@@ -389,6 +389,9 @@
     <ClCompile Include="src\rhi\global_descriptor_heaps.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="src\rhi\dx12\d3d_pipeline_state.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

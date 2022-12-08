@@ -8,6 +8,10 @@
 
 class RootSignature;
 class ShaderStage;
+class VertexBuffer;
+class IndexBuffer;
+class Buffer;
+class RenderCommandList;
 
 //////////////////////////////////////////////////////////////////////////
 // Components of pipeline state
@@ -512,4 +516,39 @@ class CommandSignature
 {
 public:
 	virtual ~CommandSignature() = default;
+};
+
+// RHI-agnostic interface to fill indirect commands.
+// This is just a memory writer and not a GPU resource,
+// but requires different implementations for different backends.
+class IndirectCommandGenerator
+{
+public:
+	virtual ~IndirectCommandGenerator() = default;
+
+	virtual void initialize(const CommandSignatureDesc& desc, uint32 maxCommandCount) = 0;
+
+	virtual void beginCommand(uint32 commandIx) = 0;
+
+	virtual void writeConstant32(uint32 constant) = 0;
+	virtual void writeVertexBufferView(VertexBuffer* vbuffer) = 0;
+	virtual void writeIndexBufferView(IndexBuffer* ibuffer) = 0;
+	virtual void writeDrawIndexedArguments(
+		uint32 indexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startIndexLocation,
+		int32  baseVertexLocation,
+		uint32 startInstanceLocation) = 0;
+	// #todo-indirect-draw: writeXXX() for every values of EIndirectArgumentType
+	// writeDrawArguments
+	// writeDispatchArguments
+	// writeConstantBufferView
+	// writeShaderResourceView
+	// writeUnorderedAccessView
+	// ... and for dispatchRays and mesh shader thing?
+
+	virtual void endCommand() = 0;
+
+	virtual uint32 getCommandByteStride() const = 0;
+	virtual void copyToBuffer(RenderCommandList* commandList, uint32 numCommands, Buffer* destBuffer, uint64 destOffset) = 0;
 };

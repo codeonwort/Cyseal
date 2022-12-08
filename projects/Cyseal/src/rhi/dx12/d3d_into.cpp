@@ -143,6 +143,39 @@ namespace into_d3d
 		}
 	}
 
+	uint32 calcIndirectArgumentByteStride(const IndirectArgumentDesc& inDesc)
+	{
+		switch (inDesc.type)
+		{
+			case EIndirectArgumentType::DRAW:                  return sizeof(D3D12_DRAW_ARGUMENTS);
+			case EIndirectArgumentType::DRAW_INDEXED:          return sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+			case EIndirectArgumentType::DISPATCH:              return sizeof(D3D12_DISPATCH_ARGUMENTS);
+			case EIndirectArgumentType::VERTEX_BUFFER_VIEW:    return sizeof(D3D12_VERTEX_BUFFER_VIEW);
+			case EIndirectArgumentType::INDEX_BUFFER_VIEW:     return sizeof(D3D12_INDEX_BUFFER_VIEW);
+			case EIndirectArgumentType::CONSTANT:              return (4 * inDesc.constant.num32BitValuesToSet);
+			case EIndirectArgumentType::CONSTANT_BUFFER_VIEW:  return sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+			case EIndirectArgumentType::SHADER_RESOURCE_VIEW:  return sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+			case EIndirectArgumentType::UNORDERED_ACCESS_VIEW: return sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+			case EIndirectArgumentType::DISPATCH_RAYS:
+			case EIndirectArgumentType::DISPATCH_MESH:
+				CHECK_NO_ENTRY(); // #todo-indirect-draw
+		}
+		return 0;
+	}
+
+	uint32 calcCommandSignatureByteStride(const CommandSignatureDesc& inDesc, uint32& outPaddingBytes)
+	{
+		uint32 byteStride = 0;
+		for (const IndirectArgumentDesc& desc : inDesc.argumentDescs)
+		{
+			byteStride += into_d3d::calcIndirectArgumentByteStride(desc);
+		}
+		uint32 unpaddedStride = byteStride;
+		byteStride = (byteStride + 3) & ~3; // DirectX-Specs: 4-byte aligned
+		outPaddingBytes = byteStride - unpaddedStride;
+		return byteStride;
+	}
+
 	void commandSignature(
 		const CommandSignatureDesc& inDesc,
 		D3D12_COMMAND_SIGNATURE_DESC& outDesc,
@@ -155,43 +188,9 @@ namespace into_d3d
 			into_d3d::indirectArgument(inDesc.argumentDescs[i], tempArgumentDescs[i]);
 		}
 
-		uint32 byteStride = 0;
-		for (const IndirectArgumentDesc& desc : inDesc.argumentDescs)
-		{
-			switch (desc.type)
-			{
-				case EIndirectArgumentType::DRAW:
-					byteStride += sizeof(D3D12_DRAW_ARGUMENTS);
-					break;
-				case EIndirectArgumentType::DRAW_INDEXED:
-					byteStride += sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
-					break;
-				case EIndirectArgumentType::DISPATCH:
-					byteStride += sizeof(D3D12_DISPATCH_ARGUMENTS);
-					break;
-				case EIndirectArgumentType::VERTEX_BUFFER_VIEW:
-					byteStride += sizeof(D3D12_VERTEX_BUFFER_VIEW);
-					break;
-				case EIndirectArgumentType::INDEX_BUFFER_VIEW:
-					byteStride += sizeof(D3D12_INDEX_BUFFER_VIEW);
-					break;
-				case EIndirectArgumentType::CONSTANT:
-					byteStride += 4 * desc.constant.num32BitValuesToSet;
-					break;
-				case EIndirectArgumentType::CONSTANT_BUFFER_VIEW:
-				case EIndirectArgumentType::SHADER_RESOURCE_VIEW:
-				case EIndirectArgumentType::UNORDERED_ACCESS_VIEW:
-					byteStride += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
-					break;
-				case EIndirectArgumentType::DISPATCH_RAYS:
-				case EIndirectArgumentType::DISPATCH_MESH:
-					CHECK_NO_ENTRY();
-					break;
-			}
-		}
-		byteStride = (byteStride + 3) & ~3; // DirectX-Specs: 4-byte aligned
+		uint32 unusedPaddingBytes;
 
-		outDesc.ByteStride = byteStride;
+		outDesc.ByteStride = into_d3d::calcCommandSignatureByteStride(inDesc, unusedPaddingBytes);
 		outDesc.NumArgumentDescs = numArgumentDescs;
 		outDesc.pArgumentDescs = tempArgumentDescs;
 		outDesc.NodeMask = inDesc.nodeMask;

@@ -119,6 +119,7 @@ public:
 
 	// Indirect draw
 	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, RootSignature* inRootSignature) = 0;
+	virtual IndirectCommandGenerator* createIndirectCommandGenerator(const CommandSignatureDesc& inDesc, uint32 maxCommandCount) = 0;
 
 	// ------------------------------------------------------------------------
 	// Copy

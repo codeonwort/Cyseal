@@ -39,7 +39,10 @@ private:
 private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
+
 	std::unique_ptr<CommandSignature> commandSignature;
+	std::unique_ptr<IndirectCommandGenerator> argumentBufferGenerator;
+	std::unique_ptr<Buffer> argumentBuffer;
 
 	uint32 totalVolatileDescriptors = 0;
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;

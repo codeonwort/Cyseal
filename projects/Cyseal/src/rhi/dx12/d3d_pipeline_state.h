@@ -3,11 +3,14 @@
 #include "core/assertion.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"
+#include "rhi/shader.h"
 #include "d3d_util.h"
 #include <vector>
 
 class D3DRootSignature;
 class D3DShaderStage;
+class VertexBuffer;
+class IndexBuffer;
 
 inline uint32 align(uint32 size, uint32 alignment)
 {
@@ -191,4 +194,39 @@ public:
 
 private:
 	WRL::ComPtr<ID3D12CommandSignature> rawCommandSignature;
+};
+
+class D3DIndirectCommandGenerator : public IndirectCommandGenerator
+{
+public:
+	~D3DIndirectCommandGenerator();
+
+	virtual void initialize(const CommandSignatureDesc& desc, uint32 maxCommandCount) override;
+
+	//~ BEGIN stateful API
+	virtual void beginCommand(uint32 commandIx) override;
+
+	virtual void writeConstant32(uint32 constant) override;
+	virtual void writeVertexBufferView(VertexBuffer* vbuffer) override;
+	virtual void writeIndexBufferView(IndexBuffer* ibuffer) override;
+	virtual void writeDrawIndexedArguments(
+		uint32 indexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startIndexLocation,
+		int32  baseVertexLocation,
+		uint32 startInstanceLocation) override;
+
+	virtual void endCommand() override;
+	//~ END stateful API
+
+	virtual uint32 getCommandByteStride() const override { return byteStride; }
+	virtual void copyToBuffer(RenderCommandList* commandList, uint32 numCommands, Buffer* destBuffer, uint64 destOffset) override;
+
+private:
+	uint32 maxCommandCount = 0;
+	uint32 byteStride = 0;
+	uint32 paddingBytes = 0;
+
+	uint8* memblock = nullptr;
+	uint8* currentWritePtr = nullptr;
 };

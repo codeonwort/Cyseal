@@ -17,6 +17,8 @@
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 #define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
 
+#define bUseIndirectDraw         true
+
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
 namespace RootParameters
@@ -76,26 +78,56 @@ void BasePass::initialize()
 		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
 	}
 
-	// Command signature
-	// Hmm... C++20 designated initializers looks ugly in this case :(
-	CommandSignatureDesc commandSignatureDesc{
-		.argumentDescs = {
-			IndirectArgumentDesc{
-				.type = EIndirectArgumentType::CONSTANT,
-				.constant = {
-					.rootParameterIndex = RootParameters::ObjectIDSlot,
-					.destOffsetIn32BitValues = 0,
-					.num32BitValuesToSet = 1,
+	// Indirect draw
+	{
+		// Hmm... C++20 designated initializers looks ugly in this case :(
+		CommandSignatureDesc commandSignatureDesc{
+			.argumentDescs = {
+				IndirectArgumentDesc{
+					.type = EIndirectArgumentType::CONSTANT,
+					.constant = {
+						.rootParameterIndex = RootParameters::ObjectIDSlot,
+						.destOffsetIn32BitValues = 0,
+						.num32BitValuesToSet = 1,
+					},
+				},
+				IndirectArgumentDesc{
+					.type = EIndirectArgumentType::VERTEX_BUFFER_VIEW,
+					.vertexBuffer = {
+						.slot = 0, // position buffer slot
+					},
+				},
+				IndirectArgumentDesc{
+					.type = EIndirectArgumentType::VERTEX_BUFFER_VIEW,
+					.vertexBuffer = {
+						.slot = 1, // non-position buffer slot
+					},
+				},
+				IndirectArgumentDesc{
+					.type = EIndirectArgumentType::INDEX_BUFFER_VIEW,
+				},
+				IndirectArgumentDesc{
+					.type = EIndirectArgumentType::DRAW_INDEXED,
 				},
 			},
-			IndirectArgumentDesc{
-				.type = EIndirectArgumentType::DRAW_INDEXED,
-			},
-		},
-		.nodeMask = 0,
-	};
-	commandSignature = std::unique_ptr<CommandSignature>(
-		device->createCommandSignature(commandSignatureDesc, rootSignature.get()));
+			.nodeMask = 0,
+		};
+		commandSignature = std::unique_ptr<CommandSignature>(
+			device->createCommandSignature(commandSignatureDesc, rootSignature.get()));
+
+		// #todo-indirect-draw: argument buffer size
+		const uint32 indirectDrawMaxItems = 256;
+
+		argumentBufferGenerator = std::unique_ptr<IndirectCommandGenerator>(
+			device->createIndirectCommandGenerator(commandSignatureDesc, indirectDrawMaxItems));
+		argumentBuffer = std::unique_ptr<Buffer>(device->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = argumentBufferGenerator->getCommandByteStride() * indirectDrawMaxItems,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+			}
+		));
+	}
 
 	// Input layout
 	// #todo: Should be variant per vertex factory
@@ -183,26 +215,57 @@ void BasePass::renderBasePass(
 	const uint32 LOD = 0;
 
 	bindRootParameters(commandList, sceneUniformBuffer, gpuScene);
-
-	// #todo-indirect-draw: Do it
-	uint32 payloadID = 0;
-	for (const StaticMesh* mesh : scene->staticMeshes)
+	
+	if (bUseIndirectDraw)
 	{
-		for (const StaticMeshSection& section : mesh->getSections(LOD))
+		uint32 indirectCommandID = 0;
+		for (const StaticMesh* mesh : scene->staticMeshes)
 		{
-			commandList->setGraphicsRootConstant32(RootParameters::ObjectIDSlot, payloadID, 0);
+			for (const StaticMeshSection& section : mesh->getSections(LOD))
+			{
+				VertexBuffer* positionBuffer = section.positionBuffer->getGPUResource().get();
+				VertexBuffer* nonPositionBuffer = section.nonPositionBuffer->getGPUResource().get();
+				IndexBuffer* indexBuffer = section.indexBuffer->getGPUResource().get();
 
-			VertexBuffer* vertexBuffers[] = {
-				section.positionBuffer->getGPUResource().get(),
-				section.nonPositionBuffer->getGPUResource().get()
-			};
-			auto indexBuffer = section.indexBuffer->getGPUResource().get();
+				argumentBufferGenerator->beginCommand(indirectCommandID);
 
-			commandList->iaSetVertexBuffers(0, 2, vertexBuffers);
-			commandList->iaSetIndexBuffer(indexBuffer);
-			commandList->drawIndexedInstanced(indexBuffer->getIndexCount(), 1, 0, 0, 0);
+				argumentBufferGenerator->writeConstant32(indirectCommandID);
+				argumentBufferGenerator->writeVertexBufferView(positionBuffer);
+				argumentBufferGenerator->writeVertexBufferView(nonPositionBuffer);
+				argumentBufferGenerator->writeIndexBufferView(indexBuffer);
+				argumentBufferGenerator->writeDrawIndexedArguments(indexBuffer->getIndexCount(), 1, 0, 0, 0);
 
-			++payloadID;
+				argumentBufferGenerator->endCommand();
+
+				++indirectCommandID;
+			}
+		}
+
+		const uint32 numIndirectDraws = indirectCommandID;
+		argumentBufferGenerator->copyToBuffer(commandList, numIndirectDraws, argumentBuffer.get(), 0);
+		commandList->executeIndirect(commandSignature.get(), numIndirectDraws, argumentBuffer.get(), 0, nullptr, 0);
+	}
+	else
+	{
+		uint32 payloadID = 0;
+		for (const StaticMesh* mesh : scene->staticMeshes)
+		{
+			for (const StaticMeshSection& section : mesh->getSections(LOD))
+			{
+				commandList->setGraphicsRootConstant32(RootParameters::ObjectIDSlot, payloadID, 0);
+
+				VertexBuffer* vertexBuffers[] = {
+					section.positionBuffer->getGPUResource().get(),
+					section.nonPositionBuffer->getGPUResource().get()
+				};
+				auto indexBuffer = section.indexBuffer->getGPUResource().get();
+
+				commandList->iaSetVertexBuffers(0, 2, vertexBuffers);
+				commandList->iaSetIndexBuffer(indexBuffer);
+				commandList->drawIndexedInstanced(indexBuffer->getIndexCount(), 1, 0, 0, 0);
+
+				++payloadID;
+			}
 		}
 	}
 }

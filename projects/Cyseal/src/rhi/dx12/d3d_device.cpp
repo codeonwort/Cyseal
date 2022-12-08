@@ -666,6 +666,13 @@ CommandSignature* D3DDevice::createCommandSignature(
 	return cmdSig;
 }
 
+IndirectCommandGenerator* D3DDevice::createIndirectCommandGenerator(const CommandSignatureDesc& sigDesc, uint32 maxCommandCount)
+{
+	D3DIndirectCommandGenerator* gen = new D3DIndirectCommandGenerator;
+	gen->initialize(sigDesc, maxCommandCount);
+	return gen;
+}
+
 void D3DDevice::copyDescriptors(
 	uint32 numDescriptors,
 	DescriptorHeap* destHeap,
