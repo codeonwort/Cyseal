@@ -155,7 +155,43 @@ namespace into_d3d
 			into_d3d::indirectArgument(inDesc.argumentDescs[i], tempArgumentDescs[i]);
 		}
 
-		outDesc.ByteStride = inDesc.byteStride;
+		uint32 byteStride = 0;
+		for (const IndirectArgumentDesc& desc : inDesc.argumentDescs)
+		{
+			switch (desc.type)
+			{
+				case EIndirectArgumentType::DRAW:
+					byteStride += sizeof(D3D12_DRAW_ARGUMENTS);
+					break;
+				case EIndirectArgumentType::DRAW_INDEXED:
+					byteStride += sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+					break;
+				case EIndirectArgumentType::DISPATCH:
+					byteStride += sizeof(D3D12_DISPATCH_ARGUMENTS);
+					break;
+				case EIndirectArgumentType::VERTEX_BUFFER_VIEW:
+					byteStride += sizeof(D3D12_VERTEX_BUFFER_VIEW);
+					break;
+				case EIndirectArgumentType::INDEX_BUFFER_VIEW:
+					byteStride += sizeof(D3D12_INDEX_BUFFER_VIEW);
+					break;
+				case EIndirectArgumentType::CONSTANT:
+					byteStride += 4 * desc.constant.num32BitValuesToSet;
+					break;
+				case EIndirectArgumentType::CONSTANT_BUFFER_VIEW:
+				case EIndirectArgumentType::SHADER_RESOURCE_VIEW:
+				case EIndirectArgumentType::UNORDERED_ACCESS_VIEW:
+					byteStride += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+					break;
+				case EIndirectArgumentType::DISPATCH_RAYS:
+				case EIndirectArgumentType::DISPATCH_MESH:
+					CHECK_NO_ENTRY();
+					break;
+			}
+		}
+		byteStride = (byteStride + 3) & ~3; // DirectX-Specs: 4-byte aligned
+
+		outDesc.ByteStride = byteStride;
 		outDesc.NumArgumentDescs = numArgumentDescs;
 		outDesc.pArgumentDescs = tempArgumentDescs;
 		outDesc.NodeMask = inDesc.nodeMask;

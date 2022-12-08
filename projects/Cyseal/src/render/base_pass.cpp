@@ -56,27 +56,48 @@ void BasePass::initialize()
 		rootParameters[RootParameters::MaterialConstantsSlot].initAsDescriptorTable(1, &descriptorRanges[1]);
 		rootParameters[RootParameters::MaterialTexturesSlot].initAsDescriptorTable(1, &descriptorRanges[2]);
 
-		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
-		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
-
-		memset(staticSamplers + 0, 0, sizeof(staticSamplers[0]));
-		staticSamplers[0].filter = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT;
-		staticSamplers[0].addressU = ETextureAddressMode::Wrap;
-		staticSamplers[0].addressV = ETextureAddressMode::Wrap;
-		staticSamplers[0].addressW = ETextureAddressMode::Wrap;
-		staticSamplers[0].shaderVisibility = EShaderVisibility::Pixel;
+		StaticSamplerDesc staticSamplers[] = {
+			{
+				.filter = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+				.addressU = ETextureAddressMode::Wrap,
+				.addressV = ETextureAddressMode::Wrap,
+				.addressW = ETextureAddressMode::Wrap,
+				.shaderVisibility = EShaderVisibility::Pixel,
+			}
+		};
 
 		RootSignatureDesc rootSigDesc(
 			RootParameters::Count,
 			rootParameters,
-			NUM_STATIC_SAMPLERS,
+			_countof(staticSamplers),
 			staticSamplers,
 			ERootSignatureFlags::AllowInputAssemblerInputLayout);
 
 		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
 	}
 
-	// Create input layout
+	// Command signature
+	// Hmm... C++20 designated initializers looks ugly in this case :(
+	CommandSignatureDesc commandSignatureDesc{
+		.argumentDescs = {
+			IndirectArgumentDesc{
+				.type = EIndirectArgumentType::CONSTANT,
+				.constant = {
+					.rootParameterIndex = RootParameters::ObjectIDSlot,
+					.destOffsetIn32BitValues = 0,
+					.num32BitValuesToSet = 1,
+				},
+			},
+			IndirectArgumentDesc{
+				.type = EIndirectArgumentType::DRAW_INDEXED,
+			},
+		},
+		.nodeMask = 0,
+	};
+	commandSignature = std::unique_ptr<CommandSignature>(
+		device->createCommandSignature(commandSignatureDesc, rootSignature.get()));
+
+	// Input layout
 	// #todo: Should be variant per vertex factory
 	VertexInputLayout inputLayout = {
 			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
@@ -84,13 +105,13 @@ void BasePass::initialize()
 			{"TEXCOORD", 0, EPixelFormat::R32G32_FLOAT, 1, sizeof(float) * 3, EVertexInputClassification::PerVertex, 0}
 	};
 
-	// Load shader
+	// Shader stages
 	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BasePassVS");
 	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BasePassPS");
 	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS");
 	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
 
-	// Create PSO
+	// PSO
 	{
 		GraphicsPipelineDesc desc;
 		desc.inputLayout            = inputLayout;

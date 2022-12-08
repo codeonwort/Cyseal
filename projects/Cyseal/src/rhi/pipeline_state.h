@@ -502,7 +502,7 @@ struct IndirectArgumentDesc
 // D3D12_COMMAND_SIGNATURE_DESC
 struct CommandSignatureDesc
 {
-	uint32 byteStride;
+	//uint32 byteStride; // RHI should calculate this...
 	std::vector<IndirectArgumentDesc> argumentDescs;
 	uint32 nodeMask;
 };
