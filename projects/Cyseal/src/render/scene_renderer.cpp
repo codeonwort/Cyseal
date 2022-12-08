@@ -148,27 +148,29 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
 
 	commandAllocator->reset();
-	// #todo-dx12: Is it OK to reset a command list with a different allocator
-	// than which was passed to ID3D12Device::CreateCommandList()?
 	commandList->reset(commandAllocator);
 
+	// Just execute prior to any standard renderer works.
+	// If some custom commands should execute in midst of frame rendering,
+	// I need to insert delegates here and there of this SceneRenderer::render() function.
 	commandList->executeCustomCommands();
 
-	Viewport viewport;
-	viewport.topLeftX = 0;
-	viewport.topLeftY = 0;
-	viewport.width    = static_cast<float>(sceneWidth);
-	viewport.height   = static_cast<float>(sceneHeight);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	commandList->rsSetViewport(viewport);
-
-	ScissorRect scissorRect;
-	scissorRect.left   = 0;
-	scissorRect.top    = 0;
-	scissorRect.right  = sceneWidth;
-	scissorRect.bottom = sceneHeight;
-	commandList->rsSetScissorRect(scissorRect);
+	// #todo-renderer: In future each render pass might write to RTs of different dimensions.
+	// Currently all passes work at full resolution.
+	commandList->rsSetViewport(Viewport{
+		.topLeftX = 0,
+		.topLeftY = 0,
+		.width    = static_cast<float>(sceneWidth),
+		.height   = static_cast<float>(sceneHeight),
+		.minDepth = 0.0f,
+		.maxDepth = 1.0f,
+	});
+	commandList->rsSetScissorRect(ScissorRect{
+		.left   = 0,
+		.top    = 0,
+		.right  = sceneWidth,
+		.bottom = sceneHeight,
+	});
 
 	updateSceneUniform(commandList, swapchainIndex, scene, camera);
 
