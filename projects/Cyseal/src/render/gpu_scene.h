@@ -11,7 +11,6 @@ class PipelineState;
 class RootSignature;
 class DescriptorHeap;
 class Buffer;
-class ConstantBuffer;
 class ShaderResourceView;
 class UnorderedAccessView;
 class SceneProxy;

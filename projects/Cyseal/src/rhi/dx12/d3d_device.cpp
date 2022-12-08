@@ -647,6 +647,25 @@ UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, const Unorde
 	return uav;
 }
 
+CommandSignature* D3DDevice::createCommandSignature(
+	const CommandSignatureDesc& inDesc,
+	RootSignature* inRootSignature)
+{
+	into_d3d::TempAlloc tempAlloc;
+	D3D12_COMMAND_SIGNATURE_DESC d3dDesc;
+	into_d3d::commandSignature(inDesc, d3dDesc, tempAlloc);
+
+	ID3D12RootSignature* rootSig = nullptr;
+	if (inRootSignature != nullptr)
+	{
+		rootSig = static_cast<D3DRootSignature*>(inRootSignature)->getRaw();
+	}
+
+	D3DCommandSignature* cmdSig = new D3DCommandSignature;
+	cmdSig->initialize(device.Get(), d3dDesc, rootSig);
+	return cmdSig;
+}
+
 void D3DDevice::copyDescriptors(
 	uint32 numDescriptors,
 	DescriptorHeap* destHeap,

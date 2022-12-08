@@ -175,3 +175,18 @@ private:
 	uint32 rawUploadBufferSize;
 	uint8* mappedResource = nullptr;
 };
+
+class D3DCommandSignature : public CommandSignature
+{
+public:
+	void initialize(
+		ID3D12Device* d3dDevice,
+		const D3D12_COMMAND_SIGNATURE_DESC& desc,
+		ID3D12RootSignature* rootSignature)
+	{
+		HR(d3dDevice->CreateCommandSignature(&desc, rootSignature, IID_PPV_ARGS(&rawCommandSignature)));
+	}
+
+private:
+	WRL::ComPtr<ID3D12CommandSignature> rawCommandSignature;
+};

@@ -447,3 +447,69 @@ struct DispatchRaysDesc
 	uint32 height;
 	uint32 depth;
 };
+
+// ------------------------------------------------------------------------
+// Indirect draw
+
+// D3D12_INDIRECT_ARGUMENT_TYPE
+enum class EIndirectArgumentType : uint32
+{
+	DRAW = 0,
+	DRAW_INDEXED,
+	DISPATCH,
+	VERTEX_BUFFER_VIEW,
+	INDEX_BUFFER_VIEW,
+	CONSTANT,
+	CONSTANT_BUFFER_VIEW,
+	SHADER_RESOURCE_VIEW,
+	UNORDERED_ACCESS_VIEW,
+	DISPATCH_RAYS,
+	DISPATCH_MESH
+};
+
+// D3D12_INDIRECT_ARGUMENT_DESC
+struct IndirectArgumentDesc
+{
+	EIndirectArgumentType type;
+	// NOTE: This union is not used for types unspecified below.
+	union
+	{
+		struct
+		{
+			uint32 slot;
+		} vertexBuffer; // EIndirectArgumentType::VERTEX_BUFFER_VIEW
+		struct
+		{
+			uint32 rootParameterIndex;
+			uint32 destOffsetIn32BitValues;
+			uint32 num32BitValuesToSet;
+		} constant; // EIndirectArgumentType::CONSTANT
+		struct
+		{
+			uint32 rootParameterIndex;
+		} constantBufferView; // EIndirectArgumentType::CONSTANT_BUFFER_VIEW
+		struct
+		{
+			uint32 rootParameterIndex;
+		} shaderResourceView; // EIndirectArgumentType::SHADER_RESOURCE_VIEW
+		struct
+		{
+			uint32 rootParameterIndex;
+		} unorderedAccessView; // EIndirectArgumentType::UNORDERED_ACCESS_VIEW
+	};
+};
+
+// D3D12_COMMAND_SIGNATURE_DESC
+struct CommandSignatureDesc
+{
+	uint32 byteStride;
+	std::vector<IndirectArgumentDesc> argumentDescs;
+	uint32 nodeMask;
+};
+
+// ID3D12RootSignature
+class CommandSignature
+{
+public:
+	virtual ~CommandSignature() = default;
+};

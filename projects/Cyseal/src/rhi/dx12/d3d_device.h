@@ -22,6 +22,9 @@ public:
 
 	virtual void flushCommandQueue() override;
 
+	// ------------------------------------------------------------------------
+	// Create
+
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName) override;
 	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 
@@ -52,12 +55,20 @@ public:
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) override;
 	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) override;
 
+	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, RootSignature* inRootSignature) override;
+
+	// ------------------------------------------------------------------------
+	// Copy
+
 	virtual void copyDescriptors(
 		uint32 numDescriptors,
 		DescriptorHeap* destHeap,
 		uint32 destHeapDescriptorStartOffset,
 		DescriptorHeap* srcHeap,
 		uint32 srcHeapDescriptorStartOffset) override;
+
+	// ------------------------------------------------------------------------
+	// Utils
 
 	uint32 getDescriptorSizeCbvSrvUav() { return descSizeCBV_SRV_UAV; }
 

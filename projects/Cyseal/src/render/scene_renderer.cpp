@@ -116,8 +116,6 @@ void SceneRenderer::destroy()
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 {
-	// true: render for current swapchain, record for next swapchain.
-	// false: record for current swapchain, render for current swapchain.
 	bool bDoubleBuffering     = device->getCreateParams().bDoubleBuffering;
 
 	auto commandQueue         = device->getCommandQueue();

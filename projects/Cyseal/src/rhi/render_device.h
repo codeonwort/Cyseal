@@ -38,24 +38,27 @@ enum class EWindowType
 
 struct RenderDeviceCreateParams
 {
-	void* nativeWindowHandle;
-	ERenderDeviceRawAPI rawAPI;
+	void*                    nativeWindowHandle  = nullptr;
+	ERenderDeviceRawAPI      rawAPI;
 
 	// Required capability tiers
-	ERaytracingTier raytracingTier = ERaytracingTier::MaxTier;
-	EVariableShadingRateTier vrsTier = EVariableShadingRateTier::MaxTier;
-	EMeshShaderTier meshShaderTier = EMeshShaderTier::MaxTier;
-	ESamplerFeedbackTier samplerFeedbackTier = ESamplerFeedbackTier::MaxTier;
+	ERaytracingTier          raytracingTier      = ERaytracingTier::MaxTier;
+	EVariableShadingRateTier vrsTier             = EVariableShadingRateTier::MaxTier;
+	EMeshShaderTier          meshShaderTier      = EMeshShaderTier::MaxTier;
+	ESamplerFeedbackTier     samplerFeedbackTier = ESamplerFeedbackTier::MaxTier;
 
-	bool enableDebugLayer = true;   // Enable debug layer (dx) or validation layer (vk)
+	// Enable debug layer (dx) or validation layer (vk)
+	bool                     enableDebugLayer    = true;
 
-	bool bDoubleBuffering = true;
+	// true  : Render for current swapchain, record for next swapchain.
+	// false : Record for current swapchain, render for current swapchain.
+	bool                     bDoubleBuffering    = true;
 
 	// #todo-renderdevice: These are not renderdevice params. Move to somewhere.
 	// or leave here as initial values.
-	EWindowType windowType = EWindowType::WINDOWED;
-	uint32 windowWidth = 1920;
-	uint32 windowHeight = 1080;
+	EWindowType              windowType          = EWindowType::WINDOWED;
+	uint32                   windowWidth         = 1920;
+	uint32                   windowHeight        = 1080;
 };
 
 // ID3D12Device
@@ -77,6 +80,9 @@ public:
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) = 0;
 
 	virtual void flushCommandQueue() = 0;
+
+	// ------------------------------------------------------------------------
+	// Create
 
 	// #todo-renderdevice: uint64 for sizeInBytes
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName = nullptr) = 0;
@@ -111,12 +117,21 @@ public:
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) = 0;
 	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) = 0;
 
+	// Indirect draw
+	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, RootSignature* inRootSignature) = 0;
+
+	// ------------------------------------------------------------------------
+	// Copy
+
 	virtual void copyDescriptors(
 		uint32 numDescriptors,
 		DescriptorHeap* destHeap,
 		uint32 destHeapDescriptorStartOffset,
 		DescriptorHeap* srcHeap,
 		uint32 srcHeapDescriptorStartOffset) = 0;
+
+	// ------------------------------------------------------------------------
+	// Getters
 
 	inline const RenderDeviceCreateParams& getCreateParams() const { return createParams; }
 

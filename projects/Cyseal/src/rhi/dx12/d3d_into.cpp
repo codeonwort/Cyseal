@@ -116,4 +116,49 @@ namespace into_d3d
 		}
 	}
 
+	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc)
+	{
+		outDesc.Type = into_d3d::indirectArgumentType(inDesc.type);
+		if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_VERTEX_BUFFER_VIEW)
+		{
+			outDesc.VertexBuffer.Slot = inDesc.vertexBuffer.slot;
+		}
+		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT)
+		{
+			outDesc.Constant.RootParameterIndex = inDesc.constant.rootParameterIndex;
+			outDesc.Constant.DestOffsetIn32BitValues = inDesc.constant.destOffsetIn32BitValues;
+			outDesc.Constant.Num32BitValuesToSet = inDesc.constant.num32BitValuesToSet;
+		}
+		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW)
+		{
+			outDesc.ConstantBufferView.RootParameterIndex = inDesc.constantBufferView.rootParameterIndex;
+		}
+		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_SHADER_RESOURCE_VIEW)
+		{
+			outDesc.ShaderResourceView.RootParameterIndex = inDesc.shaderResourceView.rootParameterIndex;
+		}
+		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW)
+		{
+			outDesc.UnorderedAccessView.RootParameterIndex = inDesc.unorderedAccessView.rootParameterIndex;
+		}
+	}
+
+	void commandSignature(
+		const CommandSignatureDesc& inDesc,
+		D3D12_COMMAND_SIGNATURE_DESC& outDesc,
+		TempAlloc& tempAlloc)
+	{
+		uint32 numArgumentDescs = (uint32)inDesc.argumentDescs.size();
+		D3D12_INDIRECT_ARGUMENT_DESC* tempArgumentDescs = tempAlloc.allocIndirectArgumentDescs(numArgumentDescs);
+		for (uint32 i = 0; i < numArgumentDescs; ++i)
+		{
+			into_d3d::indirectArgument(inDesc.argumentDescs[i], tempArgumentDescs[i]);
+		}
+
+		outDesc.ByteStride = inDesc.byteStride;
+		outDesc.NumArgumentDescs = numArgumentDescs;
+		outDesc.pArgumentDescs = tempArgumentDescs;
+		outDesc.NodeMask = inDesc.nodeMask;
+	}
+
 }
