@@ -6,6 +6,7 @@
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/gpu_resource_view.h"
 #include "core/assertion.h"
+#include <algorithm>
 
 WRL::ComPtr<ID3D12Resource> createDefaultBuffer(UINT64 byteSize)
 {
@@ -259,12 +260,59 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Bu
 		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
 	cmdList->ResourceBarrier(1, &barrierBefore);
 
+	// #todo-renderdevice: Merge buffer copy regions if contiguous.
+	// Below code is not tested at all as there is no multi-write case yet.
+#if 0
+	// Merge contiguous regions
+	std::vector<Buffer::UploadDesc> sortedDescs(numUploads);
+	for (uint32 i = 0; i < numUploads; ++i)
+	{
+		sortedDescs[i] = uploadDescs[i];
+	}
+	std::sort(sortedDescs.begin(), sortedDescs.end(),
+		[](const Buffer::UploadDesc& x, const Buffer::UploadDesc& y)
+		{
+			return x.destOffsetInBytes < y.destOffsetInBytes;
+		}
+	);
+	std::vector<Buffer::UploadDesc> mergedDescs;
+	for (uint32 i = 0; i < numUploads; ++i)
+	{
+		uint32 j = i;
+		uint32 mergedSize = uploadDescs[i].sizeInBytes;
+		while (j < numUploads - 1 && uploadDescs[j].destOffsetInBytes + uploadDescs[j].sizeInBytes == uploadDescs[j + 1].destOffsetInBytes)
+		{
+			++j;
+			mergedSize += uploadDescs[j].sizeInBytes;
+		}
+		mergedDescs.push_back(Buffer::UploadDesc{
+			.srcData = nullptr,
+			.sizeInBytes = mergedSize,
+			.destOffsetInBytes = uploadDescs[i].destOffsetInBytes
+		});
+		i = j + 1;
+	}
+	for (uint32 i = 0; i < numUploads; ++i)
+	{
+		const UploadDesc& desc = uploadDescs[i];
+		::memcpy_s(uploadMapPtr + desc.destOffsetInBytes, desc.sizeInBytes, desc.srcData, desc.sizeInBytes);
+	}
+	for (size_t i = 0; i < mergedDescs.size(); ++i)
+	{
+		cmdList->CopyBufferRegion(
+			defaultBuffer.Get(), mergedDescs[i].destOffsetInBytes,
+			uploadBuffer.Get(), mergedDescs[i].destOffsetInBytes,
+			mergedDescs[i].sizeInBytes);
+	}
+	uint32 DEBUG_numReduced = numUploads - (uint32)mergedDescs.size();
+#endif
+
+	// Naive version
 	for (uint32 i = 0; i < numUploads; ++i)
 	{
 		const UploadDesc& desc = uploadDescs[i];
 		::memcpy_s(uploadMapPtr + desc.destOffsetInBytes, desc.sizeInBytes, desc.srcData, desc.sizeInBytes);
 
-		// #todo-renderdevice: Merge buffer copy regions if contiguous
 		cmdList->CopyBufferRegion(
 			defaultBuffer.Get(), desc.destOffsetInBytes,
 			uploadBuffer.Get(), desc.destOffsetInBytes,
