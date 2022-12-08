@@ -187,6 +187,8 @@ public:
 		HR(d3dDevice->CreateCommandSignature(&desc, rootSignature, IID_PPV_ARGS(&rawCommandSignature)));
 	}
 
+	inline ID3D12CommandSignature* getRaw() const { return rawCommandSignature.Get(); }
+
 private:
 	WRL::ComPtr<ID3D12CommandSignature> rawCommandSignature;
 };

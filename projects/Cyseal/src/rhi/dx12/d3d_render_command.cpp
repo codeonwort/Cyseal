@@ -417,6 +417,23 @@ void D3DRenderCommandList::drawInstanced(
 		startInstanceLocation);
 }
 
+void D3DRenderCommandList::executeIndirect(
+	CommandSignature* commandSignature,
+	uint32 maxCommandCount,
+	Buffer* argumentBuffer,
+	uint64 argumentBufferOffset,
+	Buffer* countBuffer /*= nullptr*/,
+	uint64 countBufferOffset /*= 0*/)
+{
+	commandList->ExecuteIndirect(
+		static_cast<D3DCommandSignature*>(commandSignature)->getRaw(),
+		maxCommandCount,
+		into_d3d::id3d12Resource(argumentBuffer),
+		argumentBufferOffset,
+		countBuffer ? into_d3d::id3d12Resource(countBuffer) : nullptr,
+		countBufferOffset);
+}
+
 void D3DRenderCommandList::dispatchCompute(
 	uint32 threadGroupX,
 	uint32 threadGroupY,
