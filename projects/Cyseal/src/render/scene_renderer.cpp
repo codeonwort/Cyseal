@@ -251,7 +251,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 		commandList->clearDepthStencilView(RT_sceneDepth->getDSV(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
 
 		basePass->renderBasePass(
-			commandList, scene, camera,
+			commandList, swapchainIndex,
+			scene, camera,
 			sceneUniformCBVs[swapchainIndex].get(),
 			gpuScene,
 			RT_sceneColor, RT_thinGBufferA);

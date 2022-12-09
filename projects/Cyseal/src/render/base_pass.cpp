@@ -120,13 +120,18 @@ void BasePass::initialize()
 
 		argumentBufferGenerator = std::unique_ptr<IndirectCommandGenerator>(
 			device->createIndirectCommandGenerator(commandSignatureDesc, indirectDrawMaxItems));
-		argumentBuffer = std::unique_ptr<Buffer>(device->createBuffer(
-			BufferCreateParams{
-				.sizeInBytes = argumentBufferGenerator->getCommandByteStride() * indirectDrawMaxItems,
-				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
-			}
-		));
+
+		argumentBuffers.resize(swapchainCount);
+		for (uint32 i = 0; i < swapchainCount; ++i)
+		{
+			argumentBuffers[i] = std::unique_ptr<Buffer>(device->createBuffer(
+				BufferCreateParams{
+					.sizeInBytes = argumentBufferGenerator->getCommandByteStride() * indirectDrawMaxItems,
+					.alignment = 0,
+					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+				}
+			));
+		}
 	}
 
 	// Input layout
@@ -174,6 +179,7 @@ void BasePass::initialize()
 
 void BasePass::renderBasePass(
 	RenderCommandList* commandList,
+	uint32 swapchainIndex,
 	const SceneProxy* scene,
 	const Camera* camera,
 	ConstantBufferView* sceneUniformBuffer,
@@ -242,8 +248,9 @@ void BasePass::renderBasePass(
 		}
 
 		const uint32 numIndirectDraws = indirectCommandID;
-		argumentBufferGenerator->copyToBuffer(commandList, numIndirectDraws, argumentBuffer.get(), 0);
-		commandList->executeIndirect(commandSignature.get(), numIndirectDraws, argumentBuffer.get(), 0, nullptr, 0);
+		Buffer* currentArgumentBuffer = argumentBuffers[swapchainIndex].get();
+		argumentBufferGenerator->copyToBuffer(commandList, numIndirectDraws, currentArgumentBuffer, 0);
+		commandList->executeIndirect(commandSignature.get(), numIndirectDraws, currentArgumentBuffer, 0, nullptr, 0);
 	}
 	else
 	{

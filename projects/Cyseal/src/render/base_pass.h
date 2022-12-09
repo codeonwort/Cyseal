@@ -20,6 +20,7 @@ public:
 
 	void renderBasePass(
 		RenderCommandList* commandList,
+		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera,
 		ConstantBufferView* sceneUniformBuffer,
@@ -42,7 +43,7 @@ private:
 
 	std::unique_ptr<CommandSignature> commandSignature;
 	std::unique_ptr<IndirectCommandGenerator> argumentBufferGenerator;
-	std::unique_ptr<Buffer> argumentBuffer;
+	std::vector<std::unique_ptr<Buffer>> argumentBuffers;
 
 	uint32 totalVolatileDescriptors = 0;
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
