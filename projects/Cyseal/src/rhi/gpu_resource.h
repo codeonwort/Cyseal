@@ -271,6 +271,8 @@ public:
 		writeToGPU(commandList, 1, &desc);
 	}
 
+	inline const BufferCreateParams& getCreateParams() const { return createParams; }
+
 protected:
 	BufferCreateParams createParams;
 };

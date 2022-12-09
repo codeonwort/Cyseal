@@ -22,6 +22,18 @@ void D3DIndirectCommandGenerator::initialize(
 	memblock = reinterpret_cast<uint8*>(::malloc(byteStride * inMaxCommandCount));
 }
 
+void D3DIndirectCommandGenerator::resizeMaxCommandCount(uint32 newMaxCount)
+{
+	CHECK(byteStride != 0 && currentWritePtr == nullptr);
+
+	maxCommandCount = newMaxCount;
+	if (memblock != nullptr)
+	{
+		::free(memblock);
+	}
+	memblock = reinterpret_cast<uint8*>(::malloc(byteStride * maxCommandCount));
+}
+
 void D3DIndirectCommandGenerator::beginCommand(uint32 commandIx)
 {
 	CHECK(currentWritePtr == nullptr && commandIx < maxCommandCount);

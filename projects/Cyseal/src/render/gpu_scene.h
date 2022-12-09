@@ -47,6 +47,8 @@ public:
 		uint32& outSRVBaseIndex, uint32& outSRVCount,
 		uint32& outNextAvailableIndex);
 
+	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
+
 private:
 	void resizeGPUSceneBuffers(uint32 maxElements);
 	void resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount);

@@ -115,23 +115,10 @@ void BasePass::initialize()
 		commandSignature = std::unique_ptr<CommandSignature>(
 			device->createCommandSignature(commandSignatureDesc, rootSignature.get()));
 
-		// #todo-indirect-draw: argument buffer size
-		const uint32 indirectDrawMaxItems = 256;
-
 		argumentBufferGenerator = std::unique_ptr<IndirectCommandGenerator>(
-			device->createIndirectCommandGenerator(commandSignatureDesc, indirectDrawMaxItems));
+			device->createIndirectCommandGenerator(commandSignatureDesc, 256));
 
 		argumentBuffers.resize(swapchainCount);
-		for (uint32 i = 0; i < swapchainCount; ++i)
-		{
-			argumentBuffers[i] = std::unique_ptr<Buffer>(device->createBuffer(
-				BufferCreateParams{
-					.sizeInBytes = argumentBufferGenerator->getCommandByteStride() * indirectDrawMaxItems,
-					.alignment = 0,
-					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
-				}
-			));
-		}
 	}
 
 	// Input layout
@@ -206,6 +193,29 @@ void BasePass::renderBasePass(
 		if (requiredVolatiles > totalVolatileDescriptors)
 		{
 			resizeVolatileHeaps(requiredVolatiles);
+		}
+	}
+
+	// Resize indirect argument buffer and its generator.
+	{
+		const uint32 maxElements = gpuScene->getGPUSceneItemMaxCount();
+
+		if (argumentBufferGenerator->getMaxCommandCount() < maxElements)
+		{
+			argumentBufferGenerator->resizeMaxCommandCount(maxElements);
+		}
+
+		uint32 requiredCapacity = argumentBufferGenerator->getCommandByteStride() * maxElements;
+		Buffer* argBuffer = argumentBuffers[swapchainIndex].get();
+		if (argBuffer == nullptr || argBuffer->getCreateParams().sizeInBytes < requiredCapacity)
+		{
+			argumentBuffers[swapchainIndex] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+				BufferCreateParams{
+					.sizeInBytes = requiredCapacity,
+					.alignment   = 0,
+					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+				}
+			));
 		}
 	}
 

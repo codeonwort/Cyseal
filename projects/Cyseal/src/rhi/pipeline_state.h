@@ -528,6 +528,8 @@ public:
 
 	virtual void initialize(const CommandSignatureDesc& desc, uint32 maxCommandCount) = 0;
 
+	virtual void resizeMaxCommandCount(uint32 newMaxCount) = 0;
+
 	virtual void beginCommand(uint32 commandIx) = 0;
 
 	virtual void writeConstant32(uint32 constant) = 0;
@@ -549,6 +551,7 @@ public:
 
 	virtual void endCommand() = 0;
 
+	virtual uint32 getMaxCommandCount() const = 0;
 	virtual uint32 getCommandByteStride() const = 0;
 	virtual void copyToBuffer(RenderCommandList* commandList, uint32 numCommands, Buffer* destBuffer, uint64 destOffset) = 0;
 };

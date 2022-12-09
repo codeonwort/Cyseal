@@ -203,6 +203,8 @@ public:
 
 	virtual void initialize(const CommandSignatureDesc& desc, uint32 maxCommandCount) override;
 
+	virtual void resizeMaxCommandCount(uint32 newMaxCount) override;
+
 	//~ BEGIN stateful API
 	virtual void beginCommand(uint32 commandIx) override;
 
@@ -219,6 +221,7 @@ public:
 	virtual void endCommand() override;
 	//~ END stateful API
 
+	virtual uint32 getMaxCommandCount() const override { return maxCommandCount; }
 	virtual uint32 getCommandByteStride() const override { return byteStride; }
 	virtual void copyToBuffer(RenderCommandList* commandList, uint32 numCommands, Buffer* destBuffer, uint64 destOffset) override;
 
