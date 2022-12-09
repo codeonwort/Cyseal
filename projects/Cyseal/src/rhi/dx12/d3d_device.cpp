@@ -262,6 +262,21 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)
 {
 	swapChain->resize(width, height);
+
+	// Recreate command lists.
+	// If a command list refers to a backbuffer that is already deleted, it results in an error.
+	for (RenderCommandList* commandList : commandLists)
+	{
+		delete commandList;
+	}
+	commandLists.clear();
+
+	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
+	{
+		RenderCommandList* commandList = new D3DRenderCommandList;
+		commandList->initialize(this);
+		commandLists.push_back(commandList);
+	}
 }
 
 void D3DDevice::allocateSRVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
@@ -645,6 +660,32 @@ UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, const Unorde
 	D3DUnorderedAccessView* uav = new D3DUnorderedAccessView(
 		gpuResource, sourceHeap, descriptorIndex, cpuHandle);
 	return uav;
+}
+
+CommandSignature* D3DDevice::createCommandSignature(
+	const CommandSignatureDesc& inDesc,
+	RootSignature* inRootSignature)
+{
+	into_d3d::TempAlloc tempAlloc;
+	D3D12_COMMAND_SIGNATURE_DESC d3dDesc;
+	into_d3d::commandSignature(inDesc, d3dDesc, tempAlloc);
+
+	ID3D12RootSignature* rootSig = nullptr;
+	if (inRootSignature != nullptr)
+	{
+		rootSig = static_cast<D3DRootSignature*>(inRootSignature)->getRaw();
+	}
+
+	D3DCommandSignature* cmdSig = new D3DCommandSignature;
+	cmdSig->initialize(device.Get(), d3dDesc, rootSig);
+	return cmdSig;
+}
+
+IndirectCommandGenerator* D3DDevice::createIndirectCommandGenerator(const CommandSignatureDesc& sigDesc, uint32 maxCommandCount)
+{
+	D3DIndirectCommandGenerator* gen = new D3DIndirectCommandGenerator;
+	gen->initialize(sigDesc, maxCommandCount);
+	return gen;
 }
 
 void D3DDevice::copyDescriptors(

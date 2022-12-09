@@ -11,7 +11,6 @@ class PipelineState;
 class RootSignature;
 class DescriptorHeap;
 class Buffer;
-class ConstantBuffer;
 class ShaderResourceView;
 class UnorderedAccessView;
 class SceneProxy;
@@ -47,6 +46,8 @@ public:
 		uint32& outCBVBaseIndex, uint32& outCBVCount,
 		uint32& outSRVBaseIndex, uint32& outSRVCount,
 		uint32& outNextAvailableIndex);
+
+	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
 
 private:
 	void resizeGPUSceneBuffers(uint32 maxElements);

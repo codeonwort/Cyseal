@@ -111,6 +111,14 @@ public:
 		uint32 startVertexLocation,
 		uint32 startInstanceLocation) override;
 
+	virtual void executeIndirect(
+		CommandSignature* commandSignature,
+		uint32 maxCommandCount,
+		Buffer* argumentBuffer,
+		uint64 argumentBufferOffset,
+		Buffer* countBuffer = nullptr,
+		uint64 countBufferOffset = 0) override;
+
 	// ------------------------------------------------------------------------
 	// Compute pipeline
 

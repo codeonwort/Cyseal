@@ -8,6 +8,13 @@
 
 class RootSignature;
 class ShaderStage;
+class VertexBuffer;
+class IndexBuffer;
+class Buffer;
+class ConstantBufferView;
+class ShaderResourceView;
+class UnorderedAccessView;
+class RenderCommandList;
 
 //////////////////////////////////////////////////////////////////////////
 // Components of pipeline state
@@ -446,4 +453,119 @@ struct DispatchRaysDesc
 	uint32 width;
 	uint32 height;
 	uint32 depth;
+};
+
+// ------------------------------------------------------------------------
+// Indirect draw
+
+// D3D12_INDIRECT_ARGUMENT_TYPE
+enum class EIndirectArgumentType : uint32
+{
+	DRAW = 0,
+	DRAW_INDEXED,
+	DISPATCH,
+	VERTEX_BUFFER_VIEW,
+	INDEX_BUFFER_VIEW,
+	CONSTANT,
+	CONSTANT_BUFFER_VIEW,
+	SHADER_RESOURCE_VIEW,
+	UNORDERED_ACCESS_VIEW,
+	DISPATCH_RAYS,
+	DISPATCH_MESH
+};
+
+// D3D12_INDIRECT_ARGUMENT_DESC
+struct IndirectArgumentDesc
+{
+	EIndirectArgumentType type;
+	// NOTE: This union is not used for types unspecified below.
+	union
+	{
+		struct
+		{
+			uint32 slot;
+		} vertexBuffer; // EIndirectArgumentType::VERTEX_BUFFER_VIEW
+		struct
+		{
+			uint32 rootParameterIndex;
+			uint32 destOffsetIn32BitValues;
+			uint32 num32BitValuesToSet;
+		} constant; // EIndirectArgumentType::CONSTANT
+		struct
+		{
+			uint32 rootParameterIndex;
+		} constantBufferView; // EIndirectArgumentType::CONSTANT_BUFFER_VIEW
+		struct
+		{
+			uint32 rootParameterIndex;
+		} shaderResourceView; // EIndirectArgumentType::SHADER_RESOURCE_VIEW
+		struct
+		{
+			uint32 rootParameterIndex;
+		} unorderedAccessView; // EIndirectArgumentType::UNORDERED_ACCESS_VIEW
+	};
+};
+
+// D3D12_COMMAND_SIGNATURE_DESC
+struct CommandSignatureDesc
+{
+	//uint32 byteStride; // RHI should calculate this...
+	std::vector<IndirectArgumentDesc> argumentDescs;
+	uint32 nodeMask;
+};
+
+// ID3D12RootSignature
+class CommandSignature
+{
+public:
+	virtual ~CommandSignature() = default;
+};
+
+// RHI-agnostic interface to fill indirect commands.
+// This is just a memory writer and not a GPU resource,
+// but requires different implementations for different backends.
+class IndirectCommandGenerator
+{
+public:
+	virtual ~IndirectCommandGenerator() = default;
+
+	virtual void initialize(const CommandSignatureDesc& desc, uint32 maxCommandCount) = 0;
+
+	virtual void resizeMaxCommandCount(uint32 newMaxCount) = 0;
+
+	virtual void beginCommand(uint32 commandIx) = 0;
+
+	virtual void writeConstant32(uint32 constant) = 0;
+	virtual void writeVertexBufferView(VertexBuffer* vbuffer) = 0;
+	virtual void writeIndexBufferView(IndexBuffer* ibuffer) = 0;
+	virtual void writeDrawArguments(
+		uint32 vertexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startVertexLocation,
+		uint32 startInstanceLocation) = 0;
+	virtual void writeDrawIndexedArguments(
+		uint32 indexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startIndexLocation,
+		int32  baseVertexLocation,
+		uint32 startInstanceLocation) = 0;
+	virtual void writeDispatchArguments(
+		uint32 threadGroupCountX,
+		uint32 threadGroupCountY,
+		uint32 threadGroupCountZ) = 0;
+	virtual void writeConstantBufferView(ConstantBufferView* view) = 0;
+	virtual void writeShaderResourceView(ShaderResourceView* view) = 0;
+	virtual void writeUnorderedAccessView(UnorderedAccessView* view) = 0;
+	// #todo-indirect-draw: What should I write for dispatchRays()? D3D12_DISPATCH_RAYS_DESC?
+	//virtual void writeDispatchRaysArguments(...) = 0;
+	virtual void writeDispatchMeshArguments(
+		uint32 threadGroupCountX,
+		uint32 threadGroupCountY,
+		uint32 threadGroupCountZ) = 0;
+
+	virtual void endCommand() = 0;
+
+	virtual uint32 getMaxCommandCount() const = 0;
+	virtual uint32 getCommandByteStride() const = 0;
+	virtual void copyToBuffer(RenderCommandList* commandList, uint32 numCommands, Buffer* destBuffer, uint64 destOffset) = 0;
 };

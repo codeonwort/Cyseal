@@ -167,6 +167,7 @@
     <ClCompile Include="src\loader\image_loader.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\base_pass.cpp" />
+    <ClCompile Include="src\rhi\dx12\d3d_pipeline_state.cpp" />
     <ClCompile Include="src\rhi\global_descriptor_heaps.cpp" />
     <ClCompile Include="src\render\gpu_scene.cpp" />
     <ClCompile Include="src\render\null_renderer.cpp" />

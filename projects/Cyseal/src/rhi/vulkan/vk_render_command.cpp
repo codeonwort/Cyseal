@@ -282,6 +282,17 @@ void VulkanRenderCommandList::drawInstanced(
 		startInstanceLocation);
 }
 
+void VulkanRenderCommandList::executeIndirect(
+	CommandSignature* commandSignature,
+	uint32 maxCommandCount,
+	Buffer* argumentBuffer,
+	uint64 argumentBufferOffset,
+	Buffer* countBuffer /*= nullptr*/,
+	uint64 countBufferOffset /*= 0*/)
+{
+	// #todo-vulkan
+}
+
 void VulkanRenderCommandList::setComputeRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues)
 {
 	// #todo-vulkan

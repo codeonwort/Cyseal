@@ -23,6 +23,7 @@ namespace into_d3d
 			for (auto ptrArr : rootParameters) delete[] ptrArr;
 			for (auto ptrArr : staticSamplers) delete[] ptrArr;
 			for (auto ptrArr : inputElements) delete[] ptrArr;
+			for (auto ptrArr : indirectArgumentDescs) delete[] ptrArr;
 		}
 
 		D3D12_DESCRIPTOR_RANGE* allocDescriptorRanges(uint32 num)
@@ -49,11 +50,18 @@ namespace into_d3d
 			inputElements.push_back(elems);
 			return elems;
 		}
+		D3D12_INDIRECT_ARGUMENT_DESC* allocIndirectArgumentDescs(uint32 num)
+		{
+			D3D12_INDIRECT_ARGUMENT_DESC* descs = new D3D12_INDIRECT_ARGUMENT_DESC[num];
+			indirectArgumentDescs.push_back(descs);
+			return descs;
+		}
 	private:
 		std::vector<D3D12_DESCRIPTOR_RANGE*> descriptorRanges;
 		std::vector<D3D12_ROOT_PARAMETER*> rootParameters;
 		std::vector<D3D12_STATIC_SAMPLER_DESC*> staticSamplers;
 		std::vector<D3D12_INPUT_ELEMENT_DESC*> inputElements;
+		std::vector<D3D12_INDIRECT_ARGUMENT_DESC*> indirectArgumentDescs;
 	};
 
 	inline ID3D12Resource* id3d12Resource(GPUResource* inResource)
@@ -654,5 +662,20 @@ namespace into_d3d
 		}
 		return flags;
 	}
+
+	inline D3D12_INDIRECT_ARGUMENT_TYPE indirectArgumentType(EIndirectArgumentType inType)
+	{
+		return static_cast<D3D12_INDIRECT_ARGUMENT_TYPE>(inType);
+	}
+
+	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc);
+
+	uint32 calcIndirectArgumentByteStride(const IndirectArgumentDesc& inDesc);
+	uint32 calcCommandSignatureByteStride(const CommandSignatureDesc& inDesc, uint32& outPaddingBytes);
+
+	void commandSignature(
+		const CommandSignatureDesc& inDesc,
+		D3D12_COMMAND_SIGNATURE_DESC& outDesc,
+		TempAlloc& tempAlloc);
 
 }

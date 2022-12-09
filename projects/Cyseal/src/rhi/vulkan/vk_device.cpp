@@ -744,6 +744,18 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, const Uno
 	return nullptr;
 }
 
+CommandSignature* VulkanDevice::createCommandSignature(const CommandSignatureDesc& inDesc, RootSignature* inRootSignature)
+{
+	// #todo-vulkan
+	return nullptr;
+}
+
+IndirectCommandGenerator* VulkanDevice::createIndirectCommandGenerator(const CommandSignatureDesc& inDesc, uint32 maxCommandCount)
+{
+	// #todo-vulkan
+	return nullptr;
+}
+
 void VulkanDevice::copyDescriptors(
 	uint32 numDescriptors,
 	DescriptorHeap* destHeap,
