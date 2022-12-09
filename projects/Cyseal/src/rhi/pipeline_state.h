@@ -11,6 +11,9 @@ class ShaderStage;
 class VertexBuffer;
 class IndexBuffer;
 class Buffer;
+class ConstantBufferView;
+class ShaderResourceView;
+class UnorderedAccessView;
 class RenderCommandList;
 
 //////////////////////////////////////////////////////////////////////////
@@ -535,19 +538,30 @@ public:
 	virtual void writeConstant32(uint32 constant) = 0;
 	virtual void writeVertexBufferView(VertexBuffer* vbuffer) = 0;
 	virtual void writeIndexBufferView(IndexBuffer* ibuffer) = 0;
+	virtual void writeDrawArguments(
+		uint32 vertexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startVertexLocation,
+		uint32 startInstanceLocation) = 0;
 	virtual void writeDrawIndexedArguments(
 		uint32 indexCountPerInstance,
 		uint32 instanceCount,
 		uint32 startIndexLocation,
 		int32  baseVertexLocation,
 		uint32 startInstanceLocation) = 0;
-	// #todo-indirect-draw: writeXXX() for every values of EIndirectArgumentType
-	// writeDrawArguments
-	// writeDispatchArguments
-	// writeConstantBufferView
-	// writeShaderResourceView
-	// writeUnorderedAccessView
-	// ... and for dispatchRays and mesh shader thing?
+	virtual void writeDispatchArguments(
+		uint32 threadGroupCountX,
+		uint32 threadGroupCountY,
+		uint32 threadGroupCountZ) = 0;
+	virtual void writeConstantBufferView(ConstantBufferView* view) = 0;
+	virtual void writeShaderResourceView(ShaderResourceView* view) = 0;
+	virtual void writeUnorderedAccessView(UnorderedAccessView* view) = 0;
+	// #todo-indirect-draw: What should I write for dispatchRays()? D3D12_DISPATCH_RAYS_DESC?
+	//virtual void writeDispatchRaysArguments(...) = 0;
+	virtual void writeDispatchMeshArguments(
+		uint32 threadGroupCountX,
+		uint32 threadGroupCountY,
+		uint32 threadGroupCountZ) = 0;
 
 	virtual void endCommand() = 0;
 

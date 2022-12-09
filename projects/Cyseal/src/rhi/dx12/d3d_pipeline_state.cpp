@@ -63,6 +63,23 @@ void D3DIndirectCommandGenerator::writeIndexBufferView(IndexBuffer* ibuffer)
 	currentWritePtr += sizeof(D3D12_INDEX_BUFFER_VIEW);
 }
 
+void D3DIndirectCommandGenerator::writeDrawArguments(
+	uint32 vertexCountPerInstance,
+	uint32 instanceCount,
+	uint32 startVertexLocation,
+	uint32 startInstanceLocation)
+{
+	CHECK(currentWritePtr != nullptr);
+	D3D12_DRAW_ARGUMENTS args{
+		.VertexCountPerInstance = vertexCountPerInstance,
+		.InstanceCount = instanceCount,
+		.StartVertexLocation = startVertexLocation,
+		.StartInstanceLocation = startInstanceLocation
+	};
+	::memcpy_s(currentWritePtr, sizeof(D3D12_DRAW_ARGUMENTS), &args, sizeof(D3D12_DRAW_ARGUMENTS));
+	currentWritePtr += sizeof(D3D12_DRAW_ARGUMENTS);
+}
+
 void D3DIndirectCommandGenerator::writeDrawIndexedArguments(
 	uint32 indexCountPerInstance,
 	uint32 instanceCount,
@@ -80,6 +97,57 @@ void D3DIndirectCommandGenerator::writeDrawIndexedArguments(
 	};
 	::memcpy_s(currentWritePtr, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS), &args, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
 	currentWritePtr += sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+}
+
+void D3DIndirectCommandGenerator::writeDispatchArguments(
+	uint32 threadGroupCountX,
+	uint32 threadGroupCountY,
+	uint32 threadGroupCountZ)
+{
+	CHECK(currentWritePtr != nullptr);
+	D3D12_DISPATCH_ARGUMENTS args{
+		.ThreadGroupCountX = threadGroupCountX,
+		.ThreadGroupCountY = threadGroupCountY,
+		.ThreadGroupCountZ = threadGroupCountZ
+	};
+	::memcpy_s(currentWritePtr, sizeof(D3D12_DISPATCH_ARGUMENTS), &args, sizeof(D3D12_DISPATCH_ARGUMENTS));
+	currentWritePtr += sizeof(D3D12_DISPATCH_ARGUMENTS);
+}
+
+void D3DIndirectCommandGenerator::writeConstantBufferView(ConstantBufferView* view)
+{
+	D3D12_GPU_VIRTUAL_ADDRESS addr = static_cast<D3DConstantBufferView*>(view)->getGPUVirtualAddress();
+	::memcpy_s(currentWritePtr, sizeof(D3D12_GPU_VIRTUAL_ADDRESS), &addr, sizeof(D3D12_GPU_VIRTUAL_ADDRESS));
+	currentWritePtr += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+}
+
+void D3DIndirectCommandGenerator::writeShaderResourceView(ShaderResourceView* view)
+{
+	D3D12_GPU_VIRTUAL_ADDRESS addr = static_cast<D3DShaderResourceView*>(view)->getGPUVirtualAddress();
+	::memcpy_s(currentWritePtr, sizeof(D3D12_GPU_VIRTUAL_ADDRESS), &addr, sizeof(D3D12_GPU_VIRTUAL_ADDRESS));
+	currentWritePtr += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+}
+
+void D3DIndirectCommandGenerator::writeUnorderedAccessView(UnorderedAccessView* view)
+{
+	D3D12_GPU_VIRTUAL_ADDRESS addr = static_cast<D3DUnorderedAccessView*>(view)->getGPUVirtualAddress();
+	::memcpy_s(currentWritePtr, sizeof(D3D12_GPU_VIRTUAL_ADDRESS), &addr, sizeof(D3D12_GPU_VIRTUAL_ADDRESS));
+	currentWritePtr += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+}
+
+void D3DIndirectCommandGenerator::writeDispatchMeshArguments(
+	uint32 threadGroupCountX,
+	uint32 threadGroupCountY,
+	uint32 threadGroupCountZ)
+{
+	CHECK(currentWritePtr != nullptr);
+	D3D12_DISPATCH_MESH_ARGUMENTS args{
+		.ThreadGroupCountX = threadGroupCountX,
+		.ThreadGroupCountY = threadGroupCountY,
+		.ThreadGroupCountZ = threadGroupCountZ
+	};
+	::memcpy_s(currentWritePtr, sizeof(D3D12_DISPATCH_MESH_ARGUMENTS), &args, sizeof(D3D12_DISPATCH_MESH_ARGUMENTS));
+	currentWritePtr += sizeof(D3D12_DISPATCH_MESH_ARGUMENTS);
 }
 
 void D3DIndirectCommandGenerator::endCommand()

@@ -156,9 +156,8 @@ namespace into_d3d
 			case EIndirectArgumentType::CONSTANT_BUFFER_VIEW:  return sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
 			case EIndirectArgumentType::SHADER_RESOURCE_VIEW:  return sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
 			case EIndirectArgumentType::UNORDERED_ACCESS_VIEW: return sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
-			case EIndirectArgumentType::DISPATCH_RAYS:
-			case EIndirectArgumentType::DISPATCH_MESH:
-				CHECK_NO_ENTRY(); // #todo-indirect-draw
+			case EIndirectArgumentType::DISPATCH_RAYS:         CHECK_NO_ENTRY(); return 0; // #todo-indirect-draw
+			case EIndirectArgumentType::DISPATCH_MESH:         return sizeof(D3D12_DISPATCH_MESH_ARGUMENTS);
 		}
 		return 0;
 	}

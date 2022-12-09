@@ -211,12 +211,28 @@ public:
 	virtual void writeConstant32(uint32 constant) override;
 	virtual void writeVertexBufferView(VertexBuffer* vbuffer) override;
 	virtual void writeIndexBufferView(IndexBuffer* ibuffer) override;
+	virtual void writeDrawArguments(
+		uint32 vertexCountPerInstance,
+		uint32 instanceCount,
+		uint32 startVertexLocation,
+		uint32 startInstanceLocation) override;
 	virtual void writeDrawIndexedArguments(
 		uint32 indexCountPerInstance,
 		uint32 instanceCount,
 		uint32 startIndexLocation,
 		int32  baseVertexLocation,
 		uint32 startInstanceLocation) override;
+	virtual void writeDispatchArguments(
+		uint32 threadGroupCountX,
+		uint32 threadGroupCountY,
+		uint32 threadGroupCountZ) override;
+	virtual void writeConstantBufferView(ConstantBufferView* view) override;
+	virtual void writeShaderResourceView(ShaderResourceView* view) override;
+	virtual void writeUnorderedAccessView(UnorderedAccessView* view) override;
+	virtual void writeDispatchMeshArguments(
+		uint32 threadGroupCountX,
+		uint32 threadGroupCountY,
+		uint32 threadGroupCountZ) override;
 
 	virtual void endCommand() override;
 	//~ END stateful API
