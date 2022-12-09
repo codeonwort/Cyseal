@@ -262,6 +262,21 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)
 {
 	swapChain->resize(width, height);
+
+	// Recreate command lists.
+	// If a command list refers to a backbuffer that is already deleted, it results in an error.
+	for (RenderCommandList* commandList : commandLists)
+	{
+		delete commandList;
+	}
+	commandLists.clear();
+
+	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
+	{
+		RenderCommandList* commandList = new D3DRenderCommandList;
+		commandList->initialize(this);
+		commandLists.push_back(commandList);
+	}
 }
 
 void D3DDevice::allocateSRVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
