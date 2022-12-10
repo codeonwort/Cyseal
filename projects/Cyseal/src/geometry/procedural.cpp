@@ -3,6 +3,8 @@
 #include "core/assertion.h"
 #include <map>
 
+#define pi 3.14159265358979323846f
+
 namespace ProceduralGeometry
 {
 
@@ -323,6 +325,113 @@ namespace ProceduralGeometry
 			pos *= spike;
 			t += 0.137f;
 		}
+
+		outGeometry.recalculateNormals();
+		outGeometry.finalize();
+	}
+
+	void twistedCube(
+		Geometry& outGeometry,
+		float width, float height,
+		uint32 numLayers, float layerHeight, float angleDelta)
+	{
+		// 4 sides per layer = (16 * N) vertices, top & bottom = 8 vertices
+		outGeometry.reserveNumVertices(16 * numLayers + 8);
+		outGeometry.reserveNumIndices(24 * numLayers + 12);
+		angleDelta = angleDelta * pi / 180.0f;
+		const float rightAngle = pi / 2.0f;
+
+		auto rotate2D = [](float& x, float& y, float dt) {
+			float x2 = x * cos(dt) - y * sin(dt);
+			float y2 = x * sin(dt) + y * cos(dt);
+			x = x2; y = y2;
+		};
+
+		float x0 = -0.5f * width, y0 = 0.5f * height;
+		float x1 = +0.5f * width, y1 = 0.5f * height;
+		float z = 0.0f;
+		float angle = 0.0f;
+		uint32 ix = 0;
+		for (uint32 layer = 0; layer <= numLayers; ++layer)
+		{
+			outGeometry.positions.push_back(vec3(x0, z, y0));
+			outGeometry.positions.push_back(vec3(x1, z, y1));
+			outGeometry.texcoords.push_back(vec2(0.0f, (float)layer / numLayers));
+			outGeometry.texcoords.push_back(vec2(1.0f, (float)layer / numLayers));
+
+			if (layer != numLayers)
+			{
+				outGeometry.indices.push_back(ix);
+				outGeometry.indices.push_back(ix + 1);
+				outGeometry.indices.push_back(ix + 3);
+				outGeometry.indices.push_back(ix);
+				outGeometry.indices.push_back(ix + 3);
+				outGeometry.indices.push_back(ix + 2);
+				angle += angleDelta;
+				z += layerHeight;
+			}
+			ix += 2;
+
+			rotate2D(x0, y0, angleDelta);
+			rotate2D(x1, y1, angleDelta);
+		}
+
+		uint32 sideNumPos = (uint32)outGeometry.positions.size();
+		uint32 sideNumIx = (uint32)outGeometry.indices.size();
+		for (uint32 sideIx = 1; sideIx <= 3; ++sideIx)
+		{
+			for (uint32 i = 0; i < sideNumPos; ++i)
+			{
+				vec3 p = outGeometry.positions[i];
+				rotate2D(p.x, p.z, rightAngle * sideIx);
+				outGeometry.positions.push_back(p);
+				outGeometry.texcoords.push_back(outGeometry.texcoords[i]);
+			}
+			for (uint32 i = 0; i < sideNumIx; ++i)
+			{
+				outGeometry.indices.push_back(outGeometry.indices[i] + sideNumPos * sideIx);
+			}
+		}
+
+		ix = (uint32)outGeometry.positions.size();
+		outGeometry.positions.push_back(vec3(-0.5f * width, 0.0f, -0.5f * height));
+		outGeometry.positions.push_back(vec3(+0.5f * width, 0.0f, -0.5f * height));
+		outGeometry.positions.push_back(vec3(-0.5f * width, 0.0f, +0.5f * height));
+		outGeometry.positions.push_back(vec3(+0.5f * width, 0.0f, +0.5f * height));
+		outGeometry.texcoords.push_back(vec2(0.0f, 0.0f));
+		outGeometry.texcoords.push_back(vec2(1.0f, 0.0f));
+		outGeometry.texcoords.push_back(vec2(0.0f, 1.0f));
+		outGeometry.texcoords.push_back(vec2(1.0f, 1.0f));
+		outGeometry.indices.push_back(ix);
+		outGeometry.indices.push_back(ix + 1);
+		outGeometry.indices.push_back(ix + 3);
+		outGeometry.indices.push_back(ix);
+		outGeometry.indices.push_back(ix + 3);
+		outGeometry.indices.push_back(ix + 2);
+
+		ix += 4;
+		vec3 top0 = vec3(-0.5f * width, z, -0.5f * height);
+		vec3 top1 = vec3(+0.5f * width, z, -0.5f * height);
+		vec3 top2 = vec3(-0.5f * width, z, +0.5f * height);
+		vec3 top3 = vec3(+0.5f * width, z, +0.5f * height);
+		rotate2D(top0.x, top0.z, angle);
+		rotate2D(top1.x, top1.z, angle);
+		rotate2D(top2.x, top2.z, angle);
+		rotate2D(top3.x, top3.z, angle);
+		outGeometry.positions.push_back(top0);
+		outGeometry.positions.push_back(top1);
+		outGeometry.positions.push_back(top2);
+		outGeometry.positions.push_back(top3);
+		outGeometry.texcoords.push_back(vec2(0.0f, 0.0f));
+		outGeometry.texcoords.push_back(vec2(1.0f, 0.0f));
+		outGeometry.texcoords.push_back(vec2(0.0f, 1.0f));
+		outGeometry.texcoords.push_back(vec2(1.0f, 1.0f));
+		outGeometry.indices.push_back(ix);
+		outGeometry.indices.push_back(ix + 3);
+		outGeometry.indices.push_back(ix + 1);
+		outGeometry.indices.push_back(ix);
+		outGeometry.indices.push_back(ix + 2);
+		outGeometry.indices.push_back(ix + 3);
 
 		outGeometry.recalculateNormals();
 		outGeometry.finalize();

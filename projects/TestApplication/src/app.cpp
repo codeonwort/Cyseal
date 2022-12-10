@@ -54,7 +54,7 @@
 #define MESH_SPACE_Z         4.0f
 #define MESH_SCALE           3.0f
 
-#define CRUMPLED_WORLD       1
+#define CRUMPLED_WORLD       0
 
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
@@ -175,6 +175,7 @@ void TestApplication::createResources()
 		const float phase = Cymath::randFloatRange(0.0f, 6.28f);
 		const float spike = Cymath::randFloatRange(0.0f, 0.2f);
 #if CRUMPLED_WORLD
+		//ProceduralGeometry::twistedCube(*geometriesLODs[i][0], 2.0f, 2.0f, 8, 0.5f, 10.0f);
 		ProceduralGeometry::spikeBall(*geometriesLODs[i][0], 3, phase, spike);
 		ProceduralGeometry::spikeBall(*geometriesLODs[i][1], 1, phase, spike);
 #else
@@ -277,10 +278,20 @@ void TestApplication::createResources()
 			for (uint32 lod = 0; lod < NUM_LODs; ++lod)
 			{
 				auto material = std::make_shared<Material>();
-				material->albedoTexture = albedoTexture;
-				material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
-				material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
-				material->albedoMultiplier[2] = 0.0f;
+				if ((row + (col & 1)) & 1)
+				{
+					material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
+					material->albedoMultiplier[0] = 1.0f;
+					material->albedoMultiplier[1] = 1.0f;
+					material->albedoMultiplier[2] = 1.0f;
+				}
+				else
+				{
+					material->albedoTexture = albedoTexture;
+					material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
+					material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
+					material->albedoMultiplier[2] = 0.0f;
+				}
 				//material->roughness = Cymath::randFloat() < 0.5f ? 0.0f : 1.0f;
 				material->roughness = 0.0f;
 
@@ -348,8 +359,8 @@ void TestApplication::createResources()
 
 		auto material = std::make_shared<Material>();
 		material->albedoMultiplier[0] = 1.0f;
-		material->albedoMultiplier[1] = 1.0f;
-		material->albedoMultiplier[2] = 1.0f;
+		material->albedoMultiplier[1] = 0.1f;
+		material->albedoMultiplier[2] = 0.1f;
 		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
 		material->roughness = 0.0f;
 

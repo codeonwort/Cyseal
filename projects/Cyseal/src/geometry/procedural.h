@@ -33,4 +33,11 @@ namespace ProceduralGeometry
 	void spikeBall(
 		Geometry& outGeometry,
 		uint32 subdivisions, float phase, float peak);
+
+	// Grow toward +Y on XZ plane
+	void twistedCube(
+		Geometry& outGeometry,
+		float width, float height,
+		uint32 numLayers, float layerHeight, float angleDelta);
+
 };

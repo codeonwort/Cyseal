@@ -32,6 +32,7 @@
 // #todo: See 'Ray Tracing Gems' series.
 #define RAYGEN_T_MIN              0.001
 #define RAYGEN_T_MAX              10000.0
+#define MAX_BOUNCE                3
 
 struct VertexAttributes
 {
@@ -156,27 +157,35 @@ void MyRaygenShader()
 		return;
 	}
 
-	bool bReflective = (primaryPayload.objectID != OBJECT_ID_NONE) && (primaryPayload.roughness < 1.0);
-	RayPayload secondaryPayload = createRayPayload();
+	RayPayload currentPayload = primaryPayload;
+	float3 indirectLighting = float3(0.0, 0.0, 0.0);
+	float reflectiveness = 1.0;
 
-	if (bReflective)
+	float3 currentRayDir;
+	
+	for (uint i = 0; i < MAX_BOUNCE; ++i)
 	{
+		bool bReflective = (currentPayload.objectID != OBJECT_ID_NONE) && (currentPayload.roughness < 1.0);
+		if (!bReflective)
+		{
+			break;
+		}
+
 		RayDesc ray;
-		ray.Origin = (primaryPayload.hitTime * rayDir + rayOrigin);
-		ray.Origin += 0.001 * primaryPayload.surfaceNormal; // Slightly push origin
-		ray.Direction = primaryPayload.surfaceNormal;
+		ray.Origin = (currentPayload.hitTime * rayDir + rayOrigin);
+		ray.Origin += 0.001 * currentPayload.surfaceNormal; // Slightly push origin
+		ray.Direction = currentPayload.surfaceNormal;
 		ray.TMin = RAYGEN_T_MIN;
 		ray.TMax = RAYGEN_T_MAX;
 
+		currentRayDir = ray.Direction;
+
 		uint instanceInclusionMask = ~0; // Do not ignore anything
 		uint rayContributionToHitGroupIndex = 0;
-		// #todo: Need to satisfy one of following conditions.
-		//        I don't understand hit groups enough yet...
-		// 1) numShaderRecords for hitGroupShaderTable is 1 and this is 0
-		// 2) numShaderRecords for hitGroupShaderTable is N and this is 1
-		//    where N = number of geometries
 		uint multiplierForGeometryContributionToHitGroupIndex = 1;
 		uint missShaderIndex = 0;
+		RayPayload nextPayload = createRayPayload();
+
 		TraceRay(
 			rtScene,
 			RAY_FLAG_NONE,
@@ -185,16 +194,27 @@ void MyRaygenShader()
 			multiplierForGeometryContributionToHitGroupIndex,
 			missShaderIndex,
 			ray,
-			secondaryPayload);
+			nextPayload);
+
+		if (nextPayload.objectID == OBJECT_ID_NONE)
+		{
+			currentPayload = nextPayload;
+			break;
+		}
+
+		reflectiveness *= (1.0 - currentPayload.roughness);
+		indirectLighting += nextPayload.albedo * reflectiveness;
+		currentPayload = nextPayload;
 	}
 
-	if (secondaryPayload.objectID != OBJECT_ID_NONE)
+	if (currentPayload.objectID != OBJECT_ID_NONE)
 	{
-		renderTarget[DispatchRaysIndex().xy] = float4(secondaryPayload.albedo, secondaryPayload.objectID);
+		renderTarget[DispatchRaysIndex().xy] = float4(indirectLighting, currentPayload.objectID);
 	}
 	else
 	{
-		renderTarget[DispatchRaysIndex().xy] = float4(0, 0, 0, OBJECT_ID_NONE);
+		float3 sky = skybox.SampleLevel(skyboxSampler, currentRayDir, 0.0).rgb;
+		renderTarget[DispatchRaysIndex().xy] = float4(sky, OBJECT_ID_NONE);
 	}
 }
 
