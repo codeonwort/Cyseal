@@ -23,7 +23,8 @@ public:
 		RenderCommandList& commandList,
 		const void* buffer,
 		uint64 rowPitch,
-		uint64 slicePitch) override;
+		uint64 slicePitch,
+		uint32 subresourceIndex = 0) override;
 
 	virtual void setDebugName(const wchar_t* debugName) override;
 

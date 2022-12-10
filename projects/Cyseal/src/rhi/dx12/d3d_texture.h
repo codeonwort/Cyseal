@@ -17,7 +17,12 @@ public:
 
 	virtual const TextureCreateParams& getCreateParams() const override { return createParams; }
 
-	virtual void uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch) override;
+	virtual void uploadData(
+		RenderCommandList& commandList,
+		const void* buffer,
+		uint64 rowPitch,
+		uint64 slicePitch,
+		uint32 subresourceIndex = 0) override;
 	virtual void setDebugName(const wchar_t* debugName) override;
 
 	virtual RenderTargetView* getRTV() const override;
@@ -65,4 +70,5 @@ private:
 	// We will flush the GPU at the end of this method to ensure the resource is not
 	// prematurely destroyed.
 	WRL::ComPtr<ID3D12Resource> textureUploadHeap;
+	bool bIsPixelShaderResourceState = false; // I don't have resource barrier auto-tracking :/
 };

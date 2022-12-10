@@ -33,10 +33,10 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 
 	CYLOG(LogEngine, Log, TEXT("Start engine initialization."));
 
-	ResourceFinder::get().add(L"../");
-	ResourceFinder::get().add(L"../../");
-	ResourceFinder::get().add(L"../../shaders/");
-	ResourceFinder::get().add(L"../../resource/");
+	ResourceFinder::get().addBaseDirectory(L"../");
+	ResourceFinder::get().addBaseDirectory(L"../../");
+	ResourceFinder::get().addBaseDirectory(L"../../shaders/");
+	ResourceFinder::get().addBaseDirectory(L"../../external/");
 
 	// Core
 	createRenderDevice(createParams.renderDevice);

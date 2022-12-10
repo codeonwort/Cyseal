@@ -9,8 +9,11 @@
 
 ImageLoadData* loadImage_internal(char const* filename)
 {
-	int width, height, numComponents;
-	unsigned char* buffer = ::stbi_load(filename, &width, &height, &numComponents, 0);
+	const int numRequiredComps = 4; // RGB-only data cannot be directly uploaded for RGBA8 formats.
+	int width, height, numActualComponents;
+	unsigned char* buffer = ::stbi_load(filename, &width, &height, &numActualComponents, numRequiredComps);
+
+	uint32 numComponents = std::max(numRequiredComps, numActualComponents);
 
 	if (buffer == nullptr)
 	{

@@ -55,18 +55,34 @@ struct Texture2DSRVDesc
 	float minLODClamp      = 0.0f;
 };
 
+// D3D12_TEXCUBE_SRV
+struct TextureCubeSRVDesc
+{
+	uint32 mostDetailedMip = 0;
+	uint32 mipLevels       = (uint32)(-1);
+	float minLODClamp      = 0.0f;
+};
+
 // D3D12_SHADER_RESOURCE_VIEW_DESC
 struct ShaderResourceViewDesc
 {
 	EPixelFormat format;
 	ESRVDimension viewDimension;
-	// #todo-dx12: UINT Shader4ComponentMapping
+	// #todo-rhi: UINT Shader4ComponentMapping
 	union
 	{
-		BufferSRVDesc buffer;
-		// #todo-renderdevice: Other fields (tex1d, tex2darray, tex3d, texcube, ..)
-		// See D3D12_SHADER_RESOURCE_VIEW_DESC for full list.
-		Texture2DSRVDesc texture2D;
+		// #todo-rhi: Support all SRV descs. (See D3D12_SHADER_RESOURCE_VIEW_DESC)
+		BufferSRVDesc                    buffer;
+		//Texture1DSRVDesc                 texture1D;
+		//Texture1DArraySRVDesc            texture1DArray;
+		Texture2DSRVDesc                 texture2D;
+		//Texture2DArraySRVDesc            texture2DArray;
+		//Texture2DMultisampleSRVDesc      texture2DMS;
+		//Texture2DMultisampleArraySRVDesc texture2DMSArray;
+		//Texture3DSRVDesc                 texture3D;
+		TextureCubeSRVDesc               textureCube;
+		//TextureCubeArraySRVDesc          textureCubeArray;
+		//RaytracingAccelStructSRVDesc     raytracingAccelStruct;
 	};
 };
 

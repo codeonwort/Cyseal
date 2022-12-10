@@ -14,6 +14,7 @@
 #include "util/profiling.h"
 
 #include <algorithm>
+#include <array>
 
 /* -------------------------------------------------------
 					CONFIGURATION
@@ -410,12 +411,65 @@ void TestApplication::createResources()
 		scene.addStaticMesh(wallA);
 	}
 
+	std::wstring skyboxFilepaths[] = {
+		L"skybox_Footballfield/posx.jpg", L"skybox_Footballfield/negx.jpg",
+		L"skybox_Footballfield/posy.jpg", L"skybox_Footballfield/negy.jpg",
+		L"skybox_Footballfield/posz.jpg", L"skybox_Footballfield/negz.jpg",
+	};
+	std::array<ImageLoadData*, 6> skyboxBlobs = { nullptr, };
+	bool bValidSkyboxBlobs = true;
+	for (uint32 i = 0; i < 6; ++i)
+	{
+		skyboxBlobs[i] = imageLoader.load(skyboxFilepaths[i]);
+		bValidSkyboxBlobs = bValidSkyboxBlobs
+			&& (skyboxBlobs[i] != nullptr)
+			&& (skyboxBlobs[i]->width == skyboxBlobs[0]->width)
+			&& (skyboxBlobs[i]->height == skyboxBlobs[0]->height);
+	}
+	if (bValidSkyboxBlobs)
+	{
+		skyboxTexture = std::make_shared<TextureAsset>();
+		ENQUEUE_RENDER_COMMAND(CreateSkybox)(
+			[skyboxTexture = this->skyboxTexture, skyboxBlobs](RenderCommandList& commandList)
+			{
+				TextureCreateParams params = TextureCreateParams::textureCube(
+					EPixelFormat::R8G8B8A8_UNORM,
+					ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
+					skyboxBlobs[0]->width, skyboxBlobs[0]->height, 1);
+
+				Texture* texture = gRenderDevice->createTexture(params);
+				for (uint32 i = 0; i < 6; ++i)
+				{
+					texture->uploadData(commandList,
+						skyboxBlobs[i]->buffer,
+						skyboxBlobs[i]->getRowPitch(),
+						skyboxBlobs[i]->getSlicePitch(),
+						i);
+				}
+				texture->setDebugName(TEXT("Texture_skybox"));
+
+				skyboxTexture->setGPUResource(std::shared_ptr<Texture>(texture));
+
+				for (ImageLoadData* imageBlob : skyboxBlobs)
+				{
+					commandList.enqueueDeferredDealloc(imageBlob);
+				}
+			}
+		);
+	}
+	else
+	{
+		// #todo-wip: Fallback black cube texture from gTextureManager
+	}
+
 	scene.sun.direction = SUN_DIRECTION;
 	scene.sun.illuminance = SUN_ILLUMINANCE;
 }
 
 void TestApplication::destroyResources()
 {
+	skyboxTexture.reset();
+
 	for (uint32 i = 0; i < balls.size(); ++i)
 	{
 		delete balls[i];
