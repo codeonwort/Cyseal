@@ -26,8 +26,6 @@ private:
 	Scene scene;
 	Camera camera;
 
-	std::shared_ptr<TextureAsset> skyboxTexture;
-
 	std::vector<StaticMesh*> balls;
 	std::vector<vec3> ballOriginalPos;
 	StaticMesh* ground = nullptr;

@@ -11,6 +11,7 @@
 #include "rhi/gpu_resource_view.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/shader.h"
+#include "rhi/texture_manager.h"
 
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples
@@ -30,6 +31,7 @@ namespace RTRRootParameters
 		GlobalIndexBufferSlot,
 		GlobalVertexBufferSlot,
 		GPUSceneSlot,
+		SkyboxSlot,
 		MaterialConstantsSlot,
 		MaterialTexturesSlot,
 		Count
@@ -77,15 +79,17 @@ void RayTracedReflections::initialize()
 
 	// Global root signature
 	{
-		DescriptorRange descRanges[4];
+		DescriptorRange descRanges[5];
 		// indirectSpecular = register(u0, space0)
 		// gbuffer          = register(u1, space0)
 		descRanges[0].init(EDescriptorRangeType::UAV, 2, 0, 0);
 		// sceneUniform     = register(b0, space0)
 		descRanges[1].init(EDescriptorRangeType::CBV, 1, 0, 0);
+		// skybox
+		descRanges[2].init(EDescriptorRangeType::SRV, 1, 4, 0); // register(t4, space0)
 		// material CBVs & SRVs (bindless)
-		descRanges[2].init(EDescriptorRangeType::CBV, (uint32)(-1), 0, 3); // register(b0, space3)
-		descRanges[3].init(EDescriptorRangeType::SRV, (uint32)(-1), 0, 3); // register(t0, space3)
+		descRanges[3].init(EDescriptorRangeType::CBV, (uint32)(-1), 0, 3); // register(b0, space3)
+		descRanges[4].init(EDescriptorRangeType::SRV, (uint32)(-1), 0, 3); // register(t0, space3)
 
 		// https://learn.microsoft.com/en-us/windows/win32/direct3d12/root-signature-limits
 		// Let's be careful of root signature limit as my parameters are growing a little bit...
@@ -96,27 +100,40 @@ void RayTracedReflections::initialize()
 
 		RootParameter rootParameters[RTRRootParameters::Count];
 		rootParameters[RTRRootParameters::OutputViewSlot].initAsDescriptorTable(1, &descRanges[0]);
-		rootParameters[RTRRootParameters::AccelerationStructureSlot].initAsSRV(0, 0); // register(t0, space0)
+		rootParameters[RTRRootParameters::AccelerationStructureSlot].initAsSRV(0, 0);                 // register(t0, space0)
 		rootParameters[RTRRootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descRanges[1]); // register(b0, space0)
-		rootParameters[RTRRootParameters::GlobalIndexBufferSlot].initAsSRV(1, 0); // register(t1, space0)
-		rootParameters[RTRRootParameters::GlobalVertexBufferSlot].initAsSRV(2, 0); // register(t2, space0)
-		rootParameters[RTRRootParameters::GPUSceneSlot].initAsSRV(3, 0); // register(t3, space0)
+		rootParameters[RTRRootParameters::GlobalIndexBufferSlot].initAsSRV(1, 0);                     // register(t1, space0)
+		rootParameters[RTRRootParameters::GlobalVertexBufferSlot].initAsSRV(2, 0);                    // register(t2, space0)
+		rootParameters[RTRRootParameters::GPUSceneSlot].initAsSRV(3, 0);                              // register(t3, space0)
+		rootParameters[RTRRootParameters::SkyboxSlot].initAsDescriptorTable(1, &descRanges[2]);       // register(t4, space0)
 
-		rootParameters[RTRRootParameters::MaterialConstantsSlot].initAsDescriptorTable(1, &descRanges[2]);
-		rootParameters[RTRRootParameters::MaterialTexturesSlot].initAsDescriptorTable(1, &descRanges[3]);
+		rootParameters[RTRRootParameters::MaterialConstantsSlot].initAsDescriptorTable(1, &descRanges[3]);
+		rootParameters[RTRRootParameters::MaterialTexturesSlot].initAsDescriptorTable(1, &descRanges[4]);
 
-		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
-		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
-		memset(staticSamplers + 0, 0, sizeof(staticSamplers[0]));
-		staticSamplers[0].filter = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT;
-		staticSamplers[0].addressU = ETextureAddressMode::Wrap;
-		staticSamplers[0].addressV = ETextureAddressMode::Wrap;
-		staticSamplers[0].addressW = ETextureAddressMode::Wrap;
-		staticSamplers[0].shaderVisibility = EShaderVisibility::All;
+		StaticSamplerDesc staticSamplers[] = {
+			// Material albedo sampler
+			{
+				.filter = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+				.addressU = ETextureAddressMode::Wrap,
+				.addressV = ETextureAddressMode::Wrap,
+				.addressW = ETextureAddressMode::Wrap,
+				.shaderRegister = 0,
+				.shaderVisibility = EShaderVisibility::All,
+			},
+			// Skybox sampler
+			{
+				.filter = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+				.addressU = ETextureAddressMode::Wrap,
+				.addressV = ETextureAddressMode::Wrap,
+				.addressW = ETextureAddressMode::Wrap,
+				.shaderRegister = 1,
+				.shaderVisibility = EShaderVisibility::All,
+			},
+		};
 
 		RootSignatureDesc sigDesc(
 			_countof(rootParameters), rootParameters,
-			NUM_STATIC_SAMPLERS, staticSamplers);
+			_countof(staticSamplers), staticSamplers);
 		globalRootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
 	}
 
@@ -223,7 +240,7 @@ void RayTracedReflections::renderRayTracedReflections(
 		gpuScene->queryMaterialDescriptorsCount(materialCBVCount, materialSRVCount);
 
 		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 3; // render target, gbufferA, scene uniform
+		requiredVolatiles += 4; // render target, gbufferA, scene uniform, skybox
 		requiredVolatiles += materialCBVCount;
 		requiredVolatiles += materialSRVCount;
 
@@ -242,6 +259,37 @@ void RayTracedReflections::renderRayTracedReflections(
 		}
 	}
 
+	// Create skybox SRV.
+	if (skyboxFallbackSRV == nullptr)
+	{
+		auto blackCube = gTextureManager->getSystemTextureBlackCube()->getGPUResource().get();
+		skyboxFallbackSRV = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(blackCube,
+			ShaderResourceViewDesc{
+				.format              = EPixelFormat::R8G8B8A8_UNORM,
+				.viewDimension       = ESRVDimension::TextureCube,
+				.textureCube         = TextureCubeSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = 1,
+					.minLODClamp     = 0.0f
+				}
+			}
+		));
+	}
+	if (skyboxSRV == nullptr && scene->skyboxTexture != nullptr)
+	{
+		skyboxSRV = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(scene->skyboxTexture.get(),
+			ShaderResourceViewDesc{
+				.format              = EPixelFormat::R8G8B8A8_UNORM,
+				.viewDimension       = ESRVDimension::TextureCube,
+				.textureCube         = TextureCubeSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = 1,
+					.minLODClamp     = 0.0f
+				}
+			}
+		));
+	}
+
 	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 	DescriptorHeap* descriptorHeaps[] = { volatileViewHeaps[swapchainIndex].get() };
 
@@ -253,10 +301,15 @@ void RayTracedReflections::renderRayTracedReflections(
 	const uint32 VOLATILE_DESC_IX_GBUFFER = 1;
 	//const uint32 VOLATILE_DESC_IX_ACCELSTRUCT = 2; // Directly bound; no table.
 	const uint32 VOLATILE_DESC_IX_SCENEUNIFORM = 2;
+	const uint32 VOLATILE_DESC_IX_SKYBOX = 3;
+	// ... Add more fixed slots if needed
+	const uint32 VOLATILE_DESC_IX_MATERIAL_BEGIN = VOLATILE_DESC_IX_SKYBOX + 1;
 
 	uint32 VOLATILE_DESC_IX_MATERIAL_CBV, unusedMaterialCBVCount;
 	uint32 VOLATILE_DESC_IX_MATERIAL_SRV, unusedMaterialSRVCount;
 	uint32 VOLATILE_DESC_IX_NEXT_FREE;
+
+	auto skyboxSRVWithFallback = (skyboxSRV != nullptr) ? skyboxSRV.get() : skyboxFallbackSRV.get();
 
 	gRenderDevice->copyDescriptors(1,
 		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
@@ -267,8 +320,11 @@ void RayTracedReflections::renderRayTracedReflections(
 	gRenderDevice->copyDescriptors(1,
 		volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM,
 		sceneUniformBuffer->getSourceHeap(), sceneUniformBuffer->getDescriptorIndexInHeap());
+	gRenderDevice->copyDescriptors(1,
+		volatileHeap, VOLATILE_DESC_IX_SKYBOX,
+		skyboxSRVWithFallback->getSourceHeap(), skyboxSRVWithFallback->getDescriptorIndexInHeap());
 	gpuScene->copyMaterialDescriptors(
-		volatileHeap, 3,
+		volatileHeap, VOLATILE_DESC_IX_MATERIAL_BEGIN,
 		VOLATILE_DESC_IX_MATERIAL_CBV, unusedMaterialCBVCount,
 		VOLATILE_DESC_IX_MATERIAL_SRV, unusedMaterialSRVCount,
 		VOLATILE_DESC_IX_NEXT_FREE);
@@ -291,6 +347,8 @@ void RayTracedReflections::renderRayTracedReflections(
 		gVertexBufferPool->getByteAddressBufferView());
 	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GPUSceneSlot,
 		gpuScene->getGPUSceneBufferSRV());
+	commandList->setComputeRootDescriptorTable(RTRRootParameters::SkyboxSlot,
+		volatileHeap, VOLATILE_DESC_IX_SKYBOX);
 	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialConstantsSlot,
 		volatileHeap, VOLATILE_DESC_IX_MATERIAL_CBV);
 	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialTexturesSlot,

@@ -101,6 +101,7 @@ void TestApplication::onTick(float deltaSeconds)
 
 		// #todo-app: Control camera by user input
 		// Animate camera to see if raytracing is actually working in world space.
+#if 1
 		{
 			static float elapsed = 0.0f;
 			elapsed += 0.5f * deltaSeconds;
@@ -109,6 +110,15 @@ void TestApplication::onTick(float deltaSeconds)
 			//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
 			ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
 		}
+#else
+		// #todo-wip: My camera ray generation in RTR shader is seriously wrong
+		{
+			static float elapsed = 0.0f;
+			elapsed += deltaSeconds;
+			vec3 offset(cosf(elapsed) * 10.0f, 0.0f, sinf(elapsed) * 10.0f);
+			camera.lookAt(CAMERA_POSITION, CAMERA_POSITION + offset, CAMERA_UP);
+		}
+#endif
 
 		// Animate balls to see if update of BLAS instance transforms is going well.
 		static float ballTime = 0.0f;
@@ -428,9 +438,9 @@ void TestApplication::createResources()
 	}
 	if (bValidSkyboxBlobs)
 	{
-		skyboxTexture = std::make_shared<TextureAsset>();
+		std::shared_ptr<TextureAsset> skyboxTexture = std::make_shared<TextureAsset>();
 		ENQUEUE_RENDER_COMMAND(CreateSkybox)(
-			[skyboxTexture = this->skyboxTexture, skyboxBlobs](RenderCommandList& commandList)
+			[skyboxTexture, skyboxBlobs](RenderCommandList& commandList)
 			{
 				TextureCreateParams params = TextureCreateParams::textureCube(
 					EPixelFormat::R8G8B8A8_UNORM,
@@ -456,10 +466,7 @@ void TestApplication::createResources()
 				}
 			}
 		);
-	}
-	else
-	{
-		// #todo-wip: Fallback black cube texture from gTextureManager
+		scene.skyboxTexture = skyboxTexture;
 	}
 
 	scene.sun.direction = SUN_DIRECTION;
@@ -468,8 +475,6 @@ void TestApplication::createResources()
 
 void TestApplication::destroyResources()
 {
-	skyboxTexture.reset();
-
 	for (uint32 i = 0; i < balls.size(); ++i)
 	{
 		delete balls[i];
@@ -478,4 +483,6 @@ void TestApplication::destroyResources()
 
 	delete ground;
 	delete wallA;
+
+	scene.skyboxTexture.reset();
 }

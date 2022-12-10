@@ -54,6 +54,7 @@ RaytracingAccelerationStructure rtScene        : register(t0, space0);
 ByteAddressBuffer               gIndexBuffer   : register(t1, space0);
 ByteAddressBuffer               gVertexBuffer  : register(t2, space0);
 StructuredBuffer<MeshData>      gpuSceneBuffer : register(t3, space0);
+TextureCube                     skybox         : register(t4, space0);
 RWTexture2D<float4>             renderTarget   : register(u0, space0);
 RWTexture2D<float4>             gbufferA       : register(u1, space0);
 ConstantBuffer<SceneUniform>    sceneUniform   : register(b0, space0);
@@ -68,7 +69,9 @@ ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
 #define TEMP_MAX_SRVS 1024
 ConstantBuffer<Material> materials[]        : register(b0, space3); // bindless in another space
 Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless in another space
-SamplerState albedoSampler                  : register(s0);
+
+SamplerState albedoSampler                  : register(s0, space0);
+SamplerState skyboxSampler                  : register(s1, space0);
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload
@@ -143,6 +146,14 @@ void MyRaygenShader()
 			missShaderIndex,
 			ray,
 			primaryPayload);
+	}
+
+	// Hit the sky. Let's sample skybox.
+	if (primaryPayload.objectID == OBJECT_ID_NONE)
+	{
+		float3 sky = skybox.SampleLevel(skyboxSampler, rayDir, 0.0).rgb;
+		renderTarget[DispatchRaysIndex().xy] = float4(sky, OBJECT_ID_NONE);
+		return;
 	}
 
 	bool bReflective = (primaryPayload.objectID != OBJECT_ID_NONE) && (primaryPayload.roughness < 1.0);

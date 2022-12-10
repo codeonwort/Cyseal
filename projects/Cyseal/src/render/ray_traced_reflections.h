@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "rhi/gpu_resource_view.h"
 #include <memory>
 #include <vector>
 
@@ -58,4 +59,7 @@ private:
 
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
 	uint32 totalVolatileDescriptors = 0;
+
+	std::unique_ptr<ShaderResourceView> skyboxSRV;
+	std::unique_ptr<ShaderResourceView> skyboxFallbackSRV;
 };

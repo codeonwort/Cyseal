@@ -208,19 +208,19 @@ enum EStaticBorderColor : uint8
 // D3D12_STATIC_SAMPLER_DESC
 struct StaticSamplerDesc
 {
-	ETextureFilter filter;
-	ETextureAddressMode addressU;
-	ETextureAddressMode addressV;
-	ETextureAddressMode addressW;
-	float mipLODBias;
-	uint32 maxAnisotropy;
-	EComparisonFunc comparisonFunc;
-	EStaticBorderColor borderColor;
-	float minLOD;
-	float maxLOD;
-	uint32 shaderRegister;
-	uint32 registerSpace;
-	EShaderVisibility shaderVisibility;
+	ETextureFilter filter              = ETextureFilter::MIN_MAG_MIP_POINT;
+	ETextureAddressMode addressU       = ETextureAddressMode::Wrap;
+	ETextureAddressMode addressV       = ETextureAddressMode::Wrap;
+	ETextureAddressMode addressW       = ETextureAddressMode::Wrap;
+	float mipLODBias                   = 0.0f;
+	uint32 maxAnisotropy               = 1;
+	EComparisonFunc comparisonFunc     = EComparisonFunc::Always;
+	EStaticBorderColor borderColor     = EStaticBorderColor::TransparentBlack;
+	float minLOD                       = 0.0f;
+	float maxLOD                       = 0.0f;
+	uint32 shaderRegister              = 0;
+	uint32 registerSpace               = 0;
+	EShaderVisibility shaderVisibility = EShaderVisibility::All;
 };
 
 // D3D12_ROOT_SIGNATURE_FLAGS

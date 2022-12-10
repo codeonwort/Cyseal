@@ -9,6 +9,7 @@ SceneProxy* Scene::createProxy()
 	// but it's really time-consuming and not a high priority in this project.
 	// For now just pretend these original data as proxies.
 	proxy->sun = sun;
+	proxy->skyboxTexture = skyboxTexture ? skyboxTexture->getGPUResource() : nullptr;
 	proxy->staticMeshes = staticMeshes;
 	proxy->bRebuildRaytracingScene = bRebuildRaytracingScene;
 
