@@ -11,7 +11,7 @@ public:
 	static ResourceFinder& get();
 
 	// Register a directory
-	void add(const std::wstring& directory);
+	void addBaseDirectory(const std::wstring& directory);
 
 	// Returns empty string if not found
 	std::wstring find(const std::wstring& wsubpath);

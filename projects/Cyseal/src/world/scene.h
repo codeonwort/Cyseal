@@ -1,7 +1,9 @@
 #pragma once
 
 #include "light.h"
+#include "gpu_resource_asset.h"
 #include <vector>
+#include <memory>
 
 class StaticMesh;
 class SceneProxy;
@@ -18,6 +20,7 @@ public:
 
 public:
 	DirectionalLight sun;
+	std::shared_ptr<TextureAsset> skyboxTexture;
 private:
 	std::vector<StaticMesh*> staticMeshes;
 	bool bRebuildRaytracingScene = false;
@@ -34,6 +37,7 @@ public:
 	void tempCleanupOriginalScene();
 
 	DirectionalLight sun;
+	std::shared_ptr<Texture> skyboxTexture;
 	std::vector<StaticMesh*> staticMeshes;
 
 	bool bRebuildRaytracingScene = false;

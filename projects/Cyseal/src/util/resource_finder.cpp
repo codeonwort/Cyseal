@@ -23,7 +23,7 @@ ResourceFinder::ResourceFinder()
 	directories.push_back(L"./");
 }
 
-void ResourceFinder::add(const std::wstring& directory)
+void ResourceFinder::addBaseDirectory(const std::wstring& directory)
 {
 	auto last = directory.at(directory.size() - 1);
 	assert(last == L'/' || last == L'\\');

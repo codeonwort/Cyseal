@@ -158,7 +158,8 @@ void VulkanTexture::uploadData(
 	RenderCommandList& commandList,
 	const void* buffer,
 	uint64 rowPitch,
-	uint64 slicePitch)
+	uint64 slicePitch,
+	uint32 subresourceIndex)
 {
 	// #todo-vulkan
 }

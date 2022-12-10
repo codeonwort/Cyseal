@@ -18,12 +18,13 @@ public:
 	void initialize();
 	void destroy();
 
-	std::shared_ptr<TextureAsset> getSystemTextureGrey2D()  const { return systemTexture_grey2D;  }
-	std::shared_ptr<TextureAsset> getSystemTextureWhite2D() const { return systemTexture_white2D; }
-	std::shared_ptr<TextureAsset> getSystemTextureBlack2D() const { return systemTexture_black2D; }
-	std::shared_ptr<TextureAsset> getSystemTextureRed2D()   const { return systemTexture_red2D;   }
-	std::shared_ptr<TextureAsset> getSystemTextureGreen2D() const { return systemTexture_green2D; }
-	std::shared_ptr<TextureAsset> getSystemTextureBlue2D()  const { return systemTexture_blue2D;  }
+	std::shared_ptr<TextureAsset> getSystemTextureGrey2D()    const { return systemTexture_grey2D;    }
+	std::shared_ptr<TextureAsset> getSystemTextureWhite2D()   const { return systemTexture_white2D;   }
+	std::shared_ptr<TextureAsset> getSystemTextureBlack2D()   const { return systemTexture_black2D;   }
+	std::shared_ptr<TextureAsset> getSystemTextureRed2D()     const { return systemTexture_red2D;     }
+	std::shared_ptr<TextureAsset> getSystemTextureGreen2D()   const { return systemTexture_green2D;   }
+	std::shared_ptr<TextureAsset> getSystemTextureBlue2D()    const { return systemTexture_blue2D;    }
+	std::shared_ptr<TextureAsset> getSystemTextureBlackCube() const { return systemTexture_blackCube; }
 
 private:
 	void createSystemTextures();
@@ -34,6 +35,7 @@ private:
 	std::shared_ptr<TextureAsset> systemTexture_red2D;
 	std::shared_ptr<TextureAsset> systemTexture_green2D;
 	std::shared_ptr<TextureAsset> systemTexture_blue2D;
+	std::shared_ptr<TextureAsset> systemTexture_blackCube;
 };
 
 extern TextureManager* gTextureManager;

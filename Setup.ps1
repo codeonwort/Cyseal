@@ -31,11 +31,29 @@ $zip_list  = @(
 		'contents/breakfast_room'
 	)
 	#>
-	,@(
+	@(
 		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.7.2207/dxc_2022_07_18.zip',
 		'external',
 		'dxc_2022_07_18.zip',
 		'external/dxc'
+	),
+	@(
+		'http://www.humus.name/Textures/Footballfield.zip',
+		'external',
+		'skybox_Footballfield.zip',
+		'external/skybox_Footballfield'
+	),
+	@(
+		'http://www.humus.name/Textures/Meadow.zip',
+		'external',
+		'skybox_Meadow.zip',
+		'external/skybox_Meadow'
+	),
+	@(
+		'http://www.humus.name/Textures/IceRiver.zip',
+		'external',
+		'skybox_IceRiver.zip',
+		'external/skybox_IceRiver'
 	)
 )
 

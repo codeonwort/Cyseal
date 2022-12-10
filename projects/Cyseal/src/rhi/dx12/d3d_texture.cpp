@@ -69,7 +69,9 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 
 	if (0 != (params.accessFlags & ETextureAccessFlags::CPU_WRITE))
 	{
-		const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, 1);
+		// #todo-rhi: Properly count subresources?
+		const uint32 numSubresources = textureDesc.DepthOrArraySize;
+		const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, numSubresources);
 
 		auto uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 		auto uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
@@ -81,6 +83,8 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 			nullptr,
 			IID_PPV_ARGS(&textureUploadHeap)));
 	}
+
+	// #todo-wip: Don't create texture views from within a texture.
 	
 	if (0 != (params.accessFlags & ETextureAccessFlags::SRV))
 	{
@@ -100,7 +104,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		srvDescriptorIndex = srv->getDescriptorIndexInHeap();
 	}
 
-	if (0 != (params.accessFlags & ETextureAccessFlags::RTV))
+	if (0 != (params.accessFlags & ETextureAccessFlags::RTV) && params.numLayers == 1)
 	{
 		// #todo-texture: RTV ViewDimension
 		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
@@ -153,26 +157,47 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	}
 }
 
-void D3DTexture::uploadData(RenderCommandList& commandList, const void* buffer, uint64 rowPitch, uint64 slicePitch)
+void D3DTexture::uploadData(
+	RenderCommandList& commandList,
+	const void* buffer,
+	uint64 rowPitch,
+	uint64 slicePitch,
+	uint32 subresourceIndex)
 {
 	CHECK(0 != (createParams.accessFlags & ETextureAccessFlags::CPU_WRITE));
 
-	ID3D12GraphicsCommandList* rawCommandList = static_cast<D3DRenderCommandList*>(&commandList)->getRaw();
+	D3D12_SUBRESOURCE_DATA textureData{
+		.pData      = buffer,
+		.RowPitch   = (LONG_PTR)rowPitch,
+		.SlicePitch = (LONG_PTR)slicePitch,
+	};
 
-	D3D12_SUBRESOURCE_DATA textureData;
-	textureData.pData = buffer;
-	textureData.RowPitch = rowPitch;
-	textureData.SlicePitch = slicePitch;
+	if (bIsPixelShaderResourceState)
+	{
+		ResourceBarrier barrierAfter{
+			EResourceBarrierType::Transition,
+			this,
+			EGPUResourceState::PIXEL_SHADER_RESOURCE,
+			EGPUResourceState::COPY_DEST,
+		};
+		commandList.resourceBarriers(1, &barrierAfter);
+	}
 
-	UpdateSubresources(rawCommandList, rawResource.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
+	UINT64 ret = ::UpdateSubresources(
+		static_cast<D3DRenderCommandList*>(&commandList)->getRaw(),
+		rawResource.Get(),
+		textureUploadHeap.Get(), slicePitch * subresourceIndex,
+		subresourceIndex, 1, &textureData);
+	CHECK(ret != 0);
 
-	ResourceBarrier barrier{
+	ResourceBarrier barrierAfter{
 		EResourceBarrierType::Transition,
 		this,
 		EGPUResourceState::COPY_DEST,
 		EGPUResourceState::PIXEL_SHADER_RESOURCE
 	};
-	commandList.resourceBarriers(1, &barrier);
+	commandList.resourceBarriers(1, &barrierAfter);
+	bIsPixelShaderResourceState = true;
 }
 
 void D3DTexture::setDebugName(const wchar_t* debugName)

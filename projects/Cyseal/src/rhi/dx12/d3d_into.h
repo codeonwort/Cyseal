@@ -442,11 +442,28 @@ namespace into_d3d
 		D3D12_RESOURCE_DESC desc;
 		ZeroMemory(&desc, sizeof(desc));
 
+		if (params.dimension == ETextureDimension::TEXTURE1D
+			|| params.dimension == ETextureDimension::TEXTURE2D)
+		{
+			CHECK(params.depth == 1);
+		}
+		else if (params.dimension == ETextureDimension::TEXTURE3D)
+		{
+			CHECK(params.numLayers == 1);
+		}
+
 		desc.Dimension = textureDimension(params.dimension);
 		desc.Alignment = 0; // #todo-dx12: Always default alignment
 		desc.Width = params.width;
 		desc.Height = params.height;
-		desc.DepthOrArraySize = params.depth;
+		if (params.dimension == ETextureDimension::TEXTURE3D)
+		{
+			desc.DepthOrArraySize = params.depth;
+		}
+		else
+		{
+			desc.DepthOrArraySize = params.numLayers;
+		}
 		desc.MipLevels = params.mipLevels;
 		desc.Format = into_d3d::pixelFormat(params.format);
 		desc.SampleDesc.Count = params.sampleCount;
@@ -564,6 +581,15 @@ namespace into_d3d
 		return desc;
 	}
 
+	inline D3D12_TEXCUBE_SRV textureCubeSRVDesc(const TextureCubeSRVDesc& inDesc)
+	{
+		return D3D12_TEXCUBE_SRV{
+			.MostDetailedMip     = inDesc.mostDetailedMip,
+			.MipLevels           = inDesc.mipLevels,
+			.ResourceMinLODClamp = inDesc.minLODClamp,
+		};
+	}
+
 	inline D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc(const ShaderResourceViewDesc& inDesc)
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
@@ -582,7 +608,7 @@ namespace into_d3d
 			case ESRVDimension::Texture2DMultiSampled:             CHECK_NO_ENTRY(); break;
 			case ESRVDimension::Texture2DMultiSampledArray:        CHECK_NO_ENTRY(); break;
 			case ESRVDimension::Texture3D:                         CHECK_NO_ENTRY(); break;
-			case ESRVDimension::TextureCube:                       CHECK_NO_ENTRY(); break;
+			case ESRVDimension::TextureCube:                       desc.TextureCube = into_d3d::textureCubeSRVDesc(inDesc.textureCube); break;
 			case ESRVDimension::TextureCubeArray:                  CHECK_NO_ENTRY(); break;
 			case ESRVDimension::RaytracingAccelerationStructure:   CHECK_NO_ENTRY(); break;
 			default:                                               CHECK_NO_ENTRY(); break;

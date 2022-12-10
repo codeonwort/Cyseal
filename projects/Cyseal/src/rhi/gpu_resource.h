@@ -121,6 +121,29 @@ struct TextureCreateParams
             inSampleQuality
         };
     }
+	
+	static TextureCreateParams textureCube(
+		EPixelFormat inFormat,
+		ETextureAccessFlags inAccessFlags,
+		uint32 inWidth,
+		uint32 inHeight,
+		uint16 inMipLevels = 1,
+		uint32 inSampleCount = 1,
+		uint32 inSampleQuality = 0)
+	{
+		return TextureCreateParams{
+			ETextureDimension::TEXTURE2D,
+			inFormat,
+			inAccessFlags,
+			inWidth,
+			inHeight,
+			1,
+			inMipLevels,
+			inSampleCount,
+			inSampleQuality,
+			6
+		};
+	}
 };
 
 enum class EDepthClearFlags : uint8
@@ -289,7 +312,8 @@ public:
 		RenderCommandList& commandList,
 		const void* buffer,
 		uint64 rowPitch,
-		uint64 slicePitch) = 0;
+		uint64 slicePitch,
+		uint32 subresourceIndex = 0) = 0;
 	
 	virtual void setDebugName(const wchar_t* debugName) = 0;
 
