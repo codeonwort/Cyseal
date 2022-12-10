@@ -101,7 +101,6 @@ void TestApplication::onTick(float deltaSeconds)
 
 		// #todo-app: Control camera by user input
 		// Animate camera to see if raytracing is actually working in world space.
-#if 1
 		{
 			static float elapsed = 0.0f;
 			elapsed += 0.5f * deltaSeconds;
@@ -110,15 +109,6 @@ void TestApplication::onTick(float deltaSeconds)
 			//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
 			ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
 		}
-#else
-		// #todo-wip: My camera ray generation in RTR shader is seriously wrong
-		{
-			static float elapsed = 0.0f;
-			elapsed += deltaSeconds;
-			vec3 offset(cosf(elapsed) * 10.0f, 0.0f, sinf(elapsed) * 10.0f);
-			camera.lookAt(CAMERA_POSITION, CAMERA_POSITION + offset, CAMERA_UP);
-		}
-#endif
 
 		// Animate balls to see if update of BLAS instance transforms is going well.
 		static float ballTime = 0.0f;

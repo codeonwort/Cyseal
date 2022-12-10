@@ -53,12 +53,6 @@ void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
 		X.z,             Y.z,            -Z.z,             0.0f,
 		-dot(X, origin), -dot(Y, origin), dot(Z, origin),  1.0f
 	};
-	float V_inv[16] = {
-		X.x,             X.y,             X.z,             0.0f,
-		Y.x,             Y.y,             Y.z,             0.0f,
-		-Z.x,           -Z.y,            -Z.z,             0.0f,
-		dot(X, origin),  dot(Y, origin), -dot(Z, origin),  1.0f
-	};
 #else
 	vec3 Z = normalize(target - origin); // forward
 	vec3 X = normalize(cross(up, Z));    // right
@@ -77,7 +71,7 @@ void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
 	};
 #endif
 	view.copyFrom(V);
-	viewInv.copyFrom(V_inv);
+	viewInv = view.inverse();
 
 	bDirty = true;
 }
