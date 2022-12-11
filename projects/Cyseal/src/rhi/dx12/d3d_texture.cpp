@@ -183,10 +183,14 @@ void D3DTexture::uploadData(
 		commandList.resourceBarriers(1, &barrierAfter);
 	}
 
+	// [ RESOURCE_MANIPULATION ERROR #864: COPYTEXTUREREGION_INVALIDSRCOFFSET ]
+	// Offset must be a multiple of 512.
+	uint64 slicePitchAligned = (slicePitch + 511) & ~511;
+
 	UINT64 ret = ::UpdateSubresources(
 		static_cast<D3DRenderCommandList*>(&commandList)->getRaw(),
 		rawResource.Get(),
-		textureUploadHeap.Get(), slicePitch * subresourceIndex,
+		textureUploadHeap.Get(), slicePitchAligned * subresourceIndex,
 		subresourceIndex, 1, &textureData);
 	CHECK(ret != 0);
 
