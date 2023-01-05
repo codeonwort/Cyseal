@@ -243,6 +243,9 @@
     <ClInclude Include="src\world\gpu_resource_asset.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\memory\free_number_list.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">

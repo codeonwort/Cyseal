@@ -97,6 +97,7 @@
     <ClInclude Include="src\geometry\procedural.h" />
     <ClInclude Include="src\geometry\transform.h" />
     <ClInclude Include="src\loader\image_loader.h" />
+    <ClInclude Include="src\memory\free_number_list.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
     <ClInclude Include="src\render\base_pass.h" />
     <ClInclude Include="src\rhi\global_descriptor_heaps.h" />
