@@ -18,7 +18,6 @@ public:
 
 private:
 	void* memblock;
-	void* current;
 	uint32 totalBytes;
 	uint32 usedBytes;
 
