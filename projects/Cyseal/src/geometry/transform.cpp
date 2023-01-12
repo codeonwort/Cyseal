@@ -34,10 +34,13 @@ void Transform::updateMatrix() const
 {
 	if (bDirty)
 	{
-		m = rotation.toMatrix();
-		m.m[0][0] *= scale.x;
-		m.m[1][1] *= scale.y;
-		m.m[2][2] *= scale.z;
+		m.identity();
+		m.m[0][0] = scale.x;
+		m.m[1][1] = scale.y;
+		m.m[2][2] = scale.z;
+
+		m = rotation.toMatrix() * m;
+
 		m.m[3][0] = position.x;
 		m.m[3][1] = position.y;
 		m.m[3][2] = position.z;

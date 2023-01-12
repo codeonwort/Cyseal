@@ -46,14 +46,6 @@
 #define CAMERA_Z_NEAR        1.0f
 #define CAMERA_Z_FAR         10000.0f
 
-#define MESH_ROWS            3
-#define MESH_COLS            6
-#define MESH_GROUP_CENTER    vec3(0.0f, 10.0f, 0.0f)
-#define MESH_SPACE_X         10.0f
-#define MESH_SPACE_Y         8.0f
-#define MESH_SPACE_Z         4.0f
-#define MESH_SCALE           3.0f
-
 #define CRUMPLED_WORLD       0
 
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
@@ -111,18 +103,7 @@ void TestApplication::onTick(float deltaSeconds)
 		}
 
 		// Animate balls to see if update of BLAS instance transforms is going well.
-		static float ballTime = 0.0f;
-		ballTime += deltaSeconds;
-		for (size_t i = 0; i < balls.size(); ++i)
-		{
-			vec3 p = ballOriginalPos[i];
-			if (i % 3 == 0) p.x += 2.0f * Cymath::cos(ballTime);
-			else if (i % 3 == 1) p.y += 2.0f * Cymath::cos(ballTime);
-			else if (i % 3 == 2) p.z += 2.0f * Cymath::cos(ballTime);
-			balls[i]->setPosition(p);
-
-			balls[i]->setScale(MESH_SCALE * (1.0f + 0.3f * Cymath::sin(i + ballTime)));
-		}
+		meshSplatting.tick(deltaSeconds);
 	}
 
 	// #todo: Move rendering loop to engine
@@ -162,28 +143,6 @@ void TestApplication::onWindowResize(uint32 newWidth, uint32 newHeight)
 
 void TestApplication::createResources()
 {
-	constexpr uint32 NUM_GEOM_ASSETS = 7;
-	constexpr uint32 NUM_LODs = 2;
-
-	std::vector<std::vector<Geometry*>> geometriesLODs(NUM_GEOM_ASSETS);
-	for (uint32 i = 0; i < NUM_GEOM_ASSETS; ++i)
-	{
-		geometriesLODs[i].resize(NUM_LODs);
-		geometriesLODs[i][0] = new Geometry;
-		geometriesLODs[i][1] = new Geometry;
-
-		const float phase = Cymath::randFloatRange(0.0f, 6.28f);
-		const float spike = Cymath::randFloatRange(0.0f, 0.2f);
-#if CRUMPLED_WORLD
-		//ProceduralGeometry::twistedCube(*geometriesLODs[i][0], 2.0f, 2.0f, 8, 0.5f, 10.0f);
-		ProceduralGeometry::spikeBall(*geometriesLODs[i][0], 3, phase, spike);
-		ProceduralGeometry::spikeBall(*geometriesLODs[i][1], 1, phase, spike);
-#else
-		ProceduralGeometry::icosphere(*geometriesLODs[i][0], 3);
-		ProceduralGeometry::icosphere(*geometriesLODs[i][1], 1);
-#endif
-	}
-
 	ImageLoader imageLoader;
 	ImageLoadData* imageBlob = imageLoader.load(L"bee.png");
 	if (imageBlob == nullptr)
@@ -210,43 +169,6 @@ void TestApplication::createResources()
 		}
 	}
 
-	std::shared_ptr<VertexBufferAsset> positionBufferLODs[NUM_GEOM_ASSETS][NUM_LODs];
-	std::shared_ptr<VertexBufferAsset> nonPositionBufferLODs[NUM_GEOM_ASSETS][NUM_LODs];
-	std::shared_ptr<IndexBufferAsset> indexBufferLODs[NUM_GEOM_ASSETS][NUM_LODs];
-
-	for (uint32 geomIx = 0; geomIx < NUM_GEOM_ASSETS; ++geomIx)
-	{
-		for (uint32 lod = 0; lod < NUM_LODs; ++lod)
-		{
-			positionBufferLODs[geomIx][lod] = std::make_shared<VertexBufferAsset>();
-			nonPositionBufferLODs[geomIx][lod] = std::make_shared<VertexBufferAsset>();
-			indexBufferLODs[geomIx][lod] = std::make_shared<IndexBufferAsset>();
-			Geometry* G = geometriesLODs[geomIx][lod];
-
-			ENQUEUE_RENDER_COMMAND(UploadSampleMeshBuffers)(
-				[positionBufferAsset = positionBufferLODs[geomIx][lod],
-				nonPositionBufferAsset = nonPositionBufferLODs[geomIx][lod],
-				indexBufferAsset = indexBufferLODs[geomIx][lod],
-				G](RenderCommandList& commandList)
-				{
-					auto positionBuffer = gVertexBufferPool->suballocate(G->getPositionBufferTotalBytes());
-					auto nonPositionBuffer = gVertexBufferPool->suballocate(G->getNonPositionBufferTotalBytes());
-					auto indexBuffer = gIndexBufferPool->suballocate(G->getIndexBufferTotalBytes(), G->getIndexFormat());
-
-					positionBuffer->updateData(&commandList, G->getPositionBlob(), G->getPositionStride());
-					nonPositionBuffer->updateData(&commandList, G->getNonPositionBlob(), G->getNonPositionStride());
-					indexBuffer->updateData(&commandList, G->getIndexBlob(), G->getIndexFormat());
-
-					positionBufferAsset->setGPUResource(std::shared_ptr<VertexBuffer>(positionBuffer));
-					nonPositionBufferAsset->setGPUResource(std::shared_ptr<VertexBuffer>(nonPositionBuffer));
-					indexBufferAsset->setGPUResource(std::shared_ptr<IndexBuffer>(indexBuffer));
-
-					commandList.enqueueDeferredDealloc(G);
-				}
-			);
-		}
-	}
-
 	std::shared_ptr<TextureAsset> albedoTexture = std::make_shared<TextureAsset>();
 	ENQUEUE_RENDER_COMMAND(CreateTexture)(
 		[albedoTexture, imageBlob](RenderCommandList& commandList)
@@ -266,59 +188,18 @@ void TestApplication::createResources()
 		}
 	);
 
-	const float x0 = MESH_GROUP_CENTER.x - (float)(MESH_COLS * MESH_SPACE_X) / 2.0f;
-	const float y0 = MESH_GROUP_CENTER.y - (float)(MESH_ROWS * MESH_SPACE_Y) / 2.0f;
-	uint32 currentGeomIx = 0;
-	for (uint32 row = 0; row < MESH_ROWS; ++row)
-	{
-		for (uint32 col = 0; col < MESH_COLS; ++col)
-		{
-			StaticMesh* staticMesh = new StaticMesh;
-
-			for (uint32 lod = 0; lod < NUM_LODs; ++lod)
-			{
-				auto material = std::make_shared<Material>();
-				if ((row + (col & 1)) & 1)
-				{
-					material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
-					material->albedoMultiplier[0] = 1.0f;
-					material->albedoMultiplier[1] = 1.0f;
-					material->albedoMultiplier[2] = 1.0f;
-				}
-				else
-				{
-					material->albedoTexture = albedoTexture;
-					material->albedoMultiplier[0] = (std::max)(0.001f, (float)(col + 0) / MESH_COLS);
-					material->albedoMultiplier[1] = (std::max)(0.001f, (float)(row + 0) / MESH_ROWS);
-					material->albedoMultiplier[2] = 0.0f;
-				}
-				//material->roughness = Cymath::randFloat() < 0.5f ? 0.0f : 1.0f;
-				material->roughness = 0.0f;
-
-				staticMesh->addSection(
-					lod,
-					positionBufferLODs[currentGeomIx][lod],
-					nonPositionBufferLODs[currentGeomIx][lod],
-					indexBufferLODs[currentGeomIx][lod],
-					material);
-			}
-
-			vec3 pos = MESH_GROUP_CENTER;
-			pos.x = x0 + col * MESH_SPACE_X;
-			pos.y = y0 + row * MESH_SPACE_Y;
-			pos.z -= row * MESH_SPACE_Z;
-			pos.z += 2.0f * col * MESH_SPACE_Z / MESH_COLS;
-			pos.x += (row & 1) * 0.5f * MESH_SPACE_X;
-
-			staticMesh->setPosition(pos);
-			staticMesh->setScale(MESH_SCALE);
-
-			scene.addStaticMesh(staticMesh);
-			balls.push_back(staticMesh);
-			ballOriginalPos.push_back(pos);
-
-			currentGeomIx = (currentGeomIx + 1) % NUM_GEOM_ASSETS;
+	meshSplatting.createResources(
+		MeshSplatting::CreateParams{
+			.center = vec3(0.0f, -4.0f, 0.0f),
+			.radius = 16.0f,
+			.height = 20.0f,
+			.numLoop = 2,
+			.numMeshes = 32
 		}
+	);
+	for (StaticMesh* sm : meshSplatting.getStaticMeshes())
+	{
+		scene.addStaticMesh(sm);
 	}
 
 	// Ground
@@ -359,8 +240,8 @@ void TestApplication::createResources()
 
 		auto material = std::make_shared<Material>();
 		material->albedoMultiplier[0] = 1.0f;
-		material->albedoMultiplier[1] = 0.1f;
-		material->albedoMultiplier[2] = 0.1f;
+		material->albedoMultiplier[1] = 1.0f;
+		material->albedoMultiplier[2] = 1.0f;
 		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
 		material->roughness = 0.0f;
 
@@ -411,17 +292,18 @@ void TestApplication::createResources()
 		material->albedoMultiplier[0] = 1.0f;
 		material->albedoMultiplier[1] = 1.0f;
 		material->albedoMultiplier[2] = 1.0f;
-		material->albedoTexture = gTextureManager->getSystemTextureGreen2D();
+		material->albedoTexture = albedoTexture;
 		material->roughness = 0.0f;
 
 		wallA = new StaticMesh;
 		wallA->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material);
-		wallA->setPosition(vec3(x0 - MESH_SPACE_X, 0.0f, 0.0f));
+		wallA->setPosition(vec3(-25.0f, 0.0f, 0.0f));
 		wallA->setRotation(vec3(0.0f, 0.0f, 1.0f), -10.0f);
 
 		scene.addStaticMesh(wallA);
 	}
 
+	// Skybox
 	std::wstring skyboxFilepaths[] = {
 		L"skybox_Footballfield/posx.jpg", L"skybox_Footballfield/negx.jpg",
 		L"skybox_Footballfield/posy.jpg", L"skybox_Footballfield/negy.jpg",
@@ -476,12 +358,7 @@ void TestApplication::createResources()
 
 void TestApplication::destroyResources()
 {
-	for (uint32 i = 0; i < balls.size(); ++i)
-	{
-		delete balls[i];
-	}
-	balls.clear();
-
+	meshSplatting.destroyResources();
 	delete ground;
 	delete wallA;
 

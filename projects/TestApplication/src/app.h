@@ -1,9 +1,12 @@
 #pragma once
 
+#include "mesh_splatting.h"
+
 #include "core/win/windows_application.h"
 #include "world/scene.h"
 #include "world/camera.h"
 #include "world/gpu_resource_asset.h"
+
 #include <vector>
 
 class StaticMesh;
@@ -26,8 +29,8 @@ private:
 	Scene scene;
 	Camera camera;
 
-	std::vector<StaticMesh*> balls;
-	std::vector<vec3> ballOriginalPos;
+	MeshSplatting meshSplatting;
+
 	StaticMesh* ground = nullptr;
 	StaticMesh* wallA = nullptr;
 

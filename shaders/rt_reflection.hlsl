@@ -113,8 +113,8 @@ void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
 [shader("raygeneration")]
 void MyRaygenShader()
 {
-	float3 rayOrigin, rayDir;
-	generateCameraRay(DispatchRaysIndex().xy, rayOrigin, rayDir);
+	float3 cameraRayOrigin, cameraRayDir;
+	generateCameraRay(DispatchRaysIndex().xy, cameraRayOrigin, cameraRayDir);
 
 	// Actually no need to do RT for primary visibility.
 	// We can reconstruct surface normal and worldPos from gbuffers and sceneDepth.
@@ -124,8 +124,8 @@ void MyRaygenShader()
 		// Trace the ray.
 		// Set the ray's extents.
 		RayDesc ray;
-		ray.Origin = rayOrigin;
-		ray.Direction = rayDir;
+		ray.Origin = cameraRayOrigin;
+		ray.Direction = cameraRayDir;
 		ray.TMin = RAYGEN_T_MIN;
 		ray.TMax = RAYGEN_T_MAX;
 
@@ -152,8 +152,8 @@ void MyRaygenShader()
 	// Hit the sky. Let's sample skybox.
 	if (primaryPayload.objectID == OBJECT_ID_NONE)
 	{
-		float3 sky = skybox.SampleLevel(skyboxSampler, rayDir, 0.0).rgb;
-		renderTarget[DispatchRaysIndex().xy] = float4(sky, OBJECT_ID_NONE);
+		float3 skyLight = skybox.SampleLevel(skyboxSampler, cameraRayDir, 0.0).rgb;
+		renderTarget[DispatchRaysIndex().xy] = float4(skyLight, OBJECT_ID_NONE);
 		return;
 	}
 
@@ -161,8 +161,9 @@ void MyRaygenShader()
 	float3 indirectLighting = float3(0.0, 0.0, 0.0);
 	float reflectiveness = 1.0;
 
-	float3 currentRayDir;
-	
+	float3 currentRayOrigin = cameraRayOrigin;
+	float3 currentRayDir = cameraRayDir;
+
 	for (uint i = 0; i < MAX_BOUNCE; ++i)
 	{
 		bool bReflective = (currentPayload.objectID != OBJECT_ID_NONE) && (currentPayload.roughness < 1.0);
@@ -172,12 +173,13 @@ void MyRaygenShader()
 		}
 
 		RayDesc ray;
-		ray.Origin = (currentPayload.hitTime * rayDir + rayOrigin);
+		ray.Origin = (currentPayload.hitTime * currentRayDir + currentRayOrigin);
 		ray.Origin += 0.001 * currentPayload.surfaceNormal; // Slightly push origin
-		ray.Direction = currentPayload.surfaceNormal;
+		ray.Direction = reflect(currentRayDir, currentPayload.surfaceNormal);
 		ray.TMin = RAYGEN_T_MIN;
 		ray.TMax = RAYGEN_T_MAX;
 
+		currentRayOrigin = ray.Origin;
 		currentRayDir = ray.Direction;
 
 		uint instanceInclusionMask = ~0; // Do not ignore anything
@@ -207,15 +209,12 @@ void MyRaygenShader()
 		currentPayload = nextPayload;
 	}
 
-	if (currentPayload.objectID != OBJECT_ID_NONE)
+	if (currentPayload.objectID == OBJECT_ID_NONE)
 	{
-		renderTarget[DispatchRaysIndex().xy] = float4(indirectLighting, currentPayload.objectID);
+		float3 skyLight = skybox.SampleLevel(skyboxSampler, currentRayDir, 0.0).rgb;
+		indirectLighting += skyLight;
 	}
-	else
-	{
-		float3 sky = skybox.SampleLevel(skyboxSampler, currentRayDir, 0.0).rgb;
-		renderTarget[DispatchRaysIndex().xy] = float4(sky, OBJECT_ID_NONE);
-	}
+	renderTarget[DispatchRaysIndex().xy] = float4(indirectLighting, currentPayload.objectID);
 }
 
 [shader("closesthit")]
@@ -238,7 +237,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 	float3 p0 = gVertexBuffer.Load<float3>(meshData.positionBufferOffset + 12 * indices.x);
 	float3 p1 = gVertexBuffer.Load<float3>(meshData.positionBufferOffset + 12 * indices.y);
 	float3 p2 = gVertexBuffer.Load<float3>(meshData.positionBufferOffset + 12 * indices.z);
-	// normal, texcoord = float3, float2 = 20 bytes
+	// (normal, texcoord) = (float3, float2) = total 20 bytes
 	VertexAttributes v0 = gVertexBuffer.Load<VertexAttributes>(meshData.nonPositionBufferOffset + 20 * indices.x);
 	VertexAttributes v1 = gVertexBuffer.Load<VertexAttributes>(meshData.nonPositionBufferOffset + 20 * indices.y);
 	VertexAttributes v2 = gVertexBuffer.Load<VertexAttributes>(meshData.nonPositionBufferOffset + 20 * indices.z);
@@ -255,10 +254,12 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 	Material material = materials[objectID];
 	Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
 
-	payload.surfaceNormal = normalize(
+	float3 surfaceNormal = normalize(
 		barycentrics.x * v0.normal
 		+ barycentrics.y * v1.normal
 		+ barycentrics.z * v2.normal);
+	surfaceNormal = normalize(mul(float4(surfaceNormal, 0.0), meshData.modelMatrix).xyz);
+	payload.surfaceNormal = surfaceNormal;
 
 	payload.roughness = material.roughness;
 	payload.albedo = albedoTex.SampleLevel(albedoSampler, texcoord, 0.0).rgb

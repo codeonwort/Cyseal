@@ -24,9 +24,15 @@
     <ClCompile Include="src\unit_tests.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="src\mesh_splatting.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\app.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mesh_splatting.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
