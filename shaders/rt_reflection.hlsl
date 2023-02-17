@@ -252,7 +252,8 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 		+ barycentrics.z * v2.texcoord;
 
 	Material material = materials[objectID];
-	Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
+	// https://asawicki.info/news_1608_direct3d_12_-_watch_out_for_non-uniform_resource_index
+	Texture2D albedoTex = albedoTextures[NonUniformResourceIndex(material.albedoTextureIndex)];
 
 	float3 surfaceNormal = normalize(
 		barycentrics.x * v0.normal
