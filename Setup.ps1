@@ -38,6 +38,12 @@ $zip_list  = @(
 		'external/dxc'
 	),
 	@(
+		'https://github.com/ocornut/imgui/archive/refs/tags/v1.89.3.zip',
+		'external',
+		'dear_imgui_v1.89.3.zip',
+		'external/dear_imgui'
+	),
+	@(
 		'http://www.humus.name/Textures/Footballfield.zip',
 		'external',
 		'skybox_Footballfield.zip',
