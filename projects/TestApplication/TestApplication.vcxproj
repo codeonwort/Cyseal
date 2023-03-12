@@ -77,6 +77,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui.cpp" />
+    <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui_demo.cpp" />
+    <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui_draw.cpp" />
+    <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui_tables.cpp" />
+    <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui_widgets.cpp" />
     <ClCompile Include="src\app.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mesh_splatting.cpp" />

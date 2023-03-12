@@ -38,6 +38,7 @@ public:
 private:
 	void createRenderDevice(const RenderDeviceCreateParams& createParams);
 	void createRenderer(ERendererType rendererType);
+	void createDearImgui();
 
 private:
 	EEngineState state = EEngineState::UNINITIALIZED;

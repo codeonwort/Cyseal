@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "platform.h"
 #include "assertion.h"
 
 #include "util/unit_test.h"
@@ -10,8 +11,15 @@
 #include "render/null_renderer.h"
 #include "render/scene_renderer.h"
 
+#include "imgui.h"
+
+#if PLATFORM_WINDOWS
+	#include "imgui_impl_win32.h"
+#endif
+
 #if COMPILE_BACKEND_DX12
 	#include "rhi/dx12/d3d_device.h"
+	#include "imgui_impl_dx12.h"
 #endif
 #if COMPILE_BACKEND_VULKAN
 	#include "rhi/vulkan/vk_device.h"
@@ -61,6 +69,11 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 
 	CYLOG(LogEngine, Log, TEXT("Renderer has been initialized."));
 
+	// Dear IMGUI
+	createDearImgui();
+
+	CYLOG(LogEngine, Log, TEXT("Dear IMGUI has been initialized."));
+
 	// Unit test
 	UnitTestValidator::runAllUnitTests();
 
@@ -75,6 +88,11 @@ void CysealEngine::shutdown()
 	CHECK(state == EEngineState::RUNNING);
 
 	CYLOG(LogEngine, Log, TEXT("Start engine termination."));
+
+	// #todo-imgui: Delegate to Application and RenderDevice
+	//ImGui_ImplDX12_Shutdown();
+	//ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 
 	// Subsystems
 	{
@@ -147,4 +165,23 @@ void CysealEngine::createRenderer(ERendererType rendererType)
 	}
 
 	renderer->initialize(renderDevice);
+}
+
+void CysealEngine::createDearImgui()
+{
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	
+	ImGuiIO& dearIO = ImGui::GetIO();
+	dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+	ImGui::StyleColorsLight();
+
+	// #todo-imgui: Delegate to Application and RenderDevice
+	//ImGui_ImplWin32_Init(hwnd);
+	//ImGui_ImplDX12_Init(g_pd3dDevice, NUM_FRAMES_IN_FLIGHT,
+	//	DXGI_FORMAT_R8G8B8A8_UNORM, g_pd3dSrvDescHeap,
+	//	g_pd3dSrvDescHeap->GetCPUDescriptorHandleForHeapStart(),
+	//	g_pd3dSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
 }
