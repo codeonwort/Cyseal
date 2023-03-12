@@ -1,9 +1,11 @@
 #include "scene_renderer.h"
 #include "core/assertion.h"
+#include "core/platform.h"
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/swap_chain.h"
 #include "rhi/vertex_buffer_pool.h"
+#include "rhi/global_descriptor_heaps.h"
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
 #include "render/base_pass.h"
@@ -351,6 +353,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 			RT_sceneColor,
 			RT_indirectSpecular);
 	}
+
+	//////////////////////////////////////////////////////////////////////////
+	// Dear Imgui: Record commands
+
+	DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
+	commandList->setDescriptorHeaps(1, imguiHeaps);
+	device->renderDearImgui(commandList);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize

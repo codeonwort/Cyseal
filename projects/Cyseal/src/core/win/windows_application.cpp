@@ -2,6 +2,8 @@
 #include "core/assertion.h"
 #include "util/profiling.h"
 
+#include "imgui_impl_win32.h"
+
 LRESULT CALLBACK Win32WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 ATOM Win32RegisterClass(HINSTANCE hInstance, const wchar_t* windowClassName);
 HWND Win32InitInstance(
@@ -53,6 +55,9 @@ EApplicationReturnCode WindowsApplication::launch(const ApplicationCreateParams&
 
 	// According to MSDN this is a fixed value, so don't query it every time.
 	::QueryPerformanceFrequency(&time_freq);
+
+	// #todo-imgui: Not dpi issue? (See app.cpp)
+	//ImGui_ImplWin32_EnableDpiAwareness();
 
 	winClass = Win32RegisterClass(hInstance, appName);
 
@@ -147,8 +152,16 @@ ATOM Win32RegisterClass(HINSTANCE hInstance, const wchar_t* windowClassName)
 	return winClass;
 }
 
+// Forward declare message handler from imgui_impl_win32.cpp
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 LRESULT CALLBACK Win32WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+	{
+		return true;
+	}
+
 	switch (message)
 	{
 		case WM_COMMAND:

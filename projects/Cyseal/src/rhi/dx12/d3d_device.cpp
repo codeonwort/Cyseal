@@ -263,16 +263,9 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 void D3DDevice::initializeDearImgui()
 {
-	uint32 dearImguiSRVIndex = gDescriptorHeaps->allocateSRVIndex();
-	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getSRVHeap())->getRaw();
-	
-	// #todo-imgui: Does imgui use single SRV regardless of swapchain count?
-	auto cpuHandle = d3dHeap->GetCPUDescriptorHandleForHeapStart();
-	cpuHandle.ptr += dearImguiSRVIndex * descSizeCBV_SRV_UAV;
+	RenderDevice::initializeDearImgui();
 
-	auto gpuHandle = d3dHeap->GetGPUDescriptorHandleForHeapStart();
-	gpuHandle.ptr += dearImguiSRVIndex * descSizeCBV_SRV_UAV;
-
+	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(getDearImguiSRVHeap())->getRaw();
 	auto backbufferFormat = into_d3d::pixelFormat(swapChain->getBackbufferFormat());
 
 	ImGui_ImplDX12_Init(
@@ -280,12 +273,25 @@ void D3DDevice::initializeDearImgui()
 		swapChain->getBufferCount(),
 		backbufferFormat,
 		d3dHeap,
-		cpuHandle,
-		gpuHandle);
+		d3dHeap->GetCPUDescriptorHandleForHeapStart(),
+		d3dHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
+void D3DDevice::beginDearImguiNewFrame()
+{
+	ImGui_ImplDX12_NewFrame();
+}
+
+void D3DDevice::renderDearImgui(RenderCommandList* commandList)
+{
+	auto d3dCmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), d3dCmdList);
 }
 
 void D3DDevice::shutdownDearImgui()
 {
+	RenderDevice::shutdownDearImgui();
+
 	ImGui_ImplDX12_Shutdown();
 }
 

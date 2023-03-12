@@ -19,6 +19,8 @@ public:
 	virtual void onInitialize(const RenderDeviceCreateParams& createParams) override;
 
 	virtual void initializeDearImgui() override;
+	virtual void beginDearImguiNewFrame() override;
+	virtual void renderDearImgui(RenderCommandList* commandList) override;
 	virtual void shutdownDearImgui() override;
 
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;

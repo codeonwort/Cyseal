@@ -13,6 +13,8 @@
 #include "world/gpu_resource_asset.h"
 #include "util/profiling.h"
 
+#include "imgui.h"
+
 #include <algorithm>
 #include <array>
 
@@ -76,7 +78,7 @@ bool TestApplication::onInitialize()
 
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
-	
+
 	return true;
 }
 
@@ -116,6 +118,24 @@ void TestApplication::onTick(float deltaSeconds)
 			cysealEngine.getRenderer()->recreateSceneTextures(newViewportWidth, newViewportHeight);
 			bViewportNeedsResize = false;
 		}
+
+		cysealEngine.beginImguiNewFrame();
+		// #todo-imgui: Did same as in32_directx12 sample in the ImGui repo, but...
+		// 1. Text is blurry
+		// 2. Mouse hit test is wrong after drag & drop
+		// -> But these are fixed after resizing the main window once.
+		ImGui::ShowDemoWindow(0);
+		{
+			static float sliderValue = 0.0f;
+			static bool bCheckBox = false;
+
+			ImGui::Begin("hello, world");
+			ImGui::Text("Some text");
+			ImGui::Checkbox("Check Box", &bCheckBox);
+			ImGui::SliderFloat("float", &sliderValue, 0.0f, 1.0f);
+			ImGui::End();
+		}
+		cysealEngine.renderImgui();
 
 		SceneProxy* sceneProxy = scene.createProxy();
 

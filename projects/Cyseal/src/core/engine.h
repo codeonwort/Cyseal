@@ -32,6 +32,9 @@ public:
 	void startup(const CysealEngineCreateParams& createParams);
 	void shutdown();
 
+	void beginImguiNewFrame();
+	void renderImgui();
+
 	inline RenderDevice* getRenderDevice() const { return renderDevice; }
 	inline Renderer* getRenderer() const { return renderer; }
 

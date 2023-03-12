@@ -90,7 +90,6 @@ void CysealEngine::shutdown()
 
 	CYLOG(LogEngine, Log, TEXT("Start engine termination."));
 
-	// #todo-imgui: Delegate to Application and RenderDevice
 	renderDevice->shutdownDearImgui();
 #if PLATFORM_WINDOWS
 	ImGui_ImplWin32_Shutdown();
@@ -128,6 +127,24 @@ void CysealEngine::shutdown()
 	state = EEngineState::SHUTDOWN;
 
 	CYLOG(LogEngine, Log, TEXT("Engine has been fully terminated."));
+}
+
+void CysealEngine::beginImguiNewFrame()
+{
+	renderDevice->beginDearImguiNewFrame();
+
+#if PLATFORM_WINDOWS
+	ImGui_ImplWin32_NewFrame();
+#else
+	#error "Not implemented yet"
+#endif
+
+	ImGui::NewFrame();
+}
+
+void CysealEngine::renderImgui()
+{
+	ImGui::Render();
 }
 
 void CysealEngine::createRenderDevice(const RenderDeviceCreateParams& createParams)
@@ -178,12 +195,12 @@ void CysealEngine::createDearImgui(void* nativeWindowHandle)
 	ImGui::CreateContext();
 	
 	ImGuiIO& dearIO = ImGui::GetIO();
-	dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+	//dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	//dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
+	//ImGui::StyleColorsDark();
 	ImGui::StyleColorsLight();
 
-	// #todo-imgui: Delegate to Application and RenderDevice
 #if PLATFORM_WINDOWS
 	ImGui_ImplWin32_Init((HWND*)nativeWindowHandle);
 #else
