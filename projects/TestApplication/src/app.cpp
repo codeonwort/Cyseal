@@ -120,10 +120,6 @@ void TestApplication::onTick(float deltaSeconds)
 		}
 
 		cysealEngine.beginImguiNewFrame();
-		// #todo-imgui: Did same as in32_directx12 sample in the ImGui repo, but...
-		// 1. Text is blurry
-		// 2. Mouse hit test is wrong after drag & drop
-		// -> But these are fixed after resizing the main window once.
 		ImGui::ShowDemoWindow(0);
 		{
 			static float sliderValue = 0.0f;

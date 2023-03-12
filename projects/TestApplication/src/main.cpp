@@ -1,6 +1,8 @@
 #include "app.h"
 #include "core/assertion.h"
 
+// NOTE: Actual client rect can be smaller than this size!!!
+// Cyseal uses the client rect for GUI logic and GPU rendering.
 #define WINDOW_WIDTH  1600
 #define WINDOW_HEIGHT 900
 

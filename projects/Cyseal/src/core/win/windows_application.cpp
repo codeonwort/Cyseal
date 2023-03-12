@@ -56,7 +56,7 @@ EApplicationReturnCode WindowsApplication::launch(const ApplicationCreateParams&
 	// According to MSDN this is a fixed value, so don't query it every time.
 	::QueryPerformanceFrequency(&time_freq);
 
-	// #todo-imgui: Not dpi issue? (See app.cpp)
+	// #todo: Enable dpi awareness for imgui if needed.
 	//ImGui_ImplWin32_EnableDpiAwareness();
 
 	winClass = Win32RegisterClass(hInstance, appName);
@@ -67,6 +67,12 @@ EApplicationReturnCode WindowsApplication::launch(const ApplicationCreateParams&
 	{
 		return EApplicationReturnCode::RandomError;
 	}
+
+	// Update actual viewport size
+	RECT clientRect;
+	::GetClientRect(hWnd, &clientRect);
+	width = clientRect.right - clientRect.left;
+	height = clientRect.bottom - clientRect.top;
 
 	WindowsApplication::hwndToApp.insert(std::make_pair(hWnd, this));
 
