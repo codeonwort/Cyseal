@@ -10,6 +10,8 @@
 #include "core/assertion.h"
 #include "util/logging.h"
 
+#include "imgui_impl_dx12.h"
+
 // #todo-crossapi: Dynamic loading
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
@@ -257,6 +259,34 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	HR(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils)));
 	HR(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler)));
 	HR(dxcUtils->CreateDefaultIncludeHandler(&dxcIncludeHandler));
+}
+
+void D3DDevice::initializeDearImgui()
+{
+	uint32 dearImguiSRVIndex = gDescriptorHeaps->allocateSRVIndex();
+	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getSRVHeap())->getRaw();
+	
+	// #todo-imgui: Does imgui use single SRV regardless of swapchain count?
+	auto cpuHandle = d3dHeap->GetCPUDescriptorHandleForHeapStart();
+	cpuHandle.ptr += dearImguiSRVIndex * descSizeCBV_SRV_UAV;
+
+	auto gpuHandle = d3dHeap->GetGPUDescriptorHandleForHeapStart();
+	gpuHandle.ptr += dearImguiSRVIndex * descSizeCBV_SRV_UAV;
+
+	auto backbufferFormat = into_d3d::pixelFormat(swapChain->getBackbufferFormat());
+
+	ImGui_ImplDX12_Init(
+		device.Get(),
+		swapChain->getBufferCount(),
+		backbufferFormat,
+		d3dHeap,
+		cpuHandle,
+		gpuHandle);
+}
+
+void D3DDevice::shutdownDearImgui()
+{
+	ImGui_ImplDX12_Shutdown();
 }
 
 void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)

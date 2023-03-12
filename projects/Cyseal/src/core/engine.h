@@ -38,7 +38,7 @@ public:
 private:
 	void createRenderDevice(const RenderDeviceCreateParams& createParams);
 	void createRenderer(ERendererType rendererType);
-	void createDearImgui();
+	void createDearImgui(void* nativeWindowHandle);
 
 private:
 	EEngineState state = EEngineState::UNINITIALIZED;

@@ -77,6 +77,9 @@ public:
 	}
 	virtual void onInitialize(const RenderDeviceCreateParams& createParams) = 0;
 
+	virtual void initializeDearImgui() = 0;
+	virtual void shutdownDearImgui() = 0;
+
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) = 0;
 
 	virtual void flushCommandQueue() = 0;

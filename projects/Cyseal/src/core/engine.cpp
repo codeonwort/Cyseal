@@ -70,7 +70,8 @@ void CysealEngine::startup(const CysealEngineCreateParams& createParams)
 	CYLOG(LogEngine, Log, TEXT("Renderer has been initialized."));
 
 	// Dear IMGUI
-	createDearImgui();
+	createDearImgui(createParams.renderDevice.nativeWindowHandle);
+	renderDevice->initializeDearImgui();
 
 	CYLOG(LogEngine, Log, TEXT("Dear IMGUI has been initialized."));
 
@@ -90,8 +91,12 @@ void CysealEngine::shutdown()
 	CYLOG(LogEngine, Log, TEXT("Start engine termination."));
 
 	// #todo-imgui: Delegate to Application and RenderDevice
-	//ImGui_ImplDX12_Shutdown();
-	//ImGui_ImplWin32_Shutdown();
+	renderDevice->shutdownDearImgui();
+#if PLATFORM_WINDOWS
+	ImGui_ImplWin32_Shutdown();
+#else
+	#error "Not implemented yet"
+#endif
 	ImGui::DestroyContext();
 
 	// Subsystems
@@ -167,7 +172,7 @@ void CysealEngine::createRenderer(ERendererType rendererType)
 	renderer->initialize(renderDevice);
 }
 
-void CysealEngine::createDearImgui()
+void CysealEngine::createDearImgui(void* nativeWindowHandle)
 {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -179,9 +184,9 @@ void CysealEngine::createDearImgui()
 	ImGui::StyleColorsLight();
 
 	// #todo-imgui: Delegate to Application and RenderDevice
-	//ImGui_ImplWin32_Init(hwnd);
-	//ImGui_ImplDX12_Init(g_pd3dDevice, NUM_FRAMES_IN_FLIGHT,
-	//	DXGI_FORMAT_R8G8B8A8_UNORM, g_pd3dSrvDescHeap,
-	//	g_pd3dSrvDescHeap->GetCPUDescriptorHandleForHeapStart(),
-	//	g_pd3dSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+#if PLATFORM_WINDOWS
+	ImGui_ImplWin32_Init((HWND*)nativeWindowHandle);
+#else
+	#error "Not implemented yet"
+#endif
 }
