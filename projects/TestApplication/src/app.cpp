@@ -13,6 +13,8 @@
 #include "world/gpu_resource_asset.h"
 #include "util/profiling.h"
 
+#include "imgui.h"
+
 #include <algorithm>
 #include <array>
 
@@ -76,7 +78,7 @@ bool TestApplication::onInitialize()
 
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
-	
+
 	return true;
 }
 
@@ -116,6 +118,21 @@ void TestApplication::onTick(float deltaSeconds)
 			cysealEngine.getRenderer()->recreateSceneTextures(newViewportWidth, newViewportHeight);
 			bViewportNeedsResize = false;
 		}
+
+		cysealEngine.beginImguiNewFrame();
+		// #todo-imgui: ImGui logic can be put here, for now.
+		//ImGui::ShowDemoWindow(0);
+		//{
+		//	static float sliderValue = 0.0f;
+		//	static bool bCheckBox = false;
+		//
+		//	ImGui::Begin("hello, world");
+		//	ImGui::Text("Some text");
+		//	ImGui::Checkbox("Check Box", &bCheckBox);
+		//	ImGui::SliderFloat("float", &sliderValue, 0.0f, 1.0f);
+		//	ImGui::End();
+		//}
+		cysealEngine.renderImgui();
 
 		SceneProxy* sceneProxy = scene.createProxy();
 

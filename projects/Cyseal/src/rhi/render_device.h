@@ -77,6 +77,12 @@ public:
 	}
 	virtual void onInitialize(const RenderDeviceCreateParams& createParams) = 0;
 
+	virtual void initializeDearImgui();
+	virtual void beginDearImguiNewFrame() = 0;
+	virtual void renderDearImgui(RenderCommandList* commandList) = 0;
+	virtual void shutdownDearImgui();
+	inline DescriptorHeap* getDearImguiSRVHeap() const { return imguiSRVHeap; }
+
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) = 0;
 
 	virtual void flushCommandQueue() = 0;
@@ -156,6 +162,8 @@ protected:
 	EPixelFormat            backbufferFormat = EPixelFormat::R8G8B8A8_UNORM;
 	EPixelFormat            backbufferDepthFormat = EPixelFormat::D24_UNORM_S8_UINT;
 	SwapChain*              swapChain = nullptr;
+
+	DescriptorHeap*         imguiSRVHeap = nullptr;
 
 	// https://learn.microsoft.com/en-us/windows/win32/direct3d12/recording-command-lists-and-bundles
 	// Command allocators should hold memory for render commands while GPU is accessing them,

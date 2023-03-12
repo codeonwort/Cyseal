@@ -10,6 +10,8 @@
 #include "core/assertion.h"
 #include "util/logging.h"
 
+#include "imgui_impl_dx12.h"
+
 // #todo-crossapi: Dynamic loading
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
@@ -257,6 +259,40 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	HR(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils)));
 	HR(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler)));
 	HR(dxcUtils->CreateDefaultIncludeHandler(&dxcIncludeHandler));
+}
+
+void D3DDevice::initializeDearImgui()
+{
+	RenderDevice::initializeDearImgui();
+
+	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(getDearImguiSRVHeap())->getRaw();
+	auto backbufferFormat = into_d3d::pixelFormat(swapChain->getBackbufferFormat());
+
+	ImGui_ImplDX12_Init(
+		device.Get(),
+		swapChain->getBufferCount(),
+		backbufferFormat,
+		d3dHeap,
+		d3dHeap->GetCPUDescriptorHandleForHeapStart(),
+		d3dHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
+void D3DDevice::beginDearImguiNewFrame()
+{
+	ImGui_ImplDX12_NewFrame();
+}
+
+void D3DDevice::renderDearImgui(RenderCommandList* commandList)
+{
+	auto d3dCmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), d3dCmdList);
+}
+
+void D3DDevice::shutdownDearImgui()
+{
+	RenderDevice::shutdownDearImgui();
+
+	ImGui_ImplDX12_Shutdown();
 }
 
 void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)

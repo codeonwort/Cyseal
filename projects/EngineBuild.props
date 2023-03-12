@@ -11,7 +11,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(SolutionDir)external\dxc\inc;$(SolutionDir)libraries\stb;$(SolutionDir)libraries\dx12;$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)external\dxc\inc;$(SolutionDir)external\dear_imgui\imgui-1.89.3;$(SolutionDir)external\dear_imgui\imgui-1.89.3\backends;$(SolutionDir)libraries\stb;$(SolutionDir)libraries\dx12;$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>COMPILE_BACKEND_DX12=1;COMPILE_BACKEND_VULKAN=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>

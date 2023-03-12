@@ -32,12 +32,16 @@ public:
 	void startup(const CysealEngineCreateParams& createParams);
 	void shutdown();
 
+	void beginImguiNewFrame();
+	void renderImgui();
+
 	inline RenderDevice* getRenderDevice() const { return renderDevice; }
 	inline Renderer* getRenderer() const { return renderer; }
 
 private:
 	void createRenderDevice(const RenderDeviceCreateParams& createParams);
 	void createRenderer(ERendererType rendererType);
+	void createDearImgui(void* nativeWindowHandle);
 
 private:
 	EEngineState state = EEngineState::UNINITIALIZED;
