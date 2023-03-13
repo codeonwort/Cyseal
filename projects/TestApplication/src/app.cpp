@@ -6,6 +6,7 @@
 #include "rhi/render_device_capabilities.h"
 #include "rhi/texture_manager.h"
 #include "render/material.h"
+#include "render/scene_render_options.h"
 #include "render/static_mesh.h"
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
@@ -120,23 +121,19 @@ void TestApplication::onTick(float deltaSeconds)
 		}
 
 		cysealEngine.beginImguiNewFrame();
-		// #todo-imgui: ImGui logic can be put here, for now.
-		//ImGui::ShowDemoWindow(0);
-		//{
-		//	static float sliderValue = 0.0f;
-		//	static bool bCheckBox = false;
-		//
-		//	ImGui::Begin("hello, world");
-		//	ImGui::Text("Some text");
-		//	ImGui::Checkbox("Check Box", &bCheckBox);
-		//	ImGui::SliderFloat("float", &sliderValue, 0.0f, 1.0f);
-		//	ImGui::End();
-		//}
+		{
+			ImGui::ShowDemoWindow(0);
+
+			ImGui::Begin("Rendering options");
+			ImGui::Checkbox("Ray Traced Reflections", &rendererOptions.bEnableRayTracedReflections);
+			//ImGui::SliderFloat("float", &sliderValue, 0.0f, 1.0f);
+			ImGui::End();
+		}
 		cysealEngine.renderImgui();
 
 		SceneProxy* sceneProxy = scene.createProxy();
 
-		cysealEngine.getRenderer()->render(sceneProxy, &camera);
+		cysealEngine.getRenderer()->render(sceneProxy, &camera, rendererOptions);
 
 		delete sceneProxy;
 	}

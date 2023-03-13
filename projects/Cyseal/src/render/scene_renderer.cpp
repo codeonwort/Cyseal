@@ -116,7 +116,7 @@ void SceneRenderer::destroy()
 	}
 }
 
-void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
+void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
 	bool bDoubleBuffering     = device->getCreateParams().bDoubleBuffering;
 
@@ -261,7 +261,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera)
 	}
 
 	// Ray Traced Reflections
-	if (!bSupportsRaytracing)
+	bool bRenderRTR = bSupportsRaytracing && renderOptions.bEnableRayTracedReflections;
+	if (!bRenderRTR)
 	{
 		SCOPED_DRAW_EVENT(commandList, ClearRayTracedReflections);
 

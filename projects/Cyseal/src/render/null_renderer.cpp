@@ -14,7 +14,7 @@ void NullRenderer::destroy()
 	device = nullptr;
 }
 
-void NullRenderer::render(const SceneProxy* scene, const Camera* camera)
+void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
 #if EMPTY_LOOP
 	auto swapChain = device->getSwapChain();

@@ -28,6 +28,7 @@ private:
 private:
 	Scene scene;
 	Camera camera;
+	RendererOptions rendererOptions;
 
 	MeshSplatting meshSplatting;
 

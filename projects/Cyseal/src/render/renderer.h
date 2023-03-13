@@ -10,6 +10,11 @@ enum class ERendererType
 	Null,
 };
 
+struct RendererOptions
+{
+	bool bEnableRayTracedReflections = true;
+};
+
 class Renderer
 {
 public:
@@ -17,7 +22,7 @@ public:
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
 	virtual void destroy() = 0;
-	virtual void render(const SceneProxy* scene, const Camera* camera) = 0;
+	virtual void render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions) = 0;
 
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) = 0;
 };
