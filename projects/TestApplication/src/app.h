@@ -3,6 +3,7 @@
 #include "mesh_splatting.h"
 
 #include "core/win/windows_application.h"
+#include "render/renderer.h"
 #include "world/scene.h"
 #include "world/camera.h"
 #include "world/gpu_resource_asset.h"

@@ -6,7 +6,6 @@
 #include "rhi/render_device_capabilities.h"
 #include "rhi/texture_manager.h"
 #include "render/material.h"
-#include "render/scene_render_options.h"
 #include "render/static_mesh.h"
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
@@ -122,7 +121,7 @@ void TestApplication::onTick(float deltaSeconds)
 
 		cysealEngine.beginImguiNewFrame();
 		{
-			ImGui::ShowDemoWindow(0);
+			//ImGui::ShowDemoWindow(0);
 
 			ImGui::Begin("Rendering options");
 			ImGui::Checkbox("Ray Traced Reflections", &rendererOptions.bEnableRayTracedReflections);

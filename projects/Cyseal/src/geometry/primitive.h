@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/aabb.h"
 #include "core/assertion.h"
 #include "rhi/pixel_format.h"
 #include <vector>
@@ -12,6 +13,8 @@ struct Geometry
 	std::vector<vec2> texcoords;
 	std::vector<uint32> indices;
 
+	AABB localBounds;
+
 	void resizeNumVertices(size_t num); // CAUTION: Don't use push_back()
 	void resizeNumIndices(size_t num);  // CAUTION: Don't use push_back()
 
@@ -19,6 +22,8 @@ struct Geometry
 	void reserveNumIndices(size_t num);
 
 	void recalculateNormals();
+
+	void calculateLocalBounds();
 
 	void finalize();
 

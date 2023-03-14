@@ -54,6 +54,20 @@ void Geometry::recalculateNormals()
 	}
 }
 
+void Geometry::calculateLocalBounds()
+{
+	vec3 minV(0.0f, 0.0f, 0.0f), maxV(0.0f, 0.0f, 0.0f);
+	if (positions.size() > 0) {
+		minV = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+		maxV = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+		for (const vec3& v : positions) {
+			minV = vecMin(minV, v);
+			maxV = vecMax(maxV, v);
+		}
+	}
+	localBounds = AABB::fromMinMax(minV, maxV);
+}
+
 void Geometry::finalize()
 {
 	CHECK(positions.size() == normals.size() && normals.size() == texcoords.size());
@@ -72,6 +86,8 @@ void Geometry::finalize()
 		nonPositionBlob.push_back(texcoords[i].x);
 		nonPositionBlob.push_back(texcoords[i].y);
 	}
+
+	calculateLocalBounds();
 
 	bFinalized = true;
 }

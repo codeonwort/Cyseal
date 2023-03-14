@@ -78,6 +78,7 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\core\aabb.h" />
     <ClInclude Include="src\core\application.h" />
     <ClInclude Include="src\core\assertion.h" />
     <ClInclude Include="src\core\core_minimal.h" />

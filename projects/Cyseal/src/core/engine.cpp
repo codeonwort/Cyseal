@@ -195,6 +195,7 @@ void CysealEngine::createDearImgui(void* nativeWindowHandle)
 	ImGui::CreateContext();
 	
 	ImGuiIO& dearIO = ImGui::GetIO();
+	dearIO.IniFilename = NULL;
 	//dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	//dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
