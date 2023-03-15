@@ -42,6 +42,7 @@ void MeshSplatting::createResources(const CreateParams& createParams)
 			{
 				ProceduralGeometry::cube(*geom, 1.0f, 1.0f, 1.0f);
 			}
+			AABB localBounds = geom->localBounds;
 
 			auto positionBufferAsset = std::make_shared<VertexBufferAsset>();
 			auto nonPositionBufferAsset = std::make_shared<VertexBufferAsset>();
@@ -70,7 +71,7 @@ void MeshSplatting::createResources(const CreateParams& createParams)
 			);
 
 			auto material = baseMaterials[meshIx % baseMaterials.size()];
-			staticMesh->addSection(lod, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material);
+			staticMesh->addSection(lod, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
 		}
 
 		float theta = (float)createParams.numLoop * (2.0f * Cymath::PI) * (meshIx / (float)createParams.numMeshes);

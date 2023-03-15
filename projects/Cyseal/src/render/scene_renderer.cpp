@@ -1,6 +1,7 @@
 #include "scene_renderer.h"
 #include "core/assertion.h"
 #include "core/platform.h"
+#include "core/plane.h"
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/swap_chain.h"
@@ -25,6 +26,8 @@ struct SceneUniform
 	Float4x4 viewInvMatrix;
 	Float4x4 projInvMatrix;
 	Float4x4 viewProjInvMatrix;
+
+	Plane3D cameraFrustum[6];
 
 	vec3 cameraPosition; float _pad0;
 	vec3 sunDirection;   float _pad1;
@@ -177,7 +180,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
 
-		gpuScene->renderGPUScene(commandList, scene, camera);
+		gpuScene->renderGPUScene(commandList, scene, camera, sceneUniformCBVs[swapchainIndex].get());
 	}
 
 	if (bSupportsRaytracing && scene->bRebuildRaytracingScene)
@@ -444,6 +447,8 @@ void SceneRenderer::updateSceneUniform(
 	uboData.viewInvMatrix     = camera->getViewInvMatrix();
 	uboData.projInvMatrix     = camera->getProjInvMatrix();
 	uboData.viewProjInvMatrix = camera->getViewProjInvMatrix();
+
+	camera->getFrustum(uboData.cameraFrustum);
 
 	uboData.cameraPosition    = camera->getPosition();
 	uboData.sunDirection      = scene->sun.direction;

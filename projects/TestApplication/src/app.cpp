@@ -228,6 +228,7 @@ void TestApplication::createResources()
 			100.0f, 100.0f, 2, 2,
 			ProceduralGeometry::EPlaneNormal::Y);
 #endif
+		AABB localBounds = planeGeometry->localBounds;
 
 		std::shared_ptr<VertexBufferAsset> positionBufferAsset = std::make_shared<VertexBufferAsset>();
 		std::shared_ptr<VertexBufferAsset> nonPositionBufferAsset = std::make_shared<VertexBufferAsset>();
@@ -259,7 +260,7 @@ void TestApplication::createResources()
 		material->roughness = 0.0f;
 
 		ground = new StaticMesh;
-		ground->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material);
+		ground->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
 		ground->setPosition(vec3(0.0f, -10.0f, 0.0f));
 
 		scene.addStaticMesh(ground);
@@ -278,6 +279,7 @@ void TestApplication::createResources()
 			50.0f, 50.0f, 2, 2,
 			ProceduralGeometry::EPlaneNormal::X);
 #endif
+		AABB localBounds = planeGeometry->localBounds;
 
 		std::shared_ptr<VertexBufferAsset> positionBufferAsset = std::make_shared<VertexBufferAsset>();
 		std::shared_ptr<VertexBufferAsset> nonPositionBufferAsset = std::make_shared<VertexBufferAsset>();
@@ -309,7 +311,7 @@ void TestApplication::createResources()
 		material->roughness = 0.0f;
 
 		wallA = new StaticMesh;
-		wallA->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material);
+		wallA->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
 		wallA->setPosition(vec3(-25.0f, 0.0f, 0.0f));
 		wallA->setRotation(vec3(0.0f, 0.0f, 1.0f), -10.0f);
 

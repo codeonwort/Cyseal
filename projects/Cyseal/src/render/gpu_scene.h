@@ -11,6 +11,7 @@ class PipelineState;
 class RootSignature;
 class DescriptorHeap;
 class Buffer;
+class ConstantBufferView;
 class ShaderResourceView;
 class UnorderedAccessView;
 class SceneProxy;
@@ -29,7 +30,12 @@ class GPUScene final
 {
 public:
 	void initialize();
-	void renderGPUScene(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera);
+
+	void renderGPUScene(
+		RenderCommandList* commandList,
+		const SceneProxy* scene,
+		const Camera* camera,
+		ConstantBufferView* sceneUniform);
 
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 	ShaderResourceView* getCulledGPUSceneBufferSRV() const;
@@ -50,12 +56,16 @@ public:
 	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
 
 private:
+	void resizeVolatileHeaps(uint32 maxDescriptors);
 	void resizeGPUSceneBuffers(uint32 maxElements);
 	void resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount);
 
 private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
+
+	uint32 totalVolatileDescriptors = 0;
+	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
 
 	// GPU scene buffers
 	uint32 gpuSceneMaxElements = 0;

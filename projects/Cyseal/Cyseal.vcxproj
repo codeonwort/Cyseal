@@ -87,6 +87,7 @@
     <ClInclude Include="src\core\engine.h" />
     <ClInclude Include="src\core\int_types.h" />
     <ClInclude Include="src\core\matrix.h" />
+    <ClInclude Include="src\core\plane.h" />
     <ClInclude Include="src\core\platform.h" />
     <ClInclude Include="src\core\quaternion.h" />
     <ClInclude Include="src\core\types.h" />

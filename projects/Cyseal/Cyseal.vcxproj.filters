@@ -249,6 +249,9 @@
     <ClInclude Include="src\core\aabb.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\core\plane.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">

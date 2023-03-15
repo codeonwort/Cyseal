@@ -6,7 +6,8 @@ void StaticMesh::addSection(
 	std::shared_ptr<VertexBufferAsset> positionBuffer,
 	std::shared_ptr<VertexBufferAsset> nonPositionBuffer,
 	std::shared_ptr<IndexBufferAsset> indexBuffer,
-	std::shared_ptr<Material> material)
+	std::shared_ptr<Material> material,
+	const AABB& localBounds)
 {
 	if (LODs.size() <= lod)
 	{
@@ -14,10 +15,11 @@ void StaticMesh::addSection(
 	}
 	LODs[lod].sections.emplace_back(
 		StaticMeshSection{
-			.positionBuffer = positionBuffer,
+			.positionBuffer    = positionBuffer,
 			.nonPositionBuffer = nonPositionBuffer,
-			.indexBuffer = indexBuffer,
-			.material = material,
+			.indexBuffer       = indexBuffer,
+			.material          = material,
+			.localBounds       = localBounds,
 		}
 	);
 }

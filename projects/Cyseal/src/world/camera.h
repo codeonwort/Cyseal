@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/matrix.h"
+#include "core/plane.h"
 
 class Camera
 {
@@ -10,6 +11,8 @@ public:
 	void perspective(float fovY_degrees, float aspectWH, float zNear, float zFar);
 
 	void lookAt(const vec3& origin, const vec3& target, const vec3& up);
+
+	void getFrustum(Plane3D outPlanes[6]) const;
 
 	inline vec3 getPosition() const { return position; }
 
@@ -31,6 +34,11 @@ public:
 
 private:
 	void updateViewProjection() const;
+
+	float fovY_radians;
+	float aspectRatioWH;
+	float zNear;
+	float zFar;
 
 	vec3 position;
 

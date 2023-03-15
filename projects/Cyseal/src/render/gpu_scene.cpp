@@ -20,6 +20,7 @@ namespace RootParameters
 	enum Value
 	{
 		PushConstantsSlot = 0,
+		SceneUniformSlot,
 		GPUSceneSlot,
 		CulledGPUSceneSlot,
 		Count
@@ -30,10 +31,15 @@ namespace RootParameters
 struct GPUSceneItem
 {
 	Float4x4 modelTransform; // localToWorld
+
+	vec3     localMinBounds;
 	uint32   positionBufferOffset;
+
+	vec3     localMaxBounds;
 	uint32   nonPositionBufferOffset;
+
 	uint32   indexBufferOffset;
-	uint32   _pad0;
+	vec3     _pad0;
 };
 
 void GPUScene::initialize()
@@ -43,8 +49,12 @@ void GPUScene::initialize()
 
 	// Root signature
 	{
+		DescriptorRange descriptorRanges[1];
+		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1, 0); // register(b1, space0)
+
 		RootParameter rootParameters[RootParameters::Count];
 		rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1); // register(b0, space0) = numElements
+		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
 		rootParameters[RootParameters::GPUSceneSlot].initAsUAV(0, 0);               // register(u0, space0)
 		rootParameters[RootParameters::CulledGPUSceneSlot].initAsUAV(1, 0);         // register(u1, space0)
 
@@ -70,7 +80,11 @@ void GPUScene::initialize()
 	));
 }
 
-void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera)
+void GPUScene::renderGPUScene(
+	RenderCommandList* commandList,
+	const SceneProxy* scene,
+	const Camera* camera,
+	ConstantBufferView* sceneUniform)
 {
 	const uint32 LOD = 0; // #todo-lod: LOD
 	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
@@ -82,6 +96,16 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
 		numMeshSections += (uint32)(scene->staticMeshes[i]->getSections(LOD).size());
+	}
+
+	// Resize volatile heaps if needed.
+	{
+		uint32 requiredVolatiles = 0;
+		requiredVolatiles += 1; // scene uniform
+		if (requiredVolatiles > totalVolatileDescriptors)
+		{
+			resizeVolatileHeaps(requiredVolatiles);
+		}
 	}
 
 	// Prepare bindless materials
@@ -125,7 +149,8 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 		}
 	}
 
-	if (numMeshSections > gpuSceneMaxElements) {
+	if (numMeshSections > gpuSceneMaxElements)
+	{
 		resizeGPUSceneBuffers(numMeshSections);
 		resizeMaterialBuffers(numMeshSections, numMeshSections);
 	}
@@ -144,9 +169,11 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 		for (uint32 j = 0; j < smSections; ++j)
 		{
 			const StaticMeshSection& section = sm->getSections(LOD)[j];
-			sceneData[k].modelTransform = sm->getTransformMatrix();
+			sceneData[k].modelTransform          = sm->getTransformMatrix();
+			sceneData[k].localMinBounds          = section.localBounds.minBounds;
 			// #todo: uint64 offset
 			sceneData[k].positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes();
+			sceneData[k].localMaxBounds          = section.localBounds.maxBounds;
 			sceneData[k].nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes();
 			sceneData[k].indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes();
 			++k;
@@ -177,7 +204,19 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, const SceneProxy* 
 	commandList->setPipelineState(pipelineState.get());
 	commandList->setComputeRootSignature(rootSignature.get());
 
+	DescriptorHeap* volatileHeap = volatileViewHeaps[swapchainIndex].get();
+	DescriptorHeap* heaps[] = { volatileHeap };
+	commandList->setDescriptorHeaps(1, heaps);
+
+	constexpr uint32 VOLATILE_IX_SceneUniform = 0;
+	gRenderDevice->copyDescriptors(
+		1,
+		volatileHeap, VOLATILE_IX_SceneUniform,
+		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap());
+
+	// Bind root parameters
 	commandList->setComputeRootConstant32(RootParameters::PushConstantsSlot, numMeshSections, 0);
+	commandList->setComputeRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, VOLATILE_IX_SceneUniform);
 	commandList->setComputeRootDescriptorUAV(RootParameters::GPUSceneSlot, gpuSceneBufferUAV.get());
 	commandList->setComputeRootDescriptorUAV(RootParameters::CulledGPUSceneSlot, culledGpuSceneBufferUAV.get());
 
@@ -253,6 +292,32 @@ void GPUScene::copyMaterialDescriptors(
 			destHeap, outSRVBaseIndex,
 			materialSRVHeap.get(), 0);
 	}
+}
+
+void GPUScene::resizeVolatileHeaps(uint32 maxDescriptors)
+{
+	totalVolatileDescriptors = maxDescriptors;
+
+	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+
+	volatileViewHeaps.resize(swapchainCount);
+	for (uint32 i = 0; i < swapchainCount; ++i)
+	{
+		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+			DescriptorHeapDesc{
+				.type           = EDescriptorHeapType::CBV_SRV_UAV,
+				.numDescriptors = maxDescriptors,
+				.flags          = EDescriptorHeapFlags::ShaderVisible,
+				.nodeMask       = 0,
+			}
+		));
+
+		wchar_t debugName[256];
+		swprintf_s(debugName, L"GPUScene_VolatileViewHeap_%u", i);
+		volatileViewHeaps[i]->setDebugName(debugName);
+	}
+
+	CYLOG(LogGPUScene, Log, L"Resize volatile heap: %u descriptors", maxDescriptors);
 }
 
 void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
