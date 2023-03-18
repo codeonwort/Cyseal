@@ -11,8 +11,12 @@ Camera::Camera()
 
 void Camera::perspective(float fovY_degrees, float aspectWH, float n, float f)
 {
-	const float fovY = Cymath::radians(fovY_degrees);
-	const float Y = Cymath::cot(fovY * 0.5f);
+	fovY_radians = Cymath::radians(fovY_degrees);
+	aspectRatioWH = aspectWH;
+	zNear = n;
+	zFar = f;
+
+	const float Y = Cymath::cot(fovY_radians * 0.5f);
 	const float X = Y / aspectWH;
 
 	// NDC z range = [0, 1]
@@ -74,6 +78,43 @@ void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
 	viewInv = view.inverse();
 
 	bDirty = true;
+}
+
+void Camera::getFrustum(Plane3D outPlanes[6]) const
+{
+	const float hh_near = zNear * tanf(fovY_radians * 0.5f);
+	const float hw_near = hh_near * aspectRatioWH;
+	const float hh_far = zFar * tanf(fovY_radians * 0.5f);
+	const float hw_far = hh_far * aspectRatioWH;
+
+	const vec3 forward0(0.0f, 0.0f, 1.0f);
+	const vec3 right0(1.0f, 0.0f, 0.0f);
+	const vec3 up0(0.0f, 1.0f, 0.0f);
+
+	vec3 vs[8];
+	vs[0] = (-forward0 * zNear) + (right0 * hw_near) + (up0 * hh_near);
+	vs[1] = (-forward0 * zNear) - (right0 * hw_near) + (up0 * hh_near);
+	vs[2] = (-forward0 * zNear) + (right0 * hw_near) - (up0 * hh_near);
+	vs[3] = (-forward0 * zNear) - (right0 * hw_near) - (up0 * hh_near);
+	vs[4] = (-forward0 * zFar)  + (right0 * hw_far)  + (up0 * hh_far);
+	vs[5] = (-forward0 * zFar)  - (right0 * hw_far)  + (up0 * hh_far);
+	vs[6] = (-forward0 * zFar)  + (right0 * hw_far)  - (up0 * hh_far);
+	vs[7] = (-forward0 * zFar)  - (right0 * hw_far)  - (up0 * hh_far);
+	const auto& M = viewInv.m;
+	for (uint32 i = 0; i < 8; ++i)
+	{
+		float x = dot(vs[i], vec3(M[0][0], M[1][0], M[2][0]));
+		float y = dot(vs[i], vec3(M[0][1], M[1][1], M[2][1]));
+		float z = dot(vs[i], vec3(M[0][2], M[1][2], M[2][2]));
+		vs[i] = position + vec3(x, y, z);
+	}
+
+	outPlanes[0] = Plane3D::fromThreePoints(vs[0], vs[1], vs[4]);
+	outPlanes[1] = Plane3D::fromThreePoints(vs[2], vs[6], vs[3]);
+	outPlanes[2] = Plane3D::fromThreePoints(vs[1], vs[3], vs[5]);
+	outPlanes[3] = Plane3D::fromThreePoints(vs[0], vs[4], vs[2]);
+	outPlanes[4] = Plane3D::fromThreePoints(vs[2], vs[3], vs[0]);
+	outPlanes[5] = Plane3D::fromThreePoints(vs[6], vs[4], vs[7]);
 }
 
 void Camera::updateViewProjection() const

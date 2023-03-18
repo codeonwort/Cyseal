@@ -13,6 +13,7 @@ public:
 
 public:
 	vec3() : vec3(0.0f, 0.0f, 0.0f) {}
+	vec3(float e0) { x = y = z = e0; }
 	vec3(float e0, float e1, float e2)
 	{
 		x = e0;

@@ -87,6 +87,7 @@
     <ClInclude Include="src\core\engine.h" />
     <ClInclude Include="src\core\int_types.h" />
     <ClInclude Include="src\core\matrix.h" />
+    <ClInclude Include="src\core\plane.h" />
     <ClInclude Include="src\core\platform.h" />
     <ClInclude Include="src\core\quaternion.h" />
     <ClInclude Include="src\core\types.h" />
@@ -101,6 +102,7 @@
     <ClInclude Include="src\memory\free_number_list.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
     <ClInclude Include="src\render\base_pass.h" />
+    <ClInclude Include="src\render\gpu_culling.h" />
     <ClInclude Include="src\rhi\global_descriptor_heaps.h" />
     <ClInclude Include="src\render\gpu_scene.h" />
     <ClInclude Include="src\render\null_renderer.h" />
@@ -169,6 +171,7 @@
     <ClCompile Include="src\loader\image_loader.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\render\base_pass.cpp" />
+    <ClCompile Include="src\render\gpu_culling.cpp" />
     <ClCompile Include="src\rhi\dx12\d3d_pipeline_state.cpp" />
     <ClCompile Include="src\rhi\global_descriptor_heaps.cpp" />
     <ClCompile Include="src\render\gpu_scene.cpp" />

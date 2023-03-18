@@ -10,6 +10,7 @@ class Texture;
 class DescriptorHeap;
 class ConstantBufferView;
 class GPUScene;
+class GPUCulling;
 class BasePass;
 class RayTracedReflections;
 class ToneMapping;
@@ -56,6 +57,7 @@ private:
 	// ------------------------------------------------------------------------
 	// Render passes
 	GPUScene* gpuScene = nullptr;
+	GPUCulling* gpuCulling = nullptr;
 	BasePass* basePass = nullptr;
 	RayTracedReflections* rtReflections = nullptr;
 	ToneMapping* toneMapping = nullptr;

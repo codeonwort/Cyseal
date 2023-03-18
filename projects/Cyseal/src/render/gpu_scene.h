@@ -11,6 +11,7 @@ class PipelineState;
 class RootSignature;
 class DescriptorHeap;
 class Buffer;
+class ConstantBufferView;
 class ShaderResourceView;
 class UnorderedAccessView;
 class SceneProxy;
@@ -27,12 +28,20 @@ struct MaterialConstants
 
 class GPUScene final
 {
+	friend class GPUCulling;
+
 public:
 	void initialize();
-	void renderGPUScene(RenderCommandList* commandList, const SceneProxy* scene, const Camera* camera);
+
+	// Update GPU scene buffer.
+	void renderGPUScene(
+		RenderCommandList* commandList,
+		uint32 swapchainIndex,
+		const SceneProxy* scene,
+		const Camera* camera,
+		ConstantBufferView* sceneUniform);
 
 	ShaderResourceView* getGPUSceneBufferSRV() const;
-	ShaderResourceView* getCulledGPUSceneBufferSRV() const;
 
 	// Query how many descriptors are needed.
 	// Use this before copyMaterialDescriptors() if you're unsure the dest heap is big enough.
@@ -42,6 +51,7 @@ public:
 	// This method will copy a variable number of descriptors, so other descriptors
 	// unrelated to material descriptors can be bound starting from 'outNextAvailableIndex'.
 	void copyMaterialDescriptors(
+		uint32 swapchainIndex,
 		DescriptorHeap* destHeap, uint32 destBaseIndex,
 		uint32& outCBVBaseIndex, uint32& outCBVCount,
 		uint32& outSRVBaseIndex, uint32& outSRVCount,
@@ -50,6 +60,7 @@ public:
 	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
 
 private:
+	void resizeVolatileHeaps(uint32 maxDescriptors);
 	void resizeGPUSceneBuffers(uint32 maxElements);
 	void resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount);
 
@@ -57,16 +68,14 @@ private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
 
-	// GPU scene buffers
+	uint32 totalVolatileDescriptors = 0;
+	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
+
+	// GPU scene buffer
 	uint32 gpuSceneMaxElements = 0;
 	std::unique_ptr<Buffer> gpuSceneBuffer;
-	std::unique_ptr<Buffer> culledGpuSceneBuffer;
-
-	// GPU scene buffer views
 	std::unique_ptr<ShaderResourceView> gpuSceneBufferSRV;
-	std::unique_ptr<ShaderResourceView> culledGpuSceneBufferSRV;
 	std::unique_ptr<UnorderedAccessView> gpuSceneBufferUAV;
-	std::unique_ptr<UnorderedAccessView> culledGpuSceneBufferUAV;
 
 	// Bindless materials
 	std::unique_ptr<Buffer> materialCBVMemory;

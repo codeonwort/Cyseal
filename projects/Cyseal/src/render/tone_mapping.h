@@ -15,6 +15,7 @@ public:
 
 	void renderToneMapping(
 		RenderCommandList* commandList,
+		uint32 swapchainIndex,
 		Texture* sceneColor,
 		Texture* indirectSpecular);
 

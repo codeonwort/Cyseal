@@ -18,6 +18,7 @@ public:
 	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) override;
 
 	virtual void* getRawResource() const { return defaultBuffer.Get(); }
+	virtual void setDebugName(const wchar_t* inDebugName) override;
 
 private:
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;

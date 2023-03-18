@@ -45,7 +45,7 @@
 #define CAMERA_LOOKAT        vec3(0.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
 #define CAMERA_FOV_Y         70.0f
-#define CAMERA_Z_NEAR        1.0f
+#define CAMERA_Z_NEAR        0.01f
 #define CAMERA_Z_FAR         10000.0f
 
 #define CRUMPLED_WORLD       0
@@ -98,8 +98,18 @@ void TestApplication::onTick(float deltaSeconds)
 		{
 			static float elapsed = 0.0f;
 			elapsed += 0.5f * deltaSeconds;
-			vec3 posDelta = vec3(5.0f * sinf(elapsed), 0.0f, 3.0f * cosf(elapsed));
-			camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
+
+			if (appState.bRotateCamera)
+			{
+				float theta = 3.0f * elapsed;
+				vec3 posDelta = vec3(cosf(theta), 0.0f, sin(theta));
+				camera.lookAt(CAMERA_POSITION, CAMERA_POSITION + posDelta, CAMERA_UP);
+			}
+			else
+			{
+				vec3 posDelta = vec3(5.0f * sinf(elapsed), 0.0f, 3.0f * cosf(elapsed));
+				camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
+			}
 			//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
 			ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
 		}
@@ -124,7 +134,19 @@ void TestApplication::onTick(float deltaSeconds)
 			//ImGui::ShowDemoWindow(0);
 
 			ImGui::Begin("Rendering options");
-			ImGui::Checkbox("Ray Traced Reflections", &rendererOptions.bEnableRayTracedReflections);
+			ImGui::Checkbox("Base Pass - Indirect Draw", &appState.rendererOptions.bEnableIndirectDraw);
+			if (!appState.rendererOptions.bEnableIndirectDraw)
+			{
+				ImGui::BeginDisabled();
+			}
+			ImGui::Checkbox("Base Pass - GPU Culling", &appState.rendererOptions.bEnableGPUCulling);
+			if (!appState.rendererOptions.bEnableIndirectDraw)
+			{
+				ImGui::EndDisabled();
+			}
+			ImGui::Checkbox("Ray Traced Reflections", &appState.rendererOptions.bEnableRayTracedReflections);
+
+			ImGui::Checkbox("Rotate Camera", &appState.bRotateCamera);
 			//ImGui::SliderFloat("float", &sliderValue, 0.0f, 1.0f);
 			ImGui::End();
 		}
@@ -132,7 +154,7 @@ void TestApplication::onTick(float deltaSeconds)
 
 		SceneProxy* sceneProxy = scene.createProxy();
 
-		cysealEngine.getRenderer()->render(sceneProxy, &camera, rendererOptions);
+		cysealEngine.getRenderer()->render(sceneProxy, &camera, appState.rendererOptions);
 
 		delete sceneProxy;
 	}
@@ -228,6 +250,7 @@ void TestApplication::createResources()
 			100.0f, 100.0f, 2, 2,
 			ProceduralGeometry::EPlaneNormal::Y);
 #endif
+		AABB localBounds = planeGeometry->localBounds;
 
 		std::shared_ptr<VertexBufferAsset> positionBufferAsset = std::make_shared<VertexBufferAsset>();
 		std::shared_ptr<VertexBufferAsset> nonPositionBufferAsset = std::make_shared<VertexBufferAsset>();
@@ -259,7 +282,7 @@ void TestApplication::createResources()
 		material->roughness = 0.0f;
 
 		ground = new StaticMesh;
-		ground->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material);
+		ground->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
 		ground->setPosition(vec3(0.0f, -10.0f, 0.0f));
 
 		scene.addStaticMesh(ground);
@@ -278,6 +301,7 @@ void TestApplication::createResources()
 			50.0f, 50.0f, 2, 2,
 			ProceduralGeometry::EPlaneNormal::X);
 #endif
+		AABB localBounds = planeGeometry->localBounds;
 
 		std::shared_ptr<VertexBufferAsset> positionBufferAsset = std::make_shared<VertexBufferAsset>();
 		std::shared_ptr<VertexBufferAsset> nonPositionBufferAsset = std::make_shared<VertexBufferAsset>();
@@ -309,7 +333,7 @@ void TestApplication::createResources()
 		material->roughness = 0.0f;
 
 		wallA = new StaticMesh;
-		wallA->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material);
+		wallA->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
 		wallA->setPosition(vec3(-25.0f, 0.0f, 0.0f));
 		wallA->setRotation(vec3(0.0f, 0.0f, 1.0f), -10.0f);
 

@@ -1,6 +1,7 @@
 #include "scene_renderer.h"
 #include "core/assertion.h"
 #include "core/platform.h"
+#include "core/plane.h"
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/swap_chain.h"
@@ -8,6 +9,7 @@
 #include "rhi/global_descriptor_heaps.h"
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
+#include "render/gpu_culling.h"
 #include "render/base_pass.h"
 #include "render/ray_traced_reflections.h"
 #include "render/tone_mapping.h"
@@ -25,6 +27,8 @@ struct SceneUniform
 	Float4x4 viewInvMatrix;
 	Float4x4 projInvMatrix;
 	Float4x4 viewProjInvMatrix;
+
+	Plane3D cameraFrustum[6];
 
 	vec3 cameraPosition; float _pad0;
 	vec3 sunDirection;   float _pad1;
@@ -88,6 +92,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		gpuScene = new GPUScene;
 		gpuScene->initialize();
 
+		gpuCulling = new GPUCulling;
+		gpuCulling->initialize();
+
 		basePass = new BasePass;
 		basePass->initialize();
 
@@ -106,6 +113,7 @@ void SceneRenderer::destroy()
 	delete RT_indirectSpecular;
 
 	delete gpuScene;
+	delete gpuCulling;
 	delete basePass;
 	delete rtReflections;
 	delete toneMapping;
@@ -177,7 +185,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
 
-		gpuScene->renderGPUScene(commandList, scene, camera);
+		gpuScene->renderGPUScene(
+			commandList, swapchainIndex,
+			scene, camera, sceneUniformCBVs[swapchainIndex].get());
 	}
 
 	if (bSupportsRaytracing && scene->bRebuildRaytracingScene)
@@ -254,9 +264,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		basePass->renderBasePass(
 			commandList, swapchainIndex,
-			scene, camera,
+			scene, camera, renderOptions,
 			sceneUniformCBVs[swapchainIndex].get(),
 			gpuScene,
+			gpuCulling,
 			RT_sceneColor, RT_thinGBufferA);
 	}
 
@@ -305,7 +316,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->resourceBarriers(_countof(barriers), barriers);
 
 		rtReflections->renderRayTracedReflections(
-			commandList, scene, camera,
+			commandList, swapchainIndex, scene, camera,
 			sceneUniformCBVs[swapchainIndex].get(),
 			accelStructure,
 			gpuScene,
@@ -351,6 +362,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		toneMapping->renderToneMapping(
 			commandList,
+			swapchainIndex,
 			RT_sceneColor,
 			RT_indirectSpecular);
 	}
@@ -358,9 +370,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Dear Imgui: Record commands
 
-	DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
-	commandList->setDescriptorHeaps(1, imguiHeaps);
-	device->renderDearImgui(commandList);
+	{
+		SCOPED_DRAW_EVENT(commandList, DearImgui);
+
+		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
+		commandList->setDescriptorHeaps(1, imguiHeaps);
+		device->renderDearImgui(commandList);
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize
@@ -444,6 +460,8 @@ void SceneRenderer::updateSceneUniform(
 	uboData.viewInvMatrix     = camera->getViewInvMatrix();
 	uboData.projInvMatrix     = camera->getProjInvMatrix();
 	uboData.viewProjInvMatrix = camera->getViewProjInvMatrix();
+
+	camera->getFrustum(uboData.cameraFrustum);
 
 	uboData.cameraPosition    = camera->getPosition();
 	uboData.sunDirection      = scene->sun.direction;

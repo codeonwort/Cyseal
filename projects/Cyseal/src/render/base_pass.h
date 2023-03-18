@@ -1,5 +1,6 @@
 #pragma once
 
+#include "renderer.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource.h"
@@ -11,6 +12,7 @@ class Material;
 class SceneProxy;
 class Camera;
 class GPUScene;
+class GPUCulling;
 class Texture;
 
 class BasePass final
@@ -23,8 +25,10 @@ public:
 		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera,
+		const RendererOptions& rendererOptions,
 		ConstantBufferView* sceneUniformBuffer,
 		GPUScene* gpuScene,
+		GPUCulling* gpuCulling,
 		Texture* RT_sceneColor,
 		Texture* RT_thinGBufferA);
 
@@ -32,6 +36,7 @@ private:
 	// Bind root parameters for the current root signature
 	void bindRootParameters(
 		RenderCommandList* cmdList,
+		uint32 swapchainIndex,
 		ConstantBufferView* sceneUniform,
 		GPUScene* gpuScene);
 
@@ -44,6 +49,11 @@ private:
 	std::unique_ptr<CommandSignature> commandSignature;
 	std::unique_ptr<IndirectCommandGenerator> argumentBufferGenerator;
 	std::vector<std::unique_ptr<Buffer>> argumentBuffers;
+	std::vector<std::unique_ptr<ShaderResourceView>> argumentBufferSRVs;
+	std::vector<std::unique_ptr<Buffer>> culledArgumentBuffers;
+	std::vector<std::unique_ptr<UnorderedAccessView>> culledArgumentBufferUAVs;
+	std::vector<std::unique_ptr<Buffer>> drawCounterBuffers;
+	std::vector<std::unique_ptr<UnorderedAccessView>> drawCounterBufferUAVs;
 
 	uint32 totalVolatileDescriptors = 0;
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;

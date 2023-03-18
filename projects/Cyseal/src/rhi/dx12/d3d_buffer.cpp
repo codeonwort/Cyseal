@@ -251,7 +251,7 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Bu
 	for (uint32 i = 0; i < numUploads; ++i)
 	{
 		CHECK((createParams.alignment == 0) || (uploadDescs[i].destOffsetInBytes % createParams.alignment == 0));
-		CHECK(uploadDescs[i].destOffsetInBytes + uploadDescs[i].sizeInBytes < createParams.sizeInBytes);
+		CHECK(uploadDescs[i].destOffsetInBytes + uploadDescs[i].sizeInBytes <= createParams.sizeInBytes);
 	}
 
 	ID3D12GraphicsCommandList* cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
@@ -322,4 +322,9 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Bu
 	auto barrierAfter = CD3DX12_RESOURCE_BARRIER::Transition(
 		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
 	cmdList->ResourceBarrier(1, &barrierAfter);
+}
+
+void D3DBuffer::setDebugName(const wchar_t* inDebugName)
+{
+	defaultBuffer->SetName(inDebugName);
 }

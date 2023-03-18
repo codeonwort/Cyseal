@@ -11,7 +11,8 @@ struct StaticMeshSection
 	std::shared_ptr<VertexBufferAsset> positionBuffer;
 	std::shared_ptr<VertexBufferAsset> nonPositionBuffer;
 	std::shared_ptr<IndexBufferAsset>  indexBuffer;
-	std::shared_ptr<Material> material;
+	std::shared_ptr<Material>          material;
+	AABB                               localBounds;
 };
 
 struct StaticMeshLOD
@@ -27,7 +28,8 @@ public:
 		std::shared_ptr<VertexBufferAsset> positionBuffer,
 		std::shared_ptr<VertexBufferAsset> nonPositionBuffer,
 		std::shared_ptr<IndexBufferAsset> indexBuffer,
-		std::shared_ptr<Material> material);
+		std::shared_ptr<Material> material,
+		const AABB& localBounds);
 
 	inline const std::vector<StaticMeshSection>& getSections(uint32 lod) const
 	{

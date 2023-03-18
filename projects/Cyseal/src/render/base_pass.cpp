@@ -2,6 +2,7 @@
 #include "material.h"
 #include "static_mesh.h"
 #include "gpu_scene.h"
+#include "gpu_culling.h"
 #include "util/logging.h"
 
 #include "rhi/render_device.h"
@@ -16,8 +17,6 @@
 // Force MRT formats for now.
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 #define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
-
-#define bUseIndirectDraw         true
 
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
@@ -118,7 +117,41 @@ void BasePass::initialize()
 		argumentBufferGenerator = std::unique_ptr<IndirectCommandGenerator>(
 			device->createIndirectCommandGenerator(commandSignatureDesc, 256));
 
+		// Buffer max size can vary, recreate on demand
 		argumentBuffers.resize(swapchainCount);
+		argumentBufferSRVs.resize(swapchainCount);
+		culledArgumentBuffers.resize(swapchainCount);
+		culledArgumentBufferUAVs.resize(swapchainCount);
+
+		// Fixed size, create here
+		drawCounterBuffers.resize(swapchainCount);
+		drawCounterBufferUAVs.resize(swapchainCount);
+		for (uint32 i = 0; i < swapchainCount; ++i)
+		{
+			drawCounterBuffers[i] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+				BufferCreateParams{
+					.sizeInBytes = sizeof(uint32),
+					.alignment = 0,
+					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+				}
+			));
+
+			wchar_t debugName[256];
+			swprintf_s(debugName, L"Buffer_IndirectDrawCounterBuffer_%u", i);
+			drawCounterBuffers[i]->setDebugName(debugName);
+
+			UnorderedAccessViewDesc uavDesc{};
+			uavDesc.format                      = EPixelFormat::UNKNOWN;
+			uavDesc.viewDimension               = EUAVDimension::Buffer;
+			uavDesc.buffer.firstElement         = 0;
+			uavDesc.buffer.numElements          = 1;
+			uavDesc.buffer.structureByteStride  = sizeof(uint32);
+			uavDesc.buffer.counterOffsetInBytes = 0;
+			uavDesc.buffer.flags                = EBufferUAVFlags::None;
+
+			drawCounterBufferUAVs[i] = std::unique_ptr<UnorderedAccessView>(
+				gRenderDevice->createUAV(drawCounterBuffers[i].get(), uavDesc));
+		}
 	}
 
 	// Input layout
@@ -169,8 +202,10 @@ void BasePass::renderBasePass(
 	uint32 swapchainIndex,
 	const SceneProxy* scene,
 	const Camera* camera,
+	const RendererOptions& rendererOptions,
 	ConstantBufferView* sceneUniformBuffer,
 	GPUScene* gpuScene,
+	GPUCulling* gpuCulling,
 	Texture* RT_sceneColor,
 	Texture* RT_thinGBufferA)
 {
@@ -196,7 +231,7 @@ void BasePass::renderBasePass(
 		}
 	}
 
-	// Resize indirect argument buffer and its generator.
+	// Resize indirect argument buffers and their generator.
 	{
 		const uint32 maxElements = gpuScene->getGPUSceneItemMaxCount();
 
@@ -207,6 +242,8 @@ void BasePass::renderBasePass(
 
 		uint32 requiredCapacity = argumentBufferGenerator->getCommandByteStride() * maxElements;
 		Buffer* argBuffer = argumentBuffers[swapchainIndex].get();
+		Buffer* culledArgBuffer = argumentBuffers[swapchainIndex].get();
+
 		if (argBuffer == nullptr || argBuffer->getCreateParams().sizeInBytes < requiredCapacity)
 		{
 			argumentBuffers[swapchainIndex] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
@@ -216,23 +253,56 @@ void BasePass::renderBasePass(
 					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
 				}
 			));
+
+			wchar_t debugName[256];
+			swprintf_s(debugName, L"Buffer_IndirectDrawBuffer_%u", swapchainIndex);
+			argumentBuffers[swapchainIndex]->setDebugName(debugName);
+
+			ShaderResourceViewDesc srvDesc{};
+			srvDesc.format                     = EPixelFormat::UNKNOWN;
+			srvDesc.viewDimension              = ESRVDimension::Buffer;
+			srvDesc.buffer.firstElement        = 0;
+			srvDesc.buffer.numElements         = maxElements;
+			srvDesc.buffer.structureByteStride = argumentBufferGenerator->getCommandByteStride();
+			srvDesc.buffer.flags               = EBufferSRVFlags::None;
+
+			argumentBufferSRVs[swapchainIndex] = std::unique_ptr<ShaderResourceView>(
+				gRenderDevice->createSRV(argumentBuffers[swapchainIndex].get(), srvDesc));
+		}
+		if (culledArgBuffer == nullptr || culledArgBuffer->getCreateParams().sizeInBytes < requiredCapacity)
+		{
+			culledArgumentBuffers[swapchainIndex] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+				BufferCreateParams{
+					.sizeInBytes = requiredCapacity,
+					.alignment   = 0,
+					.accessFlags = EBufferAccessFlags::UAV
+				}
+			));
+
+			wchar_t debugName[256];
+			swprintf_s(debugName, L"Buffer_CulledIndirectDrawBuffer_%u", swapchainIndex);
+			culledArgumentBuffers[swapchainIndex]->setDebugName(debugName);
+
+			UnorderedAccessViewDesc uavDesc{};
+			uavDesc.format                      = EPixelFormat::UNKNOWN;
+			uavDesc.viewDimension               = EUAVDimension::Buffer;
+			uavDesc.buffer.firstElement         = 0;
+			uavDesc.buffer.numElements          = maxElements;
+			uavDesc.buffer.structureByteStride  = argumentBufferGenerator->getCommandByteStride();
+			uavDesc.buffer.counterOffsetInBytes = 0;
+			uavDesc.buffer.flags                = EBufferUAVFlags::None;
+
+			culledArgumentBufferUAVs[swapchainIndex] = std::unique_ptr<UnorderedAccessView>(
+				gRenderDevice->createUAV(culledArgumentBuffers[swapchainIndex].get(), uavDesc));
 		}
 	}
-
-	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
-	// Setting a PSO does not change the root signature.
-	// The application must call a dedicated API for setting the root signature.
-	commandList->setPipelineState(pipelineState.get());
-	commandList->setGraphicsRootSignature(rootSignature.get());
-	
-	commandList->iaSetPrimitiveTopology(primitiveTopology);
 
 	// #todo-lod: LOD selection
 	const uint32 LOD = 0;
 
-	bindRootParameters(commandList, sceneUniformBuffer, gpuScene);
-	
-	if (bUseIndirectDraw)
+	// Fill the indirect draw buffer and perform GPU culling.
+	uint32 maxIndirectDraws = 0;
+	if (rendererOptions.bEnableIndirectDraw)
 	{
 		uint32 indirectCommandID = 0;
 		for (const StaticMesh* mesh : scene->staticMeshes)
@@ -257,10 +327,43 @@ void BasePass::renderBasePass(
 			}
 		}
 
-		const uint32 numIndirectDraws = indirectCommandID;
+		maxIndirectDraws = indirectCommandID;
 		Buffer* currentArgumentBuffer = argumentBuffers[swapchainIndex].get();
-		argumentBufferGenerator->copyToBuffer(commandList, numIndirectDraws, currentArgumentBuffer, 0);
-		commandList->executeIndirect(commandSignature.get(), numIndirectDraws, currentArgumentBuffer, 0, nullptr, 0);
+		argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, currentArgumentBuffer, 0);
+
+		if (rendererOptions.bEnableGPUCulling)
+		{
+			gpuCulling->cullDrawCommands(
+				commandList, swapchainIndex, sceneUniformBuffer, camera, gpuScene,
+				maxIndirectDraws, currentArgumentBuffer, argumentBufferSRVs[swapchainIndex].get(),
+				culledArgumentBuffers[swapchainIndex].get(), culledArgumentBufferUAVs[swapchainIndex].get(),
+				drawCounterBuffers[swapchainIndex].get(), drawCounterBufferUAVs[swapchainIndex].get());
+		}
+	}
+
+	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
+	// Setting a PSO does not change the root signature.
+	// The application must call a dedicated API for setting the root signature.
+	commandList->setPipelineState(pipelineState.get());
+	commandList->setGraphicsRootSignature(rootSignature.get());
+	
+	commandList->iaSetPrimitiveTopology(primitiveTopology);
+
+	bindRootParameters(commandList, swapchainIndex, sceneUniformBuffer, gpuScene);
+	
+	if (rendererOptions.bEnableIndirectDraw)
+	{
+		if (rendererOptions.bEnableGPUCulling)
+		{
+			Buffer* argumentBuffer = culledArgumentBuffers[swapchainIndex].get();
+			Buffer* counterBuffer = drawCounterBuffers[swapchainIndex].get();
+			commandList->executeIndirect(commandSignature.get(), maxIndirectDraws, argumentBuffer, 0, counterBuffer, 0);
+		}
+		else
+		{
+			Buffer* argumentBuffer = argumentBuffers[swapchainIndex].get();
+			commandList->executeIndirect(commandSignature.get(), maxIndirectDraws, argumentBuffer, 0, nullptr, 0);
+		}
 	}
 	else
 	{
@@ -289,16 +392,15 @@ void BasePass::renderBasePass(
 
 void BasePass::bindRootParameters(
 	RenderCommandList* cmdList,
+	uint32 swapchainIndex,
 	ConstantBufferView* sceneUniform,
 	GPUScene* gpuScene)
 {
-	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-
 	// slot0: Updated per drawcall, not here
 	//cmdList->setGraphicsRootConstant32(0, payloadID, 0);
 
 	// #todo-sampler: volatile sampler heap in the second element
-	DescriptorHeap* volatileHeap = volatileViewHeaps[frameIndex].get();
+	DescriptorHeap* volatileHeap = volatileViewHeaps[swapchainIndex].get();
 	DescriptorHeap* heaps[] = { volatileHeap, };
 	cmdList->setDescriptorHeaps(1, heaps);
 
@@ -310,13 +412,14 @@ void BasePass::bindRootParameters(
 		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap());
 	cmdList->setGraphicsRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, sceneUniformDescIx);
 
-	cmdList->setGraphicsRootDescriptorSRV(RootParameters::GPUSceneSlot, gpuScene->getCulledGPUSceneBufferSRV());
+	cmdList->setGraphicsRootDescriptorSRV(RootParameters::GPUSceneSlot, gpuScene->getGPUSceneBufferSRV());
 	
 	// Material CBV and SRV
 	uint32 materialCBVBaseIndex, materialCBVCount;
 	uint32 materialSRVBaseIndex, materialSRVCount;
 	uint32 freeDescriptorIndexAfterMaterials;
 	gpuScene->copyMaterialDescriptors(
+		swapchainIndex,
 		volatileHeap, 1,
 		materialCBVBaseIndex, materialCBVCount,
 		materialSRVBaseIndex, materialSRVCount,

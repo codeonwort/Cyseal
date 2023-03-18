@@ -219,6 +219,7 @@ bool RayTracedReflections::isAvailable() const
 
 void RayTracedReflections::renderRayTracedReflections(
 	RenderCommandList* commandList,
+	uint32 swapchainIndex,
 	const SceneProxy* scene,
 	const Camera* camera,
 	ConstantBufferView* sceneUniformBuffer,
@@ -290,7 +291,6 @@ void RayTracedReflections::renderRayTracedReflections(
 		));
 	}
 
-	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 	DescriptorHeap* descriptorHeaps[] = { volatileViewHeaps[swapchainIndex].get() };
 
 	//////////////////////////////////////////////////////////////////////////
@@ -324,6 +324,7 @@ void RayTracedReflections::renderRayTracedReflections(
 		volatileHeap, VOLATILE_DESC_IX_SKYBOX,
 		skyboxSRVWithFallback->getSourceHeap(), skyboxSRVWithFallback->getDescriptorIndexInHeap());
 	gpuScene->copyMaterialDescriptors(
+		swapchainIndex,
 		volatileHeap, VOLATILE_DESC_IX_MATERIAL_BEGIN,
 		VOLATILE_DESC_IX_MATERIAL_CBV, unusedMaterialCBVCount,
 		VOLATILE_DESC_IX_MATERIAL_SRV, unusedMaterialSRVCount,

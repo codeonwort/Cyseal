@@ -9,9 +9,8 @@ struct PushConstants
 };
 
 ConstantBuffer<PushConstants> pushConstants       : register(b0);
-//ConstantBuffer<SceneUniform> sceneUniform       : register(b1);
+ConstantBuffer<SceneUniform> sceneUniform         : register(b1);
 RWStructuredBuffer<MeshData> gpuSceneBuffer       : register(u0);
-RWStructuredBuffer<MeshData> culledGpuSceneBuffer : register(u1);
 
 // ------------------------------------------------------------------------
 // Compute shader
@@ -25,6 +24,7 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
         return;
     }
 
-    // #todo-wip: Cull something
-    culledGpuSceneBuffer[objectID] = gpuSceneBuffer[objectID];
+    MeshData sceneItem = gpuSceneBuffer[objectID];
+
+    // Do nothing because I'm uploading the entire scene every frame.
 }
