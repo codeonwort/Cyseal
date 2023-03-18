@@ -22,7 +22,6 @@ namespace RootParameters
 		PushConstantsSlot = 0,
 		SceneUniformSlot,
 		GPUSceneSlot,
-		CulledGPUSceneSlot,
 		Count
 	};
 }
@@ -49,14 +48,13 @@ void GPUScene::initialize()
 
 	// Root signature
 	{
-		DescriptorRange descriptorRanges[1];
+		DescriptorRange descriptorRanges[2];
 		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1, 0); // register(b1, space0)
 
 		RootParameter rootParameters[RootParameters::Count];
 		rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1); // register(b0, space0) = numElements
 		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
 		rootParameters[RootParameters::GPUSceneSlot].initAsUAV(0, 0);               // register(u0, space0)
-		rootParameters[RootParameters::CulledGPUSceneSlot].initAsUAV(1, 0);         // register(u1, space0)
 
 		RootSignatureDesc rootSigDesc(
 			RootParameters::Count,
@@ -78,6 +76,8 @@ void GPUScene::initialize()
 			.nodeMask      = 0
 		}
 	));
+
+	delete shaderCS;
 }
 
 void GPUScene::renderGPUScene(
@@ -192,12 +192,6 @@ void GPUScene::renderGPUScene(
 			EGPUResourceState::COMMON,
 			EGPUResourceState::UNORDERED_ACCESS
 		},
-		{
-			EResourceBarrierType::Transition,
-			culledGpuSceneBuffer.get(),
-			EGPUResourceState::COMMON,
-			EGPUResourceState::UNORDERED_ACCESS
-		}
 	};
 	commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
 
@@ -209,6 +203,7 @@ void GPUScene::renderGPUScene(
 	commandList->setDescriptorHeaps(1, heaps);
 
 	constexpr uint32 VOLATILE_IX_SceneUniform = 0;
+	constexpr uint32 VOLATILE_IX_VisibleCounter = 1;
 	gRenderDevice->copyDescriptors(
 		1,
 		volatileHeap, VOLATILE_IX_SceneUniform,
@@ -218,7 +213,6 @@ void GPUScene::renderGPUScene(
 	commandList->setComputeRootConstant32(RootParameters::PushConstantsSlot, numMeshSections, 0);
 	commandList->setComputeRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, VOLATILE_IX_SceneUniform);
 	commandList->setComputeRootDescriptorUAV(RootParameters::GPUSceneSlot, gpuSceneBufferUAV.get());
-	commandList->setComputeRootDescriptorUAV(RootParameters::CulledGPUSceneSlot, culledGpuSceneBufferUAV.get());
 
 	commandList->dispatchCompute(numMeshSections, 1, 1);
 
@@ -229,12 +223,6 @@ void GPUScene::renderGPUScene(
 			EGPUResourceState::UNORDERED_ACCESS,
 			EGPUResourceState::PIXEL_SHADER_RESOURCE
 		},
-		{
-			EResourceBarrierType::Transition,
-			culledGpuSceneBuffer.get(),
-			EGPUResourceState::UNORDERED_ACCESS,
-			EGPUResourceState::PIXEL_SHADER_RESOURCE
-		}
 	};
 	commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
 }
@@ -242,11 +230,6 @@ void GPUScene::renderGPUScene(
 ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
 {
 	return gpuSceneBufferSRV.get();
-}
-
-ShaderResourceView* GPUScene::getCulledGPUSceneBufferSRV() const
-{
-	return culledGpuSceneBufferSRV.get();
 }
 
 void GPUScene::queryMaterialDescriptorsCount(uint32& outCBVCount, uint32& outSRVCount)
@@ -332,13 +315,6 @@ void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
 			.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
 		}
 	));
-	culledGpuSceneBuffer = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
-		BufferCreateParams{
-			.sizeInBytes = viewStride * gpuSceneMaxElements,
-			.alignment   = 0,
-			.accessFlags = EBufferAccessFlags::UAV,
-		}
-	));
 	
 	{
 		ShaderResourceViewDesc srvDesc{};
@@ -352,17 +328,6 @@ void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
 			gRenderDevice->createSRV(gpuSceneBuffer.get(), srvDesc));
 	}
 	{
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                     = EPixelFormat::UNKNOWN;
-		srvDesc.viewDimension              = ESRVDimension::Buffer;
-		srvDesc.buffer.firstElement        = 0;
-		srvDesc.buffer.numElements         = gpuSceneMaxElements;
-		srvDesc.buffer.structureByteStride = viewStride;
-		srvDesc.buffer.flags               = EBufferSRVFlags::None;
-		culledGpuSceneBufferSRV = std::unique_ptr<ShaderResourceView>(
-			gRenderDevice->createSRV(culledGpuSceneBuffer.get(), srvDesc));
-	}
-	{
 		UnorderedAccessViewDesc uavDesc{};
 		uavDesc.format                      = EPixelFormat::UNKNOWN;
 		uavDesc.viewDimension               = EUAVDimension::Buffer;
@@ -373,18 +338,6 @@ void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
 		uavDesc.buffer.flags                = EBufferUAVFlags::None;
 		gpuSceneBufferUAV = std::unique_ptr<UnorderedAccessView>(
 			gRenderDevice->createUAV(gpuSceneBuffer.get(), uavDesc));
-	}
-	{
-		UnorderedAccessViewDesc uavDesc{};
-		uavDesc.format                      = EPixelFormat::UNKNOWN;
-		uavDesc.viewDimension               = EUAVDimension::Buffer;
-		uavDesc.buffer.firstElement         = 0;
-		uavDesc.buffer.numElements          = gpuSceneMaxElements;
-		uavDesc.buffer.structureByteStride  = viewStride;
-		uavDesc.buffer.counterOffsetInBytes = 0;
-		uavDesc.buffer.flags                = EBufferUAVFlags::None;
-		culledGpuSceneBufferUAV = std::unique_ptr<UnorderedAccessView>(
-			gRenderDevice->createUAV(culledGpuSceneBuffer.get(), uavDesc));
 	}
 }
 
@@ -445,7 +398,7 @@ void GPUScene::resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount)
 					materialCBVHeap.get(),
 					sizeof(MaterialConstants),
 					cbMemoryOffset));
-			// #todo-rhi: Somehow hide this alignment from rhi level?
+			// #todo-rhi: Let RHI layer handle this alignment
 			cbMemoryOffset += align(sizeof(MaterialConstants), 256);
 		}
 	}

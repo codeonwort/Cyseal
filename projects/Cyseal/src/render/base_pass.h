@@ -11,6 +11,7 @@ class Material;
 class SceneProxy;
 class Camera;
 class GPUScene;
+class GPUCulling;
 class Texture;
 
 class BasePass final
@@ -25,6 +26,7 @@ public:
 		const Camera* camera,
 		ConstantBufferView* sceneUniformBuffer,
 		GPUScene* gpuScene,
+		GPUCulling* gpuCulling,
 		Texture* RT_sceneColor,
 		Texture* RT_thinGBufferA);
 
@@ -44,6 +46,11 @@ private:
 	std::unique_ptr<CommandSignature> commandSignature;
 	std::unique_ptr<IndirectCommandGenerator> argumentBufferGenerator;
 	std::vector<std::unique_ptr<Buffer>> argumentBuffers;
+	std::vector<std::unique_ptr<ShaderResourceView>> argumentBufferSRVs;
+	std::vector<std::unique_ptr<Buffer>> culledArgumentBuffers;
+	std::vector<std::unique_ptr<UnorderedAccessView>> culledArgumentBufferUAVs;
+	std::vector<std::unique_ptr<Buffer>> drawCounterBuffers;
+	std::vector<std::unique_ptr<UnorderedAccessView>> drawCounterBufferUAVs;
 
 	uint32 totalVolatileDescriptors = 0;
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;

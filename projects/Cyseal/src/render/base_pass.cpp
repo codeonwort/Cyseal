@@ -2,6 +2,7 @@
 #include "material.h"
 #include "static_mesh.h"
 #include "gpu_scene.h"
+#include "gpu_culling.h"
 #include "util/logging.h"
 
 #include "rhi/render_device.h"
@@ -118,7 +119,37 @@ void BasePass::initialize()
 		argumentBufferGenerator = std::unique_ptr<IndirectCommandGenerator>(
 			device->createIndirectCommandGenerator(commandSignatureDesc, 256));
 
+		// Buffer max size can vary, recreate on demand
 		argumentBuffers.resize(swapchainCount);
+		argumentBufferSRVs.resize(swapchainCount);
+		culledArgumentBuffers.resize(swapchainCount);
+		culledArgumentBufferUAVs.resize(swapchainCount);
+
+		// Fixed size, create here
+		drawCounterBuffers.resize(swapchainCount);
+		drawCounterBufferUAVs.resize(swapchainCount);
+		for (uint32 i = 0; i < swapchainCount; ++i)
+		{
+			drawCounterBuffers[i] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+				BufferCreateParams{
+					.sizeInBytes = sizeof(uint32),
+					.alignment = 0,
+					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+				}
+			));
+
+			UnorderedAccessViewDesc uavDesc{};
+			uavDesc.format                      = EPixelFormat::UNKNOWN;
+			uavDesc.viewDimension               = EUAVDimension::Buffer;
+			uavDesc.buffer.firstElement         = 0;
+			uavDesc.buffer.numElements          = 1;
+			uavDesc.buffer.structureByteStride  = sizeof(uint32);
+			uavDesc.buffer.counterOffsetInBytes = 0;
+			uavDesc.buffer.flags                = EBufferUAVFlags::None;
+
+			drawCounterBufferUAVs[i] = std::unique_ptr<UnorderedAccessView>(
+				gRenderDevice->createUAV(drawCounterBuffers[i].get(), uavDesc));
+		}
 	}
 
 	// Input layout
@@ -171,6 +202,7 @@ void BasePass::renderBasePass(
 	const Camera* camera,
 	ConstantBufferView* sceneUniformBuffer,
 	GPUScene* gpuScene,
+	GPUCulling* gpuCulling,
 	Texture* RT_sceneColor,
 	Texture* RT_thinGBufferA)
 {
@@ -196,7 +228,7 @@ void BasePass::renderBasePass(
 		}
 	}
 
-	// Resize indirect argument buffer and its generator.
+	// Resize indirect argument buffers and their generator.
 	{
 		const uint32 maxElements = gpuScene->getGPUSceneItemMaxCount();
 
@@ -207,6 +239,8 @@ void BasePass::renderBasePass(
 
 		uint32 requiredCapacity = argumentBufferGenerator->getCommandByteStride() * maxElements;
 		Buffer* argBuffer = argumentBuffers[swapchainIndex].get();
+		Buffer* culledArgBuffer = argumentBuffers[swapchainIndex].get();
+
 		if (argBuffer == nullptr || argBuffer->getCreateParams().sizeInBytes < requiredCapacity)
 		{
 			argumentBuffers[swapchainIndex] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
@@ -216,6 +250,39 @@ void BasePass::renderBasePass(
 					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
 				}
 			));
+
+			ShaderResourceViewDesc srvDesc{};
+			srvDesc.format                     = EPixelFormat::UNKNOWN;
+			srvDesc.viewDimension              = ESRVDimension::Buffer;
+			srvDesc.buffer.firstElement        = 0;
+			srvDesc.buffer.numElements         = maxElements;
+			srvDesc.buffer.structureByteStride = argumentBufferGenerator->getCommandByteStride();
+			srvDesc.buffer.flags               = EBufferSRVFlags::None;
+
+			argumentBufferSRVs[swapchainIndex] = std::unique_ptr<ShaderResourceView>(
+				gRenderDevice->createSRV(argumentBuffers[swapchainIndex].get(), srvDesc));
+		}
+		if (culledArgBuffer == nullptr || culledArgBuffer->getCreateParams().sizeInBytes < requiredCapacity)
+		{
+			culledArgumentBuffers[swapchainIndex] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+				BufferCreateParams{
+					.sizeInBytes = requiredCapacity,
+					.alignment   = 0,
+					.accessFlags = EBufferAccessFlags::UAV
+				}
+			));
+
+			UnorderedAccessViewDesc uavDesc{};
+			uavDesc.format                      = EPixelFormat::UNKNOWN;
+			uavDesc.viewDimension               = EUAVDimension::Buffer;
+			uavDesc.buffer.firstElement         = 0;
+			uavDesc.buffer.numElements          = maxElements;
+			uavDesc.buffer.structureByteStride  = argumentBufferGenerator->getCommandByteStride();
+			uavDesc.buffer.counterOffsetInBytes = 0;
+			uavDesc.buffer.flags                = EBufferUAVFlags::None;
+
+			culledArgumentBufferUAVs[swapchainIndex] = std::unique_ptr<UnorderedAccessView>(
+				gRenderDevice->createUAV(culledArgumentBuffers[swapchainIndex].get(), uavDesc));
 		}
 	}
 
@@ -260,6 +327,14 @@ void BasePass::renderBasePass(
 		const uint32 numIndirectDraws = indirectCommandID;
 		Buffer* currentArgumentBuffer = argumentBuffers[swapchainIndex].get();
 		argumentBufferGenerator->copyToBuffer(commandList, numIndirectDraws, currentArgumentBuffer, 0);
+
+		// #todo-wip-cull: Cull draw commands
+		//gpuCulling->cullDrawCommands(
+		//	commandList, swapchainIndex, sceneUniformBuffer, camera, gpuScene,
+		//	numIndirectDraws, currentArgumentBuffer, argumentBufferSRVs[swapchainIndex].get(),
+		//	culledArgumentBuffers[swapchainIndex].get(), culledArgumentBufferUAVs[swapchainIndex].get(),
+		//	drawCounterBuffers[swapchainIndex].get(), drawCounterBufferUAVs[swapchainIndex].get());
+
 		commandList->executeIndirect(commandSignature.get(), numIndirectDraws, currentArgumentBuffer, 0, nullptr, 0);
 	}
 	else
@@ -310,7 +385,7 @@ void BasePass::bindRootParameters(
 		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap());
 	cmdList->setGraphicsRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, sceneUniformDescIx);
 
-	cmdList->setGraphicsRootDescriptorSRV(RootParameters::GPUSceneSlot, gpuScene->getCulledGPUSceneBufferSRV());
+	cmdList->setGraphicsRootDescriptorSRV(RootParameters::GPUSceneSlot, gpuScene->getGPUSceneBufferSRV());
 	
 	// Material CBV and SRV
 	uint32 materialCBVBaseIndex, materialCBVCount;

@@ -28,9 +28,12 @@ struct MaterialConstants
 
 class GPUScene final
 {
+	friend class GPUCulling;
+
 public:
 	void initialize();
 
+	// Update GPU scene buffer.
 	void renderGPUScene(
 		RenderCommandList* commandList,
 		const SceneProxy* scene,
@@ -38,7 +41,6 @@ public:
 		ConstantBufferView* sceneUniform);
 
 	ShaderResourceView* getGPUSceneBufferSRV() const;
-	ShaderResourceView* getCulledGPUSceneBufferSRV() const;
 
 	// Query how many descriptors are needed.
 	// Use this before copyMaterialDescriptors() if you're unsure the dest heap is big enough.
@@ -67,16 +69,11 @@ private:
 	uint32 totalVolatileDescriptors = 0;
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
 
-	// GPU scene buffers
+	// GPU scene buffer
 	uint32 gpuSceneMaxElements = 0;
 	std::unique_ptr<Buffer> gpuSceneBuffer;
-	std::unique_ptr<Buffer> culledGpuSceneBuffer;
-
-	// GPU scene buffer views
 	std::unique_ptr<ShaderResourceView> gpuSceneBufferSRV;
-	std::unique_ptr<ShaderResourceView> culledGpuSceneBufferSRV;
 	std::unique_ptr<UnorderedAccessView> gpuSceneBufferUAV;
-	std::unique_ptr<UnorderedAccessView> culledGpuSceneBufferUAV;
 
 	// Bindless materials
 	std::unique_ptr<Buffer> materialCBVMemory;

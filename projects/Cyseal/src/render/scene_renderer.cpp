@@ -9,6 +9,7 @@
 #include "rhi/global_descriptor_heaps.h"
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
+#include "render/gpu_culling.h"
 #include "render/base_pass.h"
 #include "render/ray_traced_reflections.h"
 #include "render/tone_mapping.h"
@@ -91,6 +92,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		gpuScene = new GPUScene;
 		gpuScene->initialize();
 
+		gpuCulling = new GPUCulling;
+		gpuCulling->initialize();
+
 		basePass = new BasePass;
 		basePass->initialize();
 
@@ -109,6 +113,7 @@ void SceneRenderer::destroy()
 	delete RT_indirectSpecular;
 
 	delete gpuScene;
+	delete gpuCulling;
 	delete basePass;
 	delete rtReflections;
 	delete toneMapping;
@@ -260,6 +265,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			scene, camera,
 			sceneUniformCBVs[swapchainIndex].get(),
 			gpuScene,
+			gpuCulling,
 			RT_sceneColor, RT_thinGBufferA);
 	}
 
