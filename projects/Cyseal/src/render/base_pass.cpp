@@ -297,7 +297,7 @@ void BasePass::renderBasePass(
 	// #todo-lod: LOD selection
 	const uint32 LOD = 0;
 
-	bindRootParameters(commandList, sceneUniformBuffer, gpuScene);
+	bindRootParameters(commandList, swapchainIndex, sceneUniformBuffer, gpuScene);
 	
 	if (bUseIndirectDraw)
 	{
@@ -364,16 +364,15 @@ void BasePass::renderBasePass(
 
 void BasePass::bindRootParameters(
 	RenderCommandList* cmdList,
+	uint32 swapchainIndex,
 	ConstantBufferView* sceneUniform,
 	GPUScene* gpuScene)
 {
-	uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-
 	// slot0: Updated per drawcall, not here
 	//cmdList->setGraphicsRootConstant32(0, payloadID, 0);
 
 	// #todo-sampler: volatile sampler heap in the second element
-	DescriptorHeap* volatileHeap = volatileViewHeaps[frameIndex].get();
+	DescriptorHeap* volatileHeap = volatileViewHeaps[swapchainIndex].get();
 	DescriptorHeap* heaps[] = { volatileHeap, };
 	cmdList->setDescriptorHeaps(1, heaps);
 
@@ -392,6 +391,7 @@ void BasePass::bindRootParameters(
 	uint32 materialSRVBaseIndex, materialSRVCount;
 	uint32 freeDescriptorIndexAfterMaterials;
 	gpuScene->copyMaterialDescriptors(
+		swapchainIndex,
 		volatileHeap, 1,
 		materialCBVBaseIndex, materialCBVCount,
 		materialSRVBaseIndex, materialSRVCount,

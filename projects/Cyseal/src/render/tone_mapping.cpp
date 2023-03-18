@@ -108,11 +108,10 @@ ToneMapping::ToneMapping()
 
 void ToneMapping::renderToneMapping(
 	RenderCommandList* commandList,
+	uint32 swapchainIndex,
 	Texture* sceneColor,
 	Texture* indirectSpecular)
 {
-	const uint32 frameIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-
 	commandList->setPipelineState(pipelineState.get());
 	commandList->setGraphicsRootSignature(rootSignature.get());
 
@@ -120,7 +119,7 @@ void ToneMapping::renderToneMapping(
 
 	// Resource binding
 	{
-		DescriptorHeap* heaps[] = { volatileViewHeaps[frameIndex].get() };
+		DescriptorHeap* heaps[] = { volatileViewHeaps[swapchainIndex].get() };
 		commandList->setDescriptorHeaps(1, heaps);
 
 		gRenderDevice->copyDescriptors(

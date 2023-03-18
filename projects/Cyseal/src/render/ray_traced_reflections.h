@@ -28,6 +28,7 @@ public:
 
 	void renderRayTracedReflections(
 		RenderCommandList* commandList,
+		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera,
 		ConstantBufferView* sceneUniformBuffer,

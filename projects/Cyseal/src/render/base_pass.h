@@ -34,6 +34,7 @@ private:
 	// Bind root parameters for the current root signature
 	void bindRootParameters(
 		RenderCommandList* cmdList,
+		uint32 swapchainIndex,
 		ConstantBufferView* sceneUniform,
 		GPUScene* gpuScene);
 

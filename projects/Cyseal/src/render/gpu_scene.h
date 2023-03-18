@@ -36,6 +36,7 @@ public:
 	// Update GPU scene buffer.
 	void renderGPUScene(
 		RenderCommandList* commandList,
+		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera,
 		ConstantBufferView* sceneUniform);
@@ -50,6 +51,7 @@ public:
 	// This method will copy a variable number of descriptors, so other descriptors
 	// unrelated to material descriptors can be bound starting from 'outNextAvailableIndex'.
 	void copyMaterialDescriptors(
+		uint32 swapchainIndex,
 		DescriptorHeap* destHeap, uint32 destBaseIndex,
 		uint32& outCBVBaseIndex, uint32& outCBVCount,
 		uint32& outSRVBaseIndex, uint32& outSRVCount,

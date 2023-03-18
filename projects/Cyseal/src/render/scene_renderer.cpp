@@ -185,7 +185,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
 
-		gpuScene->renderGPUScene(commandList, scene, camera, sceneUniformCBVs[swapchainIndex].get());
+		gpuScene->renderGPUScene(
+			commandList, swapchainIndex,
+			scene, camera, sceneUniformCBVs[swapchainIndex].get());
 	}
 
 	if (bSupportsRaytracing && scene->bRebuildRaytracingScene)
@@ -314,7 +316,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->resourceBarriers(_countof(barriers), barriers);
 
 		rtReflections->renderRayTracedReflections(
-			commandList, scene, camera,
+			commandList, swapchainIndex, scene, camera,
 			sceneUniformCBVs[swapchainIndex].get(),
 			accelStructure,
 			gpuScene,
@@ -360,6 +362,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		toneMapping->renderToneMapping(
 			commandList,
+			swapchainIndex,
 			RT_sceneColor,
 			RT_indirectSpecular);
 	}

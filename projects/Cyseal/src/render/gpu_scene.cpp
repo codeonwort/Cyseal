@@ -82,12 +82,12 @@ void GPUScene::initialize()
 
 void GPUScene::renderGPUScene(
 	RenderCommandList* commandList,
+	uint32 swapchainIndex,
 	const SceneProxy* scene,
 	const Camera* camera,
 	ConstantBufferView* sceneUniform)
 {
 	const uint32 LOD = 0; // #todo-lod: LOD
-	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
 	auto& materialCBVs = materialCBVsPerFrame[swapchainIndex];
 
@@ -239,13 +239,12 @@ void GPUScene::queryMaterialDescriptorsCount(uint32& outCBVCount, uint32& outSRV
 }
 
 void GPUScene::copyMaterialDescriptors(
+	uint32 swapchainIndex,
 	DescriptorHeap* destHeap, uint32 destBaseIndex,
 	uint32& outCBVBaseIndex, uint32& outCBVCount,
 	uint32& outSRVBaseIndex, uint32& outSRVCount,
 	uint32& outNextAvailableIndex)
 {
-	const uint32 swapchainIndex = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-
 	outCBVBaseIndex = destBaseIndex;
 	outCBVCount = currentMaterialCBVCount;
 
