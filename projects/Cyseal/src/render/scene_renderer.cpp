@@ -370,9 +370,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Dear Imgui: Record commands
 
-	DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
-	commandList->setDescriptorHeaps(1, imguiHeaps);
-	device->renderDearImgui(commandList);
+	{
+		SCOPED_DRAW_EVENT(commandList, DearImgui);
+
+		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
+		commandList->setDescriptorHeaps(1, imguiHeaps);
+		device->renderDearImgui(commandList);
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize
