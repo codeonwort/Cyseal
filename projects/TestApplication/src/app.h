@@ -12,6 +12,12 @@
 
 class StaticMesh;
 
+struct AppState
+{
+	RendererOptions rendererOptions;
+	bool bRotateCamera;
+};
+
 class TestApplication : public WindowsApplication
 {
 
@@ -29,7 +35,7 @@ private:
 private:
 	Scene scene;
 	Camera camera;
-	RendererOptions rendererOptions;
+	AppState appState;
 
 	MeshSplatting meshSplatting;
 
