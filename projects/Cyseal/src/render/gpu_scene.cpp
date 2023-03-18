@@ -314,6 +314,7 @@ void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
 			.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
 		}
 	));
+	gpuSceneBuffer->setDebugName(L"Buffer_GPUScene");
 	
 	{
 		ShaderResourceViewDesc srvDesc{};

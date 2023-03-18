@@ -165,6 +165,8 @@ public:
 	// Vulkan: VkBuffer or VkImage
 	virtual void* getRawResource() const { CHECK_NO_ENTRY(); return nullptr; }
 	virtual void setRawResource(void* inRawResource) { CHECK_NO_ENTRY(); }
+
+	virtual void setDebugName(const wchar_t* inDebugName) {}
 };
 
 // #todo-barrier: There are 3 types of barriers (transition, aliasing, and UAV)
@@ -314,8 +316,6 @@ public:
 		uint64 rowPitch,
 		uint64 slicePitch,
 		uint32 subresourceIndex = 0) = 0;
-	
-	virtual void setDebugName(const wchar_t* debugName) = 0;
 
 	// #todo-wip: A Texture should not internally hold its views.
 	virtual RenderTargetView*    getRTV() const = 0;

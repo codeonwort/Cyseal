@@ -78,6 +78,8 @@ void GPUCulling::cullDrawCommands(
 	Buffer* drawCounterBuffer,
 	UnorderedAccessView* drawCounterBufferUAV)
 {
+	SCOPED_DRAW_EVENT(commandList, GPUCulling);
+
 	// Resize volatile heaps if needed.
 	{
 		uint32 requiredVolatiles = 0;
@@ -96,12 +98,6 @@ void GPUCulling::cullDrawCommands(
 	drawCounterBuffer->singleWriteToGPU(commandList, &zeroValue, sizeof(zeroValue), 0);
 
 	ResourceBarrier barriersBefore[] = {
-		{
-			EResourceBarrierType::Transition,
-			gpuScene->gpuSceneBuffer.get(),
-			EGPUResourceState::COMMON,
-			EGPUResourceState::PIXEL_SHADER_RESOURCE
-		},
 		{
 			EResourceBarrierType::Transition,
 			indirectDrawBuffer,
@@ -149,10 +145,22 @@ void GPUCulling::cullDrawCommands(
 	ResourceBarrier barriersAfter[] = {
 		{
 			EResourceBarrierType::Transition,
+			indirectDrawBuffer,
+			EGPUResourceState::PIXEL_SHADER_RESOURCE,
+			EGPUResourceState::INDIRECT_ARGUMENT
+		},
+		{
+			EResourceBarrierType::Transition,
 			culledIndirectDrawBuffer,
 			EGPUResourceState::UNORDERED_ACCESS,
-			EGPUResourceState::PIXEL_SHADER_RESOURCE
-		}
+			EGPUResourceState::INDIRECT_ARGUMENT
+		},
+		{
+			EResourceBarrierType::Transition,
+			drawCounterBuffer,
+			EGPUResourceState::UNORDERED_ACCESS,
+			EGPUResourceState::INDIRECT_ARGUMENT
+		},
 	};
 	commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
 }

@@ -323,3 +323,8 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Bu
 		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
 	cmdList->ResourceBarrier(1, &barrierAfter);
 }
+
+void D3DBuffer::setDebugName(const wchar_t* inDebugName)
+{
+	defaultBuffer->SetName(inDebugName);
+}

@@ -19,6 +19,7 @@
 #define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
 
 #define bUseIndirectDraw         true
+#define bUseGPUCulling           true
 
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
@@ -138,6 +139,10 @@ void BasePass::initialize()
 				}
 			));
 
+			wchar_t debugName[256];
+			swprintf_s(debugName, L"Buffer_IndirectDrawCounterBuffer_%u", i);
+			drawCounterBuffers[i]->setDebugName(debugName);
+
 			UnorderedAccessViewDesc uavDesc{};
 			uavDesc.format                      = EPixelFormat::UNKNOWN;
 			uavDesc.viewDimension               = EUAVDimension::Buffer;
@@ -251,6 +256,10 @@ void BasePass::renderBasePass(
 				}
 			));
 
+			wchar_t debugName[256];
+			swprintf_s(debugName, L"Buffer_IndirectDrawBuffer_%u", swapchainIndex);
+			argumentBuffers[swapchainIndex]->setDebugName(debugName);
+
 			ShaderResourceViewDesc srvDesc{};
 			srvDesc.format                     = EPixelFormat::UNKNOWN;
 			srvDesc.viewDimension              = ESRVDimension::Buffer;
@@ -272,6 +281,10 @@ void BasePass::renderBasePass(
 				}
 			));
 
+			wchar_t debugName[256];
+			swprintf_s(debugName, L"Buffer_CulledIndirectDrawBuffer_%u", swapchainIndex);
+			culledArgumentBuffers[swapchainIndex]->setDebugName(debugName);
+
 			UnorderedAccessViewDesc uavDesc{};
 			uavDesc.format                      = EPixelFormat::UNKNOWN;
 			uavDesc.viewDimension               = EUAVDimension::Buffer;
@@ -286,19 +299,11 @@ void BasePass::renderBasePass(
 		}
 	}
 
-	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
-	// Setting a PSO does not change the root signature.
-	// The application must call a dedicated API for setting the root signature.
-	commandList->setPipelineState(pipelineState.get());
-	commandList->setGraphicsRootSignature(rootSignature.get());
-	
-	commandList->iaSetPrimitiveTopology(primitiveTopology);
-
 	// #todo-lod: LOD selection
 	const uint32 LOD = 0;
 
-	bindRootParameters(commandList, swapchainIndex, sceneUniformBuffer, gpuScene);
-	
+	// Fill the indirect draw buffer and perform GPU culling.
+	uint32 maxIndirectDraws = 0;
 	if (bUseIndirectDraw)
 	{
 		uint32 indirectCommandID = 0;
@@ -324,18 +329,40 @@ void BasePass::renderBasePass(
 			}
 		}
 
-		const uint32 numIndirectDraws = indirectCommandID;
+		maxIndirectDraws = indirectCommandID;
 		Buffer* currentArgumentBuffer = argumentBuffers[swapchainIndex].get();
-		argumentBufferGenerator->copyToBuffer(commandList, numIndirectDraws, currentArgumentBuffer, 0);
+		argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, currentArgumentBuffer, 0);
 
-		// #todo-wip-cull: Cull draw commands
-		//gpuCulling->cullDrawCommands(
-		//	commandList, swapchainIndex, sceneUniformBuffer, camera, gpuScene,
-		//	numIndirectDraws, currentArgumentBuffer, argumentBufferSRVs[swapchainIndex].get(),
-		//	culledArgumentBuffers[swapchainIndex].get(), culledArgumentBufferUAVs[swapchainIndex].get(),
-		//	drawCounterBuffers[swapchainIndex].get(), drawCounterBufferUAVs[swapchainIndex].get());
+		gpuCulling->cullDrawCommands(
+			commandList, swapchainIndex, sceneUniformBuffer, camera, gpuScene,
+			maxIndirectDraws, currentArgumentBuffer, argumentBufferSRVs[swapchainIndex].get(),
+			culledArgumentBuffers[swapchainIndex].get(), culledArgumentBufferUAVs[swapchainIndex].get(),
+			drawCounterBuffers[swapchainIndex].get(), drawCounterBufferUAVs[swapchainIndex].get());
+	}
 
-		commandList->executeIndirect(commandSignature.get(), numIndirectDraws, currentArgumentBuffer, 0, nullptr, 0);
+	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
+	// Setting a PSO does not change the root signature.
+	// The application must call a dedicated API for setting the root signature.
+	commandList->setPipelineState(pipelineState.get());
+	commandList->setGraphicsRootSignature(rootSignature.get());
+	
+	commandList->iaSetPrimitiveTopology(primitiveTopology);
+
+	bindRootParameters(commandList, swapchainIndex, sceneUniformBuffer, gpuScene);
+	
+	if (bUseIndirectDraw)
+	{
+		if (bUseGPUCulling)
+		{
+			Buffer* argumentBuffer = culledArgumentBuffers[swapchainIndex].get();
+			Buffer* counterBuffer = drawCounterBuffers[swapchainIndex].get();
+			commandList->executeIndirect(commandSignature.get(), maxIndirectDraws, argumentBuffer, 0, counterBuffer, 0);
+		}
+		else
+		{
+			Buffer* argumentBuffer = argumentBuffers[swapchainIndex].get();
+			commandList->executeIndirect(commandSignature.get(), maxIndirectDraws, argumentBuffer, 0, nullptr, 0);
+		}
 	}
 	else
 	{
