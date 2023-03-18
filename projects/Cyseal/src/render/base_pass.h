@@ -1,5 +1,6 @@
 #pragma once
 
+#include "renderer.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource.h"
@@ -24,6 +25,7 @@ public:
 		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera,
+		const RendererOptions& rendererOptions,
 		ConstantBufferView* sceneUniformBuffer,
 		GPUScene* gpuScene,
 		GPUCulling* gpuCulling,

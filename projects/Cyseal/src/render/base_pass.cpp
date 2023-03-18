@@ -18,9 +18,6 @@
 #define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
 #define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
 
-#define bUseIndirectDraw         true
-#define bUseGPUCulling           true
-
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
 namespace RootParameters
@@ -205,6 +202,7 @@ void BasePass::renderBasePass(
 	uint32 swapchainIndex,
 	const SceneProxy* scene,
 	const Camera* camera,
+	const RendererOptions& rendererOptions,
 	ConstantBufferView* sceneUniformBuffer,
 	GPUScene* gpuScene,
 	GPUCulling* gpuCulling,
@@ -304,7 +302,7 @@ void BasePass::renderBasePass(
 
 	// Fill the indirect draw buffer and perform GPU culling.
 	uint32 maxIndirectDraws = 0;
-	if (bUseIndirectDraw)
+	if (rendererOptions.bEnableIndirectDraw)
 	{
 		uint32 indirectCommandID = 0;
 		for (const StaticMesh* mesh : scene->staticMeshes)
@@ -333,11 +331,14 @@ void BasePass::renderBasePass(
 		Buffer* currentArgumentBuffer = argumentBuffers[swapchainIndex].get();
 		argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, currentArgumentBuffer, 0);
 
-		gpuCulling->cullDrawCommands(
-			commandList, swapchainIndex, sceneUniformBuffer, camera, gpuScene,
-			maxIndirectDraws, currentArgumentBuffer, argumentBufferSRVs[swapchainIndex].get(),
-			culledArgumentBuffers[swapchainIndex].get(), culledArgumentBufferUAVs[swapchainIndex].get(),
-			drawCounterBuffers[swapchainIndex].get(), drawCounterBufferUAVs[swapchainIndex].get());
+		if (rendererOptions.bEnableGPUCulling)
+		{
+			gpuCulling->cullDrawCommands(
+				commandList, swapchainIndex, sceneUniformBuffer, camera, gpuScene,
+				maxIndirectDraws, currentArgumentBuffer, argumentBufferSRVs[swapchainIndex].get(),
+				culledArgumentBuffers[swapchainIndex].get(), culledArgumentBufferUAVs[swapchainIndex].get(),
+				drawCounterBuffers[swapchainIndex].get(), drawCounterBufferUAVs[swapchainIndex].get());
+		}
 	}
 
 	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
@@ -350,9 +351,9 @@ void BasePass::renderBasePass(
 
 	bindRootParameters(commandList, swapchainIndex, sceneUniformBuffer, gpuScene);
 	
-	if (bUseIndirectDraw)
+	if (rendererOptions.bEnableIndirectDraw)
 	{
-		if (bUseGPUCulling)
+		if (rendererOptions.bEnableGPUCulling)
 		{
 			Buffer* argumentBuffer = culledArgumentBuffers[swapchainIndex].get();
 			Buffer* counterBuffer = drawCounterBuffers[swapchainIndex].get();

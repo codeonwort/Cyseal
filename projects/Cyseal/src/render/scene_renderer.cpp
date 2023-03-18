@@ -264,7 +264,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		basePass->renderBasePass(
 			commandList, swapchainIndex,
-			scene, camera,
+			scene, camera, renderOptions,
 			sceneUniformCBVs[swapchainIndex].get(),
 			gpuScene,
 			gpuCulling,

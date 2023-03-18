@@ -13,6 +13,8 @@ enum class ERendererType
 struct RendererOptions
 {
 	bool bEnableRayTracedReflections = true;
+	bool bEnableIndirectDraw = true;
+	bool bEnableGPUCulling = true;
 };
 
 class Renderer

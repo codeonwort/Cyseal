@@ -121,9 +121,17 @@ void TestApplication::onTick(float deltaSeconds)
 
 		cysealEngine.beginImguiNewFrame();
 		{
-			//ImGui::ShowDemoWindow(0);
-
 			ImGui::Begin("Rendering options");
+			ImGui::Checkbox("Base Pass - Indirect Draw", &rendererOptions.bEnableIndirectDraw);
+			if (!rendererOptions.bEnableIndirectDraw)
+			{
+				ImGui::BeginDisabled();
+			}
+			ImGui::Checkbox("Base Pass - GPU Culling", &rendererOptions.bEnableGPUCulling);
+			if (!rendererOptions.bEnableIndirectDraw)
+			{
+				ImGui::EndDisabled();
+			}
 			ImGui::Checkbox("Ray Traced Reflections", &rendererOptions.bEnableRayTracedReflections);
 			//ImGui::SliderFloat("float", &sliderValue, 0.0f, 1.0f);
 			ImGui::End();
