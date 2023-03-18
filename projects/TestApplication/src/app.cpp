@@ -45,7 +45,7 @@
 #define CAMERA_LOOKAT        vec3(0.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
 #define CAMERA_FOV_Y         70.0f
-#define CAMERA_Z_NEAR        1.0f
+#define CAMERA_Z_NEAR        0.01f
 #define CAMERA_Z_FAR         10000.0f
 
 #define CRUMPLED_WORLD       0

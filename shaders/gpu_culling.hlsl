@@ -96,7 +96,7 @@ AABB calculateWorldBounds(float3 localMin, float3 localMax, float4x4 localToWorl
     float3 worldMax = -FLT_MAX;
     for (uint i = 0; i < 8; ++i)
     {
-        vs[i] = mul(localToWorld, float4(vs[i], 1.0)).xyz;
+        vs[i] = mul(float4(vs[i], 1.0), localToWorld).xyz;
         worldMin = min(worldMin, vs[i]);
         worldMax = max(worldMax, vs[i]);
     }
@@ -106,6 +106,7 @@ AABB calculateWorldBounds(float3 localMin, float3 localMax, float4x4 localToWorl
     return ret;
 }
 
+// true if AABB is on positive side of the plane.
 bool hitTest_AABB_plane(AABB box, Plane3D plane)
 {
     float3 boxCenter = 0.5 * (box.maxBounds + box.minBounds);
@@ -114,6 +115,7 @@ bool hitTest_AABB_plane(AABB box, Plane3D plane)
     float s = dot(boxCenter, plane.normal) - plane.distance;
     return -r <= s;
 }
+// true if AABB is inside of the frustum.
 bool hitTest_AABB_frustum(AABB box, Frustum3D frustum)
 {
     for (int i = 0; i < 6; ++i)
@@ -125,6 +127,7 @@ bool hitTest_AABB_frustum(AABB box, Frustum3D frustum)
     }
     return true;
 }
+// Same as hitTest_AABB_frustum(), but ignore the far plane.
 bool hitTest_AABB_frustumNoFarPlane(AABB box, Frustum3D frustum)
 {
     for (int i = 0; i < 5; ++i)
