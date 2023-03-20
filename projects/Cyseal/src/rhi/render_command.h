@@ -252,3 +252,7 @@ struct ScopedDrawEvent
 };
 
 #define SCOPED_DRAW_EVENT(commandList, eventName) ScopedDrawEvent scopedDrawEvent_##eventName(commandList, #eventName)
+
+#define SCOPED_DRAW_EVENT_STRING_INTERNAL2(X, Y, Z) X ## Y ## Z
+#define SCOPED_DRAW_EVENT_STRING_INTERNAL(commandList, eventString, line) SCOPED_DRAW_EVENT_STRING_INTERNAL2(ScopedDrawEvent scopedDrawEvent_, line, (commandList, eventString));
+#define SCOPED_DRAW_EVENT_STRING(commandList, eventString) SCOPED_DRAW_EVENT_STRING_INTERNAL(commandList, eventString, __LINE__)

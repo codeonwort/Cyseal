@@ -22,6 +22,7 @@ namespace RootParameters
 		PushConstantsSlot = 0,
 		SceneUniformSlot,
 		GPUSceneSlot,
+		GPUSceneCommandSlot,
 		Count
 	};
 }
@@ -41,8 +42,26 @@ struct GPUSceneItem
 	vec3     _pad0;
 };
 
+enum EGPUSceneCommandType : uint32
+{
+	Update = 0,
+};
+struct GPUSceneCommand
+{
+	uint32 commandType; // EGPUSceneCommandType
+	uint32 sceneItemIndex;
+	uint32 _pad0;
+	uint32 _pad1;
+	GPUSceneItem sceneItem;
+};
+
 void GPUScene::initialize()
 {
+	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+
+	gpuSceneCommandBufferMaxElements.resize(swapchainCount);
+	gpuSceneCommandBuffers.resize(swapchainCount);
+	gpuSceneCommandBufferSRVs.resize(swapchainCount);
 	resizeGPUSceneBuffers(DEFAULT_MAX_SCENE_ELEMENTS);
 	resizeMaterialBuffers(DEFAULT_MAX_SCENE_ELEMENTS, DEFAULT_MAX_SCENE_ELEMENTS);
 
@@ -52,9 +71,10 @@ void GPUScene::initialize()
 		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1, 0); // register(b1, space0)
 
 		RootParameter rootParameters[RootParameters::Count];
-		rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1); // register(b0, space0) = numElements
+		rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1); // register(b0, space0) = numSceneCommands
 		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
 		rootParameters[RootParameters::GPUSceneSlot].initAsUAV(0, 0);               // register(u0, space0)
+		rootParameters[RootParameters::GPUSceneCommandSlot].initAsSRV(0, 0);        // register(t0, space0)
 
 		RootSignatureDesc rootSigDesc(
 			RootParameters::Count,
@@ -93,9 +113,16 @@ void GPUScene::renderGPUScene(
 
 	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	uint32 numMeshSections = 0;
+	uint32 numDirtyMeshSections = 0;
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
-		numMeshSections += (uint32)(scene->staticMeshes[i]->getSections(LOD).size());
+		const StaticMesh* sm = scene->staticMeshes[i];
+		uint32 currentSections = (uint32)(sm->getSections(LOD).size());
+		numMeshSections += currentSections;
+		if (sm->isTransformDirty())
+		{
+			numDirtyMeshSections += currentSections;
+		}
 	}
 
 	// Resize volatile heaps if needed.
@@ -108,123 +135,170 @@ void GPUScene::renderGPUScene(
 		}
 	}
 
-	// Prepare bindless materials
+	// #todo-wip: Don't upload unchanged materials. Also don't copy one by one.
+	// Prepare bindless materials.
 	currentMaterialSRVCount = 0;
 	currentMaterialCBVCount = 0;
-	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
-		StaticMesh* staticMesh = scene->staticMeshes[i];
-		for (const StaticMeshSection& section : staticMesh->getSections(LOD))
+		char eventString[128];
+		sprintf_s(eventString, "UpdateMaterialBuffer (count=%u)", numMeshSections);
+		SCOPED_DRAW_EVENT_STRING(commandList, eventString);
+
+		for (uint32 i = 0; i < numStaticMeshes; ++i)
 		{
-			Material* const material = section.material.get();
-
-			// SRV
-			auto albedo = gTextureManager->getSystemTextureGrey2D()->getGPUResource();
-			if (material != nullptr && material->albedoTexture != nullptr)
+			StaticMesh* staticMesh = scene->staticMeshes[i];
+			for (const StaticMeshSection& section : staticMesh->getSections(LOD))
 			{
-				albedo = material->albedoTexture->getGPUResource();
+				Material* const material = section.material.get();
+
+				// SRV
+				auto albedo = gTextureManager->getSystemTextureGrey2D()->getGPUResource();
+				if (material != nullptr && material->albedoTexture != nullptr)
+				{
+					albedo = material->albedoTexture->getGPUResource();
+				}
+
+				gRenderDevice->copyDescriptors(
+					1,
+					materialSRVHeap.get(), currentMaterialSRVCount,
+					albedo->getSourceSRVHeap(), albedo->getSRVDescriptorIndex());
+
+				// CBV
+				MaterialConstants constants;
+				if (material != nullptr)
+				{
+					memcpy_s(constants.albedoMultiplier, sizeof(constants.albedoMultiplier),
+						material->albedoMultiplier, sizeof(material->albedoMultiplier));
+					constants.roughness = material->roughness;
+				}
+				constants.albedoTextureIndex = currentMaterialSRVCount;
+
+				ConstantBufferView* cbv = materialCBVs[currentMaterialCBVCount].get();
+				cbv->writeToGPU(commandList, &constants, sizeof(constants));
+
+				// #todo-wip: Currently always increment even if duplicate items are generated.
+				++currentMaterialSRVCount;
+				++currentMaterialCBVCount;
 			}
-
-			gRenderDevice->copyDescriptors(
-				1,
-				materialSRVHeap.get(), currentMaterialSRVCount,
-				albedo->getSourceSRVHeap(), albedo->getSRVDescriptorIndex());
-
-			// CBV
-			MaterialConstants constants;
-			if (material != nullptr)
-			{
-				memcpy_s(constants.albedoMultiplier, sizeof(constants.albedoMultiplier),
-					material->albedoMultiplier, sizeof(material->albedoMultiplier));
-				constants.roughness = material->roughness;
-			}
-			constants.albedoTextureIndex = currentMaterialSRVCount;
-
-			ConstantBufferView* cbv = materialCBVs[currentMaterialCBVCount].get();
-			cbv->writeToGPU(commandList, &constants, sizeof(constants));
-
-			// #todo-wip: Currently always increment even if duplicate items are generated.
-			++currentMaterialSRVCount;
-			++currentMaterialCBVCount;
 		}
 	}
 
-	if (numMeshSections > gpuSceneMaxElements)
+	const bool bRebuildGPUScene = scene->bRebuildGPUScene;
+	uint32 numGPUSceneCommands = bRebuildGPUScene ? numMeshSections : numDirtyMeshSections;
+	// #todo-wip: Recreate resources only for current swapchainIndex.
+	if (numGPUSceneCommands > gpuSceneMaxElements)
 	{
 		resizeGPUSceneBuffers(numMeshSections);
 		resizeMaterialBuffers(numMeshSections, numMeshSections);
 	}
+	resizeGPUSceneCommandBuffer(swapchainIndex, numGPUSceneCommands);
 	
-	// #todo-wip: Skip upload if scene has not changed.
+	// #todo-wip: Avoid recreation of buffers when bRebuildGPUScene == true.
 	// There are various cases:
-	// (1) A new object is added to the scene.
-	// (2) An object is removed from the scene.
-	// (3) No addition or removal but some objects changed their transforms.
-	std::vector<GPUSceneItem> sceneData(numMeshSections);
-	uint32 k = 0;
+	// [ ] A new object is added to the scene.
+	// [ ] An object is removed from the scene.
+	// [v] No addition or removal but some objects changed their transforms.
+	std::vector<GPUSceneCommand> sceneCommands(numGPUSceneCommands);
+	uint32 sceneItemIx = 0;
+	uint32 sceneCommandIx = 0;
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
 		StaticMesh* sm = scene->staticMeshes[i];
-		uint32 smSections = (uint32)(sm->getSections(LOD).size());
+		const uint32 smSections = (uint32)(sm->getSections(LOD).size());
+
+		if (bRebuildGPUScene == false && sm->isTransformDirty() == false)
+		{
+			sceneItemIx += smSections;
+			continue;
+		}
+
+		const Float4x4 localToWorld = sm->getTransformMatrix();
+		
 		for (uint32 j = 0; j < smSections; ++j)
 		{
 			const StaticMeshSection& section = sm->getSections(LOD)[j];
-			sceneData[k].modelTransform          = sm->getTransformMatrix();
-			sceneData[k].localMinBounds          = section.localBounds.minBounds;
+			sceneCommands[sceneCommandIx].commandType                       = (uint32)EGPUSceneCommandType::Update;
+			sceneCommands[sceneCommandIx].sceneItemIndex                    = sceneItemIx;
+			sceneCommands[sceneCommandIx].sceneItem.modelTransform          = localToWorld;
+			sceneCommands[sceneCommandIx].sceneItem.localMinBounds          = section.localBounds.minBounds;
 			// #todo: uint64 offset
-			sceneData[k].positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes();
-			sceneData[k].localMaxBounds          = section.localBounds.maxBounds;
-			sceneData[k].nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes();
-			sceneData[k].indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes();
-			++k;
+			sceneCommands[sceneCommandIx].sceneItem.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes();
+			sceneCommands[sceneCommandIx].sceneItem.localMaxBounds          = section.localBounds.maxBounds;
+			sceneCommands[sceneCommandIx].sceneItem.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes();
+			sceneCommands[sceneCommandIx].sceneItem.indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes();
+			++sceneCommandIx;
+			++sceneItemIx;
 		}
 	}
-	gpuSceneBuffer->singleWriteToGPU(
-		commandList,
-		sceneData.data(),
-		(uint32)(sizeof(GPUSceneItem) * sceneData.size()),
-		0);
 
-	ResourceBarrier barriersBefore[] = {
+	const uint32 numSceneCommands = (uint32)sceneCommands.size();
+	if (numSceneCommands)
+	{
+		char eventString[128];
+		if (bRebuildGPUScene)
 		{
-			EResourceBarrierType::Transition,
-			gpuSceneBuffer.get(),
-			EGPUResourceState::COMMON,
-			EGPUResourceState::UNORDERED_ACCESS
-		},
-	};
-	commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
-
-	commandList->setPipelineState(pipelineState.get());
-	commandList->setComputeRootSignature(rootSignature.get());
-
-	DescriptorHeap* volatileHeap = volatileViewHeaps[swapchainIndex].get();
-	DescriptorHeap* heaps[] = { volatileHeap };
-	commandList->setDescriptorHeaps(1, heaps);
-
-	constexpr uint32 VOLATILE_IX_SceneUniform = 0;
-	constexpr uint32 VOLATILE_IX_VisibleCounter = 1;
-	gRenderDevice->copyDescriptors(
-		1,
-		volatileHeap, VOLATILE_IX_SceneUniform,
-		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap());
-
-	// Bind root parameters
-	commandList->setComputeRootConstant32(RootParameters::PushConstantsSlot, numMeshSections, 0);
-	commandList->setComputeRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, VOLATILE_IX_SceneUniform);
-	commandList->setComputeRootDescriptorUAV(RootParameters::GPUSceneSlot, gpuSceneBufferUAV.get());
-
-	commandList->dispatchCompute(numMeshSections, 1, 1);
-
-	ResourceBarrier barriersAfter[] = {
+			sprintf_s(eventString, "RebuildSceneBuffer (count=%u)", numSceneCommands);
+		}
+		else
 		{
-			EResourceBarrierType::Transition,
-			gpuSceneBuffer.get(),
-			EGPUResourceState::UNORDERED_ACCESS,
-			EGPUResourceState::PIXEL_SHADER_RESOURCE
-		},
-	};
-	commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
+			sprintf_s(eventString, "UpdateSceneBuffer (%u of %u)", numSceneCommands, numMeshSections);
+		}
+		SCOPED_DRAW_EVENT_STRING(commandList, eventString);
+
+		gpuSceneCommandBuffers[swapchainIndex]->singleWriteToGPU(
+			commandList,
+			sceneCommands.data(),
+			(uint32)(sizeof(GPUSceneCommand) * numSceneCommands),
+			0);
+
+		ResourceBarrier barriersBefore[] = {
+			{
+				EResourceBarrierType::Transition,
+				gpuSceneCommandBuffers[swapchainIndex].get(),
+				EGPUResourceState::COMMON,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE,
+			},
+			{
+				EResourceBarrierType::Transition,
+				gpuSceneBuffer.get(),
+				EGPUResourceState::COMMON,
+				EGPUResourceState::UNORDERED_ACCESS
+			},
+		};
+		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+
+		commandList->setPipelineState(pipelineState.get());
+		commandList->setComputeRootSignature(rootSignature.get());
+
+		DescriptorHeap* volatileHeap = volatileViewHeaps[swapchainIndex].get();
+		DescriptorHeap* heaps[] = { volatileHeap };
+		commandList->setDescriptorHeaps(1, heaps);
+
+		constexpr uint32 VOLATILE_IX_SceneUniform = 0;
+		constexpr uint32 VOLATILE_IX_VisibleCounter = 1;
+		gRenderDevice->copyDescriptors(
+			1,
+			volatileHeap, VOLATILE_IX_SceneUniform,
+			sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap());
+
+		// Bind root parameters
+		commandList->setComputeRootConstant32(RootParameters::PushConstantsSlot, numSceneCommands, 0);
+		commandList->setComputeRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, VOLATILE_IX_SceneUniform);
+		commandList->setComputeRootDescriptorUAV(RootParameters::GPUSceneSlot, gpuSceneBufferUAV.get());
+		commandList->setComputeRootDescriptorSRV(RootParameters::GPUSceneCommandSlot, gpuSceneCommandBufferSRVs[swapchainIndex].get());
+
+		commandList->dispatchCompute(numSceneCommands, 1, 1);
+
+		ResourceBarrier barriersAfter[] = {
+			{
+				EResourceBarrierType::Transition,
+				gpuSceneBuffer.get(),
+				EGPUResourceState::UNORDERED_ACCESS,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE
+			},
+		};
+		commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
+	}
 }
 
 ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
@@ -302,6 +376,36 @@ void GPUScene::resizeVolatileHeaps(uint32 maxDescriptors)
 	CYLOG(LogGPUScene, Log, L"Resize volatile heap: %u descriptors", maxDescriptors);
 }
 
+void GPUScene::resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElements)
+{
+	if (gpuSceneCommandBuffers[swapchainIndex] == nullptr || gpuSceneCommandBufferMaxElements[swapchainIndex] < maxElements)
+	{
+		gpuSceneCommandBufferMaxElements[swapchainIndex] = maxElements;
+		const uint32 viewStride = sizeof(GPUSceneCommand);
+
+		gpuSceneCommandBuffers[swapchainIndex] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = viewStride * maxElements,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE
+			}
+		));
+		wchar_t debugName[256];
+		swprintf_s(debugName, L"Buffer_GPUSceneCommand_%u", swapchainIndex);
+		gpuSceneCommandBuffers[swapchainIndex]->setDebugName(debugName);
+
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                     = EPixelFormat::UNKNOWN;
+		srvDesc.viewDimension              = ESRVDimension::Buffer;
+		srvDesc.buffer.firstElement        = 0;
+		srvDesc.buffer.numElements         = maxElements;
+		srvDesc.buffer.structureByteStride = viewStride;
+		srvDesc.buffer.flags               = EBufferSRVFlags::None;
+		gpuSceneCommandBufferSRVs[swapchainIndex] = std::unique_ptr<ShaderResourceView>(
+			gRenderDevice->createSRV(gpuSceneCommandBuffers[swapchainIndex].get(), srvDesc));
+	}
+}
+
 void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
 {
 	gpuSceneMaxElements = maxElements;
@@ -311,7 +415,7 @@ void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
 		BufferCreateParams{
 			.sizeInBytes = viewStride * gpuSceneMaxElements,
 			.alignment   = 0,
-			.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+			.accessFlags = EBufferAccessFlags::UAV,
 		}
 	));
 	gpuSceneBuffer->setDebugName(L"Buffer_GPUScene");

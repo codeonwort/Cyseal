@@ -23,6 +23,7 @@ public:
 	std::shared_ptr<TextureAsset> skyboxTexture;
 private:
 	std::vector<StaticMesh*> staticMeshes;
+	bool bRebuildGPUScene = false;
 	bool bRebuildRaytracingScene = false;
 };
 
@@ -40,5 +41,6 @@ public:
 	std::shared_ptr<Texture> skyboxTexture;
 	std::vector<StaticMesh*> staticMeshes;
 
+	bool bRebuildGPUScene = false;
 	bool bRebuildRaytracingScene = false;
 };

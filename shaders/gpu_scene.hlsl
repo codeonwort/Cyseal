@@ -1,16 +1,30 @@
 #include "common.hlsl"
 
+#define COMMAND_TYPE_UPDATE 0
+//#define COMMAND_TYPE_ADD    1
+//#define COMMAND_TYPE_REMOVE 2
+
+struct GPUSceneCommand
+{
+    uint commandType;
+    uint sceneItemIndex;
+    uint _pad0;
+    uint _pad1;
+    MeshData meshData;
+};
+
 // ------------------------------------------------------------------------
 // Resource bindings
 
 struct PushConstants
 {
-    uint numElements;
+    uint numCommands;
 };
 
 ConstantBuffer<PushConstants> pushConstants       : register(b0);
 ConstantBuffer<SceneUniform> sceneUniform         : register(b1);
 RWStructuredBuffer<MeshData> gpuSceneBuffer       : register(u0);
+StructuredBuffer<GPUSceneCommand> commandBuffer   : register(t0);
 
 // ------------------------------------------------------------------------
 // Compute shader
@@ -18,13 +32,15 @@ RWStructuredBuffer<MeshData> gpuSceneBuffer       : register(u0);
 [numthreads(1, 1, 1)]
 void mainCS(uint3 tid: SV_DispatchThreadID)
 {
-    uint objectID = tid.x;
-    if (objectID >= pushConstants.numElements)
+    uint commandID = tid.x;
+    if (commandID >= pushConstants.numCommands)
     {
         return;
     }
 
-    MeshData sceneItem = gpuSceneBuffer[objectID];
-
-    // Do nothing because I'm uploading the entire scene every frame.
+    GPUSceneCommand cmd = commandBuffer[commandID];
+    if (cmd.commandType == COMMAND_TYPE_UPDATE)
+    {
+        gpuSceneBuffer[cmd.sceneItemIndex] = cmd.meshData;
+    }
 }

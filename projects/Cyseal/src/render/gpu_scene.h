@@ -61,6 +61,7 @@ public:
 
 private:
 	void resizeVolatileHeaps(uint32 maxDescriptors);
+	void resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElements);
 	void resizeGPUSceneBuffers(uint32 maxElements);
 	void resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount);
 
@@ -70,6 +71,11 @@ private:
 
 	uint32 totalVolatileDescriptors = 0;
 	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
+
+	// GPU scene command buffer
+	std::vector<uint32> gpuSceneCommandBufferMaxElements;
+	std::vector<std::unique_ptr<Buffer>> gpuSceneCommandBuffers;
+	std::vector<std::unique_ptr<ShaderResourceView>> gpuSceneCommandBufferSRVs;
 
 	// GPU scene buffer
 	uint32 gpuSceneMaxElements = 0;

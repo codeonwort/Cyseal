@@ -11,9 +11,11 @@ SceneProxy* Scene::createProxy()
 	proxy->sun = sun;
 	proxy->skyboxTexture = skyboxTexture ? skyboxTexture->getGPUResource() : nullptr;
 	proxy->staticMeshes = staticMeshes;
+	proxy->bRebuildGPUScene = bRebuildGPUScene;
 	proxy->bRebuildRaytracingScene = bRebuildRaytracingScene;
 
 	// Clear flags
+	bRebuildGPUScene = false;
 	bRebuildRaytracingScene = false;
 
 	return proxy;
@@ -22,6 +24,7 @@ SceneProxy* Scene::createProxy()
 void Scene::addStaticMesh(StaticMesh* staticMesh)
 {
 	staticMeshes.push_back(staticMesh);
+	bRebuildGPUScene = true;
 	bRebuildRaytracingScene = true;
 }
 
