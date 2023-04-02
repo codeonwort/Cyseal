@@ -13,8 +13,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
 
-#define DEFAULT_MAX_SCENE_ELEMENTS   256
-
 namespace RootParameters
 {
 	enum Value

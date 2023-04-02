@@ -1,9 +1,9 @@
 #pragma once
 
+#include "core/smart_pointer.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource.h"
-#include <memory>
 
 class RenderCommandList;
 class Texture;
@@ -20,9 +20,9 @@ public:
 		Texture* indirectSpecular);
 
 private:
-	std::unique_ptr<PipelineState> pipelineState;
-	std::unique_ptr<RootSignature> rootSignature;
+	UniquePtr<PipelineState> pipelineState;
+	UniquePtr<RootSignature> rootSignature;
 	VertexInputLayout inputLayout;
 
-	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
+	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
 };

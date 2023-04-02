@@ -9,6 +9,15 @@
 // Currently only for sceneColor SRV
 #define MAX_VOLATILE_DESCRIPTORS 2
 
+namespace RootParameters
+{
+	enum Value
+	{
+		InputTexturesSlot = 0,
+		Count
+	};
+}
+
 ToneMapping::ToneMapping()
 {
 	RenderDevice* device = gRenderDevice;
@@ -18,15 +27,13 @@ ToneMapping::ToneMapping()
 	// Create root signature
 	// - slot0: descriptor table (SRV)
 	{
-		constexpr uint32 NUM_ROOT_PARAMETERS = 1;
-		RootParameter slotRootParameters[NUM_ROOT_PARAMETERS];
-
 		DescriptorRange descriptorRange;
 		// sceneColor       : register(t0)
 		// indirectSpecular : register(t1)
 		descriptorRange.init(EDescriptorRangeType::SRV, 2, 0);
 
-		slotRootParameters[0].initAsDescriptorTable(1, &descriptorRange);
+		RootParameter rootParameters[RootParameters::Count];
+		rootParameters[RootParameters::InputTexturesSlot].initAsDescriptorTable(1, &descriptorRange);
 
 		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
 		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
@@ -39,17 +46,17 @@ ToneMapping::ToneMapping()
 		staticSamplers[0].shaderVisibility = EShaderVisibility::Pixel;
 
 		RootSignatureDesc rootSigDesc(
-			NUM_ROOT_PARAMETERS,
-			slotRootParameters,
+			RootParameters::Count,
+			rootParameters,
 			NUM_STATIC_SAMPLERS,
 			staticSamplers,
 			ERootSignatureFlags::AllowInputAssemblerInputLayout);
 
-		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
+		rootSignature = UniquePtr<RootSignature>(device->createRootSignature(rootSigDesc));
 	}
 
 	// Create volatile heaps for CBVs, SRVs, and UAVs for each frame
-	volatileViewHeaps.resize(swapchainCount);
+	volatileViewHeap.initialize(swapchainCount);
 	for (uint32 i = 0; i < swapchainCount; ++i)
 	{
 		DescriptorHeapDesc desc;
@@ -58,11 +65,11 @@ ToneMapping::ToneMapping()
 		desc.flags          = EDescriptorHeapFlags::ShaderVisible;
 		desc.nodeMask       = 0;
 
-		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(desc));
+		volatileViewHeap[i] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(desc));
 
 		wchar_t debugName[256];
 		swprintf_s(debugName, L"ToneMapping_VolatileViewHeap_%u", i);
-		volatileViewHeaps[i]->setDebugName(debugName);
+		volatileViewHeap[i]->setDebugName(debugName);
 	}
 
 	// Create input layout
@@ -96,7 +103,7 @@ ToneMapping::ToneMapping()
 		desc.sampleDesc.quality     = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0;
 		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();
 
-		pipelineState = std::unique_ptr<PipelineState>(device->createGraphicsPipelineState(desc));
+		pipelineState = UniquePtr<PipelineState>(device->createGraphicsPipelineState(desc));
 	}
 
 	// Cleanup
@@ -119,18 +126,20 @@ void ToneMapping::renderToneMapping(
 
 	// Resource binding
 	{
-		DescriptorHeap* heaps[] = { volatileViewHeaps[swapchainIndex].get() };
+		DescriptorHeap* heaps[] = { volatileViewHeap.at(swapchainIndex) };
 		commandList->setDescriptorHeaps(1, heaps);
 
+		constexpr uint32 VOLATILE_IX_SceneColor = 0;
+		constexpr uint32 VOLATILE_IX_IndirectSpecular = 1;
 		gRenderDevice->copyDescriptors(
 			1,
-			heaps[0], 0,
+			heaps[0], VOLATILE_IX_SceneColor,
 			sceneColor->getSourceSRVHeap(), sceneColor->getSRVDescriptorIndex());
 		gRenderDevice->copyDescriptors(
 			1,
-			heaps[0], 1,
+			heaps[0], VOLATILE_IX_IndirectSpecular,
 			indirectSpecular->getSourceSRVHeap(), indirectSpecular->getSRVDescriptorIndex());
-		commandList->setGraphicsRootDescriptorTable(0, heaps[0], 0);
+		commandList->setGraphicsRootDescriptorTable(RootParameters::InputTexturesSlot, heaps[0], 0);
 	}
 
 	// Fullscreen triangle

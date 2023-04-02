@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/int_types.h"
+
 #include <memory>
 #include <vector>
 
