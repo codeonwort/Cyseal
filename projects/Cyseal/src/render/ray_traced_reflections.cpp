@@ -238,7 +238,7 @@ void RayTracedReflections::renderRayTracedReflections(
 	// Resize volatile heaps if needed.
 	{
 		uint32 materialCBVCount, materialSRVCount;
-		gpuScene->queryMaterialDescriptorsCount(materialCBVCount, materialSRVCount);
+		gpuScene->queryMaterialDescriptorsCount(swapchainIndex, materialCBVCount, materialSRVCount);
 
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 4; // render target, gbufferA, scene uniform, skybox

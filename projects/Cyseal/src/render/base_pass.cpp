@@ -218,7 +218,7 @@ void BasePass::renderBasePass(
 	// Resize volatile heaps if needed.
 	{
 		uint32 materialCBVCount, materialSRVCount;
-		gpuScene->queryMaterialDescriptorsCount(materialCBVCount, materialSRVCount);
+		gpuScene->queryMaterialDescriptorsCount(swapchainIndex, materialCBVCount, materialSRVCount);
 
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 1; // scene uniform

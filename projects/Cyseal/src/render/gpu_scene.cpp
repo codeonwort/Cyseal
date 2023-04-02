@@ -62,8 +62,18 @@ void GPUScene::initialize()
 	gpuSceneCommandBufferMaxElements.resize(swapchainCount);
 	gpuSceneCommandBuffers.resize(swapchainCount);
 	gpuSceneCommandBufferSRVs.resize(swapchainCount);
-	resizeGPUSceneBuffers(DEFAULT_MAX_SCENE_ELEMENTS);
-	resizeMaterialBuffers(DEFAULT_MAX_SCENE_ELEMENTS, DEFAULT_MAX_SCENE_ELEMENTS);
+
+	totalVolatileDescriptors.resize(swapchainCount, 0);
+	volatileViewHeap.initialize(swapchainCount);
+
+	materialCBVMaxCounts.resize(swapchainCount, 0);
+	materialSRVMaxCounts.resize(swapchainCount, 0);
+	materialCBVActualCounts.resize(swapchainCount, 0);
+	materialSRVActualCounts.resize(swapchainCount, 0);
+	materialCBVMemory.initialize(swapchainCount);
+	materialCBVHeap.initialize(swapchainCount);
+	materialSRVHeap.initialize(swapchainCount);
+	materialCBVs.initialize(swapchainCount);
 
 	// Root signature
 	{
@@ -109,8 +119,6 @@ void GPUScene::renderGPUScene(
 {
 	const uint32 LOD = 0; // #todo-lod: LOD
 
-	auto& materialCBVs = materialCBVsPerFrame[swapchainIndex];
-
 	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	uint32 numMeshSections = 0;
 	uint32 numDirtyMeshSections = 0;
@@ -125,24 +133,33 @@ void GPUScene::renderGPUScene(
 		}
 	}
 
-	// Resize volatile heaps if needed.
+	const bool bRebuildGPUScene = scene->bRebuildGPUScene;
+	uint32 numGPUSceneCommands = bRebuildGPUScene ? numMeshSections : numDirtyMeshSections;
+	if (numGPUSceneCommands > gpuSceneMaxElements)
 	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // scene uniform
-		if (requiredVolatiles > totalVolatileDescriptors)
-		{
-			resizeVolatileHeaps(requiredVolatiles);
-		}
+		resizeGPUSceneBuffer(commandList, numMeshSections);
 	}
+	resizeGPUSceneCommandBuffer(swapchainIndex, numGPUSceneCommands);
+	// #todo-gpuscene: Don't assume material_max_count == mesh_section_total_count.
+	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
 
-	// #todo-wip: Don't upload unchanged materials. Also don't copy one by one.
+	uint32 requiredVolatiles = 0;
+	requiredVolatiles += 1; // scene uniform
+	resizeVolatileHeaps(swapchainIndex, requiredVolatiles);
+
+	// #todo-gpuscene: Don't upload unchanged materials. Also don't copy one by one.
 	// Prepare bindless materials.
-	currentMaterialSRVCount = 0;
+	uint32& currentMaterialCBVCount = materialSRVActualCounts[swapchainIndex];
+	uint32& currentMaterialSRVCount = materialCBVActualCounts[swapchainIndex];
 	currentMaterialCBVCount = 0;
+	currentMaterialSRVCount = 0;
 	{
 		char eventString[128];
 		sprintf_s(eventString, "UpdateMaterialBuffer (count=%u)", numMeshSections);
 		SCOPED_DRAW_EVENT_STRING(commandList, eventString);
+
+		auto& CBVs = materialCBVs[swapchainIndex];
+		DescriptorHeap* srvHeap = materialSRVHeap[swapchainIndex].get();
 
 		for (uint32 i = 0; i < numStaticMeshes; ++i)
 		{
@@ -160,7 +177,7 @@ void GPUScene::renderGPUScene(
 
 				gRenderDevice->copyDescriptors(
 					1,
-					materialSRVHeap.get(), currentMaterialSRVCount,
+					srvHeap, currentMaterialSRVCount,
 					albedo->getSourceSRVHeap(), albedo->getSRVDescriptorIndex());
 
 				// CBV
@@ -173,27 +190,17 @@ void GPUScene::renderGPUScene(
 				}
 				constants.albedoTextureIndex = currentMaterialSRVCount;
 
-				ConstantBufferView* cbv = materialCBVs[currentMaterialCBVCount].get();
+				ConstantBufferView* cbv = CBVs[currentMaterialCBVCount].get();
 				cbv->writeToGPU(commandList, &constants, sizeof(constants));
 
-				// #todo-wip: Currently always increment even if duplicate items are generated.
+				// #todo-gpuscene: Currently always increment even if duplicate items are generated.
 				++currentMaterialSRVCount;
 				++currentMaterialCBVCount;
 			}
 		}
 	}
-
-	const bool bRebuildGPUScene = scene->bRebuildGPUScene;
-	uint32 numGPUSceneCommands = bRebuildGPUScene ? numMeshSections : numDirtyMeshSections;
-	// #todo-wip: Recreate resources only for current swapchainIndex.
-	if (numGPUSceneCommands > gpuSceneMaxElements)
-	{
-		resizeGPUSceneBuffers(numMeshSections);
-		resizeMaterialBuffers(numMeshSections, numMeshSections);
-	}
-	resizeGPUSceneCommandBuffer(swapchainIndex, numGPUSceneCommands);
 	
-	// #todo-wip: Avoid recreation of buffers when bRebuildGPUScene == true.
+	// #todo-gpuscene: Avoid recreation of buffers when bRebuildGPUScene == true.
 	// There are various cases:
 	// [ ] A new object is added to the scene.
 	// [ ] An object is removed from the scene.
@@ -270,7 +277,7 @@ void GPUScene::renderGPUScene(
 		commandList->setPipelineState(pipelineState.get());
 		commandList->setComputeRootSignature(rootSignature.get());
 
-		DescriptorHeap* volatileHeap = volatileViewHeaps[swapchainIndex].get();
+		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
 		DescriptorHeap* heaps[] = { volatileHeap };
 		commandList->setDescriptorHeaps(1, heaps);
 
@@ -306,10 +313,10 @@ ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
 	return gpuSceneBufferSRV.get();
 }
 
-void GPUScene::queryMaterialDescriptorsCount(uint32& outCBVCount, uint32& outSRVCount)
+void GPUScene::queryMaterialDescriptorsCount(uint32 swapchainIndex, uint32& outCBVCount, uint32& outSRVCount)
 {
-	outCBVCount = currentMaterialCBVCount;
-	outSRVCount = currentMaterialSRVCount;
+	outCBVCount = materialCBVActualCounts[swapchainIndex];
+	outSRVCount = materialSRVActualCounts[swapchainIndex];
 }
 
 void GPUScene::copyMaterialDescriptors(
@@ -319,6 +326,9 @@ void GPUScene::copyMaterialDescriptors(
 	uint32& outSRVBaseIndex, uint32& outSRVCount,
 	uint32& outNextAvailableIndex)
 {
+	uint32 currentMaterialCBVCount, currentMaterialSRVCount;
+	queryMaterialDescriptorsCount(swapchainIndex, currentMaterialCBVCount, currentMaterialSRVCount);
+
 	outCBVBaseIndex = destBaseIndex;
 	outCBVCount = currentMaterialCBVCount;
 
@@ -334,11 +344,11 @@ void GPUScene::copyMaterialDescriptors(
 		// But once I implement dealloc mechanism for descriptor allocation that assumption might break.
 		// I need something like gRenderDevice->createCBVsContiuous() that guarantees
 		// continuous allocation.
-		ConstantBufferView* firstCBV = materialCBVsPerFrame[swapchainIndex][0].get();
+		ConstantBufferView* firstCBV = materialCBVs[swapchainIndex][0].get();
 		gRenderDevice->copyDescriptors(
 			currentMaterialCBVCount,
 			destHeap, outCBVBaseIndex,
-			materialCBVHeap.get(), firstCBV->getDescriptorIndexInHeap());
+			materialCBVHeap[swapchainIndex].get(), firstCBV->getDescriptorIndexInHeap());
 	}
 
 	if (currentMaterialSRVCount > 0)
@@ -346,20 +356,17 @@ void GPUScene::copyMaterialDescriptors(
 		gRenderDevice->copyDescriptors(
 			currentMaterialSRVCount,
 			destHeap, outSRVBaseIndex,
-			materialSRVHeap.get(), 0);
+			materialSRVHeap[swapchainIndex].get(), 0);
 	}
 }
 
-void GPUScene::resizeVolatileHeaps(uint32 maxDescriptors)
+void GPUScene::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)
 {
-	totalVolatileDescriptors = maxDescriptors;
-
-	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
-
-	volatileViewHeaps.resize(swapchainCount);
-	for (uint32 i = 0; i < swapchainCount; ++i)
+	if (volatileViewHeap[swapchainIndex] == nullptr || totalVolatileDescriptors[swapchainIndex] < maxDescriptors)
 	{
-		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		totalVolatileDescriptors[swapchainIndex] = maxDescriptors;
+
+		volatileViewHeap[swapchainIndex] = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::CBV_SRV_UAV,
 				.numDescriptors = maxDescriptors,
@@ -369,11 +376,11 @@ void GPUScene::resizeVolatileHeaps(uint32 maxDescriptors)
 		));
 
 		wchar_t debugName[256];
-		swprintf_s(debugName, L"GPUScene_VolatileViewHeap_%u", i);
-		volatileViewHeaps[i]->setDebugName(debugName);
-	}
+		swprintf_s(debugName, L"GPUScene_VolatileViewHeap_%u", swapchainIndex);
+		volatileViewHeap[swapchainIndex]->setDebugName(debugName);
 
-	CYLOG(LogGPUScene, Log, L"Resize volatile heap: %u descriptors", maxDescriptors);
+		CYLOG(LogGPUScene, Log, L"Resize volatile heap [%u]: %u descriptors", swapchainIndex, maxDescriptors);
+	}
 }
 
 void GPUScene::resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElements)
@@ -406,10 +413,21 @@ void GPUScene::resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElem
 	}
 }
 
-void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
+void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements)
 {
 	gpuSceneMaxElements = maxElements;
 	const uint32 viewStride = sizeof(GPUSceneItem);
+
+	if (commandList != nullptr && gpuSceneBuffer != nullptr)
+	{
+		auto oldBuffer = gpuSceneBuffer.release();
+		auto oldSRV = gpuSceneBufferSRV.release();
+		auto oldUAV = gpuSceneBufferUAV.release();
+		oldBuffer->setDebugName(L"Buffer_GPUScene_MarkedForDeath");
+		commandList->enqueueDeferredDealloc(oldBuffer);
+		commandList->enqueueDeferredDealloc(oldSRV);
+		commandList->enqueueDeferredDealloc(oldUAV);
+	}
 
 	gpuSceneBuffer = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
 		BufferCreateParams{
@@ -419,6 +437,10 @@ void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
 		}
 	));
 	gpuSceneBuffer->setDebugName(L"Buffer_GPUScene");
+
+	uint64 bufferSize = gpuSceneBuffer->getCreateParams().sizeInBytes;
+	CYLOG(LogGPUScene, Log, L"Resize GPUScene buffer: %llu bytes (%.3f MiB)",
+		bufferSize, (double)bufferSize / (1024.0f * 1024.0f));
 	
 	{
 		ShaderResourceViewDesc srvDesc{};
@@ -446,64 +468,69 @@ void GPUScene::resizeGPUSceneBuffers(uint32 maxElements)
 }
 
 // Bindless materials
-void GPUScene::resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount)
+void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, uint32 maxSRVCount)
 {
-	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
-
 	auto align = [](uint32 size, uint32 alignment) -> uint32
 	{
 		return (size + (alignment - 1)) & ~(alignment - 1);
 	};
 
-	// #todo-rhi: D3D12-specific alignments
-	uint32 materialMemoryPoolSize = align(sizeof(MaterialConstants), 256) * maxCBVCount * swapchainCount;
-	materialMemoryPoolSize = align(materialMemoryPoolSize, 65536);
-
-	CYLOG(LogGPUScene, Log, L"Resize material constants memory: %u bytes (%.3f MiB)",
-		materialMemoryPoolSize, (float)materialMemoryPoolSize / (1024.0f * 1024.0f));
-
-	materialCBVMemory = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
-		BufferCreateParams{
-			.sizeInBytes = materialMemoryPoolSize,
-			.alignment   = 0,
-			.accessFlags = EBufferAccessFlags::CPU_WRITE,
-		}
-	));
-
-	materialCBVHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
-		DescriptorHeapDesc{
-			.type           = EDescriptorHeapType::CBV,
-			.numDescriptors = maxCBVCount * swapchainCount,
-			.flags          = EDescriptorHeapFlags::None,
-			.nodeMask       = 0,
-		}
-	));
-
-	materialSRVHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
-		DescriptorHeapDesc{
-			.type           = EDescriptorHeapType::SRV,
-			.numDescriptors = maxSRVCount * swapchainCount,
-			.flags          = EDescriptorHeapFlags::None,
-			.nodeMask       = 0,
-		}
-	));
-
-	materialCBVsPerFrame.resize(swapchainCount);
-	uint32 cbMemoryOffset = 0;
-	for (uint32 swapchainIx = 0; swapchainIx < swapchainCount; ++swapchainIx)
+	if (materialCBVMaxCounts[swapchainIndex] < maxCBVCount)
 	{
-		auto& materialCBVs = materialCBVsPerFrame[swapchainIx];
-		materialCBVs.resize(maxCBVCount);
-		for (size_t i = 0; i < materialCBVs.size(); ++i)
+		materialCBVMaxCounts[swapchainIndex] = maxCBVCount;
+
+		// #todo-rhi: D3D12-specific alignments
+		uint32 materialMemorySize = align(sizeof(MaterialConstants), 256) * maxCBVCount;
+		materialMemorySize = align(materialMemorySize, 65536);
+
+		CYLOG(LogGPUScene, Log, L"Resize material constants memory [%u]: %u bytes (%.3f MiB)",
+			swapchainIndex, materialMemorySize, (float)materialMemorySize / (1024.0f * 1024.0f));
+
+		materialCBVMemory[swapchainIndex] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = materialMemorySize,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE,
+			}
+		));
+
+		materialCBVHeap[swapchainIndex] = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+			DescriptorHeapDesc{
+				.type           = EDescriptorHeapType::CBV,
+				.numDescriptors = maxCBVCount,
+				.flags          = EDescriptorHeapFlags::None,
+				.nodeMask       = 0,
+			}
+		));
+
+		uint32 cbMemoryOffset = 0;
+		auto& CBVs = materialCBVs[swapchainIndex];
+
+		CBVs.resize(maxCBVCount);
+		for (size_t i = 0; i < CBVs.size(); ++i)
 		{
-			materialCBVs[i] = std::unique_ptr<ConstantBufferView>(
+			CBVs[i] = std::unique_ptr<ConstantBufferView>(
 				gRenderDevice->createCBV(
-					materialCBVMemory.get(),
-					materialCBVHeap.get(),
+					materialCBVMemory.at(swapchainIndex),
+					materialCBVHeap.at(swapchainIndex),
 					sizeof(MaterialConstants),
 					cbMemoryOffset));
 			// #todo-rhi: Let RHI layer handle this alignment
 			cbMemoryOffset += align(sizeof(MaterialConstants), 256);
 		}
+	}
+
+	if (materialSRVMaxCounts[swapchainIndex] < maxSRVCount)
+	{
+		materialSRVMaxCounts[swapchainIndex] = maxSRVCount;
+
+		materialSRVHeap[swapchainIndex] = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+			DescriptorHeapDesc{
+				.type           = EDescriptorHeapType::SRV,
+				.numDescriptors = maxSRVCount,
+				.flags          = EDescriptorHeapFlags::None,
+				.nodeMask       = 0,
+			}
+		));
 	}
 }

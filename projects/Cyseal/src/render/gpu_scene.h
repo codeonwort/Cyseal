@@ -1,7 +1,9 @@
 #pragma once
 
 #include "core/vec3.h"
+#include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
+#include "rhi/gpu_resource_binding.h"
 
 #include <vector>
 #include <memory>
@@ -26,6 +28,46 @@ struct MaterialConstants
 	vec3 _pad0;
 };
 
+template<typename T>
+class BufferedUniquePtr
+{
+public:
+	void initialize(uint32 bufferCount)
+	{
+		instances.resize(bufferCount);
+	}
+	T* at(size_t bufferIndex)
+	{
+		return instances[bufferIndex].get();
+	}
+	std::unique_ptr<T>& operator[](size_t bufferIndex)
+	{
+		return instances[bufferIndex];
+	}
+private:
+	std::vector<std::unique_ptr<T>> instances;
+};
+
+template<typename T>
+class BufferedUniquePtrVec
+{
+public:
+	void initialize(uint32 bufferCount)
+	{
+		instances.resize(bufferCount);
+	}
+	T* at(size_t bufferIndex, size_t itemIndex)
+	{
+		return instances[bufferIndex][itemIndex];
+	}
+	std::vector<std::unique_ptr<T>>& operator[](size_t bufferIndex)
+	{
+		return instances[bufferIndex];
+	}
+private:
+	std::vector<std::vector<std::unique_ptr<T>>> instances;
+};
+
 class GPUScene final
 {
 	friend class GPUCulling;
@@ -45,7 +87,7 @@ public:
 
 	// Query how many descriptors are needed.
 	// Use this before copyMaterialDescriptors() if you're unsure the dest heap is big enough.
-	void queryMaterialDescriptorsCount(uint32& outCBVCount, uint32& outSRVCount);
+	void queryMaterialDescriptorsCount(uint32 swapchainIndex, uint32& outCBVCount, uint32& outSRVCount);
 
 	// Copy material CBV/SRV descriptors to 'destHeap', starting from its 'destBaseIndex'.
 	// This method will copy a variable number of descriptors, so other descriptors
@@ -60,34 +102,37 @@ public:
 	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
 
 private:
-	void resizeVolatileHeaps(uint32 maxDescriptors);
+	void resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors);
 	void resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElements);
-	void resizeGPUSceneBuffers(uint32 maxElements);
-	void resizeMaterialBuffers(uint32 maxCBVCount, uint32 maxSRVCount);
+	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
+	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, uint32 maxSRVCount);
 
 private:
 	std::unique_ptr<PipelineState> pipelineState;
 	std::unique_ptr<RootSignature> rootSignature;
 
-	uint32 totalVolatileDescriptors = 0;
-	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
+	std::vector<uint32> totalVolatileDescriptors;
+	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
 
-	// GPU scene command buffer
+	// GPU scene command buffers (per swapchain)
 	std::vector<uint32> gpuSceneCommandBufferMaxElements;
 	std::vector<std::unique_ptr<Buffer>> gpuSceneCommandBuffers;
 	std::vector<std::unique_ptr<ShaderResourceView>> gpuSceneCommandBufferSRVs;
 
-	// GPU scene buffer
+	// GPU scene buffer (NOT per swapchain)
 	uint32 gpuSceneMaxElements = 0;
 	std::unique_ptr<Buffer> gpuSceneBuffer;
 	std::unique_ptr<ShaderResourceView> gpuSceneBufferSRV;
 	std::unique_ptr<UnorderedAccessView> gpuSceneBufferUAV;
 
-	// Bindless materials
-	std::unique_ptr<Buffer> materialCBVMemory;
-	std::unique_ptr<DescriptorHeap> materialCBVHeap;
-	std::unique_ptr<DescriptorHeap> materialSRVHeap;
-	std::vector<std::vector<std::unique_ptr<ConstantBufferView>>> materialCBVsPerFrame;
-	uint32 currentMaterialCBVCount = 0;
-	uint32 currentMaterialSRVCount = 0;
+	// Bindless materials (per swapchain)
+	// #todo-gpuscene: Maybe I don't need to separate max count and actual count?
+	std::vector<uint32> materialCBVMaxCounts;
+	std::vector<uint32> materialSRVMaxCounts;
+	std::vector<uint32> materialCBVActualCounts; // Currently same as max count.
+	std::vector<uint32> materialSRVActualCounts; // Currently same as max count.
+	BufferedUniquePtr<Buffer> materialCBVMemory;
+	BufferedUniquePtr<DescriptorHeap> materialCBVHeap;
+	BufferedUniquePtr<DescriptorHeap> materialSRVHeap;
+	BufferedUniquePtrVec<ConstantBufferView> materialCBVs;
 };
