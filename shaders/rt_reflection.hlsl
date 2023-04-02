@@ -54,7 +54,7 @@ struct ClosestHitPushConstants
 RaytracingAccelerationStructure rtScene        : register(t0, space0);
 ByteAddressBuffer               gIndexBuffer   : register(t1, space0);
 ByteAddressBuffer               gVertexBuffer  : register(t2, space0);
-StructuredBuffer<MeshData>      gpuSceneBuffer : register(t3, space0);
+StructuredBuffer<GPUSceneItem>  gpuSceneBuffer : register(t3, space0);
 TextureCube                     skybox         : register(t4, space0);
 RWTexture2D<float4>             renderTarget   : register(u0, space0);
 RWTexture2D<float4>             gbufferA       : register(u1, space0);
@@ -225,22 +225,22 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 	// and suddenly this value is equal to geometry index.
 	uint objectID = g_closestHitCB.objectID;
 
-	MeshData meshData = gpuSceneBuffer[objectID];
+	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
 	
 	// Get the base index of the triangle's first 32 bit index.
 	uint triangleIndexStride = 3 * 4; // 4 = sizeof(uint32)
 	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-	baseIndex += meshData.indexBufferOffset;
+	baseIndex += sceneItem.indexBufferOffset;
 	uint3 indices = gIndexBuffer.Load<uint3>(baseIndex);
 
 	// position = float3 = 12 bytes
-	float3 p0 = gVertexBuffer.Load<float3>(meshData.positionBufferOffset + 12 * indices.x);
-	float3 p1 = gVertexBuffer.Load<float3>(meshData.positionBufferOffset + 12 * indices.y);
-	float3 p2 = gVertexBuffer.Load<float3>(meshData.positionBufferOffset + 12 * indices.z);
+	float3 p0 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.x);
+	float3 p1 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.y);
+	float3 p2 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.z);
 	// (normal, texcoord) = (float3, float2) = total 20 bytes
-	VertexAttributes v0 = gVertexBuffer.Load<VertexAttributes>(meshData.nonPositionBufferOffset + 20 * indices.x);
-	VertexAttributes v1 = gVertexBuffer.Load<VertexAttributes>(meshData.nonPositionBufferOffset + 20 * indices.y);
-	VertexAttributes v2 = gVertexBuffer.Load<VertexAttributes>(meshData.nonPositionBufferOffset + 20 * indices.z);
+	VertexAttributes v0 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.x);
+	VertexAttributes v1 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.y);
+	VertexAttributes v2 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.z);
 
 	float3 barycentrics = float3(
 		1 - attr.barycentrics.x - attr.barycentrics.y,
@@ -259,7 +259,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 		barycentrics.x * v0.normal
 		+ barycentrics.y * v1.normal
 		+ barycentrics.z * v2.normal);
-	surfaceNormal = normalize(mul(float4(surfaceNormal, 0.0), meshData.modelMatrix).xyz);
+	surfaceNormal = normalize(mul(float4(surfaceNormal, 0.0), sceneItem.modelMatrix).xyz);
 	payload.surfaceNormal = surfaceNormal;
 
 	payload.roughness = material.roughness;

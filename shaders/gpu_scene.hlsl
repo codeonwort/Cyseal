@@ -10,7 +10,7 @@ struct GPUSceneCommand
     uint sceneItemIndex;
     uint _pad0;
     uint _pad1;
-    MeshData meshData;
+    GPUSceneItem sceneItem;
 };
 
 // ------------------------------------------------------------------------
@@ -23,7 +23,7 @@ struct PushConstants
 
 ConstantBuffer<PushConstants> pushConstants       : register(b0);
 ConstantBuffer<SceneUniform> sceneUniform         : register(b1);
-RWStructuredBuffer<MeshData> gpuSceneBuffer       : register(u0);
+RWStructuredBuffer<GPUSceneItem> gpuSceneBuffer   : register(u0);
 StructuredBuffer<GPUSceneCommand> commandBuffer   : register(t0);
 
 // ------------------------------------------------------------------------
@@ -41,6 +41,6 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
     GPUSceneCommand cmd = commandBuffer[commandID];
     if (cmd.commandType == COMMAND_TYPE_UPDATE)
     {
-        gpuSceneBuffer[cmd.sceneItemIndex] = cmd.meshData;
+        gpuSceneBuffer[cmd.sceneItemIndex] = cmd.sceneItem;
     }
 }

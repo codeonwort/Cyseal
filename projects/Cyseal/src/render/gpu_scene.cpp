@@ -27,7 +27,7 @@ namespace RootParameters
 	};
 }
 
-// See MeshData in common.hlsl
+// See GPUSceneItem in common.hlsl
 struct GPUSceneItem
 {
 	Float4x4 modelTransform; // localToWorld

@@ -16,12 +16,12 @@ struct PushConstants
     uint objectId;
 };
 
-ConstantBuffer<PushConstants> pushConstants : register(b0);
-ConstantBuffer<SceneUniform> sceneUniform   : register(b1);
-StructuredBuffer<MeshData> gpuSceneBuffer   : register(t0);
+ConstantBuffer<PushConstants> pushConstants   : register(b0);
+ConstantBuffer<SceneUniform> sceneUniform     : register(b1);
+StructuredBuffer<GPUSceneItem> gpuSceneBuffer : register(t0);
 
-uint getObjectId()     { return pushConstants.objectId; }
-MeshData getMeshData() { return gpuSceneBuffer[pushConstants.objectId]; }
+uint getObjectId() { return pushConstants.objectId; }
+GPUSceneItem getGPUSceneItem() { return gpuSceneBuffer[pushConstants.objectId]; }
 
 // ------------------------------------------------------------------------
 // Resource bindings (material-specific)
@@ -56,8 +56,8 @@ Interpolants mainVS(VertexInput input)
 {
     Interpolants output;
 
-    MeshData meshData = getMeshData();
-    float4x4 modelMatrix = meshData.modelMatrix;
+    GPUSceneItem sceneItem = getGPUSceneItem();
+    float4x4 modelMatrix = sceneItem.modelMatrix;
 
     float4x4 MVP = mul(modelMatrix, sceneUniform.viewProjMatrix);
     output.svPosition = mul(float4(input.position, 1.0), MVP);
@@ -85,7 +85,7 @@ struct PixelOutput
 
 PixelOutput mainPS(Interpolants interpolants)
 {
-    MeshData meshData = getMeshData();
+    GPUSceneItem sceneItem = getGPUSceneItem();
     Material material = getMaterial();
 
     // Variables

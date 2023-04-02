@@ -1,4 +1,4 @@
-struct MeshData
+struct GPUSceneItem
 {
     float4x4 modelMatrix; // local to world
     float3   localMinBounds;

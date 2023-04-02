@@ -73,7 +73,7 @@ struct IDrawCommand
 
 ConstantBuffer<PushConstants> pushConstants              : register(b0);
 ConstantBuffer<SceneUniform> sceneUniform                : register(b1);
-StructuredBuffer<MeshData> gpuSceneBuffer                : register(t0);
+StructuredBuffer<GPUSceneItem> gpuSceneBuffer            : register(t0);
 StructuredBuffer<IDrawCommand> drawCommandBuffer         : register(t1);
 RWStructuredBuffer<IDrawCommand> culledDrawCommandBuffer : register(u0);
 RWBuffer<uint> drawCounterBuffer                         : register(u1);
@@ -149,7 +149,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         return;
     }
 
-    MeshData sceneItem = gpuSceneBuffer[objectID];
+    GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
 
     AABB worldBounds = calculateWorldBounds(
         sceneItem.localMinBounds,
