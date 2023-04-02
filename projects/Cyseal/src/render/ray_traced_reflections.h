@@ -1,9 +1,8 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "core/smart_pointer.h"
 #include "rhi/gpu_resource_view.h"
-#include <memory>
-#include <vector>
 
 class RenderCommandList;
 class Material;
@@ -40,27 +39,27 @@ public:
 		uint32 sceneHeight);
 
 private:
-	void resizeVolatileHeaps(uint32 maxDescriptors);
-	void resizeHitGroupShaderTable(uint32 maxRecords);
+	void resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors);
+	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
 
 private:
-	std::unique_ptr<RaytracingPipelineStateObject> RTPSO;
-	std::unique_ptr<RootSignature> globalRootSignature;
-	std::unique_ptr<RootSignature> raygenLocalRootSignature;
-	std::unique_ptr<RootSignature> closestHitLocalRootSignature;
+	UniquePtr<RaytracingPipelineStateObject> RTPSO;
+	UniquePtr<RootSignature> globalRootSignature;
+	UniquePtr<RootSignature> raygenLocalRootSignature;
+	UniquePtr<RootSignature> closestHitLocalRootSignature;
 
-	std::unique_ptr<RaytracingShaderTable> raygenShaderTable;
-	std::unique_ptr<RaytracingShaderTable> missShaderTable;
-	std::unique_ptr<RaytracingShaderTable> hitGroupShaderTable;
-	uint32 totalHitGroupShaderRecord = 0;
+	UniquePtr<RaytracingShaderTable> raygenShaderTable;
+	UniquePtr<RaytracingShaderTable> missShaderTable;
+	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
+	std::vector<uint32> totalHitGroupShaderRecord;
 
-	std::unique_ptr<ShaderStage> raygenShader;
-	std::unique_ptr<ShaderStage> closestHitShader;
-	std::unique_ptr<ShaderStage> missShader;
+	UniquePtr<ShaderStage> raygenShader;
+	UniquePtr<ShaderStage> closestHitShader;
+	UniquePtr<ShaderStage> missShader;
 
-	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
-	uint32 totalVolatileDescriptors = 0;
+	std::vector<uint32> totalVolatileDescriptor;
+	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
 
-	std::unique_ptr<ShaderResourceView> skyboxSRV;
-	std::unique_ptr<ShaderResourceView> skyboxFallbackSRV;
+	UniquePtr<ShaderResourceView> skyboxSRV;
+	UniquePtr<ShaderResourceView> skyboxFallbackSRV;
 };
