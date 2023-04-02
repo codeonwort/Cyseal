@@ -26,6 +26,11 @@ namespace RootParameters
 
 void GPUCulling::initialize()
 {
+	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+
+	totalVolatileDescriptor.resize(swapchainCount, 0);
+	volatileViewHeap.initialize(swapchainCount);
+
 	// Root signature
 	{
 		DescriptorRange descriptorRanges[2];
@@ -45,7 +50,7 @@ void GPUCulling::initialize()
 			rootParameters,
 			0, nullptr,
 			ERootSignatureFlags::None);
-		rootSignature = std::unique_ptr<RootSignature>(gRenderDevice->createRootSignature(rootSigDesc));
+		rootSignature = UniquePtr<RootSignature>(gRenderDevice->createRootSignature(rootSigDesc));
 	}
 
 	// Shader
@@ -53,7 +58,7 @@ void GPUCulling::initialize()
 	shaderCS->loadFromFile(L"gpu_culling.hlsl", "mainCS");
 
 	// PSO
-	pipelineState = std::unique_ptr<PipelineState>(gRenderDevice->createComputePipelineState(
+	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc{
 			.rootSignature = rootSignature.get(),
 			.cs            = shaderCS,
@@ -80,7 +85,7 @@ void GPUCulling::cullDrawCommands(
 {
 	SCOPED_DRAW_EVENT(commandList, GPUCulling);
 
-	// Resize volatile heaps if needed.
+	// Resize volatile heap if needed.
 	{
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 1; // scene uniform
@@ -88,9 +93,9 @@ void GPUCulling::cullDrawCommands(
 		//requiredVolatiles += 1; // draw command buffer
 		//requiredVolatiles += 1; // culled draw command buffer
 		requiredVolatiles += 1; // draw counter buffer
-		if (requiredVolatiles > totalVolatileDescriptors)
+		if (requiredVolatiles > totalVolatileDescriptor[swapchainIndex])
 		{
-			resizeVolatileHeaps(requiredVolatiles);
+			resizeVolatileHeap(swapchainIndex, requiredVolatiles);
 		}
 	}
 
@@ -122,7 +127,7 @@ void GPUCulling::cullDrawCommands(
 	commandList->setPipelineState(pipelineState.get());
 	commandList->setComputeRootSignature(rootSignature.get());
 
-	DescriptorHeap* volatileHeap = volatileViewHeaps[swapchainIndex].get();
+	DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
 	DescriptorHeap* heaps[] = { volatileHeap };
 	commandList->setDescriptorHeaps(1, heaps);
 
@@ -165,28 +170,22 @@ void GPUCulling::cullDrawCommands(
 	commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
 }
 
-void GPUCulling::resizeVolatileHeaps(uint32 maxDescriptors)
+void GPUCulling::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors)
 {
-	totalVolatileDescriptors = maxDescriptors;
+	totalVolatileDescriptor[swapchainIndex] = maxDescriptors;
 
-	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+	volatileViewHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		DescriptorHeapDesc{
+			.type           = EDescriptorHeapType::CBV_SRV_UAV,
+			.numDescriptors = maxDescriptors,
+			.flags          = EDescriptorHeapFlags::ShaderVisible,
+			.nodeMask       = 0,
+		}
+	));
 
-	volatileViewHeaps.resize(swapchainCount);
-	for (uint32 i = 0; i < swapchainCount; ++i)
-	{
-		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
-			DescriptorHeapDesc{
-				.type           = EDescriptorHeapType::CBV_SRV_UAV,
-				.numDescriptors = maxDescriptors,
-				.flags          = EDescriptorHeapFlags::ShaderVisible,
-				.nodeMask       = 0,
-			}
-		));
+	wchar_t debugName[256];
+	swprintf_s(debugName, L"GPUCulling_VolatileViewHeap_%u", swapchainIndex);
+	volatileViewHeap[swapchainIndex]->setDebugName(debugName);
 
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"GPUCulling_VolatileViewHeap_%u", i);
-		volatileViewHeaps[i]->setDebugName(debugName);
-	}
-
-	CYLOG(LogGPUCulling, Log, L"Resize volatile heap: %u descriptors", maxDescriptors);
+	CYLOG(LogGPUCulling, Log, L"Resize volatile heap [%u]: %u descriptors", swapchainIndex, maxDescriptors);
 }

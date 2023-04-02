@@ -1,10 +1,8 @@
 #pragma once
 
 #include "core/vec3.h"
+#include "core/smart_pointer.h"
 #include "rhi/gpu_resource_view.h"
-
-#include <vector>
-#include <memory>
 
 class GPUScene;
 
@@ -40,12 +38,12 @@ public:
 		UnorderedAccessView* drawCounterBufferUAV);
 
 private:
-	void resizeVolatileHeaps(uint32 maxDescriptors);
+	void resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors);
 
 private:
-	std::unique_ptr<PipelineState> pipelineState;
-	std::unique_ptr<RootSignature> rootSignature;
+	UniquePtr<PipelineState> pipelineState;
+	UniquePtr<RootSignature> rootSignature;
 
-	uint32 totalVolatileDescriptors = 0;
-	std::vector<std::unique_ptr<DescriptorHeap>> volatileViewHeaps;
+	std::vector<uint32> totalVolatileDescriptor;
+	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
 };
