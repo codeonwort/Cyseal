@@ -39,6 +39,16 @@ void BasePass::initialize()
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
+	argumentBuffer.initialize(swapchainCount);
+	argumentBufferSRV.initialize(swapchainCount);
+	culledArgumentBuffer.initialize(swapchainCount);
+	culledArgumentBufferUAV.initialize(swapchainCount);
+	drawCounterBuffer.initialize(swapchainCount);
+	drawCounterBufferUAV.initialize(swapchainCount);
+
+	totalVolatileDescriptor.resize(swapchainCount, 0);
+	volatileViewHeap.initialize(swapchainCount);
+
 	// Root signature
 	{
 		RootParameter rootParameters[RootParameters::Count];
@@ -74,7 +84,7 @@ void BasePass::initialize()
 			staticSamplers,
 			ERootSignatureFlags::AllowInputAssemblerInputLayout);
 
-		rootSignature = std::unique_ptr<RootSignature>(device->createRootSignature(rootSigDesc));
+		rootSignature = UniquePtr<RootSignature>(device->createRootSignature(rootSigDesc));
 	}
 
 	// Indirect draw
@@ -111,34 +121,26 @@ void BasePass::initialize()
 			},
 			.nodeMask = 0,
 		};
-		commandSignature = std::unique_ptr<CommandSignature>(
+		commandSignature = UniquePtr<CommandSignature>(
 			device->createCommandSignature(commandSignatureDesc, rootSignature.get()));
 
-		argumentBufferGenerator = std::unique_ptr<IndirectCommandGenerator>(
+		argumentBufferGenerator = UniquePtr<IndirectCommandGenerator>(
 			device->createIndirectCommandGenerator(commandSignatureDesc, 256));
 
-		// Buffer max size can vary, recreate on demand
-		argumentBuffers.resize(swapchainCount);
-		argumentBufferSRVs.resize(swapchainCount);
-		culledArgumentBuffers.resize(swapchainCount);
-		culledArgumentBufferUAVs.resize(swapchainCount);
-
-		// Fixed size, create here
-		drawCounterBuffers.resize(swapchainCount);
-		drawCounterBufferUAVs.resize(swapchainCount);
+		// Fixed size. Create here.
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
-			drawCounterBuffers[i] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+			drawCounterBuffer[i] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
 				BufferCreateParams{
 					.sizeInBytes = sizeof(uint32),
-					.alignment = 0,
+					.alignment   = 0,
 					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
 				}
 			));
 
 			wchar_t debugName[256];
 			swprintf_s(debugName, L"Buffer_IndirectDrawCounterBuffer_%u", i);
-			drawCounterBuffers[i]->setDebugName(debugName);
+			drawCounterBuffer[i]->setDebugName(debugName);
 
 			UnorderedAccessViewDesc uavDesc{};
 			uavDesc.format                      = EPixelFormat::UNKNOWN;
@@ -149,8 +151,8 @@ void BasePass::initialize()
 			uavDesc.buffer.counterOffsetInBytes = 0;
 			uavDesc.buffer.flags                = EBufferUAVFlags::None;
 
-			drawCounterBufferUAVs[i] = std::unique_ptr<UnorderedAccessView>(
-				gRenderDevice->createUAV(drawCounterBuffers[i].get(), uavDesc));
+			drawCounterBufferUAV[i] = UniquePtr<UnorderedAccessView>(
+				gRenderDevice->createUAV(drawCounterBuffer[i].get(), uavDesc));
 		}
 	}
 
@@ -187,7 +189,7 @@ void BasePass::initialize()
 		desc.sampleDesc.quality     = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0;
 		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();
 
-		pipelineState = std::unique_ptr<PipelineState>(device->createGraphicsPipelineState(desc));
+		pipelineState = UniquePtr<PipelineState>(device->createGraphicsPipelineState(desc));
 	}
 
 	// Cleanup
@@ -225,9 +227,9 @@ void BasePass::renderBasePass(
 		requiredVolatiles += materialCBVCount;
 		requiredVolatiles += materialSRVCount;
 
-		if (requiredVolatiles > totalVolatileDescriptors)
+		if (requiredVolatiles > totalVolatileDescriptor[swapchainIndex])
 		{
-			resizeVolatileHeaps(requiredVolatiles);
+			resizeVolatileHeaps(swapchainIndex, requiredVolatiles);
 		}
 	}
 
@@ -241,12 +243,12 @@ void BasePass::renderBasePass(
 		}
 
 		uint32 requiredCapacity = argumentBufferGenerator->getCommandByteStride() * maxElements;
-		Buffer* argBuffer = argumentBuffers[swapchainIndex].get();
-		Buffer* culledArgBuffer = argumentBuffers[swapchainIndex].get();
+		Buffer* argBuffer = argumentBuffer.at(swapchainIndex);
+		Buffer* culledArgBuffer = culledArgumentBuffer.at(swapchainIndex);
 
 		if (argBuffer == nullptr || argBuffer->getCreateParams().sizeInBytes < requiredCapacity)
 		{
-			argumentBuffers[swapchainIndex] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+			argumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
 				BufferCreateParams{
 					.sizeInBytes = requiredCapacity,
 					.alignment   = 0,
@@ -256,7 +258,7 @@ void BasePass::renderBasePass(
 
 			wchar_t debugName[256];
 			swprintf_s(debugName, L"Buffer_IndirectDrawBuffer_%u", swapchainIndex);
-			argumentBuffers[swapchainIndex]->setDebugName(debugName);
+			argumentBuffer[swapchainIndex]->setDebugName(debugName);
 
 			ShaderResourceViewDesc srvDesc{};
 			srvDesc.format                     = EPixelFormat::UNKNOWN;
@@ -266,12 +268,12 @@ void BasePass::renderBasePass(
 			srvDesc.buffer.structureByteStride = argumentBufferGenerator->getCommandByteStride();
 			srvDesc.buffer.flags               = EBufferSRVFlags::None;
 
-			argumentBufferSRVs[swapchainIndex] = std::unique_ptr<ShaderResourceView>(
-				gRenderDevice->createSRV(argumentBuffers[swapchainIndex].get(), srvDesc));
+			argumentBufferSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(
+				gRenderDevice->createSRV(argumentBuffer.at(swapchainIndex), srvDesc));
 		}
 		if (culledArgBuffer == nullptr || culledArgBuffer->getCreateParams().sizeInBytes < requiredCapacity)
 		{
-			culledArgumentBuffers[swapchainIndex] = std::unique_ptr<Buffer>(gRenderDevice->createBuffer(
+			culledArgumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
 				BufferCreateParams{
 					.sizeInBytes = requiredCapacity,
 					.alignment   = 0,
@@ -281,7 +283,7 @@ void BasePass::renderBasePass(
 
 			wchar_t debugName[256];
 			swprintf_s(debugName, L"Buffer_CulledIndirectDrawBuffer_%u", swapchainIndex);
-			culledArgumentBuffers[swapchainIndex]->setDebugName(debugName);
+			culledArgumentBuffer[swapchainIndex]->setDebugName(debugName);
 
 			UnorderedAccessViewDesc uavDesc{};
 			uavDesc.format                      = EPixelFormat::UNKNOWN;
@@ -292,8 +294,8 @@ void BasePass::renderBasePass(
 			uavDesc.buffer.counterOffsetInBytes = 0;
 			uavDesc.buffer.flags                = EBufferUAVFlags::None;
 
-			culledArgumentBufferUAVs[swapchainIndex] = std::unique_ptr<UnorderedAccessView>(
-				gRenderDevice->createUAV(culledArgumentBuffers[swapchainIndex].get(), uavDesc));
+			culledArgumentBufferUAV[swapchainIndex] = UniquePtr<UnorderedAccessView>(
+				gRenderDevice->createUAV(culledArgumentBuffer.at(swapchainIndex), uavDesc));
 		}
 	}
 
@@ -328,16 +330,16 @@ void BasePass::renderBasePass(
 		}
 
 		maxIndirectDraws = indirectCommandID;
-		Buffer* currentArgumentBuffer = argumentBuffers[swapchainIndex].get();
+		Buffer* currentArgumentBuffer = argumentBuffer.at(swapchainIndex);
 		argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, currentArgumentBuffer, 0);
 
 		if (rendererOptions.bEnableGPUCulling)
 		{
 			gpuCulling->cullDrawCommands(
 				commandList, swapchainIndex, sceneUniformBuffer, camera, gpuScene,
-				maxIndirectDraws, currentArgumentBuffer, argumentBufferSRVs[swapchainIndex].get(),
-				culledArgumentBuffers[swapchainIndex].get(), culledArgumentBufferUAVs[swapchainIndex].get(),
-				drawCounterBuffers[swapchainIndex].get(), drawCounterBufferUAVs[swapchainIndex].get());
+				maxIndirectDraws, currentArgumentBuffer, argumentBufferSRV.at(swapchainIndex),
+				culledArgumentBuffer.at(swapchainIndex), culledArgumentBufferUAV.at(swapchainIndex),
+				drawCounterBuffer.at(swapchainIndex), drawCounterBufferUAV.at(swapchainIndex));
 		}
 	}
 
@@ -355,14 +357,14 @@ void BasePass::renderBasePass(
 	{
 		if (rendererOptions.bEnableGPUCulling)
 		{
-			Buffer* argumentBuffer = culledArgumentBuffers[swapchainIndex].get();
-			Buffer* counterBuffer = drawCounterBuffers[swapchainIndex].get();
-			commandList->executeIndirect(commandSignature.get(), maxIndirectDraws, argumentBuffer, 0, counterBuffer, 0);
+			Buffer* argBuffer = culledArgumentBuffer.at(swapchainIndex);
+			Buffer* counterBuffer = drawCounterBuffer.at(swapchainIndex);
+			commandList->executeIndirect(commandSignature.get(), maxIndirectDraws, argBuffer, 0, counterBuffer, 0);
 		}
 		else
 		{
-			Buffer* argumentBuffer = argumentBuffers[swapchainIndex].get();
-			commandList->executeIndirect(commandSignature.get(), maxIndirectDraws, argumentBuffer, 0, nullptr, 0);
+			Buffer* argBuffer = argumentBuffer.at(swapchainIndex);
+			commandList->executeIndirect(commandSignature.get(), maxIndirectDraws, argBuffer, 0, nullptr, 0);
 		}
 	}
 	else
@@ -400,7 +402,7 @@ void BasePass::bindRootParameters(
 	//cmdList->setGraphicsRootConstant32(0, payloadID, 0);
 
 	// #todo-sampler: volatile sampler heap in the second element
-	DescriptorHeap* volatileHeap = volatileViewHeaps[swapchainIndex].get();
+	DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
 	DescriptorHeap* heaps[] = { volatileHeap, };
 	cmdList->setDescriptorHeaps(1, heaps);
 
@@ -428,28 +430,22 @@ void BasePass::bindRootParameters(
 	cmdList->setGraphicsRootDescriptorTable(RootParameters::MaterialTexturesSlot, volatileHeap, materialSRVBaseIndex);
 }
 
-void BasePass::resizeVolatileHeaps(uint32 maxDescriptors)
+void BasePass::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)
 {
-	totalVolatileDescriptors = maxDescriptors;
+	totalVolatileDescriptor[swapchainIndex] = maxDescriptors;
 
-	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+	volatileViewHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		DescriptorHeapDesc{
+			.type           = EDescriptorHeapType::CBV_SRV_UAV,
+			.numDescriptors = maxDescriptors,
+			.flags          = EDescriptorHeapFlags::ShaderVisible,
+			.nodeMask       = 0,
+		}
+	));
 
-	volatileViewHeaps.resize(swapchainCount);
-	for (uint32 i = 0; i < swapchainCount; ++i)
-	{
-		volatileViewHeaps[i] = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
-			DescriptorHeapDesc{
-				.type           = EDescriptorHeapType::CBV_SRV_UAV,
-				.numDescriptors = maxDescriptors,
-				.flags          = EDescriptorHeapFlags::ShaderVisible,
-				.nodeMask       = 0,
-			}
-		));
+	wchar_t debugName[256];
+	swprintf_s(debugName, L"BasePass_VolatileViewHeap_%u", swapchainIndex);
+	volatileViewHeap[swapchainIndex]->setDebugName(debugName);
 
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"BasePass_VolatileViewHeap_%u", i);
-		volatileViewHeaps[i]->setDebugName(debugName);
-	}
-
-	CYLOG(LogBasePass, Log, L"Resize volatile heap: %u descriptors", maxDescriptors);
+	CYLOG(LogBasePass, Log, L"Resize volatile heap [%u]: %u descriptors", swapchainIndex, maxDescriptors);
 }
