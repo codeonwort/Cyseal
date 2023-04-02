@@ -90,6 +90,7 @@
     <ClInclude Include="src\core\plane.h" />
     <ClInclude Include="src\core\platform.h" />
     <ClInclude Include="src\core\quaternion.h" />
+    <ClInclude Include="src\core\smart_pointer.h" />
     <ClInclude Include="src\core\types.h" />
     <ClInclude Include="src\core\vec2.h" />
     <ClInclude Include="src\core\vec3.h" />

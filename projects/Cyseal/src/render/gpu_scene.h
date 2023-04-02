@@ -1,12 +1,10 @@
 #pragma once
 
 #include "core/vec3.h"
+#include "core/smart_pointer.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/gpu_resource_binding.h"
-
-#include <vector>
-#include <memory>
 
 class RenderCommandList;
 class PipelineState;
@@ -28,46 +26,6 @@ struct MaterialConstants
 	vec3 _pad0;
 };
 
-template<typename T>
-class BufferedUniquePtr
-{
-public:
-	void initialize(uint32 bufferCount)
-	{
-		instances.resize(bufferCount);
-	}
-	T* at(size_t bufferIndex)
-	{
-		return instances[bufferIndex].get();
-	}
-	std::unique_ptr<T>& operator[](size_t bufferIndex)
-	{
-		return instances[bufferIndex];
-	}
-private:
-	std::vector<std::unique_ptr<T>> instances;
-};
-
-template<typename T>
-class BufferedUniquePtrVec
-{
-public:
-	void initialize(uint32 bufferCount)
-	{
-		instances.resize(bufferCount);
-	}
-	T* at(size_t bufferIndex, size_t itemIndex)
-	{
-		return instances[bufferIndex][itemIndex];
-	}
-	std::vector<std::unique_ptr<T>>& operator[](size_t bufferIndex)
-	{
-		return instances[bufferIndex];
-	}
-private:
-	std::vector<std::vector<std::unique_ptr<T>>> instances;
-};
-
 class GPUScene final
 {
 	friend class GPUCulling;
@@ -84,6 +42,9 @@ public:
 		ConstantBufferView* sceneUniform);
 
 	ShaderResourceView* getGPUSceneBufferSRV() const;
+
+	// GPU scene buffer won't be modified from outside, so exposing only SRV is OK.
+	//UnorderedAccessView* getGPUSceneBufferUAV() const;
 
 	// Query how many descriptors are needed.
 	// Use this before copyMaterialDescriptors() if you're unsure the dest heap is big enough.
@@ -108,22 +69,22 @@ private:
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, uint32 maxSRVCount);
 
 private:
-	std::unique_ptr<PipelineState> pipelineState;
-	std::unique_ptr<RootSignature> rootSignature;
+	UniquePtr<PipelineState> pipelineState;
+	UniquePtr<RootSignature> rootSignature;
 
 	std::vector<uint32> totalVolatileDescriptors;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
 
 	// GPU scene command buffers (per swapchain)
 	std::vector<uint32> gpuSceneCommandBufferMaxElements;
-	std::vector<std::unique_ptr<Buffer>> gpuSceneCommandBuffers;
-	std::vector<std::unique_ptr<ShaderResourceView>> gpuSceneCommandBufferSRVs;
+	BufferedUniquePtr<Buffer> gpuSceneCommandBuffer;
+	BufferedUniquePtr<ShaderResourceView> gpuSceneCommandBufferSRV;
 
 	// GPU scene buffer (NOT per swapchain)
 	uint32 gpuSceneMaxElements = 0;
-	std::unique_ptr<Buffer> gpuSceneBuffer;
-	std::unique_ptr<ShaderResourceView> gpuSceneBufferSRV;
-	std::unique_ptr<UnorderedAccessView> gpuSceneBufferUAV;
+	UniquePtr<Buffer> gpuSceneBuffer;
+	UniquePtr<ShaderResourceView> gpuSceneBufferSRV;
+	UniquePtr<UnorderedAccessView> gpuSceneBufferUAV;
 
 	// Bindless materials (per swapchain)
 	// #todo-gpuscene: Maybe I don't need to separate max count and actual count?
