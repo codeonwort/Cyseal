@@ -15,7 +15,9 @@ class StaticMesh;
 struct AppState
 {
 	RendererOptions rendererOptions;
-	bool bRotateCamera;
+
+	vec3 cameraLocation;
+	float cameraRotationY;
 };
 
 class TestApplication : public WindowsApplication

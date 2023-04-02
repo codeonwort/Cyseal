@@ -79,6 +79,9 @@ bool TestApplication::onInitialize()
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 
+	appState.cameraLocation = CAMERA_POSITION;
+	appState.cameraRotationY = -90.0f;
+
 	return true;
 }
 
@@ -93,29 +96,36 @@ void TestApplication::onTick(float deltaSeconds)
 		swprintf_s(buf, L"Hello World / FPS: %.2f", framesPerSecond);
 		setWindowTitle(std::wstring(buf));
 
-		// #todo-app: Control camera by user input
-		// Animate camera to see if raytracing is actually working in world space.
+		// Control camera by user input.
 		{
-			static float elapsed = 0.0f;
-			elapsed += 0.5f * deltaSeconds;
+			float moveX = ImGui::IsKeyDown(ImGuiKey_A) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_D) ? 1.0f : 0.0f;
+			float moveZ = ImGui::IsKeyDown(ImGuiKey_W) ? 1.0f : ImGui::IsKeyDown(ImGuiKey_S) ? -1.0f : 0.0f;
+			float rotateY = ImGui::IsKeyDown(ImGuiKey_Q) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_E) ? 1.0f : 0.0f;
 
-			if (appState.bRotateCamera)
-			{
-				float theta = 3.0f * elapsed;
-				vec3 posDelta = vec3(cosf(theta), 0.0f, sin(theta));
-				camera.lookAt(CAMERA_POSITION, CAMERA_POSITION + posDelta, CAMERA_UP);
-			}
-			else
-			{
-				vec3 posDelta = vec3(5.0f * sinf(elapsed), 0.0f, 3.0f * cosf(elapsed));
-				camera.lookAt(CAMERA_POSITION + posDelta, CAMERA_LOOKAT + posDelta, CAMERA_UP);
-			}
-			//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
-			ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 30.0f);
+			appState.cameraRotationY += rotateY * deltaSeconds * 45.0f;
+			float theta = Cymath::radians(appState.cameraRotationY);
+			float theta2 = Cymath::radians(appState.cameraRotationY + 90.0f);
+
+			vec3 vForward = vec3(Cymath::cos(theta), 0.0f, Cymath::sin(theta));
+			vec3 vRight = vec3(Cymath::cos(theta2), 0.0f, Cymath::sin(theta2));
+
+			appState.cameraLocation += vForward * moveZ * deltaSeconds * 10.0f;
+			appState.cameraLocation += vRight * moveX * deltaSeconds * 10.0f;
+
+			camera.lookAt(appState.cameraLocation, appState.cameraLocation + vForward, CAMERA_UP);
 		}
 
-		// Animate balls to see if update of BLAS instance transforms is going well.
-		meshSplatting.tick(deltaSeconds);
+		// Animate meshes.
+		{
+			static float elapsed = 0.0f;
+			elapsed += deltaSeconds;
+
+			//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
+			ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 15.0f);
+
+			// Animate balls to see if update of BLAS instance transforms is going well.
+			meshSplatting.tick(deltaSeconds);
+		}
 	}
 
 	// #todo: Move rendering loop to engine
@@ -133,7 +143,9 @@ void TestApplication::onTick(float deltaSeconds)
 		{
 			//ImGui::ShowDemoWindow(0);
 
-			ImGui::Begin("Rendering options");
+			ImGui::Begin("Cyseal");
+
+			ImGui::SeparatorText("Rendering options");
 			ImGui::Checkbox("Base Pass - Indirect Draw", &appState.rendererOptions.bEnableIndirectDraw);
 			if (!appState.rendererOptions.bEnableIndirectDraw)
 			{
@@ -146,8 +158,10 @@ void TestApplication::onTick(float deltaSeconds)
 			}
 			ImGui::Checkbox("Ray Traced Reflections", &appState.rendererOptions.bEnableRayTracedReflections);
 
-			ImGui::Checkbox("Rotate Camera", &appState.bRotateCamera);
-			//ImGui::SliderFloat("float", &sliderValue, 0.0f, 1.0f);
+			ImGui::SeparatorText("Control");
+			ImGui::Text("WASD : move camera");
+			ImGui::Text("QE   : rotate camera");
+			
 			ImGui::End();
 		}
 		cysealEngine.renderImgui();
