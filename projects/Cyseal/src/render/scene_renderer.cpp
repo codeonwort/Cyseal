@@ -13,6 +13,7 @@
 #include "render/base_pass.h"
 #include "render/ray_traced_reflections.h"
 #include "render/tone_mapping.h"
+#include "render/buffer_visualization.h"
 #include "util/profiling.h"
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
@@ -102,6 +103,10 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		rtReflections->initialize();
 
 		toneMapping = new ToneMapping;
+		toneMapping->initialize();
+
+		bufferVisualization = new BufferVisualization;
+		bufferVisualization->initialize();
 	}
 }
 
@@ -117,6 +122,7 @@ void SceneRenderer::destroy()
 	delete basePass;
 	delete rtReflections;
 	delete toneMapping;
+	delete bufferVisualization;
 
 	if (accelStructure != nullptr)
 	{
@@ -365,6 +371,24 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			swapchainIndex,
 			RT_sceneColor,
 			RT_indirectSpecular);
+	}
+
+	// Buffer visualization
+	// final target: back buffer
+	if (renderOptions.bufferVisualization != EBufferVisualizationMode::None)
+	{
+		SCOPED_DRAW_EVENT(commandList, BufferVisualization);
+
+		BufferVisualizationSources sources{
+			.mode             = renderOptions.bufferVisualization,
+			.sceneColor       = RT_sceneColor,
+			.indirectSpecular = RT_indirectSpecular,
+		};
+
+		bufferVisualization->renderVisualization(
+			commandList,
+			swapchainIndex,
+			sources);
 	}
 
 	//////////////////////////////////////////////////////////////////////////

@@ -11,7 +11,7 @@ class Texture;
 class ToneMapping final
 {
 public:
-	ToneMapping();
+	void initialize();
 
 	void renderToneMapping(
 		RenderCommandList* commandList,

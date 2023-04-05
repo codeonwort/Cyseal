@@ -158,6 +158,9 @@ void TestApplication::onTick(float deltaSeconds)
 			}
 			ImGui::Checkbox("Ray Traced Reflections", &appState.rendererOptions.bEnableRayTracedReflections);
 
+			ImGui::Combo("Visualization Mode", &appState.selectedBufferVisualizationMode, getBufferVisualizationModeNames(), (int32)EBufferVisualizationMode::Count);
+			appState.rendererOptions.bufferVisualization = (EBufferVisualizationMode)appState.selectedBufferVisualizationMode;
+
 			ImGui::SeparatorText("Control");
 			ImGui::Text("WASD : move camera");
 			ImGui::Text("QE   : rotate camera");

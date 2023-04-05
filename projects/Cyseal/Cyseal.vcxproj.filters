@@ -258,6 +258,9 @@
     <ClInclude Include="src\core\smart_pointer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\buffer_visualization.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -408,6 +411,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\gpu_culling.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\buffer_visualization.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

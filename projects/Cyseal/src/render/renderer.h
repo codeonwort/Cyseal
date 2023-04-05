@@ -10,11 +10,32 @@ enum class ERendererType
 	Null,
 };
 
+enum class EBufferVisualizationMode : uint32
+{
+	None             = 0,
+	DirectLighting   = 1,
+	IndirectSpecular = 2,
+
+	Count,
+};
+
+inline const char** getBufferVisualizationModeNames()
+{
+	static const char* strings[] =
+	{
+		"None",
+		"DirectLighting",
+		"IndirectSpecular",
+	};
+	return strings;
+};
+
 struct RendererOptions
 {
 	bool bEnableRayTracedReflections = true;
 	bool bEnableIndirectDraw = true;
 	bool bEnableGPUCulling = true;
+	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
 };
 
 class Renderer

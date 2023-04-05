@@ -9,11 +9,14 @@ class Buffer;
 class Texture;
 class DescriptorHeap;
 class ConstantBufferView;
+
+// Render passes
 class GPUScene;
 class GPUCulling;
 class BasePass;
 class RayTracedReflections;
 class ToneMapping;
+class BufferVisualization;
 
 class SceneRenderer final : public Renderer
 {
@@ -56,9 +59,10 @@ private:
 
 	// ------------------------------------------------------------------------
 	// Render passes
-	GPUScene* gpuScene = nullptr;
-	GPUCulling* gpuCulling = nullptr;
-	BasePass* basePass = nullptr;
-	RayTracedReflections* rtReflections = nullptr;
-	ToneMapping* toneMapping = nullptr;
+	GPUScene*             gpuScene            = nullptr;
+	GPUCulling*           gpuCulling          = nullptr;
+	BasePass*             basePass            = nullptr;
+	RayTracedReflections* rtReflections       = nullptr;
+	ToneMapping*          toneMapping         = nullptr;
+	BufferVisualization*  bufferVisualization = nullptr;
 };
