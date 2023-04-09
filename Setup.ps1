@@ -24,13 +24,13 @@ $zip_list  = @(
 		'STBN.zip',
 		'contents/NVidiaSpatioTemporalBlueNoise'
 	),
-	@(
-		'https://casual-effects.com/g3d/data10/research/model/breakfast_room/breakfast_room.zip',
-		'contents',
-		'breakfast_room.zip',
-		'contents/breakfast_room'
-	)
 	#>
+	@(
+		'https://benedikt-bitterli.me/resources/pbrt-v4/living-room.zip',
+		'external',
+		'pbrt4_living_room.zip',
+		'external/pbrt4'
+	),
 	@(
 		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.7.2207/dxc_2022_07_18.zip',
 		'external',
