@@ -10,6 +10,7 @@
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
 #include "loader/image_loader.h"
+#include "loader/pbrt_loader.h"
 #include "world/gpu_resource_asset.h"
 #include "util/profiling.h"
 
@@ -53,6 +54,8 @@
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
+#define PBRT_FILEPATH        L"external/pbrt4/living-room/scene-v4.pbrt"
+
 /* -------------------------------------------------------
 					APPLICATION
 --------------------------------------------------------*/
@@ -75,6 +78,12 @@ bool TestApplication::onInitialize()
 	cysealEngine.startup(engineInit);
 
 	createResources();
+
+	{
+		// #wip
+		PBRT4Loader pbrtLoader;
+		pbrtLoader.loadFromFile(PBRT_FILEPATH);
+	}
 
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
