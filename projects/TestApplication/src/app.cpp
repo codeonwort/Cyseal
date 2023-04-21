@@ -166,6 +166,9 @@ void TestApplication::onTick(float deltaSeconds)
 			ImGui::Combo("Visualization Mode", &appState.selectedBufferVisualizationMode, getBufferVisualizationModeNames(), (int32)EBufferVisualizationMode::Count);
 			appState.rendererOptions.bufferVisualization = (EBufferVisualizationMode)appState.selectedBufferVisualizationMode;
 
+			ImGui::SeparatorText("Path Tracing");
+			ImGui::Checkbox("Enable", &appState.rendererOptions.bEnablePathTracing);
+
 			ImGui::SeparatorText("Control");
 			ImGui::Text("WASD : move camera");
 			ImGui::Text("QE   : rotate camera");

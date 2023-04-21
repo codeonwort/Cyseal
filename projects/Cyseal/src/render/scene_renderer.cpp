@@ -170,6 +170,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	const uint32 sceneHeight = swapChain->getBackbufferHeight();
 
 	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
+	const bool bRenderPathTracing = bSupportsRaytracing && renderOptions.bEnablePathTracing;
+	
+	bool bRenderRTR = bSupportsRaytracing && renderOptions.bEnableRayTracedReflections;
+	// Let RT_indirectSpecular cleared as black so that tone mapping pass
+	// takes sceneColor = pathTracing, indirectSpecular = 0 when path tracing is enabled.
+	bRenderRTR = bRenderRTR && !bRenderPathTracing;
 
 	commandAllocator->reset();
 	commandList->reset(commandAllocator);
@@ -287,8 +293,32 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			RT_sceneColor, RT_thinGBufferA);
 	}
 
+	{
+		SCOPED_DRAW_EVENT(commandList, PathTracing);
+
+		ResourceBarrier barriersBefore[] = {
+			{
+				EResourceBarrierType::Transition,
+				RT_pathTracing,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE,
+				EGPUResourceState::UNORDERED_ACCESS
+			}
+		};
+		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+
+		if (bRenderPathTracing)
+		{
+			pathTracingPass->renderPathTracing(
+				commandList, swapchainIndex, scene, camera,
+				sceneUniformCBVs[swapchainIndex].get(),
+				accelStructure,
+				gpuScene,
+				RT_pathTracing,
+				sceneWidth, sceneHeight);
+		}
+	}
+
 	// Ray Traced Reflections
-	bool bRenderRTR = bSupportsRaytracing && renderOptions.bEnableRayTracedReflections;
 	if (!bRenderRTR)
 	{
 		SCOPED_DRAW_EVENT(commandList, ClearRayTracedReflections);
@@ -366,6 +396,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			},
 			{
 				EResourceBarrierType::Transition,
+				RT_pathTracing,
+				EGPUResourceState::UNORDERED_ACCESS,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE
+			},
+			{
+				EResourceBarrierType::Transition,
 				swapchainBuffer,
 				EGPUResourceState::PRESENT,
 				EGPUResourceState::RENDER_TARGET
@@ -376,10 +412,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		// #todo-renderer: Should not be here
 		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
 
+		auto RT_alternateSceneColor = bRenderPathTracing ? RT_pathTracing : RT_sceneColor;
+
 		toneMapping->renderToneMapping(
 			commandList,
 			swapchainIndex,
-			RT_sceneColor,
+			RT_alternateSceneColor,
 			RT_indirectSpecular);
 	}
 
@@ -482,7 +520,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	RT_pathTracing = device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R32G32B32A32_FLOAT,
-			ETextureAccessFlags::UAV,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_pathTracing->setDebugName(L"RT_PathTracing");

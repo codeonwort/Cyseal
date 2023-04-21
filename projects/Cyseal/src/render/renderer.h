@@ -36,6 +36,8 @@ struct RendererOptions
 	bool bEnableIndirectDraw = true;
 	bool bEnableGPUCulling = true;
 	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
+
+	bool bEnablePathTracing = false;
 };
 
 class Renderer
