@@ -56,6 +56,7 @@
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
+#define LOAD_PBRT_FILE       0
 #define PBRT_FILEPATH        L"external/pbrt4/living-room/scene-v4.pbrt"
 
 /* -------------------------------------------------------
@@ -262,6 +263,7 @@ void TestApplication::createResources()
 		scene.addStaticMesh(sm);
 	}
 
+	if (LOAD_PBRT_FILE)
 	{
 		// #wip
 		PBRT4Loader pbrtLoader;
@@ -281,6 +283,7 @@ void TestApplication::createResources()
 			pbrtGeometry->normals = std::move(plyMesh->normalBuffer);
 			pbrtGeometry->texcoords = std::move(plyMesh->texcoordBuffer);
 			pbrtGeometry->indices = std::move(plyMesh->indexBuffer);
+			pbrtGeometry->recalculateNormals();
 			pbrtGeometry->finalize();
 
 			positionBufferAssets[i] = makeShared<VertexBufferAsset>();
@@ -324,7 +327,7 @@ void TestApplication::createResources()
 			AABB localBounds = pbrtGeometries[i]->localBounds;
 			pbrtMesh->addSection(0, positionBufferAssets[i], nonPositionBufferAssets[i], indexBufferAssets[i], material, localBounds);
 		}
-		pbrtMesh->setPosition(vec3(0.0f, -5.0f, 0.0f));
+		pbrtMesh->setPosition(vec3(30.0f, -5.0f, 0.0f));
 		pbrtMesh->setScale(10.0f);
 
 		scene.addStaticMesh(pbrtMesh);
@@ -491,7 +494,7 @@ void TestApplication::destroyResources()
 	meshSplatting.destroyResources();
 	delete ground;
 	delete wallA;
-	delete pbrtMesh;
+	if (LOAD_PBRT_FILE) delete pbrtMesh;
 
 	scene.skyboxTexture.reset();
 }

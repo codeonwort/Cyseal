@@ -32,7 +32,7 @@
 // #todo: See 'Ray Tracing Gems' series.
 #define RAYGEN_T_MIN              0.001
 #define RAYGEN_T_MAX              10000.0
-#define MAX_BOUNCE                3
+#define MAX_BOUNCE                5
 
 struct VertexAttributes
 {
