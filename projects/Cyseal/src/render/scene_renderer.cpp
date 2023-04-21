@@ -1,12 +1,15 @@
 #include "scene_renderer.h"
+
 #include "core/assertion.h"
 #include "core/platform.h"
 #include "core/plane.h"
+
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/swap_chain.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/global_descriptor_heaps.h"
+
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
 #include "render/gpu_culling.h"
@@ -14,6 +17,8 @@
 #include "render/ray_traced_reflections.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
+#include "render/pathtracing/path_tracing_pass.h"
+
 #include "util/profiling.h"
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
@@ -107,6 +112,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 		bufferVisualization = new BufferVisualization;
 		bufferVisualization->initialize();
+
+		pathTracingPass = new PathTracingPass;
+		pathTracingPass->initialize();
 	}
 }
 
@@ -116,6 +124,7 @@ void SceneRenderer::destroy()
 	delete RT_sceneDepth;
 	delete RT_thinGBufferA;
 	delete RT_indirectSpecular;
+	delete RT_pathTracing;
 
 	delete gpuScene;
 	delete gpuCulling;
@@ -123,6 +132,7 @@ void SceneRenderer::destroy()
 	delete rtReflections;
 	delete toneMapping;
 	delete bufferVisualization;
+	delete pathTracingPass;
 
 	if (accelStructure != nullptr)
 	{
@@ -443,7 +453,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
-	RT_sceneColor->setDebugName(L"SceneColor");
+	RT_sceneColor->setDebugName(L"RT_SceneColor");
 
 	RT_sceneDepth = device->createTexture(
 		TextureCreateParams::texture2D(
@@ -451,7 +461,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			ETextureAccessFlags::DSV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
-	RT_sceneDepth->setDebugName(L"SceneDepth");
+	RT_sceneDepth->setDebugName(L"RT_SceneDepth");
 
 	RT_thinGBufferA = device->createTexture(
 		TextureCreateParams::texture2D(
@@ -459,7 +469,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
-	RT_thinGBufferA->setDebugName(L"ThinGBufferA");
+	RT_thinGBufferA->setDebugName(L"RT_ThinGBufferA");
 
 	RT_indirectSpecular = device->createTexture(
 		TextureCreateParams::texture2D(
@@ -467,7 +477,15 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
-	RT_indirectSpecular->setDebugName(L"IndirectSpecular");
+	RT_indirectSpecular->setDebugName(L"RT_IndirectSpecular");
+
+	RT_pathTracing = device->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::R32G32B32A32_FLOAT,
+			ETextureAccessFlags::UAV,
+			sceneWidth, sceneHeight,
+			1, 1, 0));
+	RT_pathTracing->setDebugName(L"RT_PathTracing");
 }
 
 void SceneRenderer::updateSceneUniform(

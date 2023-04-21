@@ -23,6 +23,12 @@ UniquePtr<T> makeUnique(Args&& ...args)
 	return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
+template<typename T, typename ...Args>
+SharedPtr<T> makeShared(Args&& ...args)
+{
+	return std::make_shared<T>(std::forward<Args>(args)...);
+}
+
 // ------------------------------------------------------------------
 // Usually for GPU resources that are instantiated per swapchain.
 

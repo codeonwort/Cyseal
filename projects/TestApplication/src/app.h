@@ -41,7 +41,8 @@ private:
 	AppState appState;
 
 	MeshSplatting meshSplatting;
-
+	
+	StaticMesh* pbrtMesh = nullptr;
 	StaticMesh* ground = nullptr;
 	StaticMesh* wallA = nullptr;
 

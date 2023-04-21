@@ -1,6 +1,7 @@
 #include "ray_traced_reflections.h"
 #include "static_mesh.h"
 #include "gpu_scene.h"
+
 #include "util/logging.h"
 
 #include "rhi/render_device.h"
@@ -16,6 +17,8 @@
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
+// I don't call TraceRays() recursively, so this constant actually doesn't matter.
+// Rather see MAX_BOUNCE in rt_reflection.hlsl.
 #define RTR_MAX_RECURSION            2
 #define RTR_HIT_GROUP_NAME           L"RTR_HitGroup"
 
@@ -259,7 +262,7 @@ void RayTracedReflections::renderRayTracedReflections(
 
 	// Resize hit group shader table if needed.
 	{
-		uint32 requiredRecordCount = (uint32)scene->staticMeshes.size();
+		uint32 requiredRecordCount = scene->totalMeshSectionsLOD0; // #todo-lod
 		if (requiredRecordCount > totalHitGroupShaderRecord[swapchainIndex])
 		{
 			resizeHitGroupShaderTable(swapchainIndex, requiredRecordCount);

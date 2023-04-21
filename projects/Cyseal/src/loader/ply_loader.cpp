@@ -99,7 +99,7 @@ PLYMesh* PLYLoader::loadFromFile(const std::wstring& filepath)
 				sizeOfVertexIndex = getSizeInBytes(typeOfVertexIndex);
 			}
 		}
-		else
+		else if (header.size() > 0)
 		{
 			CYLOG(LogPLY, Error, L"Can't parse header: %S", header.c_str());
 		}
@@ -207,8 +207,8 @@ PLYMesh* PLYLoader::loadFromFile(const std::wstring& filepath)
 			mesh->indexBuffer.push_back(i1);
 			mesh->indexBuffer.push_back(i3);
 			mesh->indexBuffer.push_back(i1);
-			mesh->indexBuffer.push_back(i3);
 			mesh->indexBuffer.push_back(i2);
+			mesh->indexBuffer.push_back(i3);
 		}
 	}
 

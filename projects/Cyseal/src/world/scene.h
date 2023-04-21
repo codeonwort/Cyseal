@@ -43,4 +43,5 @@ public:
 
 	bool bRebuildGPUScene = false;
 	bool bRebuildRaytracingScene = false;
+	uint32 totalMeshSectionsLOD0 = 0; // All LOD0 mesh sections of all static meshes in the scene.
 };

@@ -14,6 +14,12 @@ SceneProxy* Scene::createProxy()
 	proxy->bRebuildGPUScene = bRebuildGPUScene;
 	proxy->bRebuildRaytracingScene = bRebuildRaytracingScene;
 
+	proxy->totalMeshSectionsLOD0 = 0;
+	for (StaticMesh* sm : proxy->staticMeshes)
+	{
+		proxy->totalMeshSectionsLOD0 += (uint32)(sm->getSections(0).size());
+	}
+
 	// Clear flags
 	bRebuildGPUScene = false;
 	bRebuildRaytracingScene = false;
