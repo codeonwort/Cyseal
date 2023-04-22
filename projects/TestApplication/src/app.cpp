@@ -56,7 +56,7 @@
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
-#define LOAD_PBRT_FILE       0
+#define LOAD_PBRT_FILE       1
 #define PBRT_FILEPATH        L"external/pbrt4/living-room/scene-v4.pbrt"
 
 /* -------------------------------------------------------
@@ -263,76 +263,6 @@ void TestApplication::createResources()
 		scene.addStaticMesh(sm);
 	}
 
-	if (LOAD_PBRT_FILE)
-	{
-		// #wip
-		PBRT4Loader pbrtLoader;
-		PBRT4Scene* pbrtScene = pbrtLoader.loadFromFile(PBRT_FILEPATH);
-
-		const size_t numSubMeshes = pbrtScene->plyMeshes.size();
-		std::vector<Geometry*> pbrtGeometries(numSubMeshes, nullptr);
-		std::vector<SharedPtr<VertexBufferAsset>> positionBufferAssets(numSubMeshes, nullptr);
-		std::vector<SharedPtr<VertexBufferAsset>> nonPositionBufferAssets(numSubMeshes, nullptr);
-		std::vector<SharedPtr<IndexBufferAsset>> indexBufferAssets(numSubMeshes, nullptr);
-		for (size_t i = 0; i < numSubMeshes; ++i)
-		{
-			PLYMesh* plyMesh = pbrtScene->plyMeshes[i];
-			Geometry* pbrtGeometry = pbrtGeometries[i] = new Geometry;
-
-			pbrtGeometry->positions = std::move(plyMesh->positionBuffer);
-			pbrtGeometry->normals = std::move(plyMesh->normalBuffer);
-			pbrtGeometry->texcoords = std::move(plyMesh->texcoordBuffer);
-			pbrtGeometry->indices = std::move(plyMesh->indexBuffer);
-			pbrtGeometry->recalculateNormals();
-			pbrtGeometry->finalize();
-
-			positionBufferAssets[i] = makeShared<VertexBufferAsset>();
-			nonPositionBufferAssets[i] = makeShared<VertexBufferAsset>();
-			indexBufferAssets[i] = makeShared<IndexBufferAsset>();
-		}
-
-		ENQUEUE_RENDER_COMMAND(UploadPBRTSubMeshes)(
-			[pbrtGeometries, positionBufferAssets, nonPositionBufferAssets, indexBufferAssets](RenderCommandList& commandList)
-			{
-				for (size_t i = 0; i < pbrtGeometries.size(); ++i)
-				{
-					Geometry* geom = pbrtGeometries[i];
-					auto positionBuffer = gVertexBufferPool->suballocate(geom->getPositionBufferTotalBytes());
-					auto nonPositionBuffer = gVertexBufferPool->suballocate(geom->getNonPositionBufferTotalBytes());
-					auto indexBuffer = gIndexBufferPool->suballocate(geom->getIndexBufferTotalBytes(), geom->getIndexFormat());
-
-					positionBuffer->updateData(&commandList, geom->getPositionBlob(), geom->getPositionStride());
-					nonPositionBuffer->updateData(&commandList, geom->getNonPositionBlob(), geom->getNonPositionStride());
-					indexBuffer->updateData(&commandList, geom->getIndexBlob(), geom->getIndexFormat());
-
-					positionBufferAssets[i]->setGPUResource(std::shared_ptr<VertexBuffer>(positionBuffer));
-					nonPositionBufferAssets[i]->setGPUResource(std::shared_ptr<VertexBuffer>(nonPositionBuffer));
-					indexBufferAssets[i]->setGPUResource(std::shared_ptr<IndexBuffer>(indexBuffer));
-
-					commandList.enqueueDeferredDealloc(geom);
-				}
-			}
-		);
-
-		auto material = std::make_shared<Material>();
-		material->albedoMultiplier[0] = 1.0f;
-		material->albedoMultiplier[1] = 1.0f;
-		material->albedoMultiplier[2] = 1.0f;
-		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
-		material->roughness = 0.9f;
-
-		pbrtMesh = new StaticMesh;
-		for (size_t i = 0; i < numSubMeshes; ++i)
-		{
-			AABB localBounds = pbrtGeometries[i]->localBounds;
-			pbrtMesh->addSection(0, positionBufferAssets[i], nonPositionBufferAssets[i], indexBufferAssets[i], material, localBounds);
-		}
-		pbrtMesh->setPosition(vec3(30.0f, -5.0f, 0.0f));
-		pbrtMesh->setScale(10.0f);
-
-		scene.addStaticMesh(pbrtMesh);
-	}
-
 	// Ground
 	{
 		Geometry* planeGeometry = new Geometry;
@@ -483,6 +413,78 @@ void TestApplication::createResources()
 			}
 		);
 		scene.skyboxTexture = skyboxTexture;
+	}
+
+	// #wip: Something messed up if the pbrt mesh is added prior to other meshes.
+	// Currently only pbrt mesh contains multiple mesh sections.
+	// It's highly suspicious that mesh index, gpu scene item index, and material index is out of sync.
+	if (LOAD_PBRT_FILE)
+	{
+		PBRT4Loader pbrtLoader;
+		PBRT4Scene* pbrtScene = pbrtLoader.loadFromFile(PBRT_FILEPATH);
+
+		const size_t numSubMeshes = pbrtScene->plyMeshes.size();
+		std::vector<Geometry*> pbrtGeometries(numSubMeshes, nullptr);
+		std::vector<SharedPtr<VertexBufferAsset>> positionBufferAssets(numSubMeshes, nullptr);
+		std::vector<SharedPtr<VertexBufferAsset>> nonPositionBufferAssets(numSubMeshes, nullptr);
+		std::vector<SharedPtr<IndexBufferAsset>> indexBufferAssets(numSubMeshes, nullptr);
+		for (size_t i = 0; i < numSubMeshes; ++i)
+		{
+			PLYMesh* plyMesh = pbrtScene->plyMeshes[i];
+			Geometry* pbrtGeometry = pbrtGeometries[i] = new Geometry;
+
+			pbrtGeometry->positions = std::move(plyMesh->positionBuffer);
+			pbrtGeometry->normals = std::move(plyMesh->normalBuffer);
+			pbrtGeometry->texcoords = std::move(plyMesh->texcoordBuffer);
+			pbrtGeometry->indices = std::move(plyMesh->indexBuffer);
+			pbrtGeometry->recalculateNormals();
+			pbrtGeometry->finalize();
+
+			positionBufferAssets[i] = makeShared<VertexBufferAsset>();
+			nonPositionBufferAssets[i] = makeShared<VertexBufferAsset>();
+			indexBufferAssets[i] = makeShared<IndexBufferAsset>();
+		}
+
+		ENQUEUE_RENDER_COMMAND(UploadPBRTSubMeshes)(
+			[pbrtGeometries, positionBufferAssets, nonPositionBufferAssets, indexBufferAssets](RenderCommandList& commandList)
+			{
+				for (size_t i = 0; i < pbrtGeometries.size(); ++i)
+				{
+					Geometry* geom = pbrtGeometries[i];
+					auto positionBuffer = gVertexBufferPool->suballocate(geom->getPositionBufferTotalBytes());
+					auto nonPositionBuffer = gVertexBufferPool->suballocate(geom->getNonPositionBufferTotalBytes());
+					auto indexBuffer = gIndexBufferPool->suballocate(geom->getIndexBufferTotalBytes(), geom->getIndexFormat());
+
+					positionBuffer->updateData(&commandList, geom->getPositionBlob(), geom->getPositionStride());
+					nonPositionBuffer->updateData(&commandList, geom->getNonPositionBlob(), geom->getNonPositionStride());
+					indexBuffer->updateData(&commandList, geom->getIndexBlob(), geom->getIndexFormat());
+
+					positionBufferAssets[i]->setGPUResource(std::shared_ptr<VertexBuffer>(positionBuffer));
+					nonPositionBufferAssets[i]->setGPUResource(std::shared_ptr<VertexBuffer>(nonPositionBuffer));
+					indexBufferAssets[i]->setGPUResource(std::shared_ptr<IndexBuffer>(indexBuffer));
+
+					commandList.enqueueDeferredDealloc(geom);
+				}
+			}
+		);
+
+		auto material = std::make_shared<Material>();
+		material->albedoMultiplier[0] = 1.0f;
+		material->albedoMultiplier[1] = 1.0f;
+		material->albedoMultiplier[2] = 1.0f;
+		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
+		material->roughness = 0.9f;
+
+		pbrtMesh = new StaticMesh;
+		for (size_t i = 0; i < numSubMeshes; ++i)
+		{
+			AABB localBounds = pbrtGeometries[i]->localBounds;
+			pbrtMesh->addSection(0, positionBufferAssets[i], nonPositionBufferAssets[i], indexBufferAssets[i], material, localBounds);
+		}
+		pbrtMesh->setPosition(vec3(30.0f, -5.0f, 0.0f));
+		pbrtMesh->setScale(10.0f);
+
+		scene.addStaticMesh(pbrtMesh);
 	}
 
 	scene.sun.direction = SUN_DIRECTION;

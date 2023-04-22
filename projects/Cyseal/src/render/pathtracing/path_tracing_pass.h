@@ -30,7 +30,7 @@ public:
 
 private:
 	void resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors);
-	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
+	void resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene);
 
 private:
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;

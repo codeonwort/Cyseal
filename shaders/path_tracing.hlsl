@@ -140,14 +140,12 @@ void MainRaygen()
 
 	RayPayload currentPayload = primaryPayload;
 	renderTarget[targetTexel] = float4(0.5 + 0.5 * primaryPayload.surfaceNormal, primaryPayload.objectID);
+	//renderTarget[targetTexel] = float4(primaryPayload.albedo, primaryPayload.objectID);
 }
 
 [shader("closesthit")]
 void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 {
-	// #todo: I have no idea how is this automatically updated?
-	// All I did is creating a bunch of shader records for hit group
-	// and suddenly this value is equal to geometry index.
 	uint objectID = g_closestHitCB.objectID;
 
 	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];

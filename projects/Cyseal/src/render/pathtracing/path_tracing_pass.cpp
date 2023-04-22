@@ -64,7 +64,7 @@ struct RayGenConstantBuffer
 };
 struct ClosestHitPushConstants
 {
-	uint32 materialID;
+	uint32 objectID; // item index in gpu scene buffer
 };
 static_assert(sizeof(RayGenConstantBuffer) % 4 == 0);
 static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
@@ -259,12 +259,9 @@ void PathTracingPass::renderPathTracing(
 	}
 
 	// Resize hit group shader table if needed.
+	if (scene->bRebuildGPUScene || hitGroupShaderTable[swapchainIndex] == nullptr)
 	{
-		uint32 requiredRecordCount = scene->totalMeshSectionsLOD0; // #todo-lod
-		if (requiredRecordCount > totalHitGroupShaderRecord[swapchainIndex])
-		{
-			resizeHitGroupShaderTable(swapchainIndex, requiredRecordCount);
-		}
+		resizeHitGroupShaderTable(swapchainIndex, scene);
 	}
 
 	// Create skybox SRV.
@@ -391,9 +388,10 @@ void PathTracingPass::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescri
 	CYLOG(LogPathTracing, Log, L"Resize volatile heap [%u]: %u descriptors", swapchainIndex, maxDescriptors);
 }
 
-void PathTracingPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords)
+void PathTracingPass::resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene)
 {
-	totalHitGroupShaderRecord[swapchainIndex] = maxRecords;
+	const uint32 totalRecords = scene->totalMeshSectionsLOD0;
+	totalHitGroupShaderRecord[swapchainIndex] = totalRecords;
 
 	struct RootArguments
 	{
@@ -402,18 +400,25 @@ void PathTracingPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 ma
 
 	hitGroupShaderTable[swapchainIndex] = UniquePtr<RaytracingShaderTable>(
 		gRenderDevice->createRaytracingShaderTable(
-			RTPSO.get(), maxRecords, sizeof(RootArguments), L"PathTracing_HitGroupShaderTable"));
+			RTPSO.get(), totalRecords, sizeof(RootArguments), L"PathTracing_HitGroupShaderTable"));
 
-	for (uint32 i = 0; i < maxRecords; ++i)
+	const uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
+	uint32 recordIx = 0;
+	for (uint32 meshIx = 0; meshIx < numStaticMeshes; ++meshIx)
 	{
-		RootArguments rootArguments{
-			.pushConstants = ClosestHitPushConstants{
-				.materialID = i
-			}
-		};
+		const uint32 numSections = (uint32)scene->staticMeshes[meshIx]->getSections(0).size();
+		for (uint32 sectionIx = 0; sectionIx < numSections; ++sectionIx)
+		{
+			RootArguments rootArguments{
+				.pushConstants = ClosestHitPushConstants{
+					.objectID = recordIx
+				}
+			};
 
-		hitGroupShaderTable[swapchainIndex]->uploadRecord(i, PATH_TRACING_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
+			hitGroupShaderTable[swapchainIndex]->uploadRecord(recordIx, PATH_TRACING_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
+			++recordIx;
+		}
 	}
 
-	CYLOG(LogPathTracing, Log, L"Resize hit group shader table [%u]: %u records", swapchainIndex, maxRecords);
+	CYLOG(LogPathTracing, Log, L"Resize hit group shader table [%u]: %u records", swapchainIndex, totalRecords);
 }
