@@ -2,6 +2,9 @@
 # - Download and unzip large contents.
 # - Download and build third-party libraries.
 
+# Run this script with execution policy like this:
+# > powershell -ExecutionPolicy Bypass -File Setup.ps1
+
 #
 # Script arguments
 #
@@ -26,9 +29,9 @@ $zip_list  = @(
 	),
 	#>
 	@(
-		'https://benedikt-bitterli.me/resources/pbrt-v4/living-room.zip',
+		'https://benedikt-bitterli.me/resources/pbrt-v4/bedroom.zip',
 		'external',
-		'pbrt4_living_room.zip',
+		'pbrt4_bedroom.zip',
 		'external/pbrt4'
 	),
 	@(

@@ -57,7 +57,10 @@
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
 #define LOAD_PBRT_FILE       1
-#define PBRT_FILEPATH        L"external/pbrt4/living-room/scene-v4.pbrt"
+// living-room contains an invalid leaf texture only for pbrt format :/
+// It's tungsten and mitsuba versions are fine.
+//#define PBRT_FILEPATH        L"external/pbrt4/living-room/scene-v4.pbrt"
+#define PBRT_FILEPATH        L"external/pbrt4/bedroom/scene-v4.pbrt"
 
 /* -------------------------------------------------------
 					APPLICATION
@@ -486,7 +489,7 @@ void TestApplication::createResources()
 			AABB localBounds = pbrtGeometries[i]->localBounds;
 			pbrtMesh->addSection(0, positionBufferAssets[i], nonPositionBufferAssets[i], indexBufferAssets[i], material, localBounds);
 		}
-		pbrtMesh->setPosition(vec3(30.0f, -5.0f, 0.0f));
+		pbrtMesh->setPosition(vec3(50.0f, -5.0f, 0.0f));
 		pbrtMesh->setScale(10.0f);
 
 		scene.addStaticMesh(pbrtMesh);
