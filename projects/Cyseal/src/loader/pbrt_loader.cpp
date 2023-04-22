@@ -1,5 +1,6 @@
 #include "pbrt_loader.h"
 #include "ply_loader.h"
+#include "core/assertion.h"
 #include "util/resource_finder.h"
 #include "util/string_conversion.h"
 #include "util/logging.h"
@@ -35,15 +36,105 @@ enum class PBRT4ParsePhase
 	Attribute = 2,
 };
 
+struct TextureFileDesc
+{
+	std::string textureName;
+	std::string textureFilter; // #todo-pbrt
+	std::string filename;
+};
+
+struct NamedMaterialDesc
+{
+	std::string materialName;
+	std::string materialType;
+
+	bool bUseRgbReflectance = false;
+	vec3 rgbReflectance;
+	std::string textureReflectance;
+
+	bool bUseAnisotropicRoughness = false;
+	bool bRemapRoughness = false;
+	float roughness = 1.0f;
+	float vroughness = 1.0f;
+	float uroughness = 1.0f;
+
+	bool bUseRgbEtaAndK = false;
+	vec3 rgbEta, rgbK;
+	std::string spectrumEta, spectrumK;
+};
+
 struct PLYShapeDesc
 {
 	std::wstring filename;
+	std::string namedMaterial;
 };
 
 std::istream& operator>>(std::istream& stream, vec3& v)
 {
 	stream >> v.x >> v.y >> v.z;
 	return stream;
+}
+
+std::string readQuoteWord(std::istream& stream)
+{
+	std::string str;
+	stream >> str;
+	return str.substr(1, str.size() - 2);
+}
+std::string readQuoteTwoWords(std::istream& stream)
+{
+	std::string word1, word2;
+	stream >> word1 >> word2;
+	return word1.substr(1) + " " + word2.substr(0, word2.size() - 1);
+}
+std::string readBracketQuoteWord(std::istream& stream)
+{
+	char ch;
+	stream >> ch;
+	std::string str = readQuoteWord(stream);
+	stream >> ch;
+	return str;
+}
+float readBracketFloat(std::istream& stream)
+{
+	char ch;
+	float x;
+	stream >> ch >> x >> ch;
+	return x;
+}
+vec3 readBracketVec3(std::istream& stream)
+{
+	char ch;
+	vec3 v;
+	stream >> ch >> v.x >> v.y >> v.z >> ch;
+	return v;
+}
+// If next input starts with ", parse the words enclosed.
+// Otherwise, parse an ordinary string.
+//     MakeNamedMaterial => MakeNamedMaterial
+//     "string type"     => string type
+std::string readMaybeQuoteWords(std::istream& stream)
+{
+	std::string str;
+	char ch;
+	stream >> ch;
+	stream.unsetf(std::ios::skipws);
+	if (ch == '"')
+	{
+		while (true)
+		{
+			stream >> ch;
+			if (ch == '"') break;
+			str += ch;
+		}
+	}
+	else
+	{
+		stream >> str;
+		str = ch + str;
+	}
+	stream.setf(std::ios::skipws);
+	return str;
 }
 
 void PBRT4Scene::deallocate()
@@ -85,13 +176,33 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	// 2. WorldBegin
 	// 3. Lights, geometries, and volumes
 
+	std::vector<TextureFileDesc> textureFileDescs;
+	std::vector<NamedMaterialDesc> namedMaterialDescs;
 	std::vector<PLYShapeDesc> plyShapeDescs;
 
+	// State machine
+	std::string queuedToken;
+	std::string currentNamedMaterial;
 	bool bValidFormat = true;
+
+	auto enqueueToken = [&queuedToken](const std::string& tok)
+	{
+		CHECK(queuedToken.size() == 0);
+		queuedToken = tok;
+	};
+
 	while (!fs.eof())
 	{
 		std::string token;
-		fs >> token;
+		if (queuedToken.size() > 0)
+		{
+			token = queuedToken;
+			queuedToken = "";
+		}
+		else
+		{
+			fs >> token;
+		}
 		
 		if (token == TOKEN_LOOKAT)
 		{
@@ -136,6 +247,123 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 				break;
 			}
 		}
+		else if (token == TOKEN_TEXTURE)
+		{
+			std::string textureName = readQuoteWord(fs);
+			std::string textureType = readQuoteWord(fs);
+			if (textureType == "spectrum")
+			{
+				std::string textureClass = readQuoteWord(fs);
+				if (textureClass == "imagemap")
+				{
+					std::string textureFilter, textureFilename;
+					for (uint32 i = 0; i < 2; ++i)
+					{
+						std::string paramName = readQuoteTwoWords(fs);
+						if (paramName == "string filter")
+						{
+							// #todo-pbrt: texture filter
+							textureFilter = readQuoteWord(fs);
+						}
+						else if (paramName == "string filename")
+						{
+							textureFilename = readBracketQuoteWord(fs);
+						}
+					}
+					TextureFileDesc desc{
+						.textureName = textureName,
+						.textureFilter = textureFilter,
+						.filename = textureFilename
+					};
+					textureFileDescs.emplace_back(desc);
+				}
+				else
+				{
+					bValidFormat = false;
+					CYLOG(LogPBRT, Error, L"Unknown texture class: %S", textureClass.c_str());
+				}
+			}
+			else if (textureType == "float")
+			{
+				// #todo-pbrt
+				bValidFormat = false;
+				CYLOG(LogPBRT, Error, L"Unhandled texture type: %S", textureType.c_str());
+			}
+			else
+			{
+				bValidFormat = false;
+				CYLOG(LogPBRT, Error, L"Texture type can be only spectrum or float: %S", textureType.c_str());
+			}
+		}
+		else if (token == TOKEN_MAKENAMEDMATERIAL)
+		{
+			NamedMaterialDesc materialDesc{};
+			materialDesc.materialName = readQuoteWord(fs);
+			while (true)
+			{
+				std::string maybeParam = readMaybeQuoteWords(fs);
+				if (maybeParam == "string type")
+				{
+					materialDesc.materialType = readBracketQuoteWord(fs);
+				}
+				else if (maybeParam == "rgb reflectance")
+				{
+					materialDesc.rgbReflectance = readBracketVec3(fs);
+					materialDesc.bUseRgbReflectance = true;
+				}
+				else if (maybeParam == "texture reflectance")
+				{
+					materialDesc.textureReflectance = readBracketQuoteWord(fs);
+				}
+				else if (maybeParam == "bool remaproughness")
+				{
+					materialDesc.bRemapRoughness = readBracketQuoteWord(fs) == "true";
+				}
+				else if (maybeParam == "float roughness")
+				{
+					materialDesc.roughness = readBracketFloat(fs);
+					materialDesc.bUseAnisotropicRoughness = false;
+				}
+				else if (maybeParam == "float vroughness")
+				{
+					materialDesc.vroughness = readBracketFloat(fs);
+					materialDesc.bUseAnisotropicRoughness = true;
+				}
+				else if (maybeParam == "float uroughness")
+				{
+					materialDesc.uroughness = readBracketFloat(fs);
+					materialDesc.bUseAnisotropicRoughness = true;
+				}
+				else if (maybeParam == "spectrum eta")
+				{
+					materialDesc.spectrumEta = readBracketQuoteWord(fs);
+				}
+				else if (maybeParam == "spectrum k")
+				{
+					materialDesc.spectrumK = readBracketQuoteWord(fs);
+				}
+				else if (maybeParam == "rgb eta")
+				{
+					materialDesc.rgbEta = readBracketVec3(fs);
+					materialDesc.bUseRgbEtaAndK = true;
+				}
+				else if (maybeParam == "rgb k")
+				{
+					materialDesc.rgbK = readBracketVec3(fs);
+					materialDesc.bUseRgbEtaAndK = true;
+				}
+				else
+				{
+					enqueueToken(maybeParam);
+					break;
+				}
+			}
+			namedMaterialDescs.emplace_back(materialDesc);
+		}
+		else if (token == TOKEN_NAMEDMATERIAL)
+		{
+			currentNamedMaterial = readQuoteWord(fs);
+		}
 		else if (token == TOKEN_SHAPE)
 		{
 			if (parsePhase == PBRT4ParsePhase::RenderingOptions)
@@ -145,9 +373,8 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			}
 			else if (parsePhase == PBRT4ParsePhase::SceneElements)
 			{
-				std::string shapeType;
-				fs >> shapeType;
-				if (shapeType == "\"plymesh\"")
+				std::string shapeType = readQuoteWord(fs);
+				if (shapeType == "plymesh")
 				{
 					// "string filename" [ "models/somefile.ply" ]
 					std::string plyFilename, dummyS;
@@ -159,7 +386,8 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 					str_to_wstr(plyFilename, wPlyFilename);
 
 					PLYShapeDesc desc{
-						.filename = wPlyFilename
+						.filename = wPlyFilename,
+						.namedMaterial = currentNamedMaterial,
 					};
 					plyShapeDescs.emplace_back(desc);
 				}
@@ -189,8 +417,18 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 		return nullptr;
 	}
 
+	// #wip: Load texture files
+	{
+		textureFileDescs;
+	}
+
+	// #wip: Materials
+	{
+		namedMaterialDescs;
+	}
+
 	PLYLoader plyLoader;
-	for(const PLYShapeDesc& desc : plyShapeDescs)
+	for (const PLYShapeDesc& desc : plyShapeDescs)
 	{
 		std::wstring plyFilepath = baseDir + desc.filename;
 		std::wstring plyFullpath = ResourceFinder::get().find(plyFilepath);
