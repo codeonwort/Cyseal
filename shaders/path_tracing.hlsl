@@ -16,6 +16,7 @@
 #define RAYGEN_T_MIN              0.001
 #define RAYGEN_T_MAX              10000.0
 #define MAX_BOUNCE                3
+#define SURFACE_NORMAL_OFFSET     0.001
 
 #define RANDOM_SEQUENCE_WIDTH     64
 #define RANDOM_SEQUENCE_HEIGHT    64
@@ -123,14 +124,14 @@ void MainRaygen()
 	generateCameraRay(targetTexel, cameraRayOrigin, cameraRayDir);
 
 	RayPayload cameraRayPayload = createRayPayload();
+	RayDesc cameraRay;
 	{
 		// Trace the ray.
 		// Set the ray's extents.
-		RayDesc ray;
-		ray.Origin = cameraRayOrigin;
-		ray.Direction = cameraRayDir;
-		ray.TMin = RAYGEN_T_MIN;
-		ray.TMax = RAYGEN_T_MAX;
+		cameraRay.Origin = cameraRayOrigin;
+		cameraRay.Direction = cameraRayDir;
+		cameraRay.TMin = RAYGEN_T_MIN;
+		cameraRay.TMax = RAYGEN_T_MAX;
 
 		uint instanceInclusionMask = ~0; // Do not ignore anything
 		uint rayContributionToHitGroupIndex = 0;
@@ -148,7 +149,7 @@ void MainRaygen()
 			rayContributionToHitGroupIndex,
 			multiplierForGeometryContributionToHitGroupIndex,
 			missShaderIndex,
-			ray,
+			cameraRay,
 			cameraRayPayload);
 	}
 
@@ -164,27 +165,33 @@ void MainRaygen()
 	//renderTarget[targetTexel] = float4(cameraRayPayload.albedo, cameraRayPayload.objectID);
 	//return;
 
-	float3 surfaceNormal = cameraRayPayload.surfaceNormal;
-	float3 surfaceTangent, surfaceBitangent;
-	computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
+	uint firstSeqLinearIndex = targetTexel.x + pathTracingUniform.renderTargetWidth * targetTexel.y;
 
-	float3 surfacePosition = (cameraRayPayload.hitTime * cameraRayDir + cameraRayOrigin);
-	surfacePosition += 0.001 * surfaceNormal; // Slightly push toward N
+	RayPayload currentRayPayload = cameraRayPayload;
+	RayDesc currentRayDesc = cameraRay;
 
-	uint seqLinearIndex = targetTexel.x + pathTracingUniform.renderTargetWidth * targetTexel.y;
-	seqLinearIndex = seqLinearIndex % RANDOM_SEQUENCE_LENGTH;
-	float theta = pathTracingUniform.thetaSeq[seqLinearIndex / 4][seqLinearIndex % 4];
-	float phi = pathTracingUniform.phiSeq[seqLinearIndex / 4][seqLinearIndex % 4];
-	float3 aoRayDir = float3(cos(phi) * cos(theta), sin(phi) * cos(theta), sin(theta));
-	aoRayDir = (surfaceTangent * aoRayDir.x) + (surfaceBitangent * aoRayDir.y) + (surfaceNormal * aoRayDir.z);
-
-	RayPayload aoRayPayload = createRayPayload();
+	uint numBounces = 0;
+	while (numBounces < MAX_BOUNCE)
 	{
-		RayDesc ray;
-		ray.Origin = surfacePosition;
-		ray.Direction = aoRayDir;
-		ray.TMin = RAYGEN_T_MIN;
-		ray.TMax = RAYGEN_T_MAX;
+		float3 surfaceNormal = currentRayPayload.surfaceNormal;
+		float3 surfaceTangent, surfaceBitangent;
+		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
+
+		float3 surfacePosition = currentRayPayload.hitTime * currentRayDesc.Direction + currentRayDesc.Origin;
+		surfacePosition += SURFACE_NORMAL_OFFSET * surfaceNormal; // Slightly push toward N
+
+		uint seqLinearIndex = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
+		float theta = pathTracingUniform.thetaSeq[seqLinearIndex / 4][seqLinearIndex % 4];
+		float phi = pathTracingUniform.phiSeq[seqLinearIndex / 4][seqLinearIndex % 4];
+		float3 aoRayDir = float3(cos(phi) * cos(theta), sin(phi) * cos(theta), sin(theta));
+		aoRayDir = (surfaceTangent * aoRayDir.x) + (surfaceBitangent * aoRayDir.y) + (surfaceNormal * aoRayDir.z);
+
+		RayPayload aoRayPayload = createRayPayload();
+		RayDesc aoRay;
+		aoRay.Origin = surfacePosition;
+		aoRay.Direction = aoRayDir;
+		aoRay.TMin = RAYGEN_T_MIN;
+		aoRay.TMax = RAYGEN_T_MAX;
 
 		uint instanceInclusionMask = ~0; // Do not ignore anything
 		uint rayContributionToHitGroupIndex = 0;
@@ -197,11 +204,19 @@ void MainRaygen()
 			rayContributionToHitGroupIndex,
 			multiplierForGeometryContributionToHitGroupIndex,
 			missShaderIndex,
-			ray,
+			aoRay,
 			aoRayPayload);
+
+		if (aoRayPayload.objectID == OBJECT_ID_NONE)
+		{
+			break;
+		}
+		numBounces += 1;
+		currentRayPayload = aoRayPayload;
+		currentRayDesc = aoRay;
 	}
 
-	float visibility = (aoRayPayload.objectID == OBJECT_ID_NONE) ? 1.0 : 0.0;
+	float visibility = (numBounces == MAX_BOUNCE) ? 0.0 : pow(0.9, numBounces);
 
 	float prevVisibility, historyCount;
 	if (pathTracingUniform.bInvalidateHistory == 0)
@@ -260,6 +275,7 @@ void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 		+ barycentrics.y * v1.normal
 		+ barycentrics.z * v2.normal);
 	surfaceNormal = normalize(mul(float4(surfaceNormal, 0.0), sceneItem.modelMatrix).xyz);
+	// Hmm if hit the back face I should flip surfaceNormal but how to know it?
 	payload.surfaceNormal = surfaceNormal;
 
 	payload.roughness = material.roughness;
