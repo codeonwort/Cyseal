@@ -17,6 +17,20 @@
 #define RAYGEN_T_MAX              10000.0
 #define MAX_BOUNCE                3
 
+#define RANDOM_SEQUENCE_WIDTH     64
+#define RANDOM_SEQUENCE_HEIGHT    64
+#define RANDOM_SEQUENCE_LENGTH    (RANDOM_SEQUENCE_WIDTH * RANDOM_SEQUENCE_HEIGHT)
+
+struct PathTracingUniform
+{
+	float4 thetaSeq[RANDOM_SEQUENCE_LENGTH / 4];
+	float4 phiSeq[RANDOM_SEQUENCE_LENGTH / 4];
+	uint renderTargetWidth;
+	uint renderTargetHeight;
+	uint bInvalidateHistory;
+	uint _pad0;
+};
+
 struct VertexAttributes
 {
 	float3 normal;
@@ -34,13 +48,14 @@ struct ClosestHitPushConstants
 //*********************************************************
 
 // Global root signature
-RaytracingAccelerationStructure rtScene        : register(t0, space0);
-ByteAddressBuffer               gIndexBuffer   : register(t1, space0);
-ByteAddressBuffer               gVertexBuffer  : register(t2, space0);
-StructuredBuffer<GPUSceneItem>  gpuSceneBuffer : register(t3, space0);
-TextureCube                     skybox         : register(t4, space0);
-RWTexture2D<float4>             renderTarget   : register(u0, space0);
-ConstantBuffer<SceneUniform>    sceneUniform   : register(b0, space0);
+RaytracingAccelerationStructure    rtScene            : register(t0, space0);
+ByteAddressBuffer                  gIndexBuffer       : register(t1, space0);
+ByteAddressBuffer                  gVertexBuffer      : register(t2, space0);
+StructuredBuffer<GPUSceneItem>     gpuSceneBuffer     : register(t3, space0);
+TextureCube                        skybox             : register(t4, space0);
+RWTexture2D<float4>                renderTarget       : register(u0, space0);
+ConstantBuffer<SceneUniform>       sceneUniform       : register(b0, space0);
+ConstantBuffer<PathTracingUniform> pathTracingUniform : register(b1, space0);
 
 // Local root signature (raygen)
 ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0, space1);
@@ -92,6 +107,13 @@ void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
 	direction = normalize(worldPos.xyz - origin);
 }
 
+void computeTangentFrame(float3 N, out float3 T, out float3 B)
+{
+	B = abs(N.z) < 0.999 ? float3(0, 0, 1) : float3(1.0, 0.0, 0.0);
+	T = normalize(cross(B, N));
+	B = cross(N, T);
+}
+
 [shader("raygeneration")]
 void MainRaygen()
 {
@@ -100,7 +122,7 @@ void MainRaygen()
 	float3 cameraRayOrigin, cameraRayDir;
 	generateCameraRay(targetTexel, cameraRayOrigin, cameraRayDir);
 
-	RayPayload primaryPayload = createRayPayload();
+	RayPayload cameraRayPayload = createRayPayload();
 	{
 		// Trace the ray.
 		// Set the ray's extents.
@@ -127,20 +149,76 @@ void MainRaygen()
 			multiplierForGeometryContributionToHitGroupIndex,
 			missShaderIndex,
 			ray,
-			primaryPayload);
+			cameraRayPayload);
 	}
 
-	// Hit the sky. Let's sample skybox.
-	if (primaryPayload.objectID == OBJECT_ID_NONE)
+	// Current pixel is sky.
+	if (cameraRayPayload.objectID == OBJECT_ID_NONE)
 	{
-		float3 skyLight = skybox.SampleLevel(skyboxSampler, cameraRayDir, 0.0).rgb;
-		renderTarget[targetTexel] = float4(skyLight, OBJECT_ID_NONE);
+		renderTarget[targetTexel] = float4(1.0, 1.0, 1.0, 0.0);
 		return;
 	}
 
-	RayPayload currentPayload = primaryPayload;
-	renderTarget[targetTexel] = float4(0.5 + 0.5 * primaryPayload.surfaceNormal, primaryPayload.objectID);
-	//renderTarget[targetTexel] = float4(primaryPayload.albedo, primaryPayload.objectID);
+	// Debug visualization
+	//renderTarget[targetTexel] = float4(0.5 + 0.5 * cameraRayPayload.surfaceNormal, cameraRayPayload.objectID);
+	//renderTarget[targetTexel] = float4(cameraRayPayload.albedo, cameraRayPayload.objectID);
+	//return;
+
+	float3 surfaceNormal = cameraRayPayload.surfaceNormal;
+	float3 surfaceTangent, surfaceBitangent;
+	computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
+
+	float3 surfacePosition = (cameraRayPayload.hitTime * cameraRayDir + cameraRayOrigin);
+	surfacePosition += 0.001 * surfaceNormal; // Slightly push toward N
+
+	uint seqLinearIndex = targetTexel.x + pathTracingUniform.renderTargetWidth * targetTexel.y;
+	seqLinearIndex = seqLinearIndex % RANDOM_SEQUENCE_LENGTH;
+	float theta = pathTracingUniform.thetaSeq[seqLinearIndex / 4][seqLinearIndex % 4];
+	float phi = pathTracingUniform.phiSeq[seqLinearIndex / 4][seqLinearIndex % 4];
+	float3 aoRayDir = float3(cos(phi) * cos(theta), sin(phi) * cos(theta), sin(theta));
+	aoRayDir = (surfaceTangent * aoRayDir.x) + (surfaceBitangent * aoRayDir.y) + (surfaceNormal * aoRayDir.z);
+
+	RayPayload aoRayPayload = createRayPayload();
+	{
+		RayDesc ray;
+		ray.Origin = surfacePosition;
+		ray.Direction = aoRayDir;
+		ray.TMin = RAYGEN_T_MIN;
+		ray.TMax = RAYGEN_T_MAX;
+
+		uint instanceInclusionMask = ~0; // Do not ignore anything
+		uint rayContributionToHitGroupIndex = 0;
+		uint multiplierForGeometryContributionToHitGroupIndex = 1;
+		uint missShaderIndex = 0;
+		TraceRay(
+			rtScene,
+			RAY_FLAG_NONE,
+			instanceInclusionMask,
+			rayContributionToHitGroupIndex,
+			multiplierForGeometryContributionToHitGroupIndex,
+			missShaderIndex,
+			ray,
+			aoRayPayload);
+	}
+
+	float visibility = (aoRayPayload.objectID == OBJECT_ID_NONE) ? 1.0 : 0.0;
+
+	float prevVisibility, historyCount;
+	if (pathTracingUniform.bInvalidateHistory == 0)
+	{
+		prevVisibility = renderTarget[targetTexel].x;
+		historyCount = renderTarget[targetTexel].w;
+	}
+	else
+	{
+		prevVisibility = 0.0;
+		historyCount = 0;
+	}
+
+	visibility = lerp(prevVisibility, visibility, 1.0 / (1.0 + historyCount));
+	historyCount += 1;
+
+	renderTarget[targetTexel] = float4(visibility.xxx, historyCount);
 }
 
 [shader("closesthit")]

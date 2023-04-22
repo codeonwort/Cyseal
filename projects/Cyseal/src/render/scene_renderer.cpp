@@ -74,22 +74,19 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 			}
 		));
 
-		auto align = [](uint32 size, uint32 alignment) -> uint32
-		{
-			return (size + (alignment - 1)) & ~(alignment - 1);
-		};
 		uint32 bufferOffset = 0;
 		sceneUniformCBVs.resize(swapchainCount);
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
 			sceneUniformCBVs[i] = std::unique_ptr<ConstantBufferView>(
 				gRenderDevice->createCBV(
-					sceneUniformMemory.get(), 
+					sceneUniformMemory.get(),
 					sceneUniformDescriptorHeap.get(),
 					sizeof(SceneUniform),
 					bufferOffset));
-			// #todo-rhi: Somehow hide this alignment from rhi level?
-			bufferOffset += align(sizeof(SceneUniform), 256);
+
+			uint32 alignment = gRenderDevice->getConstantBufferDataAlignment();
+			bufferOffset += Cymath::alignBytes(sizeof(SceneUniform), alignment);
 		}
 	}
 
@@ -310,6 +307,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		{
 			pathTracingPass->renderPathTracing(
 				commandList, swapchainIndex, scene, camera,
+				renderOptions.bCameraHasMoved,
 				sceneUniformCBVs[swapchainIndex].get(),
 				accelStructure,
 				gpuScene,

@@ -103,10 +103,13 @@ void TestApplication::onTick(float deltaSeconds)
 		setWindowTitle(std::wstring(buf));
 
 		// Control camera by user input.
+		bool bCameraHasMoved = false;
 		{
 			float moveX = ImGui::IsKeyDown(ImGuiKey_A) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_D) ? 1.0f : 0.0f;
 			float moveZ = ImGui::IsKeyDown(ImGuiKey_W) ? 1.0f : ImGui::IsKeyDown(ImGuiKey_S) ? -1.0f : 0.0f;
 			float rotateY = ImGui::IsKeyDown(ImGuiKey_Q) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_E) ? 1.0f : 0.0f;
+
+			bCameraHasMoved = (moveX != 0.0f || moveZ != 0.0f || rotateY != 0.0f);
 
 			appState.cameraRotationY += rotateY * deltaSeconds * 45.0f;
 			float theta = Cymath::radians(appState.cameraRotationY);
@@ -120,8 +123,10 @@ void TestApplication::onTick(float deltaSeconds)
 
 			camera.lookAt(appState.cameraLocation, appState.cameraLocation + vForward, CAMERA_UP);
 		}
+		appState.rendererOptions.bCameraHasMoved = bCameraHasMoved;
 
 		// Animate meshes.
+		if (!appState.rendererOptions.bEnablePathTracing)
 		{
 			static float elapsed = 0.0f;
 			elapsed += deltaSeconds;

@@ -77,15 +77,18 @@ public:
 	}
 	virtual void onInitialize(const RenderDeviceCreateParams& createParams) = 0;
 
+	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) = 0;
+
+	virtual void flushCommandQueue() = 0;
+
+	// ------------------------------------------------------------------------
+	// DearImgui
+
 	virtual void initializeDearImgui();
 	virtual void beginDearImguiNewFrame() = 0;
 	virtual void renderDearImgui(RenderCommandList* commandList) = 0;
 	virtual void shutdownDearImgui();
 	inline DescriptorHeap* getDearImguiSRVHeap() const { return imguiSRVHeap; }
-
-	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) = 0;
-
-	virtual void flushCommandQueue() = 0;
 
 	// ------------------------------------------------------------------------
 	// Create
@@ -154,6 +157,8 @@ public:
 	inline EVariableShadingRateTier getVRSTier() const { return vrsTier; }
 	inline EMeshShaderTier getMeshShaderTier() const { return meshShaderTier; }
 	inline ESamplerFeedbackTier getSamplerFeedbackTier() const { return samplerFeedbackTier; }
+
+	virtual uint32 getConstantBufferDataAlignment() const = 0;
 
 protected:
 	RenderDeviceCreateParams createParams;

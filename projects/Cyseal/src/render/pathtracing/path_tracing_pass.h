@@ -21,6 +21,7 @@ public:
 		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera,
+		bool bCameraHasMoved,
 		ConstantBufferView* sceneUniformBuffer,
 		AccelerationStructure* raytracingScene,
 		GPUScene* gpuScene,
@@ -42,6 +43,11 @@ private:
 	UniquePtr<RaytracingShaderTable> missShaderTable;
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	std::vector<uint32> totalHitGroupShaderRecord;
+
+	// #todo-renderere: Temp dedicated memory
+	UniquePtr<Buffer> uniformMemory;
+	UniquePtr<DescriptorHeap> uniformDescriptorHeap;
+	BufferedUniquePtr<ConstantBufferView> uniformCBVs;
 
 	UniquePtr<ShaderStage> raygenShader;
 	UniquePtr<ShaderStage> closestHitShader;

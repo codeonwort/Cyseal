@@ -28,8 +28,10 @@ public:
 	static inline float asin(float x);
 	static inline float atan(float x);
 
-	static inline float randFloat(); // [-1.0, 1.0]
+	static inline float randFloat(); // [0.0, 1.0]
 	static inline float randFloatRange(float minValue, float maxValue);
+
+	static inline uint32 alignBytes(uint32 size, uint32 alignment);
 };
 
 float Cymath::radians(float degree)
@@ -103,4 +105,9 @@ float Cymath::randFloat()
 float Cymath::randFloatRange(float minValue, float maxValue)
 {
 	return minValue + (maxValue - minValue) * Cymath::randFloat();
+}
+
+uint32 Cymath::alignBytes(uint32 size, uint32 alignment)
+{
+	return (size + (alignment - 1)) & ~(alignment - 1);
 }
