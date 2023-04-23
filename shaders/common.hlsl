@@ -1,3 +1,10 @@
+#ifndef _COMMON_H
+#define _COMMON_H
+
+#define PI         3.14159265
+#define TWO_PI     6.28318530718
+#define HALF_PI    1.57079632679489661923
+
 struct GPUSceneItem
 {
     float4x4 modelMatrix; // local to world
@@ -51,3 +58,12 @@ struct SceneUniform
     float4 sunDirection;   // (x, y, z, ?)
     float4 sunIlluminance; // (r, g, b, ?)
 };
+
+void computeTangentFrame(float3 N, out float3 T, out float3 B)
+{
+    B = abs(N.z) < 0.999 ? float3(0, 0, 1) : float3(1.0, 0.0, 0.0);
+    T = normalize(cross(B, N));
+    B = cross(N, T);
+}
+
+#endif // _COMMON_H

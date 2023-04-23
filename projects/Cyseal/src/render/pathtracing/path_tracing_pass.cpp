@@ -29,8 +29,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogPathTracing);
 
 struct PathTracingUniform
 {
-	float thetaSeq[RANDOM_SEQUENCE_LENGTH];
-	float phiSeq[RANDOM_SEQUENCE_LENGTH];
+	float randFloats0[RANDOM_SEQUENCE_LENGTH];
+	float randFloats1[RANDOM_SEQUENCE_LENGTH];
 	uint32 renderTargetWidth;
 	uint32 renderTargetHeight;
 	uint32 bInvalidateHistory;
@@ -300,18 +300,21 @@ void PathTracingPass::renderPathTracing(
 
 	// Update uniforms.
 	{
-		PathTracingUniform uboData;
+		PathTracingUniform* uboData = new PathTracingUniform;
 
 		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
 		{
-			uboData.thetaSeq[i] = Cymath::acos(Cymath::sqrt(Cymath::randFloat()));
-			uboData.phiSeq[i] = Cymath::randFloat() * Cymath::PI * 2.0f;
+			uboData->randFloats0[i] = Cymath::randFloat();
+			uboData->randFloats1[i] = Cymath::randFloat();
 		}
-		uboData.renderTargetWidth = renderTargetTexture->getCreateParams().width;
-		uboData.renderTargetHeight = renderTargetTexture->getCreateParams().height;
-		uboData.bInvalidateHistory = bCameraHasMoved;
+		uboData->renderTargetWidth = renderTargetTexture->getCreateParams().width;
+		uboData->renderTargetHeight = renderTargetTexture->getCreateParams().height;
+		uboData->bInvalidateHistory = bCameraHasMoved;
 
-		uniformCBVs[swapchainIndex]->writeToGPU(commandList, &uboData, sizeof(uboData));
+		uniformCBVs[swapchainIndex]->writeToGPU(commandList, uboData, sizeof(PathTracingUniform));
+
+		delete uboData;
+		//commandList->enqueueDeferredDealloc(uboData);
 	}
 
 	// Resize volatile heaps if needed.

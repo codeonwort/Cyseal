@@ -81,6 +81,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <FxCompile Include="..\..\shaders\base_pass.hlsl" />
+    <FxCompile Include="..\..\shaders\bsdf.hlsl" />
     <FxCompile Include="..\..\shaders\buffer_visualization.hlsl" />
     <FxCompile Include="..\..\shaders\common.hlsl" />
     <FxCompile Include="..\..\shaders\gpu_culling.hlsl" />

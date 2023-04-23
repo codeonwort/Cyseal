@@ -9,5 +9,6 @@
     <FxCompile Include="..\..\shaders\gpu_culling.hlsl" />
     <FxCompile Include="..\..\shaders\buffer_visualization.hlsl" />
     <FxCompile Include="..\..\shaders\path_tracing.hlsl" />
+    <FxCompile Include="..\..\shaders\bsdf.hlsl" />
   </ItemGroup>
 </Project>
