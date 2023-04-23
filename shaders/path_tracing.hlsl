@@ -10,6 +10,11 @@
 //*********************************************************
 #define OBJECT_ID_NONE            0xffff
 
+#define TRACE_AMBIENT_OCCLUSION   0
+#define TRACE_DIFFUSE_GI          1
+#define TRACE_MODE                TRACE_DIFFUSE_GI
+//#define TRACE_MODE                TRACE_AMBIENT_OCCLUSION
+
 // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
 // TMin should be kept small to prevent missing geometry at close contact areas.
 // #todo: See 'Ray Tracing Gems' series.
@@ -17,6 +22,10 @@
 #define RAYGEN_T_MAX              10000.0
 #define MAX_BOUNCE                3
 #define SURFACE_NORMAL_OFFSET     0.001
+
+// Temp boost sky light as light sources are not there yet
+// and the indoor scene is too dark.
+#define SKYBOX_BOOST              30.0
 
 #define RANDOM_SEQUENCE_WIDTH     64
 #define RANDOM_SEQUENCE_HEIGHT    64
@@ -115,19 +124,89 @@ void computeTangentFrame(float3 N, out float3 T, out float3 B)
 	B = cross(N, T);
 }
 
-[shader("raygeneration")]
-void MainRaygen()
+float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 cameraRayDir)
 {
-	uint2 targetTexel = DispatchRaysIndex().xy;
+	uint firstSeqLinearIndex = targetTexel.x + pathTracingUniform.renderTargetWidth * targetTexel.y;
 
-	float3 cameraRayOrigin, cameraRayDir;
-	generateCameraRay(targetTexel, cameraRayOrigin, cameraRayDir);
+	RayPayload currentRayPayload = createRayPayload();
 
+	RayDesc currentRay;
+	currentRay.Origin = cameraRayOrigin;
+	currentRay.Direction = cameraRayDir;
+	currentRay.TMin = RAYGEN_T_MIN;
+	currentRay.TMax = RAYGEN_T_MAX;
+
+	float3 reflectanceHistory[MAX_BOUNCE + 1];
+	float3 radianceHistory[MAX_BOUNCE + 1];
+	uint numBounces = 0;
+
+	while (numBounces < MAX_BOUNCE)
+	{
+		uint instanceInclusionMask = ~0; // Do not ignore anything
+		uint rayContributionToHitGroupIndex = 0;
+		uint multiplierForGeometryContributionToHitGroupIndex = 1;
+		uint missShaderIndex = 0;
+		TraceRay(
+			rtScene,
+			RAY_FLAG_NONE,
+			instanceInclusionMask,
+			rayContributionToHitGroupIndex,
+			multiplierForGeometryContributionToHitGroupIndex,
+			missShaderIndex,
+			currentRay,
+			currentRayPayload);
+
+		// Hit the sky. Sample the skybox.
+		if (currentRayPayload.objectID == OBJECT_ID_NONE)
+		{
+			radianceHistory[numBounces] = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, currentRay.Direction, 0.0).rgb;
+			reflectanceHistory[numBounces] = 1;
+			break;
+		}
+		else
+		{
+			radianceHistory[numBounces] = 0;
+			reflectanceHistory[numBounces] = currentRayPayload.albedo;
+		}
+
+		float3 surfaceNormal = currentRayPayload.surfaceNormal;
+		float3 surfaceTangent, surfaceBitangent;
+		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
+
+		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
+
+		uint seqLinearIndex = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
+		float theta = pathTracingUniform.thetaSeq[seqLinearIndex / 4][seqLinearIndex % 4];
+		float phi = pathTracingUniform.phiSeq[seqLinearIndex / 4][seqLinearIndex % 4];
+		float3 scatteredDir = float3(cos(phi) * cos(theta), sin(phi) * cos(theta), sin(theta));
+		scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (surfaceNormal * scatteredDir.z);
+
+		currentRay.Origin = surfacePosition + SURFACE_NORMAL_OFFSET * surfaceNormal;
+		currentRay.Direction = scatteredDir;
+		//currentRay.TMin = RAYGEN_T_MIN;
+		//currentRay.TMax = RAYGEN_T_MAX;
+
+		numBounces += 1;
+	}
+
+	float3 Li = 0;
+	if (numBounces < MAX_BOUNCE)
+	{
+		for (uint i = 0; i <= numBounces; ++i)
+		{
+			uint j = numBounces - i;
+			Li = reflectanceHistory[j] * (Li + radianceHistory[j]);
+		}
+	}
+
+	return Li;
+}
+
+float traceAmbientOcclusion(uint2 targetTexel, float3 cameraRayOrigin, float3 cameraRayDir)
+{
 	RayPayload cameraRayPayload = createRayPayload();
 	RayDesc cameraRay;
 	{
-		// Trace the ray.
-		// Set the ray's extents.
 		cameraRay.Origin = cameraRayOrigin;
 		cameraRay.Direction = cameraRayDir;
 		cameraRay.TMin = RAYGEN_T_MIN;
@@ -135,11 +214,6 @@ void MainRaygen()
 
 		uint instanceInclusionMask = ~0; // Do not ignore anything
 		uint rayContributionToHitGroupIndex = 0;
-		// #todo: Need to satisfy one of following conditions.
-		//        I don't understand hit groups enough yet...
-		// 1) numShaderRecords for hitGroupShaderTable is 1 and this is 0
-		// 2) numShaderRecords for hitGroupShaderTable is N and this is 1
-		//    where N = number of geometries
 		uint multiplierForGeometryContributionToHitGroupIndex = 1;
 		uint missShaderIndex = 0;
 		TraceRay(
@@ -153,17 +227,11 @@ void MainRaygen()
 			cameraRayPayload);
 	}
 
-	// Current pixel is sky.
+	// Current pixel is the sky.
 	if (cameraRayPayload.objectID == OBJECT_ID_NONE)
 	{
-		renderTarget[targetTexel] = float4(1.0, 1.0, 1.0, 0.0);
-		return;
+		return 1.0;
 	}
-
-	// Debug visualization
-	//renderTarget[targetTexel] = float4(0.5 + 0.5 * cameraRayPayload.surfaceNormal, cameraRayPayload.objectID);
-	//renderTarget[targetTexel] = float4(cameraRayPayload.albedo, cameraRayPayload.objectID);
-	//return;
 
 	uint firstSeqLinearIndex = targetTexel.x + pathTracingUniform.renderTargetWidth * targetTexel.y;
 
@@ -216,24 +284,57 @@ void MainRaygen()
 		currentRayDesc = aoRay;
 	}
 
-	float visibility = (numBounces == MAX_BOUNCE) ? 0.0 : pow(0.9, numBounces);
+	float ambientOcclusion = (numBounces == MAX_BOUNCE) ? 0.0 : pow(0.9, numBounces);
+	return ambientOcclusion;
+}
 
-	float prevVisibility, historyCount;
+[shader("raygeneration")]
+void MainRaygen()
+{
+	uint2 targetTexel = DispatchRaysIndex().xy;
+
+	float3 cameraRayOrigin, cameraRayDir;
+	generateCameraRay(targetTexel, cameraRayOrigin, cameraRayDir);
+
+#if TRACE_MODE == TRACE_AMBIENT_OCCLUSION
+	float ambientOcclusion = traceAmbientOcclusion(targetTexel, cameraRayOrigin, cameraRayDir);
+
+	float prevAmbientOcclusion, historyCount;
 	if (pathTracingUniform.bInvalidateHistory == 0)
 	{
-		prevVisibility = renderTarget[targetTexel].x;
+		prevAmbientOcclusion = renderTarget[targetTexel].x;
 		historyCount = renderTarget[targetTexel].w;
 	}
 	else
 	{
-		prevVisibility = 0.0;
+		prevAmbientOcclusion = 0.0;
 		historyCount = 0;
 	}
 
-	visibility = lerp(prevVisibility, visibility, 1.0 / (1.0 + historyCount));
+	ambientOcclusion = lerp(prevAmbientOcclusion, ambientOcclusion, 1.0 / (1.0 + historyCount));
 	historyCount += 1;
 
-	renderTarget[targetTexel] = float4(visibility.xxx, historyCount);
+	renderTarget[targetTexel] = float4(ambientOcclusion.xxx, historyCount);
+#elif TRACE_MODE == TRACE_DIFFUSE_GI
+
+	float3 Li = traceIncomingRadiance(targetTexel, cameraRayOrigin, cameraRayDir);
+	float3 prevLi;
+	float historyCount;
+	if (pathTracingUniform.bInvalidateHistory == 0)
+	{
+		prevLi = renderTarget[targetTexel].xyz;
+		historyCount = renderTarget[targetTexel].w;
+	}
+	else
+	{
+		prevLi = 0;
+		historyCount = 0;
+	}
+	Li = lerp(prevLi, Li, 1.0 / (1.0 + historyCount));
+	historyCount += 1;
+
+	renderTarget[targetTexel] = float4(Li, historyCount);
+#endif
 }
 
 [shader("closesthit")]
