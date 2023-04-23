@@ -1,6 +1,15 @@
 #include "pbrt_loader.h"
 #include "ply_loader.h"
+#include "image_loader.h"
+
 #include "core/assertion.h"
+#include "core/smart_pointer.h"
+#include "rhi/render_device.h"
+#include "rhi/render_command.h"
+#include "rhi/gpu_resource.h"
+#include "rhi/texture_manager.h"
+#include "render/material.h"
+#include "world/gpu_resource_asset.h"
 #include "util/resource_finder.h"
 #include "util/string_conversion.h"
 #include "util/logging.h"
@@ -40,7 +49,7 @@ struct TextureFileDesc
 {
 	std::string textureName;
 	std::string textureFilter; // #todo-pbrt
-	std::string filename;
+	std::wstring filename;
 };
 
 struct NamedMaterialDesc
@@ -49,7 +58,7 @@ struct NamedMaterialDesc
 	std::string materialType;
 
 	bool bUseRgbReflectance = false;
-	vec3 rgbReflectance;
+	vec3 rgbReflectance = vec3(1.0f);
 	std::string textureReflectance;
 
 	bool bUseAnisotropicRoughness = false;
@@ -135,6 +144,11 @@ std::string readMaybeQuoteWords(std::istream& stream)
 	}
 	stream.setf(std::ios::skipws);
 	return str;
+}
+
+PBRT4Scene::~PBRT4Scene()
+{
+	deallocate();
 }
 
 void PBRT4Scene::deallocate()
@@ -270,10 +284,12 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 							textureFilename = readBracketQuoteWord(fs);
 						}
 					}
+					std::wstring wTextureFilename;
+					str_to_wstr(textureFilename, wTextureFilename);
 					TextureFileDesc desc{
 						.textureName = textureName,
 						.textureFilter = textureFilter,
-						.filename = textureFilename
+						.filename = wTextureFilename
 					};
 					textureFileDescs.emplace_back(desc);
 				}
@@ -417,14 +433,98 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 		return nullptr;
 	}
 
-	// #wip: Load texture files
+	//std::map<std::string, ImageLoadData*> imageDatabase;
+	std::map<std::string, SharedPtr<TextureAsset>> textureAssetDatabase;
+	std::map<std::string, SharedPtr<Material>> materialDatabase;
+
+	ImageLoader imageLoader;
+	for (const TextureFileDesc& desc : textureFileDescs)
 	{
-		textureFileDescs;
+		ImageLoadData* imageBlob = nullptr;
+
+		std::wstring textureFilepath = baseDir + desc.filename;
+		textureFilepath = ResourceFinder::get().find(textureFilepath);
+		if (textureFilepath.size() > 0)
+		{
+			imageBlob = imageLoader.load(textureFilepath);
+		}
+
+		SharedPtr<TextureAsset> textureAsset;
+		if (imageBlob == nullptr)
+		{
+			textureAsset = gTextureManager->getSystemTextureGrey2D();
+		}
+		else
+		{
+			textureAsset = makeShared<TextureAsset>();
+
+			std::wstring wTextureName;
+			str_to_wstr(desc.textureName, wTextureName);
+
+			ENQUEUE_RENDER_COMMAND(CreateTextureAsset)(
+				[textureAsset, imageBlob, wTextureName](RenderCommandList& commandList)
+				{
+					TextureCreateParams createParams = TextureCreateParams::texture2D(
+						EPixelFormat::R8G8B8A8_UNORM,
+						ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
+						imageBlob->width, imageBlob->height);
+					
+					Texture* texture = gRenderDevice->createTexture(createParams);
+					texture->uploadData(commandList,
+						imageBlob->buffer,
+						imageBlob->getRowPitch(),
+						imageBlob->getSlicePitch());
+					texture->setDebugName(wTextureName.c_str());
+
+					textureAsset->setGPUResource(SharedPtr<Texture>(texture));
+
+					commandList.enqueueDeferredDealloc(imageBlob);
+				}
+			);
+		}
+
+		//imageDatabase.insert(std::make_pair(desc.textureName, imageBlob));
+		textureAssetDatabase.insert(std::make_pair(desc.textureName, textureAsset));
 	}
 
-	// #wip: Materials
+	for (const NamedMaterialDesc& desc : namedMaterialDescs)
 	{
-		namedMaterialDescs;
+		auto material = makeShared<Material>();
+
+		material->albedoMultiplier[0] = desc.rgbReflectance.x;
+		material->albedoMultiplier[1] = desc.rgbReflectance.y;
+		material->albedoMultiplier[2] = desc.rgbReflectance.z;
+		if (desc.textureReflectance.size() > 0)
+		{
+			auto it = textureAssetDatabase.find(desc.textureReflectance);
+			if (it != textureAssetDatabase.end())
+			{
+				material->albedoTexture = it->second;
+			}
+			else
+			{
+				CYLOG(LogPBRT, Error, L"Material '%S' uses textureReflectance '%S' but couldn't find it",
+					desc.materialName.c_str(), desc.textureReflectance.c_str());
+			}
+		}
+		if (material->albedoTexture == nullptr)
+		{
+			material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
+		}
+		
+		if (desc.bUseAnisotropicRoughness)
+		{
+			material->roughness = 0.5f * (desc.uroughness + desc.vroughness);
+			CYLOG(LogPBRT, Error, L"Material '%S' uses anisotropic roughness but not supported", desc.materialName.c_str());
+		}
+		else
+		{
+			material->roughness = desc.roughness;
+		}
+
+		// #todo-pbrt: Other NamedMaterialDesc properties
+
+		materialDatabase.insert(std::make_pair(desc.materialName, material));
 	}
 
 	PLYLoader plyLoader;
@@ -445,6 +545,11 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			}
 			else
 			{
+				auto it = materialDatabase.find(desc.namedMaterial);
+				if (it != materialDatabase.end())
+				{
+					plyMesh->material = it->second;
+				}
 				pbrtScene->plyMeshes.push_back(plyMesh);
 			}
 		}

@@ -4,10 +4,13 @@
 // https://en.wikipedia.org/wiki/PLY_(file_format)
 // http://gamma.cs.unc.edu/POWERPLANT/papers/ply.pdf
 
-#include <string>
-#include <vector>
 #include "core/vec2.h"
 #include "core/vec3.h"
+#include "core/smart_pointer.h"
+#include "render/material.h"
+
+#include <string>
+#include <vector>
 
 // If the input file contains some non-triangular faces, they are split into triangles.
 class PLYMesh
@@ -15,6 +18,8 @@ class PLYMesh
 public:
 	uint32 getVertexCount() const { return (uint32)positionBuffer.size(); }
 	uint32 getIndexCount() const { return (uint32)indexBuffer.size(); }
+
+	SharedPtr<Material> material;
 
 	std::vector<vec3> positionBuffer;
 	std::vector<vec3> normalBuffer;

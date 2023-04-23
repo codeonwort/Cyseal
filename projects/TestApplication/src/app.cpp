@@ -436,6 +436,7 @@ void TestApplication::createResources()
 		std::vector<SharedPtr<VertexBufferAsset>> positionBufferAssets(numSubMeshes, nullptr);
 		std::vector<SharedPtr<VertexBufferAsset>> nonPositionBufferAssets(numSubMeshes, nullptr);
 		std::vector<SharedPtr<IndexBufferAsset>> indexBufferAssets(numSubMeshes, nullptr);
+		std::vector<SharedPtr<Material>> plyMeshMaterials(numSubMeshes, nullptr);
 		for (size_t i = 0; i < numSubMeshes; ++i)
 		{
 			PLYMesh* plyMesh = pbrtScene->plyMeshes[i];
@@ -451,10 +452,12 @@ void TestApplication::createResources()
 			positionBufferAssets[i] = makeShared<VertexBufferAsset>();
 			nonPositionBufferAssets[i] = makeShared<VertexBufferAsset>();
 			indexBufferAssets[i] = makeShared<IndexBufferAsset>();
+
+			plyMeshMaterials[i] = plyMesh->material;
 		}
 
 		ENQUEUE_RENDER_COMMAND(UploadPBRTSubMeshes)(
-			[pbrtGeometries, positionBufferAssets, nonPositionBufferAssets, indexBufferAssets](RenderCommandList& commandList)
+			[pbrtScene, pbrtGeometries, positionBufferAssets, nonPositionBufferAssets, indexBufferAssets](RenderCommandList& commandList)
 			{
 				for (size_t i = 0; i < pbrtGeometries.size(); ++i)
 				{
@@ -473,21 +476,29 @@ void TestApplication::createResources()
 
 					commandList.enqueueDeferredDealloc(geom);
 				}
+				commandList.enqueueDeferredDealloc(pbrtScene);
 			}
 		);
 
-		auto material = std::make_shared<Material>();
-		material->albedoMultiplier[0] = 1.0f;
-		material->albedoMultiplier[1] = 1.0f;
-		material->albedoMultiplier[2] = 1.0f;
-		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
-		material->roughness = 0.9f;
+		auto fallbackMaterial = std::make_shared<Material>();
+		fallbackMaterial->albedoMultiplier[0] = 1.0f;
+		fallbackMaterial->albedoMultiplier[1] = 1.0f;
+		fallbackMaterial->albedoMultiplier[2] = 1.0f;
+		fallbackMaterial->albedoTexture = gTextureManager->getSystemTextureGrey2D();
+		fallbackMaterial->roughness = 1.0f;
 
 		pbrtMesh = new StaticMesh;
 		for (size_t i = 0; i < numSubMeshes; ++i)
 		{
 			AABB localBounds = pbrtGeometries[i]->localBounds;
-			pbrtMesh->addSection(0, positionBufferAssets[i], nonPositionBufferAssets[i], indexBufferAssets[i], material, localBounds);
+			auto material = (plyMeshMaterials[i] != nullptr) ? plyMeshMaterials[i] : fallbackMaterial;
+			pbrtMesh->addSection(
+				0,
+				positionBufferAssets[i],
+				nonPositionBufferAssets[i],
+				indexBufferAssets[i],
+				material,
+				localBounds);
 		}
 		pbrtMesh->setPosition(vec3(50.0f, -5.0f, 0.0f));
 		pbrtMesh->setScale(10.0f);

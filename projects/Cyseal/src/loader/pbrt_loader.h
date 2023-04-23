@@ -3,9 +3,11 @@
 // PBRT v4 file loader
 // https://www.pbrt.org/fileformat-v4
 
+#include "core/vec3.h"
+
 #include <string>
 #include <vector>
-#include "core/vec3.h"
+#include <map>
 
 struct PBRT4Scene
 {
@@ -16,6 +18,9 @@ struct PBRT4Scene
 
 	std::vector<class PLYMesh*> plyMeshes;
 
+public:
+	virtual ~PBRT4Scene();
+
 	void deallocate();
 };
 
@@ -24,7 +29,5 @@ class PBRT4Loader
 public:
 	// @return Parsed scene. Should dealloc yourself. Null if load has failed.
 	PBRT4Scene* loadFromFile(const std::wstring& filepath);
-
-private:
 
 };
