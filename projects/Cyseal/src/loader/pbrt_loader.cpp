@@ -35,6 +35,7 @@
 #define TOKEN_SHAPE "Shape"
 #define TOKEN_TEXTURE "Texture"
 #define TOKEN_TRANSLATE "Translate"
+#define TOKEN_TRANSFORM "Transform"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPBRT);
 
@@ -42,7 +43,7 @@ enum class PBRT4ParsePhase
 {
 	RenderingOptions = 0,
 	SceneElements = 1,
-	Attribute = 2,
+	InsideAttribute = 2,
 };
 
 struct TextureFileDesc
@@ -76,6 +77,8 @@ struct PLYShapeDesc
 {
 	std::wstring filename;
 	std::string namedMaterial;
+	Matrix transform;
+	bool bIdentityTransform;
 };
 
 std::istream& operator>>(std::istream& stream, vec3& v)
@@ -145,6 +148,18 @@ std::string readMaybeQuoteWords(std::istream& stream)
 	stream.setf(std::ios::skipws);
 	return str;
 }
+Matrix readBracketMatrix(std::istream& stream)
+{
+	char ch;
+	Matrix mat;
+	stream >> ch;
+	for (uint32 i = 0; i < 16; ++i)
+	{
+		stream >> mat.m[i / 4][i % 4];
+	}
+	stream >> ch;
+	return mat;
+}
 
 PBRT4Scene::~PBRT4Scene()
 {
@@ -190,6 +205,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	// 2. WorldBegin
 	// 3. Lights, geometries, and volumes
 
+	Matrix sceneTransform;
 	std::vector<TextureFileDesc> textureFileDescs;
 	std::vector<NamedMaterialDesc> namedMaterialDescs;
 	std::vector<PLYShapeDesc> plyShapeDescs;
@@ -197,6 +213,8 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	// State machine
 	std::string queuedToken;
 	std::string currentNamedMaterial;
+	Matrix currentTransform;
+	bool bCurrentTransformIdentity = true;
 	bool bValidFormat = true;
 
 	auto enqueueToken = [&queuedToken](const std::string& tok)
@@ -387,7 +405,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 				bValidFormat = false;
 				break;
 			}
-			else if (parsePhase == PBRT4ParsePhase::SceneElements)
+			else if (parsePhase == PBRT4ParsePhase::SceneElements || parsePhase == PBRT4ParsePhase::InsideAttribute)
 			{
 				std::string shapeType = readQuoteWord(fs);
 				if (shapeType == "plymesh")
@@ -404,6 +422,8 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 					PLYShapeDesc desc{
 						.filename = wPlyFilename,
 						.namedMaterial = currentNamedMaterial,
+						.transform = currentTransform,
+						.bIdentityTransform = bCurrentTransformIdentity,
 					};
 					plyShapeDescs.emplace_back(desc);
 				}
@@ -414,15 +434,31 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			// #todo-pbrt: Parse token LightSource
 			int z = 0;
 		}
+		else if (token == TOKEN_TRANSFORM)
+		{
+			if (parsePhase == PBRT4ParsePhase::RenderingOptions)
+			{
+				sceneTransform = readBracketMatrix(fs);
+			}
+			else if (parsePhase == PBRT4ParsePhase::InsideAttribute)
+			{
+				currentTransform = readBracketMatrix(fs);
+				bCurrentTransformIdentity = false;
+			}
+		}
 		else if (token == TOKEN_ATTRIBUTEBEGIN)
 		{
+			CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
 			// #todo-pbrt: Parse token AttributeBegin
-			int z = 0;
+			parsePhase = PBRT4ParsePhase::InsideAttribute;
 		}
 		else if (token == TOKEN_ATTRIBUTEEND)
 		{
+			CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
 			// #todo-pbrt: Parse token AttributeEnd
-			int z = 0;
+			parsePhase = PBRT4ParsePhase::SceneElements;
+			currentTransform.identity();
+			bCurrentTransformIdentity = true;
 		}
 	}
 
@@ -549,6 +585,10 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 				if (it != materialDatabase.end())
 				{
 					plyMesh->material = it->second;
+				}
+				if (!desc.bIdentityTransform)
+				{
+					plyMesh->applyTransform(desc.transform);
 				}
 				pbrtScene->plyMeshes.push_back(plyMesh);
 			}

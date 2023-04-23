@@ -16,6 +16,18 @@
 class PLYMesh
 {
 public:
+	inline void applyTransform(const Matrix& transform)
+	{
+		for (size_t i = 0; i < positionBuffer.size(); ++i)
+		{
+			positionBuffer[i] = transform.transformPosition(positionBuffer[i]);
+		}
+		for (size_t i = 0; i < normalBuffer.size(); ++i)
+		{
+			normalBuffer[i] = transform.transformDirection(normalBuffer[i]);
+		}
+	}
+
 	uint32 getVertexCount() const { return (uint32)positionBuffer.size(); }
 	uint32 getIndexCount() const { return (uint32)indexBuffer.size(); }
 
