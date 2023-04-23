@@ -16,6 +16,7 @@ struct AppState
 {
 	RendererOptions rendererOptions;
 	int32 selectedBufferVisualizationMode = 0;
+	uint32 pathTracingNumFrames = 0;
 
 	vec3 cameraLocation;
 	float cameraRotationY;

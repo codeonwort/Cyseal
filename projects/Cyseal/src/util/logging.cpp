@@ -5,16 +5,18 @@
 	#include <Windows.h>
 #endif
 
+#define LOG_BUFFER_SIZE 1024
+
 void Logger::log(const char* inCategory, LogLevel inLevel, const wchar_t* inMessage...)
 {
-	wchar_t fmtBuffer[1024];
+	wchar_t fmtBuffer[LOG_BUFFER_SIZE];
 	va_list argptr;
 	va_start(argptr, inMessage);
 	// #todo-crossplatform: Is this a standard or MSVC-specific?
-	_vswprintf_p(fmtBuffer, 1024, inMessage, argptr);
+	_vswprintf_p(fmtBuffer, LOG_BUFFER_SIZE, inMessage, argptr);
 	va_end(argptr);
 
-	wchar_t buffer[1024];
+	wchar_t buffer[LOG_BUFFER_SIZE];
 	swprintf_s(buffer, L"[%S][%S]%s\n", inCategory, LogLevelStrings[inLevel], fmtBuffer);
 
 	// Print

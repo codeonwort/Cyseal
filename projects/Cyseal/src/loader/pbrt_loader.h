@@ -4,10 +4,23 @@
 // https://www.pbrt.org/fileformat-v4
 
 #include "core/vec3.h"
+#include "core/vec2.h"
+#include "core/smart_pointer.h"
+#include "render/material.h"
 
 #include <string>
 #include <vector>
 #include <map>
+
+struct PBRT4TriangleMesh
+{
+	std::vector<vec3> positionBuffer;
+	std::vector<vec3> normalBuffer;
+	std::vector<vec2> texcoordBuffer;
+	std::vector<uint32> indexBuffer;
+
+	SharedPtr<Material> material;
+};
 
 struct PBRT4Scene
 {
@@ -16,6 +29,7 @@ struct PBRT4Scene
 	vec3 lookAtPosition;
 	vec3 upVector;
 
+	std::vector<PBRT4TriangleMesh> triangleMeshes;
 	std::vector<class PLYMesh*> plyMeshes;
 
 public:

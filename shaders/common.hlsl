@@ -13,7 +13,8 @@ struct Material
 {
     float3 albedoMultiplier;
     float  roughness;
-    uint   albedoTextureIndex; float3 _pad0;
+    uint   albedoTextureIndex;
+    float3 emission;
 };
 
 struct AABB

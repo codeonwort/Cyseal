@@ -63,6 +63,7 @@ struct RayPayload
 	float  roughness;
 	float  albedo[3];
 	float  hitTime;
+	float  emission[3];
 	uint32 objectID;
 };
 // Just to calculate size in bytes.

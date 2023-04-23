@@ -36,6 +36,7 @@
 #define TOKEN_TEXTURE "Texture"
 #define TOKEN_TRANSLATE "Translate"
 #define TOKEN_TRANSFORM "Transform"
+#define TOKEN_AREALIGHTSOURCE "AreaLightSource"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPBRT);
 
@@ -160,6 +161,85 @@ Matrix readBracketMatrix(std::istream& stream)
 	stream >> ch;
 	return mat;
 }
+// There might be some smart way but I'm too lazy
+void readBracketFloatArray(std::istream& stream, std::vector<float>& outArray)
+{
+	char ch;
+	stream >> ch;
+
+	std::string str;
+	while (true)
+	{
+		stream >> str;
+		if (str == "]")
+		{
+			break;
+		}
+		std::stringstream ss(str);
+		float x;
+		ss >> x;
+		outArray.push_back(x);
+	}
+}
+void readBracketVec2Array(std::istream& stream, std::vector<vec2>& outArray)
+{
+	char ch;
+	stream >> ch;
+
+	std::string str;
+	while (true)
+	{
+		stream >> str;
+		if (str == "]")
+		{
+			break;
+		}
+		std::stringstream ss(str);
+		vec2 v;
+		ss >> v.x;
+		stream >> v.y;
+		outArray.push_back(v);
+	}
+}
+void readBracketVec3Array(std::istream& stream, std::vector<vec3>& outArray)
+{
+	char ch;
+	stream >> ch;
+
+	std::string str;
+	while (true)
+	{
+		stream >> str;
+		if (str == "]")
+		{
+			break;
+		}
+		std::stringstream ss(str);
+		vec3 v;
+		ss >> v.x;
+		stream >> v.y >> v.z;
+		outArray.push_back(v);
+	}
+}
+void readBracketUint32Array(std::istream& stream, std::vector<uint32>& outArray)
+{
+	char ch;
+	stream >> ch;
+
+	std::string str;
+	while (true)
+	{
+		stream >> str;
+		if (str == "]")
+		{
+			break;
+		}
+		std::stringstream ss(str);
+		uint32 i;
+		ss >> i;
+		outArray.push_back(i);
+	}
+}
 
 PBRT4Scene::~PBRT4Scene()
 {
@@ -208,12 +288,14 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	Matrix sceneTransform;
 	std::vector<TextureFileDesc> textureFileDescs;
 	std::vector<NamedMaterialDesc> namedMaterialDescs;
+	std::vector<PBRT4TriangleMesh> triangleShapeDescs;
 	std::vector<PLYShapeDesc> plyShapeDescs;
 
 	// State machine
 	std::string queuedToken;
 	std::string currentNamedMaterial;
 	Matrix currentTransform;
+	vec3 currentEmission = vec3(0.0f);
 	bool bCurrentTransformIdentity = true;
 	bool bValidFormat = true;
 
@@ -427,6 +509,49 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 					};
 					plyShapeDescs.emplace_back(desc);
 				}
+				else if (shapeType == "trianglemesh")
+				{
+					std::vector<vec2> texcoordBuffer;
+					std::vector<vec3> normalBuffer;
+					std::vector<vec3> positionBuffer;
+					std::vector<uint32> indexBuffer;
+					while (true)
+					{
+						std::string maybeParam = readMaybeQuoteWords(fs);
+						if (maybeParam == "point2 uv")
+						{
+							readBracketVec2Array(fs, texcoordBuffer);
+						}
+						else if (maybeParam == "normal N")
+						{
+							readBracketVec3Array(fs, normalBuffer);
+						}
+						else if (maybeParam == "point3 P")
+						{
+							readBracketVec3Array(fs, positionBuffer);
+						}
+						else if (maybeParam == "integer indices")
+						{
+							readBracketUint32Array(fs, indexBuffer);
+						}
+						else
+						{
+							enqueueToken(maybeParam);
+							break;
+						}
+					}
+					SharedPtr<Material> material = makeShared<Material>();
+					material->emission = currentEmission;
+
+					PBRT4TriangleMesh desc{
+						.positionBuffer = std::move(positionBuffer),
+						.normalBuffer = std::move(normalBuffer),
+						.texcoordBuffer = std::move(texcoordBuffer),
+						.indexBuffer = std::move(indexBuffer),
+						.material = material,
+					};
+					triangleShapeDescs.emplace_back(desc);
+				}
 			}
 		}
 		else if (token == TOKEN_LIGHTSOURCE)
@@ -446,6 +571,28 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 				bCurrentTransformIdentity = false;
 			}
 		}
+		else if (token == TOKEN_AREALIGHTSOURCE)
+		{
+			std::string lightType = readMaybeQuoteWords(fs);
+			if (lightType == "diffuse")
+			{
+				std::string lightParam = readMaybeQuoteWords(fs);
+				if (lightParam == "rgb L")
+				{
+					currentEmission = readBracketVec3(fs);
+				}
+				else
+				{
+					bValidFormat = false;
+					CYLOG(LogPBRT, Error, L"Invalid area light param: %S", lightParam.c_str());
+				}
+			}
+			else
+			{
+				bValidFormat = false;
+				CYLOG(LogPBRT, Error, L"Invalid area light type: %S", lightType.c_str());
+			}
+		}
 		else if (token == TOKEN_ATTRIBUTEBEGIN)
 		{
 			CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
@@ -459,6 +606,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			parsePhase = PBRT4ParsePhase::SceneElements;
 			currentTransform.identity();
 			bCurrentTransformIdentity = true;
+			currentEmission = vec3(0.0f);
 		}
 	}
 
@@ -562,6 +710,8 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 
 		materialDatabase.insert(std::make_pair(desc.materialName, material));
 	}
+
+	pbrtScene->triangleMeshes = std::move(triangleShapeDescs);
 
 	PLYLoader plyLoader;
 	for (const PLYShapeDesc& desc : plyShapeDescs)

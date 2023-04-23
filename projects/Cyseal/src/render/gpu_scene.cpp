@@ -185,6 +185,7 @@ void GPUScene::renderGPUScene(
 					memcpy_s(constants.albedoMultiplier, sizeof(constants.albedoMultiplier),
 						material->albedoMultiplier, sizeof(material->albedoMultiplier));
 					constants.roughness = material->roughness;
+					constants.emission = material->emission;
 				}
 				constants.albedoTextureIndex = currentMaterialSRVCount;
 

@@ -44,8 +44,8 @@
 #define DOUBLE_BUFFERING     true
 #define RAYTRACING_TIER      ERaytracingTier::MaxTier
 
-#define CAMERA_POSITION      vec3(0.0f, 0.0f, 30.0f)
-#define CAMERA_LOOKAT        vec3(0.0f, 0.0f, 0.0f)
+#define CAMERA_POSITION      vec3(50.0f, 0.0f, 30.0f)
+#define CAMERA_LOOKAT        vec3(50.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
 #define CAMERA_FOV_Y         70.0f
 #define CAMERA_Z_NEAR        0.01f
@@ -128,6 +128,15 @@ void TestApplication::onTick(float deltaSeconds)
 		}
 		appState.rendererOptions.bCameraHasMoved = bCameraHasMoved;
 
+		if (bCameraHasMoved)
+		{
+			appState.pathTracingNumFrames = 0;
+		}
+		else if (appState.rendererOptions.bEnablePathTracing)
+		{
+			appState.pathTracingNumFrames += 1;
+		}
+
 		// Animate meshes.
 		if (!appState.rendererOptions.bEnablePathTracing)
 		{
@@ -177,6 +186,7 @@ void TestApplication::onTick(float deltaSeconds)
 
 			ImGui::SeparatorText("Path Tracing");
 			ImGui::Checkbox("Enable", &appState.rendererOptions.bEnablePathTracing);
+			ImGui::Text("Frames: %u", appState.pathTracingNumFrames);
 
 			ImGui::SeparatorText("Control");
 			ImGui::Text("WASD : move camera");
@@ -431,29 +441,48 @@ void TestApplication::createResources()
 		PBRT4Loader pbrtLoader;
 		PBRT4Scene* pbrtScene = pbrtLoader.loadFromFile(PBRT_FILEPATH);
 
-		const size_t numSubMeshes = pbrtScene->plyMeshes.size();
-		std::vector<Geometry*> pbrtGeometries(numSubMeshes, nullptr);
-		std::vector<SharedPtr<VertexBufferAsset>> positionBufferAssets(numSubMeshes, nullptr);
-		std::vector<SharedPtr<VertexBufferAsset>> nonPositionBufferAssets(numSubMeshes, nullptr);
-		std::vector<SharedPtr<IndexBufferAsset>> indexBufferAssets(numSubMeshes, nullptr);
-		std::vector<SharedPtr<Material>> plyMeshMaterials(numSubMeshes, nullptr);
-		for (size_t i = 0; i < numSubMeshes; ++i)
+		const size_t numTriangleMeshes = pbrtScene->triangleMeshes.size();
+		const size_t numPbrtMeshes = pbrtScene->plyMeshes.size();
+		const size_t totalSubMeshes = numTriangleMeshes + numPbrtMeshes;
+		std::vector<Geometry*> pbrtGeometries(totalSubMeshes, nullptr);
+		std::vector<SharedPtr<VertexBufferAsset>> positionBufferAssets(totalSubMeshes, nullptr);
+		std::vector<SharedPtr<VertexBufferAsset>> nonPositionBufferAssets(totalSubMeshes, nullptr);
+		std::vector<SharedPtr<IndexBufferAsset>> indexBufferAssets(totalSubMeshes, nullptr);
+		std::vector<SharedPtr<Material>> subMaterials(totalSubMeshes, nullptr);
+		for (size_t i = 0; i < totalSubMeshes; ++i)
 		{
-			PLYMesh* plyMesh = pbrtScene->plyMeshes[i];
 			Geometry* pbrtGeometry = pbrtGeometries[i] = new Geometry;
 
-			pbrtGeometry->positions = std::move(plyMesh->positionBuffer);
-			pbrtGeometry->normals = std::move(plyMesh->normalBuffer);
-			pbrtGeometry->texcoords = std::move(plyMesh->texcoordBuffer);
-			pbrtGeometry->indices = std::move(plyMesh->indexBuffer);
-			pbrtGeometry->recalculateNormals();
-			pbrtGeometry->finalize();
+			if (i < numTriangleMeshes)
+			{
+				PBRT4TriangleMesh& triMesh = pbrtScene->triangleMeshes[i];
+
+				pbrtGeometry->positions = std::move(triMesh.positionBuffer);
+				pbrtGeometry->normals = std::move(triMesh.normalBuffer);
+				pbrtGeometry->texcoords = std::move(triMesh.texcoordBuffer);
+				pbrtGeometry->indices = std::move(triMesh.indexBuffer);
+				pbrtGeometry->recalculateNormals();
+				pbrtGeometry->finalize();
+
+				subMaterials[i] = triMesh.material;
+			}
+			else
+			{
+				PLYMesh* plyMesh = pbrtScene->plyMeshes[i - numTriangleMeshes];
+
+				pbrtGeometry->positions = std::move(plyMesh->positionBuffer);
+				pbrtGeometry->normals = std::move(plyMesh->normalBuffer);
+				pbrtGeometry->texcoords = std::move(plyMesh->texcoordBuffer);
+				pbrtGeometry->indices = std::move(plyMesh->indexBuffer);
+				pbrtGeometry->recalculateNormals();
+				pbrtGeometry->finalize();
+
+				subMaterials[i] = plyMesh->material;
+			}
 
 			positionBufferAssets[i] = makeShared<VertexBufferAsset>();
 			nonPositionBufferAssets[i] = makeShared<VertexBufferAsset>();
 			indexBufferAssets[i] = makeShared<IndexBufferAsset>();
-
-			plyMeshMaterials[i] = plyMesh->material;
 		}
 
 		ENQUEUE_RENDER_COMMAND(UploadPBRTSubMeshes)(
@@ -488,10 +517,10 @@ void TestApplication::createResources()
 		fallbackMaterial->roughness = 1.0f;
 
 		pbrtMesh = new StaticMesh;
-		for (size_t i = 0; i < numSubMeshes; ++i)
+		for (size_t i = 0; i < totalSubMeshes; ++i)
 		{
 			AABB localBounds = pbrtGeometries[i]->localBounds;
-			auto material = (plyMeshMaterials[i] != nullptr) ? plyMeshMaterials[i] : fallbackMaterial;
+			auto material = (subMaterials[i] != nullptr) ? subMaterials[i] : fallbackMaterial;
 			pbrtMesh->addSection(
 				0,
 				positionBufferAssets[i],
