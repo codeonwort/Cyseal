@@ -16,6 +16,7 @@ struct AppState
 {
 	RendererOptions rendererOptions;
 	int32 selectedBufferVisualizationMode = 0;
+	uint32 pathTracingNumFrames = 0;
 
 	vec3 cameraLocation;
 	float cameraRotationY;
@@ -41,7 +42,8 @@ private:
 	AppState appState;
 
 	MeshSplatting meshSplatting;
-
+	
+	StaticMesh* pbrtMesh = nullptr;
 	StaticMesh* ground = nullptr;
 	StaticMesh* wallA = nullptr;
 

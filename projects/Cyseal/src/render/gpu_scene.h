@@ -23,7 +23,7 @@ struct MaterialConstants
 	float roughness = 0.0f;
 
 	uint32 albedoTextureIndex;
-	vec3 _pad0;
+	vec3 emission;
 };
 
 class GPUScene final

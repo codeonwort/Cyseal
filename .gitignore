@@ -2,7 +2,7 @@
 bin/
 intermediate/
 external/
-
+_raw_resources/
 
 # Created by https://www.gitignore.io/api/c++,visualstudio
 

@@ -1,12 +1,15 @@
 #include "scene_renderer.h"
+
 #include "core/assertion.h"
 #include "core/platform.h"
 #include "core/plane.h"
+
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/swap_chain.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/global_descriptor_heaps.h"
+
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
 #include "render/gpu_culling.h"
@@ -14,6 +17,8 @@
 #include "render/ray_traced_reflections.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
+#include "render/pathtracing/path_tracing_pass.h"
+
 #include "util/profiling.h"
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
@@ -69,22 +74,19 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 			}
 		));
 
-		auto align = [](uint32 size, uint32 alignment) -> uint32
-		{
-			return (size + (alignment - 1)) & ~(alignment - 1);
-		};
 		uint32 bufferOffset = 0;
 		sceneUniformCBVs.resize(swapchainCount);
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
 			sceneUniformCBVs[i] = std::unique_ptr<ConstantBufferView>(
 				gRenderDevice->createCBV(
-					sceneUniformMemory.get(), 
+					sceneUniformMemory.get(),
 					sceneUniformDescriptorHeap.get(),
 					sizeof(SceneUniform),
 					bufferOffset));
-			// #todo-rhi: Somehow hide this alignment from rhi level?
-			bufferOffset += align(sizeof(SceneUniform), 256);
+
+			uint32 alignment = gRenderDevice->getConstantBufferDataAlignment();
+			bufferOffset += Cymath::alignBytes(sizeof(SceneUniform), alignment);
 		}
 	}
 
@@ -107,6 +109,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 		bufferVisualization = new BufferVisualization;
 		bufferVisualization->initialize();
+
+		pathTracingPass = new PathTracingPass;
+		pathTracingPass->initialize();
 	}
 }
 
@@ -116,6 +121,7 @@ void SceneRenderer::destroy()
 	delete RT_sceneDepth;
 	delete RT_thinGBufferA;
 	delete RT_indirectSpecular;
+	delete RT_pathTracing;
 
 	delete gpuScene;
 	delete gpuCulling;
@@ -123,6 +129,7 @@ void SceneRenderer::destroy()
 	delete rtReflections;
 	delete toneMapping;
 	delete bufferVisualization;
+	delete pathTracingPass;
 
 	if (accelStructure != nullptr)
 	{
@@ -160,6 +167,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	const uint32 sceneHeight = swapChain->getBackbufferHeight();
 
 	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
+	const bool bRenderPathTracing = bSupportsRaytracing && renderOptions.bEnablePathTracing;
+	
+	bool bRenderRTR = bSupportsRaytracing && renderOptions.bEnableRayTracedReflections;
+	// Let RT_indirectSpecular cleared as black so that tone mapping pass
+	// takes sceneColor = pathTracing, indirectSpecular = 0 when path tracing is enabled.
+	bRenderRTR = bRenderRTR && !bRenderPathTracing;
 
 	commandAllocator->reset();
 	commandList->reset(commandAllocator);
@@ -277,8 +290,33 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			RT_sceneColor, RT_thinGBufferA);
 	}
 
+	{
+		SCOPED_DRAW_EVENT(commandList, PathTracing);
+
+		ResourceBarrier barriersBefore[] = {
+			{
+				EResourceBarrierType::Transition,
+				RT_pathTracing,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE,
+				EGPUResourceState::UNORDERED_ACCESS
+			}
+		};
+		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+
+		if (bRenderPathTracing)
+		{
+			pathTracingPass->renderPathTracing(
+				commandList, swapchainIndex, scene, camera,
+				renderOptions.bCameraHasMoved,
+				sceneUniformCBVs[swapchainIndex].get(),
+				accelStructure,
+				gpuScene,
+				RT_pathTracing,
+				sceneWidth, sceneHeight);
+		}
+	}
+
 	// Ray Traced Reflections
-	bool bRenderRTR = bSupportsRaytracing && renderOptions.bEnableRayTracedReflections;
 	if (!bRenderRTR)
 	{
 		SCOPED_DRAW_EVENT(commandList, ClearRayTracedReflections);
@@ -356,6 +394,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			},
 			{
 				EResourceBarrierType::Transition,
+				RT_pathTracing,
+				EGPUResourceState::UNORDERED_ACCESS,
+				EGPUResourceState::PIXEL_SHADER_RESOURCE
+			},
+			{
+				EResourceBarrierType::Transition,
 				swapchainBuffer,
 				EGPUResourceState::PRESENT,
 				EGPUResourceState::RENDER_TARGET
@@ -366,10 +410,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		// #todo-renderer: Should not be here
 		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
 
+		auto RT_alternateSceneColor = bRenderPathTracing ? RT_pathTracing : RT_sceneColor;
+
 		toneMapping->renderToneMapping(
 			commandList,
 			swapchainIndex,
-			RT_sceneColor,
+			RT_alternateSceneColor,
 			RT_indirectSpecular);
 	}
 
@@ -443,7 +489,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
-	RT_sceneColor->setDebugName(L"SceneColor");
+	RT_sceneColor->setDebugName(L"RT_SceneColor");
 
 	RT_sceneDepth = device->createTexture(
 		TextureCreateParams::texture2D(
@@ -451,7 +497,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			ETextureAccessFlags::DSV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
-	RT_sceneDepth->setDebugName(L"SceneDepth");
+	RT_sceneDepth->setDebugName(L"RT_SceneDepth");
 
 	RT_thinGBufferA = device->createTexture(
 		TextureCreateParams::texture2D(
@@ -459,7 +505,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
-	RT_thinGBufferA->setDebugName(L"ThinGBufferA");
+	RT_thinGBufferA->setDebugName(L"RT_ThinGBufferA");
 
 	RT_indirectSpecular = device->createTexture(
 		TextureCreateParams::texture2D(
@@ -467,7 +513,15 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			sceneWidth, sceneHeight,
 			1, 1, 0));
-	RT_indirectSpecular->setDebugName(L"IndirectSpecular");
+	RT_indirectSpecular->setDebugName(L"RT_IndirectSpecular");
+
+	RT_pathTracing = device->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::R32G32B32A32_FLOAT,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			sceneWidth, sceneHeight,
+			1, 1, 0));
+	RT_pathTracing->setDebugName(L"RT_PathTracing");
 }
 
 void SceneRenderer::updateSceneUniform(

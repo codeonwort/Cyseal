@@ -18,14 +18,17 @@ public:
 
 	virtual void onInitialize(const RenderDeviceCreateParams& createParams) override;
 
+	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;
+
+	virtual void flushCommandQueue() override;
+
+	// ------------------------------------------------------------------------
+	// DearImgui
+
 	virtual void initializeDearImgui() override;
 	virtual void beginDearImguiNewFrame() override;
 	virtual void renderDearImgui(RenderCommandList* commandList) override;
 	virtual void shutdownDearImgui() override;
-
-	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;
-
-	virtual void flushCommandQueue() override;
 
 	// ------------------------------------------------------------------------
 	// Create
@@ -72,6 +75,11 @@ public:
 		uint32 destHeapDescriptorStartOffset,
 		DescriptorHeap* srcHeap,
 		uint32 srcHeapDescriptorStartOffset) override;
+
+	// ------------------------------------------------------------------------
+	// Getters
+	
+	virtual uint32 getConstantBufferDataAlignment() const { return D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT; }
 
 	// ------------------------------------------------------------------------
 	// Utils

@@ -26,7 +26,7 @@
 #endif
 
 #define VERTEX_BUFFER_POOL_SIZE (64 * 1024 * 1024) // 64 MiB
-#define INDEX_BUFFER_POOL_SIZE  (16 * 1024 * 1024) // 16 MiB
+#define INDEX_BUFFER_POOL_SIZE  (64 * 1024 * 1024) // 64 MiB
 
 DEFINE_LOG_CATEGORY(LogEngine);
 

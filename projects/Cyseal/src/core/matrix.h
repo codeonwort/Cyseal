@@ -21,9 +21,9 @@ public:
 		identity();
 	}
 
-	void identity()
+	inline void identity()
 	{
-		static float I[4][4] = { {1,0,0,0}, {0,1,0,0},{0,0,1,0},{0,0,0,1} };
+		static float I[4][4] = { {1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1} };
 		memcpy_s(m, sizeof(m), I, sizeof(I));
 	}
 
@@ -37,6 +37,22 @@ public:
 	inline float trace() const
 	{
 		return m[0][0] + m[1][1] + m[2][2] + m[3][3];
+	}
+
+	inline vec3 transformPosition(const vec3& v) const
+	{
+		float x = dot(v, vec3(m[0][0], m[1][0], m[2][0]));
+		float y = dot(v, vec3(m[0][1], m[1][1], m[2][1]));
+		float z = dot(v, vec3(m[0][2], m[1][2], m[2][2]));
+		vec3 o = vec3(m[3][0], m[3][1], m[3][2]);
+		return o + vec3(x, y, z);
+	}
+	inline vec3 transformDirection(const vec3& v) const
+	{
+		float x = dot(v, vec3(m[0][0], m[1][0], m[2][0]));
+		float y = dot(v, vec3(m[0][1], m[1][1], m[2][1]));
+		float z = dot(v, vec3(m[0][2], m[1][2], m[2][2]));
+		return vec3(x, y, z);
 	}
 
 	inline Matrix& operator+=(const Matrix& other);

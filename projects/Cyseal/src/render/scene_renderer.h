@@ -17,6 +17,7 @@ class BasePass;
 class RayTracedReflections;
 class ToneMapping;
 class BufferVisualization;
+class PathTracingPass;
 
 class SceneRenderer final : public Renderer
 {
@@ -43,12 +44,14 @@ private:
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.
 	Texture* RT_sceneColor = nullptr;
-	Texture* RT_sceneDepth = nullptr; // Actually DS target but let's unify the prefix
+	Texture* RT_sceneDepth = nullptr; // Actually DS target but let's unify the prefix.
 
 	// Gonna stick to forward shading, but render thin GBuffers like DOOM reboot series.
 	Texture* RT_thinGBufferA = nullptr; // #todo-renderer: Maybe switch to R10G10B10A2?
 
 	Texture* RT_indirectSpecular = nullptr;
+
+	Texture* RT_pathTracing = nullptr;
 
 	// #todo-renderer: Temp dedicated memory and desc heap for scene uniforms
 	std::unique_ptr<Buffer> sceneUniformMemory;
@@ -65,4 +68,6 @@ private:
 	RayTracedReflections* rtReflections       = nullptr;
 	ToneMapping*          toneMapping         = nullptr;
 	BufferVisualization*  bufferVisualization = nullptr;
+
+	PathTracingPass*      pathTracingPass     = nullptr;
 };

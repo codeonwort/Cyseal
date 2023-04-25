@@ -1,5 +1,6 @@
 #include "app.h"
 #include "core/core_minimal.h"
+#include "core/smart_pointer.h"
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/vertex_buffer_pool.h"
@@ -10,6 +11,8 @@
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
 #include "loader/image_loader.h"
+#include "loader/pbrt_loader.h"
+#include "loader/ply_loader.h"
 #include "world/gpu_resource_asset.h"
 #include "util/profiling.h"
 
@@ -41,8 +44,8 @@
 #define DOUBLE_BUFFERING     true
 #define RAYTRACING_TIER      ERaytracingTier::MaxTier
 
-#define CAMERA_POSITION      vec3(0.0f, 0.0f, 30.0f)
-#define CAMERA_LOOKAT        vec3(0.0f, 0.0f, 0.0f)
+#define CAMERA_POSITION      vec3(50.0f, 0.0f, 30.0f)
+#define CAMERA_LOOKAT        vec3(50.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
 #define CAMERA_FOV_Y         70.0f
 #define CAMERA_Z_NEAR        0.01f
@@ -52,6 +55,12 @@
 
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
+
+#define LOAD_PBRT_FILE       1
+// living-room contains an invalid leaf texture only for pbrt format :/
+// It's tungsten and mitsuba versions are fine.
+//#define PBRT_FILEPATH        L"external/pbrt4/living-room/scene-v4.pbrt"
+#define PBRT_FILEPATH        L"external/pbrt4/bedroom/scene-v4.pbrt"
 
 /* -------------------------------------------------------
 					APPLICATION
@@ -97,10 +106,13 @@ void TestApplication::onTick(float deltaSeconds)
 		setWindowTitle(std::wstring(buf));
 
 		// Control camera by user input.
+		bool bCameraHasMoved = false;
 		{
 			float moveX = ImGui::IsKeyDown(ImGuiKey_A) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_D) ? 1.0f : 0.0f;
 			float moveZ = ImGui::IsKeyDown(ImGuiKey_W) ? 1.0f : ImGui::IsKeyDown(ImGuiKey_S) ? -1.0f : 0.0f;
 			float rotateY = ImGui::IsKeyDown(ImGuiKey_Q) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_E) ? 1.0f : 0.0f;
+
+			bCameraHasMoved = (moveX != 0.0f || moveZ != 0.0f || rotateY != 0.0f);
 
 			appState.cameraRotationY += rotateY * deltaSeconds * 45.0f;
 			float theta = Cymath::radians(appState.cameraRotationY);
@@ -114,8 +126,19 @@ void TestApplication::onTick(float deltaSeconds)
 
 			camera.lookAt(appState.cameraLocation, appState.cameraLocation + vForward, CAMERA_UP);
 		}
+		appState.rendererOptions.bCameraHasMoved = bCameraHasMoved;
+
+		if (bCameraHasMoved)
+		{
+			appState.pathTracingNumFrames = 0;
+		}
+		else if (appState.rendererOptions.bEnablePathTracing)
+		{
+			appState.pathTracingNumFrames += 1;
+		}
 
 		// Animate meshes.
+		if (!appState.rendererOptions.bEnablePathTracing)
 		{
 			static float elapsed = 0.0f;
 			elapsed += deltaSeconds;
@@ -160,6 +183,10 @@ void TestApplication::onTick(float deltaSeconds)
 
 			ImGui::Combo("Visualization Mode", &appState.selectedBufferVisualizationMode, getBufferVisualizationModeNames(), (int32)EBufferVisualizationMode::Count);
 			appState.rendererOptions.bufferVisualization = (EBufferVisualizationMode)appState.selectedBufferVisualizationMode;
+
+			ImGui::SeparatorText("Path Tracing");
+			ImGui::Checkbox("Enable", &appState.rendererOptions.bEnablePathTracing);
+			ImGui::Text("Frames: %u", appState.pathTracingNumFrames);
 
 			ImGui::SeparatorText("Control");
 			ImGui::Text("WASD : move camera");
@@ -406,6 +433,110 @@ void TestApplication::createResources()
 		scene.skyboxTexture = skyboxTexture;
 	}
 
+	// #todo-pathtracing: Something messed up if the pbrt mesh is added prior to other meshes.
+	// Currently only pbrt mesh contains multiple mesh sections.
+	// It's highly suspicious that mesh index, gpu scene item index, and material index are out of sync.
+	if (LOAD_PBRT_FILE)
+	{
+		PBRT4Loader pbrtLoader;
+		PBRT4Scene* pbrtScene = pbrtLoader.loadFromFile(PBRT_FILEPATH);
+		if (pbrtScene != nullptr)
+		{
+			const size_t numTriangleMeshes = pbrtScene->triangleMeshes.size();
+			const size_t numPbrtMeshes = pbrtScene->plyMeshes.size();
+			const size_t totalSubMeshes = numTriangleMeshes + numPbrtMeshes;
+			std::vector<Geometry*> pbrtGeometries(totalSubMeshes, nullptr);
+			std::vector<SharedPtr<VertexBufferAsset>> positionBufferAssets(totalSubMeshes, nullptr);
+			std::vector<SharedPtr<VertexBufferAsset>> nonPositionBufferAssets(totalSubMeshes, nullptr);
+			std::vector<SharedPtr<IndexBufferAsset>> indexBufferAssets(totalSubMeshes, nullptr);
+			std::vector<SharedPtr<Material>> subMaterials(totalSubMeshes, nullptr);
+			for (size_t i = 0; i < totalSubMeshes; ++i)
+			{
+				Geometry* pbrtGeometry = pbrtGeometries[i] = new Geometry;
+
+				if (i < numTriangleMeshes)
+				{
+					PBRT4TriangleMesh& triMesh = pbrtScene->triangleMeshes[i];
+
+					pbrtGeometry->positions = std::move(triMesh.positionBuffer);
+					pbrtGeometry->normals = std::move(triMesh.normalBuffer);
+					pbrtGeometry->texcoords = std::move(triMesh.texcoordBuffer);
+					pbrtGeometry->indices = std::move(triMesh.indexBuffer);
+					pbrtGeometry->recalculateNormals();
+					pbrtGeometry->finalize();
+
+					subMaterials[i] = triMesh.material;
+				}
+				else
+				{
+					PLYMesh* plyMesh = pbrtScene->plyMeshes[i - numTriangleMeshes];
+
+					pbrtGeometry->positions = std::move(plyMesh->positionBuffer);
+					pbrtGeometry->normals = std::move(plyMesh->normalBuffer);
+					pbrtGeometry->texcoords = std::move(plyMesh->texcoordBuffer);
+					pbrtGeometry->indices = std::move(plyMesh->indexBuffer);
+					pbrtGeometry->recalculateNormals();
+					pbrtGeometry->finalize();
+
+					subMaterials[i] = plyMesh->material;
+				}
+
+				positionBufferAssets[i] = makeShared<VertexBufferAsset>();
+				nonPositionBufferAssets[i] = makeShared<VertexBufferAsset>();
+				indexBufferAssets[i] = makeShared<IndexBufferAsset>();
+			}
+
+			ENQUEUE_RENDER_COMMAND(UploadPBRTSubMeshes)(
+				[pbrtScene, pbrtGeometries, positionBufferAssets, nonPositionBufferAssets, indexBufferAssets](RenderCommandList& commandList)
+				{
+					for (size_t i = 0; i < pbrtGeometries.size(); ++i)
+					{
+						Geometry* geom = pbrtGeometries[i];
+						auto positionBuffer = gVertexBufferPool->suballocate(geom->getPositionBufferTotalBytes());
+						auto nonPositionBuffer = gVertexBufferPool->suballocate(geom->getNonPositionBufferTotalBytes());
+						auto indexBuffer = gIndexBufferPool->suballocate(geom->getIndexBufferTotalBytes(), geom->getIndexFormat());
+
+						positionBuffer->updateData(&commandList, geom->getPositionBlob(), geom->getPositionStride());
+						nonPositionBuffer->updateData(&commandList, geom->getNonPositionBlob(), geom->getNonPositionStride());
+						indexBuffer->updateData(&commandList, geom->getIndexBlob(), geom->getIndexFormat());
+
+						positionBufferAssets[i]->setGPUResource(std::shared_ptr<VertexBuffer>(positionBuffer));
+						nonPositionBufferAssets[i]->setGPUResource(std::shared_ptr<VertexBuffer>(nonPositionBuffer));
+						indexBufferAssets[i]->setGPUResource(std::shared_ptr<IndexBuffer>(indexBuffer));
+
+						commandList.enqueueDeferredDealloc(geom);
+					}
+					commandList.enqueueDeferredDealloc(pbrtScene);
+				}
+			);
+
+			auto fallbackMaterial = std::make_shared<Material>();
+			fallbackMaterial->albedoMultiplier[0] = 1.0f;
+			fallbackMaterial->albedoMultiplier[1] = 1.0f;
+			fallbackMaterial->albedoMultiplier[2] = 1.0f;
+			fallbackMaterial->albedoTexture = gTextureManager->getSystemTextureGrey2D();
+			fallbackMaterial->roughness = 1.0f;
+
+			pbrtMesh = new StaticMesh;
+			for (size_t i = 0; i < totalSubMeshes; ++i)
+			{
+				AABB localBounds = pbrtGeometries[i]->localBounds;
+				auto material = (subMaterials[i] != nullptr) ? subMaterials[i] : fallbackMaterial;
+				pbrtMesh->addSection(
+					0,
+					positionBufferAssets[i],
+					nonPositionBufferAssets[i],
+					indexBufferAssets[i],
+					material,
+					localBounds);
+			}
+			pbrtMesh->setPosition(vec3(50.0f, -5.0f, 0.0f));
+			pbrtMesh->setScale(10.0f);
+
+			scene.addStaticMesh(pbrtMesh);
+		}
+	}
+
 	scene.sun.direction = SUN_DIRECTION;
 	scene.sun.illuminance = SUN_ILLUMINANCE;
 }
@@ -415,6 +546,7 @@ void TestApplication::destroyResources()
 	meshSplatting.destroyResources();
 	delete ground;
 	delete wallA;
+	if (LOAD_PBRT_FILE && pbrtMesh != nullptr) delete pbrtMesh;
 
 	scene.skyboxTexture.reset();
 }

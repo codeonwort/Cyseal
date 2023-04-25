@@ -2,6 +2,9 @@
 # - Download and unzip large contents.
 # - Download and build third-party libraries.
 
+# Run this script with execution policy like this:
+# > powershell -ExecutionPolicy Bypass -File Setup.ps1
+
 #
 # Script arguments
 #
@@ -24,13 +27,13 @@ $zip_list  = @(
 		'STBN.zip',
 		'contents/NVidiaSpatioTemporalBlueNoise'
 	),
-	@(
-		'https://casual-effects.com/g3d/data10/research/model/breakfast_room/breakfast_room.zip',
-		'contents',
-		'breakfast_room.zip',
-		'contents/breakfast_room'
-	)
 	#>
+	@(
+		'https://benedikt-bitterli.me/resources/pbrt-v4/bedroom.zip',
+		'external',
+		'pbrt4_bedroom.zip',
+		'external/pbrt4'
+	),
 	@(
 		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.7.2207/dxc_2022_07_18.zip',
 		'external',

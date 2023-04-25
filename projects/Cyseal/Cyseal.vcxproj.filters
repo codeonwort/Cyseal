@@ -261,6 +261,18 @@
     <ClInclude Include="src\render\buffer_visualization.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\loader\pbrt_loader.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\loader\ply_loader.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\pathtracing\path_tracing_pass.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rhi\rhi_forward.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -414,6 +426,15 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\buffer_visualization.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\loader\pbrt_loader.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\loader\ply_loader.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\pathtracing\path_tracing_pass.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

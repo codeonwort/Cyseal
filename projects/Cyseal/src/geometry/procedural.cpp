@@ -132,7 +132,7 @@ namespace ProceduralGeometry
 		outGeometry.positions.push_back(vec3(+x, +y, -z));
 		outGeometry.positions.push_back(vec3(+x, -y, -z));
 		outGeometry.positions.push_back(vec3(+x, -y, +z));
-		pushNormals(vec3(0.0f, 0.0f, 1.0f));
+		pushNormals(vec3(1.0f, 0.0f, 0.0f));
 		pushIndices(8);
 
 		// left
@@ -140,7 +140,7 @@ namespace ProceduralGeometry
 		outGeometry.positions.push_back(vec3(-x, +y, +z));
 		outGeometry.positions.push_back(vec3(-x, -y, +z));
 		outGeometry.positions.push_back(vec3(-x, -y, -z));
-		pushNormals(vec3(0.0f, 0.0f, -1.0f));
+		pushNormals(vec3(-1.0f, 0.0f, 0.0f));
 		pushIndices(12);
 
 		// up

@@ -16,16 +16,11 @@ void RenderCommandList::executeCustomCommands()
 	customCommands.clear();
 }
 
-void RenderCommandList::enqueueDeferredDealloc(void* addrToDelete)
-{
-	deferredDeallocs.push_back(addrToDelete);
-}
-
 void RenderCommandList::executeDeferredDealloc()
 {
-	for (void* addr : deferredDeallocs)
+	for (auto deallocFn : deferredDeallocs)
 	{
-		delete addr;
+		deallocFn();
 	}
 	deferredDeallocs.clear();
 }
