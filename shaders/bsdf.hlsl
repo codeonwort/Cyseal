@@ -22,6 +22,15 @@ float distributionGGX(float3 N, float3 M, float alpha)
 	return k * k / PI;
 }
 
+// V : Wi or Wo
+// M : half-vector
+float geometry1(float3 V, float3 M, float alpha)
+{
+	float VdotM = dot(V, M);
+	float k = alpha * alpha * saturate(1.0 - (1.0 / (VdotM * VdotM)));
+	return 2.0 / (1.0 + sqrt(1.0 + k));
+}
+
 // All vectors are in local space.
 // M     : half-vector
 // Wo    : incoming path direction
@@ -29,14 +38,13 @@ float distributionGGX(float3 N, float3 M, float alpha)
 // alpha : roughness
 float geometrySmithGGX(float3 M, float3 Wo, float3 Wi, float alpha)
 {
-	if (Wi.z <= 0.0) return 0.0;
-
-	float MdotWo = dot(M, Wo);
-	float MdotWi = dot(M, Wi);
-	float a2 = alpha * alpha;
-	float g1 = MdotWi * sqrt(MdotWo * MdotWo * (1.0 - a2) + a2);
-	float g2 = MdotWo * sqrt(MdotWi * MdotWi * (1.0 - a2) + a2);
-	return 0.5 / (g1 + g2);
+	return geometry1(Wo, M, alpha) * geometry1(Wi, M, alpha);
+	//float MdotWo = dot(M, Wo);
+	//float MdotWi = dot(M, Wi);
+	//float a2 = alpha * alpha;
+	//float g1 = MdotWi * sqrt(MdotWo * MdotWo * (1.0 - a2) + a2);
+	//float g2 = MdotWo * sqrt(MdotWi * MdotWi * (1.0 - a2) + a2);
+	//return 0.5 / (g1 + g2);
 }
 
 // https://hal.science/hal-01509746/document
@@ -72,6 +80,7 @@ float3 rotateVector(float3 v, float3x3 M)
 	return mul(v, M);
 }
 
+// "Microfacet Models for Refraction through Rough Surfaces"
 void microfactBRDF(
 	float3 inRayDir, float3 surfaceNormal,
 	float3 baseColor, float roughness, float metallic,
@@ -97,6 +106,18 @@ void microfactBRDF(
 	float3 Wh = sampleGGXVNDF(Wo, roughness, roughness, rand0, rand1);
 	float3 Wi = reflect(-Wo, Wh);
 
+	// As I'm sampling Wh and deriving Wi from Wo and Wh, Wi actually can go other side of the surface.
+	// In that case, invalidate current sample by setting pdf = 0.
+	// The integrator will reject a sample with zero probability.
+	bool bInvalidWi = Wi.z <= 0.0;
+	if (bInvalidWi)
+	{
+		outReflectance = 0;
+		outScatteredDir = rotateVector(Wi, localToWorld);
+		outPdf = 0;
+		return;
+	}
+
 	float NdotWo = dot(N, Wo);
 	float NdotWi = dot(N, Wi);
 
@@ -109,16 +130,11 @@ void microfactBRDF(
 	float3 kS = F;
 	float3 kD = 1.0 - kS;
 	float3 diffuse = baseColor * (1.0 - metallic);
-	float3 specular = 0;// (F * G * NDF) / (4.0 * NdotWi * NdotWo + 0.001);
-
-	// As I'm sampling Wh and deriving Wi from Wo and Wh, Wi actually can go other side of the surface.
-	// In that case, invalidate current sample by setting pdf = 0.
-	// The integrator will reject a sample with zero probability.
-	bool bInvalidWi = Wi.z <= 0.0;
+	float3 specular = (F * G * NDF) / (4.0 * NdotWi * NdotWo + 0.001);
 
 	outReflectance = (kD * diffuse + kS * specular) * NdotWi;
 	outScatteredDir = rotateVector(Wi, localToWorld);
-	outPdf = bInvalidWi ? 0.0 : (1.0 / (4.0 * dot(Wh, Wo)));
+	outPdf = 1.0 / (0.001 + 4.0 * dot(Wh, Wo));
 }
 
 #endif // _BSDF_H

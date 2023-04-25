@@ -433,9 +433,9 @@ void TestApplication::createResources()
 		scene.skyboxTexture = skyboxTexture;
 	}
 
-	// #wip: Something messed up if the pbrt mesh is added prior to other meshes.
+	// #todo-pathtracing: Something messed up if the pbrt mesh is added prior to other meshes.
 	// Currently only pbrt mesh contains multiple mesh sections.
-	// It's highly suspicious that mesh index, gpu scene item index, and material index is out of sync.
+	// It's highly suspicious that mesh index, gpu scene item index, and material index are out of sync.
 	if (LOAD_PBRT_FILE)
 	{
 		PBRT4Loader pbrtLoader;

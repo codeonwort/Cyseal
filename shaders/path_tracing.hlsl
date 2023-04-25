@@ -13,7 +13,8 @@
 
 #define TRACE_AMBIENT_OCCLUSION   0
 #define TRACE_DIFFUSE_GI          1
-#define TRACE_MODE                TRACE_DIFFUSE_GI
+#define TRACE_FULL_GI             2
+#define TRACE_MODE                TRACE_FULL_GI
 //#define TRACE_MODE                TRACE_AMBIENT_OCCLUSION
 
 // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
@@ -183,13 +184,13 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
 
-#if 1
-		// #todo-pathtracing: Microfacet BRDF is not working well.
+#if TRACE_MODE == TRACE_FULL_GI
 		uint seqLinearIndex0 = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
 		uint seqLinearIndex1 = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
 		float rand0 = pathTracingUniform.randFloats0[seqLinearIndex0 / 4][seqLinearIndex0 % 4];
 		float rand1 = pathTracingUniform.randFloats1[seqLinearIndex1 / 4][seqLinearIndex1 % 4];
 
+		// #todo-pathtracing: Handle transmission.
 		float3 scatteredReflectance, scatteredDir;
 		float scatteredPdf;
 		microfactBRDF(
@@ -205,7 +206,9 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		{
 			scatteredPdf = 0.0;
 		}
+
 #else
+		// Diffuse term only
 		uint seqLinearIndex = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
 		float rand0 = pathTracingUniform.randFloats0[seqLinearIndex / 4][seqLinearIndex % 4];
 		float rand1 = pathTracingUniform.randFloats1[seqLinearIndex / 4][seqLinearIndex % 4];
@@ -326,6 +329,10 @@ float traceAmbientOcclusion(uint2 targetTexel, float3 cameraRayOrigin, float3 ca
 		{
 			break;
 		}
+		else if (any(aoRayPayload.emission > 0))
+		{
+			break;
+		}
 		numBounces += 1;
 		currentRayPayload = aoRayPayload;
 		currentRayDesc = aoRay;
@@ -362,7 +369,7 @@ void MainRaygen()
 	historyCount += 1;
 
 	renderTarget[targetTexel] = float4(ambientOcclusion.xxx, historyCount);
-#elif TRACE_MODE == TRACE_DIFFUSE_GI
+#elif (TRACE_MODE == TRACE_DIFFUSE_GI || TRACE_MODE == TRACE_FULL_GI)
 
 	float3 Li = traceIncomingRadiance(targetTexel, cameraRayOrigin, cameraRayDir);
 	float3 prevLi;

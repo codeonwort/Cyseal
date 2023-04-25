@@ -38,7 +38,6 @@ PLYMesh* PLYLoader::loadFromFile(const std::wstring& filepath)
 	uint32 sizeOfNumFaceVertices = 0; // In bytes
 	std::vector<std::string> vertexFloatAttributes;
 
-	// PLY format is fucking poorly defined :(
 	std::string headerLine;
 	while (std::getline(fs, headerLine))
 	{
