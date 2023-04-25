@@ -314,7 +314,6 @@ void PathTracingPass::renderPathTracing(
 		uniformCBVs[swapchainIndex]->writeToGPU(commandList, uboData, sizeof(PathTracingUniform));
 
 		delete uboData;
-		//commandList->enqueueDeferredDealloc(uboData);
 	}
 
 	// Resize volatile heaps if needed.

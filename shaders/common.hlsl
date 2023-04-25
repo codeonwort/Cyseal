@@ -61,9 +61,9 @@ struct SceneUniform
 
 void computeTangentFrame(float3 N, out float3 T, out float3 B)
 {
-    B = abs(N.z) < 0.999 ? float3(0, 0, 1) : float3(1.0, 0.0, 0.0);
-    T = normalize(cross(B, N));
-    B = cross(N, T);
+    float3 v = abs(N.z) < 0.99 ? float3(0, 0, 1) : float3(1, 0, 0);
+    T = normalize(cross(v, N));
+    B = normalize(cross(N, T));
 }
 
 #endif // _COMMON_H

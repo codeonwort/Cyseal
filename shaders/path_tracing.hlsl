@@ -24,8 +24,7 @@
 #define MAX_BOUNCE                8
 #define SURFACE_NORMAL_OFFSET     0.001
 
-// Temp boost sky light as light sources are not there yet
-// and the indoor scene is too dark.
+// Temp boost sky light.
 #define SKYBOX_BOOST              1.0
 
 #define RANDOM_SEQUENCE_WIDTH     64
@@ -142,6 +141,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 
 	float3 reflectanceHistory[MAX_BOUNCE + 1];
 	float3 radianceHistory[MAX_BOUNCE + 1];
+	float pdfHistory[MAX_BOUNCE + 1];
 	uint numBounces = 0;
 
 	while (numBounces < MAX_BOUNCE)
@@ -165,6 +165,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		{
 			radianceHistory[numBounces] = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, currentRay.Direction, 0.0).rgb;
 			reflectanceHistory[numBounces] = 1;
+			pdfHistory[numBounces] = 1;
 			break;
 		}
 		// Emissive shape. Exit the loop.
@@ -172,6 +173,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		{
 			radianceHistory[numBounces] = currentRayPayload.emission;
 			reflectanceHistory[numBounces] = 1;
+			pdfHistory[numBounces] = 1;
 			break;
 		}
 
@@ -182,19 +184,27 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
 
 #if 1
+		// #todo-pathtracing: Microfacet BRDF is not working well.
 		uint seqLinearIndex0 = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
 		uint seqLinearIndex1 = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
 		float rand0 = pathTracingUniform.randFloats0[seqLinearIndex0 / 4][seqLinearIndex0 % 4];
 		float rand1 = pathTracingUniform.randFloats1[seqLinearIndex1 / 4][seqLinearIndex1 % 4];
 
 		float3 scatteredReflectance, scatteredDir;
+		float scatteredPdf;
 		microfactBRDF(
 			currentRay.Direction, surfaceNormal,
 			currentRayPayload.albedo,
 			currentRayPayload.roughness,
 			0.0, // #todo-pathtracing: No metallic yet
 			rand0, rand1,
-			scatteredReflectance, scatteredDir);
+			scatteredReflectance, scatteredDir, scatteredPdf);
+		
+		// #todo-pathtracing: It happens :(
+		if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
+		{
+			scatteredPdf = 0.0;
+		}
 #else
 		uint seqLinearIndex = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
 		float rand0 = pathTracingUniform.randFloats0[seqLinearIndex / 4][seqLinearIndex % 4];
@@ -203,10 +213,17 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		float3 scatteredReflectance = currentRayPayload.albedo;
 		float3 scatteredDir = cosineWeightedHemisphereSample(rand0, rand1);
 		scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (surfaceNormal * scatteredDir.z);
+		float scatteredPdf = 1;
 #endif
 
 		radianceHistory[numBounces] = 0;
 		reflectanceHistory[numBounces] = scatteredReflectance;
+		pdfHistory[numBounces] = scatteredPdf;
+
+		if (scatteredPdf <= 0.0)
+		{
+			break;
+		}
 
 		currentRay.Origin = surfacePosition + SURFACE_NORMAL_OFFSET * surfaceNormal;
 		currentRay.Direction = scatteredDir;
@@ -222,7 +239,10 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		for (uint i = 0; i <= numBounces; ++i)
 		{
 			uint j = numBounces - i;
-			Li = reflectanceHistory[j] * (Li + radianceHistory[j]);
+			if (pdfHistory[j] > 0.0)
+			{
+				Li = reflectanceHistory[j] * (Li + radianceHistory[j]) / pdfHistory[j];
+			}
 		}
 	}
 
