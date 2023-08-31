@@ -162,6 +162,9 @@ void TestApplication::onTick(float deltaSeconds)
 			bViewportNeedsResize = false;
 		}
 
+		// #todo-vulkan: DearImgui rendering loop
+		if (RAW_API != ERenderDeviceRawAPI::Vulkan)
+		{
 		cysealEngine.beginImguiNewFrame();
 		{
 			//ImGui::ShowDemoWindow(0);
@@ -195,6 +198,7 @@ void TestApplication::onTick(float deltaSeconds)
 			ImGui::End();
 		}
 		cysealEngine.renderImgui();
+		}
 
 		SceneProxy* sceneProxy = scene.createProxy();
 

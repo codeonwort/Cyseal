@@ -29,7 +29,15 @@ public:
 
 	virtual void flushCommandQueue() override;
 
-	//////////////////////////////////////////////////////////////////////////
+	// ------------------------------------------------------------------------
+	// DearImgui
+
+	virtual void initializeDearImgui() override;
+	virtual void beginDearImguiNewFrame() override;
+	virtual void renderDearImgui(RenderCommandList* commandList) override;
+	virtual void shutdownDearImgui() override;
+
+	// ------------------------------------------------------------------------
 	// Create
 
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName) override;
@@ -67,7 +75,7 @@ public:
 	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, RootSignature* inRootSignature) override;
 	virtual IndirectCommandGenerator* createIndirectCommandGenerator(const CommandSignatureDesc& inDesc, uint32 maxCommandCount) override;
 
-	//////////////////////////////////////////////////////////////////////////
+	// ------------------------------------------------------------------------
 	// Copy
 
 	virtual void copyDescriptors(
@@ -77,7 +85,13 @@ public:
 		DescriptorHeap* srcHeap,
 		uint32 srcHeapDescriptorStartOffset) override;
 
-	//////////////////////////////////////////////////////////////////////////
+	// ------------------------------------------------------------------------
+	// Getters
+
+	// #todo-vulkan: Correct constant buffer data alignment
+	virtual uint32 getConstantBufferDataAlignment() const { return 256; }
+
+	// ------------------------------------------------------------------------
 	// Internal use only
 
 	inline VkDevice getRaw() const { return vkDevice; }

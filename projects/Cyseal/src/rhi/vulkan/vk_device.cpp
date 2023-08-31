@@ -349,6 +349,26 @@ void VulkanDevice::flushCommandQueue()
 	CHECK(ret == VK_SUCCESS);
 }
 
+void VulkanDevice::initializeDearImgui()
+{
+	// #todo-vulkan: DearImgui
+}
+
+void VulkanDevice::beginDearImguiNewFrame()
+{
+	// #todo-vulkan: DearImgui
+}
+
+void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
+{
+	// #todo-vulkan: DearImgui
+}
+
+void VulkanDevice::shutdownDearImgui()
+{
+	// #todo-vulkan: DearImgui
+}
+
 VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)
 {
 	VulkanVertexBuffer* buffer = new VulkanVertexBuffer;
