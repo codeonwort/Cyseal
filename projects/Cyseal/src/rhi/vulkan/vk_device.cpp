@@ -17,6 +17,7 @@
 #include "rhi/swap_chain.h"
 
 #include <vulkan/vulkan.h>
+#include "imgui_impl_vulkan.h"
 
 #include <algorithm>
 #include <limits>
@@ -66,8 +67,10 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL GVulkanDebugCallback(
 	static_cast<void>(layerPrefix);
 	static_cast<void>(userData);
 
-	// #todo-vulkan: Switch to CYLOG()
-	std::cerr << "[Vulkan validation layer] " << msg << std::endl;
+	CYLOG(LogVulkan, Warning, TEXT("[validation layer] %S"), msg);
+
+	// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/PFN_vkDebugReportCallbackEXT.html
+	// The application should always return VK_FALSE. The VK_TRUE value is reserved for use in layer development.
 	return VK_FALSE;
 }
 
@@ -351,22 +354,60 @@ void VulkanDevice::flushCommandQueue()
 
 void VulkanDevice::initializeDearImgui()
 {
-	// #todo-vulkan: DearImgui
+	// #wip-dearimgui: initializeDearImgui()
+#if 0
+	RenderDevice::initializeDearImgui();
+
+	QueueFamilyIndices queueFamily = findQueueFamilies(vkPhysicalDevice, vkSurface);
+
+	ImGui_ImplVulkan_InitInfo initInfo{
+		.Instance        = vkInstance,
+		.PhysicalDevice  = vkPhysicalDevice,
+		.Device          = vkDevice,
+		.QueueFamily     = (uint32_t)queueFamily.graphicsFamily, // wip
+		.Queue           = vkGraphicsQueue,
+		.PipelineCache   = VK_NULL_HANDLE, // wip
+		.DescriptorPool  = VK_NULL_HANDLE, // wip
+		.Subpass         = 0, // wip
+		.MinImageCount   = swapChain->getBufferCount(), // wip
+		.ImageCount      = swapChain->getBufferCount(), // wip
+		.MSAASamples     = VK_SAMPLE_COUNT_4_BIT, // wip
+		.Allocator       = nullptr, // wip
+		.CheckVkResultFn = nullptr, // wip
+	};
+	
+	VkRenderPass vkRenderPass = VK_NULL_HANDLE;
+
+	ImGui_ImplVulkan_Init(&initInfo, vkRenderPass);
+#endif
 }
 
 void VulkanDevice::beginDearImguiNewFrame()
 {
-	// #todo-vulkan: DearImgui
+	// #wip-dearimgui: beginDearImguiNewFrame()
+#if 0
+	ImGui_ImplVulkan_NewFrame();
+#endif
 }
 
 void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 {
-	// #todo-vulkan: DearImgui
+	// #wip-dearimgui: renderDearImgui()
+#if 0
+	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->currentCommandBuffer;
+	VkPipeline vkPipeline = VK_NULL_HANDLE;
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), vkCommandBuffer, vkPipeline);
+#endif
 }
 
 void VulkanDevice::shutdownDearImgui()
 {
-	// #todo-vulkan: DearImgui
+	// #wip-dearimgui: shutdownDearImgui()
+#if 0
+	RenderDevice::shutdownDearImgui();
+
+	ImGui_ImplVulkan_Shutdown();
+#endif
 }
 
 VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)
@@ -429,13 +470,13 @@ ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* de
 
 RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc)
 {
-	// #todo-vulkan-wip: Needs VkDescriptorSetLayout, and VkDescriptorSet first.
+	// #wip: Needs VkDescriptorSetLayout, and VkDescriptorSet first.
 	VkPipelineLayoutCreateInfo desc{};
 	desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	desc.setLayoutCount = 1;
-	desc.pSetLayouts = 0; // #todo-vulkan-wip
+	desc.pSetLayouts = 0; // #wip
 	desc.pushConstantRangeCount = 0;
-	desc.pPushConstantRanges = nullptr; // #todo-vulkan-wip: Push constant
+	desc.pPushConstantRanges = nullptr; // #wip: Push constant
 
 	VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
 	VkResult ret = vkCreatePipelineLayout(vkDevice, &desc, nullptr, &vkPipelineLayout);
@@ -446,7 +487,7 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 
 PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
 {
-	// #todo-vulkan-wip: PSO conversion
+	// #wip: PSO conversion
 	VkPipeline vkPipeline = VK_NULL_HANDLE;
 	VkRenderPass vkRenderPass = VK_NULL_HANDLE;
 
@@ -636,7 +677,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	dynamicStateInfo.pDynamicStates = dynamicStates.data();
 
 	// layout
-	// #todo-vulkan-wip: Take this as parameter
+	// #wip: Take this as parameter
 	RootSignature* inRootSignature = nullptr;
 	VkPipelineLayout vkPipelineLayout = static_cast<VulkanPipelineLayout*>(inRootSignature)->getVkPipelineLayout();
 
@@ -679,7 +720,11 @@ RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject
 	return nullptr;
 }
 
-RaytracingShaderTable* VulkanDevice::createRaytracingShaderTable(RaytracingPipelineStateObject* RTPSO, uint32 numShaderRecords, uint32 rootArgumentSize, const wchar_t* debugName)
+RaytracingShaderTable* VulkanDevice::createRaytracingShaderTable(
+	RaytracingPipelineStateObject* RTPSO,
+	uint32 numShaderRecords,
+	uint32 rootArgumentSize,
+	const wchar_t* debugName)
 {
 	// #todo-vulkan
 	return nullptr;
@@ -688,7 +733,7 @@ RaytracingShaderTable* VulkanDevice::createRaytracingShaderTable(RaytracingPipel
 DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inDesc)
 {
 	VkDescriptorPoolSize poolSize{};
-	// #todo-vulkan-wip: I'll have to revisit here for volatile heaps (CBV_SRV_UAV)
+	// #wip: I'll have to revisit here for volatile heaps (CBV_SRV_UAV)
 	poolSize.type = into_vk::descriptorPoolType(inDesc.type);
 	// #todo-vulkan: Watch out for VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK
 	// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkDescriptorPoolSize.html

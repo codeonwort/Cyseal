@@ -317,7 +317,7 @@ public:
 		uint64 slicePitch,
 		uint32 subresourceIndex = 0) = 0;
 
-	// #todo-wip: A Texture should not internally hold its views.
+	// #wip: A Texture should not internally hold its views.
 	virtual RenderTargetView*    getRTV() const = 0;
 	virtual ShaderResourceView*  getSRV() const = 0;
 	virtual DepthStencilView*    getDSV() const = 0;

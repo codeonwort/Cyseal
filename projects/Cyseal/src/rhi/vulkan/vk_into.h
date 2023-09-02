@@ -361,10 +361,10 @@ namespace into_vk
 			case EDescriptorHeapType::CBV: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			case EDescriptorHeapType::SRV: return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 			case EDescriptorHeapType::UAV: return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-			// #todo-vulkan-wip: Descriptor
+			// #wip: Descriptor
 			case EDescriptorHeapType::CBV_SRV_UAV: CHECK_NO_ENTRY();
 			case EDescriptorHeapType::SAMPLER: return VK_DESCRIPTOR_TYPE_SAMPLER;
-			// #todo-vulkan-wip: Are they right enums for RTV and DSV?
+			// #wip: Are they right enums for RTV and DSV?
 			case EDescriptorHeapType::RTV: return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 			case EDescriptorHeapType::DSV: return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 			case EDescriptorHeapType::NUM_TYPES: CHECK_NO_ENTRY();

@@ -138,7 +138,7 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 	sourceBuffer.Encoding = 0;
 
 	WRL::ComPtr<IDxcResult> compileResult;
-	// #todo-wip-dxc: Huh? hlsl::Exception? Anyway the application runs fine.
+	// #todo-dxc: hlsl::Exception? Anyway the application runs fine.
 	hr = compiler->Compile(
 		&sourceBuffer,
 		arguments.data(), (uint32)arguments.size(),

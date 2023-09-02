@@ -84,7 +84,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 			IID_PPV_ARGS(&textureUploadHeap)));
 	}
 
-	// #todo-wip: Don't create texture views from within a texture.
+	// #wip: Don't create texture views from within a texture.
 	
 	if (0 != (params.accessFlags & ETextureAccessFlags::SRV))
 	{
