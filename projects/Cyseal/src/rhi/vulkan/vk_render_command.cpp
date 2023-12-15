@@ -19,27 +19,31 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 {
 	VulkanRenderCommandList* vkCmdList = static_cast<VulkanRenderCommandList*>(commandList);
 
+	// #wip-critical: waitSemaphore in executeCommandList()
+	// It's possible that current command list is executing some one-time commands,
+	// not relevant to swapchain present. So I don't wanna wait for imageAvailable sem here...
+#if 0
+	uint32 waitSemaphoreCount = 1;
 	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkImageAvailableSemaphore() };
+#else
+	uint32 waitSemaphoreCount = 0;
+	VkSemaphore* waitSemaphores = nullptr;
+#endif
+
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkSemaphore signalSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
 
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	// #todo-vulkan: Semaphore
-	// It's possible that current command list is executing some one-time commands,
-	// not relevant to swapchain present. So I don't wanna wait for image available sem here...
-#if 0
-	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = waitSemaphores;
-#else
-	submitInfo.waitSemaphoreCount = 0;
-	submitInfo.pWaitSemaphores = nullptr;
-#endif
-	submitInfo.pWaitDstStageMask = waitStages;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &(vkCmdList->currentCommandBuffer);
-	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = signalSemaphores;
+	VkSubmitInfo submitInfo{
+		.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.pNext                = nullptr,
+		.waitSemaphoreCount   = waitSemaphoreCount,
+		.pWaitSemaphores      = waitSemaphores,
+		.pWaitDstStageMask    = waitStages,
+		.commandBufferCount   = 1,
+		.pCommandBuffers      = &(vkCmdList->currentCommandBuffer),
+		.signalSemaphoreCount = 1,
+		.pSignalSemaphores    = signalSemaphores,
+	};
 
 	VkResult ret = vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 	CHECK(ret == VK_SUCCESS);
@@ -57,20 +61,24 @@ void VulkanRenderCommandAllocator::initialize(RenderDevice* renderDevice)
 
 	{
 		QueueFamilyIndices queueFamilyIndices = findQueueFamilies(vkPhysicalDevice, vkSurfaceKHR);
-		VkCommandPoolCreateInfo poolInfo{};
-		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
-		poolInfo.flags = 0;
+		VkCommandPoolCreateInfo poolInfo{
+			.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			.pNext            = nullptr,
+			.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+			.queueFamilyIndex = (uint32)queueFamilyIndices.graphicsFamily,
+		};
 
 		VkResult ret = vkCreateCommandPool(vkDevice, &poolInfo, nullptr, &vkCommandPool);
 		CHECK(ret == VK_SUCCESS);
 	}
 	{
-		VkCommandBufferAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = vkCommandPool;
-		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandBufferCount = 1;
+		VkCommandBufferAllocateInfo allocInfo{
+			.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.pNext              = nullptr,
+			.commandPool        = vkCommandPool,
+			.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = 1,
+		};
 
 		VkResult ret = vkAllocateCommandBuffers(vkDevice, &allocInfo, &vkCommandBuffer);
 		CHECK(ret == VK_SUCCESS);
@@ -97,10 +105,12 @@ void VulkanRenderCommandList::reset(RenderCommandAllocator* allocator)
 	VulkanRenderCommandAllocator* vkAllocator = static_cast<VulkanRenderCommandAllocator*>(allocator);
 	currentCommandBuffer = vkAllocator->getRawCommandBuffer();
 
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-	beginInfo.pInheritanceInfo = nullptr;
+	VkCommandBufferBeginInfo beginInfo{
+		.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.pNext            = nullptr,
+		.flags            = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+		.pInheritanceInfo = nullptr,
+	};
 	VkResult ret = vkBeginCommandBuffer(currentCommandBuffer, &beginInfo);
 	CHECK(ret == VK_SUCCESS);
 }
@@ -113,8 +123,27 @@ void VulkanRenderCommandList::close()
 
 void VulkanRenderCommandList::resourceBarriers(uint32 numBarriers, const ResourceBarrier* barriers)
 {
-	// #todo-vulkan
-	//throw std::logic_error("The method or operation is not implemented.");
+	// #wip-critical: VulkanRenderCommandList::resourceBarriers
+	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	std::vector<VkMemoryBarrier> memoryBarriers;
+	std::vector<VkBufferMemoryBarrier> bufferMemoryBarriers;
+	std::vector<VkImageMemoryBarrier> imageMemoryBarriers;
+
+	for (uint32 i = 0; i < numBarriers; ++i)
+	{
+		// #todo-vulkan: Support Aliasing and UAV
+		CHECK(barriers[i].type == EResourceBarrierType::Transition);
+
+		// #wip-critical: Unlike DX12, Vulkan separates barriers for buffers and images...
+	}
+
+	vkCmdPipelineBarrier(
+		currentCommandBuffer, srcStageMask, dstStageMask,
+		0, // VkDependencyFlags
+		(uint32)memoryBarriers.size(), memoryBarriers.data(),
+		(uint32)bufferMemoryBarriers.size(), bufferMemoryBarriers.data(),
+		(uint32)imageMemoryBarriers.size(), imageMemoryBarriers.data());
 }
 
 void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)

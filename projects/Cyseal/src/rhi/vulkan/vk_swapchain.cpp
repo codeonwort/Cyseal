@@ -161,7 +161,7 @@ void VulkanSwapchain::initialize(
 			.srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			.dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			.srcAccessMask   = 0,
-			.dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			.dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, // #wip-critical
 			.dependencyFlags = 0, // VkDependencyFlags
 		};
 

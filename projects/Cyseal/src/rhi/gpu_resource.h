@@ -179,6 +179,7 @@ enum class EResourceBarrierType
 	UAV = (Aliasing + 1)
 };
 // D3D12_RESOURCE_BARRIER
+// VkMemoryBarrier, VkBufferMemoryBarrier, VkImageMemoryBarrier
 struct ResourceBarrier
 {
 	const EResourceBarrierType type = EResourceBarrierType::Transition;

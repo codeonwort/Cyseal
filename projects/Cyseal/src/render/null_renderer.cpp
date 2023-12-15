@@ -17,16 +17,19 @@ void NullRenderer::destroy()
 void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
 #if EMPTY_LOOP
-	auto swapChain = device->getSwapChain();
-	uint32 swapchainIndex = swapChain->getCurrentBackbufferIndex();
-	auto currentBackBuffer = swapChain->getSwapchainBuffer(swapchainIndex);
-	auto currentBackBufferRTV = swapChain->getSwapchainBufferRTV(swapchainIndex);
-	auto commandAllocator = device->getCommandAllocator(swapchainIndex);
-	auto commandList = device->getCommandList(swapchainIndex);
-	auto commandQueue = device->getCommandQueue();
+	SwapChain* swapChain      = device->getSwapChain();
+	uint32 swapchainIndex     = swapChain->getCurrentBackbufferIndex();
+
+	auto swapchainBuffer      = swapChain->getSwapchainBuffer(swapchainIndex);
+	auto swapchainBufferRTV   = swapChain->getSwapchainBufferRTV(swapchainIndex);
+	auto commandAllocator     = device->getCommandAllocator(swapchainIndex);
+	auto commandList          = device->getCommandList(swapchainIndex);
+	auto commandQueue         = device->getCommandQueue();
+
+	// #wip-critical: Call this at the start of frame or end of frame?
+	swapChain->swapBackbuffer();
 
 	commandAllocator->reset();
-
 	commandList->reset(commandAllocator);
 
 	{
@@ -34,12 +37,20 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 		// Real renderer would render something here.
 	}
 
+	ResourceBarrier presentBarrier{
+		.type        = EResourceBarrierType::Transition,
+		.resource    = swapchainBuffer,
+		.stateBefore = EGPUResourceState::COMMON,
+		.stateAfter  = EGPUResourceState::PRESENT
+	};
+	commandList->resourceBarriers(1, &presentBarrier);
+
 	commandList->close();
+	commandAllocator->markValid();
 
 	commandQueue->executeCommandList(commandList);
 
 	swapChain->present();
-	swapChain->swapBackbuffer();
 
 	device->flushCommandQueue();
 #endif
