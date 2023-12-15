@@ -49,36 +49,39 @@ void VulkanSwapchain::initialize(
 
 	CYLOG(LogVulkan, Log, L"Create swapchain images");
 	{
-		VkSwapchainCreateInfoKHR createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-		createInfo.surface = deviceWrapper->vkSurface;
-		createInfo.minImageCount = swapchainImageCount;
-		createInfo.imageFormat = surfaceFormat.format;
-		createInfo.imageColorSpace = surfaceFormat.colorSpace;
-		createInfo.imageExtent = extent;
-		createInfo.imageArrayLayers = 1; // 1 unless developming a stereoscopic 3D application
-		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
 		QueueFamilyIndices indices = findQueueFamilies(deviceWrapper->vkPhysicalDevice, deviceWrapper->vkSurface);
 		uint32 queueFamilyIndices[] = { static_cast<uint32>(indices.graphicsFamily), static_cast<uint32>(indices.presentFamily) };
+		
+		VkSharingMode imageSharingMode = VK_SHARING_MODE_EXCLUSIVE; // Best performance
+		uint32 queueFamilyIndexCount = 0; // Optional
+		const uint32* pQueueFamilyIndices = nullptr; // Optional
 		if (indices.graphicsFamily != indices.presentFamily)
 		{
-			createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-			createInfo.queueFamilyIndexCount = 2;
-			createInfo.pQueueFamilyIndices = queueFamilyIndices;
+			imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+			queueFamilyIndexCount = 2;
+			pQueueFamilyIndices = queueFamilyIndices;
 		}
-		else
-		{
-			// best performance. an image is owned by one queue family at a time
-			createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-			createInfo.queueFamilyIndexCount = 0;
-			createInfo.pQueueFamilyIndices = nullptr;
-		}
-		createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-		createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-		createInfo.presentMode = presentMode;
-		createInfo.clipped = VK_TRUE;
-		createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+		VkSwapchainCreateInfoKHR createInfo{
+			.sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+			.pNext                 = nullptr,
+			.flags                 = 0, // VkSwapchainCreateFlagsKHR
+			.surface               = deviceWrapper->vkSurface,
+			.minImageCount         = swapchainImageCount,
+			.imageFormat           = surfaceFormat.format,
+			.imageColorSpace       = surfaceFormat.colorSpace,
+			.imageExtent           = extent,
+			.imageArrayLayers      = 1, // 1 unless developming a stereoscopic 3D application
+			.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+			.imageSharingMode      = imageSharingMode,
+			.queueFamilyIndexCount = queueFamilyIndexCount,
+			.pQueueFamilyIndices   = pQueueFamilyIndices,
+			.preTransform          = swapChainSupport.capabilities.currentTransform,
+			.compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+			.presentMode           = presentMode,
+			.clipped               = VK_TRUE,
+			.oldSwapchain          = VK_NULL_HANDLE,
+		};
 
 		VkResult ret = vkCreateSwapchainKHR(deviceWrapper->vkDevice, &createInfo, nullptr, &swapchainKHR);
 		CHECK(ret == VK_SUCCESS);
@@ -105,59 +108,77 @@ void VulkanSwapchain::initialize(
 
 	CYLOG(LogVulkan, Log, L"> Create render pass for back-buffer");
 	{
-		VkAttachmentDescription colorAttachment{};
-		colorAttachment.format = swapchainImageFormat;
-		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		VkAttachmentDescription colorAttachment{
+			.flags          = 0, // VkAttachmentDescriptionFlags
+			.format         = swapchainImageFormat,
+			.samples        = VK_SAMPLE_COUNT_1_BIT,
+			.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
+			.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
+			.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+		};
 
-		VkAttachmentReference colorAttachmentRef{};
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		VkAttachmentReference colorAttachmentRef{
+			.attachment = 0,
+			.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		};
 
-		VkAttachmentDescription depthAttachment = {};
-		depthAttachment.format = findDepthFormat(deviceWrapper->vkPhysicalDevice);
-		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		VkAttachmentDescription depthAttachment{
+			.flags          = 0, // VkAttachmentDescriptionFlags
+			.format         = findDepthFormat(deviceWrapper->vkPhysicalDevice),
+			.samples        = VK_SAMPLE_COUNT_1_BIT,
+			.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
+			.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+		};
 
-		VkAttachmentReference depthAttachmentRef = {};
-		depthAttachmentRef.attachment = 1;
-		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		VkAttachmentReference depthAttachmentRef{
+			.attachment = 1,
+			.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+		};
 
-		VkSubpassDescription subpass{};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &colorAttachmentRef;
-		subpass.pDepthStencilAttachment = &depthAttachmentRef;
+		VkSubpassDescription subpass{
+			.flags                   = 0, // VkSubpassDescriptionFlags
+			.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS,
+			.inputAttachmentCount    = 0,
+			.pInputAttachments       = nullptr,
+			.colorAttachmentCount    = 1,
+			.pColorAttachments       = &colorAttachmentRef,
+			.pResolveAttachments     = nullptr,
+			.pDepthStencilAttachment = &depthAttachmentRef,
+			.preserveAttachmentCount = 0,
+			.pPreserveAttachments    = nullptr,
+		};
 
-		VkSubpassDependency dependency{};
-		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependency.dstSubpass = 0;
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.srcAccessMask = 0;
-		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		VkSubpassDependency dependency{
+			.srcSubpass      = VK_SUBPASS_EXTERNAL,
+			.dstSubpass      = 0,
+			.srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			.dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			.srcAccessMask   = 0,
+			.dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			.dependencyFlags = 0, // VkDependencyFlags
+		};
 
 		std::array<VkAttachmentDescription, 2> attachments = {
 			colorAttachment, depthAttachment
 		};
-		VkRenderPassCreateInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = static_cast<uint32>(attachments.size());
-		renderPassInfo.pAttachments = attachments.data();
-		renderPassInfo.subpassCount = 1;
-		renderPassInfo.pSubpasses = &subpass;
-		renderPassInfo.dependencyCount = 1;
-		renderPassInfo.pDependencies = &dependency;
+		VkRenderPassCreateInfo renderPassInfo{
+			.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+			.pNext           = nullptr,
+			.flags           = 0, // VkRenderPassCreateFlags
+			.attachmentCount = static_cast<uint32>(attachments.size()),
+			.pAttachments    = attachments.data(),
+			.subpassCount    = 1,
+			.pSubpasses      = &subpass,
+			.dependencyCount = 1,
+			.pDependencies   = &dependency,
+		};
 
 		VkResult ret = vkCreateRenderPass(
 			deviceWrapper->vkDevice,
@@ -204,14 +225,18 @@ void VulkanSwapchain::initialize(
 		for (size_t i = 0; i < swapchainImageViews.size(); ++i)
 		{
 			std::array<VkImageView, 2> attachments = { swapchainImageViews[i], depthImageView };
-			VkFramebufferCreateInfo framebufferInfo{};
-			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = backbufferRenderPass;
-			framebufferInfo.attachmentCount = static_cast<uint32>(attachments.size());
-			framebufferInfo.pAttachments = attachments.data();
-			framebufferInfo.width = swapchainExtent.width;
-			framebufferInfo.height = swapchainExtent.height;
-			framebufferInfo.layers = 1;
+
+			VkFramebufferCreateInfo framebufferInfo{
+				.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+				.pNext           = nullptr,
+				.flags           = 0, // VkFramebufferCreateFlags
+				.renderPass      = backbufferRenderPass,
+				.attachmentCount = static_cast<uint32>(attachments.size()),
+				.pAttachments    = attachments.data(),
+				.width           = swapchainExtent.width,
+				.height          = swapchainExtent.height,
+				.layers          = 1,
+			};
 
 			VkResult ret = vkCreateFramebuffer(
 				deviceWrapper->vkDevice,
@@ -234,15 +259,16 @@ void VulkanSwapchain::present()
 	VkSwapchainKHR swapchains[] = { swapchainKHR };
 	uint32 swapchainIndices[] = { currentBackbufferIx };
 
-	VkPresentInfoKHR presentInfo{};
-	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = waitSemaphores;
-
-	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = swapchains;
-	presentInfo.pImageIndices = swapchainIndices;
-	presentInfo.pResults = nullptr;
+	VkPresentInfoKHR presentInfo{
+		.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+		.pNext              = nullptr,
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores    = waitSemaphores,
+		.swapchainCount     = 1,
+		.pSwapchains        = swapchains,
+		.pImageIndices      = swapchainIndices,
+		.pResults           = nullptr,
+	};
 
 	VkResult ret = vkQueuePresentKHR(deviceWrapper->getVkPresentQueue(), &presentInfo);
 	if (ret == VK_ERROR_OUT_OF_DATE_KHR || ret == VK_SUBOPTIMAL_KHR)
