@@ -30,6 +30,7 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	commandList->reset(commandAllocator);
 
 	{
+		SCOPED_DRAW_EVENT(commandList, NullDrawEvent);
 		// Real renderer would render something here.
 	}
 

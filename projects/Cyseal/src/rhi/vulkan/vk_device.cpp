@@ -223,10 +223,8 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 			}
 		}
 		CHECK(vkPhysicalDevice != VK_NULL_HANDLE);
-	}
-
-	// #todo-vulkan: Check debug marker support
-	{
+		
+		// This is true if the process was launched via a frame debugger (e.g., RenderDoc).
 		canEnableDebugMarker = checkVkDebugMarkerSupport(vkPhysicalDevice);
 	}
 
@@ -295,7 +293,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		vkGetDeviceQueue(vkDevice, indices.presentFamily, 0, &vkPresentQueue);
 	}
 
-	// Support debug marker
+	// Get debug marker functions.
 	{
 		if (canEnableDebugMarker)
 		{
