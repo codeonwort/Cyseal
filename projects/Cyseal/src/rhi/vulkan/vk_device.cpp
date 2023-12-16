@@ -355,7 +355,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 		VkResult ret;
 
-		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkImageAvailableSemaphore);
+		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkSwapchainImageAvailableSemaphore);
 		CHECK(ret == VK_SUCCESS);
 
 		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkRenderFinishedSemaphore);

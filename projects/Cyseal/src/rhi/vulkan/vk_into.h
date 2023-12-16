@@ -2,6 +2,7 @@
 
 #if COMPILE_BACKEND_VULKAN
 
+#include "vk_utils.h"
 #include "core/assertion.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"
@@ -42,12 +43,12 @@ namespace into_vk
 		return VK_IMAGE_LAYOUT_UNDEFINED;
 	}
 
-	inline VkBufferMemoryBarrier bufferMemoryBarrier(
-		const BufferMemoryBarrier& barrier,
-		VkPipelineStageFlags srcAccessMask,
-		VkPipelineStageFlags dstAccessMask)
+	inline VkBufferMemoryBarrier bufferMemoryBarrier(const BufferMemoryBarrier& barrier)
 	{
-		// #wip-critical: How to adopt barrier.stateBefore and barrier.stateAfter here?
+		// #wip-critical: Access masks for buffer
+		VkAccessFlags srcAccessMask = VK_ACCESS_NONE;
+		VkAccessFlags dstAccessMask = VK_ACCESS_NONE;
+
 		return VkBufferMemoryBarrier{
 			.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 			.pNext               = nullptr,
@@ -61,14 +62,22 @@ namespace into_vk
 		};
 	}
 
-	inline VkImageMemoryBarrier imageMemoryBarrier(
-		const TextureMemoryBarrier& barrier,
-		VkPipelineStageFlags srcAccessMask,
-		VkPipelineStageFlags dstAccessMask)
+	inline VkImageMemoryBarrier imageMemoryBarrier(const TextureMemoryBarrier& barrier)
 	{
+		VkImageLayout oldLayout = imageLayout(barrier.stateBefore);
+		VkImageLayout newLayout = imageLayout(barrier.stateAfter);
+		VkPipelineStageFlags srcStage, dstStage; // #wip-critical: Cant't use them here
+		VkAccessFlags srcAccessMask, dstAccessMask;
+		VkImageAspectFlags aspectMask;
+		findImageBarrierFlags(
+			oldLayout, newLayout, VK_FORMAT_UNDEFINED, // #wip-critical: Cant't know format here
+			&srcStage, &dstStage,
+			&srcAccessMask, &dstAccessMask,
+			&aspectMask);
+
 		// #wip-critical: Take subresource as an argument
 		VkImageSubresourceRange subresourceRange{
-			.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+			.aspectMask     = aspectMask,
 			.baseMipLevel   = 0,
 			.levelCount     = 1,
 			.baseArrayLayer = 0,
@@ -80,8 +89,8 @@ namespace into_vk
 			.pNext               = nullptr,
 			.srcAccessMask       = srcAccessMask,
 			.dstAccessMask       = dstAccessMask,
-			.oldLayout           = imageLayout(barrier.stateBefore),
-			.newLayout           = imageLayout(barrier.stateAfter),
+			.oldLayout           = oldLayout,
+			.newLayout           = newLayout,
 			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.image               = static_cast<VkImage>(barrier.texture->getRawResource()),

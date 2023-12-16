@@ -2,7 +2,10 @@
 
 #if COMPILE_BACKEND_VULKAN
 
+#include "core/smart_pointer.h"
 #include "rhi/swap_chain.h"
+#include "rhi/gpu_resource.h"
+
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -17,6 +20,29 @@ https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkRenderPa
 ------------------------------------------------------------------------------------ */
 
 class VulkanDevice;
+
+class VulkanSwapchainImage : public GPUResource
+{
+public:
+	VulkanSwapchainImage(VkImage inVkImage)
+		: vkImage(inVkImage)
+	{
+	}
+	VkImage getVkImage() const
+	{
+		return vkImage;
+	}
+	virtual void* getRawResource() const override
+	{
+		return vkImage;
+	}
+	virtual void setRawResource(void* inResource) override
+	{
+		vkImage = reinterpret_cast<VkImage>(inResource);
+	}
+private:
+	VkImage vkImage = VK_NULL_HANDLE;
+};
 
 class VulkanSwapchain : public SwapChain
 {
@@ -50,7 +76,7 @@ private:
 	VkExtent2D swapchainExtent = VkExtent2D{ 0,0 };
 	uint32 swapchainImageCount = 0;
 
-	std::vector<VkImage> swapchainImages;
+	BufferedUniquePtr<VulkanSwapchainImage> swapchainImages;
 	VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
 	std::vector<VkImageView> swapchainImageViews;
 

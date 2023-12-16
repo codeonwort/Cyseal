@@ -20,17 +20,19 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 	VulkanRenderCommandList* vkCmdList = static_cast<VulkanRenderCommandList*>(commandList);
 
 	// #wip-critical: waitSemaphore in executeCommandList()
-	// It's possible that current command list is executing some one-time commands,
-	// not relevant to swapchain present. So I don't wanna wait for imageAvailable sem here...
-#if 0
+	// - It's possible that current command list is executing some one-time commands,
+	//   not relevant to swapchain present. So I don't wanna wait for imageAvailable sem here...
+	// - Why should I wait for swapchain image here at first?
+#if 1
 	uint32 waitSemaphoreCount = 1;
-	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkImageAvailableSemaphore() };
+	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkSwapchainImageAvailableSemaphore() };
+	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 #else
 	uint32 waitSemaphoreCount = 0;
 	VkSemaphore* waitSemaphores = nullptr;
+	VkPipelineStageFlags* waitStages = nullptr;
 #endif
 
-	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkSemaphore signalSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
 
 	VkSubmitInfo submitInfo{
@@ -128,18 +130,18 @@ void VulkanRenderCommandList::resourceBarriers(
 	// #todo-barrier: Use proper VkPipelineStageFlags
 	// https://gpuopen.com/learn/vulkan-barriers-explained/
 	// https://docs.vulkan.org/samples/latest/samples/performance/pipeline_barriers/README.html
-	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
-	std::vector<VkBufferMemoryBarrier> vkBufferMemoryBarriers;
-	std::vector<VkImageMemoryBarrier> vkImageMemoryBarriers;
+	std::vector<VkBufferMemoryBarrier> vkBufferMemoryBarriers(numBufferMemoryBarriers);
+	std::vector<VkImageMemoryBarrier> vkImageMemoryBarriers(numTextureMemoryBarriers);
 	for (uint32 i = 0; i < numBufferMemoryBarriers; ++i)
 	{
-		vkBufferMemoryBarriers[i] = into_vk::bufferMemoryBarrier(bufferMemoryBarriers[i], srcStageMask, dstStageMask);
+		vkBufferMemoryBarriers[i] = into_vk::bufferMemoryBarrier(bufferMemoryBarriers[i]);
 	}
 	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
 	{
-		vkImageMemoryBarriers[i] = into_vk::imageMemoryBarrier(textureMemoryBarriers[i], srcStageMask, dstStageMask);
+		vkImageMemoryBarriers[i] = into_vk::imageMemoryBarrier(textureMemoryBarriers[i]);
 	}
 
 	vkCmdPipelineBarrier(

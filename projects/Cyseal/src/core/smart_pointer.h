@@ -40,6 +40,14 @@ public:
 	{
 		instances.resize(bufferCount);
 	}
+	size_t size() const
+	{
+		return instances.size();
+	}
+	T* at(size_t bufferIndex) const
+	{
+		return instances[bufferIndex].get();
+	}
 	T* at(size_t bufferIndex)
 	{
 		return instances[bufferIndex].get();

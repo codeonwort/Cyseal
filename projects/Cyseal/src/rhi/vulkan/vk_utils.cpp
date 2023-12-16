@@ -151,6 +151,67 @@ void createImage(
 	vkBindImageMemory(device, image, imageMemory, 0);
 }
 
+void findImageBarrierFlags(
+	VkImageLayout oldLayout,
+	VkImageLayout newLayout,
+	VkFormat format,
+	VkPipelineStageFlags* outSrcStageMask,
+	VkPipelineStageFlags* outDstStageMask,
+	VkAccessFlags* outSrcAccessMask,
+	VkAccessFlags* outDstAccessMask,
+	VkImageAspectFlags* outAspectMask)
+{
+	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+	{
+		*outSrcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		*outDstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+		*outSrcAccessMask = VK_ACCESS_NONE;
+		*outDstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	}
+	else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+	{
+		*outSrcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		*outDstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+		*outSrcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		*outDstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	}
+	else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+	{
+		*outSrcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		*outDstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+
+		*outSrcAccessMask = VK_ACCESS_NONE;
+		*outDstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	}
+	else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+	{
+		*outSrcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		*outDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+		*outSrcAccessMask = VK_ACCESS_NONE;
+		*outDstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	}
+	else
+	{
+		CHECK_NO_ENTRY(); // Unsupported layout transition
+	}
+
+	if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+	{
+		*outAspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		if (hasStencilComponent(format))
+		{
+			*outAspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+		}
+	}
+	else
+	{
+		*outAspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	}
+}
+
 void transitionImageLayout(
 	VkDevice device,
 	VkCommandPool commandPool,
@@ -160,55 +221,17 @@ void transitionImageLayout(
 	VkImageLayout oldLayout,
 	VkImageLayout newLayout)
 {
-	static_cast<void>(format);
-
 	VkCommandBuffer commandBuffer = beginSingleTimeCommands(device, commandPool);
 
+	VkPipelineStageFlags sourceStage, destinationStage;
 	VkAccessFlags srcAccessMask, dstAccessMask;
 	VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	VkPipelineStageFlags sourceStage, destinationStage;
 
-	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-	{
-		srcAccessMask = 0;
-		dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	}
-	else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-	{
-		srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-		destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	}
-	else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-	{
-		srcAccessMask = 0;
-		dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	}
-	else
-	{
-		CHECK_NO_ENTRY(); // Unsupported layout transition
-	}
-
-	if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-	{
-		aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-		if (hasStencilComponent(format))
-		{
-			aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-		}
-	}
-	else
-	{
-		aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	}
+	findImageBarrierFlags(
+		oldLayout, newLayout, format,
+		&sourceStage, &destinationStage,
+		&srcAccessMask, &dstAccessMask,
+		&aspectMask);
 
 	VkImageMemoryBarrier barrier{
 		.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,

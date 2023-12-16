@@ -99,7 +99,7 @@ public:
 	inline VkSurfaceKHR getVkSurface() const { return vkSurface; }
 	inline VkQueue getVkGraphicsQueue() const { return vkGraphicsQueue; }
 	inline VkQueue getVkPresentQueue() const { return vkPresentQueue; }
-	inline VkSemaphore getVkImageAvailableSemaphore() const { return vkImageAvailableSemaphore; }
+	inline VkSemaphore getVkSwapchainImageAvailableSemaphore() const { return vkSwapchainImageAvailableSemaphore; }
 	inline VkSemaphore getVkRenderFinishedSemaphore() const { return vkRenderFinishedSemaphore; }
 
 	void beginVkDebugMarker(VkCommandBuffer& cmdBuffer, const char* debugName, uint32 color = 0x000000);
@@ -132,7 +132,7 @@ private:
 	VkQueue vkPresentQueue = VK_NULL_HANDLE;
 
 	// #todo-vulkan Swapchain image is available. Is this needed?
-	VkSemaphore vkImageAvailableSemaphore = VK_NULL_HANDLE;
+	VkSemaphore vkSwapchainImageAvailableSemaphore = VK_NULL_HANDLE;
 	// Graphics queue has finished.
 	VkSemaphore vkRenderFinishedSemaphore = VK_NULL_HANDLE;
 

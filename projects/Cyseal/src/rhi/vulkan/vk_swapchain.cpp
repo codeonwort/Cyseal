@@ -87,8 +87,17 @@ void VulkanSwapchain::initialize(
 		CHECK(ret == VK_SUCCESS);
 
 		vkGetSwapchainImagesKHR(deviceWrapper->vkDevice, swapchainKHR, &swapchainImageCount, nullptr);
-		swapchainImages.resize(swapchainImageCount);
-		vkGetSwapchainImagesKHR(deviceWrapper->vkDevice, swapchainKHR, &swapchainImageCount, swapchainImages.data());
+		std::vector<VkImage> vkSwapchainImages(swapchainImageCount, VK_NULL_HANDLE);
+		vkGetSwapchainImagesKHR(deviceWrapper->vkDevice, swapchainKHR, &swapchainImageCount, vkSwapchainImages.data());
+		
+		swapchainImages.initialize(swapchainImageCount);
+		for (uint32 i = 0; i < swapchainImageCount; ++i)
+		{
+			swapchainImages[i] = makeUnique<VulkanSwapchainImage>(vkSwapchainImages[i]);
+			std::wstring debugName = std::wstring(L"SwapchainImage_") + std::to_wstring(i);
+			swapchainImages[i]->setDebugName(debugName.c_str());
+		}
+
 		swapchainImageFormat = surfaceFormat.format;
 		swapchainExtent = extent;
 	}
@@ -100,7 +109,7 @@ void VulkanSwapchain::initialize(
 		{
 			swapchainImageViews[i] = createImageView(
 				deviceWrapper->vkDevice,
-				swapchainImages[i],
+				swapchainImages[i]->getVkImage(),
 				swapchainImageFormat,
 				VK_IMAGE_ASPECT_COLOR_BIT);
 		}
@@ -161,7 +170,7 @@ void VulkanSwapchain::initialize(
 			.srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			.dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			.srcAccessMask   = 0,
-			.dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, // #wip-critical
+			.dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 			.dependencyFlags = 0, // VkDependencyFlags
 		};
 
@@ -288,7 +297,7 @@ void VulkanSwapchain::swapBackbuffer()
 		vkDevice,
 		swapchainKHR,
 		UINT64_MAX,
-		deviceWrapper->getVkImageAvailableSemaphore(),
+		deviceWrapper->getVkSwapchainImageAvailableSemaphore(),
 		VK_NULL_HANDLE,
 		&currentBackbufferIx);
 	CHECK(ret == VK_SUCCESS);
@@ -301,8 +310,7 @@ uint32 VulkanSwapchain::getCurrentBackbufferIndex() const
 
 GPUResource* VulkanSwapchain::getSwapchainBuffer(uint32 ix) const
 {
-	// #todo-vulkan
-	return nullptr;
+	return swapchainImages.at(ix);
 }
 
 RenderTargetView* VulkanSwapchain::getSwapchainBufferRTV(uint32 ix) const
