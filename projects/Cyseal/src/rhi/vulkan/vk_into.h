@@ -5,6 +5,7 @@
 #include "core/assertion.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"
+#include "rhi/gpu_resource_barrier.h"
 
 #include <vulkan/vulkan_core.h>
 #include <algorithm>
@@ -24,26 +25,94 @@ namespace into_vk
 
 	};
 
+	inline constexpr VkImageLayout imageLayout(ETextureMemoryLayout layout)
+	{
+		switch (layout)
+		{
+			case ETextureMemoryLayout::COMMON                : return VK_IMAGE_LAYOUT_UNDEFINED;
+			case ETextureMemoryLayout::RENDER_TARGET         : return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			case ETextureMemoryLayout::DEPTH_STENCIL_TARGET  : return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			case ETextureMemoryLayout::PIXEL_SHADER_RESOURCE : return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			case ETextureMemoryLayout::UNORDERED_ACCESS      : return VK_IMAGE_LAYOUT_GENERAL;
+			case ETextureMemoryLayout::COPY_SRC              : return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+			case ETextureMemoryLayout::COPY_DEST             : return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			case ETextureMemoryLayout::PRESENT               : return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		}
+		CHECK_NO_ENTRY();
+		return VK_IMAGE_LAYOUT_UNDEFINED;
+	}
+
+	inline VkBufferMemoryBarrier bufferMemoryBarrier(
+		const BufferMemoryBarrier& barrier,
+		VkPipelineStageFlags srcAccessMask,
+		VkPipelineStageFlags dstAccessMask)
+	{
+		// #wip-critical: How to adopt barrier.stateBefore and barrier.stateAfter here?
+		return VkBufferMemoryBarrier{
+			.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+			.pNext               = nullptr,
+			.srcAccessMask       = srcAccessMask,
+			.dstAccessMask       = dstAccessMask,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.buffer              = static_cast<VkBuffer>(barrier.buffer->getRawResource()),
+			.offset              = (VkDeviceSize)barrier.offset,
+			.size                = (VkDeviceSize)barrier.size,
+		};
+	}
+
+	inline VkImageMemoryBarrier imageMemoryBarrier(
+		const TextureMemoryBarrier& barrier,
+		VkPipelineStageFlags srcAccessMask,
+		VkPipelineStageFlags dstAccessMask)
+	{
+		// #wip-critical: Take subresource as an argument
+		VkImageSubresourceRange subresourceRange{
+			.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel   = 0,
+			.levelCount     = 1,
+			.baseArrayLayer = 0,
+			.layerCount     = 1,
+		};
+
+		return VkImageMemoryBarrier{
+			.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+			.pNext               = nullptr,
+			.srcAccessMask       = srcAccessMask,
+			.dstAccessMask       = dstAccessMask,
+			.oldLayout           = imageLayout(barrier.stateBefore),
+			.newLayout           = imageLayout(barrier.stateAfter),
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.image               = static_cast<VkImage>(barrier.texture->getRawResource()),
+			.subresourceRange    = subresourceRange,
+		};
+	}
+
 	inline VkViewport viewport(const Viewport& inViewport)
 	{
-		VkViewport vkViewport{};
-		vkViewport.x = inViewport.topLeftX;
-		vkViewport.y = inViewport.topLeftY;
-		vkViewport.width = inViewport.width;
-		vkViewport.height = inViewport.height;
-		vkViewport.minDepth = inViewport.minDepth;
-		vkViewport.maxDepth = inViewport.maxDepth;
-		return vkViewport;
+		return VkViewport{
+			.x        = inViewport.topLeftX,
+			.y        = inViewport.topLeftY,
+			.width    = inViewport.width,
+			.height   = inViewport.height,
+			.minDepth = inViewport.minDepth,
+			.maxDepth = inViewport.maxDepth,
+		};
 	}
 
 	inline VkRect2D scissorRect(const ScissorRect& scissorRect)
 	{
-		VkRect2D vkScissor{};
-		vkScissor.extent.width = scissorRect.right - scissorRect.left;
-		vkScissor.extent.height = scissorRect.bottom - scissorRect.top;
-		vkScissor.offset.x = scissorRect.left;
-		vkScissor.offset.y = scissorRect.top;
-		return vkScissor;
+		return VkRect2D{
+			.offset = VkOffset2D{
+				.x = (int32)scissorRect.left,
+				.y = (int32)scissorRect.top,
+			},
+			.extent = VkExtent2D{
+				.width = scissorRect.right - scissorRect.left,
+				.height = scissorRect.bottom - scissorRect.top,
+			},
+		};
 	}
 
 	inline VkPrimitiveTopology primitiveTopology(EPrimitiveTopology inTopology)

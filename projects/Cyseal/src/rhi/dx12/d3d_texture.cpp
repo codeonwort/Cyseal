@@ -174,13 +174,12 @@ void D3DTexture::uploadData(
 
 	if (bIsPixelShaderResourceState)
 	{
-		ResourceBarrier barrierAfter{
-			EResourceBarrierType::Transition,
+		TextureMemoryBarrier barrierAfter{
+			ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+			ETextureMemoryLayout::COPY_DEST,
 			this,
-			EGPUResourceState::PIXEL_SHADER_RESOURCE,
-			EGPUResourceState::COPY_DEST,
 		};
-		commandList.resourceBarriers(1, &barrierAfter);
+		commandList.resourceBarriers(0, nullptr, 1, &barrierAfter);
 	}
 
 	// [ RESOURCE_MANIPULATION ERROR #864: COPYTEXTUREREGION_INVALIDSRCOFFSET ]
@@ -194,13 +193,12 @@ void D3DTexture::uploadData(
 		subresourceIndex, 1, &textureData);
 	CHECK(ret != 0);
 
-	ResourceBarrier barrierAfter{
-		EResourceBarrierType::Transition,
+	TextureMemoryBarrier barrierAfter{
+		ETextureMemoryLayout::COPY_DEST,
+		ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 		this,
-		EGPUResourceState::COPY_DEST,
-		EGPUResourceState::PIXEL_SHADER_RESOURCE
 	};
-	commandList.resourceBarriers(1, &barrierAfter);
+	commandList.resourceBarriers(0, nullptr, 1, &barrierAfter);
 	bIsPixelShaderResourceState = true;
 }
 

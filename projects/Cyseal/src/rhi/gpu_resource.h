@@ -22,6 +22,8 @@ class UnorderedAccessView;
 // GPU Resources = Anything resides in GPU-visible memory
 // (buffers, textures, acceleration structures, ...)
 
+// #todo-rhi: Not good abstraction for Vulkan
+// D3D12_RESOURCE_STATES
 enum class EGPUResourceState : uint32
 {
 	COMMON                     = 0,
@@ -167,27 +169,6 @@ public:
 	virtual void setRawResource(void* inRawResource) { CHECK_NO_ENTRY(); }
 
 	virtual void setDebugName(const wchar_t* inDebugName) {}
-};
-
-// #todo-barrier: There are 3 types of barriers (transition, aliasing, and UAV)
-// Only deal with transition barrier for now.
-// D3D12_RESOURCE_BARRIER_TYPE
-enum class EResourceBarrierType
-{
-	Transition = 0,
-	Aliasing = (Transition + 1),
-	UAV = (Aliasing + 1)
-};
-// D3D12_RESOURCE_BARRIER
-// VkMemoryBarrier, VkBufferMemoryBarrier, VkImageMemoryBarrier
-struct ResourceBarrier
-{
-	const EResourceBarrierType type = EResourceBarrierType::Transition;
-	// #todo-barrier: Split barrier
-	// ...
-	GPUResource* resource;
-	EGPUResourceState stateBefore;
-	EGPUResourceState stateAfter;
 };
 
 //////////////////////////////////////////////////////////////////////////

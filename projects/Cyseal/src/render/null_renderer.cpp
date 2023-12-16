@@ -37,13 +37,16 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 		// Real renderer would render something here.
 	}
 
-	ResourceBarrier presentBarrier{
-		.type        = EResourceBarrierType::Transition,
-		.resource    = swapchainBuffer,
-		.stateBefore = EGPUResourceState::COMMON,
-		.stateAfter  = EGPUResourceState::PRESENT
+	TextureMemoryBarrier presentBarrier{
+		.stateBefore = ETextureMemoryLayout::COMMON,
+		.stateAfter  = ETextureMemoryLayout::PRESENT,
+		.texture     = swapchainBuffer,
 	};
-	commandList->resourceBarriers(1, &presentBarrier);
+
+	// #wip-critical: swapchainBuffer is null at startup
+	if (swapchainBuffer != nullptr) {
+		commandList->resourceBarriers(0, nullptr, 1, &presentBarrier);
+	}
 
 	commandList->close();
 	commandAllocator->markValid();

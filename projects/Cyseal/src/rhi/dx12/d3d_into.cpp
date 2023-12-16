@@ -50,29 +50,66 @@ namespace into_d3d
 		outDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	}
 
-	D3D12_RESOURCE_BARRIER resourceBarrier(const ResourceBarrier& barrier)
+	D3D12_RESOURCE_STATES bufferMemoryLayout(EBufferMemoryLayout layout)
 	{
-		D3D12_RESOURCE_BARRIER d3dBarrier;
-		d3dBarrier.Type = (D3D12_RESOURCE_BARRIER_TYPE)barrier.type;
-		d3dBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		switch (barrier.type)
+		switch (layout)
 		{
-			case EResourceBarrierType::Transition:
-				d3dBarrier.Transition.pResource = into_d3d::id3d12Resource(barrier.resource);
-				// #todo-barrier: Subresource index?
-				d3dBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-				d3dBarrier.Transition.StateBefore = (D3D12_RESOURCE_STATES)barrier.stateBefore;
-				d3dBarrier.Transition.StateAfter = (D3D12_RESOURCE_STATES)barrier.stateAfter;
-				break;
-			case EResourceBarrierType::Aliasing:
-				CHECK_NO_ENTRY();
-				break;
-			case EResourceBarrierType::UAV:
-				CHECK_NO_ENTRY();
-				break;
-			default:
-				break;
+			case EBufferMemoryLayout::COMMON                : return D3D12_RESOURCE_STATE_COMMON;
+			case EBufferMemoryLayout::PIXEL_SHADER_RESOURCE : return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			case EBufferMemoryLayout::UNORDERED_ACCESS      : return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			case EBufferMemoryLayout::COPY_SRC              : return D3D12_RESOURCE_STATE_COPY_SOURCE;
+			case EBufferMemoryLayout::COPY_DEST             : return D3D12_RESOURCE_STATE_COPY_DEST;
+			case EBufferMemoryLayout::INDIRECT_ARGUMENT     : return D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
 		}
+		CHECK_NO_ENTRY();
+		return D3D12_RESOURCE_STATE_COMMON;
+	}
+
+	D3D12_RESOURCE_STATES textureMemoryLayout(ETextureMemoryLayout layout)
+	{
+		switch (layout)
+		{
+			case ETextureMemoryLayout::COMMON                : return D3D12_RESOURCE_STATE_COMMON;
+			case ETextureMemoryLayout::RENDER_TARGET         : return D3D12_RESOURCE_STATE_RENDER_TARGET;
+			case ETextureMemoryLayout::DEPTH_STENCIL_TARGET  : return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+			case ETextureMemoryLayout::PIXEL_SHADER_RESOURCE : return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			case ETextureMemoryLayout::UNORDERED_ACCESS      : return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			case ETextureMemoryLayout::COPY_SRC              : return D3D12_RESOURCE_STATE_COPY_SOURCE;
+			case ETextureMemoryLayout::COPY_DEST             : return D3D12_RESOURCE_STATE_COPY_DEST;
+			case ETextureMemoryLayout::PRESENT               : return D3D12_RESOURCE_STATE_PRESENT;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_RESOURCE_STATE_COMMON;
+	}
+
+	D3D12_RESOURCE_BARRIER resourceBarrier(const BufferMemoryBarrier& barrier)
+	{
+		D3D12_RESOURCE_BARRIER d3dBarrier{
+			.Type       = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+			.Flags      = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+			.Transition = {
+				.pResource   = into_d3d::id3d12Resource(barrier.buffer),
+				// #todo-barrier: offset and size like VkBufferMemoryBarrier?
+				.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+				.StateBefore = into_d3d::bufferMemoryLayout(barrier.stateBefore),
+				.StateAfter  = into_d3d::bufferMemoryLayout(barrier.stateAfter),
+			},
+		};
+		return d3dBarrier;
+	}
+
+	D3D12_RESOURCE_BARRIER resourceBarrier(const TextureMemoryBarrier& barrier)
+	{
+		D3D12_RESOURCE_BARRIER d3dBarrier{
+			.Type       = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+			.Flags      = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+			.Transition = {
+				.pResource   = into_d3d::id3d12Resource(barrier.texture),
+				.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, // #todo-barrier: DX12 texture subresource
+				.StateBefore = into_d3d::textureMemoryLayout(barrier.stateBefore),
+				.StateAfter  = into_d3d::textureMemoryLayout(barrier.stateAfter),
+			},
+		};
 		return d3dBarrier;
 	}
 

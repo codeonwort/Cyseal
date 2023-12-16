@@ -71,7 +71,7 @@ void VulkanSwapchain::initialize(
 			.imageFormat           = surfaceFormat.format,
 			.imageColorSpace       = surfaceFormat.colorSpace,
 			.imageExtent           = extent,
-			.imageArrayLayers      = 1, // 1 unless developming a stereoscopic 3D application
+			.imageArrayLayers      = 1, // 1 unless developing a stereoscopic 3D application
 			.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 			.imageSharingMode      = imageSharingMode,
 			.queueFamilyIndexCount = queueFamilyIndexCount,

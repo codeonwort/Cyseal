@@ -121,29 +121,33 @@ void VulkanRenderCommandList::close()
 	CHECK(ret == VK_SUCCESS);
 }
 
-void VulkanRenderCommandList::resourceBarriers(uint32 numBarriers, const ResourceBarrier* barriers)
+void VulkanRenderCommandList::resourceBarriers(
+	uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
+	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers)
 {
-	// #wip-critical: VulkanRenderCommandList::resourceBarriers
-	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-	std::vector<VkMemoryBarrier> memoryBarriers;
-	std::vector<VkBufferMemoryBarrier> bufferMemoryBarriers;
-	std::vector<VkImageMemoryBarrier> imageMemoryBarriers;
+	// #todo-barrier: Use proper VkPipelineStageFlags
+	// https://gpuopen.com/learn/vulkan-barriers-explained/
+	// https://docs.vulkan.org/samples/latest/samples/performance/pipeline_barriers/README.html
+	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-	for (uint32 i = 0; i < numBarriers; ++i)
+	std::vector<VkBufferMemoryBarrier> vkBufferMemoryBarriers;
+	std::vector<VkImageMemoryBarrier> vkImageMemoryBarriers;
+	for (uint32 i = 0; i < numBufferMemoryBarriers; ++i)
 	{
-		// #todo-vulkan: Support Aliasing and UAV
-		CHECK(barriers[i].type == EResourceBarrierType::Transition);
-
-		// #wip-critical: Unlike DX12, Vulkan separates barriers for buffers and images...
+		vkBufferMemoryBarriers[i] = into_vk::bufferMemoryBarrier(bufferMemoryBarriers[i], srcStageMask, dstStageMask);
+	}
+	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
+	{
+		vkImageMemoryBarriers[i] = into_vk::imageMemoryBarrier(textureMemoryBarriers[i], srcStageMask, dstStageMask);
 	}
 
 	vkCmdPipelineBarrier(
 		currentCommandBuffer, srcStageMask, dstStageMask,
 		0, // VkDependencyFlags
-		(uint32)memoryBarriers.size(), memoryBarriers.data(),
-		(uint32)bufferMemoryBarriers.size(), bufferMemoryBarriers.data(),
-		(uint32)imageMemoryBarriers.size(), imageMemoryBarriers.data());
+		0, nullptr,// #todo-barrier: Vulkan global memory barrier
+		(uint32)vkBufferMemoryBarriers.size(), vkBufferMemoryBarriers.data(),
+		(uint32)vkImageMemoryBarriers.size(), vkImageMemoryBarriers.data());
 }
 
 void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)

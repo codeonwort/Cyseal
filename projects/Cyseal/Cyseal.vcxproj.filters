@@ -273,6 +273,9 @@
     <ClInclude Include="src\rhi\rhi_forward.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\rhi\gpu_resource_barrier.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">

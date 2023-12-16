@@ -140,14 +140,26 @@ void D3DRenderCommandList::rsSetScissorRect(const ScissorRect& scissorRect)
 	commandList->RSSetScissorRects(1, &rect);
 }
 
-void D3DRenderCommandList::resourceBarriers(uint32 numBarriers, const ResourceBarrier* barriers)
+void D3DRenderCommandList::resourceBarriers(
+	uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
+	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers)
 {
-	std::vector<D3D12_RESOURCE_BARRIER> rawBarriers(numBarriers);
-	for (uint32 i = 0; i < numBarriers; ++i)
+	// #todo-barrier: DX12 enhanced barriers
+	// https://learn.microsoft.com/en-us/windows-hardware/drivers/display/enhanced-barriers
+	// https://microsoft.github.io/DirectX-Specs/d3d/D3D12EnhancedBarriers.html#excessive-sync-latency
+
+	uint32 totalBarriers = numBufferMemoryBarriers + numTextureMemoryBarriers;
+	std::vector<D3D12_RESOURCE_BARRIER> rawBarriers(totalBarriers);
+	for (uint32 i = 0; i < numBufferMemoryBarriers; ++i)
 	{
-		rawBarriers[i] = into_d3d::resourceBarrier(barriers[i]);
+		rawBarriers[i] = into_d3d::resourceBarrier(bufferMemoryBarriers[i]);
 	}
-	commandList->ResourceBarrier(numBarriers, rawBarriers.data());
+	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
+	{
+		rawBarriers[i + numBufferMemoryBarriers] = into_d3d::resourceBarrier(textureMemoryBarriers[i]);
+	}
+
+	commandList->ResourceBarrier(totalBarriers, rawBarriers.data());
 }
 
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)

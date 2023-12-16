@@ -3,6 +3,7 @@
 #include "gpu_resource.h"
 #include "pipeline_state.h"
 #include "gpu_resource_binding.h"
+#include "gpu_resource_barrier.h"
 #include <functional>
 
 // Forward Declarations
@@ -75,7 +76,9 @@ public:
 	// End command recording.
 	virtual void close() = 0;
 
-	virtual void resourceBarriers(uint32 numBarriers, const ResourceBarrier* barriers) = 0;
+	virtual void resourceBarriers(
+		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
+		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers) = 0;
 
 	// #todo-rendercommand: Maybe not the best way to clear RTV.
 	// (Need to check how loadOp=CLEAR maps to DX12 and Vulkan.)

@@ -257,21 +257,19 @@ void GPUScene::renderGPUScene(
 			(uint32)(sizeof(GPUSceneCommand) * numSceneCommands),
 			0);
 
-		ResourceBarrier barriersBefore[] = {
+		BufferMemoryBarrier barriersBefore[] = {
 			{
-				EResourceBarrierType::Transition,
+				EBufferMemoryLayout::COMMON,
+				EBufferMemoryLayout::PIXEL_SHADER_RESOURCE,
 				gpuSceneCommandBuffer.at(swapchainIndex),
-				EGPUResourceState::COMMON,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
 			},
 			{
-				EResourceBarrierType::Transition,
+				EBufferMemoryLayout::COMMON,
+				EBufferMemoryLayout::UNORDERED_ACCESS,
 				gpuSceneBuffer.get(),
-				EGPUResourceState::COMMON,
-				EGPUResourceState::UNORDERED_ACCESS
 			},
 		};
-		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		commandList->setPipelineState(pipelineState.get());
 		commandList->setComputeRootSignature(rootSignature.get());
@@ -295,15 +293,14 @@ void GPUScene::renderGPUScene(
 
 		commandList->dispatchCompute(numSceneCommands, 1, 1);
 
-		ResourceBarrier barriersAfter[] = {
+		BufferMemoryBarrier barriersAfter[] = {
 			{
-				EResourceBarrierType::Transition,
+				EBufferMemoryLayout::UNORDERED_ACCESS,
+				EBufferMemoryLayout::PIXEL_SHADER_RESOURCE,
 				gpuSceneBuffer.get(),
-				EGPUResourceState::UNORDERED_ACCESS,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
 		};
-		commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
+		commandList->resourceBarriers(_countof(barriersAfter), barriersAfter, 0, nullptr);
 	}
 }
 

@@ -3,6 +3,7 @@
 #if COMPILE_BACKEND_VULKAN
 
 #include "rhi/render_command.h"
+#include "rhi/gpu_resource_barrier.h"
 #include "vk_device.h"
 #include <vulkan/vulkan_core.h>
 
@@ -49,8 +50,8 @@ public:
 	virtual void close() override;
 
 	virtual void resourceBarriers(
-		uint32 numBarriers,
-		const ResourceBarrier* barriers) override;
+		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
+		uint32 numTexureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers) override;
 
 	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override;
 	virtual void clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil) override;

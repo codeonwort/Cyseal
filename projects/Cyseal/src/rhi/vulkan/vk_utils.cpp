@@ -221,7 +221,7 @@ void transitionImageLayout(
 		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 		.image               = image,
 		.subresourceRange = VkImageSubresourceRange{
-			.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+			.aspectMask     = aspectMask,
 			.baseMipLevel   = 0,
 			.levelCount     = 1,
 			.baseArrayLayer = 0,

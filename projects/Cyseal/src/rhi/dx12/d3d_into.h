@@ -5,6 +5,7 @@
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/gpu_resource_binding.h"
+#include "rhi/gpu_resource_barrier.h"
 #include "d3d_util.h"
 #include <vector>
 
@@ -488,7 +489,11 @@ namespace into_d3d
 		return desc;
 	}
 
-	D3D12_RESOURCE_BARRIER resourceBarrier(const ResourceBarrier& barrier);
+	D3D12_RESOURCE_STATES bufferMemoryLayout(EBufferMemoryLayout layout);
+	D3D12_RESOURCE_STATES textureMemoryLayout(ETextureMemoryLayout layout);
+
+	D3D12_RESOURCE_BARRIER resourceBarrier(const BufferMemoryBarrier& barrier);
+	D3D12_RESOURCE_BARRIER resourceBarrier(const TextureMemoryBarrier& barrier);
 
 	inline D3D12_RAYTRACING_GEOMETRY_TYPE raytracingGeometryType(ERaytracingGeometryType inType)
 	{

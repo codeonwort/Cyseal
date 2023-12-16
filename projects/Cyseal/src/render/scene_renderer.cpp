@@ -257,21 +257,19 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, BasePass);
 
-		ResourceBarrier barriers[] = {
+		TextureMemoryBarrier barriers[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::RENDER_TARGET,
 				RT_sceneColor,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
-				EGPUResourceState::RENDER_TARGET
 			},
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::RENDER_TARGET,
 				RT_thinGBufferA,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
-				EGPUResourceState::RENDER_TARGET
 			}
 		};
-		commandList->resourceBarriers(_countof(barriers), barriers);
+		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
 		RenderTargetView* RTVs[] = { RT_sceneColor->getRTV(), RT_thinGBufferA->getRTV() };
 		commandList->omSetRenderTargets(_countof(RTVs), RTVs, RT_sceneDepth->getDSV());
@@ -293,15 +291,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, PathTracing);
 
-		ResourceBarrier barriersBefore[] = {
+		TextureMemoryBarrier barriersBefore[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::UNORDERED_ACCESS,
 				RT_pathTracing,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
-				EGPUResourceState::UNORDERED_ACCESS
 			}
 		};
-		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
 		if (bRenderPathTracing)
 		{
@@ -321,43 +318,40 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, ClearRayTracedReflections);
 
-		ResourceBarrier barriersBefore[] = {
+		TextureMemoryBarrier barriersBefore[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::RENDER_TARGET,
 				RT_indirectSpecular,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
-				EGPUResourceState::RENDER_TARGET
 			}
 		};
-		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
 		// Clear RTR as a render target, every frame. (not so ideal but works)
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		commandList->clearRenderTargetView(RT_indirectSpecular->getRTV(), clearColor);
 
-		ResourceBarrier barriersAfter[] = {
+		TextureMemoryBarrier barriersAfter[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::RENDER_TARGET,
+				ETextureMemoryLayout::UNORDERED_ACCESS,
 				RT_indirectSpecular,
-				EGPUResourceState::RENDER_TARGET,
-				EGPUResourceState::UNORDERED_ACCESS
 			}
 		};
-		commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 	else
 	{
 		SCOPED_DRAW_EVENT(commandList, RayTracedReflections);
 
-		ResourceBarrier barriers[] = {
+		TextureMemoryBarrier barriers[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::UNORDERED_ACCESS,
 				RT_indirectSpecular,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
-				EGPUResourceState::UNORDERED_ACCESS
 			}
 		};
-		commandList->resourceBarriers(_countof(barriers), barriers);
+		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
 		rtReflections->renderRayTracedReflections(
 			commandList, swapchainIndex, scene, camera,
@@ -373,39 +367,34 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, ToneMapping);
 
-		ResourceBarrier barriers[] = {
+		TextureMemoryBarrier barriers[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::RENDER_TARGET,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				RT_sceneColor,
-				EGPUResourceState::RENDER_TARGET,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::RENDER_TARGET,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				RT_thinGBufferA,
-				EGPUResourceState::RENDER_TARGET,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::UNORDERED_ACCESS,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				RT_indirectSpecular,
-				EGPUResourceState::UNORDERED_ACCESS,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::UNORDERED_ACCESS,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				RT_pathTracing,
-				EGPUResourceState::UNORDERED_ACCESS,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PRESENT,
+				ETextureMemoryLayout::RENDER_TARGET,
 				swapchainBuffer,
-				EGPUResourceState::PRESENT,
-				EGPUResourceState::RENDER_TARGET
 			}
 		};
-		commandList->resourceBarriers(_countof(barriers), barriers);
+		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
 		// #todo-renderer: Should not be here
 		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
@@ -451,13 +440,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize
 
-	ResourceBarrier presentBarrier{
-		EResourceBarrierType::Transition,
+	TextureMemoryBarrier presentBarrier{
+		ETextureMemoryLayout::RENDER_TARGET,
+		ETextureMemoryLayout::PRESENT,
 		swapchainBuffer,
-		EGPUResourceState::RENDER_TARGET,
-		EGPUResourceState::PRESENT
 	};
-	commandList->resourceBarriers(1, &presentBarrier);
+	commandList->resourceBarriers(0, nullptr, 1, &presentBarrier);
 
 	commandList->close();
 	commandAllocator->markValid();

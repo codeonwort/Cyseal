@@ -102,27 +102,24 @@ void GPUCulling::cullDrawCommands(
 	uint32 zeroValue = 0;
 	drawCounterBuffer->singleWriteToGPU(commandList, &zeroValue, sizeof(zeroValue), 0);
 
-	ResourceBarrier barriersBefore[] = {
+	BufferMemoryBarrier barriersBefore[] = {
 		{
-			EResourceBarrierType::Transition,
+			EBufferMemoryLayout::COMMON,
+			EBufferMemoryLayout::PIXEL_SHADER_RESOURCE,
 			indirectDrawBuffer,
-			EGPUResourceState::COMMON,
-			EGPUResourceState::PIXEL_SHADER_RESOURCE
 		},
 		{
-			EResourceBarrierType::Transition,
+			EBufferMemoryLayout::COMMON,
+			EBufferMemoryLayout::UNORDERED_ACCESS,
 			culledIndirectDrawBuffer,
-			EGPUResourceState::COMMON,
-			EGPUResourceState::UNORDERED_ACCESS
 		},
 		{
-			EResourceBarrierType::Transition,
+			EBufferMemoryLayout::COMMON,
+			EBufferMemoryLayout::UNORDERED_ACCESS,
 			drawCounterBuffer,
-			EGPUResourceState::COMMON,
-			EGPUResourceState::UNORDERED_ACCESS
 		},
 	};
-	commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+	commandList->resourceBarriers(_countof(barriersBefore), barriersBefore, 0, nullptr);
 
 	commandList->setPipelineState(pipelineState.get());
 	commandList->setComputeRootSignature(rootSignature.get());
@@ -147,27 +144,24 @@ void GPUCulling::cullDrawCommands(
 
 	commandList->dispatchCompute(maxDrawCommands, 1, 1);
 
-	ResourceBarrier barriersAfter[] = {
+	BufferMemoryBarrier barriersAfter[] = {
 		{
-			EResourceBarrierType::Transition,
+			EBufferMemoryLayout::PIXEL_SHADER_RESOURCE,
+			EBufferMemoryLayout::INDIRECT_ARGUMENT,
 			indirectDrawBuffer,
-			EGPUResourceState::PIXEL_SHADER_RESOURCE,
-			EGPUResourceState::INDIRECT_ARGUMENT
 		},
 		{
-			EResourceBarrierType::Transition,
+			EBufferMemoryLayout::UNORDERED_ACCESS,
+			EBufferMemoryLayout::INDIRECT_ARGUMENT,
 			culledIndirectDrawBuffer,
-			EGPUResourceState::UNORDERED_ACCESS,
-			EGPUResourceState::INDIRECT_ARGUMENT
 		},
 		{
-			EResourceBarrierType::Transition,
+			EBufferMemoryLayout::UNORDERED_ACCESS,
+			EBufferMemoryLayout::INDIRECT_ARGUMENT,
 			drawCounterBuffer,
-			EGPUResourceState::UNORDERED_ACCESS,
-			EGPUResourceState::INDIRECT_ARGUMENT
 		},
 	};
-	commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
+	commandList->resourceBarriers(_countof(barriersAfter), barriersAfter, 0, nullptr);
 }
 
 void GPUCulling::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors)
