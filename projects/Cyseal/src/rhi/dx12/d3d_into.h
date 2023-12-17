@@ -315,16 +315,16 @@ namespace into_d3d
 	{
 		switch (topology)
 		{
-			case EPrimitiveTopology::UNDEFINED:         return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
-			case EPrimitiveTopology::POINTLIST:         return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-			case EPrimitiveTopology::LINELIST:          return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
-			case EPrimitiveTopology::LINESTRIP:         return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
-			case EPrimitiveTopology::TRIANGLELIST:      return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-			case EPrimitiveTopology::TRIANGLESTRIP:     return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-			case EPrimitiveTopology::LINELIST_ADJ:      return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
-			case EPrimitiveTopology::LINESTRIP_ADJ:     return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ;
-			case EPrimitiveTopology::TRIANGLELIST_ADJ:  return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
-			case EPrimitiveTopology::TRIANGLESTRIP_ADJ: return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
+			case EPrimitiveTopology::UNDEFINED         : return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+			case EPrimitiveTopology::POINTLIST         : return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+			case EPrimitiveTopology::LINELIST          : return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+			case EPrimitiveTopology::LINESTRIP         : return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+			case EPrimitiveTopology::TRIANGLELIST      : return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			case EPrimitiveTopology::TRIANGLESTRIP     : return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+			case EPrimitiveTopology::LINELIST_ADJ      : return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
+			case EPrimitiveTopology::LINESTRIP_ADJ     : return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ;
+			case EPrimitiveTopology::TRIANGLELIST_ADJ  : return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
+			case EPrimitiveTopology::TRIANGLESTRIP_ADJ : return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
 		}
 		CHECK_NO_ENTRY();
 		return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
@@ -334,21 +334,18 @@ namespace into_d3d
 	{
 		switch (inFormat)
 		{
-		case EPixelFormat::UNKNOWN:            return DXGI_FORMAT_UNKNOWN;
-		case EPixelFormat::R32_TYPELESS:       return DXGI_FORMAT_R32_TYPELESS;
-		case EPixelFormat::R8G8B8A8_UNORM:     return DXGI_FORMAT_R8G8B8A8_UNORM;
-		case EPixelFormat::R32G32_FLOAT:       return DXGI_FORMAT_R32G32_FLOAT;
-		case EPixelFormat::R32G32B32_FLOAT:    return DXGI_FORMAT_R32G32B32_FLOAT;
-		case EPixelFormat::R32G32B32A32_FLOAT: return DXGI_FORMAT_R32G32B32A32_FLOAT;
-		case EPixelFormat::R16G16B16A16_FLOAT: return DXGI_FORMAT_R16G16B16A16_FLOAT;
-		case EPixelFormat::R32_UINT:           return DXGI_FORMAT_R32_UINT;
-		case EPixelFormat::R16_UINT:           return DXGI_FORMAT_R16_UINT;
-		case EPixelFormat::D24_UNORM_S8_UINT:  return DXGI_FORMAT_D24_UNORM_S8_UINT;
-		default:
-			// #todo: Unknown pixel format
-			CHECK_NO_ENTRY();
+			case EPixelFormat::UNKNOWN            : return DXGI_FORMAT_UNKNOWN;
+			case EPixelFormat::R32_TYPELESS       : return DXGI_FORMAT_R32_TYPELESS;
+			case EPixelFormat::R8G8B8A8_UNORM     : return DXGI_FORMAT_R8G8B8A8_UNORM;
+			case EPixelFormat::R32G32_FLOAT       : return DXGI_FORMAT_R32G32_FLOAT;
+			case EPixelFormat::R32G32B32_FLOAT    : return DXGI_FORMAT_R32G32B32_FLOAT;
+			case EPixelFormat::R32G32B32A32_FLOAT : return DXGI_FORMAT_R32G32B32A32_FLOAT;
+			case EPixelFormat::R16G16B16A16_FLOAT : return DXGI_FORMAT_R16G16B16A16_FLOAT;
+			case EPixelFormat::R32_UINT           : return DXGI_FORMAT_R32_UINT;
+			case EPixelFormat::R16_UINT           : return DXGI_FORMAT_R16_UINT;
+			case EPixelFormat::D24_UNORM_S8_UINT  : return DXGI_FORMAT_D24_UNORM_S8_UINT;
 		}
-
+		CHECK_NO_ENTRY(); // #todo: Unknown pixel format
 		return DXGI_FORMAT_UNKNOWN;
 	}
 
@@ -400,15 +397,15 @@ namespace into_d3d
 	{
 		switch (inType)
 		{
-		case EDescriptorHeapType::CBV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		case EDescriptorHeapType::SRV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		case EDescriptorHeapType::UAV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		case EDescriptorHeapType::CBV_SRV_UAV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		case EDescriptorHeapType::SAMPLER:  return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
-		case EDescriptorHeapType::RTV:  return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		case EDescriptorHeapType::DSV:  return D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		case EDescriptorHeapType::NUM_TYPES: CHECK_NO_ENTRY();
+			case EDescriptorHeapType::CBV         : return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::SRV         : return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::UAV         : return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::CBV_SRV_UAV : return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::SAMPLER     : return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+			case EDescriptorHeapType::RTV         : return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			case EDescriptorHeapType::DSV         : return D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 		}
+		CHECK_NO_ENTRY();
 		return D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 	}
 
@@ -429,10 +426,10 @@ namespace into_d3d
 	{
 		switch (dimension)
 		{
-			case ETextureDimension::UNKNOWN: return D3D12_RESOURCE_DIMENSION_UNKNOWN;
-			case ETextureDimension::TEXTURE1D: return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
-			case ETextureDimension::TEXTURE2D: return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-			case ETextureDimension::TEXTURE3D: return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+			case ETextureDimension::UNKNOWN   : return D3D12_RESOURCE_DIMENSION_UNKNOWN;
+			case ETextureDimension::TEXTURE1D : return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
+			case ETextureDimension::TEXTURE2D : return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			case ETextureDimension::TEXTURE3D : return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
 		}
 		CHECK_NO_ENTRY();
 		return D3D12_RESOURCE_DIMENSION_UNKNOWN;

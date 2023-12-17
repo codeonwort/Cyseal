@@ -80,12 +80,14 @@ private:
 	VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
 	std::vector<VkImageView> swapchainImageViews;
 
+#if 0 // #wip-swapchain: We don't render to backbuffer directly, so don't need them.
 	VkRenderPass backbufferRenderPass = VK_NULL_HANDLE;
 	std::vector<VkFramebuffer> swapchainFramebuffers;
 
 	VkImage depthImage = VK_NULL_HANDLE;
 	VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
 	VkImageView depthImageView = VK_NULL_HANDLE;
+#endif
 };
 
 #endif // COMPILE_BACKEND_VULKAN

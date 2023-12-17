@@ -439,13 +439,13 @@ namespace into_vk
 			case EDescriptorHeapType::CBV         : return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			case EDescriptorHeapType::SRV         : return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 			case EDescriptorHeapType::UAV         : return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-			// #wip: Descriptor
+			// #wip-descriptor: D3D12 backend needs this type
+			// as it can only bind two heaps. (CbvSrvUav heap + Sampler heap)
+			// But there is no equivalent field for the type in VkDescriptorType.
 			case EDescriptorHeapType::CBV_SRV_UAV : CHECK_NO_ENTRY();
 			case EDescriptorHeapType::SAMPLER     : return VK_DESCRIPTOR_TYPE_SAMPLER;
-			// #wip: Are they right enums for RTV and DSV?
 			case EDescriptorHeapType::RTV         : return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 			case EDescriptorHeapType::DSV         : return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-			case EDescriptorHeapType::NUM_TYPES   : CHECK_NO_ENTRY();
 		}
 		CHECK_NO_ENTRY();
 		return VK_DESCRIPTOR_TYPE_MAX_ENUM;

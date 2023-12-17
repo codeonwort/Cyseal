@@ -242,7 +242,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 			VkDeviceQueueCreateInfo queueCreateInfo{
 				.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 				.pNext            = nullptr,
-				.flags            = 0, // VkDeviceQueueCreateFlags
+				.flags            = (VkDeviceQueueCreateFlagBits)0,
 				.queueFamilyIndex = (uint32)queueFamily,
 				.queueCount       = 1,
 				.pQueuePriorities = &queuePriority,
@@ -379,6 +379,8 @@ void VulkanDevice::flushCommandQueue()
 void VulkanDevice::initializeDearImgui()
 {
 	// #wip-dearimgui: initializeDearImgui()
+	// https://vkguide.dev/docs/extra-chapter/implementing_imgui/
+	// https://frguthmann.github.io/posts/vulkan_imgui/
 #if 0
 	RenderDevice::initializeDearImgui();
 
@@ -498,7 +500,7 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 	VkPipelineLayoutCreateInfo desc{
 		.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext                  = nullptr,
-		.flags                  = 0, // VkPipelineLayoutCreateFlags
+		.flags                  = (VkPipelineLayoutCreateFlagBits)0,
 		.setLayoutCount         = 1,
 		.pSetLayouts            = 0, // #wip
 		.pushConstantRangeCount = 0,
@@ -526,7 +528,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 		for (uint32 i = 0; i < inDesc.numRenderTargets; ++i)
 		{
 			VkAttachmentDescription attachmentDesc{
-				.flags          = 0, // VkAttachmentDescriptionFlags,
+				.flags          = (VkAttachmentDescriptionFlagBits)0,
 				.format         = into_vk::pixelFormat(inDesc.rtvFormats[i]),
 				// #todo-vulkan: Vulkan allows different sample counts between color attachments?
 				// DX12 requires same count for all attachments:
@@ -545,7 +547,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 		}
 
 		VkAttachmentDescription depthAttachment{
-			.flags          = 0, // VkAttachmentDescriptionFlags,
+			.flags          = (VkAttachmentDescriptionFlagBits)0,
 			.format         = into_vk::pixelFormat(inDesc.dsvFormat),
 			.samples        = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -569,7 +571,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 		};
 
 		VkSubpassDescription subpass{
-			.flags                   = 0, // VkSubpassDescriptionFlags
+			.flags                   = (VkSubpassDescriptionFlagBits)0,
 			.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS,
 			.inputAttachmentCount    = 0,
 			.pInputAttachments       = nullptr,
@@ -596,15 +598,15 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 		}
 
 		VkRenderPassCreateInfo renderPassDesc{
-			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-			.pNext = nullptr,
-			.flags = 0, // VkRenderPassCreateFlags
+			.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+			.pNext           = nullptr,
+			.flags           = (VkRenderPassCreateFlagBits)0,
 			.attachmentCount = (uint32)attachmentDesc.size(),
-			.pAttachments = attachmentDesc.data(),
-			.subpassCount = 1,
-			.pSubpasses = &subpass,
+			.pAttachments    = attachmentDesc.data(),
+			.subpassCount    = 1,
+			.pSubpasses      = &subpass,
 			.dependencyCount = 0,
-			.pDependencies = nullptr,
+			.pDependencies   = nullptr,
 		};
 
 		VkResult ret = vkCreateRenderPass(vkDevice, &renderPassDesc, nullptr, &vkRenderPass);
@@ -628,7 +630,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 		VkPipelineShaderStageCreateInfo stageInfo{
 			.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 			.pNext               = nullptr,
-			.flags               = 0, // VkPipelineShaderStageCreateFlags
+			.flags               = (VkPipelineShaderStageCreateFlagBits)0,
 			.stage               = shaderWrapper->getVkShaderStage(),
 			.module              = shaderWrapper->getVkShaderModule(),
 			.pName               = shaderWrapper->getEntryPointA(),
@@ -810,17 +812,17 @@ RaytracingShaderTable* VulkanDevice::createRaytracingShaderTable(
 DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inDesc)
 {
 	VkDescriptorPoolSize poolSize{
-		// #wip: I'll have to revisit here for volatile heaps (CBV_SRV_UAV)
+		// #wip-descriptor: I'll have to revisit here for volatile heaps (CBV_SRV_UAV)
 		.type            = into_vk::descriptorPoolType(inDesc.type),
 		// #todo-vulkan: Watch out for VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK
 		// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkDescriptorPoolSize.html
 		.descriptorCount = inDesc.numDescriptors,
 	};
 
-	VkDescriptorPoolCreateInfo desc{
+	VkDescriptorPoolCreateInfo createInfo{
 		.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 		.pNext         = nullptr,
-		.flags         = 0, // VkDescriptorPoolCreateFlags
+		.flags         = (VkDescriptorPoolCreateFlagBits)0,
 		.maxSets       = inDesc.numDescriptors,
 		// #todo-vulkan: A D3D12 descriptor heap allows only one descriptor type,
 		// but Vulkan descriptor pool allows multiple types.
@@ -829,11 +831,10 @@ DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inD
 	};
 
 	VkDescriptorPool vkDescriptorPool = VK_NULL_HANDLE;
-	VkResult ret = vkCreateDescriptorPool(vkDevice, &desc, nullptr, &vkDescriptorPool);
+	VkResult ret = vkCreateDescriptorPool(vkDevice, &createInfo, nullptr, &vkDescriptorPool);
 	CHECK(ret == VK_SUCCESS);
 
-	VulkanDescriptorPool* heap = new VulkanDescriptorPool(inDesc, vkDescriptorPool);
-	return heap;
+	return new VulkanDescriptorPool(inDesc, vkDescriptorPool);
 }
 
 ConstantBufferView* VulkanDevice::createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes)
@@ -861,7 +862,7 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 			.format           = into_vk::pixelFormat(createParams.format),
 			.components       = VkComponentSwizzle{},
 			.subresourceRange = VkImageSubresourceRange{
-				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consier depthstencil case
 				.baseMipLevel   = createParams.texture2D.mostDetailedMip,
 				.levelCount     = createParams.texture2D.mipLevels,
 				.baseArrayLayer = 0,

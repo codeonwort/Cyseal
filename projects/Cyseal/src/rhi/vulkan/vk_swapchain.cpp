@@ -115,6 +115,7 @@ void VulkanSwapchain::initialize(
 		}
 	}
 
+#if 0 // #wip-swapchain: We don't render to backbuffer directly, so don't need them.
 	CYLOG(LogVulkan, Log, L"> Create render pass for back-buffer");
 	{
 		VkAttachmentDescription colorAttachment{
@@ -255,6 +256,7 @@ void VulkanSwapchain::initialize(
 			CHECK(ret == VK_SUCCESS);
 		}
 	}
+#endif
 }
 
 void VulkanSwapchain::resize(uint32 newWidth, uint32 newHeight)
