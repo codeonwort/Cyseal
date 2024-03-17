@@ -144,6 +144,9 @@ private:
 	PFN_vkCmdDebugMarkerBeginEXT vkCmdDebugMarkerBegin = VK_NULL_HANDLE;
 	PFN_vkCmdDebugMarkerEndEXT vkCmdDebugMarkerEnd = VK_NULL_HANDLE;
 	PFN_vkDebugMarkerSetObjectNameEXT vkDebugMarkerSetObjectName = VK_NULL_HANDLE;
+
+	// DearImgui
+	VkRenderPass imguiRenderPass = VK_NULL_HANDLE;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

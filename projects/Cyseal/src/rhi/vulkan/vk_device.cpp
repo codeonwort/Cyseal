@@ -378,42 +378,89 @@ void VulkanDevice::flushCommandQueue()
 
 void VulkanDevice::initializeDearImgui()
 {
-	// #wip-dearimgui: initializeDearImgui()
 	// https://vkguide.dev/docs/extra-chapter/implementing_imgui/
 	// https://frguthmann.github.io/posts/vulkan_imgui/
-#if 0
+	
 	RenderDevice::initializeDearImgui();
 
 	QueueFamilyIndices queueFamily = findQueueFamilies(vkPhysicalDevice, vkSurface);
 
-	ImGui_ImplVulkan_InitInfo initInfo{
+	{
+		VkAttachmentDescription colorAttachment{
+			.flags          = 0, // VkAttachmentDescriptionFlags
+			.format         = static_cast<VulkanSwapchain*>(swapChain)->getVkSwapchainImageFormat(),
+			.samples        = VK_SAMPLE_COUNT_1_BIT,
+			.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
+			.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
+			.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+		};
+		VkAttachmentReference colorAttachmentRef{
+			.attachment = 0,
+			.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		};
+		std::array<VkAttachmentDescription, 1> attachments = { colorAttachment };
+		VkSubpassDescription subpass{
+			.flags                   = (VkSubpassDescriptionFlags)0,
+			.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS,
+			.inputAttachmentCount    = 0,
+			.pInputAttachments       = nullptr,
+			.colorAttachmentCount    = 1,
+			.pColorAttachments       = &colorAttachmentRef,
+			.pResolveAttachments     = nullptr,
+			.pDepthStencilAttachment = nullptr,
+			.preserveAttachmentCount = 0,
+			.pPreserveAttachments    = nullptr,
+		};
+		VkSubpassDependency dependency{
+			.srcSubpass      = VK_SUBPASS_EXTERNAL,
+			.dstSubpass      = 0,
+			.srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			.dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			.srcAccessMask   = 0,
+			.dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			.dependencyFlags = (VkDependencyFlags)0,
+		};
+		VkRenderPassCreateInfo renderPassInfo{
+			.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+			.pNext           = nullptr,
+			.flags           = (VkRenderPassCreateFlags)0,
+			.attachmentCount = static_cast<uint32>(attachments.size()),
+			.pAttachments    = attachments.data(),
+			.subpassCount    = 1,
+			.pSubpasses      = &subpass,
+			.dependencyCount = 1,
+			.pDependencies   = &dependency,
+		};
+		VkResult ret = vkCreateRenderPass(vkDevice, &renderPassInfo, nullptr, &imguiRenderPass);
+		CHECK(ret == VK_SUCCESS);
+	}
+
+	// #wip-dearimgui: Fill missing fields
+	ImGui_ImplVulkan_InitInfo imguiInitInfo{
 		.Instance        = vkInstance,
 		.PhysicalDevice  = vkPhysicalDevice,
 		.Device          = vkDevice,
-		.QueueFamily     = (uint32_t)queueFamily.graphicsFamily, // wip
+		.QueueFamily     = (uint32_t)queueFamily.graphicsFamily,
 		.Queue           = vkGraphicsQueue,
 		.PipelineCache   = VK_NULL_HANDLE, // wip
 		.DescriptorPool  = static_cast<VulkanDescriptorPool*>(imguiSRVHeap)->getVkPool(),
 		.Subpass         = 0, // wip
-		.MinImageCount   = swapChain->getBufferCount(), // wip
-		.ImageCount      = swapChain->getBufferCount(), // wip
-		.MSAASamples     = VK_SAMPLE_COUNT_4_BIT, // wip
+		.MinImageCount   = swapChain->getBufferCount(),
+		.ImageCount      = swapChain->getBufferCount(),
+		.MSAASamples     = VK_SAMPLE_COUNT_1_BIT, // wip
 		.Allocator       = nullptr, // wip
 		.CheckVkResultFn = nullptr, // wip
 	};
-	
-	VkRenderPass vkRenderPass = VK_NULL_HANDLE;
 
-	ImGui_ImplVulkan_Init(&initInfo, vkRenderPass);
-#endif
+	ImGui_ImplVulkan_Init(&imguiInitInfo, imguiRenderPass);
 }
 
 void VulkanDevice::beginDearImguiNewFrame()
 {
-	// #wip-dearimgui: beginDearImguiNewFrame()
-#if 0
 	ImGui_ImplVulkan_NewFrame();
-#endif
 }
 
 void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
@@ -428,12 +475,9 @@ void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 
 void VulkanDevice::shutdownDearImgui()
 {
-	// #wip-dearimgui: shutdownDearImgui()
-#if 0
 	RenderDevice::shutdownDearImgui();
-
 	ImGui_ImplVulkan_Shutdown();
-#endif
+	vkDestroyRenderPass(vkDevice, imguiRenderPass, nullptr);
 }
 
 VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)

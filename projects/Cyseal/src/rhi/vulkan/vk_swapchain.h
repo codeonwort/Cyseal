@@ -67,6 +67,8 @@ public:
 	virtual GPUResource* getSwapchainBuffer(uint32 ix) const override;
 	virtual RenderTargetView* getSwapchainBufferRTV(uint32 ix) const override;
 
+	inline VkFormat getVkSwapchainImageFormat() { return swapchainImageFormat; }
+
 private:
 	VulkanDevice* deviceWrapper = nullptr;
 
