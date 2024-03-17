@@ -14,8 +14,7 @@ public:
 	}
 	~VulkanDescriptorPool()
 	{
-		VkDevice vkDevice = static_cast<VulkanDevice*>(gRenderDevice)->getRaw();
-		vkDestroyDescriptorPool(vkDevice, vkPool, nullptr);
+		vkDestroyDescriptorPool(getVkDevice(), vkPool, nullptr);
 	}
 
 	virtual void setDebugName(const wchar_t* debugNameW)
@@ -28,6 +27,8 @@ public:
 			(uint64)vkPool,
 			debugNameA.c_str());
 	}
+
+	inline VkDescriptorPool getVkPool() const { return vkPool; }
 
 private:
 	VkDescriptorPool vkPool;

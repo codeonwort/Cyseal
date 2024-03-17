@@ -393,7 +393,7 @@ void VulkanDevice::initializeDearImgui()
 		.QueueFamily     = (uint32_t)queueFamily.graphicsFamily, // wip
 		.Queue           = vkGraphicsQueue,
 		.PipelineCache   = VK_NULL_HANDLE, // wip
-		.DescriptorPool  = VK_NULL_HANDLE, // wip
+		.DescriptorPool  = static_cast<VulkanDescriptorPool*>(imguiSRVHeap)->getVkPool(),
 		.Subpass         = 0, // wip
 		.MinImageCount   = swapChain->getBufferCount(), // wip
 		.ImageCount      = swapChain->getBufferCount(), // wip
@@ -811,23 +811,25 @@ RaytracingShaderTable* VulkanDevice::createRaytracingShaderTable(
 
 DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inDesc)
 {
-	VkDescriptorPoolSize poolSize{
-		// #wip-descriptor: I'll have to revisit here for volatile heaps (CBV_SRV_UAV)
-		.type            = into_vk::descriptorPoolType(inDesc.type),
+	std::vector<VkDescriptorPoolSize> poolSizes;
+	if (inDesc.type == EDescriptorHeapType::CBV_SRV_UAV) {
+		// #todo-vulkan: For now, allocate 3x times than requested...
+		poolSizes.emplace_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, inDesc.numDescriptors }); // CBV
+		poolSizes.emplace_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, inDesc.numDescriptors });  // SRV
+		poolSizes.emplace_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, inDesc.numDescriptors });  // UAV
+	} else {
 		// #todo-vulkan: Watch out for VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK
 		// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkDescriptorPoolSize.html
-		.descriptorCount = inDesc.numDescriptors,
-	};
+		poolSizes.emplace_back(VkDescriptorPoolSize{ into_vk::descriptorPoolType(inDesc.type), inDesc.numDescriptors });
+	}
 
 	VkDescriptorPoolCreateInfo createInfo{
 		.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 		.pNext         = nullptr,
 		.flags         = (VkDescriptorPoolCreateFlagBits)0,
-		.maxSets       = inDesc.numDescriptors,
-		// #todo-vulkan: A D3D12 descriptor heap allows only one descriptor type,
-		// but Vulkan descriptor pool allows multiple types.
-		.poolSizeCount = 1,
-		.pPoolSizes    = &poolSize,
+		.maxSets       = 1, // #todo-vulkan: maxSets of VkDescriptorPoolCreateInfo
+		.poolSizeCount = (uint32_t)poolSizes.size(),
+		.pPoolSizes    = poolSizes.data(),
 	};
 
 	VkDescriptorPool vkDescriptorPool = VK_NULL_HANDLE;

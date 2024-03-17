@@ -288,7 +288,7 @@ enum class EDescriptorHeapType : uint8
 	CBV         = 0,
 	SRV         = 1,
 	UAV         = 2,
-	CBV_SRV_UAV = 3, // #wip: Oops... See VulkanDevice::createDescriptorHeap()
+	CBV_SRV_UAV = 3,
 	SAMPLER     = 4,
 	RTV         = 5,
 	DSV         = 6,
