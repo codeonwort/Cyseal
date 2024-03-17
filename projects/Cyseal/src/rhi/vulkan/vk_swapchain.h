@@ -68,6 +68,8 @@ public:
 	virtual RenderTargetView* getSwapchainBufferRTV(uint32 ix) const override;
 
 	inline VkFormat getVkSwapchainImageFormat() { return swapchainImageFormat; }
+	inline VkRenderPass getVkRenderPass() { return backbufferRenderPass; }
+	inline VkFramebuffer getVkFramebuffer(uint32 ix) { return swapchainFramebuffers[ix]; }
 
 private:
 	VulkanDevice* deviceWrapper = nullptr;
@@ -82,7 +84,7 @@ private:
 	VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
 	std::vector<VkImageView> swapchainImageViews;
 
-#if 0 // #wip-swapchain: We don't render to backbuffer directly, so don't need them.
+#if 1 // #wip-swapchain: I thought they could be removed but dear imgui suddenly needs them.
 	VkRenderPass backbufferRenderPass = VK_NULL_HANDLE;
 	std::vector<VkFramebuffer> swapchainFramebuffers;
 

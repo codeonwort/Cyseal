@@ -2,7 +2,8 @@
 #include "rhi/render_command.h"
 #include "rhi/swap_chain.h"
 
-#define EMPTY_LOOP 1
+#define VERIFY_EMPTY_LOOP 1
+#define VERIFY_DEAR_IMGUI 1
 
 void NullRenderer::initialize(RenderDevice* renderDevice)
 {
@@ -16,7 +17,7 @@ void NullRenderer::destroy()
 
 void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
-#if EMPTY_LOOP
+#if VERIFY_EMPTY_LOOP
 	SwapChain* swapChain      = device->getSwapChain();
 	swapChain->swapBackbuffer();
 
@@ -34,6 +35,15 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 		SCOPED_DRAW_EVENT(commandList, NullDrawEvent);
 		// Real renderer would render something here.
 	}
+
+#if VERIFY_DEAR_IMGUI
+	{
+		SCOPED_DRAW_EVENT(commandList, DearImgui);
+		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
+		commandList->setDescriptorHeaps(1, imguiHeaps);
+		device->renderDearImgui(commandList);
+	}
+#endif
 
 	TextureMemoryBarrier presentBarrier{
 		.stateBefore = ETextureMemoryLayout::COMMON,

@@ -115,11 +115,11 @@ void VulkanSwapchain::initialize(
 		}
 	}
 
-#if 0 // #wip-swapchain: We don't render to backbuffer directly, so don't need them.
+#if 1 // #wip-swapchain: I thought they could be removed but dear imgui suddenly needs them.
 	CYLOG(LogVulkan, Log, L"> Create render pass for back-buffer");
 	{
 		VkAttachmentDescription colorAttachment{
-			.flags          = 0, // VkAttachmentDescriptionFlags
+			.flags          = (VkAttachmentDescriptionFlags)0,
 			.format         = swapchainImageFormat,
 			.samples        = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -136,7 +136,7 @@ void VulkanSwapchain::initialize(
 		};
 
 		VkAttachmentDescription depthAttachment{
-			.flags          = 0, // VkAttachmentDescriptionFlags
+			.flags          = (VkAttachmentDescriptionFlags)0,
 			.format         = findDepthFormat(deviceWrapper->vkPhysicalDevice),
 			.samples        = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -153,7 +153,7 @@ void VulkanSwapchain::initialize(
 		};
 
 		VkSubpassDescription subpass{
-			.flags                   = 0, // VkSubpassDescriptionFlags
+			.flags                   = (VkSubpassDescriptionFlags)0,
 			.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS,
 			.inputAttachmentCount    = 0,
 			.pInputAttachments       = nullptr,
@@ -172,16 +172,17 @@ void VulkanSwapchain::initialize(
 			.dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			.srcAccessMask   = 0,
 			.dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-			.dependencyFlags = 0, // VkDependencyFlags
+			.dependencyFlags = (VkDependencyFlags)0,
 		};
 
 		std::array<VkAttachmentDescription, 2> attachments = {
 			colorAttachment, depthAttachment
 		};
+
 		VkRenderPassCreateInfo renderPassInfo{
 			.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 			.pNext           = nullptr,
-			.flags           = 0, // VkRenderPassCreateFlags
+			.flags           = (VkRenderPassCreateFlags)0,
 			.attachmentCount = static_cast<uint32>(attachments.size()),
 			.pAttachments    = attachments.data(),
 			.subpassCount    = 1,
@@ -201,7 +202,7 @@ void VulkanSwapchain::initialize(
 	CYLOG(LogVulkan, Log, L"> Create depth resources for backbuffer");
 	{
 		VkFormat depthFormat = findDepthFormat(deviceWrapper->vkPhysicalDevice);
-
+	
 		createImage(
 			deviceWrapper->vkPhysicalDevice,
 			deviceWrapper->vkDevice,
@@ -212,13 +213,13 @@ void VulkanSwapchain::initialize(
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			depthImage, depthImageMemory);
-
+	
 		depthImageView = createImageView(
 			deviceWrapper->vkDevice,
 			depthImage,
 			depthFormat,
 			VK_IMAGE_ASPECT_DEPTH_BIT);
-
+	
 		transitionImageLayout(
 			deviceWrapper->vkDevice,
 			deviceWrapper->getTempCommandPool(),
@@ -239,7 +240,7 @@ void VulkanSwapchain::initialize(
 			VkFramebufferCreateInfo framebufferInfo{
 				.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 				.pNext           = nullptr,
-				.flags           = 0, // VkFramebufferCreateFlags
+				.flags           = (VkFramebufferCreateFlags)0,
 				.renderPass      = backbufferRenderPass,
 				.attachmentCount = static_cast<uint32>(attachments.size()),
 				.pAttachments    = attachments.data(),

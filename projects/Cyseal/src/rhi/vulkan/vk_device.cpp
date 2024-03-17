@@ -384,59 +384,7 @@ void VulkanDevice::initializeDearImgui()
 	RenderDevice::initializeDearImgui();
 
 	QueueFamilyIndices queueFamily = findQueueFamilies(vkPhysicalDevice, vkSurface);
-
-	{
-		VkAttachmentDescription colorAttachment{
-			.flags          = 0, // VkAttachmentDescriptionFlags
-			.format         = static_cast<VulkanSwapchain*>(swapChain)->getVkSwapchainImageFormat(),
-			.samples        = VK_SAMPLE_COUNT_1_BIT,
-			.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
-			.storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
-			.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
-			.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-		};
-		VkAttachmentReference colorAttachmentRef{
-			.attachment = 0,
-			.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-		};
-		std::array<VkAttachmentDescription, 1> attachments = { colorAttachment };
-		VkSubpassDescription subpass{
-			.flags                   = (VkSubpassDescriptionFlags)0,
-			.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS,
-			.inputAttachmentCount    = 0,
-			.pInputAttachments       = nullptr,
-			.colorAttachmentCount    = 1,
-			.pColorAttachments       = &colorAttachmentRef,
-			.pResolveAttachments     = nullptr,
-			.pDepthStencilAttachment = nullptr,
-			.preserveAttachmentCount = 0,
-			.pPreserveAttachments    = nullptr,
-		};
-		VkSubpassDependency dependency{
-			.srcSubpass      = VK_SUBPASS_EXTERNAL,
-			.dstSubpass      = 0,
-			.srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-			.dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-			.srcAccessMask   = 0,
-			.dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-			.dependencyFlags = (VkDependencyFlags)0,
-		};
-		VkRenderPassCreateInfo renderPassInfo{
-			.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-			.pNext           = nullptr,
-			.flags           = (VkRenderPassCreateFlags)0,
-			.attachmentCount = static_cast<uint32>(attachments.size()),
-			.pAttachments    = attachments.data(),
-			.subpassCount    = 1,
-			.pSubpasses      = &subpass,
-			.dependencyCount = 1,
-			.pDependencies   = &dependency,
-		};
-		VkResult ret = vkCreateRenderPass(vkDevice, &renderPassInfo, nullptr, &imguiRenderPass);
-		CHECK(ret == VK_SUCCESS);
-	}
+	VkRenderPass renderPass = static_cast<VulkanSwapchain*>(swapChain)->getVkRenderPass();
 
 	// #wip-dearimgui: Fill missing fields
 	ImGui_ImplVulkan_InitInfo imguiInitInfo{
@@ -455,7 +403,14 @@ void VulkanDevice::initializeDearImgui()
 		.CheckVkResultFn = nullptr, // wip
 	};
 
-	ImGui_ImplVulkan_Init(&imguiInitInfo, imguiRenderPass);
+	ImGui_ImplVulkan_Init(&imguiInitInfo, renderPass);
+
+	// Initialize font
+	VkCommandPool tempCommandPool = getTempCommandPool();
+	VkCommandBuffer tempCommandBuffer = beginSingleTimeCommands(vkDevice, tempCommandPool);
+	ImGui_ImplVulkan_CreateFontsTexture(tempCommandBuffer);
+	endSingleTimeCommands(vkDevice, tempCommandPool, vkGraphicsQueue, tempCommandBuffer);
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
 void VulkanDevice::beginDearImguiNewFrame()
@@ -466,10 +421,26 @@ void VulkanDevice::beginDearImguiNewFrame()
 void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 {
 	// #wip-dearimgui: renderDearImgui()
-#if 0
+#if 1
 	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->currentCommandBuffer;
-	VkPipeline vkPipeline = VK_NULL_HANDLE;
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), vkCommandBuffer, vkPipeline);
+	uint32 ix = swapChain->getCurrentBackbufferIndex();
+
+	VkClearValue clearValues[2] = {
+		VkClearValue{.color = {.float32 = {0.0f, 0.0f, 0.0f, 1.0f } }},
+		VkClearValue{.depthStencil = {.depth = 1.0f, .stencil = 0 }},
+	};
+	VkRenderPassBeginInfo beginInfo{
+		.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+		.pNext           = nullptr,
+		.renderPass      = static_cast<VulkanSwapchain*>(swapChain)->getVkRenderPass(),
+		.framebuffer     = static_cast<VulkanSwapchain*>(swapChain)->getVkFramebuffer(ix),
+		.renderArea      = { {0, 0}, {swapChain->getBackbufferWidth(), swapChain->getBackbufferHeight() }},
+		.clearValueCount = 2,
+		.pClearValues    = clearValues,
+	};
+	vkCmdBeginRenderPass(vkCommandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), vkCommandBuffer, VK_NULL_HANDLE);
+	vkCmdEndRenderPass(vkCommandBuffer);
 #endif
 }
 
@@ -477,7 +448,6 @@ void VulkanDevice::shutdownDearImgui()
 {
 	RenderDevice::shutdownDearImgui();
 	ImGui_ImplVulkan_Shutdown();
-	vkDestroyRenderPass(vkDevice, imguiRenderPass, nullptr);
 }
 
 VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)
