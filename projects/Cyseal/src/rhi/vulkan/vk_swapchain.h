@@ -67,9 +67,10 @@ public:
 	virtual GPUResource* getSwapchainBuffer(uint32 ix) const override;
 	virtual RenderTargetView* getSwapchainBufferRTV(uint32 ix) const override;
 
-	inline VkFormat getVkSwapchainImageFormat() { return swapchainImageFormat; }
-	inline VkRenderPass getVkRenderPass() { return backbufferRenderPass; }
-	inline VkFramebuffer getVkFramebuffer(uint32 ix) { return swapchainFramebuffers[ix]; }
+	inline VkFormat getVkSwapchainImageFormat() const { return swapchainImageFormat; }
+	inline VkRenderPass getVkRenderPass() const { return backbufferRenderPass; }
+	inline VkFramebuffer getVkFramebuffer(uint32 ix) const { return swapchainFramebuffers[ix]; }
+	inline VkSampleCountFlagBits getVkSampleCountFlagBits() const { return vkSampleCountFlagBits; }
 
 private:
 	VulkanDevice* deviceWrapper = nullptr;
@@ -79,6 +80,9 @@ private:
 	VkSwapchainKHR swapchainKHR = VK_NULL_HANDLE;
 	VkExtent2D swapchainExtent = VkExtent2D{ 0,0 };
 	uint32 swapchainImageCount = 0;
+	// #todo-vulkan: backbuffer sample count
+	// Also gotta do something with SwapChain::get4xMSAAQuality()
+	VkSampleCountFlagBits vkSampleCountFlagBits = VK_SAMPLE_COUNT_1_BIT;
 
 	BufferedUniquePtr<VulkanSwapchainImage> swapchainImages;
 	VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;

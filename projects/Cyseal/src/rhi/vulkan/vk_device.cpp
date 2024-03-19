@@ -384,23 +384,23 @@ void VulkanDevice::initializeDearImgui()
 	RenderDevice::initializeDearImgui();
 
 	QueueFamilyIndices queueFamily = findQueueFamilies(vkPhysicalDevice, vkSurface);
-	VkRenderPass renderPass = static_cast<VulkanSwapchain*>(swapChain)->getVkRenderPass();
+	VulkanSwapchain* vkSwapchain = static_cast<VulkanSwapchain*>(swapChain);
+	VkRenderPass renderPass = vkSwapchain->getVkRenderPass();
 
-	// #wip-dearimgui: Fill missing fields
 	ImGui_ImplVulkan_InitInfo imguiInitInfo{
 		.Instance        = vkInstance,
 		.PhysicalDevice  = vkPhysicalDevice,
 		.Device          = vkDevice,
 		.QueueFamily     = (uint32_t)queueFamily.graphicsFamily,
 		.Queue           = vkGraphicsQueue,
-		.PipelineCache   = VK_NULL_HANDLE, // wip
+		.PipelineCache   = VK_NULL_HANDLE, // #todo-vulkan: Pipeline cache for imgui
 		.DescriptorPool  = static_cast<VulkanDescriptorPool*>(imguiSRVHeap)->getVkPool(),
-		.Subpass         = 0, // wip
+		.Subpass         = 0,
 		.MinImageCount   = swapChain->getBufferCount(),
 		.ImageCount      = swapChain->getBufferCount(),
-		.MSAASamples     = VK_SAMPLE_COUNT_1_BIT, // wip
-		.Allocator       = nullptr, // wip
-		.CheckVkResultFn = nullptr, // wip
+		.MSAASamples     = vkSwapchain->getVkSampleCountFlagBits(),
+		.Allocator       = nullptr,
+		.CheckVkResultFn = [](VkResult ret) -> void { CHECK(ret == VK_SUCCESS); },
 	};
 
 	ImGui_ImplVulkan_Init(&imguiInitInfo, renderPass);
@@ -420,8 +420,6 @@ void VulkanDevice::beginDearImguiNewFrame()
 
 void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 {
-	// #wip-dearimgui: renderDearImgui()
-#if 1
 	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->currentCommandBuffer;
 	uint32 ix = swapChain->getCurrentBackbufferIndex();
 
@@ -441,7 +439,6 @@ void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 	vkCmdBeginRenderPass(vkCommandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), vkCommandBuffer, VK_NULL_HANDLE);
 	vkCmdEndRenderPass(vkCommandBuffer);
-#endif
 }
 
 void VulkanDevice::shutdownDearImgui()
