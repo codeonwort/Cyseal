@@ -115,8 +115,8 @@ void VulkanSwapchain::initialize(
 		}
 	}
 
-#if 1 // #wip-swapchain: I thought they could be removed but dear imgui suddenly needs them.
-	CYLOG(LogVulkan, Log, L"> Create render pass for back-buffer");
+	// DearImgui is rendered directly to backbuffer so we need them.
+	CYLOG(LogVulkan, Log, L"> Create render pass for backbuffer");
 	{
 		VkAttachmentDescription colorAttachment{
 			.flags          = (VkAttachmentDescriptionFlags)0,
@@ -257,12 +257,12 @@ void VulkanSwapchain::initialize(
 			CHECK(ret == VK_SUCCESS);
 		}
 	}
-#endif
 }
 
 void VulkanSwapchain::resize(uint32 newWidth, uint32 newHeight)
 {
-	// #todo-vulkan
+	// #todo-vulkan: VulkanSwapchain::resize
+	CHECK_NO_ENTRY();
 }
 
 void VulkanSwapchain::present()
@@ -318,7 +318,8 @@ GPUResource* VulkanSwapchain::getSwapchainBuffer(uint32 ix) const
 
 RenderTargetView* VulkanSwapchain::getSwapchainBufferRTV(uint32 ix) const
 {
-	// #todo-vulkan
+	// #todo-vulkan: VulkanSwapchain::getSwapchainBufferRTV
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 

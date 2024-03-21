@@ -88,14 +88,12 @@ private:
 	VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
 	std::vector<VkImageView> swapchainImageViews;
 
-#if 1 // #wip-swapchain: I thought they could be removed but dear imgui suddenly needs them.
 	VkRenderPass backbufferRenderPass = VK_NULL_HANDLE;
 	std::vector<VkFramebuffer> swapchainFramebuffers;
 
 	VkImage depthImage = VK_NULL_HANDLE;
 	VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
 	VkImageView depthImageView = VK_NULL_HANDLE;
-#endif
 };
 
 #endif // COMPILE_BACKEND_VULKAN

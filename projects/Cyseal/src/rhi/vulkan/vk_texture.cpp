@@ -47,12 +47,14 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 
 	VkMemoryRequirements memRequirements;
 	vkGetImageMemoryRequirements(vkDevice, vkImage, &memRequirements);
+	uint32 memoryTypeIndex = findMemoryType(vkPhysicalDevice, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	VkMemoryAllocateInfo allocInfo = {};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(
-		vkPhysicalDevice, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkMemoryAllocateInfo allocInfo{
+		.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+		.pNext           = nullptr,
+		.allocationSize  = memRequirements.size,
+		.memoryTypeIndex = memoryTypeIndex,
+	};
 
 	ret = vkAllocateMemory(vkDevice, &allocInfo, nullptr, &vkImageMemory);
 	CHECK(ret == VK_SUCCESS);
