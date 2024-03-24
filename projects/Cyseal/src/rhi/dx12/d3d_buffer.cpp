@@ -75,6 +75,8 @@ void updateDefaultBuffer(
 		byteSize);
 #endif
 
+	// #wip-buffer: D3D12_RESOURCE_STATE_GENERIC_READ is OR of vbuf, ibuf, srv, indirect args, copy src...
+	// Need to extend EBufferAccessFlags
 	auto barrierAfterDesc = CD3DX12_RESOURCE_BARRIER::Transition(
 		defaultBuffer.Get(),
 		D3D12_RESOURCE_STATE_COPY_DEST,
@@ -227,7 +229,7 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 			IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
 	}
 	// upload buffer (if requested)
-	if (0 != (createParams.accessFlags & EBufferAccessFlags::CPU_WRITE))
+	if (0 != (createParams.accessFlags & EBufferAccessFlags::COPY_SRC))
 	{
 		auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes, D3D12_RESOURCE_FLAG_NONE, createParams.alignment);
@@ -247,7 +249,7 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 
 void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs)
 {
-	CHECK(0 != (createParams.accessFlags & EBufferAccessFlags::CPU_WRITE));
+	CHECK(0 != (createParams.accessFlags & EBufferAccessFlags::COPY_SRC));
 	for (uint32 i = 0; i < numUploads; ++i)
 	{
 		CHECK((createParams.alignment == 0) || (uploadDescs[i].destOffsetInBytes % createParams.alignment == 0));

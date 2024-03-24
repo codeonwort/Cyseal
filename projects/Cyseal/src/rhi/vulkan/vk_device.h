@@ -111,6 +111,9 @@ public:
 
 	VkCommandPool getTempCommandPool() const;
 
+	void allocateSRVHandle(DescriptorHeap*& outSourceHeap, uint32& outDescriptorIndex);
+	void allocateUAVHandle(DescriptorHeap*& outSourceHeap, uint32& outDescriptorIndex);
+
 private:
 	bool checkValidationLayerSupport();
 	void getRequiredExtensions(std::vector<const char*>& extensions);

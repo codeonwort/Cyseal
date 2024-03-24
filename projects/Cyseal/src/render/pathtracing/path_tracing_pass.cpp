@@ -109,7 +109,7 @@ void PathTracingPass::initialize()
 			BufferCreateParams{
 				.sizeInBytes = UNIFORM_MEMORY_POOL_SIZE,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::CPU_WRITE,
+				.accessFlags = EBufferAccessFlags::COPY_SRC,
 			}
 		));
 

@@ -15,6 +15,7 @@
 #include "core/platform.h"
 #include "core/assertion.h"
 #include "rhi/swap_chain.h"
+#include "rhi/global_descriptor_heaps.h"
 
 #include <vulkan/vulkan.h>
 #include "imgui_impl_vulkan.h"
@@ -800,6 +801,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 PipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc& desc)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 
@@ -807,6 +809,7 @@ RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject
 	const RaytracingPipelineStateObjectDesc& desc)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 
@@ -816,7 +819,8 @@ RaytracingShaderTable* VulkanDevice::createRaytracingShaderTable(
 	uint32 rootArgumentSize,
 	const wchar_t* debugName)
 {
-	// #todo-vulkan
+	// #todo-vulkan: VulkanDevice::createRaytracingShaderTable
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 
@@ -852,30 +856,51 @@ DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inD
 
 ConstantBufferView* VulkanDevice::createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes)
 {
-	// #todo-vulkan
+	// #todo-vulkan: VulkanDevice::createCBV
+	CHECK_NO_ENTRY();
 	return nullptr;
 }
 
 ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
 {
 	VulkanShaderResourceView* srv = nullptr;
-
+	
 	if (createParams.viewDimension == ESRVDimension::Buffer)
 	{
-		// #todo-vulkan
+		CHECK_NO_ENTRY();
+		// #wip-buffer
+		//VkBufferViewCreateInfo createInfo{
+		//	.sType  = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
+		//	.pNext  = nullptr,
+		//	.flags  = (VkBufferViewCreateFlags)0,
+		//	.buffer = (VkBuffer)(gpuResource->getRawResource()),
+		//	.format = into_vk::bufferFormat(createParams.format),
+		//	.offset = 0,
+		//	.range  = 0,
+		//};
+		//
+		//VkBufferView vkBufferView = VK_NULL_HANDLE;
+		//VkResult vkRet = vkCreateBufferView(vkDevice, &createInfo, nullptr, &vkBufferView);
+		//CHECK(vkRet == VK_SUCCESS);
+		//
+		//DescriptorHeap* sourceHeap;
+		//uint32 descriptorIndex;
+		//allocateSRVHandle(sourceHeap, descriptorIndex);
+		//
+		//srv = new VulkanShaderResourceView(gpuResource, sourceHeap, descriptorIndex, vkBufferView);
 	}
 	else if (createParams.viewDimension == ESRVDimension::Texture2D)
 	{
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.pNext            = nullptr,
-			.flags            = 0, // VkImageViewCreateFlags
+			.flags            = (VkImageViewCreateFlags)0,
 			.image            = (VkImage)(gpuResource->getRawResource()),
 			.viewType         = into_vk::imageViewType(createParams.viewDimension),
 			.format           = into_vk::pixelFormat(createParams.format),
 			.components       = VkComponentSwizzle{},
 			.subresourceRange = VkImageSubresourceRange{
-				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consier depthstencil case
+				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consider depthstencil case
 				.baseMipLevel   = createParams.texture2D.mostDetailedMip,
 				.levelCount     = createParams.texture2D.mipLevels,
 				.baseArrayLayer = 0,
@@ -887,7 +912,11 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
 		CHECK(vkRet == VK_SUCCESS);
 
-		srv = new VulkanShaderResourceView(gpuResource, vkImageView);
+		DescriptorHeap* sourceHeap;
+		uint32 descriptorIndex;
+		allocateSRVHandle(sourceHeap, descriptorIndex);
+
+		srv = new VulkanShaderResourceView(gpuResource, sourceHeap, descriptorIndex, vkImageView);
 	}
 	else
 	{
@@ -900,8 +929,50 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 
 UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams)
 {
-	// #todo-vulkan
-	return nullptr;
+	VulkanUnorderedAccessView* uav = nullptr;
+
+	if (createParams.viewDimension == EUAVDimension::Buffer)
+	{
+		// #todo-vulkan: VulkanDevice::createUAV
+		CHECK_NO_ENTRY();
+	}
+	else if (createParams.viewDimension == EUAVDimension::Texture2D)
+	{
+		VkImageViewCreateInfo createInfo{
+			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.pNext            = nullptr,
+			.flags            = (VkImageViewCreateFlags)0,
+			.image            = (VkImage)(gpuResource->getRawResource()),
+			.viewType         = into_vk::imageViewType(createParams.viewDimension),
+			.format           = into_vk::pixelFormat(createParams.format),
+			.components       = VkComponentSwizzle{},
+			.subresourceRange = VkImageSubresourceRange{
+				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consier depthstencil case
+				.baseMipLevel   = createParams.texture2D.mipSlice,
+				.levelCount     = 1,
+				.baseArrayLayer = createParams.texture2D.planeSlice,
+				.layerCount     = 1,
+			}
+		};
+
+		VkImageView vkImageView = VK_NULL_HANDLE;
+		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
+		CHECK(vkRet == VK_SUCCESS);
+
+		DescriptorHeap* sourceHeap;
+		uint32 descriptorIndex;
+		allocateUAVHandle(sourceHeap, descriptorIndex);
+
+		uav = new VulkanUnorderedAccessView(gpuResource, sourceHeap, descriptorIndex, vkImageView);
+	}
+	else
+	{
+		// #todo-vulkan: VulkanDevice::createUAV
+		CHECK_NO_ENTRY();
+	}
+
+	
+	return uav;
 }
 
 CommandSignature* VulkanDevice::createCommandSignature(const CommandSignatureDesc& inDesc, RootSignature* inRootSignature)
@@ -978,6 +1049,24 @@ void VulkanDevice::setObjectDebugName(
 VkCommandPool VulkanDevice::getTempCommandPool() const
 {
 	return static_cast<VulkanRenderCommandAllocator*>(commandAllocators[0])->getRawCommandPool();
+}
+
+void VulkanDevice::allocateSRVHandle(DescriptorHeap*& outSourceHeap, uint32& outDescriptorIndex)
+{
+	VkDescriptorPool pool = static_cast<VulkanDescriptorPool*>(gDescriptorHeaps->getSRVHeap())->getVkPool();
+	const uint32 viewIndex = gDescriptorHeaps->allocateSRVIndex();
+
+	outSourceHeap = gDescriptorHeaps->getSRVHeap();
+	outDescriptorIndex = viewIndex;
+}
+
+void VulkanDevice::allocateUAVHandle(DescriptorHeap*& outSourceHeap, uint32& outDescriptorIndex)
+{
+	VkDescriptorPool pool = static_cast<VulkanDescriptorPool*>(gDescriptorHeaps->getUAVHeap())->getVkPool();
+	const uint32 viewIndex = gDescriptorHeaps->allocateUAVIndex();
+
+	outSourceHeap = gDescriptorHeaps->getUAVHeap();
+	outDescriptorIndex = viewIndex;
 }
 
 bool VulkanDevice::checkValidationLayerSupport()

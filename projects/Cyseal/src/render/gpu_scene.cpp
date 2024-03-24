@@ -390,7 +390,7 @@ void GPUScene::resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElem
 			BufferCreateParams{
 				.sizeInBytes = viewStride * maxElements,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::CPU_WRITE
+				.accessFlags = EBufferAccessFlags::COPY_SRC
 			}
 		));
 		wchar_t debugName[256];
@@ -486,7 +486,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, 
 			BufferCreateParams{
 				.sizeInBytes = materialMemorySize,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::CPU_WRITE,
+				.accessFlags = EBufferAccessFlags::COPY_SRC,
 			}
 		));
 

@@ -167,40 +167,47 @@ void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const
 {
 	// #todo-vulkan
 	//throw std::logic_error("The method or operation is not implemented.");
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil)
 {
 	// #todo-vulkan
 	//throw std::logic_error("The method or operation is not implemented.");
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setPipelineState(PipelineState* state)
 {
 	// #todo-vulkan
 	//throw std::logic_error("The method or operation is not implemented.");
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps)
 {
 	// #todo-vulkan
 	//throw std::logic_error("The method or operation is not implemented.");
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature)
 {
 	// #todo-vulkan
 	//throw std::logic_error("The method or operation is not implemented.");
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setComputeRootSignature(RootSignature* rootSignature)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology inTopology)
@@ -234,12 +241,12 @@ void VulkanRenderCommandList::iaSetIndexBuffer(IndexBuffer* inIndexBuffer)
 {
 	VulkanIndexBuffer* indexBuffer = static_cast<VulkanIndexBuffer*>(inIndexBuffer);
 	VkBuffer vkBuffer = indexBuffer->getVkBuffer();
-	VkIndexType vkIndexType = indexBuffer->getIndexType();
+	VkIndexType vkIndexType = indexBuffer->getVkIndexType();
 
 	vkCmdBindIndexBuffer(
 		currentCommandBuffer,
 		vkBuffer,
-		0, // #todo-vulkan: Index buffer offset
+		indexBuffer->getBufferOffsetInBytes(),
 		vkIndexType);
 }
 
@@ -259,43 +266,51 @@ void VulkanRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthSten
 {
 	// #todo-vulkan
 	//throw std::logic_error("The method or operation is not implemented.");
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setGraphicsRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues)
 {
 	// #todo-vulkan
 	//throw std::logic_error("The method or operation is not implemented.");
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setGraphicsRootConstant32Array(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setGraphicsRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap, uint32 descriptorStartOffset)
 {
 	// #todo-vulkan
 	//throw std::logic_error("The method or operation is not implemented.");
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setGraphicsRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setGraphicsRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setGraphicsRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::drawIndexedInstanced(

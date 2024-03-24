@@ -50,12 +50,17 @@ enum class EGPUResourceState : uint32
 	VIDEO_PROCESS_WRITE        = 0x80000
 };
 
-// D3D12_RESOURCE_FLAGS (my buffer variant)
+// D3D12_RESOURCE_FLAGS
+// VkBufferUsageFlags
+// #wip-buffer: more flags and redundant with EGPUResourceState right above
 enum class EBufferAccessFlags : uint32
 {
-	NONE      = 0,
-	UAV       = 1 << 0,
-	CPU_WRITE = 1 << 1,
+	NONE          = 0,
+	COPY_SRC      = 1 << 0, // Can be a source of copy operation (CPU can write data to the buffer)
+	COPY_DST      = 1 << 1, // Can be a destination of copy operation
+	VERTEX_BUFFER = 1 << 2, // Can be bound as vertex buffer
+	INDEX_BUFFER  = 1 << 3, // Can be bound as index buffer
+	UAV           = 1 << 4, // Can be bound as UAV
 };
 ENUM_CLASS_FLAGS(EBufferAccessFlags);
 
@@ -68,7 +73,7 @@ struct BufferCreateParams
 
 enum class ETextureDimension : uint8
 {
-    UNKNOWN = 0,
+    UNKNOWN   = 0,
     TEXTURE1D = 1,
     TEXTURE2D = 2,
     TEXTURE3D = 3
@@ -193,6 +198,7 @@ struct VertexBufferCreateParams
 };
 
 // Can be a committed resource or suballocation of a vertex buffer pool.
+// #todo-rhi: Remove VertexBuffer or make it a child class of Buffer.
 class VertexBuffer : public GPUResource
 {
 	friend class VertexBufferPool;
@@ -224,6 +230,8 @@ struct IndexBufferCreateParams
 	uint32 elementSize;
 };
 
+// Can be a committed resource or suballocation of an index buffer pool.
+// #todo-rhi: Remove IndexBuffer or make it a child class of Buffer.
 class IndexBuffer : public GPUResource
 {
 public:

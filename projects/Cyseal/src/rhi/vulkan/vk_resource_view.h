@@ -26,12 +26,22 @@ private:
 class VulkanShaderResourceView : public ShaderResourceView
 {
 public:
-	VulkanShaderResourceView(GPUResource* inOwner, VkImageView inVkImageView)
-		: ShaderResourceView(inOwner, /*inSourceHeap*/nullptr, /*inDescriptorIndex*/0xffffffff)
+	VulkanShaderResourceView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
+		: ShaderResourceView(inOwner, inSourceHeap, inDescriptorIndex)
 		, vkImageView(inVkImageView)
+		, bIsBufferView(false)
 	{}
-	VkImageView getVkImageView() const { return vkImageView; }
+	VulkanShaderResourceView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkBufferView inVkBufferView)
+		: ShaderResourceView(inOwner, inSourceHeap, inDescriptorIndex)
+		, vkBufferView(inVkBufferView)
+		, bIsBufferView(true)
+	{}
+	inline bool isBufferView() const { return bIsBufferView; }
+	inline VkBufferView getVkBufferView() const { return vkBufferView; }
+	inline VkImageView getVkImageView() const { return vkImageView; }
 private:
+	const bool bIsBufferView;
+	VkBufferView vkBufferView = VK_NULL_HANDLE;
 	VkImageView vkImageView = VK_NULL_HANDLE;
 };
 

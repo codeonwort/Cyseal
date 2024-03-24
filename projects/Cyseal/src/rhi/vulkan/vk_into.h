@@ -506,21 +506,35 @@ namespace into_vk
 	{
 		switch (inSRVDimension)
 		{
-			//case ESRVDimension::Unknown: return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
-			//case ESRVDimension::Buffer: return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
-			case ESRVDimension::Texture1D                  : return VK_IMAGE_VIEW_TYPE_1D;
-			case ESRVDimension::Texture1DArray             : return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
-			case ESRVDimension::Texture2D                  : return VK_IMAGE_VIEW_TYPE_2D;
-			case ESRVDimension::Texture2DArray             : return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-			case ESRVDimension::Texture2DMultiSampled      : return VK_IMAGE_VIEW_TYPE_2D;
-			case ESRVDimension::Texture2DMultiSampledArray : return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-			case ESRVDimension::Texture3D                  : return VK_IMAGE_VIEW_TYPE_3D;
-			case ESRVDimension::TextureCube                : return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-			case ESRVDimension::TextureCubeArray           : return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-			//case ESRVDimension::RaytracingAccelerationStructure: return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case ESRVDimension::Unknown                         : CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case ESRVDimension::Buffer                          : CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case ESRVDimension::Texture1D                       : return VK_IMAGE_VIEW_TYPE_1D;
+			case ESRVDimension::Texture1DArray                  : return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+			case ESRVDimension::Texture2D                       : return VK_IMAGE_VIEW_TYPE_2D;
+			case ESRVDimension::Texture2DArray                  : return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			case ESRVDimension::Texture2DMultiSampled           : return VK_IMAGE_VIEW_TYPE_2D;
+			case ESRVDimension::Texture2DMultiSampledArray      : return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			case ESRVDimension::Texture3D                       : return VK_IMAGE_VIEW_TYPE_3D;
+			case ESRVDimension::TextureCube                     : return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			case ESRVDimension::TextureCubeArray                : return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+			case ESRVDimension::RaytracingAccelerationStructure : CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
 		}
-		CHECK_NO_ENTRY();
-		return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+		CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+	}
+
+	inline VkImageViewType imageViewType(EUAVDimension inDimension)
+	{
+		switch (inDimension)
+		{
+			case EUAVDimension::Unknown                    : CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case EUAVDimension::Buffer                     : CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case EUAVDimension::Texture1D                  : return VK_IMAGE_VIEW_TYPE_1D;
+			case EUAVDimension::Texture1DArray             : return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+			case EUAVDimension::Texture2D                  : return VK_IMAGE_VIEW_TYPE_2D;
+			case EUAVDimension::Texture2DArray             : return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			case EUAVDimension::Texture3D                  : return VK_IMAGE_VIEW_TYPE_3D;
+		}
+		CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
 	}
 }
 

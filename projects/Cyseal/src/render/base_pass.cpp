@@ -134,7 +134,7 @@ void BasePass::initialize()
 				BufferCreateParams{
 					.sizeInBytes = sizeof(uint32),
 					.alignment   = 0,
-					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+					.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
 				}
 			));
 
@@ -252,7 +252,7 @@ void BasePass::renderBasePass(
 				BufferCreateParams{
 					.sizeInBytes = requiredCapacity,
 					.alignment   = 0,
-					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+					.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
 				}
 			));
 
