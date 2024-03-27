@@ -197,6 +197,6 @@ public:
 
 	virtual void writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes) = 0;
 
-	virtual DescriptorHeap* getSourceHeap() = 0;
+	virtual DescriptorHeap* getSourceHeap() const = 0;
 	virtual uint32 getDescriptorIndexInHeap() const = 0;
 };

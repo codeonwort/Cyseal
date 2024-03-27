@@ -111,6 +111,8 @@ void VulkanBuffer::initialize(const BufferCreateParams& inCreateParams)
 	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::COPY_DST)) usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::VERTEX_BUFFER)) usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::INDEX_BUFFER)) usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::CBV)) usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::SRV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Both SRV and UAV are SSBO in Vulkan
 	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::UAV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
 	// #todo-vulkan-buffer: VkMemoryPropertyFlags
@@ -152,13 +154,13 @@ VulkanVertexBuffer::~VulkanVertexBuffer()
 	}
 }
 
-void VulkanVertexBuffer::initialize(uint32 sizeInBytes)
+void VulkanVertexBuffer::initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags)
 {
 	bufferSize = sizeInBytes;
 	BufferCreateParams createParams{
 		.sizeInBytes = sizeInBytes,
 		.alignment   = 0,
-		.accessFlags = EBufferAccessFlags::VERTEX_BUFFER | EBufferAccessFlags::COPY_DST,
+		.accessFlags = EBufferAccessFlags::VERTEX_BUFFER | usageFlags,
 	};
 	internalBuffer = new VulkanBuffer;
 	internalBuffer->initialize(createParams);
@@ -200,7 +202,7 @@ VkBuffer VulkanVertexBuffer::getVkBuffer() const
 //////////////////////////////////////////////////////////////////////////
 // VulkanIndexBuffer
 
-void VulkanIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format)
+void VulkanIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags)
 {
 	vkBufferSize = (VkDeviceSize)sizeInBytes;
 	indexFormat = format;
@@ -208,7 +210,7 @@ void VulkanIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format)
 	BufferCreateParams createParams{
 		.sizeInBytes = sizeInBytes,
 		.alignment   = 0,
-		.accessFlags = EBufferAccessFlags::INDEX_BUFFER | EBufferAccessFlags::COPY_DST,
+		.accessFlags = EBufferAccessFlags::INDEX_BUFFER | usageFlags,
 	};
 	internalBuffer = new VulkanBuffer;
 	internalBuffer->initialize(createParams);

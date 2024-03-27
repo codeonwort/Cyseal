@@ -34,7 +34,7 @@ public:
 	//~ END GPUResource interface
 
 	//~ BEGIN VertexBuffer interface
-	virtual void initialize(uint32 sizeInBytes) override;
+	virtual void initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags) override;
 	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) override;
 	virtual uint32 getVertexCount() const override { return vertexCount; };
@@ -62,7 +62,7 @@ public:
 	//~ END GPUResource interface
 
 	//~ BEGIN IndexBuffer interface
-	virtual void initialize(uint32 sizeInBytes, EPixelFormat format) override;
+	virtual void initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags) override;
 	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) override;
 	virtual uint32 getIndexCount() const override { return indexCount; }

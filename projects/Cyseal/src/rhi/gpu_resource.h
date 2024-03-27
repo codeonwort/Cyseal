@@ -60,7 +60,9 @@ enum class EBufferAccessFlags : uint32
 	COPY_DST      = 1 << 1, // Can be a destination of copy operation
 	VERTEX_BUFFER = 1 << 2, // Can be bound as vertex buffer
 	INDEX_BUFFER  = 1 << 3, // Can be bound as index buffer
-	UAV           = 1 << 4, // Can be bound as UAV
+	CBV           = 1 << 4, // Can be bound as SRV
+	SRV           = 1 << 5, // Can be bound as SRV
+	UAV           = 1 << 6, // Can be bound as UAV
 };
 ENUM_CLASS_FLAGS(EBufferAccessFlags);
 
@@ -203,7 +205,7 @@ class VertexBuffer : public GPUResource
 {
 	friend class VertexBufferPool;
 public:
-	virtual void initialize(uint32 sizeInBytes) = 0;
+	virtual void initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags) = 0;
 	
 	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
 
@@ -235,7 +237,7 @@ struct IndexBufferCreateParams
 class IndexBuffer : public GPUResource
 {
 public:
-	virtual void initialize(uint32 sizeInBytes, EPixelFormat format) = 0;
+	virtual void initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags) = 0;
 
 	virtual void initializeWithinPool(
 		IndexBufferPool* pool,

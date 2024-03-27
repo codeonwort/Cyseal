@@ -75,7 +75,7 @@ public:
 
 	virtual void writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes) override;
 
-	virtual DescriptorHeap* getSourceHeap() override { return sourceHeap; }
+	virtual DescriptorHeap* getSourceHeap() const override { return sourceHeap; }
 
 	virtual uint32 getDescriptorIndexInHeap() const override { return descriptorIndex; }
 

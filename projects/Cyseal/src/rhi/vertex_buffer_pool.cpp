@@ -15,13 +15,10 @@ void VertexBufferPool::initialize(uint64 totalBytes)
 {
 	CHECK(pool == nullptr);
 
-	//VertexBufferCreateParams desc;
-	//desc.sizeInBytes = totalBytes;
-	//desc.initialData = nullptr;
-	//desc.bCommittedResource = true;
+	const EBufferAccessFlags usageFlags = EBufferAccessFlags::COPY_DST | EBufferAccessFlags::SRV;
 
 	poolSize = totalBytes;
-	pool = gRenderDevice->createVertexBuffer((uint32)totalBytes, L"GlobalVertexBufferPool");
+	pool = gRenderDevice->createVertexBuffer((uint32)totalBytes, usageFlags, L"GlobalVertexBufferPool");
 	
 	// Create raw view (ByteAddressBuffer)
 	{
@@ -76,10 +73,13 @@ void IndexBufferPool::initialize(uint64 totalBytes)
 {
 	CHECK(pool == nullptr);
 
+	const EBufferAccessFlags usageFlags = EBufferAccessFlags::COPY_DST | EBufferAccessFlags::SRV;
+
 	poolSize = totalBytes;
 	pool = gRenderDevice->createIndexBuffer(
 		(uint32)totalBytes,
 		EPixelFormat::R32_UINT,
+		usageFlags,
 		L"GlobalIndexBufferPool");
 
 	// Create raw view (ByteAddressBuffer)

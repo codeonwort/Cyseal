@@ -440,6 +440,9 @@
     <ClCompile Include="src\render\pathtracing\path_tracing_pass.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="src\rhi\vulkan\vk_resource_view.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

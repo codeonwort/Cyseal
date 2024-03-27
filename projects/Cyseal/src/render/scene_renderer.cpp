@@ -61,7 +61,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 			BufferCreateParams{
 				.sizeInBytes = SCENE_UNIFORM_MEMORY_POOL_SIZE,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC,
+				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::CBV,
 			}
 		));
 

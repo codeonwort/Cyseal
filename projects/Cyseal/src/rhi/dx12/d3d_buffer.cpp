@@ -87,7 +87,7 @@ void updateDefaultBuffer(
 //////////////////////////////////////////////////////////////////////////
 // D3DVertexBuffer
 
-void D3DVertexBuffer::initialize(uint32 sizeInBytes)
+void D3DVertexBuffer::initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags)
 {
 	defaultBuffer = createDefaultBuffer(sizeInBytes);
 	offsetInDefaultBuffer = 0;
@@ -131,7 +131,7 @@ void D3DVertexBuffer::setDebugName(const wchar_t* inDebugName)
 //////////////////////////////////////////////////////////////////////////
 // D3DIndexBuffer
 
-void D3DIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format)
+void D3DIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags)
 {
 	CHECK(format == EPixelFormat::R16_UINT || format == EPixelFormat::R32_UINT);
 	auto device = getD3DDevice()->getRawDevice();

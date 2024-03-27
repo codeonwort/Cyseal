@@ -5,6 +5,8 @@
 #include "rhi/gpu_resource_view.h"
 #include <vulkan/vulkan_core.h>
 
+class VulkanBuffer;
+
 class VulkanRenderTargetView : public RenderTargetView
 {
 public:
@@ -23,6 +25,29 @@ private:
 	VkImageView handle = VK_NULL_HANDLE;
 };
 
+class VulkanConstantBufferView : public ConstantBufferView
+{
+public:
+	VulkanConstantBufferView(VkBuffer inHandle, uint32 inSizeInBytes, uint32 inOffsetInBytes, DescriptorHeap* inDescriptorHeap, uint32 inDescriptorIndex)
+		: handle(inHandle), sizeInBytes(inSizeInBytes), offsetInBytes(inOffsetInBytes)
+		, descriptorHeap(inDescriptorHeap), descriptorIndex(inDescriptorIndex)
+	{}
+
+	virtual void writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes) override;
+
+	virtual DescriptorHeap* getSourceHeap() const override { return descriptorHeap; }
+	virtual uint32 getDescriptorIndexInHeap() const override { return descriptorIndex; }
+	
+	VkBuffer getVkBuffer() const { return handle; }
+
+private:
+	VkBuffer        handle          = VK_NULL_HANDLE;
+	uint32          sizeInBytes     = 0;
+	uint32          offsetInBytes   = 0;
+	DescriptorHeap* descriptorHeap  = nullptr;
+	uint32          descriptorIndex = 0xffffffff;
+};
+
 class VulkanShaderResourceView : public ShaderResourceView
 {
 public:
@@ -31,17 +56,17 @@ public:
 		, vkImageView(inVkImageView)
 		, bIsBufferView(false)
 	{}
-	VulkanShaderResourceView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkBufferView inVkBufferView)
+	VulkanShaderResourceView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkBuffer inVkBuffer)
 		: ShaderResourceView(inOwner, inSourceHeap, inDescriptorIndex)
-		, vkBufferView(inVkBufferView)
+		, vkBuffer(inVkBuffer)
 		, bIsBufferView(true)
 	{}
 	inline bool isBufferView() const { return bIsBufferView; }
-	inline VkBufferView getVkBufferView() const { return vkBufferView; }
+	inline VkBuffer getBufferWrapper() const { return vkBuffer; }
 	inline VkImageView getVkImageView() const { return vkImageView; }
 private:
 	const bool bIsBufferView;
-	VkBufferView vkBufferView = VK_NULL_HANDLE;
+	VkBuffer vkBuffer = VK_NULL_HANDLE;
 	VkImageView vkImageView = VK_NULL_HANDLE;
 };
 

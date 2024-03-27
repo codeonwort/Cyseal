@@ -448,10 +448,10 @@ void VulkanDevice::shutdownDearImgui()
 	ImGui_ImplVulkan_Shutdown();
 }
 
-VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName)
+VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, EBufferAccessFlags usageFlags, const wchar_t* inDebugName)
 {
 	VulkanVertexBuffer* buffer = new VulkanVertexBuffer;
-	buffer->initialize(sizeInBytes);
+	buffer->initialize(sizeInBytes, usageFlags);
 	if (inDebugName != nullptr)
 	{
 		std::string debugNameA;
@@ -468,10 +468,10 @@ VertexBuffer* VulkanDevice::createVertexBuffer(VertexBufferPool* pool, uint64 of
 	return buffer;
 }
 
-IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, const wchar_t* inDebugName)
+IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags, const wchar_t* inDebugName)
 {
 	VulkanIndexBuffer* buffer = new VulkanIndexBuffer;
-	buffer->initialize(sizeInBytes, format);
+	buffer->initialize(sizeInBytes, format, usageFlags);
 	if (inDebugName != nullptr)
 	{
 		std::string debugNameA;
@@ -490,8 +490,9 @@ IndexBuffer* VulkanDevice::createIndexBuffer(IndexBufferPool* pool, uint64 offse
 
 Buffer* VulkanDevice::createBuffer(const BufferCreateParams& createParams)
 {
-	// #todo-vulkan
-	return nullptr;
+	VulkanBuffer* buffer = new VulkanBuffer;
+	buffer->initialize(createParams);
+	return buffer;
 }
 
 Texture* VulkanDevice::createTexture(const TextureCreateParams& createParams)
@@ -509,6 +510,8 @@ ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* de
 RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc)
 {
 	// #wip: Needs VkDescriptorSetLayout, and VkDescriptorSet first.
+	CHECK_NO_ENTRY();
+
 	VkPipelineLayoutCreateInfo desc{
 		.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext                  = nullptr,
@@ -856,9 +859,10 @@ DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inD
 
 ConstantBufferView* VulkanDevice::createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes)
 {
-	// #todo-vulkan: VulkanDevice::createCBV
-	CHECK_NO_ENTRY();
-	return nullptr;
+	VkBuffer vkBuffer = (VkBuffer)buffer->getRawResource();
+	uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
+
+	return new VulkanConstantBufferView(vkBuffer, sizeInBytes, offsetInBytes, descriptorHeap, descriptorIndex);
 }
 
 ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
@@ -867,8 +871,14 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 	
 	if (createParams.viewDimension == ESRVDimension::Buffer)
 	{
-		CHECK_NO_ENTRY();
-		// #wip-buffer
+		// Can't know if it's VulkanBuffer, VulkanVertexBuffer, or VulkanIndexBuffer :/
+		// VulkanBuffer* buffer = ?
+		//CHECK(0 != (buffer->getCreateParams().accessFlags & EBufferAccessFlags::SRV));
+
+		VkBuffer vkBuffer = (VkBuffer)gpuResource->getRawResource();
+
+		// #wip-buffer: From VertexBufferPool::initialize
+		// Is this even needed? First find out how Vulkan binds storage buffers
 		//VkBufferViewCreateInfo createInfo{
 		//	.sType  = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
 		//	.pNext  = nullptr,
@@ -878,16 +888,15 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 		//	.offset = 0,
 		//	.range  = 0,
 		//};
-		//
 		//VkBufferView vkBufferView = VK_NULL_HANDLE;
 		//VkResult vkRet = vkCreateBufferView(vkDevice, &createInfo, nullptr, &vkBufferView);
 		//CHECK(vkRet == VK_SUCCESS);
-		//
-		//DescriptorHeap* sourceHeap;
-		//uint32 descriptorIndex;
-		//allocateSRVHandle(sourceHeap, descriptorIndex);
-		//
-		//srv = new VulkanShaderResourceView(gpuResource, sourceHeap, descriptorIndex, vkBufferView);
+		
+		DescriptorHeap* sourceHeap;
+		uint32 descriptorIndex;
+		allocateSRVHandle(sourceHeap, descriptorIndex);
+		
+		srv = new VulkanShaderResourceView(gpuResource, sourceHeap, descriptorIndex, vkBuffer);
 	}
 	else if (createParams.viewDimension == ESRVDimension::Texture2D)
 	{

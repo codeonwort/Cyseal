@@ -192,6 +192,7 @@
     <ClCompile Include="src\rhi\dx12\d3d_resource_view.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_buffer.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_render_command.cpp" />
+    <ClCompile Include="src\rhi\vulkan\vk_resource_view.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_texture.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_win32.cpp" />
     <ClCompile Include="src\render\ray_traced_reflections.cpp" />
