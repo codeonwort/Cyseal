@@ -517,7 +517,7 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 		.pNext                  = nullptr,
 		.flags                  = (VkPipelineLayoutCreateFlagBits)0,
 		.setLayoutCount         = 1,
-		.pSetLayouts            = 0, // #wip
+		.pSetLayouts            = 0, // #wip: Descriptor set layout
 		.pushConstantRangeCount = 0,
 		.pPushConstantRanges    = nullptr, // #wip: Push constant
 	};
