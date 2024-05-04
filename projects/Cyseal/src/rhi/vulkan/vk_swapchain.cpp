@@ -4,9 +4,11 @@
 
 #include "vk_device.h"
 #include "vk_utils.h"
+#include "vk_resource_view.h"
 #include "core/platform.h"
 #include "core/assertion.h"
 #include "util/logging.h"
+
 #include <array>
 
 VulkanSwapchain::VulkanSwapchain()
@@ -102,16 +104,17 @@ void VulkanSwapchain::initialize(
 		swapchainExtent = extent;
 	}
 
-	CYLOG(LogVulkan, Log, L"> Create image views for swapchain images");
+	CYLOG(LogVulkan, Log, L"> Create image views (RTVs) for swapchain images");
 	{
-		swapchainImageViews.resize(swapchainImages.size());
+		swapchainImageViews.initialize((uint32)swapchainImages.size());
 		for (size_t i = 0; i < swapchainImages.size(); ++i)
 		{
-			swapchainImageViews[i] = createImageView(
+			VkImageView vkImageView = createImageView(
 				deviceWrapper->vkDevice,
 				swapchainImages[i]->getVkImage(),
 				swapchainImageFormat,
 				VK_IMAGE_ASPECT_COLOR_BIT);
+			swapchainImageViews[i] = makeUnique<VulkanRenderTargetView>(vkImageView);
 		}
 	}
 
@@ -235,7 +238,7 @@ void VulkanSwapchain::initialize(
 
 		for (size_t i = 0; i < swapchainImageViews.size(); ++i)
 		{
-			std::array<VkImageView, 2> attachments = { swapchainImageViews[i], depthImageView };
+			std::array<VkImageView, 2> attachments = { swapchainImageViews[i]->getRaw(), depthImageView };
 
 			VkFramebufferCreateInfo framebufferInfo{
 				.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -318,9 +321,7 @@ GPUResource* VulkanSwapchain::getSwapchainBuffer(uint32 ix) const
 
 RenderTargetView* VulkanSwapchain::getSwapchainBufferRTV(uint32 ix) const
 {
-	// #todo-vulkan: VulkanSwapchain::getSwapchainBufferRTV
-	CHECK_NO_ENTRY();
-	return nullptr;
+	return swapchainImageViews.at(ix);
 }
 
 #endif // COMPILE_BACKEND_VULKAN

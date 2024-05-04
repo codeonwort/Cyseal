@@ -907,7 +907,7 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 			.image            = (VkImage)(gpuResource->getRawResource()),
 			.viewType         = into_vk::imageViewType(createParams.viewDimension),
 			.format           = into_vk::pixelFormat(createParams.format),
-			.components       = VkComponentSwizzle{},
+			.components       = (VkComponentSwizzle)0,
 			.subresourceRange = VkImageSubresourceRange{
 				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consider depthstencil case
 				.baseMipLevel   = createParams.texture2D.mostDetailedMip,

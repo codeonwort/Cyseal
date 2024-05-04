@@ -20,6 +20,7 @@ https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkRenderPa
 ------------------------------------------------------------------------------------ */
 
 class VulkanDevice;
+class VulkanRenderTargetView;
 
 class VulkanSwapchainImage : public GPUResource
 {
@@ -84,9 +85,9 @@ private:
 	// Also gotta do something with SwapChain::get4xMSAAQuality()
 	VkSampleCountFlagBits vkSampleCountFlagBits = VK_SAMPLE_COUNT_1_BIT;
 
-	BufferedUniquePtr<VulkanSwapchainImage> swapchainImages;
 	VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
-	std::vector<VkImageView> swapchainImageViews;
+	BufferedUniquePtr<VulkanSwapchainImage> swapchainImages;
+	BufferedUniquePtr<VulkanRenderTargetView> swapchainImageViews;
 
 	VkRenderPass backbufferRenderPass = VK_NULL_HANDLE;
 	std::vector<VkFramebuffer> swapchainFramebuffers;

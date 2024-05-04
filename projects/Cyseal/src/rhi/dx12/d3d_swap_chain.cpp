@@ -33,40 +33,39 @@ void D3DSwapChain::initialize(
 
 	rawSwapChain.Reset();
 
-	DXGI_SWAP_CHAIN_DESC1 desc{};
-	desc.BufferCount        = SWAP_CHAIN_BUFFER_COUNT;
-	desc.Width              = width;
-	desc.Height             = height;
-	desc.Format             = into_d3d::pixelFormat(backbufferFormat);
-	desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	desc.SwapEffect         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	// You can't create a MSAA swap chain.
-	// https://gamedev.stackexchange.com/questions/149822/direct3d-12-cant-create-a-swap-chain
-	desc.SampleDesc.Count   = 1;
-	desc.SampleDesc.Quality = 0;
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{
+		.Width       = width,
+		.Height      = height,
+		.Format      = into_d3d::pixelFormat(backbufferFormat),
+		.Stereo      = FALSE,
+		// You can't create a MSAA swap chain.
+		// https://gamedev.stackexchange.com/questions/149822/direct3d-12-cant-create-a-swap-chain
+		.SampleDesc  = {1, 0},
+		.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+		.BufferCount = SWAP_CHAIN_BUFFER_COUNT,
+		.Scaling     = DXGI_SCALING_STRETCH,
+		.SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+		.AlphaMode   = DXGI_ALPHA_MODE_UNSPECIFIED,
+		.Flags       = 0,
+	};
 
 	IDXGISwapChain1* tempSwapchain = nullptr;
-
 	HR( dxgiFactory->CreateSwapChainForHwnd(
 			commandQueue,
 			hwnd,
-			&desc,
+			&swapChainDesc,
 			nullptr, nullptr,
 			&tempSwapchain)
 	);
-
 	rawSwapChain.Attach(static_cast<IDXGISwapChain3*>(tempSwapchain));
 
-	// Create RTV heap
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC desc;
-		desc.NumDescriptors = SWAP_CHAIN_BUFFER_COUNT;
-		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		desc.NodeMask = 0;
-
-		HR( rawDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heapRTV.GetAddressOf())) );
-	}
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{
+		.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+		.NumDescriptors = SWAP_CHAIN_BUFFER_COUNT,
+		.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+		.NodeMask       = 0,
+	};
+	HR( rawDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(heapRTV.GetAddressOf())) );
 
 	createSwapchainImages();
 }

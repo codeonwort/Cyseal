@@ -192,9 +192,8 @@ void VulkanRenderCommandList::setRaytracingPipelineState(RaytracingPipelineState
 
 void VulkanRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps)
 {
-	// #todo-vulkan
-	//throw std::logic_error("The method or operation is not implemented.");
-	CHECK_NO_ENTRY();
+	// #wip: What to do here?
+	// Vulkan binds descriptor sets, not descriptor pools.
 }
 
 void VulkanRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature)
