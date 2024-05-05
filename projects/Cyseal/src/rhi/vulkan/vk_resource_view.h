@@ -67,6 +67,7 @@ public:
 		, vkBuffer(inVkBuffer)
 		, bIsBufferView(true)
 	{}
+	~VulkanShaderResourceView();
 	inline bool isBufferView() const { return bIsBufferView; }
 	inline VkBuffer getBufferWrapper() const { return vkBuffer; }
 	inline VkImageView getVkImageView() const { return vkImageView; }

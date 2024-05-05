@@ -26,12 +26,9 @@ public:
 	virtual void setDebugName(const wchar_t* debugName) override;
 
 	virtual RenderTargetView* getRTV() const override;
-	virtual ShaderResourceView* getSRV() const override;
 
-	virtual uint32 getSRVDescriptorIndex() const override { return srvDescriptorIndex; }
 	virtual uint32 getRTVDescriptorIndex() const override { return rtvDescriptorIndex; }
 
-	virtual DescriptorHeap* getSourceSRVHeap() const override { return srvHeap; }
 	virtual DescriptorHeap* getSourceRTVHeap() const override { return rtvHeap; }
 
 	virtual void* getRawResource() const override { return rawResource.Get(); }
@@ -41,14 +38,11 @@ private:
 	TextureCreateParams createParams;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = { NULL };
-	uint32 srvDescriptorIndex = 0xffffffff;
 	uint32 rtvDescriptorIndex = 0xffffffff;
 
 	std::unique_ptr<D3DRenderTargetView> rtv;
-	std::unique_ptr<ShaderResourceView> srv;
 
 	// Source descriptor heaps from which this texture allocated its descriptors.
-	DescriptorHeap* srvHeap = nullptr;
 	DescriptorHeap* rtvHeap = nullptr;
 
 	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until

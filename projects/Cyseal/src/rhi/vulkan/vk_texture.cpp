@@ -12,14 +12,12 @@ VulkanTexture::~VulkanTexture()
 	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
 	VkDevice vkDevice = deviceWrapper->getRaw();
 
-	srv.reset();
 	rtv.reset();
 
 	vkDestroyImage(vkDevice, vkImage, nullptr);
-	if ((vkSRV != VK_NULL_HANDLE) || (vkRTV != VK_NULL_HANDLE))
+	if (vkRTV != VK_NULL_HANDLE)
 	{
-		// They are all same. Destroy only one.
-		vkDestroyImageView(vkDevice, vkSRV, nullptr);
+		vkDestroyImageView(vkDevice, vkRTV, nullptr);
 	}
 	vkFreeMemory(vkDevice, vkImageMemory, nullptr);
 }
@@ -56,7 +54,7 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 	vkBindImageMemory(vkDevice, vkImage, vkImageMemory, 0);
 
 	// Create image views
-	// #todo-vulkan: Vulkan doesn't have separate SRV/RTV/UAV type,
+	// #wip: Vulkan doesn't have separate SRV/RTV/UAV type,
 	//               and 'usage' is already specified in VkImageCreateInfo.
 	//               Then only image layout transition matters... as I remember?
 
@@ -81,26 +79,6 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 
 		VkResult ret = vkCreateImageView(vkDevice, &viewInfo, nullptr, &colorImageView);
 		CHECK(ret == VK_SUCCESS);
-	}
-
-	if (0 != (inParams.accessFlags & ETextureAccessFlags::SRV))
-	{
-		// #todo-vulkan: SRV ViewDimension
-		CHECK(textureDesc.imageType == VkImageType::VK_IMAGE_TYPE_2D);
-
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                    = createParams.format;
-		srvDesc.viewDimension             = ESRVDimension::Texture2D;
-		srvDesc.texture2D.mostDetailedMip = 0;
-		srvDesc.texture2D.mipLevels       = textureDesc.mipLevels;
-		srvDesc.texture2D.planeSlice      = 0;
-		srvDesc.texture2D.minLODClamp     = 0.0f;
-
-		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
-		srvHeap = srv->getSourceHeap();
-		srvDescriptorIndex = srv->getDescriptorIndexInHeap();
-
-		vkSRV = colorImageView;
 	}
 
 	if (0 != (inParams.accessFlags & ETextureAccessFlags::RTV))
@@ -135,11 +113,6 @@ void VulkanTexture::setDebugName(const wchar_t* debugNameW)
 RenderTargetView* VulkanTexture::getRTV() const
 {
 	return rtv.get();
-}
-
-ShaderResourceView* VulkanTexture::getSRV() const
-{
-	return srv.get();
 }
 
 #endif // COMPILE_BACKEND_VULKAN

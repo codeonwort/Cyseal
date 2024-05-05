@@ -85,25 +85,6 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	}
 
 	// #wip-texture: Don't create texture views from within a texture.
-	
-	if (0 != (params.accessFlags & ETextureAccessFlags::SRV))
-	{
-		// #todo-texture: SRV ViewDimension
-		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
-
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                    = createParams.format;
-		srvDesc.viewDimension             = ESRVDimension::Texture2D;
-		srvDesc.texture2D.mostDetailedMip = 0;
-		srvDesc.texture2D.mipLevels       = textureDesc.MipLevels;
-		srvDesc.texture2D.planeSlice      = 0;
-		srvDesc.texture2D.minLODClamp     = 0.0f;
-
-		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
-		srvHeap = srv->getSourceHeap();
-		srvDescriptorIndex = srv->getDescriptorIndexInHeap();
-	}
-
 	if (0 != (params.accessFlags & ETextureAccessFlags::RTV) && params.numLayers == 1)
 	{
 		// #todo-texture: RTV ViewDimension
@@ -176,9 +157,4 @@ void D3DTexture::setDebugName(const wchar_t* debugName)
 RenderTargetView* D3DTexture::getRTV() const
 {
 	return rtv.get();
-}
-
-ShaderResourceView* D3DTexture::getSRV() const
-{
-	return srv.get();
 }

@@ -96,4 +96,5 @@ private:
 	BufferedUniquePtr<DescriptorHeap> materialCBVHeap;
 	BufferedUniquePtr<DescriptorHeap> materialSRVHeap;
 	BufferedUniquePtrVec<ConstantBufferView> materialCBVs;
+	BufferedUniquePtrVec<ShaderResourceView> materialSRVs;
 };

@@ -336,6 +336,7 @@ public:
 
 	// #todo-rhi: DescriptorHeap - support release()
 
+	// #wip-descriptor: Related views must be free'd manually.
 	void resetAllDescriptors()
 	{
 		currentDescriptorIndex = 0;

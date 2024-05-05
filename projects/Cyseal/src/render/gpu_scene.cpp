@@ -72,6 +72,7 @@ void GPUScene::initialize()
 	materialCBVHeap.initialize(swapchainCount);
 	materialSRVHeap.initialize(swapchainCount);
 	materialCBVs.initialize(swapchainCount);
+	materialSRVs.initialize(swapchainCount);
 
 	// Root signature
 	{
@@ -157,7 +158,13 @@ void GPUScene::renderGPUScene(
 		SCOPED_DRAW_EVENT_STRING(commandList, eventString);
 
 		auto& CBVs = materialCBVs[swapchainIndex];
-		DescriptorHeap* srvHeap = materialSRVHeap[swapchainIndex].get();
+		auto& SRVs = materialSRVs[swapchainIndex];
+		DescriptorHeap* srvHeap = materialSRVHeap.at(swapchainIndex);
+
+		// #todo-gpuscene: Can't do this in resizeMaterialBuffers()
+		srvHeap->resetAllDescriptors();
+		SRVs.clear();
+		SRVs.reserve(numMeshSections);
 
 		for (uint32 i = 0; i < numStaticMeshes; ++i)
 		{
@@ -173,11 +180,18 @@ void GPUScene::renderGPUScene(
 					albedo = material->albedoTexture->getGPUResource();
 				}
 
-				// #wip-texture: Refactor SRV usage
-				gRenderDevice->copyDescriptors(
-					1,
-					srvHeap, currentMaterialSRVCount,
-					albedo->getSourceSRVHeap(), albedo->getSRVDescriptorIndex());
+				ShaderResourceViewDesc srvDesc{
+					.format              = albedo->getCreateParams().format,
+					.viewDimension       = ESRVDimension::Texture2D,
+					.texture2D           = Texture2DSRVDesc{
+						.mostDetailedMip = 0,
+						.mipLevels       = albedo->getCreateParams().mipLevels,
+						.planeSlice      = 0,
+						.minLODClamp     = 0.0f,
+					}
+				};
+				auto albedoSRV = gRenderDevice->createSRV(albedo.get(), srvHeap, srvDesc);
+				SRVs.emplace_back(UniquePtr<ShaderResourceView>(albedoSRV));
 
 				// CBV
 				MaterialConstants constants;

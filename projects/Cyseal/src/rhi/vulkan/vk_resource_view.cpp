@@ -9,6 +9,14 @@ VulkanDepthStencilView::~VulkanDepthStencilView()
 	vkDestroyImageView(getVkDevice(), handle, nullptr);
 }
 
+VulkanShaderResourceView::~VulkanShaderResourceView()
+{
+	if (!bIsBufferView)
+	{
+		vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
+	}
+}
+
 void VulkanConstantBufferView::writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes)
 {
 	// #wip-buffer: VulkanConstantBufferView::writeToGPU

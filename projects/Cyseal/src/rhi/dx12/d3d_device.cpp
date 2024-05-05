@@ -315,19 +315,6 @@ void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32
 	}
 }
 
-void D3DDevice::allocateSRVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
-{
-	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getSRVHeap())->getRaw();
-	const uint32 viewIndex = gDescriptorHeaps->allocateSRVIndex();
-
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeCBV_SRV_UAV);
-
-	outSourceHeap = gDescriptorHeaps->getSRVHeap();
-	outHandle = handle;
-	outDescriptorIndex = viewIndex;
-}
-
 void D3DDevice::allocateRTVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
 {
 	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getRTVHeap())->getRaw();
@@ -661,21 +648,23 @@ ConstantBufferView* D3DDevice::createCBV(
 	return cbv;
 }
 
-ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
+ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams)
 {
-	D3D12_SHADER_RESOURCE_VIEW_DESC d3dDesc = into_d3d::srvDesc(createParams);
-
-	DescriptorHeap* sourceHeap;
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
-	uint32 descriptorIndex;
-	allocateSRVHandle(sourceHeap, cpuHandle, descriptorIndex);
+	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
 	ID3D12Resource* d3dResource = into_d3d::id3d12Resource(gpuResource);
+	D3D12_SHADER_RESOURCE_VIEW_DESC d3dDesc = into_d3d::srvDesc(createParams);
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = d3dHeap->GetCPUDescriptorHandleForHeapStart();
+	cpuHandle.ptr += SIZE_T(descriptorIndex) * SIZE_T(descSizeCBV_SRV_UAV);
 	device->CreateShaderResourceView(d3dResource, &d3dDesc, cpuHandle);
 
-	D3DShaderResourceView* srv = new D3DShaderResourceView(
-		gpuResource, sourceHeap, descriptorIndex, cpuHandle);
-	return srv;
+	return new D3DShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
+}
+
+ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
+{
+	return createSRV(gpuResource, gDescriptorHeaps->getSRVHeap(), createParams);
 }
 
 UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams)

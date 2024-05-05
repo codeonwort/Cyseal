@@ -865,7 +865,7 @@ ConstantBufferView* VulkanDevice::createCBV(Buffer* buffer, DescriptorHeap* desc
 	return new VulkanConstantBufferView(vkBuffer, sizeInBytes, offsetInBytes, descriptorHeap, descriptorIndex);
 }
 
-ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
+ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams)
 {
 	VulkanShaderResourceView* srv = nullptr;
 	
@@ -892,11 +892,9 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 		//VkResult vkRet = vkCreateBufferView(vkDevice, &createInfo, nullptr, &vkBufferView);
 		//CHECK(vkRet == VK_SUCCESS);
 		
-		DescriptorHeap* sourceHeap;
-		uint32 descriptorIndex;
-		allocateSRVHandle(sourceHeap, descriptorIndex);
+		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 		
-		srv = new VulkanShaderResourceView(gpuResource, sourceHeap, descriptorIndex, vkBuffer);
+		srv = new VulkanShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, vkBuffer);
 	}
 	else if (createParams.viewDimension == ESRVDimension::Texture2D)
 	{
@@ -921,11 +919,9 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
 		CHECK(vkRet == VK_SUCCESS);
 
-		DescriptorHeap* sourceHeap;
-		uint32 descriptorIndex;
-		allocateSRVHandle(sourceHeap, descriptorIndex);
+		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
-		srv = new VulkanShaderResourceView(gpuResource, sourceHeap, descriptorIndex, vkImageView);
+		srv = new VulkanShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 	}
 	else
 	{
@@ -934,6 +930,11 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 	}
 
 	return srv;
+}
+
+ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
+{
+	return createSRV(gpuResource, gDescriptorHeaps->getSRVHeap(), createParams);
 }
 
 UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams)
@@ -1097,15 +1098,6 @@ void VulkanDevice::setObjectDebugName(
 VkCommandPool VulkanDevice::getTempCommandPool() const
 {
 	return static_cast<VulkanRenderCommandAllocator*>(commandAllocators[0])->getRawCommandPool();
-}
-
-void VulkanDevice::allocateSRVHandle(DescriptorHeap*& outSourceHeap, uint32& outDescriptorIndex)
-{
-	VkDescriptorPool pool = static_cast<VulkanDescriptorPool*>(gDescriptorHeaps->getSRVHeap())->getVkPool();
-	const uint32 viewIndex = gDescriptorHeaps->allocateSRVIndex();
-
-	outSourceHeap = gDescriptorHeaps->getSRVHeap();
-	outDescriptorIndex = viewIndex;
 }
 
 void VulkanDevice::allocateUAVHandle(DescriptorHeap*& outSourceHeap, uint32& outDescriptorIndex)
