@@ -83,25 +83,6 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 			nullptr,
 			IID_PPV_ARGS(&textureUploadHeap)));
 	}
-
-	// #wip-texture: Don't create texture views from within a texture.
-	if (0 != (params.accessFlags & ETextureAccessFlags::RTV) && params.numLayers == 1)
-	{
-		// #todo-texture: RTV ViewDimension
-		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
-
-		D3D12_RENDER_TARGET_VIEW_DESC viewDesc{};
-		viewDesc.Format = textureDesc.Format;
-		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-		viewDesc.Texture2D.MipSlice = 0;
-		viewDesc.Texture2D.PlaneSlice = 0;
-
-		getD3DDevice()->allocateRTVHandle(rtvHeap, rtvHandle, rtvDescriptorIndex);
-		device->CreateRenderTargetView(rawResource.Get(), &viewDesc, rtvHandle);
-
-		rtv = std::make_unique<D3DRenderTargetView>();
-		rtv->setCPUHandle(rtvHandle);
-	}
 }
 
 void D3DTexture::uploadData(
@@ -152,9 +133,4 @@ void D3DTexture::uploadData(
 void D3DTexture::setDebugName(const wchar_t* debugName)
 {
 	rawResource->SetName(debugName);
-}
-
-RenderTargetView* D3DTexture::getRTV() const
-{
-	return rtv.get();
 }

@@ -272,12 +272,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
-		RenderTargetView* RTVs[] = { RT_sceneColor->getRTV(), RT_thinGBufferA->getRTV() };
+		RenderTargetView* RTVs[] = { sceneColorRTV.get(), thinGBufferARTV.get() };
 		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
 
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		commandList->clearRenderTargetView(RT_sceneColor->getRTV(), clearColor);
-		commandList->clearRenderTargetView(RT_thinGBufferA->getRTV(), clearColor);
+		commandList->clearRenderTargetView(sceneColorRTV.get(), clearColor);
+		commandList->clearRenderTargetView(thinGBufferARTV.get(), clearColor);
 		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
 
 		basePass->renderBasePass(
@@ -330,7 +330,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		// Clear RTR as a render target, every frame. (not so ideal but works)
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		commandList->clearRenderTargetView(RT_indirectSpecular->getRTV(), clearColor);
+		commandList->clearRenderTargetView(indirectSpecularRTV.get(), clearColor);
 
 		TextureMemoryBarrier barriersAfter[] = {
 			{
@@ -495,6 +495,16 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			},
 		}
 	));
+	sceneColorRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_sceneColor,
+		RenderTargetViewDesc{
+			.format            = RT_sceneColor->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
+		}
+	));
 
 	RT_sceneDepth = device->createTexture(
 		TextureCreateParams::texture2D(
@@ -523,6 +533,17 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			1, 1, 0));
 	RT_thinGBufferA->setDebugName(L"RT_ThinGBufferA");
 
+	thinGBufferARTV = UniquePtr<RenderTargetView>(device->createRTV(RT_thinGBufferA,
+		RenderTargetViewDesc{
+			.format            = RT_thinGBufferA->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
+		}
+	));
+
 	RT_indirectSpecular = device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R16G16B16A16_FLOAT,
@@ -540,6 +561,16 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 				.mipLevels       = RT_indirectSpecular->getCreateParams().mipLevels,
 				.planeSlice      = 0,
 				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	indirectSpecularRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_indirectSpecular,
+		RenderTargetViewDesc{
+			.format            = RT_indirectSpecular->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
 			},
 		}
 	));

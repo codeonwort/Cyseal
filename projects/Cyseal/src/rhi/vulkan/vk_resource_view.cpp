@@ -4,9 +4,15 @@
 
 #include "vk_device.h"
 
+
+VulkanRenderTargetView::~VulkanRenderTargetView()
+{
+	vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
+}
+
 VulkanDepthStencilView::~VulkanDepthStencilView()
 {
-	vkDestroyImageView(getVkDevice(), handle, nullptr);
+	vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
 }
 
 VulkanShaderResourceView::~VulkanShaderResourceView()
@@ -15,6 +21,12 @@ VulkanShaderResourceView::~VulkanShaderResourceView()
 	{
 		vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
 	}
+}
+
+
+VulkanUnorderedAccessView::~VulkanUnorderedAccessView()
+{
+	vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
 }
 
 void VulkanConstantBufferView::writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes)

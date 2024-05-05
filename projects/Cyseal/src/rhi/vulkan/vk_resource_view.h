@@ -10,32 +10,40 @@ class VulkanBuffer;
 class VulkanRenderTargetView : public RenderTargetView
 {
 public:
-	VulkanRenderTargetView(VkImageView inHandle) : handle(inHandle) {}
-	VkImageView getRaw() const { return handle; }
+	VulkanRenderTargetView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
+		: RenderTargetView(inOwner, inSourceHeap, inDescriptorIndex)
+		, vkImageView(inVkImageView)
+	{}
+
+	~VulkanRenderTargetView();
+	
+	VkImageView getVkImageView() const { return vkImageView; }
+
 private:
-	VkImageView handle = VK_NULL_HANDLE;
+	VkImageView vkImageView = VK_NULL_HANDLE;
 };
 
 class VulkanDepthStencilView : public DepthStencilView
 {
 public:
-	VulkanDepthStencilView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inHandle)
+	VulkanDepthStencilView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
 		: DepthStencilView(inOwner, inSourceHeap, inDescriptorIndex)
-		, handle(inHandle)
+		, vkImageView(inVkImageView)
 	{}
 
 	~VulkanDepthStencilView();
 
-	VkImageView getRaw() const { return handle; }
+	VkImageView getVkImageView() const { return vkImageView; }
+
 private:
-	VkImageView handle = VK_NULL_HANDLE;
+	VkImageView vkImageView = VK_NULL_HANDLE;
 };
 
 class VulkanConstantBufferView : public ConstantBufferView
 {
 public:
-	VulkanConstantBufferView(VkBuffer inHandle, uint32 inSizeInBytes, uint32 inOffsetInBytes, DescriptorHeap* inDescriptorHeap, uint32 inDescriptorIndex)
-		: handle(inHandle), sizeInBytes(inSizeInBytes), offsetInBytes(inOffsetInBytes)
+	VulkanConstantBufferView(VkBuffer inVkBuffer, uint32 inSizeInBytes, uint32 inOffsetInBytes, DescriptorHeap* inDescriptorHeap, uint32 inDescriptorIndex)
+		: vkBuffer(inVkBuffer), sizeInBytes(inSizeInBytes), offsetInBytes(inOffsetInBytes)
 		, descriptorHeap(inDescriptorHeap), descriptorIndex(inDescriptorIndex)
 	{}
 
@@ -44,10 +52,10 @@ public:
 	virtual DescriptorHeap* getSourceHeap() const override { return descriptorHeap; }
 	virtual uint32 getDescriptorIndexInHeap() const override { return descriptorIndex; }
 	
-	VkBuffer getVkBuffer() const { return handle; }
+	VkBuffer getVkBuffer() const { return vkBuffer; }
 
 private:
-	VkBuffer        handle          = VK_NULL_HANDLE;
+	VkBuffer        vkBuffer        = VK_NULL_HANDLE;
 	uint32          sizeInBytes     = 0;
 	uint32          offsetInBytes   = 0;
 	DescriptorHeap* descriptorHeap  = nullptr;
@@ -67,10 +75,13 @@ public:
 		, vkBuffer(inVkBuffer)
 		, bIsBufferView(true)
 	{}
+
 	~VulkanShaderResourceView();
+
 	inline bool isBufferView() const { return bIsBufferView; }
 	inline VkBuffer getBufferWrapper() const { return vkBuffer; }
 	inline VkImageView getVkImageView() const { return vkImageView; }
+
 private:
 	const bool bIsBufferView;
 	VkBuffer vkBuffer = VK_NULL_HANDLE;
@@ -80,17 +91,17 @@ private:
 class VulkanUnorderedAccessView : public UnorderedAccessView
 {
 public:
-	VulkanUnorderedAccessView(
-		GPUResource* inOwner,
-		DescriptorHeap* inSourceHeap,
-		uint32 inDescriptorIndex,
-		VkImageView inHandle)
+	VulkanUnorderedAccessView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
 		: UnorderedAccessView(inOwner, inSourceHeap, inDescriptorIndex)
-		, handle(inHandle)
+		, vkImageView(inVkImageView)
 	{}
-	VkImageView getRaw() const { return handle; }
+
+	~VulkanUnorderedAccessView();
+
+	VkImageView getVkImageView() const { return vkImageView; }
+
 private:
-	VkImageView handle = VK_NULL_HANDLE;
+	VkImageView vkImageView = VK_NULL_HANDLE;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

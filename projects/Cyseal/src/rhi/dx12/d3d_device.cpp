@@ -608,11 +608,11 @@ RaytracingShaderTable* D3DDevice::createRaytracingShaderTable(
 
 DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
 {
-	D3D12_DESCRIPTOR_HEAP_DESC d3d_desc;
-	into_d3d::descriptorHeapDesc(desc, d3d_desc);
+	D3D12_DESCRIPTOR_HEAP_DESC d3dDesc;
+	into_d3d::descriptorHeapDesc(desc, d3dDesc);
 
 	D3DDescriptorHeap* heap = new D3DDescriptorHeap(desc);
-	heap->initialize(device.Get(), d3d_desc);
+	heap->initialize(device.Get(), d3dDesc);
 
 	return heap;
 }
@@ -623,6 +623,7 @@ ConstantBufferView* D3DDevice::createCBV(
 	uint32 sizeInBytes,
 	uint32 offsetInBytes)
 {
+	CHECK(descriptorHeap->getDesc().type == EDescriptorHeapType::CBV || descriptorHeap->getDesc().type == EDescriptorHeapType::CBV_SRV_UAV);
 	CHECK(offsetInBytes % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0); // 256
 
 	D3DDevice* d3dDevice = static_cast<D3DDevice*>(gRenderDevice);
@@ -650,6 +651,8 @@ ConstantBufferView* D3DDevice::createCBV(
 
 ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams)
 {
+	CHECK(descriptorHeap->getDesc().type == EDescriptorHeapType::SRV || descriptorHeap->getDesc().type == EDescriptorHeapType::CBV_SRV_UAV);
+
 	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
 	const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
@@ -665,6 +668,27 @@ ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, DescriptorHea
 ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
 {
 	return createSRV(gpuResource, gDescriptorHeaps->getSRVHeap(), createParams);
+}
+
+RenderTargetView* D3DDevice::createRTV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const RenderTargetViewDesc& createParams)
+{
+	CHECK(descriptorHeap->getDesc().type == EDescriptorHeapType::RTV);
+
+	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
+
+	ID3D12Resource* d3dResource = into_d3d::id3d12Resource(gpuResource);
+	D3D12_RENDER_TARGET_VIEW_DESC d3dDesc = into_d3d::rtvDesc(createParams);
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = d3dHeap->GetCPUDescriptorHandleForHeapStart();
+	cpuHandle.ptr += SIZE_T(descriptorIndex) * SIZE_T(descSizeRTV);
+	device->CreateRenderTargetView(d3dResource, &d3dDesc, cpuHandle);
+
+	return new D3DRenderTargetView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
+}
+
+RenderTargetView* D3DDevice::createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams)
+{
+	return createRTV(gpuResource, gDescriptorHeaps->getRTVHeap(), createParams);
 }
 
 UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams)

@@ -25,25 +25,11 @@ public:
 		uint32 subresourceIndex = 0) override;
 	virtual void setDebugName(const wchar_t* debugName) override;
 
-	virtual RenderTargetView* getRTV() const override;
-
-	virtual uint32 getRTVDescriptorIndex() const override { return rtvDescriptorIndex; }
-
-	virtual DescriptorHeap* getSourceRTVHeap() const override { return rtvHeap; }
-
 	virtual void* getRawResource() const override { return rawResource.Get(); }
 
 private:
 	WRL::ComPtr<ID3D12Resource> rawResource;
 	TextureCreateParams createParams;
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = { NULL };
-	uint32 rtvDescriptorIndex = 0xffffffff;
-
-	std::unique_ptr<D3DRenderTargetView> rtv;
-
-	// Source descriptor heaps from which this texture allocated its descriptors.
-	DescriptorHeap* rtvHeap = nullptr;
 
 	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 	// the command list that references it has finished executing on the GPU.

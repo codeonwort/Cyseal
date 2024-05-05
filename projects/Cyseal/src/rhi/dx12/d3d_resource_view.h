@@ -10,11 +10,15 @@ class DescriptorHeap;
 class D3DRenderTargetView : public RenderTargetView
 {
 public:
-	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return handle; }
-	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE rawHandle) { handle = rawHandle; }
+	D3DRenderTargetView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, D3D12_CPU_DESCRIPTOR_HANDLE inCpuHandle)
+		: RenderTargetView(inOwner, inSourceHeap, inDescriptorIndex)
+		, cpuHandle(inCpuHandle)
+	{}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return cpuHandle; }
 
 private:
-	D3D12_CPU_DESCRIPTOR_HANDLE handle;
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
 };
 
 class D3DDepthStencilView : public DepthStencilView

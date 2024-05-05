@@ -6,11 +6,6 @@
 
 D3DSwapChain::D3DSwapChain()
 {
-	for (auto i = 0u; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
-	{
-		swapChainBuffers[i] = std::make_unique<D3DSwapChainBuffer>();
-		backBufferRTVs[i] = std::make_unique<D3DRenderTargetView>();
-	}
 }
 
 void D3DSwapChain::initialize(
@@ -59,13 +54,21 @@ void D3DSwapChain::initialize(
 	);
 	rawSwapChain.Attach(static_cast<IDXGISwapChain3*>(tempSwapchain));
 
-	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{
-		.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-		.NumDescriptors = SWAP_CHAIN_BUFFER_COUNT,
-		.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-		.NodeMask       = 0,
+	// CAUTION: gDescriptorHeaps is not initialized yet.
+	DescriptorHeapDesc heapDesc{
+		.type           = EDescriptorHeapType::RTV,
+		.numDescriptors = SWAP_CHAIN_BUFFER_COUNT,
+		.flags          = EDescriptorHeapFlags::None,
+		.nodeMask       = 0,
 	};
-	HR( rawDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(heapRTV.GetAddressOf())) );
+	heapRTV = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(heapDesc));
+
+	swapChainBuffers.initialize(SWAP_CHAIN_BUFFER_COUNT);
+	backBufferRTVs.initialize(SWAP_CHAIN_BUFFER_COUNT);
+	for (auto i = 0u; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
+	{
+		swapChainBuffers[i] = makeUnique<D3DSwapChainBuffer>();
+	}
 
 	createSwapchainImages();
 }
@@ -104,12 +107,12 @@ uint32 D3DSwapChain::getCurrentBackbufferIndex() const
 
 GPUResource* D3DSwapChain::getSwapchainBuffer(uint32 ix) const
 {
-	return swapChainBuffers[ix].get();
+	return swapChainBuffers.at(ix);
 }
 
 RenderTargetView* D3DSwapChain::getSwapchainBufferRTV(uint32 ix) const
 {
-	return backBufferRTVs[ix].get();
+	return backBufferRTVs.at(ix);
 }
 
 void D3DSwapChain::createSwapchainImages()
@@ -127,15 +130,15 @@ void D3DSwapChain::createSwapchainImages()
 		rawSwapChainBuffers[i]->SetName(debugName);
 	}
 
-	// Create RTVs
-	auto descSizeRTV = rawDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(heapRTV->GetCPUDescriptorHandleForHeapStart());
 	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{
-		auto rawResource = rawSwapChainBuffers[i].Get();
-		rawDevice->CreateRenderTargetView(rawResource, nullptr, rtvHeapHandle);
-		backBufferRTVs[i]->setCPUHandle(rtvHeapHandle);
-		rtvHeapHandle.ptr += descSizeRTV;
+		RenderTargetViewDesc rtvDesc{
+			.format        = backbufferFormat,
+			.viewDimension = ERTVDimension::Texture2D,
+			.texture2D     = Texture2DRTVDesc {.mipSlice = 0, .planeSlice = 0 },
+		};
+		auto rtv = gRenderDevice->createRTV(swapChainBuffers.at(i), heapRTV.get(), rtvDesc);
+		backBufferRTVs[i] = UniquePtr<RenderTargetView>(rtv);
 	}
 }
 

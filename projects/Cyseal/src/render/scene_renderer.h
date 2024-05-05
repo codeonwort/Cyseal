@@ -45,15 +45,18 @@ private:
 	// #todo-renderer: Temporarily manage render targets in the renderer.
 	Texture* RT_sceneColor = nullptr;
 	UniquePtr<ShaderResourceView> sceneColorSRV;
+	UniquePtr<RenderTargetView> sceneColorRTV;
 
 	Texture* RT_sceneDepth = nullptr;
 	UniquePtr<DepthStencilView> sceneDepthDSV;
 
 	// Gonna stick to forward shading, but render thin GBuffers like DOOM reboot series.
 	Texture* RT_thinGBufferA = nullptr; // #todo-renderer: Maybe switch to R10G10B10A2?
+	UniquePtr<RenderTargetView> thinGBufferARTV;
 
 	Texture* RT_indirectSpecular = nullptr;
 	UniquePtr<ShaderResourceView> indirectSpecularSRV;
+	UniquePtr<RenderTargetView> indirectSpecularRTV;
 
 	Texture* RT_pathTracing = nullptr;
 	UniquePtr<ShaderResourceView> pathTracingSRV;

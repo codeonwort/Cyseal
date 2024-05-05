@@ -308,14 +308,6 @@ public:
 		uint64 rowPitch,
 		uint64 slicePitch,
 		uint32 subresourceIndex = 0) = 0;
-
-	// #wip-texture: A Texture should not internally hold its views.
-	virtual RenderTargetView*    getRTV() const = 0;
-
-	// Element index in the descriptor heap from which the descriptor was created.
-	virtual uint32 getRTVDescriptorIndex() const = 0;
-
-	virtual DescriptorHeap* getSourceRTVHeap() const = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////

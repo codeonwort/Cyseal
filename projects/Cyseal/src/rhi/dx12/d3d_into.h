@@ -337,6 +337,7 @@ namespace into_d3d
 			case EPixelFormat::UNKNOWN            : return DXGI_FORMAT_UNKNOWN;
 			case EPixelFormat::R32_TYPELESS       : return DXGI_FORMAT_R32_TYPELESS;
 			case EPixelFormat::R8G8B8A8_UNORM     : return DXGI_FORMAT_R8G8B8A8_UNORM;
+			case EPixelFormat::B8G8R8A8_UNORM     : return DXGI_FORMAT_B8G8R8A8_UNORM;
 			case EPixelFormat::R32G32_FLOAT       : return DXGI_FORMAT_R32G32_FLOAT;
 			case EPixelFormat::R32G32B32_FLOAT    : return DXGI_FORMAT_R32G32B32_FLOAT;
 			case EPixelFormat::R32G32B32A32_FLOAT : return DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -677,6 +678,52 @@ namespace into_d3d
 			case EUAVDimension::Texture2DArray: CHECK_NO_ENTRY(); break;
 			case EUAVDimension::Texture3D:      CHECK_NO_ENTRY(); break;
 			default:                            CHECK_NO_ENTRY(); break;
+		}
+		return desc;
+	}
+
+	inline D3D12_RTV_DIMENSION rtvDimension(ERTVDimension inDimension)
+	{
+		switch (inDimension)
+		{
+			case ERTVDimension::Unknown          : return D3D12_RTV_DIMENSION_UNKNOWN;
+			case ERTVDimension::Buffer           : return D3D12_RTV_DIMENSION_BUFFER;
+			case ERTVDimension::Texture1D        : return D3D12_RTV_DIMENSION_TEXTURE1D;
+			case ERTVDimension::Texture1DArray   : return D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
+			case ERTVDimension::Texture2D        : return D3D12_RTV_DIMENSION_TEXTURE2D;
+			case ERTVDimension::Texture2DArray   : return D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+			case ERTVDimension::Texture2DMS      : return D3D12_RTV_DIMENSION_TEXTURE2DMS;
+			case ERTVDimension::Texture2DMSArray : return D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
+			case ERTVDimension::Texture3D        : return D3D12_RTV_DIMENSION_TEXTURE3D;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_RTV_DIMENSION_UNKNOWN;
+	}
+
+	inline D3D12_TEX2D_RTV texture2DRTVDesc(const Texture2DRTVDesc& inDesc)
+	{
+		return D3D12_TEX2D_RTV{
+			.MipSlice   = inDesc.mipSlice,
+			.PlaneSlice = inDesc.planeSlice,
+		};
+	}
+
+	inline D3D12_RENDER_TARGET_VIEW_DESC rtvDesc(const RenderTargetViewDesc& inDesc)
+	{
+		D3D12_RENDER_TARGET_VIEW_DESC desc{};
+		desc.Format        = into_d3d::pixelFormat(inDesc.format);
+		desc.ViewDimension = into_d3d::rtvDimension(inDesc.viewDimension);
+		switch (inDesc.viewDimension)
+		{
+			case ERTVDimension::Unknown          : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Buffer           : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture1D        : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture1DArray   : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture2D        : desc.Texture2D = into_d3d::texture2DRTVDesc(inDesc.texture2D); break;
+			case ERTVDimension::Texture2DArray   : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture2DMS      : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture2DMSArray : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture3D        : CHECK_NO_ENTRY(); break;
 		}
 		return desc;
 	}

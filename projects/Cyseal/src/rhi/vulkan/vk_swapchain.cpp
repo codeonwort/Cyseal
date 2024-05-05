@@ -5,6 +5,7 @@
 #include "vk_device.h"
 #include "vk_utils.h"
 #include "vk_resource_view.h"
+#include "rhi/gpu_resource_binding.h"
 #include "core/platform.h"
 #include "core/assertion.h"
 #include "util/logging.h"
@@ -106,15 +107,33 @@ void VulkanSwapchain::initialize(
 
 	CYLOG(LogVulkan, Log, L"> Create image views (RTVs) for swapchain images");
 	{
+		// CAUTION: gDescriptorHeaps is not initialized yet.
+		DescriptorHeapDesc heapDesc{
+			.type           = EDescriptorHeapType::RTV,
+			.numDescriptors = swapchainImageCount,
+			.flags          = EDescriptorHeapFlags::None,
+			.nodeMask       = 0,
+		};
+		heapRTV = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(heapDesc));
+
 		swapchainImageViews.initialize((uint32)swapchainImages.size());
 		for (size_t i = 0; i < swapchainImages.size(); ++i)
 		{
-			VkImageView vkImageView = createImageView(
-				deviceWrapper->vkDevice,
-				swapchainImages[i]->getVkImage(),
-				swapchainImageFormat,
-				VK_IMAGE_ASPECT_COLOR_BIT);
-			swapchainImageViews[i] = makeUnique<VulkanRenderTargetView>(vkImageView);
+			// #wip: surfaceFormat.format is bgra8, backbufferFormat is rgba8
+			EPixelFormat rtvFormat = backbufferFormat;
+			if (rtvFormat == EPixelFormat::R8G8B8A8_UNORM)
+			{
+				rtvFormat = EPixelFormat::B8G8R8A8_UNORM;
+			}
+
+			auto rtv = gRenderDevice->createRTV(swapchainImages.at(i), heapRTV.get(),
+				RenderTargetViewDesc{
+					.format        = rtvFormat,
+					.viewDimension = ERTVDimension::Texture2D,
+					.texture2D     = Texture2DRTVDesc {.mipSlice = 0, .planeSlice = 0 },
+				}
+			);
+			swapchainImageViews[i] = UniquePtr<RenderTargetView>(rtv);
 		}
 	}
 
@@ -238,7 +257,9 @@ void VulkanSwapchain::initialize(
 
 		for (size_t i = 0; i < swapchainImageViews.size(); ++i)
 		{
-			std::array<VkImageView, 2> attachments = { swapchainImageViews[i]->getRaw(), depthImageView };
+			VkImageView colorView = static_cast<VulkanRenderTargetView*>(swapchainImageViews.at(i))->getVkImageView();
+
+			std::array<VkImageView, 2> attachments = { colorView, depthImageView };
 
 			VkFramebufferCreateInfo framebufferInfo{
 				.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,

@@ -3,7 +3,7 @@
 #include "d3d_util.h"
 #include "d3d_resource.h"
 #include "rhi/swap_chain.h"
-#include <memory>
+#include "core/smart_pointer.h"
 
 class D3DDevice;
 class D3DResource;
@@ -52,12 +52,11 @@ private:
 
 	D3DDevice* device;
 
-	std::unique_ptr<D3DSwapChainBuffer> swapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
-	std::unique_ptr<D3DRenderTargetView> backBufferRTVs[SWAP_CHAIN_BUFFER_COUNT];
-
 	WRL::ComPtr<IDXGISwapChain3> rawSwapChain;
 	WRL::ComPtr<ID3D12Resource> rawSwapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
+	BufferedUniquePtr<D3DSwapChainBuffer> swapChainBuffers;
 
-	WRL::ComPtr<ID3D12DescriptorHeap> heapRTV;
+	UniquePtr<DescriptorHeap> heapRTV;
+	BufferedUniquePtr<RenderTargetView> backBufferRTVs;
 
 };

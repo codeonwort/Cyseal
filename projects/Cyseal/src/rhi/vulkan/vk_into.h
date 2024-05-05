@@ -210,6 +210,7 @@ namespace into_vk
 			// #todo-vulkan: R32_TYPLESS in Vulkan?
 			case EPixelFormat::R32_TYPELESS       : return VkFormat::VK_FORMAT_R32_SFLOAT;
 			case EPixelFormat::R8G8B8A8_UNORM     : return VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
+			case EPixelFormat::B8G8R8A8_UNORM     : return VkFormat::VK_FORMAT_B8G8R8A8_UNORM;
 			case EPixelFormat::R32G32_FLOAT       : return VkFormat::VK_FORMAT_R32G32_SFLOAT;
 			case EPixelFormat::R32G32B32_FLOAT    : return VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
 			case EPixelFormat::R32G32B32A32_FLOAT : return VkFormat::VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -533,6 +534,23 @@ namespace into_vk
 			case EUAVDimension::Texture2D                  : return VK_IMAGE_VIEW_TYPE_2D;
 			case EUAVDimension::Texture2DArray             : return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 			case EUAVDimension::Texture3D                  : return VK_IMAGE_VIEW_TYPE_3D;
+		}
+		CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+	}
+
+	inline VkImageViewType imageViewType(ERTVDimension inDimension)
+	{
+		switch (inDimension)
+		{
+			case ERTVDimension::Unknown                    : CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case ERTVDimension::Buffer                     : CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case ERTVDimension::Texture1D                  : return VK_IMAGE_VIEW_TYPE_1D;
+			case ERTVDimension::Texture1DArray             : return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+			case ERTVDimension::Texture2D                  : return VK_IMAGE_VIEW_TYPE_2D;
+			case ERTVDimension::Texture2DArray             : return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			case ERTVDimension::Texture2DMS                : CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case ERTVDimension::Texture2DMSArray           : CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case ERTVDimension::Texture3D                  : return VK_IMAGE_VIEW_TYPE_3D;
 		}
 		CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
 	}

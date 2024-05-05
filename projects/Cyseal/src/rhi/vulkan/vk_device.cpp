@@ -937,6 +937,49 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 	return createSRV(gpuResource, gDescriptorHeaps->getSRVHeap(), createParams);
 }
 
+RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const RenderTargetViewDesc& createParams)
+{
+	VulkanRenderTargetView* rtv = nullptr;
+
+	// #wip: Other dimensions
+	CHECK(createParams.viewDimension == ERTVDimension::Texture2D);
+	
+	if (createParams.viewDimension == ERTVDimension::Texture2D)
+	{
+		VkImageViewCreateInfo createInfo{
+			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.pNext            = nullptr,
+			.flags            = (VkImageViewCreateFlags)0,
+			.image            = (VkImage)(gpuResource->getRawResource()),
+			.viewType         = into_vk::imageViewType(createParams.viewDimension),
+			.format           = into_vk::pixelFormat(createParams.format),
+			.components       = (VkComponentSwizzle)0,
+			.subresourceRange = VkImageSubresourceRange{
+				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consider depthstencil case
+				.baseMipLevel   = createParams.texture2D.mipSlice,
+				.levelCount     = 1,
+				.baseArrayLayer = createParams.texture2D.planeSlice,
+				.layerCount     = 1,
+			}
+		};
+
+		VkImageView vkImageView = VK_NULL_HANDLE;
+		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
+		CHECK(vkRet == VK_SUCCESS);
+
+		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
+
+		rtv = new VulkanRenderTargetView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+	}
+
+	return rtv;
+}
+
+RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams)
+{
+	return createRTV(gpuResource, gDescriptorHeaps->getRTVHeap(), createParams);
+}
+
 UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams)
 {
 	VulkanUnorderedAccessView* uav = nullptr;

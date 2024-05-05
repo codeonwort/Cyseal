@@ -87,7 +87,9 @@ private:
 
 	VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
 	BufferedUniquePtr<VulkanSwapchainImage> swapchainImages;
-	BufferedUniquePtr<VulkanRenderTargetView> swapchainImageViews;
+
+	UniquePtr<DescriptorHeap> heapRTV;
+	BufferedUniquePtr<RenderTargetView> swapchainImageViews;
 
 	VkRenderPass backbufferRenderPass = VK_NULL_HANDLE;
 	std::vector<VkFramebuffer> swapchainFramebuffers;
