@@ -338,6 +338,20 @@ void PathTracingPass::renderPathTracing(
 		resizeHitGroupShaderTable(swapchainIndex, scene);
 	}
 
+	if (sceneColorUAV == nullptr)
+	{
+		sceneColorUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(renderTargetTexture,
+			UnorderedAccessViewDesc{
+				.format         = renderTargetTexture->getCreateParams().format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{
+					.mipSlice   = 0,
+					.planeSlice = 0,
+				},
+			}
+		));
+	}
+
 	// Create skybox SRV.
 	if (skyboxFallbackSRV == nullptr)
 	{
@@ -391,7 +405,7 @@ void PathTracingPass::renderPathTracing(
 
 	gRenderDevice->copyDescriptors(1,
 		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
-		renderTargetTexture->getSourceUAVHeap(), renderTargetTexture->getUAVDescriptorIndex());
+		sceneColorUAV->getSourceHeap(), sceneColorUAV->getDescriptorIndexInHeap());
 	gRenderDevice->copyDescriptors(1,
 		volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM,
 		sceneUniformBuffer->getSourceHeap(), sceneUniformBuffer->getDescriptorIndexInHeap());

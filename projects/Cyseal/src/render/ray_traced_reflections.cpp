@@ -269,6 +269,33 @@ void RayTracedReflections::renderRayTracedReflections(
 		}
 	}
 
+	if (indirectSpecularUAV == nullptr)
+	{
+		indirectSpecularUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(indirectSpecularTexture,
+			UnorderedAccessViewDesc{
+				.format         = indirectSpecularTexture->getCreateParams().format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{
+					.mipSlice   = 0,
+					.planeSlice = 0,
+				},
+			}
+		));
+	}
+	if (thinGBufferAUAV == nullptr)
+	{
+		thinGBufferAUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(thinGBufferATexture,
+			UnorderedAccessViewDesc{
+				.format         = thinGBufferATexture->getCreateParams().format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{
+					.mipSlice   = 0,
+					.planeSlice = 0,
+				},
+			}
+		));
+	}
+
 	// Create skybox SRV.
 	if (skyboxFallbackSRV == nullptr)
 	{
@@ -322,10 +349,10 @@ void RayTracedReflections::renderRayTracedReflections(
 
 	gRenderDevice->copyDescriptors(1,
 		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
-		indirectSpecularTexture->getSourceUAVHeap(), indirectSpecularTexture->getUAVDescriptorIndex());
+		indirectSpecularUAV->getSourceHeap(), indirectSpecularUAV->getDescriptorIndexInHeap());
 	gRenderDevice->copyDescriptors(1,
 		volatileHeap, VOLATILE_DESC_IX_GBUFFER,
-		thinGBufferATexture->getSourceUAVHeap(), thinGBufferATexture->getUAVDescriptorIndex());
+		thinGBufferAUAV->getSourceHeap(), thinGBufferAUAV->getDescriptorIndexInHeap());
 	gRenderDevice->copyDescriptors(1,
 		volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM,
 		sceneUniformBuffer->getSourceHeap(), sceneUniformBuffer->getDescriptorIndexInHeap());

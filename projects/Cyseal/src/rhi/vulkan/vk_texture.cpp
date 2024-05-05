@@ -14,11 +14,10 @@ VulkanTexture::~VulkanTexture()
 
 	srv.reset();
 	rtv.reset();
-	uav.reset();
 	dsv.reset();
 
 	vkDestroyImage(vkDevice, vkImage, nullptr);
-	if ((vkSRV != VK_NULL_HANDLE) || (vkRTV != VK_NULL_HANDLE) || (vkUAV != VK_NULL_HANDLE))
+	if ((vkSRV != VK_NULL_HANDLE) || (vkRTV != VK_NULL_HANDLE))
 	{
 		// They are all same. Destroy only one.
 		vkDestroyImageView(vkDevice, vkSRV, nullptr);
@@ -115,24 +114,6 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 		rtv = std::make_unique<VulkanRenderTargetView>(vkRTV);
 	}
 
-	if (0 != (inParams.accessFlags & ETextureAccessFlags::UAV))
-	{
-		// #todo-vulkan: UAV ViewDimension
-		CHECK(textureDesc.imageType == VkImageType::VK_IMAGE_TYPE_2D);
-
-		UnorderedAccessViewDesc uavDesc{};
-		uavDesc.format               = createParams.format;
-		uavDesc.viewDimension        = EUAVDimension::Texture2D;
-		uavDesc.texture2D.mipSlice   = 0;
-		uavDesc.texture2D.planeSlice = 0;
-
-		uav = std::unique_ptr<UnorderedAccessView>(gRenderDevice->createUAV(this, uavDesc));
-		uavHeap = uav->getSourceHeap();
-		uavDescriptorIndex = uav->getDescriptorIndexInHeap();
-
-		vkUAV = colorImageView;
-	}
-
 	if (0 != (inParams.accessFlags & ETextureAccessFlags::DSV))
 	{
 		VkImageViewCreateInfo viewInfo{};
@@ -191,11 +172,6 @@ ShaderResourceView* VulkanTexture::getSRV() const
 DepthStencilView* VulkanTexture::getDSV() const
 {
 	return dsv.get();
-}
-
-UnorderedAccessView* VulkanTexture::getUAV() const
-{
-	return uav.get();
 }
 
 #endif // COMPILE_BACKEND_VULKAN

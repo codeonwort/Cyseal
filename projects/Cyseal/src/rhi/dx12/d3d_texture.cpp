@@ -139,22 +139,6 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		dsv = std::make_unique<D3DDepthStencilView>();
 		dsv->setCPUHandle(dsvHandle);
 	}
-
-	if (0 != (params.accessFlags & ETextureAccessFlags::UAV))
-	{
-		// #todo-texture: UAV ViewDimension
-		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
-
-		UnorderedAccessViewDesc uavDesc{};
-		uavDesc.format               = createParams.format;
-		uavDesc.viewDimension        = EUAVDimension::Texture2D;
-		uavDesc.texture2D.mipSlice   = 0;
-		uavDesc.texture2D.planeSlice = 0;
-
-		uav = std::unique_ptr<UnorderedAccessView>(gRenderDevice->createUAV(this, uavDesc));
-		uavHeap = uav->getSourceHeap();
-		uavDescriptorIndex = uav->getDescriptorIndexInHeap();
-	}
 }
 
 void D3DTexture::uploadData(
@@ -220,9 +204,4 @@ ShaderResourceView* D3DTexture::getSRV() const
 DepthStencilView* D3DTexture::getDSV() const
 {
 	return dsv.get();
-}
-
-UnorderedAccessView* D3DTexture::getUAV() const
-{
-	return uav.get();
 }

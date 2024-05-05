@@ -60,6 +60,9 @@ private:
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
 
+	UniquePtr<UnorderedAccessView> indirectSpecularUAV;
+	UniquePtr<UnorderedAccessView> thinGBufferAUAV;
+
 	UniquePtr<ShaderResourceView> skyboxSRV;
 	UniquePtr<ShaderResourceView> skyboxFallbackSRV;
 };
