@@ -17,7 +17,7 @@ enum class EShaderVisibility : uint8
 	Domain   = 3,
 	Geometry = 4,
 	Pixel    = 5
-	// #todo-renderdevice: Amplication, Mesh
+	// #todo-rhi: EShaderVisibility - Amplication, Mesh
 };
 
 // D3D12_ROOT_PARAMETER_TYPE
@@ -311,7 +311,7 @@ struct DescriptorHeapDesc
 	uint32 nodeMask            = 0; // MGPU thing
 };
 
-// #todo-renderer: Move to gpu_resource.h?
+// #todo-rhi: Move to gpu_resource.h?
 // ID3D12DescriptorHeap
 // VkDescriptorPool
 class DescriptorHeap
@@ -332,6 +332,13 @@ public:
 		uint32 ix = currentDescriptorIndex;
 		currentDescriptorIndex += 1;
 		return ix;
+	}
+
+	// #todo-rhi: DescriptorHeap - support release()
+
+	void resetAllDescriptors()
+	{
+		currentDescriptorIndex = 0;
 	}
 
 	const DescriptorHeapDesc& getDesc() const { return desc; }

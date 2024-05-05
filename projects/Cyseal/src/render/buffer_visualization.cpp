@@ -87,21 +87,24 @@ void BufferVisualization::initialize()
 
 	// Create PSO.
 	{
-		GraphicsPipelineDesc desc;
-		desc.inputLayout            = inputLayout;
-		desc.rootSignature          = rootSignature.get();
-		desc.vs                     = shaderVS;
-		desc.ps                     = shaderPS;
-		desc.rasterizerDesc         = RasterizerDesc::FrontCull();
-		desc.blendDesc              = BlendDesc();
-		desc.depthstencilDesc       = DepthstencilDesc::NoDepth();
-		desc.sampleMask             = 0xffffffff;
-		desc.primitiveTopologyType  = EPrimitiveTopologyType::Triangle;
-		desc.numRenderTargets       = 1;
-		desc.rtvFormats[0]          = swapchain->getBackbufferFormat();
-		desc.sampleDesc.count       = 1;
-		desc.sampleDesc.quality     = 0;
-		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();
+		GraphicsPipelineDesc desc{
+			.rootSignature          = rootSignature.get(),
+			.vs                     = shaderVS,
+			.ps                     = shaderPS,
+			.ds                     = nullptr,
+			.hs                     = nullptr,
+			.gs                     = nullptr,
+			.blendDesc              = BlendDesc(),
+			.sampleMask             = 0xffffffff,
+			.rasterizerDesc         = RasterizerDesc::FrontCull(),
+			.depthstencilDesc       = DepthstencilDesc::NoDepth(),
+			.inputLayout            = inputLayout,
+			.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
+			.numRenderTargets       = 1,
+			.rtvFormats             = { swapchain->getBackbufferFormat() },
+			.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+			.sampleDesc             = SampleDesc { .count = 1, .quality = 0 },
+		};
 
 		pipelineState = UniquePtr<PipelineState>(device->createGraphicsPipelineState(desc));
 	}
@@ -131,18 +134,16 @@ void BufferVisualization::renderVisualization(
 		constexpr uint32 VOLATILE_IX_SceneColor = 0;
 		constexpr uint32 VOLATILE_IX_IndirectSpecular = 1;
 
-		auto grey2D = gTextureManager->getSystemTextureGrey2D()->getGPUResource().get();
-		auto copyDescriptor = [&](uint32 volatileIx, Texture* tex)
+		auto copyDescriptor = [&](uint32 volatileIx, ShaderResourceView* srv)
 		{
-			if (tex == nullptr) tex = grey2D;
 			gRenderDevice->copyDescriptors(
 				1,
 				heaps[0], volatileIx,
-				tex->getSourceSRVHeap(), tex->getSRVDescriptorIndex());
+				srv->getSourceHeap(), srv->getDescriptorIndexInHeap());
 		};
 
-		copyDescriptor(VOLATILE_IX_SceneColor, sources.sceneColor);
-		copyDescriptor(VOLATILE_IX_IndirectSpecular, sources.indirectSpecular);
+		copyDescriptor(VOLATILE_IX_SceneColor, sources.sceneColorSRV);
+		copyDescriptor(VOLATILE_IX_IndirectSpecular, sources.indirectSpecularSRV);
 
 		commandList->setGraphicsRootConstant32(RootParameters::ModeEnumSlot, (uint32)sources.mode, 0);
 		commandList->setGraphicsRootDescriptorTable(RootParameters::InputTexturesSlot, heaps[0], 0);

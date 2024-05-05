@@ -6,7 +6,7 @@
 #include "rhi/gpu_resource.h"
 
 class RenderCommandList;
-class Texture;
+class ShaderResourceView;
 
 class ToneMapping final
 {
@@ -16,8 +16,8 @@ public:
 	void renderToneMapping(
 		RenderCommandList* commandList,
 		uint32 swapchainIndex,
-		Texture* sceneColor,
-		Texture* indirectSpecular);
+		ShaderResourceView* sceneColorSRV,
+		ShaderResourceView* indirectSpecularSRV);
 
 private:
 	UniquePtr<PipelineState> pipelineState;

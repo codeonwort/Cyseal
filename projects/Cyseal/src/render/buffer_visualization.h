@@ -7,14 +7,13 @@
 #include "render/renderer.h"
 
 class RenderCommandList;
-class Texture;
+class ShaderResourceView;
 
 struct BufferVisualizationSources
 {
-	EBufferVisualizationMode mode = EBufferVisualizationMode::None;
-
-	Texture* sceneColor           = nullptr;
-	Texture* indirectSpecular     = nullptr;
+	EBufferVisualizationMode mode           = EBufferVisualizationMode::None;
+	ShaderResourceView* sceneColorSRV       = nullptr;
+	ShaderResourceView* indirectSpecularSRV = nullptr;
 };
 
 // Visualize intermediate rendering data during frame rendering.

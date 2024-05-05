@@ -116,8 +116,8 @@ void ToneMapping::initialize()
 void ToneMapping::renderToneMapping(
 	RenderCommandList* commandList,
 	uint32 swapchainIndex,
-	Texture* sceneColor,
-	Texture* indirectSpecular)
+	ShaderResourceView* sceneColorSRV,
+	ShaderResourceView* indirectSpecularSRV)
 {
 	commandList->setPipelineState(pipelineState.get());
 	commandList->setGraphicsRootSignature(rootSignature.get());
@@ -134,11 +134,11 @@ void ToneMapping::renderToneMapping(
 		gRenderDevice->copyDescriptors(
 			1,
 			heaps[0], VOLATILE_IX_SceneColor,
-			sceneColor->getSourceSRVHeap(), sceneColor->getSRVDescriptorIndex());
+			sceneColorSRV->getSourceHeap(), sceneColorSRV->getDescriptorIndexInHeap());
 		gRenderDevice->copyDescriptors(
 			1,
 			heaps[0], VOLATILE_IX_IndirectSpecular,
-			indirectSpecular->getSourceSRVHeap(), indirectSpecular->getSRVDescriptorIndex());
+			indirectSpecularSRV->getSourceHeap(), indirectSpecularSRV->getDescriptorIndexInHeap());
 		commandList->setGraphicsRootDescriptorTable(RootParameters::InputTexturesSlot, heaps[0], 0);
 	}
 

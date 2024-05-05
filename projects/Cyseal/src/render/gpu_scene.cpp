@@ -173,6 +173,7 @@ void GPUScene::renderGPUScene(
 					albedo = material->albedoTexture->getGPUResource();
 				}
 
+				// #wip-texture: Refactor SRV usage
 				gRenderDevice->copyDescriptors(
 					1,
 					srvHeap, currentMaterialSRVCount,

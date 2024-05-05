@@ -82,7 +82,7 @@ public:
 	virtual void flushCommandQueue() = 0;
 
 	// ------------------------------------------------------------------------
-	// DearImgui
+	// Plugin: DearImgui
 
 	virtual void initializeDearImgui();
 	virtual void beginDearImguiNewFrame() = 0;

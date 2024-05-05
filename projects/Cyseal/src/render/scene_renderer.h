@@ -44,6 +44,7 @@ private:
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.
 	Texture* RT_sceneColor = nullptr;
+	UniquePtr<ShaderResourceView> sceneColorSRV;
 
 	Texture* RT_sceneDepth = nullptr;
 	UniquePtr<DepthStencilView> sceneDepthDSV;
@@ -52,8 +53,10 @@ private:
 	Texture* RT_thinGBufferA = nullptr; // #todo-renderer: Maybe switch to R10G10B10A2?
 
 	Texture* RT_indirectSpecular = nullptr;
+	UniquePtr<ShaderResourceView> indirectSpecularSRV;
 
 	Texture* RT_pathTracing = nullptr;
+	UniquePtr<ShaderResourceView> pathTracingSRV;
 
 	// #todo-renderer: Temp dedicated memory and desc heap for scene uniforms
 	UniquePtr<Buffer> sceneUniformMemory;
@@ -61,6 +64,8 @@ private:
 	BufferedUniquePtr<ConstantBufferView> sceneUniformCBVs;
 
 	AccelerationStructure* accelStructure = nullptr;
+
+	UniquePtr<ShaderResourceView> grey2DSRV; // SRV for fallback texture
 
 	// ------------------------------------------------------------------------
 	// Render passes

@@ -9,6 +9,7 @@
 #include "rhi/swap_chain.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/global_descriptor_heaps.h"
+#include "rhi/texture_manager.h"
 
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
@@ -399,13 +400,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		// #todo-renderer: Should not be here
 		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
 
-		auto RT_alternateSceneColor = bRenderPathTracing ? RT_pathTracing : RT_sceneColor;
+		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
 		toneMapping->renderToneMapping(
 			commandList,
 			swapchainIndex,
-			RT_alternateSceneColor,
-			RT_indirectSpecular);
+			alternateSceneColorSRV,
+			indirectSpecularSRV.get());
 	}
 
 	// Buffer visualization
@@ -415,9 +416,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, BufferVisualization);
 
 		BufferVisualizationSources sources{
-			.mode             = renderOptions.bufferVisualization,
-			.sceneColor       = RT_sceneColor,
-			.indirectSpecular = RT_indirectSpecular,
+			.mode                = renderOptions.bufferVisualization,
+			.sceneColorSRV       = sceneColorSRV.get(),
+			.indirectSpecularSRV = bRenderRTR ? indirectSpecularSRV.get() : grey2DSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(
@@ -482,6 +483,19 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			1, 1, 0));
 	RT_sceneColor->setDebugName(L"RT_SceneColor");
 
+	sceneColorSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_sceneColor,
+		ShaderResourceViewDesc{
+			.format              = RT_sceneColor->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_sceneColor->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+
 	RT_sceneDepth = device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::D24_UNORM_S8_UINT,
@@ -517,6 +531,19 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			1, 1, 0));
 	RT_indirectSpecular->setDebugName(L"RT_IndirectSpecular");
 
+	indirectSpecularSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_indirectSpecular,
+		ShaderResourceViewDesc{
+			.format              = RT_indirectSpecular->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_indirectSpecular->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+
 	RT_pathTracing = device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R32G32B32A32_FLOAT,
@@ -524,6 +551,33 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_pathTracing->setDebugName(L"RT_PathTracing");
+
+	pathTracingSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_pathTracing,
+		ShaderResourceViewDesc{
+			.format              = RT_pathTracing->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_pathTracing->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+
+	Texture* grey2D = gTextureManager->getSystemTextureGrey2D()->getGPUResource().get();
+	grey2DSRV = UniquePtr<ShaderResourceView>(device->createSRV(grey2D,
+		ShaderResourceViewDesc{
+			.format              = grey2D->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = grey2D->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
 }
 
 void SceneRenderer::updateSceneUniform(
