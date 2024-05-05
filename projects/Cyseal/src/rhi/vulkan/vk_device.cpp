@@ -984,6 +984,45 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, const Uno
 	return uav;
 }
 
+DepthStencilView* VulkanDevice::createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams)
+{
+	VkImageAspectFlags aspectMask = (VkImageAspectFlags)0;
+	if (ENUM_HAS_FLAG(createParams.flags, EDSVFlags::OnlyDepth)) aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
+	if (ENUM_HAS_FLAG(createParams.flags, EDSVFlags::OnlyStencil)) aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+	if (createParams.flags == EDSVFlags::None) aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+	// #todo-vulkan: createDSV - other cases are not considered yet
+	CHECK(createParams.viewDimension == EDSVDimension::Texture2D);
+
+	VkImageViewCreateInfo viewInfo{
+		.sType              = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+		.pNext              = nullptr,
+		.flags              = (VkImageViewCreateFlags)0,
+		.image              = (VkImage)(gpuResource->getRawResource()),
+		.viewType           = into_vk::imageViewType(createParams.viewDimension),
+		.format             = into_vk::pixelFormat(createParams.format),
+		.components         = VkComponentMapping{},
+		.subresourceRange   = VkImageSubresourceRange{
+			.aspectMask     = aspectMask,
+			.baseMipLevel   = 0,
+			.levelCount     = 1,
+			.baseArrayLayer = 0,
+			.layerCount     = 1,
+		},
+	};
+
+	VkImageView vkImageView = VK_NULL_HANDLE;
+	VkResult vkRet = vkCreateImageView(vkDevice, &viewInfo, nullptr, &vkImageView);
+	CHECK(vkRet == VK_SUCCESS);
+
+	DescriptorHeap* sourceHeap;
+	uint32 descriptorIndex;
+	allocateDSVHandle(sourceHeap, descriptorIndex);
+
+	VulkanDepthStencilView* dsv = new VulkanDepthStencilView(gpuResource, sourceHeap, descriptorIndex, vkImageView);
+	return dsv;
+}
+
 CommandSignature* VulkanDevice::createCommandSignature(const CommandSignatureDesc& inDesc, RootSignature* inRootSignature)
 {
 	// #todo-vulkan
@@ -1075,6 +1114,15 @@ void VulkanDevice::allocateUAVHandle(DescriptorHeap*& outSourceHeap, uint32& out
 	const uint32 viewIndex = gDescriptorHeaps->allocateUAVIndex();
 
 	outSourceHeap = gDescriptorHeaps->getUAVHeap();
+	outDescriptorIndex = viewIndex;
+}
+
+void VulkanDevice::allocateDSVHandle(DescriptorHeap*& outSourceHeap, uint32& outDescriptorIndex)
+{
+	VkDescriptorPool pool = static_cast<VulkanDescriptorPool*>(gDescriptorHeaps->getDSVHeap())->getVkPool();
+	const uint32 viewIndex = gDescriptorHeaps->allocateDSVIndex();
+
+	outSourceHeap = gDescriptorHeaps->getDSVHeap();
 	outDescriptorIndex = viewIndex;
 }
 

@@ -2,6 +2,13 @@
 
 #if COMPILE_BACKEND_VULKAN
 
+#include "vk_device.h"
+
+VulkanDepthStencilView::~VulkanDepthStencilView()
+{
+	vkDestroyImageView(getVkDevice(), handle, nullptr);
+}
+
 void VulkanConstantBufferView::writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes)
 {
 	// #wip-buffer: VulkanConstantBufferView::writeToGPU

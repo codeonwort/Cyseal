@@ -19,7 +19,13 @@ private:
 class VulkanDepthStencilView : public DepthStencilView
 {
 public:
-	VulkanDepthStencilView(VkImageView inHandle) : handle(inHandle) {}
+	VulkanDepthStencilView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inHandle)
+		: DepthStencilView(inOwner, inSourceHeap, inDescriptorIndex)
+		, handle(inHandle)
+	{}
+
+	~VulkanDepthStencilView();
+
 	VkImageView getRaw() const { return handle; }
 private:
 	VkImageView handle = VK_NULL_HANDLE;

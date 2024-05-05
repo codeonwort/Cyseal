@@ -121,24 +121,6 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		rtv = std::make_unique<D3DRenderTargetView>();
 		rtv->setCPUHandle(rtvHandle);
 	}
-
-	if (0 != (params.accessFlags & ETextureAccessFlags::DSV))
-	{
-		// #todo-texture: DSV ViewDimension
-		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
-
-		D3D12_DEPTH_STENCIL_VIEW_DESC viewDesc;
-		viewDesc.Format = textureDesc.Format;
-		viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		viewDesc.Flags = D3D12_DSV_FLAG_NONE;
-		viewDesc.Texture2D.MipSlice = 0;
-
-		getD3DDevice()->allocateDSVHandle(dsvHeap, dsvHandle, dsvDescriptorIndex);
-		device->CreateDepthStencilView(rawResource.Get(), &viewDesc, dsvHandle);
-
-		dsv = std::make_unique<D3DDepthStencilView>();
-		dsv->setCPUHandle(dsvHandle);
-	}
 }
 
 void D3DTexture::uploadData(
@@ -199,9 +181,4 @@ RenderTargetView* D3DTexture::getRTV() const
 ShaderResourceView* D3DTexture::getSRV() const
 {
 	return srv.get();
-}
-
-DepthStencilView* D3DTexture::getDSV() const
-{
-	return dsv.get();
 }

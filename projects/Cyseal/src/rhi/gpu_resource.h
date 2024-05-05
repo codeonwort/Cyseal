@@ -312,16 +312,13 @@ public:
 	// #wip-texture: A Texture should not internally hold its views.
 	virtual RenderTargetView*    getRTV() const = 0;
 	virtual ShaderResourceView*  getSRV() const = 0;
-	virtual DepthStencilView*    getDSV() const = 0;
 
 	// Element index in the descriptor heap from which the descriptor was created.
 	virtual uint32 getSRVDescriptorIndex() const = 0;
 	virtual uint32 getRTVDescriptorIndex() const = 0;
-	virtual uint32 getDSVDescriptorIndex() const = 0;
 
 	virtual DescriptorHeap* getSourceSRVHeap() const = 0;
 	virtual DescriptorHeap* getSourceRTVHeap() const = 0;
-	virtual DescriptorHeap* getSourceDSVHeap() const = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////

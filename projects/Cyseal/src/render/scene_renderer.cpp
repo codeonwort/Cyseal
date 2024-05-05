@@ -75,7 +75,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		));
 
 		uint32 bufferOffset = 0;
-		sceneUniformCBVs.resize(swapchainCount);
+		sceneUniformCBVs.initialize(swapchainCount);
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
 			sceneUniformCBVs[i] = std::unique_ptr<ConstantBufferView>(
@@ -206,7 +206,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		gpuScene->renderGPUScene(
 			commandList, swapchainIndex,
-			scene, camera, sceneUniformCBVs[swapchainIndex].get());
+			scene, camera, sceneUniformCBVs.at(swapchainIndex));
 	}
 
 	if (bSupportsRaytracing && scene->bRebuildRaytracingScene)
@@ -272,12 +272,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
 		RenderTargetView* RTVs[] = { RT_sceneColor->getRTV(), RT_thinGBufferA->getRTV() };
-		commandList->omSetRenderTargets(_countof(RTVs), RTVs, RT_sceneDepth->getDSV());
+		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
 
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		commandList->clearRenderTargetView(RT_sceneColor->getRTV(), clearColor);
 		commandList->clearRenderTargetView(RT_thinGBufferA->getRTV(), clearColor);
-		commandList->clearDepthStencilView(RT_sceneDepth->getDSV(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
+		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
 
 		basePass->renderBasePass(
 			commandList, swapchainIndex,
@@ -489,6 +489,17 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_sceneDepth->setDebugName(L"RT_SceneDepth");
+
+	sceneDepthDSV = UniquePtr<DepthStencilView>(device->createDSV(RT_sceneDepth,
+		DepthStencilViewDesc{
+			.format        = RT_sceneDepth->getCreateParams().format,
+			.viewDimension = EDSVDimension::Texture2D,
+			.flags         = EDSVFlags::None,
+			.texture2D     = Texture2DDSVDesc{
+				.mipSlice  = 0,
+			}
+		}
+	));
 
 	RT_thinGBufferA = device->createTexture(
 		TextureCreateParams::texture2D(

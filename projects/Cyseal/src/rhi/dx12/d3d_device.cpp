@@ -699,6 +699,22 @@ UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, const Unorde
 	return uav;
 }
 
+DepthStencilView* D3DDevice::createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams)
+{
+	D3D12_DEPTH_STENCIL_VIEW_DESC d3dDesc = into_d3d::dsvDesc(createParams);
+
+	DescriptorHeap* sourceHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+	uint32 descriptorIndex;
+	allocateDSVHandle(sourceHeap, cpuHandle, descriptorIndex);
+
+	ID3D12Resource* d3dResource = into_d3d::id3d12Resource(gpuResource);
+	device->CreateDepthStencilView(d3dResource, &d3dDesc, cpuHandle);
+
+	D3DDepthStencilView* dsv = new D3DDepthStencilView(gpuResource, sourceHeap, descriptorIndex, cpuHandle);
+	return dsv;
+}
+
 CommandSignature* D3DDevice::createCommandSignature(
 	const CommandSignatureDesc& inDesc,
 	RootSignature* inRootSignature)

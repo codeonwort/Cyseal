@@ -536,6 +536,22 @@ namespace into_vk
 		}
 		CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
 	}
+
+	inline VkImageViewType imageViewType(EDSVDimension inDimension)
+	{
+		switch (inDimension)
+		{
+			case EDSVDimension::Unknown:          CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+			case EDSVDimension::Texture1D:        return VK_IMAGE_VIEW_TYPE_1D;
+			case EDSVDimension::Texture1DArray:   return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+			case EDSVDimension::Texture2D:        return VK_IMAGE_VIEW_TYPE_2D;
+			case EDSVDimension::Texture2DArray:   return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			// #todo-vulkan: MS variants for vulkan? And what about VK_IMAGE_VIEW_TYPE_CUBE_ARRAY?
+			//case EDSVDimension::Texture2DMS:      return VK_IMAGE_VIEW_TYPE_2D;
+			//case EDSVDimension::Texture2DMSArray: return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+		}
+		CHECK_NO_ENTRY(); return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+	}
 }
 
 #endif // COMPILE_BACKEND_VULKAN

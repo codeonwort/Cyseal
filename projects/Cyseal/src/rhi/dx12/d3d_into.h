@@ -681,6 +681,56 @@ namespace into_d3d
 		return desc;
 	}
 
+	inline D3D12_DSV_DIMENSION dsvDimension(EDSVDimension inDimension)
+	{
+		switch (inDimension)
+		{
+			case EDSVDimension::Unknown:          return D3D12_DSV_DIMENSION_UNKNOWN;
+			case EDSVDimension::Texture1D:        return D3D12_DSV_DIMENSION_TEXTURE1D;
+			case EDSVDimension::Texture1DArray:   return D3D12_DSV_DIMENSION_TEXTURE1DARRAY;
+			case EDSVDimension::Texture2D:        return D3D12_DSV_DIMENSION_TEXTURE2D;
+			case EDSVDimension::Texture2DArray:   return D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
+			case EDSVDimension::Texture2DMS:      return D3D12_DSV_DIMENSION_TEXTURE2DMS;
+			case EDSVDimension::Texture2DMSArray: return D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
+		}
+		CHECK_NO_ENTRY(); return D3D12_DSV_DIMENSION_UNKNOWN;
+	}
+
+	inline D3D12_DSV_FLAGS dsvFlags(EDSVFlags inFlags)
+	{
+		D3D12_DSV_FLAGS flags = D3D12_DSV_FLAG_NONE;
+		if (ENUM_HAS_FLAG(inFlags, EDSVFlags::OnlyDepth))   flags |= D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+		if (ENUM_HAS_FLAG(inFlags, EDSVFlags::OnlyStencil)) flags |= D3D12_DSV_FLAG_READ_ONLY_STENCIL;
+		return flags;
+	}
+
+	inline D3D12_TEX2D_DSV texture2DDSVDesc(const Texture2DDSVDesc& inDesc)
+	{
+		return D3D12_TEX2D_DSV{
+			.MipSlice = inDesc.mipSlice,
+		};
+	}
+
+	inline D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc(const DepthStencilViewDesc& inDesc)
+	{
+		D3D12_DEPTH_STENCIL_VIEW_DESC desc{};
+		desc.Format        = into_d3d::pixelFormat(inDesc.format);
+		desc.ViewDimension = into_d3d::dsvDimension(inDesc.viewDimension);
+		desc.Flags         = into_d3d::dsvFlags(inDesc.flags);
+		switch (inDesc.viewDimension)
+		{
+			case EDSVDimension::Unknown:          CHECK_NO_ENTRY(); break;
+			case EDSVDimension::Texture1D:        CHECK_NO_ENTRY(); break;
+			case EDSVDimension::Texture1DArray:   CHECK_NO_ENTRY(); break;
+			case EDSVDimension::Texture2D:        desc.Texture2D = into_d3d::texture2DDSVDesc(inDesc.texture2D); break;
+			case EDSVDimension::Texture2DArray:   CHECK_NO_ENTRY(); break;
+			case EDSVDimension::Texture2DMS:      CHECK_NO_ENTRY(); break;
+			case EDSVDimension::Texture2DMSArray: CHECK_NO_ENTRY(); break;
+			default:                              CHECK_NO_ENTRY(); break;
+		}
+		return desc;
+	}
+
 	inline D3D12_RESOURCE_FLAGS bufferResourceFlags(EBufferAccessFlags inFlags)
 	{
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;

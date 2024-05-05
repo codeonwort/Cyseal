@@ -140,6 +140,45 @@ struct UnorderedAccessViewDesc
 };
 
 //////////////////////////////////////////////////////////////////////////
+// DepthStencilView create info
+
+// D3D12_DSV_DIMENSION
+enum class EDSVDimension
+{
+	Unknown          = 0,
+	Texture1D        = 1,
+	Texture1DArray   = 2,
+	Texture2D        = 3,
+	Texture2DArray   = 4,
+	Texture2DMS      = 5,
+	Texture2DMSArray = 6,
+};
+
+enum class EDSVFlags
+{
+	None        = 0,
+	OnlyDepth   = 0x1,
+	OnlyStencil = 0x2,
+};
+ENUM_CLASS_FLAGS(EDSVFlags);
+
+struct Texture2DDSVDesc
+{
+	uint32 mipSlice = 0;
+};
+
+struct DepthStencilViewDesc
+{
+	EPixelFormat  format;
+	EDSVDimension viewDimension;
+	EDSVFlags     flags;
+	union
+	{
+		Texture2DDSVDesc texture2D;
+	};
+};
+
+//////////////////////////////////////////////////////////////////////////
 // View wrapper classes
 
 class RenderTargetView
@@ -148,6 +187,22 @@ class RenderTargetView
 
 class DepthStencilView
 {
+public:
+	DepthStencilView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex)
+		: ownerResource(inOwner)
+		, sourceHeap(inSourceHeap)
+		, descriptorIndex(inDescriptorIndex)
+	{}
+
+	virtual ~DepthStencilView() = default;
+
+	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
+	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
+
+protected:
+	GPUResource* ownerResource;
+	DescriptorHeap* sourceHeap;
+	uint32 descriptorIndex;
 };
 
 class ShaderResourceView
