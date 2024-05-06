@@ -623,7 +623,7 @@ ConstantBufferView* D3DDevice::createCBV(
 	uint32 sizeInBytes,
 	uint32 offsetInBytes)
 {
-	CHECK(descriptorHeap->getDesc().type == EDescriptorHeapType::CBV || descriptorHeap->getDesc().type == EDescriptorHeapType::CBV_SRV_UAV);
+	CHECK(descriptorHeap->getCreateParams().type == EDescriptorHeapType::CBV || descriptorHeap->getCreateParams().type == EDescriptorHeapType::CBV_SRV_UAV);
 	CHECK(offsetInBytes % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0); // 256
 
 	D3DDevice* d3dDevice = static_cast<D3DDevice*>(gRenderDevice);
@@ -651,7 +651,7 @@ ConstantBufferView* D3DDevice::createCBV(
 
 ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams)
 {
-	CHECK(descriptorHeap->getDesc().type == EDescriptorHeapType::SRV || descriptorHeap->getDesc().type == EDescriptorHeapType::CBV_SRV_UAV);
+	CHECK(descriptorHeap->getCreateParams().type == EDescriptorHeapType::SRV || descriptorHeap->getCreateParams().type == EDescriptorHeapType::CBV_SRV_UAV);
 
 	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
 	const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
@@ -672,7 +672,7 @@ ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, const ShaderR
 
 RenderTargetView* D3DDevice::createRTV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const RenderTargetViewDesc& createParams)
 {
-	CHECK(descriptorHeap->getDesc().type == EDescriptorHeapType::RTV);
+	CHECK(descriptorHeap->getCreateParams().type == EDescriptorHeapType::RTV);
 
 	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
 	const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
@@ -761,8 +761,8 @@ void D3DDevice::copyDescriptors(
 	DescriptorHeap* srcHeap,
 	uint32 srcHeapDescriptorStartOffset)
 {
-	EDescriptorHeapType srcType = srcHeap->getDesc().type;
-	EDescriptorHeapType dstType = destHeap->getDesc().type;
+	EDescriptorHeapType srcType = srcHeap->getCreateParams().type;
+	EDescriptorHeapType dstType = destHeap->getCreateParams().type;
 	if (dstType == EDescriptorHeapType::CBV_SRV_UAV) {
 		CHECK(srcType == EDescriptorHeapType::CBV
 			|| srcType == EDescriptorHeapType::SRV

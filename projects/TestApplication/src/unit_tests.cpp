@@ -45,7 +45,7 @@ class UnitTestFreeNumber : public UnitTest
 {
 	virtual bool runTest() override
 	{
-		FreeNumberList fn;
+		FreeNumberList fn(10);
 		uint32 n1 = fn.allocate();
 		uint32 n2 = fn.allocate();
 		uint32 n3 = fn.allocate();

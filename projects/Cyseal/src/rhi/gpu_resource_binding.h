@@ -3,6 +3,7 @@
 #include "core/int_types.h"
 #include "util/enum_util.h"
 #include "pipeline_state.h"
+#include "descriptor_heap.h"
 
 // Common interface for DX12 root signature and Vulkan descriptor set.
 // NOTE 1: This file might be merged into another file.
@@ -276,75 +277,4 @@ class RootSignature
 {
 public:
 	virtual ~RootSignature() = default;
-};
-
-// ----------------------------------------------------------------------------
-// Descriptor Heap
-
-// D3D12_DESCRIPTOR_HEAP_TYPE
-// VkDescriptorType
-enum class EDescriptorHeapType : uint8
-{
-	CBV         = 0,
-	SRV         = 1,
-	UAV         = 2,
-	CBV_SRV_UAV = 3,
-	SAMPLER     = 4,
-	RTV         = 5,
-	DSV         = 6,
-	NUM_TYPES   = 7
-};
-
-// D3D12_DESCRIPTOR_HEAP_FLAGS
-enum class EDescriptorHeapFlags : uint8
-{
-	None          = 0,
-	ShaderVisible = 1,
-};
-
-// D3D12_DESCRIPTOR_HEAP_DESC
-struct DescriptorHeapDesc
-{
-	EDescriptorHeapType type   = EDescriptorHeapType::NUM_TYPES;
-	uint32 numDescriptors      = 0;
-	EDescriptorHeapFlags flags = EDescriptorHeapFlags::None;
-	uint32 nodeMask            = 0; // MGPU thing
-};
-
-// #todo-rhi: Move to gpu_resource.h?
-// ID3D12DescriptorHeap
-// VkDescriptorPool
-class DescriptorHeap
-{
-public:
-	DescriptorHeap(const DescriptorHeapDesc& inDesc)
-		: desc(inDesc)
-	{
-	}
-
-	virtual ~DescriptorHeap() = default;
-
-	virtual void setDebugName(const wchar_t* name) = 0;
-
-	uint32 allocateDescriptorIndex()
-	{
-		CHECK(currentDescriptorIndex < desc.numDescriptors);
-		uint32 ix = currentDescriptorIndex;
-		currentDescriptorIndex += 1;
-		return ix;
-	}
-
-	// #todo-rhi: DescriptorHeap - support release()
-
-	// #wip-descriptor: Related views must be free'd manually.
-	void resetAllDescriptors()
-	{
-		currentDescriptorIndex = 0;
-	}
-
-	const DescriptorHeapDesc& getDesc() const { return desc; }
-
-private:
-	const DescriptorHeapDesc desc;
-	uint32 currentDescriptorIndex = 0;
 };

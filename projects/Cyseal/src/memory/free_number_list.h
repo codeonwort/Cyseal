@@ -21,7 +21,7 @@ public:
 
 	// Allocate a new free number, greater than 0.
 	// It's not guaranteed that the smallest free number will be returned.
-	// @return Allocated number. 0 if failed.
+	// @return The allocated number. 0 if failed.
 	uint32 allocate()
 	{
 		if (head == nullptr)
@@ -29,6 +29,12 @@ public:
 			head = new Range{ 1, 1, nullptr };
 			return head->a;
 		}
+		else if (head->a > 1)
+		{
+			head->a -= 1;
+			return head->a;
+		}
+
 		Range* cand = head;
 		while (cand != nullptr)
 		{
@@ -36,6 +42,7 @@ public:
 			Range* next = cand->next;
 			if (next == nullptr || cand->b < next->a)
 			{
+				// #wip: cand can't be head here
 				// Just expand backward; this breaks 'smallest free number' rule.
 				if (cand == head && cand->a > 1)
 				{
@@ -98,10 +105,8 @@ public:
 		return false;
 	}
 
-	// Check if the list ran out of.
-	// It can be awkaward it's not "isFull()" but actually the list is 'empty'
-	// when we can't allocate any free number.
-	bool isEmpty() const
+	// Returns true if can allocate further.
+	bool canAllocate() const
 	{
 		if (head == nullptr)
 		{
@@ -110,10 +115,10 @@ public:
 		Range* tail = head;
 		while (tail != nullptr && tail->next != nullptr)
 		{
-			if (tail->b < tail->next->a - 1) return false;
+			if (tail->b < tail->next->a - 1) return true;
 			tail = tail->next;
 		}
-		return tail->b == maxNumber;
+		return tail->b != maxNumber;
 	}
 
 private:

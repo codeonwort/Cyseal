@@ -1,7 +1,7 @@
 #pragma once
 
-#include "gpu_resource_binding.h"
-#include <memory>
+#include "descriptor_heap.h"
+#include "core/smart_pointer.h"
 
 // - Can allocate all types of descriptors.
 // - Each render pass will copy the descriptors allocated from here
@@ -30,15 +30,10 @@ public:
 	DescriptorHeap* getUAVHeap() const { return uavHeap.get(); }
 
 private:
-	std::unique_ptr<DescriptorHeap> srvHeap;
-	std::unique_ptr<DescriptorHeap> rtvHeap;
-	std::unique_ptr<DescriptorHeap> dsvHeap;
-	std::unique_ptr<DescriptorHeap> uavHeap;
-
-	uint32 nextSRVIndex = 0;
-	uint32 nextRTVIndex = 0;
-	uint32 nextDSVIndex = 0;
-	uint32 nextUAVIndex = 0;
+	UniquePtr<DescriptorHeap> srvHeap;
+	UniquePtr<DescriptorHeap> rtvHeap;
+	UniquePtr<DescriptorHeap> dsvHeap;
+	UniquePtr<DescriptorHeap> uavHeap;
 };
 
 extern GlobalDescriptorHeaps* gDescriptorHeaps;
