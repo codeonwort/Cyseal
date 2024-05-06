@@ -248,7 +248,7 @@ void TestApplication::createResources()
 		}
 	}
 
-	std::shared_ptr<TextureAsset> albedoTexture = std::make_shared<TextureAsset>();
+	SharedPtr<TextureAsset> albedoTexture = makeShared<TextureAsset>();
 	ENQUEUE_RENDER_COMMAND(CreateTexture)(
 		[albedoTexture, imageBlob](RenderCommandList& commandList)
 		{
@@ -261,7 +261,7 @@ void TestApplication::createResources()
 			texture->uploadData(commandList, imageBlob->buffer, imageBlob->getRowPitch(), imageBlob->getSlicePitch());
 			texture->setDebugName(TEXT("Texture_albedoTest"));
 
-			albedoTexture->setGPUResource(std::shared_ptr<Texture>(texture));
+			albedoTexture->setGPUResource(SharedPtr<Texture>(texture));
 
 			commandList.enqueueDeferredDealloc(imageBlob);
 		}
@@ -296,9 +296,9 @@ void TestApplication::createResources()
 #endif
 		AABB localBounds = planeGeometry->localBounds;
 
-		std::shared_ptr<VertexBufferAsset> positionBufferAsset = std::make_shared<VertexBufferAsset>();
-		std::shared_ptr<VertexBufferAsset> nonPositionBufferAsset = std::make_shared<VertexBufferAsset>();
-		std::shared_ptr<IndexBufferAsset> indexBufferAsset = std::make_shared<IndexBufferAsset>();
+		SharedPtr<VertexBufferAsset> positionBufferAsset = makeShared<VertexBufferAsset>();
+		SharedPtr<VertexBufferAsset> nonPositionBufferAsset = makeShared<VertexBufferAsset>();
+		SharedPtr<IndexBufferAsset> indexBufferAsset = makeShared<IndexBufferAsset>();
 		ENQUEUE_RENDER_COMMAND(UploadGroundMesh)(
 			[planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset](RenderCommandList& commandList)
 			{
@@ -310,15 +310,15 @@ void TestApplication::createResources()
 				nonPositionBuffer->updateData(&commandList, planeGeometry->getNonPositionBlob(), planeGeometry->getNonPositionStride());
 				indexBuffer->updateData(&commandList, planeGeometry->getIndexBlob(), planeGeometry->getIndexFormat());
 
-				positionBufferAsset->setGPUResource(std::shared_ptr<VertexBuffer>(positionBuffer));
-				nonPositionBufferAsset->setGPUResource(std::shared_ptr<VertexBuffer>(nonPositionBuffer));
-				indexBufferAsset->setGPUResource(std::shared_ptr<IndexBuffer>(indexBuffer));
+				positionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
+				nonPositionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
+				indexBufferAsset->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
 
 				commandList.enqueueDeferredDealloc(planeGeometry);
 			}
 		);
 
-		auto material = std::make_shared<Material>();
+		auto material = makeShared<Material>();
 		material->albedoMultiplier[0] = 1.0f;
 		material->albedoMultiplier[1] = 1.0f;
 		material->albedoMultiplier[2] = 1.0f;
@@ -347,9 +347,9 @@ void TestApplication::createResources()
 #endif
 		AABB localBounds = planeGeometry->localBounds;
 
-		std::shared_ptr<VertexBufferAsset> positionBufferAsset = std::make_shared<VertexBufferAsset>();
-		std::shared_ptr<VertexBufferAsset> nonPositionBufferAsset = std::make_shared<VertexBufferAsset>();
-		std::shared_ptr<IndexBufferAsset> indexBufferAsset = std::make_shared<IndexBufferAsset>();
+		SharedPtr<VertexBufferAsset> positionBufferAsset = makeShared<VertexBufferAsset>();
+		SharedPtr<VertexBufferAsset> nonPositionBufferAsset = makeShared<VertexBufferAsset>();
+		SharedPtr<IndexBufferAsset> indexBufferAsset = makeShared<IndexBufferAsset>();
 		ENQUEUE_RENDER_COMMAND(UploadGroundMesh)(
 			[planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset](RenderCommandList& commandList)
 			{
@@ -361,15 +361,15 @@ void TestApplication::createResources()
 				nonPositionBuffer->updateData(&commandList, planeGeometry->getNonPositionBlob(), planeGeometry->getNonPositionStride());
 				indexBuffer->updateData(&commandList, planeGeometry->getIndexBlob(), planeGeometry->getIndexFormat());
 
-				positionBufferAsset->setGPUResource(std::shared_ptr<VertexBuffer>(positionBuffer));
-				nonPositionBufferAsset->setGPUResource(std::shared_ptr<VertexBuffer>(nonPositionBuffer));
-				indexBufferAsset->setGPUResource(std::shared_ptr<IndexBuffer>(indexBuffer));
+				positionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
+				nonPositionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
+				indexBufferAsset->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
 
 				commandList.enqueueDeferredDealloc(planeGeometry);
 			}
 		);
 
-		auto material = std::make_shared<Material>();
+		auto material = makeShared<Material>();
 		material->albedoMultiplier[0] = 1.0f;
 		material->albedoMultiplier[1] = 1.0f;
 		material->albedoMultiplier[2] = 1.0f;
@@ -402,7 +402,7 @@ void TestApplication::createResources()
 	}
 	if (bValidSkyboxBlobs)
 	{
-		std::shared_ptr<TextureAsset> skyboxTexture = std::make_shared<TextureAsset>();
+		SharedPtr<TextureAsset> skyboxTexture = makeShared<TextureAsset>();
 		ENQUEUE_RENDER_COMMAND(CreateSkybox)(
 			[skyboxTexture, skyboxBlobs](RenderCommandList& commandList)
 			{
@@ -422,7 +422,7 @@ void TestApplication::createResources()
 				}
 				texture->setDebugName(TEXT("Texture_skybox"));
 
-				skyboxTexture->setGPUResource(std::shared_ptr<Texture>(texture));
+				skyboxTexture->setGPUResource(SharedPtr<Texture>(texture));
 
 				for (ImageLoadData* imageBlob : skyboxBlobs)
 				{
@@ -500,9 +500,9 @@ void TestApplication::createResources()
 						nonPositionBuffer->updateData(&commandList, geom->getNonPositionBlob(), geom->getNonPositionStride());
 						indexBuffer->updateData(&commandList, geom->getIndexBlob(), geom->getIndexFormat());
 
-						positionBufferAssets[i]->setGPUResource(std::shared_ptr<VertexBuffer>(positionBuffer));
-						nonPositionBufferAssets[i]->setGPUResource(std::shared_ptr<VertexBuffer>(nonPositionBuffer));
-						indexBufferAssets[i]->setGPUResource(std::shared_ptr<IndexBuffer>(indexBuffer));
+						positionBufferAssets[i]->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
+						nonPositionBufferAssets[i]->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
+						indexBufferAssets[i]->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
 
 						commandList.enqueueDeferredDealloc(geom);
 					}
@@ -510,7 +510,7 @@ void TestApplication::createResources()
 				}
 			);
 
-			auto fallbackMaterial = std::make_shared<Material>();
+			auto fallbackMaterial = makeShared<Material>();
 			fallbackMaterial->albedoMultiplier[0] = 1.0f;
 			fallbackMaterial->albedoMultiplier[1] = 1.0f;
 			fallbackMaterial->albedoMultiplier[2] = 1.0f;

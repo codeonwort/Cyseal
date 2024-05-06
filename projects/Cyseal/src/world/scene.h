@@ -2,8 +2,8 @@
 
 #include "light.h"
 #include "gpu_resource_asset.h"
+#include "core/smart_pointer.h"
 #include <vector>
-#include <memory>
 
 class StaticMesh;
 class SceneProxy;
@@ -20,7 +20,7 @@ public:
 
 public:
 	DirectionalLight sun;
-	std::shared_ptr<TextureAsset> skyboxTexture;
+	SharedPtr<TextureAsset> skyboxTexture;
 private:
 	std::vector<StaticMesh*> staticMeshes;
 	bool bRebuildGPUScene = false;
@@ -38,7 +38,7 @@ public:
 	void tempCleanupOriginalScene();
 
 	DirectionalLight sun;
-	std::shared_ptr<Texture> skyboxTexture;
+	SharedPtr<Texture> skyboxTexture;
 	std::vector<StaticMesh*> staticMeshes;
 
 	bool bRebuildGPUScene = false;

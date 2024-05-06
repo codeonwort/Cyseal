@@ -4,6 +4,7 @@
 #include "gpu_resource.h"
 #include "gpu_resource_view.h"
 #include "buffer.h"
+#include "texture.h"
 #include "pipeline_state.h"
 #include "shader.h"
 #include "pixel_format.h"

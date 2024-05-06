@@ -285,6 +285,9 @@
     <ClInclude Include="src\rhi\hardware_raytracing.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\rhi\texture.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">

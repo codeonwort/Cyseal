@@ -7,6 +7,7 @@
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource_barrier.h"
 #include "rhi/buffer.h"
+#include "rhi/texture.h"
 #include "rhi/hardware_raytracing.h"
 #include "d3d_util.h"
 #include <vector>

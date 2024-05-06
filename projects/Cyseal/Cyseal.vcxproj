@@ -117,6 +117,7 @@
     <ClInclude Include="src\rhi\gpu_resource_barrier.h" />
     <ClInclude Include="src\rhi\hardware_raytracing.h" />
     <ClInclude Include="src\rhi\rhi_forward.h" />
+    <ClInclude Include="src\rhi\texture.h" />
     <ClInclude Include="src\rhi\vulkan\vk_buffer.h" />
     <ClInclude Include="src\rhi\vulkan\vk_descriptor.h" />
     <ClInclude Include="src\rhi\vulkan\vk_into.h" />

@@ -3,6 +3,7 @@
 #include "core/smart_pointer.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/buffer.h"
+#include "rhi/texture.h"
 
 // Application-side view of GPU resources.
 

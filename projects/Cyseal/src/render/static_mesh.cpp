@@ -3,10 +3,10 @@
 
 void StaticMesh::addSection(
 	uint32 lod,
-	std::shared_ptr<VertexBufferAsset> positionBuffer,
-	std::shared_ptr<VertexBufferAsset> nonPositionBuffer,
-	std::shared_ptr<IndexBufferAsset> indexBuffer,
-	std::shared_ptr<Material> material,
+	SharedPtr<VertexBufferAsset> positionBuffer,
+	SharedPtr<VertexBufferAsset> nonPositionBuffer,
+	SharedPtr<IndexBufferAsset> indexBuffer,
+	SharedPtr<Material> material,
 	const AABB& localBounds)
 {
 	if (LODs.size() <= lod)

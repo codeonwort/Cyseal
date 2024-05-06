@@ -19,6 +19,7 @@ https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkRenderPa
 	The use of a render pass in a command buffer is a render pass instance.
 ------------------------------------------------------------------------------------ */
 
+class DescriptorHeap;
 class VulkanDevice;
 class VulkanRenderTargetView;
 

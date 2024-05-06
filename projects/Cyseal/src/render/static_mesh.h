@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/core_minimal.h"
+#include "core/smart_pointer.h"
 #include "geometry/transform.h"
 #include "render/material.h"
 #include "world/gpu_resource_asset.h"
@@ -8,11 +9,11 @@
 
 struct StaticMeshSection
 {
-	std::shared_ptr<VertexBufferAsset> positionBuffer;
-	std::shared_ptr<VertexBufferAsset> nonPositionBuffer;
-	std::shared_ptr<IndexBufferAsset>  indexBuffer;
-	std::shared_ptr<Material>          material;
-	AABB                               localBounds;
+	SharedPtr<VertexBufferAsset> positionBuffer;
+	SharedPtr<VertexBufferAsset> nonPositionBuffer;
+	SharedPtr<IndexBufferAsset>  indexBuffer;
+	SharedPtr<Material>          material;
+	AABB                         localBounds;
 };
 
 struct StaticMeshLOD
@@ -25,10 +26,10 @@ class StaticMesh
 public:
 	void addSection(
 		uint32 lod,
-		std::shared_ptr<VertexBufferAsset> positionBuffer,
-		std::shared_ptr<VertexBufferAsset> nonPositionBuffer,
-		std::shared_ptr<IndexBufferAsset> indexBuffer,
-		std::shared_ptr<Material> material,
+		SharedPtr<VertexBufferAsset> positionBuffer,
+		SharedPtr<VertexBufferAsset> nonPositionBuffer,
+		SharedPtr<IndexBufferAsset> indexBuffer,
+		SharedPtr<Material> material,
 		const AABB& localBounds);
 
 	inline const std::vector<StaticMeshSection>& getSections(uint32 lod) const

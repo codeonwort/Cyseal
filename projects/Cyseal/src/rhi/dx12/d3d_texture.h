@@ -1,6 +1,6 @@
 #pragma once
 
-#include "rhi/gpu_resource.h"
+#include "rhi/texture.h"
 #include "d3d_util.h"
 
 class RenderTargetView;

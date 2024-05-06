@@ -3,10 +3,9 @@
 #if COMPILE_BACKEND_VULKAN
 
 #include "vk_resource_view.h"
-#include "rhi/gpu_resource.h"
+#include "rhi/texture.h"
 
 #include <vulkan/vulkan_core.h>
-#include <memory>
 
 class VulkanTexture : public Texture
 {

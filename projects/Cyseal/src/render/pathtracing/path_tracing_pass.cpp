@@ -106,7 +106,7 @@ void PathTracingPass::initialize()
 	{
 		CHECK(sizeof(PathTracingUniform) * swapchainCount <= UNIFORM_MEMORY_POOL_SIZE);
 
-		uniformMemory = std::unique_ptr<Buffer>(device->createBuffer(
+		uniformMemory = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = UNIFORM_MEMORY_POOL_SIZE,
 				.alignment   = 0,
@@ -114,7 +114,7 @@ void PathTracingPass::initialize()
 			}
 		));
 
-		uniformDescriptorHeap = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(
+		uniformDescriptorHeap = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::CBV,
 				.numDescriptors = swapchainCount,
@@ -127,7 +127,7 @@ void PathTracingPass::initialize()
 		uniformCBVs.initialize(swapchainCount);
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
-			uniformCBVs[i] = std::unique_ptr<ConstantBufferView>(
+			uniformCBVs[i] = UniquePtr<ConstantBufferView>(
 				gRenderDevice->createCBV(
 					uniformMemory.get(),
 					uniformDescriptorHeap.get(),

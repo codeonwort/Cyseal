@@ -1,11 +1,14 @@
 #pragma once
 
 #include "gpu_resource.h"
+#include "pixel_format.h"
 #include "util/enum_util.h"
+
+class RenderCommandList;
 
 // D3D12_RESOURCE_FLAGS
 // VkBufferUsageFlags
-// #wip-buffer: more flags and redundant with EGPUResourceState right above
+// #wip-buffer: more flags and redundant with EGPUResourceState
 enum class EBufferAccessFlags : uint32
 {
 	NONE          = 0,
@@ -84,6 +87,7 @@ struct IndexBufferCreateParams
 // #todo-rhi: Remove IndexBuffer or make it a child class of Buffer.
 class IndexBuffer : public GPUResource
 {
+	friend class IndexBufferPool;
 public:
 	virtual void initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags) = 0;
 

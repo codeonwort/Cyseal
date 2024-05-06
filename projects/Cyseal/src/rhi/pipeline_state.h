@@ -227,6 +227,14 @@ struct BlendDesc
 	RenderTargetBlendDesc renderTarget[8];
 };
 
+enum class EDepthClearFlags : uint8
+{
+	DEPTH   = 0x1,
+	STENCIL = 0x2,
+	DEPTH_STENCIL = DEPTH | STENCIL
+};
+ENUM_CLASS_FLAGS(EDepthClearFlags);
+
 // D3D12_DEPTH_WRITE_MASK
 // #todo-vulkan: ?
 enum class EDepthWriteMask : uint8

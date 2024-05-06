@@ -59,7 +59,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		const uint32 swapchainCount = renderDevice->getSwapChain()->getBufferCount();
 		CHECK(sizeof(SceneUniform) * swapchainCount <= SCENE_UNIFORM_MEMORY_POOL_SIZE);
 
-		sceneUniformMemory = std::unique_ptr<Buffer>(device->createBuffer(
+		sceneUniformMemory = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = SCENE_UNIFORM_MEMORY_POOL_SIZE,
 				.alignment   = 0,
@@ -67,7 +67,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 			}
 		));
 
-		sceneUniformDescriptorHeap = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(
+		sceneUniformDescriptorHeap = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::CBV,
 				.numDescriptors = swapchainCount,
@@ -80,7 +80,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneUniformCBVs.initialize(swapchainCount);
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
-			sceneUniformCBVs[i] = std::unique_ptr<ConstantBufferView>(
+			sceneUniformCBVs[i] = UniquePtr<ConstantBufferView>(
 				gRenderDevice->createCBV(
 					sceneUniformMemory.get(),
 					sceneUniformDescriptorHeap.get(),

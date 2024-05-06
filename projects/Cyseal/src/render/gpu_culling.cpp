@@ -6,8 +6,6 @@
 #include "rhi/gpu_resource_binding.h"
 #include "util/logging.h"
 
-#include <memory>
-
 DEFINE_LOG_CATEGORY_STATIC(LogGPUCulling);
 
 namespace RootParameters
