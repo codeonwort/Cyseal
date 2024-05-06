@@ -10,6 +10,7 @@
 // 2. Implement a method to allocate several numbers at once.
 class FreeNumberList
 {
+	// Represent allocated numbers
 	struct Range { uint32 a, b; Range* next; }; // [a, b]
 
 public:
@@ -17,6 +18,11 @@ public:
 		: maxNumber(inMaxNumber)
 		, head(nullptr)
 	{
+	}
+
+	~FreeNumberList()
+	{
+		clear();
 	}
 
 	// Allocate a new free number, greater than 0.
@@ -42,13 +48,6 @@ public:
 			Range* next = cand->next;
 			if (next == nullptr || cand->b < next->a)
 			{
-				// #wip: cand can't be head here
-				// Just expand backward; this breaks 'smallest free number' rule.
-				if (cand == head && cand->a > 1)
-				{
-					cand->a -= 1;
-					return cand->a;
-				}
 				cand->b += 1;
 				uint32 freeNumber = cand->b;
 				if (next != nullptr && cand->b == next->a)
@@ -119,6 +118,18 @@ public:
 			tail = tail->next;
 		}
 		return tail->b != maxNumber;
+	}
+
+	void clear()
+	{
+		Range* item = head;
+		while (item != nullptr)
+		{
+			Range* temp = item;
+			item = item->next;
+			delete temp;
+		}
+		head = nullptr;
 	}
 
 private:

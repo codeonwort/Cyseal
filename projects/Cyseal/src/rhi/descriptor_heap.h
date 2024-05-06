@@ -51,18 +51,20 @@ public:
 
 	uint32 allocateDescriptorIndex()
 	{
-		CHECK(currentDescriptorIndex < createParams.numDescriptors);
-		uint32 ix = currentDescriptorIndex;
-		currentDescriptorIndex += 1;
-		return ix;
+		uint32 ix = freeNumberList.allocate();
+		CHECK(ix != 0);
+		return ix - 1;
 	}
 
-	// #todo-rhi: DescriptorHeap - support release()
+	// #todo-rhi: Related views (SRV, RTV, ...) must be free'd manually. More convenient way?
+	bool releaseDescriptorIndex(uint32 index)
+	{
+		return freeNumberList.deallocate(index + 1);
+	}
 
-	// #wip-descriptor: Related views must be free'd manually.
 	void resetAllDescriptors()
 	{
-		currentDescriptorIndex = 0;
+		freeNumberList.clear();
 	}
 
 	const DescriptorHeapDesc& getCreateParams() const { return createParams; }
@@ -70,5 +72,4 @@ public:
 private:
 	const DescriptorHeapDesc createParams;
 	FreeNumberList freeNumberList;
-	uint32 currentDescriptorIndex = 0;
 };
