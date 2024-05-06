@@ -1,27 +1,14 @@
 #pragma once
 
-#include "core/types.h"
-#include "util/logging.h"
+#include "rhi_forward.h"
 #include "gpu_resource.h"
 #include "gpu_resource_view.h"
+#include "buffer.h"
 #include "pipeline_state.h"
 #include "shader.h"
 #include "pixel_format.h"
 #include "render_device_capabilities.h"
-
-class RenderCommandAllocator;
-class RenderCommandList;
-class RenderCommandQueue;
-class GPUResource;
-class SwapChain;
-class VertexBufferPool;
-class IndexBufferPool;
-struct RootSignatureDesc;
-class RootSignature;
-struct GraphicsPipelineDesc;
-class PipelineState;
-struct DescriptorHeapDesc;
-class DescriptorHeap;
+#include "util/logging.h"
 
 enum class ERenderDeviceRawAPI
 {
@@ -123,12 +110,14 @@ public:
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
 
-	// #wip-descriptor: Specify your own heap
+	// Allocate a descriptor from the specified descriptor heap.
 	virtual ConstantBufferView* createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes) = 0;
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams) = 0;
+	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const UnorderedAccessViewDesc& createParams) = 0;
 	virtual RenderTargetView* createRTV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const RenderTargetViewDesc& createParams) = 0;
+	virtual DepthStencilView* createDSV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const DepthStencilViewDesc& createParams) = 0;
 
-	// #wip-descriptor: Global descriptor heap
+	// Allocate a descriptor from a global descriptor heap.
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) = 0;
 	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) = 0;
 	virtual RenderTargetView* createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams) = 0;

@@ -1,10 +1,8 @@
 #pragma once
 
-#include "rhi/gpu_resource.h"
+#include "rhi/buffer.h"
 #include "d3d_util.h"
 #include "d3d_resource_view.h"
-
-#include <memory>
 
 class RenderDevice;
 class D3DDevice;

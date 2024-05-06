@@ -30,7 +30,7 @@ public:
 	virtual void flushCommandQueue() override;
 
 	// ------------------------------------------------------------------------
-	// DearImgui
+	// Plugin: DearImgui
 
 	virtual void initializeDearImgui() override;
 	virtual void beginDearImguiNewFrame() override;
@@ -70,7 +70,9 @@ public:
 
 	virtual ConstantBufferView* createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes) override;
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams) override;
+	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const UnorderedAccessViewDesc& createParams) override;
 	virtual RenderTargetView* createRTV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const RenderTargetViewDesc& createParams) override;
+	virtual DepthStencilView* createDSV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const DepthStencilViewDesc& createParams) override;
 
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) override;
 	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) override;
@@ -115,9 +117,6 @@ public:
 		const char* debugName);
 
 	VkCommandPool getTempCommandPool() const;
-
-	void allocateUAVHandle(DescriptorHeap*& outSourceHeap, uint32& outDescriptorIndex);
-	void allocateDSVHandle(DescriptorHeap*& outSourceHeap, uint32& outDescriptorIndex);
 
 private:
 	bool checkValidationLayerSupport();

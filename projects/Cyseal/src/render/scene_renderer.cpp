@@ -10,6 +10,7 @@
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/global_descriptor_heaps.h"
 #include "rhi/texture_manager.h"
+#include "rhi/hardware_raytracing.h"
 
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"

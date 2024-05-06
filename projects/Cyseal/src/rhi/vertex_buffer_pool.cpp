@@ -2,7 +2,7 @@
 #include "core/assertion.h"
 #include "core/engine.h"
 #include "render_device.h"
-#include "gpu_resource.h"
+#include "buffer.h"
 #include "gpu_resource_view.h"
 
 VertexBufferPool* gVertexBufferPool = nullptr;
@@ -30,7 +30,7 @@ void VertexBufferPool::initialize(uint64 totalBytes)
 		srvDesc.buffer.structureByteStride = 0;
 		srvDesc.buffer.flags               = EBufferSRVFlags::Raw;
 
-		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(pool, srvDesc));
+		srv = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(pool, srvDesc));
 	}
 
 	const float size_mb = (float)totalBytes / (1024 * 1024);
@@ -92,7 +92,7 @@ void IndexBufferPool::initialize(uint64 totalBytes)
 		srvDesc.buffer.structureByteStride = 0;
 		srvDesc.buffer.flags               = EBufferSRVFlags::Raw;
 
-		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(pool, srvDesc));
+		srv = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(pool, srvDesc));
 	}
 
 	const float size_mb = (float)totalBytes / (1024 * 1024);

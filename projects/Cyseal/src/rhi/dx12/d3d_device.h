@@ -61,7 +61,9 @@ public:
 
 	virtual ConstantBufferView* createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes) override;
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams) override;
+	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const UnorderedAccessViewDesc& createParams) override;
 	virtual RenderTargetView* createRTV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const RenderTargetViewDesc& createParams) override;
+	virtual DepthStencilView* createDSV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const DepthStencilViewDesc& createParams) override;
 
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) override;
 	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) override;
@@ -89,21 +91,16 @@ public:
 	// ------------------------------------------------------------------------
 	// Utils
 
-	uint32 getDescriptorSizeCbvSrvUav() { return descSizeCBV_SRV_UAV; }
+	inline uint32 getDescriptorSizeCbvSrvUav()         const { return descSizeCBV_SRV_UAV;     }
 
-	inline IDXGIFactory4* getDXGIFactory() const { return dxgiFactory.Get(); }
-	inline ID3D12DeviceLatest* getRawDevice() const { return device.Get(); }
-	inline ID3D12CommandQueue* getRawCommandQueue() const { return rawCommandQueue; }
+	inline IDXGIFactory4*      getDXGIFactory()        const { return dxgiFactory.Get();       }
+	inline ID3D12DeviceLatest* getRawDevice()          const { return device.Get();            }
+	inline ID3D12CommandQueue* getRawCommandQueue()    const { return rawCommandQueue;         }
 
-	inline D3D_SHADER_MODEL getHighestShaderModel() const { return highestShaderModel; }
-	inline IDxcUtils* getDxcUtils() const { return dxcUtils.Get(); }
-	inline IDxcCompiler3* getDxcCompiler() const { return dxcCompiler.Get(); }
-	inline IDxcIncludeHandler* getDxcIncludeHandler() const { return dxcIncludeHandler.Get(); }
-
-	// #todo-renderdevice: Needs abstraction layer and release mechanism.
-	void allocateRTVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
-	void allocateDSVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
-	void allocateUAVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
+	inline D3D_SHADER_MODEL    getHighestShaderModel() const { return highestShaderModel;      }
+	inline IDxcUtils*          getDxcUtils()           const { return dxcUtils.Get();          }
+	inline IDxcCompiler3*      getDxcCompiler()        const { return dxcCompiler.Get();       }
+	inline IDxcIncludeHandler* getDxcIncludeHandler()  const { return dxcIncludeHandler.Get(); }
 
 private:
 	void getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter);

@@ -108,12 +108,14 @@
     <ClInclude Include="src\render\buffer_visualization.h" />
     <ClInclude Include="src\render\gpu_culling.h" />
     <ClInclude Include="src\render\pathtracing\path_tracing_pass.h" />
+    <ClInclude Include="src\rhi\buffer.h" />
     <ClInclude Include="src\rhi\descriptor_heap.h" />
     <ClInclude Include="src\rhi\global_descriptor_heaps.h" />
     <ClInclude Include="src\render\gpu_scene.h" />
     <ClInclude Include="src\render\null_renderer.h" />
     <ClInclude Include="src\rhi\dx12\d3d_into.h" />
     <ClInclude Include="src\rhi\gpu_resource_barrier.h" />
+    <ClInclude Include="src\rhi\hardware_raytracing.h" />
     <ClInclude Include="src\rhi\rhi_forward.h" />
     <ClInclude Include="src\rhi\vulkan\vk_buffer.h" />
     <ClInclude Include="src\rhi\vulkan\vk_descriptor.h" />

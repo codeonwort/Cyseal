@@ -2,6 +2,7 @@
 #include "d3d_buffer.h"
 #include "d3d_into.h"
 #include "rhi/render_command.h"
+#include "rhi/buffer.h"
 
 D3DIndirectCommandGenerator::~D3DIndirectCommandGenerator()
 {

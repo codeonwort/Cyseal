@@ -315,45 +315,6 @@ void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32
 	}
 }
 
-void D3DDevice::allocateRTVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
-{
-	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getRTVHeap())->getRaw();
-	const uint32 viewIndex = gDescriptorHeaps->allocateRTVIndex();
-
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeRTV);
-
-	outSourceHeap = gDescriptorHeaps->getRTVHeap();
-	outHandle = handle;
-	outDescriptorIndex = viewIndex;
-}
-
-void D3DDevice::allocateDSVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
-{
-	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getDSVHeap())->getRaw();
-	const uint32 viewIndex = gDescriptorHeaps->allocateDSVIndex();
-
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeDSV);
-
-	outSourceHeap = gDescriptorHeaps->getDSVHeap();
-	outHandle = handle;
-	outDescriptorIndex = viewIndex;
-}
-
-void D3DDevice::allocateUAVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex)
-{
-	ID3D12DescriptorHeap* viewHeap = static_cast<D3DDescriptorHeap*>(gDescriptorHeaps->getUAVHeap())->getRaw();
-	const uint32 viewIndex = gDescriptorHeaps->allocateUAVIndex();
-
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = viewHeap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += SIZE_T(viewIndex) * SIZE_T(descSizeCBV_SRV_UAV);
-
-	outSourceHeap = gDescriptorHeaps->getUAVHeap();
-	outHandle = handle;
-	outDescriptorIndex = viewIndex;
-}
-
 void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter)
 {
 	WRL::ComPtr<IDXGIAdapter1> adapter;
@@ -691,41 +652,47 @@ RenderTargetView* D3DDevice::createRTV(GPUResource* gpuResource, const RenderTar
 	return createRTV(gpuResource, gDescriptorHeaps->getRTVHeap(), createParams);
 }
 
-UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams)
+UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const UnorderedAccessViewDesc& createParams)
 {
-	D3D12_UNORDERED_ACCESS_VIEW_DESC d3dDesc = into_d3d::uavDesc(createParams);
+	CHECK(descriptorHeap->getCreateParams().type == EDescriptorHeapType::UAV);
 
-	DescriptorHeap* sourceHeap;
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
-	uint32 descriptorIndex;
-	allocateUAVHandle(sourceHeap, cpuHandle, descriptorIndex);
-
-	// #todo-renderdevice: UAV counter resource, but will it ever be needed?
-	// https://www.gamedev.net/forums/topic/711467-understanding-uav-counters/5444474/
-	ID3D12Resource* counterResource = NULL;
+	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
 	ID3D12Resource* d3dResource = into_d3d::id3d12Resource(gpuResource);
+	ID3D12Resource* counterResource = NULL; // #todo-renderdevice: UAV counter resource
+	D3D12_UNORDERED_ACCESS_VIEW_DESC d3dDesc = into_d3d::uavDesc(createParams);
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = d3dHeap->GetCPUDescriptorHandleForHeapStart();
+	cpuHandle.ptr += SIZE_T(descriptorIndex) * SIZE_T(descSizeCBV_SRV_UAV);
 	device->CreateUnorderedAccessView(d3dResource, counterResource, &d3dDesc, cpuHandle);
 
-	D3DUnorderedAccessView* uav = new D3DUnorderedAccessView(
-		gpuResource, sourceHeap, descriptorIndex, cpuHandle);
-	return uav;
+	return new D3DUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
+}
+
+UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams)
+{
+	return createUAV(gpuResource, gDescriptorHeaps->getUAVHeap(), createParams);
+}
+
+DepthStencilView* D3DDevice::createDSV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const DepthStencilViewDesc& createParams)
+{
+	CHECK(descriptorHeap->getCreateParams().type == EDescriptorHeapType::DSV);
+
+	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
+
+	ID3D12Resource* d3dResource = into_d3d::id3d12Resource(gpuResource);
+	D3D12_DEPTH_STENCIL_VIEW_DESC d3dDesc = into_d3d::dsvDesc(createParams);
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = d3dHeap->GetCPUDescriptorHandleForHeapStart();
+	cpuHandle.ptr += SIZE_T(descriptorIndex) * SIZE_T(descSizeDSV);
+	device->CreateDepthStencilView(d3dResource, &d3dDesc, cpuHandle);
+
+	return new D3DDepthStencilView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
 }
 
 DepthStencilView* D3DDevice::createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams)
 {
-	D3D12_DEPTH_STENCIL_VIEW_DESC d3dDesc = into_d3d::dsvDesc(createParams);
-
-	DescriptorHeap* sourceHeap;
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
-	uint32 descriptorIndex;
-	allocateDSVHandle(sourceHeap, cpuHandle, descriptorIndex);
-
-	ID3D12Resource* d3dResource = into_d3d::id3d12Resource(gpuResource);
-	device->CreateDepthStencilView(d3dResource, &d3dDesc, cpuHandle);
-
-	D3DDepthStencilView* dsv = new D3DDepthStencilView(gpuResource, sourceHeap, descriptorIndex, cpuHandle);
-	return dsv;
+	return createDSV(gpuResource, gDescriptorHeaps->getDSVHeap(), createParams);
 }
 
 CommandSignature* D3DDevice::createCommandSignature(

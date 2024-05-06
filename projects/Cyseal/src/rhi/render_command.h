@@ -1,5 +1,6 @@
 #pragma once
 
+#include "rhi_forward.h"
 #include "gpu_resource.h"
 #include "pipeline_state.h"
 #include "gpu_resource_binding.h"

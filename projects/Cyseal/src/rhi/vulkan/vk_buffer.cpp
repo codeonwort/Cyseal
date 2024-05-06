@@ -5,6 +5,7 @@
 #include "vk_device.h"
 #include "vk_utils.h"
 #include "vk_render_command.h"
+#include "rhi/buffer.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "util/string_conversion.h"
 

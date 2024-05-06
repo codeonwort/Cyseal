@@ -13,6 +13,7 @@
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/shader.h"
 #include "rhi/texture_manager.h"
+#include "rhi/hardware_raytracing.h"
 
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples

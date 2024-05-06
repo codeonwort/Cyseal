@@ -2,7 +2,7 @@
 
 #if COMPILE_BACKEND_VULKAN
 
-#include "rhi/gpu_resource.h"
+#include "rhi/buffer.h"
 #include <vulkan/vulkan_core.h>
 
 class RenderDevice;

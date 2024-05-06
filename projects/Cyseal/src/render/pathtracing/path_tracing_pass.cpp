@@ -11,6 +11,7 @@
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/shader.h"
 #include "rhi/texture_manager.h"
+#include "rhi/hardware_raytracing.h"
 
 // I don't call TraceRays() recursively, so this constant actually doesn't matter.
 // Rather see MAX_BOUNCE in rt_reflection.hlsl.
