@@ -509,22 +509,86 @@ ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* de
 
 RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc)
 {
-	// #wip: Needs VkDescriptorSetLayout, and VkDescriptorSet first.
-	CHECK_NO_ENTRY();
+	VkResult vkRet = VkResult::VK_RESULT_MAX_ENUM;
+	const ERootSignatureFlags flags = inDesc.flags; // #wip
 
-	VkPipelineLayoutCreateInfo desc{
+	std::vector<VkDescriptorSetLayoutBinding> vkBindings;
+	for (uint32 i = 0; i < inDesc.numParameters; ++i)
+	{
+		// #wip: register space?
+		const RootParameter& inParameter = inDesc.parameters[i];
+
+		if (inParameter.parameterType == ERootParameterType::SRV
+			|| inParameter.parameterType == ERootParameterType::UAV
+			|| inParameter.parameterType == ERootParameterType::CBV)
+		{
+			VkDescriptorSetLayoutBinding vkBinding{
+				.binding            = inParameter.descriptor.shaderRegister,
+				.descriptorType     = into_vk::descriptorType(inParameter.parameterType),
+				.descriptorCount    = 1,
+				.stageFlags         = into_vk::shaderStageFlags(inParameter.shaderVisibility),
+				.pImmutableSamplers = nullptr, // #wip
+			};
+			vkBindings.emplace_back(vkBinding);
+		}
+		else if (inParameter.parameterType == ERootParameterType::DescriptorTable)
+		{
+			const RootDescriptorTable& table = inParameter.descriptorTable;
+			for (uint32 j = 0; j < table.numDescriptorRanges; ++j)
+			{
+				const DescriptorRange& descriptorRange = table.descriptorRanges[j];
+				VkDescriptorSetLayoutBinding vkBinding{
+					.binding            = descriptorRange.baseShaderRegister,
+					.descriptorType     = into_vk::descriptorRangeType(descriptorRange.rangeType),
+					.descriptorCount    = descriptorRange.numDescriptors,
+					.stageFlags         = into_vk::shaderStageFlags(inParameter.shaderVisibility),
+					.pImmutableSamplers = nullptr, // #wip
+				};
+				vkBindings.emplace_back(vkBinding);
+			}
+		}
+	}
+	VkDescriptorSetLayoutCreateInfo vkSetLayoutCreateInfo{
+		.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		.pNext        = nullptr,
+		.flags        = (VkDescriptorSetLayoutCreateFlagBits)0, // #wip
+		.bindingCount = (uint32)vkBindings.size(),
+		.pBindings    = vkBindings.data(),
+	};
+	// #wip: Multiple set layouts?
+	VkDescriptorSetLayout vkSetLayout = VK_NULL_HANDLE;
+	vkRet = vkCreateDescriptorSetLayout(vkDevice, &vkSetLayoutCreateInfo, nullptr, &vkSetLayout);
+	CHECK(vkRet == VK_SUCCESS);
+
+	std::vector<VkPushConstantRange> vkPushConstants;
+	for (uint32 i = 0; i < inDesc.numParameters; ++i)
+	{
+		const RootParameter& inParameter = inDesc.parameters[i];
+		if (inParameter.parameterType == ERootParameterType::Constants32Bit)
+		{
+			const RootConstants& inConstants = inParameter.constants;
+			VkPushConstantRange vkPushConstant{
+				.stageFlags = into_vk::shaderStageFlags(inParameter.shaderVisibility),
+				.offset     = 0, // #wip
+				.size       = inConstants.num32BitValues * sizeof(uint32),
+			};
+			vkPushConstants.emplace_back(vkPushConstant);
+		}
+	}
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{
 		.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext                  = nullptr,
 		.flags                  = (VkPipelineLayoutCreateFlagBits)0,
 		.setLayoutCount         = 1,
-		.pSetLayouts            = 0, // #wip: Descriptor set layout
-		.pushConstantRangeCount = 0,
-		.pPushConstantRanges    = nullptr, // #wip: Push constant
+		.pSetLayouts            = &vkSetLayout,
+		.pushConstantRangeCount = (uint32)vkPushConstants.size(),
+		.pPushConstantRanges    = vkPushConstants.data(),
 	};
 
 	VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
-	VkResult ret = vkCreatePipelineLayout(vkDevice, &desc, nullptr, &vkPipelineLayout);
-	CHECK(ret == VK_SUCCESS);
+	vkRet = vkCreatePipelineLayout(vkDevice, &pipelineLayoutCreateInfo, nullptr, &vkPipelineLayout);
+	CHECK(vkRet == VK_SUCCESS);
 
 	return new VulkanPipelineLayout(vkPipelineLayout);
 }
@@ -801,11 +865,37 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	return nullptr;
 }
 
-PipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc& desc)
+PipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-	return nullptr;
+	// #wip: Compute PSO
+	VulkanShaderStage* shaderWrapper = static_cast<VulkanShaderStage*>(inDesc.cs);
+	CHECK(shaderWrapper != nullptr);
+
+	VkPipelineShaderStageCreateInfo shaderStageCreateInfo{
+		.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+		.pNext               = nullptr,
+		.flags               = (VkPipelineShaderStageCreateFlagBits)0,
+		.stage               = shaderWrapper->getVkShaderStage(),
+		.module              = shaderWrapper->getVkShaderModule(),
+		.pName               = shaderWrapper->getEntryPointA(),
+		.pSpecializationInfo = nullptr, // #wip: VkSpecializationInfo
+	};
+
+	VkComputePipelineCreateInfo pipelineCreateInfo{
+		.sType              = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+		.pNext              = nullptr,
+		.flags              = (VkPipelineCreateFlagBits)0, // #wip: VkPipelineCreateFlagBits
+		.stage              = shaderStageCreateInfo,
+		.layout             = static_cast<VulkanPipelineLayout*>(inDesc.rootSignature)->getVkPipelineLayout(),
+		.basePipelineHandle = VK_NULL_HANDLE, // #wip: basePipelineHandle
+		.basePipelineIndex  = 0,
+	};
+
+	VkPipeline vkPipeline = VK_NULL_HANDLE;
+	VkResult vkRet = vkCreateComputePipelines(vkDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &vkPipeline);
+	CHECK(vkRet == VK_SUCCESS);
+
+	return new VulkanComputePipelineState(vkPipeline);
 }
 
 RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject(

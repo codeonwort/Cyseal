@@ -452,6 +452,48 @@ namespace into_vk
 		return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 	}
 
+	inline VkDescriptorType descriptorRangeType(EDescriptorRangeType inType)
+	{
+		switch (inType)
+		{
+			case EDescriptorRangeType::CBV         : return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			case EDescriptorRangeType::SRV         : return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			case EDescriptorRangeType::UAV         : return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			case EDescriptorRangeType::SAMPLER     : return VK_DESCRIPTOR_TYPE_SAMPLER;
+		}
+		CHECK_NO_ENTRY();
+		return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+	}
+
+	inline VkDescriptorType descriptorType(ERootParameterType inType)
+	{
+		switch (inType)
+		{
+			case ERootParameterType::CBV         : return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			case ERootParameterType::SRV         : return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			case ERootParameterType::UAV         : return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		}
+		CHECK_NO_ENTRY();
+		return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+	}
+
+	inline VkShaderStageFlags shaderStageFlags(EShaderVisibility inFlags)
+	{
+		// #wip: D3D12_SHADER_VISIBILITY is single enum but VkShaderStageFlags is enum flags.
+		VkShaderStageFlags vkFlags = 0;
+		switch (inFlags)
+		{
+			case EShaderVisibility::All:      vkFlags = VkShaderStageFlagBits::VK_SHADER_STAGE_ALL;                         break;
+			case EShaderVisibility::Vertex:   vkFlags = VkShaderStageFlagBits::VK_SHADER_STAGE_VERTEX_BIT;                  break;
+			case EShaderVisibility::Hull:     vkFlags = VkShaderStageFlagBits::VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;    break;
+			case EShaderVisibility::Domain:   vkFlags = VkShaderStageFlagBits::VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT; break;
+			case EShaderVisibility::Geometry: vkFlags = VkShaderStageFlagBits::VK_SHADER_STAGE_GEOMETRY_BIT;                break;
+			case EShaderVisibility::Pixel:    vkFlags = VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT;                break;
+			default: CHECK_NO_ENTRY(); break; // #wip: VkShaderStageFlags contains more flags.
+		}
+		return vkFlags;
+	}
+
 	inline VkVertexInputRate vertexInputRate(EVertexInputClassification inRate)
 	{
 		switch (inRate)
