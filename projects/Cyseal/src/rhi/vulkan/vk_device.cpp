@@ -25,6 +25,7 @@
 #include <string>
 #include <array>
 #include <set>
+#include <map>
 #include <iostream>
 
 #if PLATFORM_WINDOWS
@@ -512,14 +513,18 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 	VkResult vkRet = VkResult::VK_RESULT_MAX_ENUM;
 	const ERootSignatureFlags flags = inDesc.flags; // #wip
 
-	std::vector<VkDescriptorSetLayoutBinding> vkBindings;
+
+	// key: register space, value: array of bindings
+	std::map<uint32, std::vector<VkDescriptorSetLayoutBinding>> vkBindingsMap;
+
 	for (uint32 i = 0; i < inDesc.numParameters; ++i)
 	{
-		// #wip: register space?
 		const RootParameter& inParameter = inDesc.parameters[i];
 
-		if (inParameter.parameterType == ERootParameterType::SRV
-			|| inParameter.parameterType == ERootParameterType::UAV
+		if (inParameter.parameterType == ERootParameterType::SRVBuffer
+			|| inParameter.parameterType == ERootParameterType::UAVBuffer
+			|| inParameter.parameterType == ERootParameterType::SRVImage
+			|| inParameter.parameterType == ERootParameterType::UAVImage
 			|| inParameter.parameterType == ERootParameterType::CBV)
 		{
 			VkDescriptorSetLayoutBinding vkBinding{
@@ -529,7 +534,9 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 				.stageFlags         = into_vk::shaderStageFlags(inParameter.shaderVisibility),
 				.pImmutableSamplers = nullptr, // #wip
 			};
-			vkBindings.emplace_back(vkBinding);
+
+			uint32 registerSpace = inParameter.descriptor.registerSpace;
+			vkBindingsMap[registerSpace].emplace_back(vkBinding);
 		}
 		else if (inParameter.parameterType == ERootParameterType::DescriptorTable)
 		{
@@ -544,21 +551,33 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 					.stageFlags         = into_vk::shaderStageFlags(inParameter.shaderVisibility),
 					.pImmutableSamplers = nullptr, // #wip
 				};
-				vkBindings.emplace_back(vkBinding);
+
+				uint32 registerSpace = descriptorRange.registerSpace;
+				vkBindingsMap[registerSpace].emplace_back(vkBinding);
 			}
 		}
 	}
-	VkDescriptorSetLayoutCreateInfo vkSetLayoutCreateInfo{
-		.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-		.pNext        = nullptr,
-		.flags        = (VkDescriptorSetLayoutCreateFlagBits)0, // #wip
-		.bindingCount = (uint32)vkBindings.size(),
-		.pBindings    = vkBindings.data(),
-	};
-	// #wip: Multiple set layouts?
-	VkDescriptorSetLayout vkSetLayout = VK_NULL_HANDLE;
-	vkRet = vkCreateDescriptorSetLayout(vkDevice, &vkSetLayoutCreateInfo, nullptr, &vkSetLayout);
-	CHECK(vkRet == VK_SUCCESS);
+
+	std::vector<VkDescriptorSetLayout> vkSetLayouts;
+	for (const auto& it : vkBindingsMap)
+	{
+		uint32 registerSpace = it.first;
+		const std::vector<VkDescriptorSetLayoutBinding>& vkBindings = it.second;
+
+		VkDescriptorSetLayoutCreateInfo vkSetLayoutCreateInfo{
+			.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.pNext        = nullptr,
+			.flags        = (VkDescriptorSetLayoutCreateFlagBits)0, // #wip-descriptor: VkDescriptorSetLayoutCreateFlagBits
+			.bindingCount = (uint32)vkBindings.size(),
+			.pBindings    = vkBindings.data(),
+		};
+
+		VkDescriptorSetLayout vkSetLayout = VK_NULL_HANDLE;
+		vkRet = vkCreateDescriptorSetLayout(vkDevice, &vkSetLayoutCreateInfo, nullptr, &vkSetLayout);
+		CHECK(vkRet == VK_SUCCESS);
+
+		vkSetLayouts.push_back(vkSetLayout);
+	}
 
 	std::vector<VkPushConstantRange> vkPushConstants;
 	for (uint32 i = 0; i < inDesc.numParameters; ++i)
@@ -572,6 +591,8 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 				.offset     = 0, // #wip
 				.size       = inConstants.num32BitValues * sizeof(uint32),
 			};
+
+			// #wip-descriptor: register space of push constant?
 			vkPushConstants.emplace_back(vkPushConstant);
 		}
 	}
@@ -580,8 +601,8 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 		.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext                  = nullptr,
 		.flags                  = (VkPipelineLayoutCreateFlagBits)0,
-		.setLayoutCount         = 1,
-		.pSetLayouts            = &vkSetLayout,
+		.setLayoutCount         = (uint32)vkSetLayouts.size(),
+		.pSetLayouts            = vkSetLayouts.data(),
 		.pushConstantRangeCount = (uint32)vkPushConstants.size(),
 		.pPushConstantRanges    = vkPushConstants.data(),
 	};
@@ -1074,13 +1095,22 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 {
 	VulkanUnorderedAccessView* uav = nullptr;
 
-	// #todo-vulkan: createUAV other dimensions
-	CHECK(createParams.viewDimension == EUAVDimension::Texture2D);
-
 	const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
-	if (createParams.viewDimension == EUAVDimension::Texture2D)
+	if (createParams.viewDimension == EUAVDimension::Buffer)
 	{
+		VkDescriptorBufferInfo bufferInfo{
+			.buffer = (VkBuffer)(gpuResource->getRawResource()),
+			.offset = createParams.buffer.firstElement * createParams.buffer.structureByteStride,
+			.range  = createParams.buffer.numElements * createParams.buffer.structureByteStride,
+		};
+
+		uav = new VulkanUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, bufferInfo);
+		// VkWriteDescriptorSet, vkUpdateDescriptorSets
+	}
+	else if (createParams.viewDimension == EUAVDimension::Texture2D)
+	{
+		// VkDescriptorImageInfo?
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.pNext            = nullptr,
@@ -1103,6 +1133,11 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 		CHECK(vkRet == VK_SUCCESS);
 
 		uav = new VulkanUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+	}
+	else
+	{
+		// #todo-vulkan: createUAV other dimensions
+		CHECK_NO_ENTRY();
 	}
 
 	return uav;

@@ -38,9 +38,9 @@ void GPUCulling::initialize()
 		RootParameter rootParameters[RootParameters::Count];
 		rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1);
 		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
-		rootParameters[RootParameters::GPUSceneSlot].initAsSRV(0, 0);           // register(t0, space0)
-		rootParameters[RootParameters::DrawBufferSlot].initAsSRV(1, 0);         // register(t1, space0)
-		rootParameters[RootParameters::CulledDrawBufferSlot].initAsUAV(0, 0);   // register(u0, space0)
+		rootParameters[RootParameters::GPUSceneSlot].initAsSRVBuffer(0, 0);           // register(t0, space0)
+		rootParameters[RootParameters::DrawBufferSlot].initAsSRVBuffer(1, 0);         // register(t1, space0)
+		rootParameters[RootParameters::CulledDrawBufferSlot].initAsUAVBuffer(0, 0);   // register(u0, space0)
 		rootParameters[RootParameters::CounterBufferSlot].initAsDescriptorTable(1, &descriptorRanges[1]);
 
 		RootSignatureDesc rootSigDesc(

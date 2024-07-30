@@ -110,11 +110,11 @@ void RayTracedReflections::initialize()
 
 		RootParameter rootParameters[RTRRootParameters::Count];
 		rootParameters[RTRRootParameters::OutputViewSlot].initAsDescriptorTable(1, &descRanges[0]);
-		rootParameters[RTRRootParameters::AccelerationStructureSlot].initAsSRV(0, 0);                 // register(t0, space0)
+		rootParameters[RTRRootParameters::AccelerationStructureSlot].initAsSRVBuffer(0, 0);           // register(t0, space0)
 		rootParameters[RTRRootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descRanges[1]); // register(b0, space0)
-		rootParameters[RTRRootParameters::GlobalIndexBufferSlot].initAsSRV(1, 0);                     // register(t1, space0)
-		rootParameters[RTRRootParameters::GlobalVertexBufferSlot].initAsSRV(2, 0);                    // register(t2, space0)
-		rootParameters[RTRRootParameters::GPUSceneSlot].initAsSRV(3, 0);                              // register(t3, space0)
+		rootParameters[RTRRootParameters::GlobalIndexBufferSlot].initAsSRVBuffer(1, 0);               // register(t1, space0)
+		rootParameters[RTRRootParameters::GlobalVertexBufferSlot].initAsSRVBuffer(2, 0);              // register(t2, space0)
+		rootParameters[RTRRootParameters::GPUSceneSlot].initAsSRVBuffer(3, 0);                        // register(t3, space0)
 		rootParameters[RTRRootParameters::SkyboxSlot].initAsDescriptorTable(1, &descRanges[2]);       // register(t4, space0)
 
 		rootParameters[RTRRootParameters::MaterialConstantsSlot].initAsDescriptorTable(1, &descRanges[3]);

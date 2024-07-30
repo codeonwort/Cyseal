@@ -82,8 +82,8 @@ void GPUScene::initialize()
 		RootParameter rootParameters[RootParameters::Count];
 		rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1); // register(b0, space0) = numSceneCommands
 		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
-		rootParameters[RootParameters::GPUSceneSlot].initAsUAV(0, 0);               // register(u0, space0)
-		rootParameters[RootParameters::GPUSceneCommandSlot].initAsSRV(0, 0);        // register(t0, space0)
+		rootParameters[RootParameters::GPUSceneSlot].initAsUAVBuffer(0, 0);         // register(u0, space0)
+		rootParameters[RootParameters::GPUSceneCommandSlot].initAsSRVBuffer(0, 0);  // register(t0, space0)
 
 		RootSignatureDesc rootSigDesc(
 			RootParameters::Count,

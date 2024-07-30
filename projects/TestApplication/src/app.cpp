@@ -27,7 +27,7 @@
 // 0: DX12 + Standard renderer
 // 1: Vulkan + Null renderer
 // 2: Vulkan + Standard renderer (WIP)
-#define RENDERER_PRESET 0
+#define RENDERER_PRESET      2
 
 #if RENDERER_PRESET == 0
 	#define RAW_API          ERenderDeviceRawAPI::DirectX12
@@ -56,7 +56,8 @@
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
-#define LOAD_PBRT_FILE       1
+// #wip: Disable for fast iteration
+#define LOAD_PBRT_FILE       0
 // living-room contains an invalid leaf texture only for pbrt format :/
 // It's tungsten and mitsuba versions are fine.
 //#define PBRT_FILEPATH        L"external/pbrt4/living-room/scene-v4.pbrt"

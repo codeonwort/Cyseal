@@ -22,13 +22,16 @@ enum class EShaderVisibility : uint8
 };
 
 // D3D12_ROOT_PARAMETER_TYPE
+// VkDescriptorType
 enum class ERootParameterType : uint8
 {
 	DescriptorTable = 0,
 	Constants32Bit  = 1,
 	CBV             = 2,
-	SRV             = 3,
-	UAV             = 4
+	SRVBuffer       = 3,
+	UAVBuffer       = 4,
+	SRVImage        = 5,
+	UAVImage        = 6,
 };
 
 // D3D12_DESCRIPTOR_RANGE_TYPE
@@ -110,22 +113,44 @@ struct RootParameter
 		}
 		shaderVisibility = EShaderVisibility::All;
 	}
-	void initAsSRV(
+	void initAsSRVBuffer(
 		uint32 shaderRegister,
 		uint32 registerSpace)
 	{
-		parameterType = ERootParameterType::SRV;
+		parameterType = ERootParameterType::SRVBuffer;
 		{
 			descriptor.shaderRegister = shaderRegister;
 			descriptor.registerSpace = registerSpace;
 		}
 		shaderVisibility = EShaderVisibility::All;
 	}
-	void initAsUAV(
+	void initAsUAVBuffer(
 		uint32 shaderRegister,
 		uint32 registerSpace)
 	{
-		parameterType = ERootParameterType::UAV;
+		parameterType = ERootParameterType::UAVBuffer;
+		{
+			descriptor.shaderRegister = shaderRegister;
+			descriptor.registerSpace = registerSpace;
+		}
+		shaderVisibility = EShaderVisibility::All;
+	}
+	void initAsSRVImage(
+		uint32 shaderRegister,
+		uint32 registerSpace)
+	{
+		parameterType = ERootParameterType::SRVImage;
+		{
+			descriptor.shaderRegister = shaderRegister;
+			descriptor.registerSpace = registerSpace;
+		}
+		shaderVisibility = EShaderVisibility::All;
+	}
+	void initAsUAVImage(
+		uint32 shaderRegister,
+		uint32 registerSpace)
+	{
+		parameterType = ERootParameterType::UAVImage;
 		{
 			descriptor.shaderRegister = shaderRegister;
 			descriptor.registerSpace = registerSpace;

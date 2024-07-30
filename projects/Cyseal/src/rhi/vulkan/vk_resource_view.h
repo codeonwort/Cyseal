@@ -91,16 +91,28 @@ private:
 class VulkanUnorderedAccessView : public UnorderedAccessView
 {
 public:
+	VulkanUnorderedAccessView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, const VkDescriptorBufferInfo& inBufferInfo)
+		: UnorderedAccessView(inOwner, inSourceHeap, inDescriptorIndex)
+		, vkDescriptorBufferInfo(inBufferInfo)
+		, bIsBufferView(true)
+	{
+	}
 	VulkanUnorderedAccessView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
 		: UnorderedAccessView(inOwner, inSourceHeap, inDescriptorIndex)
 		, vkImageView(inVkImageView)
-	{}
+		, bIsBufferView(false)
+	{
+	}
 
 	~VulkanUnorderedAccessView();
 
-	VkImageView getVkImageView() const { return vkImageView; }
+	inline bool isBufferView() const { return bIsBufferView; }
+	inline const VkDescriptorBufferInfo& getVkDescriptorBufferInfo() const { return vkDescriptorBufferInfo; }
+	inline VkImageView getVkImageView() const { return vkImageView; }
 
 private:
+	const bool bIsBufferView;
+	VkDescriptorBufferInfo vkDescriptorBufferInfo = {};
 	VkImageView vkImageView = VK_NULL_HANDLE;
 };
 

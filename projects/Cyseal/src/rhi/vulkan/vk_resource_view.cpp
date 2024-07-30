@@ -26,7 +26,10 @@ VulkanShaderResourceView::~VulkanShaderResourceView()
 
 VulkanUnorderedAccessView::~VulkanUnorderedAccessView()
 {
-	vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
+	if (!bIsBufferView)
+	{
+		vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
+	}
 }
 
 void VulkanConstantBufferView::writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes)

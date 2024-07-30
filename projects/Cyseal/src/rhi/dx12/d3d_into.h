@@ -127,7 +127,17 @@ namespace into_d3d
 
 	inline D3D12_ROOT_PARAMETER_TYPE rootParameterType(ERootParameterType inType)
 	{
-		return static_cast<D3D12_ROOT_PARAMETER_TYPE>(inType);
+		switch (inType)
+		{
+			case ERootParameterType::DescriptorTable: return D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			case ERootParameterType::Constants32Bit:  return D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			case ERootParameterType::CBV:             return D3D12_ROOT_PARAMETER_TYPE_CBV;
+			case ERootParameterType::SRVBuffer:       return D3D12_ROOT_PARAMETER_TYPE_SRV;
+			case ERootParameterType::UAVBuffer:       return D3D12_ROOT_PARAMETER_TYPE_UAV;
+			case ERootParameterType::SRVImage:        return D3D12_ROOT_PARAMETER_TYPE_SRV;
+			case ERootParameterType::UAVImage:        return D3D12_ROOT_PARAMETER_TYPE_UAV;
+		}
+		CHECK_NO_ENTRY(); return (D3D12_ROOT_PARAMETER_TYPE)0;
 	}
 
 	inline D3D12_SHADER_VISIBILITY shaderVisibility(EShaderVisibility inSV)
@@ -216,8 +226,8 @@ namespace into_d3d
 			break;
 
 		case ERootParameterType::CBV:
-		case ERootParameterType::SRV:
-		case ERootParameterType::UAV:
+		case ERootParameterType::SRVBuffer: case ERootParameterType::SRVImage:
+		case ERootParameterType::UAVBuffer: case ERootParameterType::UAVImage:
 			rootDescriptor(inParam.descriptor, outParam.Descriptor);
 			break;
 

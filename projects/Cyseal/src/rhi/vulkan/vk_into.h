@@ -470,8 +470,12 @@ namespace into_vk
 		switch (inType)
 		{
 			case ERootParameterType::CBV         : return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			case ERootParameterType::SRV         : return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-			case ERootParameterType::UAV         : return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			// #wip-descriptor: SRV and UAV are both storage buffer in Vulkan
+			// but VkDescriptorSetLayoutBinding::binding overlaps in this way...
+			case ERootParameterType::SRVBuffer   : return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			case ERootParameterType::UAVBuffer   : return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			case ERootParameterType::SRVImage    : return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			case ERootParameterType::UAVImage    : return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		}
 		CHECK_NO_ENTRY();
 		return VK_DESCRIPTOR_TYPE_MAX_ENUM;

@@ -163,12 +163,12 @@ void PathTracingPass::initialize()
 
 		RootParameter rootParameters[RootParameters::Count];
 		rootParameters[RootParameters::OutputViewSlot].initAsDescriptorTable(1, &descRanges[0]);
-		rootParameters[RootParameters::AccelerationStructureSlot].initAsSRV(0, 0);                       // register(t0, space0)
+		rootParameters[RootParameters::AccelerationStructureSlot].initAsSRVBuffer(0, 0);                 // register(t0, space0)
 		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descRanges[1]);       // register(b0, space0)
 		rootParameters[RootParameters::PathTracingUniformSlot].initAsDescriptorTable(1, &descRanges[2]); // register(b0, space0)
-		rootParameters[RootParameters::GlobalIndexBufferSlot].initAsSRV(1, 0);                           // register(t1, space0)
-		rootParameters[RootParameters::GlobalVertexBufferSlot].initAsSRV(2, 0);                          // register(t2, space0)
-		rootParameters[RootParameters::GPUSceneSlot].initAsSRV(3, 0);                                    // register(t3, space0)
+		rootParameters[RootParameters::GlobalIndexBufferSlot].initAsSRVBuffer(1, 0);                     // register(t1, space0)
+		rootParameters[RootParameters::GlobalVertexBufferSlot].initAsSRVBuffer(2, 0);                    // register(t2, space0)
+		rootParameters[RootParameters::GPUSceneSlot].initAsSRVBuffer(3, 0);                              // register(t3, space0)
 		rootParameters[RootParameters::SkyboxSlot].initAsDescriptorTable(1, &descRanges[3]);             // register(t4, space0)
 
 		rootParameters[RootParameters::MaterialConstantsSlot].initAsDescriptorTable(1, &descRanges[4]);
