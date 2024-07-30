@@ -182,13 +182,33 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 		D3D12_SHADER_DESC shaderDesc{};
 		shaderReflection->GetDesc(&shaderDesc);
 
+		// ConstantBuffers
 		for (UINT i = 0; i < shaderDesc.ConstantBuffers; ++i)
 		{
 			ID3D12ShaderReflectionConstantBuffer* cb = shaderReflection->GetConstantBufferByIndex(i);
 			D3D12_SHADER_BUFFER_DESC bufferDesc{};
-			cb->GetDesc(&bufferDesc);
+			HR( cb->GetDesc(&bufferDesc) );
 		}
 
+		// InputParameters = vertex attributes
+		for (UINT i = 0; i < shaderDesc.InputParameters; ++i)
+		{
+			D3D12_SIGNATURE_PARAMETER_DESC inputParamDesc{};
+			HR( shaderReflection->GetInputParameterDesc(i, &inputParamDesc) );
+		}
+
+		// BoundResources
+		for (UINT i = 0; i < shaderDesc.BoundResources; ++i)
+		{
+			D3D12_SHADER_INPUT_BIND_DESC inputBindDesc{};
+			shaderReflection->GetResourceBindingDesc(i, &inputBindDesc);
+
+			// #wip-dxc-reflection: initAsUAVBuffer(registerSlot, registerSpace)
+			UINT registerSlot = inputBindDesc.BindPoint;
+			UINT registerSpace = inputBindDesc.Space;
+		}
+
+		// Compute
 		UINT threadGroupTotalSize, threadGroupSizeX, threadGroupSizeY, threadGroupSizeZ;
 		threadGroupTotalSize = shaderReflection->GetThreadGroupSize(&threadGroupSizeX, &threadGroupSizeY, &threadGroupSizeZ);
 	}
