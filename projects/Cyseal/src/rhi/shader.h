@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "core/assertion.h"
 #include <string>
 
 class RenderDevice;
@@ -31,6 +32,31 @@ enum class EShaderStage : uint8
 
 	NUM_TYPES              = 13
 };
+
+inline bool isRaytracingShader(EShaderStage shaderStage)
+{
+	switch (shaderStage)
+	{
+	case EShaderStage::VERTEX_SHADER:
+	case EShaderStage::HULL_SHADER:
+	case EShaderStage::DOMAIN_SHADER:
+	case EShaderStage::GEOMETRY_SHADER:
+	case EShaderStage::PIXEL_SHADER:
+	case EShaderStage::COMPUTE_SHADER:
+	case EShaderStage::MESH_SHADER:
+	case EShaderStage::AMPLICATION_SHADER:
+		return false;
+	case EShaderStage::RT_RAYGEN_SHADER:
+	case EShaderStage::RT_ANYHIT_SHADER:
+	case EShaderStage::RT_CLOSESTHIT_SHADER:
+	case EShaderStage::RT_MISS_SHADER:
+	case EShaderStage::RT_INTERSECTION_SHADER:
+		return true;
+	default:
+		CHECK_NO_ENTRY();
+	}
+	return false;
+}
 
 class ShaderStage
 {

@@ -132,10 +132,11 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 	//arguments.push_back(DXC_ARG_DEBUG);
 #endif
 	
-	DxcBuffer sourceBuffer;
-	sourceBuffer.Ptr = sourceBlob->GetBufferPointer();
-	sourceBuffer.Size = sourceBlob->GetBufferSize();
-	sourceBuffer.Encoding = 0;
+	DxcBuffer sourceBuffer{
+		.Ptr      = sourceBlob->GetBufferPointer(),
+		.Size     = sourceBlob->GetBufferSize(),
+		.Encoding = 0,
+	};
 
 	WRL::ComPtr<IDxcResult> compileResult;
 	// #todo-dxc: hlsl::Exception? Anyway the application runs fine.
@@ -162,6 +163,39 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 	}
 
 	HR(compileResult->GetResult(&bytecodeBlob));
+
+	// #wip-dxc-reflection: Shader Reflection for non-raytracing shaders
+	// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/nn-d3d12shader-id3d12shaderreflection
+	if (!isRaytracingShader(stageFlag))
+	{
+		WRL::ComPtr<IDxcBlob> reflectionBlob;
+		HR( compileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(reflectionBlob.GetAddressOf()), NULL) );
+
+		DxcBuffer reflectionBuffer{
+			.Ptr = reflectionBlob->GetBufferPointer(),
+			.Size = reflectionBlob->GetBufferSize(),
+			.Encoding = 0,
+		};
+		WRL::ComPtr<ID3D12ShaderReflection> shaderReflection;
+		HR( utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(shaderReflection.GetAddressOf())) );
+
+		D3D12_SHADER_DESC shaderDesc{};
+		shaderReflection->GetDesc(&shaderDesc);
+
+		for (UINT i = 0; i < shaderDesc.ConstantBuffers; ++i)
+		{
+			ID3D12ShaderReflectionConstantBuffer* cb = shaderReflection->GetConstantBufferByIndex(i);
+			D3D12_SHADER_BUFFER_DESC bufferDesc{};
+			cb->GetDesc(&bufferDesc);
+		}
+
+		UINT threadGroupTotalSize, threadGroupSizeX, threadGroupSizeY, threadGroupSizeZ;
+		threadGroupTotalSize = shaderReflection->GetThreadGroupSize(&threadGroupSizeX, &threadGroupSizeY, &threadGroupSizeZ);
+	}
+	// #wip-dxc-reflection: ID3D12LibraryReflection for raytracing shaders
+	{
+		// ...
+	}
 }
 
 D3D12_SHADER_BYTECODE D3DShaderStage::getBytecode() const
