@@ -13,6 +13,40 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
 
+// #wip-dxc-reflection: [GPUScene] Refactor
+#define REFACTOR_SHADER_RESOURCE_BINDING 0
+
+#if REFACTOR_SHADER_RESOURCE_BINDING
+struct ShaderParameterTableDesc
+{
+	using ParameterName = const char*;
+
+	void pushConstants(ParameterName name, uint32 num32BitValues) {}
+	void constantBuffer(ParameterName name) {}
+	void rwStructuredBuffer(ParameterName name) {}
+	void structuredBuffer(ParameterName name) {}
+};
+
+struct ShaderParameterTable
+{
+	using ParameterName = const char*;
+
+	//ShaderParameterTable(const ShaderParameterTableDesc& inDesc)
+	//	: desc(inDesc)
+	//{
+	//}
+
+	void pushConstants(ParameterName name, uint32 value) {}
+	void pushConstants(ParameterName name, uint32* values, uint32 count) {}
+
+	void constantBuffer(ParameterName name, ConstantBufferView* bufferView) {}
+	void rwStructuredBuffer(ParameterName name, UnorderedAccessView* bufferView) {}
+	void structuredBuffer(ParameterName name, ShaderResourceView* bufferView) {}
+
+	//const ShaderParameterTableDesc desc;
+};
+#endif
+
 namespace RootParameters
 {
 	enum Value
@@ -74,6 +108,27 @@ void GPUScene::initialize()
 	materialCBVs.initialize(swapchainCount);
 	materialSRVs.initialize(swapchainCount);
 
+	// Shader
+	ShaderStage* shaderCS = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
+	shaderCS->loadFromFile(L"gpu_scene.hlsl", "mainCS");
+
+#if REFACTOR_SHADER_RESOURCE_BINDING
+	{
+		ShaderParameterTableDesc SPTDesc;
+		SPTDesc.pushConstants("numSceneCommands", 1);
+		SPTDesc.constantBuffer("sceneUniform");
+		SPTDesc.rwStructuredBuffer("gpuSceneBuffer");
+		SPTDesc.structuredBuffer("commandBuffer");
+
+		pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
+			ComputePipelineDesc2{
+				.shaderParameterTable = std::move(SPTDesc),
+				.cs = shaderCS,
+				.nodeMask = 0
+			}
+		));
+	}
+#else
 	// Root signature
 	{
 		DescriptorRange descriptorRanges[2];
@@ -93,10 +148,6 @@ void GPUScene::initialize()
 		rootSignature = UniquePtr<RootSignature>(gRenderDevice->createRootSignature(rootSigDesc));
 	}
 
-	// Shader
-	ShaderStage* shaderCS = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
-	shaderCS->loadFromFile(L"gpu_scene.hlsl", "mainCS");
-
 	// PSO
 	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc{
@@ -105,6 +156,7 @@ void GPUScene::initialize()
 			.nodeMask      = 0
 		}
 	));
+#endif
 
 	delete shaderCS;
 }
@@ -253,7 +305,7 @@ void GPUScene::renderGPUScene(
 	}
 
 	const uint32 numSceneCommands = (uint32)sceneCommands.size();
-	if (numSceneCommands)
+	if (numSceneCommands > 0)
 	{
 		char eventString[128];
 		if (bRebuildGPUScene)
@@ -289,6 +341,15 @@ void GPUScene::renderGPUScene(
 		commandList->setPipelineState(pipelineState.get());
 		commandList->setComputeRootSignature(rootSignature.get());
 
+#if REFACTOR_SHADER_RESOURCE_BINDING
+		ShaderParameterTable SPT{};
+		SPT.pushConstants("numSceneCommands", numSceneCommands);
+		SPT.constantBuffer("sceneUniform", sceneUniform);
+		SPT.rwStructuredBuffer("gpuSceneBuffer", gpuSceneBufferUAV.get());
+		SPT.structuredBuffer("commandBuffer", gpuSceneCommandBufferSRV.at(swapchainIndex));
+
+		commandList->bindComputeShaderParameters(SPT);
+#else
 		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
 		DescriptorHeap* heaps[] = { volatileHeap };
 		commandList->setDescriptorHeaps(1, heaps);
@@ -305,6 +366,7 @@ void GPUScene::renderGPUScene(
 		commandList->setComputeRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, VOLATILE_IX_SceneUniform);
 		commandList->setComputeRootDescriptorUAV(RootParameters::GPUSceneSlot, gpuSceneBufferUAV.get());
 		commandList->setComputeRootDescriptorSRV(RootParameters::GPUSceneCommandSlot, gpuSceneCommandBufferSRV.at(swapchainIndex));
+#endif
 
 		commandList->dispatchCompute(numSceneCommands, 1, 1);
 
