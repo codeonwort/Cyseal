@@ -7,6 +7,8 @@
 #include <vector>
 #include <string>
 
+class D3DRootSignature;
+
 struct D3DShaderParameter
 {
 	std::string name;
@@ -15,6 +17,7 @@ struct D3DShaderParameter
 	uint32 registerSpace;
 };
 
+// #wip-dxc-reflection: D3DShaderParameterTable
 struct D3DShaderParameterTable
 {
 	std::vector<D3DShaderParameter> constantBuffers;
@@ -34,13 +37,15 @@ public:
 
 	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) override;
 
-	D3D12_SHADER_BYTECODE getBytecode() const;
-
 	virtual const wchar_t* getEntryPointW() override { return wEntryPoint.c_str(); }
 	virtual const char* getEntryPointA() override { return aEntryPoint.c_str(); }
 
+	D3D12_SHADER_BYTECODE getBytecode() const;
+	inline D3DRootSignature* getRootSignature() const { return rootSignature; }
+
 private:
 	void readShaderReflection(IDxcResult* compileResult);
+	void createRootSignature();
 
 private:
 	bool bInitialized = false;
@@ -49,6 +54,7 @@ private:
 	std::string aEntryPoint;
 
 	D3DShaderParameterTable parameterTable;
+	D3DRootSignature* rootSignature = nullptr;
 
 	// Compute shader only
 	uint32 threadGroupTotalSize = 0;

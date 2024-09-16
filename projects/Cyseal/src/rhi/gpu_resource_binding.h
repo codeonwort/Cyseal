@@ -5,6 +5,8 @@
 #include "pipeline_state.h"
 #include "descriptor_heap.h"
 
+#include <string>
+
 // Common interface for DX12 root signature and Vulkan descriptor set.
 // NOTE 1: This file might be merged into another file.
 // NOTE 2: Just direct wrapping of d3d12 structs. Needs complete rewrite for Vulkan.
@@ -307,31 +309,37 @@ public:
 // -----------------------------------------------------------------------
 // #wip-dxc-reflection: New resource binding model
 
-struct ShaderParameterTableDesc
-{
-	using ParameterName = const char*;
-
-	void pushConstants(ParameterName name, uint32 num32BitValues) {}
-	void constantBuffer(ParameterName name) {}
-	void rwStructuredBuffer(ParameterName name) {}
-	void structuredBuffer(ParameterName name) {}
-};
-
 struct ShaderParameterTable
 {
 	using ParameterName = const char*;
+	struct PushConstant       { std::string name; uint32 num32BitValues; };
+	struct ConstantBuffer     { std::string name; ConstantBufferView* buffer; };
+	struct StructuredBuffer   { std::string name; ShaderResourceView* buffer; };
+	struct RWBuffer           { std::string name; UnorderedAccessView* buffer; };
+	struct RWStructuredBuffer { std::string name; UnorderedAccessView* buffer; };
+	struct Texture            { std::string name; ShaderResourceView* texture; };
+	struct RWTexture          { std::string name; UnorderedAccessView* texture; };
 
-	//ShaderParameterTable(const ShaderParameterTableDesc& inDesc)
-	//	: desc(inDesc)
-	//{
-	//}
+public:
+	void pushConstant(ParameterName name, uint32 num32BitValues)             { pushConstants.emplace_back(PushConstant{ name, num32BitValues });     }
+	void constantBuffer(ParameterName name, ConstantBufferView* buffer)      { constantBuffers.emplace_back(ConstantBuffer{ name, buffer });         }
+	void structuredBuffer(ParameterName name, ShaderResourceView* buffer)    { structuredBuffers.emplace_back(StructuredBuffer{ name, buffer });     }
+	void rwBuffer(ParameterName name, UnorderedAccessView* buffer)           { rwBuffers.emplace_back(RWBuffer{ name, buffer });                     }
+	void rwStructuredBuffer(ParameterName name, UnorderedAccessView* buffer) { rwStructuredBuffers.emplace_back(RWStructuredBuffer{ name, buffer }); }
+	void texture(ParameterName name, ShaderResourceView* texture)            { textures.emplace_back(Texture{ name, texture });                      }
+	void rwTexture(ParameterName name, UnorderedAccessView* texture)         { rwTextures.emplace_back(RWTexture{ name, texture });                  }
 
-	void pushConstants(ParameterName name, uint32 value) {}
-	void pushConstants(ParameterName name, uint32* values, uint32 count) {}
+	size_t totalParameters() const
+	{
+		return pushConstants.size() + constantBuffers.size() + structuredBuffers.size() + rwBuffers.size() + textures.size() + rwTextures.size();
+	}
 
-	void constantBuffer(ParameterName name, ConstantBufferView* bufferView) {}
-	void rwStructuredBuffer(ParameterName name, UnorderedAccessView* bufferView) {}
-	void structuredBuffer(ParameterName name, ShaderResourceView* bufferView) {}
-
-	//const ShaderParameterTableDesc desc;
+public:
+	std::vector<PushConstant>       pushConstants;
+	std::vector<ConstantBuffer>     constantBuffers;
+	std::vector<StructuredBuffer>   structuredBuffers;
+	std::vector<RWBuffer>           rwBuffers;
+	std::vector<RWStructuredBuffer> rwStructuredBuffers;
+	std::vector<Texture>            textures;
+	std::vector<RWTexture>          rwTextures;
 };

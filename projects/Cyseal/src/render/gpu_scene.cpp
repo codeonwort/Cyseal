@@ -2,6 +2,7 @@
 #include "static_mesh.h"
 #include "material.h"
 #include "rhi/gpu_resource.h"
+#include "rhi/gpu_resource_binding.h"
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
 #include "rhi/swap_chain.h"
@@ -82,21 +83,12 @@ void GPUScene::initialize()
 	shaderCS->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
 #if REFACTOR_SHADER_RESOURCE_BINDING
-	{
-		ShaderParameterTableDesc SPTDesc;
-		SPTDesc.pushConstants("numSceneCommands", 1 /*num32BitValues*/);
-		SPTDesc.constantBuffer("sceneUniform");
-		SPTDesc.rwStructuredBuffer("gpuSceneBuffer");
-		SPTDesc.structuredBuffer("commandBuffer");
-
-		pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
-			ComputePipelineDesc2{
-				.shaderParameterTable = &SPTDesc,
-				.cs = shaderCS,
-				.nodeMask = 0
-			}
-		));
-	}
+	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
+		ComputePipelineDesc2{
+			.cs = shaderCS,
+			.nodeMask = 0
+		}
+	));
 #else
 	// Root signature
 	{
@@ -312,12 +304,12 @@ void GPUScene::renderGPUScene(
 
 #if REFACTOR_SHADER_RESOURCE_BINDING
 		ShaderParameterTable SPT{};
-		SPT.pushConstants("numSceneCommands", numSceneCommands);
+		SPT.pushConstant("numSceneCommands", numSceneCommands);
 		SPT.constantBuffer("sceneUniform", sceneUniform);
 		SPT.rwStructuredBuffer("gpuSceneBuffer", gpuSceneBufferUAV.get());
 		SPT.structuredBuffer("commandBuffer", gpuSceneCommandBufferSRV.at(swapchainIndex));
 
-		commandList->bindComputeShaderParameters(SPT);
+		//commandList->bindComputeShaderParameters(SPT);
 #else
 		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
 		DescriptorHeap* heaps[] = { volatileHeap };

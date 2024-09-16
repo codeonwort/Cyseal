@@ -165,6 +165,7 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 	HR(compileResult->GetResult(&bytecodeBlob));
 
 	readShaderReflection(compileResult.Get());
+	createRootSignature();
 }
 
 D3D12_SHADER_BYTECODE D3DShaderStage::getBytecode() const
@@ -175,7 +176,6 @@ D3D12_SHADER_BYTECODE D3DShaderStage::getBytecode() const
 	return bc;
 }
 
-// #wip-dxc-reflection: Fully auto-generate a root signature from shader reflection. e.g., root sig in GPUScene::initialize().
 void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 {
 	IDxcUtils* const utils = getD3DDevice()->getDxcUtils();
@@ -307,4 +307,28 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 			}
 		}
 	}
+}
+
+void D3DShaderStage::createRootSignature()
+{
+	// #wip-dxc-reflection: Fully auto-generate a root signature from shader reflection. e.g., root sig in GPUScene::initialize().
+
+	/* Example) gpu_scene
+
+	DescriptorRange descriptorRanges[2];
+	descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1, 0); // register(b1, space0)
+
+	RootParameter rootParameters[RootParameters::Count];
+	rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1); // register(b0, space0) = numSceneCommands
+	rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
+	rootParameters[RootParameters::GPUSceneSlot].initAsUAVBuffer(0, 0);         // register(u0, space0)
+	rootParameters[RootParameters::GPUSceneCommandSlot].initAsSRVBuffer(0, 0);  // register(t0, space0)
+
+	RootSignatureDesc rootSigDesc(
+		RootParameters::Count,
+		rootParameters,
+		0, nullptr,
+		ERootSignatureFlags::None);
+
+	*/
 }

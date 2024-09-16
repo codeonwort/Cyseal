@@ -473,6 +473,7 @@ PipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc
 	return pipeline;
 }
 
+// #wip-dxc-reflection: Deprecated
 PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& desc)
 {
 	D3D12_COMPUTE_PIPELINE_STATE_DESC d3d_desc;
@@ -486,9 +487,15 @@ PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& 
 
 PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc2& desc)
 {
-	// #wip-dxc-reflection: New createComputePipelineState()
-	CHECK_NO_ENTRY();
-	return nullptr;
+	D3DRootSignature* rootSignature = static_cast<D3DShaderStage*>(desc.cs)->getRootSignature();
+
+	ComputePipelineDesc oldDesc{
+		.rootSignature = rootSignature,
+		.cs            = desc.cs,
+		.nodeMask      = desc.nodeMask,
+	};
+
+	return createComputePipelineState(oldDesc);
 }
 
 RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
