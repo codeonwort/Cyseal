@@ -303,3 +303,35 @@ class RootSignature
 public:
 	virtual ~RootSignature() = default;
 };
+
+// -----------------------------------------------------------------------
+// #wip-dxc-reflection: New resource binding model
+
+struct ShaderParameterTableDesc
+{
+	using ParameterName = const char*;
+
+	void pushConstants(ParameterName name, uint32 num32BitValues) {}
+	void constantBuffer(ParameterName name) {}
+	void rwStructuredBuffer(ParameterName name) {}
+	void structuredBuffer(ParameterName name) {}
+};
+
+struct ShaderParameterTable
+{
+	using ParameterName = const char*;
+
+	//ShaderParameterTable(const ShaderParameterTableDesc& inDesc)
+	//	: desc(inDesc)
+	//{
+	//}
+
+	void pushConstants(ParameterName name, uint32 value) {}
+	void pushConstants(ParameterName name, uint32* values, uint32 count) {}
+
+	void constantBuffer(ParameterName name, ConstantBufferView* bufferView) {}
+	void rwStructuredBuffer(ParameterName name, UnorderedAccessView* bufferView) {}
+	void structuredBuffer(ParameterName name, ShaderResourceView* bufferView) {}
+
+	//const ShaderParameterTableDesc desc;
+};

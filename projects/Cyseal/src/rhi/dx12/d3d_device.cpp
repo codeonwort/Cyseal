@@ -484,6 +484,13 @@ PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& 
 	return pipeline;
 }
 
+PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc2& desc)
+{
+	// #wip-dxc-reflection: New createComputePipelineState()
+	CHECK_NO_ENTRY();
+	return nullptr;
+}
+
 RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 	const RaytracingPipelineStateObjectDesc& desc)
 {

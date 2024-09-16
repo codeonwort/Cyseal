@@ -214,35 +214,37 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 			// #wip-dxc-reflection: Handle missing D3D_SHADER_INPUT_TYPE cases
 			switch (inputBindDesc.Type)
 			{
-				case D3D_SIT_CBUFFER:
+				case D3D_SIT_CBUFFER: // ConstantBuffer
 					parameterTable.constantBuffers.emplace_back(parameter);
 					break;
 				case D3D_SIT_TBUFFER:
 					CHECK_NO_ENTRY();
 					break;
-				case D3D_SIT_TEXTURE:
-					CHECK_NO_ENTRY();
+				case D3D_SIT_TEXTURE: // Texture2D, Texture3D, TextureCube, ...
+					// #wip-dxc-reflection: How to represent bindless?
+					// ex) base_pass.hlsl has bindless texture.
+					parameterTable.textures.emplace_back(parameter);
 					break;
-				case D3D_SIT_SAMPLER:
-					CHECK_NO_ENTRY();
+				case D3D_SIT_SAMPLER: // SamplerState
+					parameterTable.samplers.emplace_back(parameter);
 					break;
-				case D3D_SIT_UAV_RWTYPED:
-					CHECK_NO_ENTRY(); // RWBuffer
+				case D3D_SIT_UAV_RWTYPED: // RWBuffer
+					parameterTable.rwBuffers.emplace_back(parameter);
 					break;
-				case D3D_SIT_STRUCTURED:
+				case D3D_SIT_STRUCTURED: // StructuredBuffer
 					parameterTable.structuredBuffers.emplace_back(parameter);
 					break;
-				case D3D_SIT_UAV_RWSTRUCTURED:
+				case D3D_SIT_UAV_RWSTRUCTURED: // RWStructuredBuffer
 					parameterTable.rwStructuredBuffers.emplace_back(parameter);
 					break;
-				case D3D_SIT_BYTEADDRESS:
-					CHECK_NO_ENTRY(); // ByteAddressBuffer
+				case D3D_SIT_BYTEADDRESS: // ByteAddressBuffer
+					CHECK_NO_ENTRY();
 					break;
-				case D3D_SIT_UAV_RWBYTEADDRESS:
-					CHECK_NO_ENTRY(); // RWByteAddressBuffer
+				case D3D_SIT_UAV_RWBYTEADDRESS: // RWByteAddressBuffer
+					CHECK_NO_ENTRY();
 					break;
-				case D3D_SIT_UAV_APPEND_STRUCTURED:
-					CHECK_NO_ENTRY(); // AppendStructuredBuffer
+				case D3D_SIT_UAV_APPEND_STRUCTURED: // AppendStructuredBuffer
+					CHECK_NO_ENTRY();
 					break;
 				case D3D_SIT_UAV_CONSUME_STRUCTURED:
 					CHECK_NO_ENTRY();

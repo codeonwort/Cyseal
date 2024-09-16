@@ -19,7 +19,10 @@ struct D3DShaderParameterTable
 {
 	std::vector<D3DShaderParameter> constantBuffers;
 	std::vector<D3DShaderParameter> rwStructuredBuffers;
+	std::vector<D3DShaderParameter> rwBuffers;
 	std::vector<D3DShaderParameter> structuredBuffers;
+	std::vector<D3DShaderParameter> textures;
+	std::vector<D3DShaderParameter> samplers;
 };
 
 class D3DShaderStage : public ShaderStage

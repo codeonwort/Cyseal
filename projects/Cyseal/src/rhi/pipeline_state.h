@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 
+struct ShaderParameterTableDesc;
 class RootSignature;
 class ShaderStage;
 class VertexBuffer;
@@ -371,6 +372,19 @@ struct GraphicsPipelineDesc
 // VkComputePipelineCreateInfo
 struct ComputePipelineDesc
 {
+	RootSignature* rootSignature = nullptr;
+	ShaderStage* cs = nullptr;
+	uint32 nodeMask = 0; // #todo-mgpu
+	// #todo-crossapi: D3D12_CACHED_PIPELINE_STATE CachedPSO;
+	// #todo-crossapi: D3D12_PIPELINE_STATE_FLAGS  Flags;
+};
+
+// #wip-dxc-reflection: New ComputePipelineDesc
+// D3D12_COMPUTE_PIPELINE_STATE_DESC
+// VkComputePipelineCreateInfo
+struct ComputePipelineDesc2
+{
+	ShaderParameterTableDesc* shaderParameterTable;
 	RootSignature* rootSignature = nullptr;
 	ShaderStage* cs = nullptr;
 	uint32 nodeMask = 0; // #todo-mgpu

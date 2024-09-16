@@ -919,6 +919,12 @@ PipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDes
 	return new VulkanComputePipelineState(vkPipeline);
 }
 
+PipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc2& desc)
+{
+	CHECK_NO_ENTRY();
+	return nullptr;
+}
+
 RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject(
 	const RaytracingPipelineStateObjectDesc& desc)
 {

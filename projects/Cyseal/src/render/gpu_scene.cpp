@@ -16,37 +16,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
 // #wip-dxc-reflection: [GPUScene] Refactor
 #define REFACTOR_SHADER_RESOURCE_BINDING 0
 
-#if REFACTOR_SHADER_RESOURCE_BINDING
-struct ShaderParameterTableDesc
-{
-	using ParameterName = const char*;
-
-	void pushConstants(ParameterName name, uint32 num32BitValues) {}
-	void constantBuffer(ParameterName name) {}
-	void rwStructuredBuffer(ParameterName name) {}
-	void structuredBuffer(ParameterName name) {}
-};
-
-struct ShaderParameterTable
-{
-	using ParameterName = const char*;
-
-	//ShaderParameterTable(const ShaderParameterTableDesc& inDesc)
-	//	: desc(inDesc)
-	//{
-	//}
-
-	void pushConstants(ParameterName name, uint32 value) {}
-	void pushConstants(ParameterName name, uint32* values, uint32 count) {}
-
-	void constantBuffer(ParameterName name, ConstantBufferView* bufferView) {}
-	void rwStructuredBuffer(ParameterName name, UnorderedAccessView* bufferView) {}
-	void structuredBuffer(ParameterName name, ShaderResourceView* bufferView) {}
-
-	//const ShaderParameterTableDesc desc;
-};
-#endif
-
 namespace RootParameters
 {
 	enum Value
@@ -115,14 +84,14 @@ void GPUScene::initialize()
 #if REFACTOR_SHADER_RESOURCE_BINDING
 	{
 		ShaderParameterTableDesc SPTDesc;
-		SPTDesc.pushConstants("numSceneCommands", 1);
+		SPTDesc.pushConstants("numSceneCommands", 1 /*num32BitValues*/);
 		SPTDesc.constantBuffer("sceneUniform");
 		SPTDesc.rwStructuredBuffer("gpuSceneBuffer");
 		SPTDesc.structuredBuffer("commandBuffer");
 
 		pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
 			ComputePipelineDesc2{
-				.shaderParameterTable = std::move(SPTDesc),
+				.shaderParameterTable = &SPTDesc,
 				.cs = shaderCS,
 				.nodeMask = 0
 			}
