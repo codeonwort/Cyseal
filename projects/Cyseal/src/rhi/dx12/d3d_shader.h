@@ -26,6 +26,15 @@ struct D3DShaderParameterTable
 	std::vector<D3DShaderParameter> structuredBuffers;
 	std::vector<D3DShaderParameter> textures;
 	std::vector<D3DShaderParameter> samplers;
+
+	inline size_t totalBuffers() const
+	{
+		return constantBuffers.size() + rwStructuredBuffers.size() + rwBuffers.size() + structuredBuffers.size();
+	}
+	inline size_t totalTextures() const
+	{
+		return textures.size();
+	}
 };
 
 class D3DShaderStage : public ShaderStage
@@ -41,7 +50,7 @@ public:
 	virtual const char* getEntryPointA() override { return aEntryPoint.c_str(); }
 
 	D3D12_SHADER_BYTECODE getBytecode() const;
-	inline D3DRootSignature* getRootSignature() const { return rootSignature; }
+	inline ID3D12RootSignature* getRootSignature() const { return rootSignature.Get(); }
 
 private:
 	void readShaderReflection(IDxcResult* compileResult);
@@ -54,7 +63,7 @@ private:
 	std::string aEntryPoint;
 
 	D3DShaderParameterTable parameterTable;
-	D3DRootSignature* rootSignature = nullptr;
+	WRL::ComPtr<ID3D12RootSignature> rootSignature;
 
 	// Compute shader only
 	uint32 threadGroupTotalSize = 0;

@@ -69,6 +69,7 @@ private:
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, uint32 maxSRVCount);
 
 private:
+	UniquePtr<ShaderStage> gpuSceneShader;
 	UniquePtr<PipelineState> pipelineState;
 	UniquePtr<RootSignature> rootSignature;
 

@@ -170,9 +170,10 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 
 D3D12_SHADER_BYTECODE D3DShaderStage::getBytecode() const
 {
-	D3D12_SHADER_BYTECODE bc;
-	bc.BytecodeLength = bytecodeBlob->GetBufferSize();
-	bc.pShaderBytecode = bytecodeBlob->GetBufferPointer();
+	D3D12_SHADER_BYTECODE bc{
+		.pShaderBytecode = bytecodeBlob->GetBufferPointer(),
+		.BytecodeLength = bytecodeBlob->GetBufferSize(),
+	};
 	return bc;
 }
 
@@ -311,24 +312,149 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 
 void D3DShaderStage::createRootSignature()
 {
-	// #wip-dxc-reflection: Fully auto-generate a root signature from shader reflection. e.g., root sig in GPUScene::initialize().
+	const size_t totalParameters = parameterTable.totalBuffers() + parameterTable.totalTextures();
+	const size_t totalSamplers = parameterTable.samplers.size();
+	std::vector<D3D12_ROOT_PARAMETER> rootParameters(totalParameters);
+	std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers(totalSamplers);
 
-	/* Example) gpu_scene
+	// Temp storage for parameters.
+	std::vector<D3D12_DESCRIPTOR_RANGE> descriptorRanges;
+	descriptorRanges.reserve(totalParameters - parameterTable.constantBuffers.size());
+	auto lastDescriptorPtr = [](const decltype(descriptorRanges)& ranges) { return &ranges[ranges.size() - 1]; };
 
-	DescriptorRange descriptorRanges[2];
-	descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1, 0); // register(b1, space0)
+	// Construct root parameters.
+	// #wip-dxc-reflection: How to discern root constants and constant buffers?
+	// #wip-dxc-reflection: How to determine shader visibility?
+	{
+		uint32 p = 0;
+		for (const auto& param : parameterTable.constantBuffers)
+		{
+			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+			rootParameters[p].Descriptor.ShaderRegister = param.registerSlot;
+			rootParameters[p].Descriptor.RegisterSpace = param.registerSpace;
+			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			++p;
+		}
+		for (const auto& param : parameterTable.rwStructuredBuffers)
+		{
+			D3D12_DESCRIPTOR_RANGE descriptor{
+				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
+				.NumDescriptors     = 1,
+				.BaseShaderRegister = param.registerSlot,
+				.RegisterSpace      = param.registerSpace,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			};
+			descriptorRanges.emplace_back(descriptor);
 
-	RootParameter rootParameters[RootParameters::Count];
-	rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1); // register(b0, space0) = numSceneCommands
-	rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
-	rootParameters[RootParameters::GPUSceneSlot].initAsUAVBuffer(0, 0);         // register(u0, space0)
-	rootParameters[RootParameters::GPUSceneCommandSlot].initAsSRVBuffer(0, 0);  // register(t0, space0)
+			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
+			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			++p;
+		}
+		for (const auto& param : parameterTable.rwBuffers)
+		{
+			D3D12_DESCRIPTOR_RANGE descriptor{
+				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
+				.NumDescriptors     = 1,
+				.BaseShaderRegister = param.registerSlot,
+				.RegisterSpace      = param.registerSpace,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			};
+			descriptorRanges.emplace_back(descriptor);
 
-	RootSignatureDesc rootSigDesc(
-		RootParameters::Count,
-		rootParameters,
-		0, nullptr,
-		ERootSignatureFlags::None);
+			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
+			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			++p;
+		}
+		for (const auto& param : parameterTable.structuredBuffers)
+		{
+			D3D12_DESCRIPTOR_RANGE descriptor{
+				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+				.NumDescriptors     = 1,
+				.BaseShaderRegister = param.registerSlot,
+				.RegisterSpace      = param.registerSpace,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			};
+			descriptorRanges.emplace_back(descriptor);
 
-	*/
+			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
+			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			++p;
+		}
+		for (const auto& param : parameterTable.textures)
+		{
+			D3D12_DESCRIPTOR_RANGE descriptor{
+				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+				.NumDescriptors     = 1,
+				.BaseShaderRegister = param.registerSlot,
+				.RegisterSpace      = param.registerSpace,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			};
+			descriptorRanges.emplace_back(descriptor);
+
+			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
+			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			++p;
+		}
+		CHECK(p == totalParameters);
+
+		p = 0;
+		for (const auto& samp : parameterTable.samplers)
+		{
+			staticSamplers[p] = D3D12_STATIC_SAMPLER_DESC{
+				.Filter           = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+				.AddressU         = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.AddressV         = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.AddressW         = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.MipLODBias       = 0.0f,
+				.MaxAnisotropy    = 0,
+				.ComparisonFunc   = D3D12_COMPARISON_FUNC_ALWAYS,
+				.BorderColor      = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+				.MinLOD           = 0.0f,
+				.MaxLOD           = 0.0f,
+				.ShaderRegister   = samp.registerSlot,
+				.RegisterSpace    = samp.registerSpace,
+				.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+			};
+			++p;
+		}
+		CHECK(p == totalSamplers);
+	}
+
+	// Create root signature.
+	{
+		D3D12_ROOT_SIGNATURE_DESC rootSigDesc{
+			.NumParameters     = (UINT)rootParameters.size(),
+			.pParameters       = rootParameters.data(),
+			.NumStaticSamplers = (UINT)staticSamplers.size(),
+			.pStaticSamplers   = staticSamplers.data(),
+		};
+		WRL::ComPtr<ID3DBlob> serializedRootSig, errorBlob;
+		HRESULT hresult = D3D12SerializeRootSignature(
+			&rootSigDesc,
+			D3D_ROOT_SIGNATURE_VERSION_1, // #todo-dx12: Root signature version
+			serializedRootSig.GetAddressOf(),
+			errorBlob.GetAddressOf());
+
+		if (errorBlob != nullptr)
+		{
+			const char* message = reinterpret_cast<char*>(errorBlob->GetBufferPointer());
+			::OutputDebugStringA(message);
+		}
+		HR(hresult);
+
+		hresult = getD3DDevice()->getRawDevice()->CreateRootSignature(
+			0, /*nodeMask*/
+			serializedRootSig->GetBufferPointer(),
+			serializedRootSig->GetBufferSize(),
+			IID_PPV_ARGS(&rootSignature));
+		HR(hresult);
+	}
 }

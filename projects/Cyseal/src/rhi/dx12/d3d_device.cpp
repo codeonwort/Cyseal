@@ -485,17 +485,28 @@ PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& 
 	return pipeline;
 }
 
-PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc2& desc)
+PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc2& inDesc)
 {
-	D3DRootSignature* rootSignature = static_cast<D3DShaderStage*>(desc.cs)->getRootSignature();
+	CHECK(inDesc.cs != nullptr);
 
-	ComputePipelineDesc oldDesc{
-		.rootSignature = rootSignature,
-		.cs            = desc.cs,
-		.nodeMask      = desc.nodeMask,
+	D3DShaderStage* shaderStage = static_cast<D3DShaderStage*>(inDesc.cs);
+
+	D3D12_COMPUTE_PIPELINE_STATE_DESC pipelineDesc{
+		.pRootSignature = shaderStage->getRootSignature(),
+		.CS             = shaderStage->getBytecode(),
+		.NodeMask       = (UINT)inDesc.nodeMask,
+		// #todo-dx12: Compute shader - CachedPSO, Flags
+		.CachedPSO      = D3D12_CACHED_PIPELINE_STATE{
+			.pCachedBlob           = NULL,
+			.CachedBlobSizeInBytes = 0,
+		},
+		.Flags          = D3D12_PIPELINE_STATE_FLAG_NONE,
 	};
 
-	return createComputePipelineState(oldDesc);
+	D3DComputePipelineState* pipeline = new D3DComputePipelineState;
+	pipeline->initialize(device.Get(), pipelineDesc);
+
+	return pipeline;
 }
 
 RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(

@@ -79,8 +79,8 @@ void GPUScene::initialize()
 	materialSRVs.initialize(swapchainCount);
 
 	// Shader
-	ShaderStage* shaderCS = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
-	shaderCS->loadFromFile(L"gpu_scene.hlsl", "mainCS");
+	gpuSceneShader = UniquePtr<ShaderStage>(gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS"));
+	gpuSceneShader->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
 #if REFACTOR_SHADER_RESOURCE_BINDING
 	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
@@ -113,13 +113,11 @@ void GPUScene::initialize()
 	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc{
 			.rootSignature = rootSignature.get(),
-			.cs            = shaderCS,
+			.cs            = gpuSceneShader.get(),
 			.nodeMask      = 0
 		}
 	));
 #endif
-
-	delete shaderCS;
 }
 
 void GPUScene::renderGPUScene(
