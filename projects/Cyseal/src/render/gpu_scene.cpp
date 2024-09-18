@@ -15,7 +15,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
 
 // #wip-dxc-reflection: [GPUScene] Refactor
-#define REFACTOR_SHADER_RESOURCE_BINDING 0
+#define REFACTOR_SHADER_RESOURCE_BINDING 1
 
 namespace RootParameters
 {
@@ -80,13 +80,14 @@ void GPUScene::initialize()
 
 	// Shader
 	gpuSceneShader = UniquePtr<ShaderStage>(gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS"));
+	gpuSceneShader->declarePushConstants({ "pushConstants" });
 	gpuSceneShader->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
 #if REFACTOR_SHADER_RESOURCE_BINDING
 	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc2{
-			.cs = shaderCS,
-			.nodeMask = 0
+			.cs = gpuSceneShader.get(),
+			.nodeMask = 0,
 		}
 	));
 #else
@@ -154,7 +155,9 @@ void GPUScene::renderGPUScene(
 	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
 
 	uint32 requiredVolatiles = 0;
-	requiredVolatiles += 1; // scene uniform
+	requiredVolatiles += 1; // sceneUniform
+	requiredVolatiles += 1; // gpuSceneBuffer
+	requiredVolatiles += 1; // commandBuffer
 	resizeVolatileHeaps(swapchainIndex, requiredVolatiles);
 
 	// #todo-gpuscene: Don't upload unchanged materials. Also don't copy one by one.
@@ -298,17 +301,19 @@ void GPUScene::renderGPUScene(
 		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		commandList->setPipelineState(pipelineState.get());
-		commandList->setComputeRootSignature(rootSignature.get());
 
 #if REFACTOR_SHADER_RESOURCE_BINDING
 		ShaderParameterTable SPT{};
-		SPT.pushConstant("numSceneCommands", numSceneCommands);
-		SPT.constantBuffer("sceneUniform", sceneUniform);
+		SPT.pushConstant("pushConstants", numSceneCommands);
 		SPT.rwStructuredBuffer("gpuSceneBuffer", gpuSceneBufferUAV.get());
 		SPT.structuredBuffer("commandBuffer", gpuSceneCommandBufferSRV.at(swapchainIndex));
 
-		//commandList->bindComputeShaderParameters(SPT);
+		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
+
+		commandList->bindComputeShaderParameters(gpuSceneShader.get(), &SPT, volatileHeap);
 #else
+		commandList->setComputeRootSignature(rootSignature.get());
+
 		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
 		DescriptorHeap* heaps[] = { volatileHeap };
 		commandList->setDescriptorHeaps(1, heaps);

@@ -3,6 +3,7 @@
 #include "core/int_types.h"
 #include "core/assertion.h"
 #include <string>
+#include <vector>
 
 class RenderDevice;
 
@@ -67,12 +68,38 @@ public:
 	{}
 	virtual ~ShaderStage() = default;
 
+	// Invoke before loadFromFile().
+	// Need to pre-determine before shader compilation as shader reflection can't discriminate between root constants and CBVs.
+	inline void declarePushConstants(const std::vector<std::string>& inPushConstantNames)
+	{
+		pushConstantNames = inPushConstantNames;
+		bPushConstantsDeclared = true;
+	}
+	inline void declarePushConstants()
+	{
+		pushConstantNames.clear();
+		bPushConstantsDeclared = true;
+	}
+
 	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) = 0;
 
 	virtual const wchar_t* getEntryPointW() = 0;
 	virtual const char* getEntryPointA() = 0;
 
 protected:
+	inline bool shouldBePushConstants(const std::string& name)
+	{
+		for (const auto& x : pushConstantNames)
+		{
+			if (name == x) return true;
+		}
+		return false;
+	}
+
+protected:
 	EShaderStage stageFlag;
 	std::string debugName;
+
+	std::vector<std::string> pushConstantNames;
+	bool bPushConstantsDeclared = false;
 };

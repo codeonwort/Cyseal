@@ -148,6 +148,11 @@ public:
 		DescriptorHeap* descriptorHeap,
 		uint32 descriptorStartOffset) override;
 
+	virtual void bindComputeShaderParameters(
+		ShaderStage* shader,
+		const ShaderParameterTable* parameters,
+		DescriptorHeap* descriptorHeap) override;
+
 	virtual void dispatchCompute(
 		uint32 threadGroupX,
 		uint32 threadGroupY,

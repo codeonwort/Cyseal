@@ -177,11 +177,16 @@ D3D12_SHADER_BYTECODE D3DShaderStage::getBytecode() const
 	return bc;
 }
 
+const D3DShaderParameter* D3DShaderStage::findShaderParameter(const std::string& name) const
+{
+	auto it = parameterHashMap.find(name);
+	return (it == parameterHashMap.end()) ? nullptr : it->second;
+}
+
 void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 {
 	IDxcUtils* const utils = getD3DDevice()->getDxcUtils();
 
-	// #wip-dxc-reflection: Shader Reflection for non-raytracing shaders
 	// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/nn-d3d12shader-id3d12shaderreflection
 	if (!isRaytracingShader(stageFlag))
 	{
@@ -206,17 +211,25 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 			shaderReflection->GetResourceBindingDesc(i, &inputBindDesc);
 
 			D3DShaderParameter parameter{
-				.name = inputBindDesc.Name,
-				//.type = inputBindDesc.Type, // D3D_SIT_CBUFFER = ConstantBuffer, D3D_SIT_UAV_RWTYPED = RWBuffer, D3D_SIT_STRUCTURED = StructuredBuffer, ...
-				.registerSlot = inputBindDesc.BindPoint,
-				.registerSpace = inputBindDesc.Space,
+				.name               = inputBindDesc.Name,
+				//.type               = inputBindDesc.Type, // D3D_SIT_CBUFFER = ConstantBuffer, D3D_SIT_UAV_RWTYPED = RWBuffer, D3D_SIT_STRUCTURED = StructuredBuffer, ...
+				.registerSlot       = inputBindDesc.BindPoint,
+				.registerSpace      = inputBindDesc.Space,
+				.rootParameterIndex = 0xffffffff, // Allocated in createRoogSignature()
 			};
 			
 			// #wip-dxc-reflection: Handle missing D3D_SHADER_INPUT_TYPE cases
 			switch (inputBindDesc.Type)
 			{
 				case D3D_SIT_CBUFFER: // ConstantBuffer
-					parameterTable.constantBuffers.emplace_back(parameter);
+					if (shouldBePushConstants(inputBindDesc.Name))
+					{
+						parameterTable.rootConstants.emplace_back(parameter);
+					}
+					else
+					{
+						parameterTable.constantBuffers.emplace_back(parameter);
+					}
 					break;
 				case D3D_SIT_TBUFFER:
 					CHECK_NO_ENTRY();
@@ -308,34 +321,66 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 			}
 		}
 	}
+
+	// Build hash map for fast query.
+	{
+		auto build = [hashmap = &(this->parameterHashMap)](const std::vector<D3DShaderParameter>& params) {
+			for (auto i = 0; i < params.size(); ++i)
+			{
+				hashmap->insert(std::make_pair(params[i].name, &(params[i])));
+			}
+		};
+		build(parameterTable.rootConstants);
+		build(parameterTable.constantBuffers);
+		build(parameterTable.rwStructuredBuffers);
+		build(parameterTable.rwBuffers);
+		build(parameterTable.structuredBuffers);
+		build(parameterTable.textures);
+		build(parameterTable.samplers);
+	}
 }
 
 void D3DShaderStage::createRootSignature()
 {
-	const size_t totalParameters = parameterTable.totalBuffers() + parameterTable.totalTextures();
+	// #wip-dxc-reflection: Impose after converting all render passes.
+	//CHECK(bPushConstantsDeclared);
+
+	const size_t totalParameters = parameterTable.totalRootConstants() + parameterTable.totalBuffers() + parameterTable.totalTextures();
 	const size_t totalSamplers = parameterTable.samplers.size();
 	std::vector<D3D12_ROOT_PARAMETER> rootParameters(totalParameters);
 	std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers(totalSamplers);
 
 	// Temp storage for parameters.
 	std::vector<D3D12_DESCRIPTOR_RANGE> descriptorRanges;
-	descriptorRanges.reserve(totalParameters - parameterTable.constantBuffers.size());
+	descriptorRanges.reserve(totalParameters);
 	auto lastDescriptorPtr = [](const decltype(descriptorRanges)& ranges) { return &ranges[ranges.size() - 1]; };
 
 	// Construct root parameters.
-	// #wip-dxc-reflection: How to discern root constants and constant buffers?
 	// #wip-dxc-reflection: How to determine shader visibility?
 	{
-		uint32 p = 0;
-		for (const auto& param : parameterTable.constantBuffers)
+		uint32 p = 0; // root parameter index
+		for (auto& param : parameterTable.rootConstants)
+		{
+			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			rootParameters[p].Constants.ShaderRegister = param.registerSlot;
+			rootParameters[p].Constants.RegisterSpace = param.registerSpace;
+			rootParameters[p].Constants.Num32BitValues = 1; // #wip-dxc-reflection: Num32BitValues
+			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			param.rootParameterIndex = p;
+			++p;
+		}
+		for (auto& param : parameterTable.constantBuffers)
 		{
 			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 			rootParameters[p].Descriptor.ShaderRegister = param.registerSlot;
 			rootParameters[p].Descriptor.RegisterSpace = param.registerSpace;
 			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			param.rootParameterIndex = p;
 			++p;
 		}
-		for (const auto& param : parameterTable.rwStructuredBuffers)
+		for (auto& param : parameterTable.rwStructuredBuffers)
 		{
 			D3D12_DESCRIPTOR_RANGE descriptor{
 				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
@@ -350,9 +395,11 @@ void D3DShaderStage::createRootSignature()
 			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
 			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
 			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			param.rootParameterIndex = p;
 			++p;
 		}
-		for (const auto& param : parameterTable.rwBuffers)
+		for (auto& param : parameterTable.rwBuffers)
 		{
 			D3D12_DESCRIPTOR_RANGE descriptor{
 				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
@@ -367,9 +414,11 @@ void D3DShaderStage::createRootSignature()
 			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
 			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
 			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			param.rootParameterIndex = p;
 			++p;
 		}
-		for (const auto& param : parameterTable.structuredBuffers)
+		for (auto& param : parameterTable.structuredBuffers)
 		{
 			D3D12_DESCRIPTOR_RANGE descriptor{
 				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
@@ -384,9 +433,11 @@ void D3DShaderStage::createRootSignature()
 			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
 			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
 			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			param.rootParameterIndex = p;
 			++p;
 		}
-		for (const auto& param : parameterTable.textures)
+		for (auto& param : parameterTable.textures)
 		{
 			D3D12_DESCRIPTOR_RANGE descriptor{
 				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
@@ -401,6 +452,8 @@ void D3DShaderStage::createRootSignature()
 			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
 			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
 			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			param.rootParameterIndex = p;
 			++p;
 		}
 		CHECK(p == totalParameters);

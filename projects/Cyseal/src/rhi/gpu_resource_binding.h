@@ -312,7 +312,7 @@ public:
 struct ShaderParameterTable
 {
 	using ParameterName = const char*;
-	struct PushConstant       { std::string name; uint32 num32BitValues; };
+	struct PushConstant       { std::string name; uint32 value; uint32 destOffsetIn32BitValues; };
 	struct ConstantBuffer     { std::string name; ConstantBufferView* buffer; };
 	struct StructuredBuffer   { std::string name; ShaderResourceView* buffer; };
 	struct RWBuffer           { std::string name; UnorderedAccessView* buffer; };
@@ -321,17 +321,19 @@ struct ShaderParameterTable
 	struct RWTexture          { std::string name; UnorderedAccessView* texture; };
 
 public:
-	void pushConstant(ParameterName name, uint32 num32BitValues)             { pushConstants.emplace_back(PushConstant{ name, num32BitValues });     }
-	void constantBuffer(ParameterName name, ConstantBufferView* buffer)      { constantBuffers.emplace_back(ConstantBuffer{ name, buffer });         }
-	void structuredBuffer(ParameterName name, ShaderResourceView* buffer)    { structuredBuffers.emplace_back(StructuredBuffer{ name, buffer });     }
-	void rwBuffer(ParameterName name, UnorderedAccessView* buffer)           { rwBuffers.emplace_back(RWBuffer{ name, buffer });                     }
-	void rwStructuredBuffer(ParameterName name, UnorderedAccessView* buffer) { rwStructuredBuffers.emplace_back(RWStructuredBuffer{ name, buffer }); }
-	void texture(ParameterName name, ShaderResourceView* texture)            { textures.emplace_back(Texture{ name, texture });                      }
-	void rwTexture(ParameterName name, UnorderedAccessView* texture)         { rwTextures.emplace_back(RWTexture{ name, texture });                  }
+	void pushConstant(ParameterName name, uint32 value, uint32 destOffsetIn32BitValues = 0) { pushConstants.emplace_back(PushConstant{ name, value, destOffsetIn32BitValues }); }
+	void constantBuffer(ParameterName name, ConstantBufferView* buffer)                     { constantBuffers.emplace_back(ConstantBuffer{ name, buffer });                     }
+	void structuredBuffer(ParameterName name, ShaderResourceView* buffer)                   { structuredBuffers.emplace_back(StructuredBuffer{ name, buffer });                 }
+	void rwBuffer(ParameterName name, UnorderedAccessView* buffer)                          { rwBuffers.emplace_back(RWBuffer{ name, buffer });                                 }
+	void rwStructuredBuffer(ParameterName name, UnorderedAccessView* buffer)                { rwStructuredBuffers.emplace_back(RWStructuredBuffer{ name, buffer });             }
+	void texture(ParameterName name, ShaderResourceView* texture)                           { textures.emplace_back(Texture{ name, texture });                                  }
+	void rwTexture(ParameterName name, UnorderedAccessView* texture)                        { rwTextures.emplace_back(RWTexture{ name, texture });                              }
 
 	size_t totalParameters() const
 	{
-		return pushConstants.size() + constantBuffers.size() + structuredBuffers.size() + rwBuffers.size() + textures.size() + rwTextures.size();
+		return pushConstants.size() + constantBuffers.size()
+			+ structuredBuffers.size() + rwBuffers.size() + rwStructuredBuffers.size()
+			+ textures.size() + rwTextures.size();
 	}
 
 public:

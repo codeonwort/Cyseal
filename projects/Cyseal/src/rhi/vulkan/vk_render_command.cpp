@@ -383,6 +383,14 @@ void VulkanRenderCommandList::setComputeRootDescriptorTable(uint32 rootParameter
 	// #todo-vulkan
 }
 
+void VulkanRenderCommandList::bindComputeShaderParameters(
+	ShaderStage* shader,
+	const ShaderParameterTable* parameters,
+	DescriptorHeap* descriptorHeap)
+{
+	// #todo-vulkan
+}
+
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
 	// #todo-vulkan
