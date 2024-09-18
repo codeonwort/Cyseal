@@ -123,16 +123,6 @@ public:
 	// ------------------------------------------------------------------------
 	// Compute pipeline
 
-	virtual void setComputeRootConstant32(
-		uint32 rootParameterIndex,
-		uint32 constant32,
-		uint32 destOffsetIn32BitValues) override;
-	virtual void setComputeRootConstant32Array(
-		uint32 rootParameterIndex,
-		uint32 numValuesToSet,
-		const void* srcData,
-		uint32 destOffsetIn32BitValues) override;
-
 	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
 	virtual void setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv) override;
 

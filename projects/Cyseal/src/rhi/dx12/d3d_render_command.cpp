@@ -336,30 +336,6 @@ void D3DRenderCommandList::setGraphicsRootDescriptorUAV(
 	commandList->SetGraphicsRootUnorderedAccessView(rootParameterIndex, gpuAddr);
 }
 
-void D3DRenderCommandList::setComputeRootConstant32(
-	uint32 rootParameterIndex,
-	uint32 constant32,
-	uint32 destOffsetIn32BitValues)
-{
-	commandList->SetComputeRoot32BitConstant(
-		rootParameterIndex,
-		constant32,
-		destOffsetIn32BitValues);
-}
-
-void D3DRenderCommandList::setComputeRootConstant32Array(
-	uint32 rootParameterIndex,
-	uint32 numValuesToSet,
-	const void* srcData,
-	uint32 destOffsetIn32BitValues)
-{
-	commandList->SetComputeRoot32BitConstants(
-		rootParameterIndex,
-		numValuesToSet,
-		srcData,
-		destOffsetIn32BitValues);
-}
-
 void D3DRenderCommandList::setComputeRootDescriptorTable(
 	uint32 rootParameterIndex,
 	DescriptorHeap* descriptorHeap,

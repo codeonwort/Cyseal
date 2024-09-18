@@ -308,6 +308,7 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 			D3D12_FUNCTION_DESC functionDesc{};
 			functionReflection->GetDesc(&functionDesc);
 
+			// Name of shaders (raygeneration, closesthit, miss, ...)
 			const char* functionName = functionDesc.Name;
 
 			for (UINT resourceIx = 0; resourceIx < functionDesc.BoundResources; ++resourceIx)

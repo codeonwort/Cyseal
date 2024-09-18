@@ -168,16 +168,6 @@ public:
 	// ------------------------------------------------------------------------
 	// Compute pipeline
 
-	virtual void setComputeRootConstant32(
-		uint32 rootParameterIndex,
-		uint32 constant32,
-		uint32 destOffsetIn32BitValues) = 0;
-	virtual void setComputeRootConstant32Array(
-		uint32 rootParameterIndex,
-		uint32 numValuesToSet,
-		const void* srcData,
-		uint32 destOffsetIn32BitValues) = 0;
-
 	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
 	// #wip-dxc-reflection: path tracing and RTR still use them.
 	virtual void setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv) = 0;

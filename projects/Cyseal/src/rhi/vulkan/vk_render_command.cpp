@@ -353,16 +353,6 @@ void VulkanRenderCommandList::executeIndirect(
 	// #todo-vulkan
 }
 
-void VulkanRenderCommandList::setComputeRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues)
-{
-	// #todo-vulkan
-}
-
-void VulkanRenderCommandList::setComputeRootConstant32Array(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues)
-{
-	// #todo-vulkan
-}
-
 void VulkanRenderCommandList::setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv)
 {
 	// #todo-vulkan

@@ -307,7 +307,6 @@ public:
 };
 
 // -----------------------------------------------------------------------
-// #wip-dxc-reflection: New resource binding model
 
 struct ShaderParameterTable
 {
