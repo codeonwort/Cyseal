@@ -4,11 +4,10 @@
 #include "core/smart_pointer.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
-#include "rhi/gpu_resource_binding.h"
 
 class RenderCommandList;
+class ShaderStage;
 class PipelineState;
-class RootSignature;
 class DescriptorHeap;
 class Buffer;
 class ConstantBufferView;
@@ -28,8 +27,6 @@ struct MaterialConstants
 
 class GPUScene final
 {
-	friend class GPUCulling;
-
 public:
 	void initialize();
 
@@ -71,7 +68,6 @@ private:
 private:
 	UniquePtr<ShaderStage> gpuSceneShader;
 	UniquePtr<PipelineState> pipelineState;
-	UniquePtr<RootSignature> rootSignature;
 
 	std::vector<uint32> totalVolatileDescriptors;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;

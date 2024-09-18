@@ -61,7 +61,7 @@ struct PushConstants
     uint numDrawCommands;
 };
 
-// #todo-wip-cull: Specific to base pass
+// #todo-cull: Specific to base pass
 struct IDrawCommand
 {
 	uint                         sceneItemIndex; // index in gpu scene buffer
@@ -71,12 +71,12 @@ struct IDrawCommand
 	D3D12_DRAW_INDEXED_ARGUMENTS drawIndexedArguments;
 };
 
-ConstantBuffer<PushConstants> pushConstants              : register(b0);
-ConstantBuffer<SceneUniform> sceneUniform                : register(b1);
-StructuredBuffer<GPUSceneItem> gpuSceneBuffer            : register(t0);
-StructuredBuffer<IDrawCommand> drawCommandBuffer         : register(t1);
-RWStructuredBuffer<IDrawCommand> culledDrawCommandBuffer : register(u0);
-RWBuffer<uint> drawCounterBuffer                         : register(u1);
+ConstantBuffer<PushConstants> pushConstants;
+ConstantBuffer<SceneUniform> sceneUniform;
+StructuredBuffer<GPUSceneItem> gpuSceneBuffer;
+StructuredBuffer<IDrawCommand> drawCommandBuffer;
+RWStructuredBuffer<IDrawCommand> culledDrawCommandBuffer;
+RWBuffer<uint> drawCounterBuffer;
 
 // ------------------------------------------------------------------------
 // Compute shader

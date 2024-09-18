@@ -21,10 +21,10 @@ struct PushConstants
     uint numCommands;
 };
 
-ConstantBuffer<PushConstants> pushConstants       : register(b0);
-ConstantBuffer<SceneUniform> sceneUniform         : register(b1);
-RWStructuredBuffer<GPUSceneItem> gpuSceneBuffer   : register(u0);
-StructuredBuffer<GPUSceneCommand> commandBuffer   : register(t0);
+ConstantBuffer<PushConstants> pushConstants;
+ConstantBuffer<SceneUniform> sceneUniform;
+RWStructuredBuffer<GPUSceneItem> gpuSceneBuffer;
+StructuredBuffer<GPUSceneCommand> commandBuffer;
 
 // ------------------------------------------------------------------------
 // Compute shader

@@ -395,7 +395,9 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	commandList->SetComputeRootSignature(d3dRootSig);
 	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
+	// #wip-dxc-reflection: Root Descriptor vs Descriptor Table
 	uint32 descriptorIx = 0;
+
 	for (const auto& inParam : inParameters->pushConstants)
 	{
 		const D3DShaderParameter* param = d3dShader->findShaderParameter(inParam.name);
@@ -403,11 +405,17 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	}
 	for (const auto& inParam : inParameters->constantBuffers)
 	{
+		// For now, always use root descriptor for constant buffers.
 		const D3DShaderParameter* param = d3dShader->findShaderParameter(inParam.name);
+#if 0
 		ConstantBufferView* buffer = inParam.buffer;
 		gRenderDevice->copyDescriptors(1, descriptorHeap, descriptorIx, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap());
 		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, computeDescriptorHandle(descriptorIx));
 		++descriptorIx;
+#else
+		D3DConstantBufferView* buffer = static_cast<D3DConstantBufferView*>(inParam.buffer);
+		commandList->SetComputeRootConstantBufferView(param->rootParameterIndex, buffer->getGPUVirtualAddress());
+#endif
 	}
 	for (const auto& inParam : inParameters->structuredBuffers)
 	{

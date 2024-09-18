@@ -14,21 +14,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
 
-// #wip-dxc-reflection: [GPUScene] Refactor
-#define REFACTOR_SHADER_RESOURCE_BINDING 1
-
-namespace RootParameters
-{
-	enum Value
-	{
-		PushConstantsSlot = 0,
-		SceneUniformSlot,
-		GPUSceneSlot,
-		GPUSceneCommandSlot,
-		Count
-	};
-}
-
 // See GPUSceneItem in common.hlsl
 struct GPUSceneItem
 {
@@ -83,42 +68,12 @@ void GPUScene::initialize()
 	gpuSceneShader->declarePushConstants({ "pushConstants" });
 	gpuSceneShader->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
-#if REFACTOR_SHADER_RESOURCE_BINDING
 	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc2{
 			.cs = gpuSceneShader.get(),
 			.nodeMask = 0,
 		}
 	));
-#else
-	// Root signature
-	{
-		DescriptorRange descriptorRanges[2];
-		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1, 0); // register(b1, space0)
-
-		RootParameter rootParameters[RootParameters::Count];
-		rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1); // register(b0, space0) = numSceneCommands
-		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
-		rootParameters[RootParameters::GPUSceneSlot].initAsUAVBuffer(0, 0);         // register(u0, space0)
-		rootParameters[RootParameters::GPUSceneCommandSlot].initAsSRVBuffer(0, 0);  // register(t0, space0)
-
-		RootSignatureDesc rootSigDesc(
-			RootParameters::Count,
-			rootParameters,
-			0, nullptr,
-			ERootSignatureFlags::None);
-		rootSignature = UniquePtr<RootSignature>(gRenderDevice->createRootSignature(rootSigDesc));
-	}
-
-	// PSO
-	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
-		ComputePipelineDesc{
-			.rootSignature = rootSignature.get(),
-			.cs            = gpuSceneShader.get(),
-			.nodeMask      = 0
-		}
-	));
-#endif
 }
 
 void GPUScene::renderGPUScene(
@@ -300,38 +255,13 @@ void GPUScene::renderGPUScene(
 		};
 		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore, 0, nullptr);
 
-		commandList->setPipelineState(pipelineState.get());
-
-#if REFACTOR_SHADER_RESOURCE_BINDING
 		ShaderParameterTable SPT{};
 		SPT.pushConstant("pushConstants", numSceneCommands);
 		SPT.rwStructuredBuffer("gpuSceneBuffer", gpuSceneBufferUAV.get());
 		SPT.structuredBuffer("commandBuffer", gpuSceneCommandBufferSRV.at(swapchainIndex));
 
-		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
-
-		commandList->bindComputeShaderParameters(gpuSceneShader.get(), &SPT, volatileHeap);
-#else
-		commandList->setComputeRootSignature(rootSignature.get());
-
-		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
-		DescriptorHeap* heaps[] = { volatileHeap };
-		commandList->setDescriptorHeaps(1, heaps);
-
-		constexpr uint32 VOLATILE_IX_SceneUniform = 0;
-		constexpr uint32 VOLATILE_IX_VisibleCounter = 1;
-		gRenderDevice->copyDescriptors(
-			1,
-			volatileHeap, VOLATILE_IX_SceneUniform,
-			sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap());
-
-		// Bind root parameters
-		commandList->setComputeRootConstant32(RootParameters::PushConstantsSlot, numSceneCommands, 0);
-		commandList->setComputeRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, VOLATILE_IX_SceneUniform);
-		commandList->setComputeRootDescriptorUAV(RootParameters::GPUSceneSlot, gpuSceneBufferUAV.get());
-		commandList->setComputeRootDescriptorSRV(RootParameters::GPUSceneCommandSlot, gpuSceneCommandBufferSRV.at(swapchainIndex));
-#endif
-
+		commandList->setPipelineState(pipelineState.get());
+		commandList->bindComputeShaderParameters(gpuSceneShader.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 		commandList->dispatchCompute(numSceneCommands, 1, 1);
 
 		BufferMemoryBarrier barriersAfter[] = {

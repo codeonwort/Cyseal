@@ -7,8 +7,8 @@
 class GPUScene;
 
 class RenderCommandList;
+class ShaderStage;
 class PipelineState;
-class RootSignature;
 class DescriptorHeap;
 class Buffer;
 class ConstantBufferView;
@@ -41,8 +41,8 @@ private:
 	void resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors);
 
 private:
+	UniquePtr<ShaderStage> gpuCullingShader;
 	UniquePtr<PipelineState> pipelineState;
-	UniquePtr<RootSignature> rootSignature;
 
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
