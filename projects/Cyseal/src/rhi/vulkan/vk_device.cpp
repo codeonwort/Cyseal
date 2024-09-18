@@ -907,7 +907,7 @@ PipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDes
 		.pNext              = nullptr,
 		.flags              = (VkPipelineCreateFlagBits)0, // #wip: VkPipelineCreateFlagBits
 		.stage              = shaderStageCreateInfo,
-		.layout             = static_cast<VulkanPipelineLayout*>(inDesc.rootSignature)->getVkPipelineLayout(),
+		.layout             = VK_NULL_HANDLE, // #wip: VulkanPipelineLayout //static_cast<VulkanPipelineLayout*>(inDesc.rootSignature)->getVkPipelineLayout(),
 		.basePipelineHandle = VK_NULL_HANDLE, // #wip: basePipelineHandle
 		.basePipelineIndex  = 0,
 	};
@@ -917,12 +917,6 @@ PipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDes
 	CHECK(vkRet == VK_SUCCESS);
 
 	return new VulkanComputePipelineState(vkPipeline);
-}
-
-PipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc2& desc)
-{
-	CHECK_NO_ENTRY();
-	return nullptr;
 }
 
 RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject(

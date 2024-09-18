@@ -97,10 +97,6 @@ public:
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
 	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
 	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) = 0;
-
-	// #wip-dxc-reflection: New PSO API
-	// NOTE: Never expose root signature.
-	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc2& desc) = 0;
 	
 	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
 		const RaytracingPipelineStateObjectDesc& desc) = 0;

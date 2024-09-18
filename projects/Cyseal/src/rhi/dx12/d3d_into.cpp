@@ -34,22 +34,6 @@ namespace into_d3d
 		sampleDesc(inDesc.sampleDesc, outDesc.SampleDesc);
 	}
 
-	void computePipelineDesc(
-		const ComputePipelineDesc& inDesc,
-		D3D12_COMPUTE_PIPELINE_STATE_DESC& outDesc)
-	{
-		::memset(&outDesc, 0, sizeof(outDesc));
-		CHECK(inDesc.cs != nullptr);
-
-		outDesc.pRootSignature = static_cast<D3DRootSignature*>(inDesc.rootSignature)->getRaw();
-		outDesc.CS = static_cast<D3DShaderStage*>(inDesc.cs)->getBytecode();
-		outDesc.NodeMask = (UINT)inDesc.nodeMask;
-		// #todo-dx12: Compute shader - CachedPSO, Flags
-		outDesc.CachedPSO.pCachedBlob = NULL;
-		outDesc.CachedPSO.CachedBlobSizeInBytes = 0;
-		outDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-	}
-
 	D3D12_RESOURCE_STATES bufferMemoryLayout(EBufferMemoryLayout layout)
 	{
 		switch (layout)

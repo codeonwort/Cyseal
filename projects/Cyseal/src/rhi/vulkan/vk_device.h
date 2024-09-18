@@ -57,8 +57,6 @@ public:
 
 	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
 
-	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc2& desc) override;
-
 	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
 		const RaytracingPipelineStateObjectDesc& desc) override;
 

@@ -140,8 +140,6 @@ public:
 
 	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
 	virtual void setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv) override;
-	virtual void setComputeRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv) override;
-	virtual void setComputeRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav) override;
 
 	virtual void setComputeRootDescriptorTable(
 		uint32 rootParameterIndex,
@@ -153,10 +151,7 @@ public:
 		const ShaderParameterTable* parameters,
 		DescriptorHeap* descriptorHeap) override;
 
-	virtual void dispatchCompute(
-		uint32 threadGroupX,
-		uint32 threadGroupY,
-		uint32 threadGroupZ) override;
+	virtual void dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ) override;
 
 	// ------------------------------------------------------------------------
 	// Raytracing pipeline

@@ -69,7 +69,7 @@ void GPUScene::initialize()
 	gpuSceneShader->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
 	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
-		ComputePipelineDesc2{
+		ComputePipelineDesc{
 			.cs = gpuSceneShader.get(),
 			.nodeMask = 0,
 		}

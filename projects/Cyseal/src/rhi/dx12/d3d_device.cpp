@@ -473,19 +473,7 @@ PipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc
 	return pipeline;
 }
 
-// #wip-dxc-reflection: Deprecated
-PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& desc)
-{
-	D3D12_COMPUTE_PIPELINE_STATE_DESC d3d_desc;
-	into_d3d::computePipelineDesc(desc, d3d_desc);
-
-	D3DComputePipelineState* pipeline = new D3DComputePipelineState;
-	pipeline->initialize(device.Get(), d3d_desc);
-
-	return pipeline;
-}
-
-PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc2& inDesc)
+PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
 {
 	CHECK(inDesc.cs != nullptr);
 

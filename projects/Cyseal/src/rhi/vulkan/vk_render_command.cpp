@@ -368,16 +368,6 @@ void VulkanRenderCommandList::setComputeRootDescriptorSRV(uint32 rootParameterIn
 	// #todo-vulkan
 }
 
-void VulkanRenderCommandList::setComputeRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv)
-{
-	// #todo-vulkan
-}
-
-void VulkanRenderCommandList::setComputeRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav)
-{
-	// #todo-vulkan
-}
-
 void VulkanRenderCommandList::setComputeRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap, uint32 descriptorStartOffset)
 {
 	// #todo-vulkan
@@ -394,6 +384,7 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
 	// #todo-vulkan
+	//vkCmdDispatch(currentCommandBuffer, threadGroupX, threadGroupY, threadGroupZ);
 }
 
 AccelerationStructure* VulkanRenderCommandList::buildRaytracingAccelerationStructure(uint32 numBLASDesc, BLASInstanceInitDesc* blasDescArray)

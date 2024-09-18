@@ -21,7 +21,7 @@ void GPUCulling::initialize()
 	gpuCullingShader->loadFromFile(L"gpu_culling.hlsl", "mainCS");
 
 	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
-		ComputePipelineDesc2{
+		ComputePipelineDesc{
 			.cs = gpuCullingShader.get(),
 			.nodeMask = 0,
 		}

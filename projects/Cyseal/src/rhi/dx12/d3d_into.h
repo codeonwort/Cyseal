@@ -379,10 +379,6 @@ namespace into_d3d
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC& outDesc,
 		TempAlloc& tempAlloc);
 
-	void computePipelineDesc(
-		const ComputePipelineDesc& inDesc,
-		D3D12_COMPUTE_PIPELINE_STATE_DESC& outDesc);
-
 	inline void inputElement(const VertexInputElement& inDesc, D3D12_INPUT_ELEMENT_DESC& outDesc)
 	{
 		outDesc.SemanticName = inDesc.semantic;

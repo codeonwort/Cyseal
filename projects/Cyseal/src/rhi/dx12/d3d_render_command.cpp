@@ -469,26 +469,6 @@ void D3DRenderCommandList::setComputeRootDescriptorSRV(
 	commandList->SetComputeRootShaderResourceView(rootParameterIndex, gpuAddr);
 }
 
-void D3DRenderCommandList::setComputeRootDescriptorCBV(
-	uint32 rootParameterIndex,
-	ConstantBufferView* cbv)
-{
-	D3DConstantBufferView* d3dCBV = static_cast<D3DConstantBufferView*>(cbv);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dCBV->getGPUVirtualAddress();
-
-	commandList->SetComputeRootConstantBufferView(rootParameterIndex, gpuAddr);
-}
-
-void D3DRenderCommandList::setComputeRootDescriptorUAV(
-	uint32 rootParameterIndex,
-	UnorderedAccessView* uav)
-{
-	D3DUnorderedAccessView* d3dUAV = static_cast<D3DUnorderedAccessView*>(uav);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dUAV->getGPUVirtualAddress();
-
-	commandList->SetComputeRootUnorderedAccessView(rootParameterIndex, gpuAddr);
-}
-
 void D3DRenderCommandList::drawIndexedInstanced(
 	uint32 indexCountPerInstance,
 	uint32 instanceCount,
@@ -534,10 +514,7 @@ void D3DRenderCommandList::executeIndirect(
 		countBufferOffset);
 }
 
-void D3DRenderCommandList::dispatchCompute(
-	uint32 threadGroupX,
-	uint32 threadGroupY,
-	uint32 threadGroupZ)
+void D3DRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
 	commandList->Dispatch(threadGroupX, threadGroupY, threadGroupZ);
 }
