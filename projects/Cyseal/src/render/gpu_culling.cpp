@@ -16,16 +16,18 @@ void GPUCulling::initialize()
 	volatileViewHeap.initialize(swapchainCount);
 
 	// Shader
-	gpuCullingShader = UniquePtr<ShaderStage>(gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUCullingCS"));
+	ShaderStage* gpuCullingShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUCullingCS");
 	gpuCullingShader->declarePushConstants({ "pushConstants" });
 	gpuCullingShader->loadFromFile(L"gpu_culling.hlsl", "mainCS");
 
 	pipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc{
-			.cs = gpuCullingShader.get(),
+			.cs = gpuCullingShader,
 			.nodeMask = 0,
 		}
 	));
+
+	delete gpuCullingShader; // No use after PSO creation.
 }
 
 void GPUCulling::cullDrawCommands(

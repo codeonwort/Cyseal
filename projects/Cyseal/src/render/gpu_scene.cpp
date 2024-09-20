@@ -64,16 +64,18 @@ void GPUScene::initialize()
 	materialSRVs.initialize(swapchainCount);
 
 	// Shader
-	gpuSceneShader = UniquePtr<ShaderStage>(gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS"));
+	ShaderStage* gpuSceneShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
 	gpuSceneShader->declarePushConstants({ "pushConstants" });
 	gpuSceneShader->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
 	pipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc{
-			.cs = gpuSceneShader.get(),
+			.cs = gpuSceneShader,
 			.nodeMask = 0,
 		}
 	));
+
+	delete gpuSceneShader; // No use after PSO creation.
 }
 
 void GPUScene::renderGPUScene(

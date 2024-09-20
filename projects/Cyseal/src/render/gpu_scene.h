@@ -2,17 +2,9 @@
 
 #include "core/vec3.h"
 #include "core/smart_pointer.h"
-#include "rhi/gpu_resource.h"
+#include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_view.h"
 
-class RenderCommandList;
-class ShaderStage;
-class ComputePipelineState;
-class DescriptorHeap;
-class Buffer;
-class ConstantBufferView;
-class ShaderResourceView;
-class UnorderedAccessView;
 class SceneProxy;
 class Camera;
 
@@ -66,7 +58,6 @@ private:
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, uint32 maxSRVCount);
 
 private:
-	UniquePtr<ShaderStage> gpuSceneShader;
 	UniquePtr<ComputePipelineState> pipelineState;
 
 	std::vector<uint32> totalVolatileDescriptors;

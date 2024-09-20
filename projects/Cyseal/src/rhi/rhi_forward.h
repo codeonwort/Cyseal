@@ -10,6 +10,8 @@ struct DescriptorHeapDesc;
 struct BLASInstanceInitDesc;
 
 class PipelineState;
+class GraphicsPipelineState;
+class ComputePipelineState;
 class RootSignature;
 class ShaderStage;
 class RaytracingPipelineStateObject;
