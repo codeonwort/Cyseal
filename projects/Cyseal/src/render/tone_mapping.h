@@ -20,7 +20,7 @@ public:
 		ShaderResourceView* indirectSpecularSRV);
 
 private:
-	UniquePtr<PipelineState> pipelineState;
+	UniquePtr<GraphicsPipelineState> pipelineState;
 	UniquePtr<RootSignature> rootSignature;
 	VertexInputLayout inputLayout;
 

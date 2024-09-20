@@ -614,7 +614,7 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 	return new VulkanPipelineLayout(vkPipelineLayout);
 }
 
-PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
+GraphicsPipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
 {
 	// #wip: PSO conversion
 	VkPipeline vkPipeline = VK_NULL_HANDLE;
@@ -886,7 +886,7 @@ PipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineD
 	return nullptr;
 }
 
-PipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
+ComputePipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
 {
 	// #wip: Compute PSO
 	VulkanShaderStage* shaderWrapper = static_cast<VulkanShaderStage*>(inDesc.cs);

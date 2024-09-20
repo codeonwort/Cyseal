@@ -385,6 +385,8 @@ class PipelineState
 public:
 	virtual ~PipelineState() = default;
 };
+class GraphicsPipelineState : public PipelineState {};
+class ComputePipelineState : public PipelineState {};
 
 //////////////////////////////////////////////////////////////////////////
 // Raytracing pipeline

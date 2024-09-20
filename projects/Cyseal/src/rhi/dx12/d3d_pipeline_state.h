@@ -3,12 +3,12 @@
 #include "core/assertion.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"
-#include "rhi/shader.h"
+#include "d3d_shader.h"
 #include "d3d_util.h"
-#include <vector>
 
-class D3DRootSignature;
-class D3DShaderStage;
+#include <vector>
+#include <map>
+
 class VertexBuffer;
 class IndexBuffer;
 
@@ -17,7 +17,31 @@ inline uint32 align(uint32 size, uint32 alignment)
 	return (size + (alignment - 1)) & ~(alignment - 1);
 }
 
-class D3DGraphicsPipelineState : public PipelineState
+class D3DRootSignature : public RootSignature
+{
+public:
+	void initialize(
+		ID3D12Device* device,
+		uint32 nodeMask,
+		const void* blobWithRootSignature,
+		size_t blobLengthInBytes)
+	{
+		HR(device->CreateRootSignature(
+			nodeMask,
+			blobWithRootSignature,
+			blobLengthInBytes,
+			IID_PPV_ARGS(&rawRootSignature))
+		);
+	}
+	inline ID3D12RootSignature* getRaw() const
+	{
+		return rawRootSignature.Get();
+	}
+private:
+	WRL::ComPtr<ID3D12RootSignature> rawRootSignature;
+};
+
+class D3DGraphicsPipelineState : public GraphicsPipelineState
 {
 public:
 	void initialize(ID3D12Device* device, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
@@ -29,16 +53,25 @@ private:
 	WRL::ComPtr<ID3D12PipelineState> rawPSO;
 };
 
-class D3DComputePipelineState : public PipelineState
+class D3DComputePipelineState : public ComputePipelineState
 {
 public:
-	void initialize(ID3D12Device* device, const D3D12_COMPUTE_PIPELINE_STATE_DESC& desc)
-	{
-		HR(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&rawPSO)));
-	}
-	ID3D12PipelineState* getRaw() const { return rawPSO.Get(); }
+	void initialize(ID3D12Device* device, const ComputePipelineDesc& inDesc);
+
+	inline ID3D12RootSignature* getRootSignature() const { return rootSignature.Get(); }
+	inline ID3D12PipelineState* getRaw() const { return pipelineState.Get(); }
+
+	const D3DShaderParameter* findShaderParameter(const std::string& name) const;
+
 private:
-	WRL::ComPtr<ID3D12PipelineState> rawPSO;
+	void createRootSignature(ID3D12Device* device, D3DShaderStage* computeShader);
+	void createShaderParameterMap();
+
+	D3DShaderParameterTable parameterTable; // Copied from D3DShaderStage
+	std::map<std::string, const D3DShaderParameter*> parameterHashMap; // For fast query
+
+	WRL::ComPtr<ID3D12RootSignature> rootSignature;
+	WRL::ComPtr<ID3D12PipelineState> pipelineState;
 };
 
 class D3DRaytracingPipelineStateObject : public RaytracingPipelineStateObject
@@ -55,30 +88,6 @@ public:
 private:
 	WRL::ComPtr<ID3D12StateObject> rawRTPSO;
 	WRL::ComPtr<ID3D12StateObjectProperties> rawProperties;
-};
-
-class D3DRootSignature : public RootSignature
-{
-public:
-	void initialize(
-		ID3D12Device* device,
-		uint32 nodeMask,
-		const void* blobWithRootSignature,
-		size_t blobLengthInBytes)
-	{
-		HR( device->CreateRootSignature(
-			nodeMask,
-			blobWithRootSignature,
-			blobLengthInBytes,
-			IID_PPV_ARGS(&rawRootSignature))
-		);
-	}
-	inline ID3D12RootSignature* getRaw() const
-	{
-		return rawRootSignature.Get();
-	}
-private:
-	WRL::ComPtr<ID3D12RootSignature> rawRootSignature;
 };
 
 class D3DRaytracingShaderTable : public RaytracingShaderTable

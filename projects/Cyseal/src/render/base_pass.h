@@ -43,7 +43,7 @@ private:
 	void resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors);
 
 private:
-	UniquePtr<PipelineState> pipelineState;
+	UniquePtr<GraphicsPipelineState> pipelineState;
 	UniquePtr<RootSignature> rootSignature;
 
 	UniquePtr<CommandSignature> commandSignature;

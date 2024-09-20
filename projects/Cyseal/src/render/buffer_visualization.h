@@ -28,7 +28,7 @@ public:
 		const BufferVisualizationSources& sources);
 
 private:
-	UniquePtr<PipelineState> pipelineState;
+	UniquePtr<GraphicsPipelineState> pipelineState;
 	UniquePtr<RootSignature> rootSignature;
 
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;

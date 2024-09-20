@@ -8,7 +8,7 @@ class GPUScene;
 
 class RenderCommandList;
 class ShaderStage;
-class PipelineState;
+class ComputePipelineState;
 class DescriptorHeap;
 class Buffer;
 class ConstantBufferView;
@@ -42,7 +42,7 @@ private:
 
 private:
 	UniquePtr<ShaderStage> gpuCullingShader;
-	UniquePtr<PipelineState> pipelineState;
+	UniquePtr<ComputePipelineState> pipelineState;
 
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;

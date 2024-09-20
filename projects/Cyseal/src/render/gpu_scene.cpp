@@ -68,7 +68,7 @@ void GPUScene::initialize()
 	gpuSceneShader->declarePushConstants({ "pushConstants" });
 	gpuSceneShader->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
-	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
+	pipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc{
 			.cs = gpuSceneShader.get(),
 			.nodeMask = 0,
@@ -260,8 +260,8 @@ void GPUScene::renderGPUScene(
 		SPT.rwStructuredBuffer("gpuSceneBuffer", gpuSceneBufferUAV.get());
 		SPT.structuredBuffer("commandBuffer", gpuSceneCommandBufferSRV.at(swapchainIndex));
 
-		commandList->setPipelineState(pipelineState.get());
-		commandList->bindComputeShaderParameters(gpuSceneShader.get(), &SPT, volatileViewHeap.at(swapchainIndex));
+		commandList->setComputePipelineState(pipelineState.get());
+		commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 		commandList->dispatchCompute(numSceneCommands, 1, 1);
 
 		BufferMemoryBarrier barriersAfter[] = {

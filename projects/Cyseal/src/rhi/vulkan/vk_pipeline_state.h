@@ -22,7 +22,7 @@ private:
 	VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
 };
 
-class VulkanGraphicsPipelineState : public PipelineState
+class VulkanGraphicsPipelineState : public GraphicsPipelineState
 {
 public:
 	VulkanGraphicsPipelineState(VkPipeline inVkPipeline, VkRenderPass inVkRenderPass)
@@ -41,7 +41,7 @@ private:
 	VkRenderPass vkRenderPass = VK_NULL_HANDLE;
 };
 
-class VulkanComputePipelineState : public PipelineState
+class VulkanComputePipelineState : public ComputePipelineState
 {
 public:
 	VulkanComputePipelineState(VkPipeline inVkPipeline)

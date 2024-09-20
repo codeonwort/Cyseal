@@ -96,7 +96,8 @@ public:
 	// ------------------------------------------------------------------------
 	// Pipeline state object (graphics & compute)
 
-	virtual void setPipelineState(PipelineState* state) = 0;
+	virtual void setGraphicsPipelineState(GraphicsPipelineState* state) = 0;
+	virtual void setComputePipelineState(ComputePipelineState* state) = 0;
 	virtual void setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso) = 0;
 
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) = 0;
@@ -177,7 +178,7 @@ public:
 		uint32 descriptorStartOffset) = 0;
 
 	virtual void bindComputeShaderParameters(
-		ShaderStage* shader,
+		PipelineState* pipelineState,
 		const ShaderParameterTable* parameters,
 		DescriptorHeap* descriptorHeap) = 0;
 

@@ -103,7 +103,7 @@ void ToneMapping::initialize()
 		desc.sampleDesc.quality     = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0;
 		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();
 
-		pipelineState = UniquePtr<PipelineState>(device->createGraphicsPipelineState(desc));
+		pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(desc));
 	}
 
 	// Cleanup
@@ -119,7 +119,7 @@ void ToneMapping::renderToneMapping(
 	ShaderResourceView* sceneColorSRV,
 	ShaderResourceView* indirectSpecularSRV)
 {
-	commandList->setPipelineState(pipelineState.get());
+	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->setGraphicsRootSignature(rootSignature.get());
 
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);

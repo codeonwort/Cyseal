@@ -20,7 +20,7 @@ void GPUCulling::initialize()
 	gpuCullingShader->declarePushConstants({ "pushConstants" });
 	gpuCullingShader->loadFromFile(L"gpu_culling.hlsl", "mainCS");
 
-	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
+	pipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc{
 			.cs = gpuCullingShader.get(),
 			.nodeMask = 0,
@@ -88,8 +88,8 @@ void GPUCulling::cullDrawCommands(
 	SPT.rwStructuredBuffer("culledDrawCommandBuffer", culledIndirectDrawBufferUAV);
 	SPT.rwBuffer("drawCounterBuffer", drawCounterBufferUAV);
 
-	commandList->setPipelineState(pipelineState.get());
-	commandList->bindComputeShaderParameters(gpuCullingShader.get(), &SPT, volatileViewHeap.at(swapchainIndex));
+	commandList->setComputePipelineState(pipelineState.get());
+	commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 	commandList->dispatchCompute(maxDrawCommands, 1, 1);
 
 	BufferMemoryBarrier barriersAfter[] = {

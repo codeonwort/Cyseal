@@ -189,7 +189,7 @@ void BasePass::initialize()
 		desc.sampleDesc.quality     = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0;
 		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();
 
-		pipelineState = UniquePtr<PipelineState>(device->createGraphicsPipelineState(desc));
+		pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(desc));
 	}
 
 	// Cleanup
@@ -346,7 +346,7 @@ void BasePass::renderBasePass(
 	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
 	// Setting a PSO does not change the root signature.
 	// The application must call a dedicated API for setting the root signature.
-	commandList->setPipelineState(pipelineState.get());
+	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->setGraphicsRootSignature(rootSignature.get());
 	
 	commandList->iaSetPrimitiveTopology(primitiveTopology);

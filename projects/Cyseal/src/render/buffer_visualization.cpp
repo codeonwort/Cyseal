@@ -106,7 +106,7 @@ void BufferVisualization::initialize()
 			.sampleDesc             = SampleDesc { .count = 1, .quality = 0 },
 		};
 
-		pipelineState = UniquePtr<PipelineState>(device->createGraphicsPipelineState(desc));
+		pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(desc));
 	}
 
 	// Cleanup.
@@ -121,7 +121,7 @@ void BufferVisualization::renderVisualization(
 	uint32 swapchainIndex,
 	const BufferVisualizationSources& sources)
 {
-	commandList->setPipelineState(pipelineState.get());
+	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->setGraphicsRootSignature(rootSignature.get());
 
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);

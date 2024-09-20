@@ -59,12 +59,10 @@ public:
 	virtual const char* getEntryPointA() override { return aEntryPoint.c_str(); }
 
 	D3D12_SHADER_BYTECODE getBytecode() const;
-	inline ID3D12RootSignature* getRootSignature() const { return rootSignature.Get(); }
-	const D3DShaderParameter* findShaderParameter(const std::string& name) const;
+	inline const D3DShaderParameterTable& getParameterTable() const { return parameterTable; }
 
 private:
 	void readShaderReflection(IDxcResult* compileResult);
-	void createRootSignature();
 
 private:
 	bool bInitialized = false;
@@ -72,9 +70,7 @@ private:
 	std::wstring wEntryPoint;
 	std::string aEntryPoint;
 
-	D3DShaderParameterTable parameterTable; // Original storage
-	std::map<std::string, const D3DShaderParameter*> parameterHashMap; // For fast query
-	WRL::ComPtr<ID3D12RootSignature> rootSignature;
+	D3DShaderParameterTable parameterTable; // Filled by shader reflection
 
 	// Compute shader only
 	uint32 threadGroupTotalSize = 0;

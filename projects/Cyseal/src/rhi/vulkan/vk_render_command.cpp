@@ -177,10 +177,15 @@ void VulkanRenderCommandList::clearDepthStencilView(DepthStencilView* DSV, EDept
 	CHECK_NO_ENTRY();
 }
 
-void VulkanRenderCommandList::setPipelineState(PipelineState* state)
+void VulkanRenderCommandList::setGraphicsPipelineState(GraphicsPipelineState* state)
 {
 	// #todo-vulkan
-	//throw std::logic_error("The method or operation is not implemented.");
+	CHECK_NO_ENTRY();
+}
+
+void VulkanRenderCommandList::setComputePipelineState(ComputePipelineState* state)
+{
+	// #todo-vulkan
 	CHECK_NO_ENTRY();
 }
 
@@ -364,7 +369,7 @@ void VulkanRenderCommandList::setComputeRootDescriptorTable(uint32 rootParameter
 }
 
 void VulkanRenderCommandList::bindComputeShaderParameters(
-	ShaderStage* shader,
+	PipelineState* pipelineState,
 	const ShaderParameterTable* parameters,
 	DescriptorHeap* descriptorHeap)
 {

@@ -45,8 +45,8 @@ public:
 	virtual ShaderStage* createShader(EShaderStage shaderStage, const char* debugName) override;
 
 	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;
-	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
-	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
+	virtual GraphicsPipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
+	virtual ComputePipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
 
 	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
 		const RaytracingPipelineStateObjectDesc& desc) override;

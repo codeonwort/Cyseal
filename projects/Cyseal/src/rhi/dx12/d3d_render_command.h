@@ -62,7 +62,8 @@ public:
 	// ------------------------------------------------------------------------
 	// Pipeline state (graphics, compute, raytracing)
 
-	virtual void setPipelineState(PipelineState* state) override;
+	virtual void setGraphicsPipelineState(GraphicsPipelineState* state) override;
+	virtual void setComputePipelineState(ComputePipelineState* state) override;
 	virtual void setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso) override;
 
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override;
@@ -137,7 +138,7 @@ public:
 		uint32 descriptorStartOffset) override;
 
 	virtual void bindComputeShaderParameters(
-		ShaderStage* shader,
+		PipelineState* pipelineState,
 		const ShaderParameterTable* parameters,
 		DescriptorHeap* descriptorHeap) override;
 

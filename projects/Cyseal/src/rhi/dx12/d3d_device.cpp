@@ -461,7 +461,7 @@ RootSignature* D3DDevice::createRootSignature(const RootSignatureDesc& desc)
 	return rootSignature;
 }
 
-PipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& desc)
+GraphicsPipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& desc)
 {
 	into_d3d::TempAlloc tempAlloc;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3d_desc;
@@ -473,27 +473,10 @@ PipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc
 	return pipeline;
 }
 
-PipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
+ComputePipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
 {
-	CHECK(inDesc.cs != nullptr);
-
-	D3DShaderStage* shaderStage = static_cast<D3DShaderStage*>(inDesc.cs);
-
-	D3D12_COMPUTE_PIPELINE_STATE_DESC pipelineDesc{
-		.pRootSignature = shaderStage->getRootSignature(),
-		.CS             = shaderStage->getBytecode(),
-		.NodeMask       = (UINT)inDesc.nodeMask,
-		// #todo-dx12: Compute shader - CachedPSO, Flags
-		.CachedPSO      = D3D12_CACHED_PIPELINE_STATE{
-			.pCachedBlob           = NULL,
-			.CachedBlobSizeInBytes = 0,
-		},
-		.Flags          = D3D12_PIPELINE_STATE_FLAG_NONE,
-	};
-
 	D3DComputePipelineState* pipeline = new D3DComputePipelineState;
-	pipeline->initialize(device.Get(), pipelineDesc);
-
+	pipeline->initialize(device.Get(), inDesc);
 	return pipeline;
 }
 
