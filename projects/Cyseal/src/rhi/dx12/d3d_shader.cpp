@@ -205,7 +205,7 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 
 			D3DShaderParameter parameter{
 				.name               = inputBindDesc.Name,
-				//.type               = inputBindDesc.Type, // D3D_SIT_CBUFFER = ConstantBuffer, D3D_SIT_UAV_RWTYPED = RWBuffer, D3D_SIT_STRUCTURED = StructuredBuffer, ...
+				.type               = inputBindDesc.Type, // D3D_SIT_CBUFFER = ConstantBuffer, D3D_SIT_UAV_RWTYPED = RWBuffer, D3D_SIT_STRUCTURED = StructuredBuffer, ...
 				.registerSlot       = inputBindDesc.BindPoint,
 				.registerSpace      = inputBindDesc.Space,
 				.rootParameterIndex = 0xffffffff, // Allocated in createRoogSignature()

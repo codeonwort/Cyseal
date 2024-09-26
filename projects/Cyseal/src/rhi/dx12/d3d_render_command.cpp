@@ -236,20 +236,22 @@ void D3DRenderCommandList::omSetRenderTargets(
 
 void D3DRenderCommandList::setGraphicsPipelineState(GraphicsPipelineState* state)
 {
-	auto rawState = static_cast<D3DGraphicsPipelineState*>(state)->getRaw();
-	commandList->SetPipelineState(rawState);
+	auto pipelineWrapper = static_cast<D3DGraphicsPipelineState*>(state);
+	ID3D12PipelineState* d3dPipeline = pipelineWrapper->getPipelineState();
+	commandList->SetPipelineState(d3dPipeline);
 }
 
 void D3DRenderCommandList::setComputePipelineState(ComputePipelineState* state)
 {
-	auto rawState = static_cast<D3DComputePipelineState*>(state)->getRaw();
-	commandList->SetPipelineState(rawState);
+	auto pipelineWrapper = static_cast<D3DComputePipelineState*>(state);
+	ID3D12PipelineState* d3dPipeline = pipelineWrapper->getPipelineState();
+	commandList->SetPipelineState(d3dPipeline);
 }
 
 void D3DRenderCommandList::setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso)
 {
-	ID3D12StateObject* rawRTPSO
-		= static_cast<D3DRaytracingPipelineStateObject*>(rtpso)->getRaw();
+	auto pipelineWrapper = static_cast<D3DRaytracingPipelineStateObject*>(rtpso);
+	ID3D12StateObject* rawRTPSO = pipelineWrapper->getRaw();
 	commandList->SetPipelineState1(rawRTPSO);
 }
 

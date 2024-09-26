@@ -461,15 +461,10 @@ RootSignature* D3DDevice::createRootSignature(const RootSignatureDesc& desc)
 	return rootSignature;
 }
 
-GraphicsPipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& desc)
+GraphicsPipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
 {
-	into_d3d::TempAlloc tempAlloc;
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3d_desc;
-	into_d3d::graphicsPipelineDesc(desc, d3d_desc, tempAlloc);
-
 	D3DGraphicsPipelineState* pipeline = new D3DGraphicsPipelineState;
-	pipeline->initialize(device.Get(), d3d_desc);
-
+	pipeline->initialize(device.Get(), inDesc);
 	return pipeline;
 }
 

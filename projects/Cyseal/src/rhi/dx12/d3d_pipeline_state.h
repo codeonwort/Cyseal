@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 
 class VertexBuffer;
 class IndexBuffer;
@@ -44,13 +45,21 @@ private:
 class D3DGraphicsPipelineState : public GraphicsPipelineState
 {
 public:
-	void initialize(ID3D12Device* device, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
-	{
-		HR( device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&rawPSO)) );
-	}
-	ID3D12PipelineState* getRaw() const { return rawPSO.Get(); }
+	void initialize(ID3D12Device* device, const GraphicsPipelineDesc& inDesc);
+
+	inline ID3D12RootSignature* getRootSignature() const { return rootSignature.Get(); }
+	inline ID3D12PipelineState* getPipelineState() const { return pipelineState.Get(); }
+
+	const D3DShaderParameter* findShaderParameter(const std::string& name) const;
+
 private:
-	WRL::ComPtr<ID3D12PipelineState> rawPSO;
+	void createRootSignature(ID3D12Device* device, ShaderStage* vertexShader, ShaderStage* pixelShader, ShaderStage* domainShader, ShaderStage* hullShader, ShaderStage* geometryShader);
+
+	D3DShaderParameterTable parameterTable; // Copied from D3DShaderStage
+	std::map<std::string, const D3DShaderParameter*> parameterHashMap; // For fast query
+
+	WRL::ComPtr<ID3D12RootSignature> rootSignature;
+	WRL::ComPtr<ID3D12PipelineState> pipelineState;
 };
 
 class D3DComputePipelineState : public ComputePipelineState
@@ -59,13 +68,12 @@ public:
 	void initialize(ID3D12Device* device, const ComputePipelineDesc& inDesc);
 
 	inline ID3D12RootSignature* getRootSignature() const { return rootSignature.Get(); }
-	inline ID3D12PipelineState* getRaw() const { return pipelineState.Get(); }
+	inline ID3D12PipelineState* getPipelineState() const { return pipelineState.Get(); }
 
 	const D3DShaderParameter* findShaderParameter(const std::string& name) const;
 
 private:
 	void createRootSignature(ID3D12Device* device, D3DShaderStage* computeShader);
-	void createShaderParameterMap();
 
 	D3DShaderParameterTable parameterTable; // Copied from D3DShaderStage
 	std::map<std::string, const D3DShaderParameter*> parameterHashMap; // For fast query

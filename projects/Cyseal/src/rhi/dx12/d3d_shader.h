@@ -14,12 +14,20 @@ struct D3DShaderParameter
 {
 	// Read from shader reflection.
 	std::string name;
-	//D3D_SHADER_INPUT_TYPE type;
+	D3D_SHADER_INPUT_TYPE type;
 	uint32 registerSlot;
 	uint32 registerSpace;
 
 	// Allocated when generating root signature (except for samplers).
 	uint32 rootParameterIndex;
+
+	inline bool hasSameReflection(const D3DShaderParameter& rhs) const
+	{
+		return this->name == rhs.name
+			&& this->type == rhs.type
+			&& this->registerSlot == rhs.registerSlot
+			&& this->registerSpace == rhs.registerSpace;
+	}
 };
 
 struct D3DShaderParameterTable
