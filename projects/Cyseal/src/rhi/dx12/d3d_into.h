@@ -12,6 +12,8 @@
 #include "d3d_util.h"
 #include <vector>
 
+class D3DGraphicsPipelineState;
+
 // Convert API-agnostic structs into D3D12 structs
 namespace into_d3d
 {
@@ -800,7 +802,7 @@ namespace into_d3d
 		return static_cast<D3D12_INDIRECT_ARGUMENT_TYPE>(inType);
 	}
 
-	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc);
+	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, D3DGraphicsPipelineState* pipelineState);
 
 	uint32 calcIndirectArgumentByteStride(const IndirectArgumentDesc& inDesc);
 	uint32 calcCommandSignatureByteStride(const CommandSignatureDesc& inDesc, uint32& outPaddingBytes);
@@ -808,6 +810,7 @@ namespace into_d3d
 	void commandSignature(
 		const CommandSignatureDesc& inDesc,
 		D3D12_COMMAND_SIGNATURE_DESC& outDesc,
+		D3DGraphicsPipelineState* pipelineState,
 		TempAlloc& tempAlloc);
 
 }

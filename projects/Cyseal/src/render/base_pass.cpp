@@ -20,19 +20,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
-namespace RootParameters
-{
-	enum BasePass
-	{
-		ObjectIDSlot = 0, // #wip-dxc-reflection: Indirect draw uses this :(
-		SceneUniformSlot,
-		GPUSceneSlot,
-		MaterialConstantsSlot,
-		MaterialTexturesSlot,
-		Count
-	};
-};
-
 void BasePass::initialize()
 {
 	RenderDevice* device = gRenderDevice;
@@ -99,8 +86,8 @@ void BasePass::initialize()
 			.argumentDescs = {
 				IndirectArgumentDesc{
 					.type = EIndirectArgumentType::CONSTANT,
+					.name = "pushConstants",
 					.constant = {
-						.rootParameterIndex = RootParameters::ObjectIDSlot,
 						.destOffsetIn32BitValues = 0,
 						.num32BitValuesToSet = 1,
 					},
@@ -307,9 +294,7 @@ void BasePass::renderBasePass(
 		}
 	}
 
-	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
-	// Setting a PSO does not change the root signature.
-	// The application must call a dedicated API for setting the root signature.
+	
 	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->iaSetPrimitiveTopology(primitiveTopology);
 

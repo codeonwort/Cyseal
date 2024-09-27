@@ -488,6 +488,7 @@ enum class EIndirectArgumentType : uint32
 struct IndirectArgumentDesc
 {
 	EIndirectArgumentType type;
+	std::string name;
 	// NOTE: This union is not used for types unspecified below.
 	union
 	{
@@ -497,9 +498,9 @@ struct IndirectArgumentDesc
 		} vertexBuffer; // EIndirectArgumentType::VERTEX_BUFFER_VIEW
 		struct
 		{
-			uint32 rootParameterIndex;
 			uint32 destOffsetIn32BitValues;
 			uint32 num32BitValuesToSet;
+			uint32 rootParameterIndex = 0xffffffff;
 		} constant; // EIndirectArgumentType::CONSTANT
 		struct
 		{

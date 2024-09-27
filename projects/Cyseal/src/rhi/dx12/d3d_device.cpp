@@ -686,19 +686,15 @@ DepthStencilView* D3DDevice::createDSV(GPUResource* gpuResource, const DepthSten
 	return createDSV(gpuResource, gDescriptorHeaps->getDSVHeap(), createParams);
 }
 
-CommandSignature* D3DDevice::createCommandSignature(
-	const CommandSignatureDesc& inDesc,
-	GraphicsPipelineState* inPipelineState)
+CommandSignature* D3DDevice::createCommandSignature(const CommandSignatureDesc& inDesc, GraphicsPipelineState* inPipelineState)
 {
+	D3DGraphicsPipelineState* d3dPipelineState = static_cast<D3DGraphicsPipelineState*>(inPipelineState);
+
 	into_d3d::TempAlloc tempAlloc;
 	D3D12_COMMAND_SIGNATURE_DESC d3dDesc;
-	into_d3d::commandSignature(inDesc, d3dDesc, tempAlloc);
+	into_d3d::commandSignature(inDesc, d3dDesc, d3dPipelineState, tempAlloc);
 
-	ID3D12RootSignature* rootSig = nullptr;
-	if (inPipelineState != nullptr)
-	{
-		rootSig = static_cast<D3DGraphicsPipelineState*>(inPipelineState)->getRootSignature();
-	}
+	ID3D12RootSignature* rootSig = (d3dPipelineState != nullptr) ? d3dPipelineState->getRootSignature() : nullptr;
 
 	D3DCommandSignature* cmdSig = new D3DCommandSignature;
 	cmdSig->initialize(device.Get(), d3dDesc, rootSig);

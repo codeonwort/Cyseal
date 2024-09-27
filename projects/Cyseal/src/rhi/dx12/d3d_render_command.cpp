@@ -286,8 +286,10 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 		return handle;
 	};
 
-	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
+	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
 	commandList->SetGraphicsRootSignature(d3dRootSig);
+
+	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
 	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
 	// #wip-dxc-reflection: Root Descriptor vs Descriptor Table

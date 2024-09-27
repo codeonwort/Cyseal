@@ -137,7 +137,7 @@ namespace into_d3d
 		}
 	}
 
-	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc)
+	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, D3DGraphicsPipelineState* pipelineState)
 	{
 		outDesc.Type = into_d3d::indirectArgumentType(inDesc.type);
 		if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_VERTEX_BUFFER_VIEW)
@@ -146,7 +146,7 @@ namespace into_d3d
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT)
 		{
-			outDesc.Constant.RootParameterIndex = inDesc.constant.rootParameterIndex;
+			outDesc.Constant.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
 			outDesc.Constant.DestOffsetIn32BitValues = inDesc.constant.destOffsetIn32BitValues;
 			outDesc.Constant.Num32BitValuesToSet = inDesc.constant.num32BitValuesToSet;
 		}
@@ -199,13 +199,14 @@ namespace into_d3d
 	void commandSignature(
 		const CommandSignatureDesc& inDesc,
 		D3D12_COMMAND_SIGNATURE_DESC& outDesc,
+		D3DGraphicsPipelineState* pipelineState,
 		TempAlloc& tempAlloc)
 	{
 		uint32 numArgumentDescs = (uint32)inDesc.argumentDescs.size();
 		D3D12_INDIRECT_ARGUMENT_DESC* tempArgumentDescs = tempAlloc.allocIndirectArgumentDescs(numArgumentDescs);
 		for (uint32 i = 0; i < numArgumentDescs; ++i)
 		{
-			into_d3d::indirectArgument(inDesc.argumentDescs[i], tempArgumentDescs[i]);
+			into_d3d::indirectArgument(inDesc.argumentDescs[i], tempArgumentDescs[i], pipelineState);
 		}
 
 		uint32 unusedPaddingBytes;
