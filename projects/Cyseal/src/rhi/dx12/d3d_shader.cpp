@@ -197,6 +197,12 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 		D3D12_SHADER_DESC shaderDesc{};
 		shaderReflection->GetDesc(&shaderDesc);
 
+		// Shader version, e.g., cs_6_6
+		// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/ns-d3d12shader-d3d12_shader_desc
+		programType = static_cast<D3D12_SHADER_VERSION_TYPE>((shaderDesc.Version & 0xFFFF0000) >> 16);
+		programMajorVersion = (shaderDesc.Version & 0x000000F0) >> 4;
+		programMinorVersion = (shaderDesc.Version & 0x0000000F);
+
 		// BoundResources = shader parameters
 		for (UINT i = 0; i < shaderDesc.BoundResources; ++i)
 		{
@@ -212,7 +218,7 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 				.rootParameterIndex = 0xffffffff, // Allocated in createRoogSignature()
 			};
 			
-			// #wip-dxc-reflection: Handle missing D3D_SHADER_INPUT_TYPE cases
+			// #todo-dxc: Handle missing D3D_SHADER_INPUT_TYPE cases
 			switch (inputBindDesc.Type)
 			{
 				case D3D_SIT_CBUFFER: // ConstantBuffer

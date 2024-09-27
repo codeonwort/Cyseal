@@ -292,7 +292,8 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
 	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
-	// #wip-dxc-reflection: Root Descriptor vs Descriptor Table
+	// #todo-dxc: Root Descriptor vs Descriptor Table
+	// For now, always use descriptor table.
 	uint32 descriptorIx = 0;
 
 	for (const auto& inParam : inParameters->pushConstants)
@@ -302,7 +303,6 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 	}
 	for (const auto& inParam : inParameters->constantBuffers)
 	{
-		// For now, always use root descriptor for constant buffers.
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
 		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
@@ -311,31 +311,27 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 	for (const auto& inParam : inParameters->structuredBuffers)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		ShaderResourceView* buffer = inParam.buffer;
-		gRenderDevice->copyDescriptors(1, descriptorHeap, descriptorIx, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap());
+		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		++descriptorIx;
+		descriptorIx += inParam.count;
 	}
 	for (const auto& inParam : inParameters->rwBuffers)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		UnorderedAccessView* buffer = inParam.buffer;
-		gRenderDevice->copyDescriptors(1, descriptorHeap, descriptorIx, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap());
+		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		++descriptorIx;
+		descriptorIx += inParam.count;
 	}
 	for (const auto& inParam : inParameters->rwStructuredBuffers)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		UnorderedAccessView* buffer = inParam.buffer;
-		gRenderDevice->copyDescriptors(1, descriptorHeap, descriptorIx, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap());
+		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		++descriptorIx;
+		descriptorIx += inParam.count;
 	}
 	for (const auto& inParam : inParameters->textures)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		//CHECK(inParam.count >= param->numDescriptors);
 		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
 		descriptorIx += inParam.count;
@@ -343,10 +339,9 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 	for (const auto& inParam : inParameters->rwTextures)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		UnorderedAccessView* uav = inParam.texture;
-		gRenderDevice->copyDescriptors(1, descriptorHeap, descriptorIx, uav->getSourceHeap(), uav->getDescriptorIndexInHeap());
+		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		++descriptorIx;
+		descriptorIx += inParam.count;
 	}
 }
 
@@ -394,7 +389,8 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	commandList->SetComputeRootSignature(d3dRootSig);
 	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
-	// #wip-dxc-reflection: Root Descriptor vs Descriptor Table
+	// #todo-dxc: Root Descriptor vs Descriptor Table
+	// For now, always use descriptor table.
 	uint32 descriptorIx = 0;
 
 	for (const auto& inParam : inParameters->pushConstants)
@@ -404,7 +400,6 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	}
 	for (const auto& inParam : inParameters->constantBuffers)
 	{
-		// For now, always use root descriptor for constant buffers.
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
 		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
@@ -413,31 +408,27 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	for (const auto& inParam : inParameters->structuredBuffers)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		ShaderResourceView* buffer = inParam.buffer;
-		gRenderDevice->copyDescriptors(1, descriptorHeap, descriptorIx, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap());
+		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		++descriptorIx;
+		descriptorIx += inParam.count;
 	}
 	for (const auto& inParam : inParameters->rwBuffers)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		UnorderedAccessView* buffer = inParam.buffer;
-		gRenderDevice->copyDescriptors(1, descriptorHeap, descriptorIx, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap());
+		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		++descriptorIx;
+		descriptorIx += inParam.count;
 	}
 	for (const auto& inParam : inParameters->rwStructuredBuffers)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		UnorderedAccessView* buffer = inParam.buffer;
-		gRenderDevice->copyDescriptors(1, descriptorHeap, descriptorIx, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap());
+		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		++descriptorIx;
+		descriptorIx += inParam.count;
 	}
 	for (const auto& inParam : inParameters->textures)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		//CHECK(inParam.count >= param->numDescriptors);
 		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
 		descriptorIx += inParam.count;
@@ -445,10 +436,9 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	for (const auto& inParam : inParameters->rwTextures)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		UnorderedAccessView* buffer = inParam.texture;
-		gRenderDevice->copyDescriptors(1, descriptorHeap, descriptorIx, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap());
+		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
 		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		++descriptorIx;
+		descriptorIx += inParam.count;
 	}
 }
 

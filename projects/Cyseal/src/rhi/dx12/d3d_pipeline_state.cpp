@@ -80,8 +80,11 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 	descriptorRanges.reserve(totalParameters);
 	auto lastDescriptorPtr = [](const decltype(descriptorRanges)& ranges) { return &ranges[ranges.size() - 1]; };
 
+	// #todo-dx12: D3D12_SHADER_VISIBILITY
+	// https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_shader_visibility
+	// Let's just use D3D12_SHADER_VISIBILITY_ALL for now.
+
 	// Construct root parameters.
-	// #wip-dxc-reflection: How to determine shader visibility?
 	{
 		uint32 p = 0; // root parameter index
 		for (auto& param : parameterTable.rootConstants)
@@ -89,7 +92,7 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 			rootParameters[p].Constants.ShaderRegister = param.registerSlot;
 			rootParameters[p].Constants.RegisterSpace = param.registerSpace;
-			rootParameters[p].Constants.Num32BitValues = 1; // #wip-dxc-reflection: Num32BitValues
+			rootParameters[p].Constants.Num32BitValues = 1; // #todo-dxc: Num32BitValues
 			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 			param.rootParameterIndex = p;

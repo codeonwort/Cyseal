@@ -82,6 +82,12 @@ private:
 
 	D3DShaderParameterTable parameterTable; // Filled by shader reflection
 
+	// e.g., cs_6_6
+	// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/ns-d3d12shader-d3d12_shader_desc
+	D3D12_SHADER_VERSION_TYPE programType = D3D12_SHVER_RESERVED0;
+	uint32 programMajorVersion = 0;
+	uint32 programMinorVersion = 0;
+
 	// Compute shader only
 	uint32 threadGroupTotalSize = 0;
 	uint32 threadGroupSizeX = 0;
