@@ -201,13 +201,6 @@ void VulkanRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* c
 	// Vulkan binds descriptor sets, not descriptor pools.
 }
 
-void VulkanRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature)
-{
-	// #todo-vulkan
-	//throw std::logic_error("The method or operation is not implemented.");
-	CHECK_NO_ENTRY();
-}
-
 void VulkanRenderCommandList::setComputeRootSignature(RootSignature* rootSignature)
 {
 	// #todo-vulkan
@@ -274,44 +267,6 @@ void VulkanRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthSten
 }
 
 void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV)
-{
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-}
-
-void VulkanRenderCommandList::setGraphicsRootConstant32(uint32 rootParameterIndex, uint32 constant32, uint32 destOffsetIn32BitValues)
-{
-	// #todo-vulkan
-	//throw std::logic_error("The method or operation is not implemented.");
-	CHECK_NO_ENTRY();
-}
-
-void VulkanRenderCommandList::setGraphicsRootConstant32Array(uint32 rootParameterIndex, uint32 numValuesToSet, const void* srcData, uint32 destOffsetIn32BitValues)
-{
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-}
-
-void VulkanRenderCommandList::setGraphicsRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap, uint32 descriptorStartOffset)
-{
-	// #todo-vulkan
-	//throw std::logic_error("The method or operation is not implemented.");
-	CHECK_NO_ENTRY();
-}
-
-void VulkanRenderCommandList::setGraphicsRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv)
-{
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-}
-
-void VulkanRenderCommandList::setGraphicsRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv)
-{
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-}
-
-void VulkanRenderCommandList::setGraphicsRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav)
 {
 	// #todo-vulkan
 	CHECK_NO_ENTRY();

@@ -255,12 +255,6 @@ void D3DRenderCommandList::setRaytracingPipelineState(RaytracingPipelineStateObj
 	commandList->SetPipelineState1(rawRTPSO);
 }
 
-void D3DRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature)
-{
-	auto rawSignature = static_cast<D3DRootSignature*>(rootSignature)->getRaw();
-	commandList->SetGraphicsRootSignature(rawSignature);
-}
-
 void D3DRenderCommandList::setComputeRootSignature(RootSignature* rootSignature)
 {
 	auto rawSignature = static_cast<D3DRootSignature*>(rootSignature)->getRaw();
@@ -276,72 +270,6 @@ void D3DRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* cons
 		rawHeaps[i] = static_cast<D3DDescriptorHeap*>(heaps[i])->getRaw();
 	}
 	commandList->SetDescriptorHeaps(count, rawHeaps.data());
-}
-
-void D3DRenderCommandList::setGraphicsRootDescriptorTable(
-	uint32 rootParameterIndex,
-	DescriptorHeap* descriptorHeap,
-	uint32 descriptorStartOffset)
-{
-	ID3D12DescriptorHeap* rawHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
-	D3D12_GPU_DESCRIPTOR_HANDLE tableHandle = rawHeap->GetGPUDescriptorHandleForHeapStart();
-	tableHandle.ptr += (uint64)descriptorStartOffset * (uint64)device->getDescriptorSizeCbvSrvUav();
-	
-	commandList->SetGraphicsRootDescriptorTable(rootParameterIndex, tableHandle);
-}
-
-void D3DRenderCommandList::setGraphicsRootConstant32(
-	uint32 rootParameterIndex,
-	uint32 constant32,
-	uint32 destOffsetIn32BitValues)
-{
-	commandList->SetGraphicsRoot32BitConstant(
-		rootParameterIndex,
-		constant32,
-		destOffsetIn32BitValues);
-}
-
-void D3DRenderCommandList::setGraphicsRootConstant32Array(
-	uint32 rootParameterIndex,
-	uint32 numValuesToSet,
-	const void* srcData,
-	uint32 destOffsetIn32BitValues)
-{
-	commandList->SetGraphicsRoot32BitConstants(
-		rootParameterIndex,
-		numValuesToSet,
-		srcData,
-		destOffsetIn32BitValues);
-}
-
-void D3DRenderCommandList::setGraphicsRootDescriptorSRV(
-	uint32 rootParameterIndex,
-	ShaderResourceView* srv)
-{
-	D3DShaderResourceView* d3dSRV = static_cast<D3DShaderResourceView*>(srv);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dSRV->getGPUVirtualAddress();
-
-	commandList->SetGraphicsRootShaderResourceView(rootParameterIndex, gpuAddr);
-}
-
-void D3DRenderCommandList::setGraphicsRootDescriptorCBV(
-	uint32 rootParameterIndex,
-	ConstantBufferView* cbv)
-{
-	D3DConstantBufferView* d3dCBV = static_cast<D3DConstantBufferView*>(cbv);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dCBV->getGPUVirtualAddress();
-
-	commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, gpuAddr);
-}
-
-void D3DRenderCommandList::setGraphicsRootDescriptorUAV(
-	uint32 rootParameterIndex,
-	UnorderedAccessView* uav)
-{
-	D3DUnorderedAccessView* d3dUAV = static_cast<D3DUnorderedAccessView*>(uav);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dUAV->getGPUVirtualAddress();
-
-	commandList->SetGraphicsRootUnorderedAccessView(rootParameterIndex, gpuAddr);
 }
 
 void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* inParameters, DescriptorHeap* descriptorHeap)

@@ -65,7 +65,6 @@ public:
 
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override;
 
-	virtual void setGraphicsRootSignature(RootSignature* rootSignature) override;
 	virtual void setComputeRootSignature(RootSignature* rootSignature) override;
 
 	// ------------------------------------------------------------------------
@@ -80,25 +79,6 @@ public:
 
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) override;
 	virtual void omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV) override;
-
-	virtual void setGraphicsRootConstant32(
-		uint32 rootParameterIndex,
-		uint32 constant32,
-		uint32 destOffsetIn32BitValues) override;
-	virtual void setGraphicsRootConstant32Array(
-		uint32 rootParameterIndex,
-		uint32 numValuesToSet,
-		const void* srcData,
-		uint32 destOffsetIn32BitValues) override;
-
-	virtual void setGraphicsRootDescriptorTable(
-		uint32 rootParameterIndex,
-		DescriptorHeap* descriptorHeap,
-		uint32 descriptorStartOffset) override;
-
-	virtual void setGraphicsRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv) override;
-	virtual void setGraphicsRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv) override;
-	virtual void setGraphicsRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav) override;
 
 	virtual void bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) override;
 
@@ -136,10 +116,7 @@ public:
 		DescriptorHeap* descriptorHeap,
 		uint32 descriptorStartOffset) override;
 
-	virtual void bindComputeShaderParameters(
-		PipelineState* pipelineState,
-		const ShaderParameterTable* parameters,
-		DescriptorHeap* descriptorHeap) override;
+	virtual void bindComputeShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) override;
 
 	virtual void dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ) override;
 

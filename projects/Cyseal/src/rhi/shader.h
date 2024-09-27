@@ -72,14 +72,18 @@ public:
 	// Need to pre-determine before shader compilation as shader reflection can't discriminate between root constants and CBVs.
 	inline void declarePushConstants(const std::vector<std::string>& inPushConstantNames)
 	{
+		CHECK(!bPushConstantsDeclared);
 		pushConstantNames = inPushConstantNames;
 		bPushConstantsDeclared = true;
 	}
 	inline void declarePushConstants()
 	{
+		CHECK(!bPushConstantsDeclared);
 		pushConstantNames.clear();
 		bPushConstantsDeclared = true;
 	}
+
+	inline bool isPushConstantsDeclared() const { return bPushConstantsDeclared; }
 
 	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) = 0;
 

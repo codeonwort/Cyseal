@@ -293,14 +293,16 @@ const D3DShaderParameter* D3DGraphicsPipelineState::findShaderParameter(const st
 
 void D3DGraphicsPipelineState::createRootSignature(ID3D12Device* device, ShaderStage* inVertexShader, ShaderStage* inPixelShader, ShaderStage* inDomainShader, ShaderStage* inHullShader, ShaderStage* inGeometryShader)
 {
-	// #wip-dxc-reflection: Impose after converting all render passes.
-	//CHECK(bPushConstantsDeclared);
-
 	D3DShaderStage* vs = static_cast<D3DShaderStage*>(inVertexShader);
 	D3DShaderStage* ps = static_cast<D3DShaderStage*>(inPixelShader);
 	D3DShaderStage* ds = static_cast<D3DShaderStage*>(inDomainShader);
 	D3DShaderStage* hs = static_cast<D3DShaderStage*>(inHullShader);
 	D3DShaderStage* gs = static_cast<D3DShaderStage*>(inGeometryShader);
+	CHECK(vs == nullptr || vs->isPushConstantsDeclared());
+	CHECK(ps == nullptr || ps->isPushConstantsDeclared());
+	CHECK(ds == nullptr || ds->isPushConstantsDeclared());
+	CHECK(hs == nullptr || hs->isPushConstantsDeclared());
+	CHECK(gs == nullptr || gs->isPushConstantsDeclared());
 
 	buildShaderParameterTable(parameterTable, { vs, ps, ds, hs, gs });
 	createRootSignatureFromParameterTable(rootSignature, device, parameterTable);
@@ -340,9 +342,7 @@ const D3DShaderParameter* D3DComputePipelineState::findShaderParameter(const std
 
 void D3DComputePipelineState::createRootSignature(ID3D12Device* device, D3DShaderStage* computeShader)
 {
-	// #wip-dxc-reflection: Impose after converting all render passes.
-	//CHECK(bPushConstantsDeclared);
-
+	CHECK(computeShader->isPushConstantsDeclared());
 	parameterTable = computeShader->getParameterTable(); // There is only one shader, just do deep copy rather than calling buildShaderParameterTable().
 	createRootSignatureFromParameterTable(rootSignature, device, parameterTable);
 	createShaderParameterHashMap(parameterHashMap, parameterTable);
