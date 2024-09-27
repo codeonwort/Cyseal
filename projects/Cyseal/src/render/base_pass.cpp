@@ -53,25 +53,24 @@ void BasePass::initialize()
 	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
 
 	// PSO
-	{
-		GraphicsPipelineDesc desc;
-		desc.inputLayout            = inputLayout;
-		desc.vs                     = shaderVS;
-		desc.ps                     = shaderPS;
-		desc.rasterizerDesc         = RasterizerDesc();
-		desc.blendDesc              = BlendDesc();
-		desc.depthstencilDesc       = DepthstencilDesc::StandardSceneDepth();
-		desc.sampleMask             = 0xffffffff;
-		desc.primitiveTopologyType  = EPrimitiveTopologyType::Triangle;
-		desc.numRenderTargets       = 2;
-		desc.rtvFormats[0]          = PF_sceneColor;
-		desc.rtvFormats[1]          = PF_thinGBufferA;
-		desc.sampleDesc.count       = swapchain->supports4xMSAA() ? 4 : 1;
-		desc.sampleDesc.quality     = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0;
-		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();
-
-		pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(desc));
-	}
+	GraphicsPipelineDesc pipelineDesc{
+		.vs                     = shaderVS,
+		.ps                     = shaderPS,
+		.blendDesc              = BlendDesc(),
+		.sampleMask             = 0xffffffff,
+		.rasterizerDesc         = RasterizerDesc(),
+		.depthstencilDesc       = DepthstencilDesc::StandardSceneDepth(),
+		.inputLayout            = inputLayout,
+		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
+		.numRenderTargets       = 2,
+		.rtvFormats             = { PF_sceneColor, PF_thinGBufferA, },
+		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.sampleDesc = SampleDesc{
+			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
+			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
+		},
+	};
+	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
 
 	// Cleanup
 	{

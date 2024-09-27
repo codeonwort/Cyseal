@@ -47,27 +47,24 @@ void BufferVisualization::initialize()
 	shaderPS->loadFromFile(L"buffer_visualization.hlsl", "mainPS");
 
 	// Create PSO.
-	{
-		GraphicsPipelineDesc desc{
-			.vs                     = shaderVS,
-			.ps                     = shaderPS,
-			.ds                     = nullptr,
-			.hs                     = nullptr,
-			.gs                     = nullptr,
-			.blendDesc              = BlendDesc(),
-			.sampleMask             = 0xffffffff,
-			.rasterizerDesc         = RasterizerDesc::FrontCull(),
-			.depthstencilDesc       = DepthstencilDesc::NoDepth(),
-			.inputLayout            = inputLayout,
-			.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
-			.numRenderTargets       = 1,
-			.rtvFormats             = { swapchain->getBackbufferFormat() },
-			.dsvFormat              = swapchain->getBackbufferDepthFormat(),
-			.sampleDesc             = SampleDesc { .count = 1, .quality = 0 },
-		};
-
-		pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(desc));
-	}
+	GraphicsPipelineDesc pipelineDesc{
+		.vs                     = shaderVS,
+		.ps                     = shaderPS,
+		.ds                     = nullptr,
+		.hs                     = nullptr,
+		.gs                     = nullptr,
+		.blendDesc              = BlendDesc(),
+		.sampleMask             = 0xffffffff,
+		.rasterizerDesc         = RasterizerDesc::FrontCull(),
+		.depthstencilDesc       = DepthstencilDesc::NoDepth(),
+		.inputLayout            = inputLayout,
+		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
+		.numRenderTargets       = 1,
+		.rtvFormats             = { swapchain->getBackbufferFormat() },
+		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.sampleDesc             = SampleDesc { .count = 1, .quality = 0 },
+	};
+	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
 
 	// Cleanup.
 	{
