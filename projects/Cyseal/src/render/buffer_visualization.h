@@ -29,7 +29,5 @@ public:
 
 private:
 	UniquePtr<GraphicsPipelineState> pipelineState;
-	UniquePtr<RootSignature> rootSignature;
-
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
 };

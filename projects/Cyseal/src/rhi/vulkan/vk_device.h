@@ -79,7 +79,7 @@ public:
 	virtual RenderTargetView* createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams) override;
 	virtual DepthStencilView* createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams) override;
 
-	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, RootSignature* inRootSignature) override;
+	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, GraphicsPipelineState* inPipelineState) override;
 	virtual IndirectCommandGenerator* createIndirectCommandGenerator(const CommandSignatureDesc& inDesc, uint32 maxCommandCount) override;
 
 	// ------------------------------------------------------------------------

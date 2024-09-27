@@ -9,62 +9,22 @@
 // Currently only for sceneColor SRV
 #define MAX_VOLATILE_DESCRIPTORS 2
 
-namespace RootParameters
-{
-	enum Value
-	{
-		InputTexturesSlot = 0,
-		Count
-	};
-}
-
 void ToneMapping::initialize()
 {
 	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
-	// Create root signature
-	// - slot0: descriptor table (SRV)
-	{
-		DescriptorRange descriptorRange;
-		// sceneColor       : register(t0)
-		// indirectSpecular : register(t1)
-		descriptorRange.init(EDescriptorRangeType::SRV, 2, 0);
-
-		RootParameter rootParameters[RootParameters::Count];
-		rootParameters[RootParameters::InputTexturesSlot].initAsDescriptorTable(1, &descriptorRange);
-
-		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
-		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
-
-		memset(staticSamplers + 0, 0, sizeof(staticSamplers[0]));
-		staticSamplers[0].filter = ETextureFilter::MIN_MAG_MIP_POINT;
-		staticSamplers[0].addressU = ETextureAddressMode::Clamp;
-		staticSamplers[0].addressV = ETextureAddressMode::Clamp;
-		staticSamplers[0].addressW = ETextureAddressMode::Clamp;
-		staticSamplers[0].shaderVisibility = EShaderVisibility::Pixel;
-
-		RootSignatureDesc rootSigDesc(
-			RootParameters::Count,
-			rootParameters,
-			NUM_STATIC_SAMPLERS,
-			staticSamplers,
-			ERootSignatureFlags::AllowInputAssemblerInputLayout);
-
-		rootSignature = UniquePtr<RootSignature>(device->createRootSignature(rootSigDesc));
-	}
-
 	// Create volatile heaps for CBVs, SRVs, and UAVs for each frame
 	volatileViewHeap.initialize(swapchainCount);
 	for (uint32 i = 0; i < swapchainCount; ++i)
 	{
-		DescriptorHeapDesc desc;
-		desc.type           = EDescriptorHeapType::CBV_SRV_UAV;
-		desc.numDescriptors = MAX_VOLATILE_DESCRIPTORS;
-		desc.flags          = EDescriptorHeapFlags::ShaderVisible;
-		desc.nodeMask       = 0;
-
+		DescriptorHeapDesc desc{
+			.type           = EDescriptorHeapType::CBV_SRV_UAV,
+			.numDescriptors = MAX_VOLATILE_DESCRIPTORS,
+			.flags          = EDescriptorHeapFlags::ShaderVisible,
+			.nodeMask       = 0,
+		};
 		volatileViewHeap[i] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(desc));
 
 		wchar_t debugName[256];
@@ -82,29 +42,31 @@ void ToneMapping::initialize()
 	// Load shader
 	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "ToneMappingVS");
 	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "ToneMappingPS");
+	shaderVS->declarePushConstants();
+	shaderPS->declarePushConstants();
 	shaderVS->loadFromFile(L"tone_mapping.hlsl", "mainVS");
 	shaderPS->loadFromFile(L"tone_mapping.hlsl", "mainPS");
 
 	// Create PSO
-	{
-		GraphicsPipelineDesc desc;
-		desc.inputLayout            = inputLayout;
-		desc.rootSignature          = rootSignature.get();
-		desc.vs                     = shaderVS;
-		desc.ps                     = shaderPS;
-		desc.rasterizerDesc         = RasterizerDesc::FrontCull();
-		desc.blendDesc              = BlendDesc();
-		desc.depthstencilDesc       = DepthstencilDesc::NoDepth();
-		desc.sampleMask             = 0xffffffff;
-		desc.primitiveTopologyType  = EPrimitiveTopologyType::Triangle;
-		desc.numRenderTargets       = 1;
-		desc.rtvFormats[0]          = swapchain->getBackbufferFormat();
-		desc.sampleDesc.count       = swapchain->supports4xMSAA() ? 4 : 1;
-		desc.sampleDesc.quality     = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0;
-		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();
+	GraphicsPipelineDesc pipelineDesc{
+		.vs                     = shaderVS,
+		.ps                     = shaderPS,
+		.blendDesc              = BlendDesc(),
+		.sampleMask             = 0xffffffff,
+		.rasterizerDesc         = RasterizerDesc::FrontCull(),
+		.depthstencilDesc       = DepthstencilDesc::NoDepth(),
+		.inputLayout            = inputLayout,
+		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
+		.numRenderTargets       = 1,
+		.rtvFormats             = { swapchain->getBackbufferFormat(), },
+		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.sampleDesc = SampleDesc{
+			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
+			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
+		},
+	};
 
-		pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(desc));
-	}
+	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
 
 	// Cleanup
 	{
@@ -119,29 +81,12 @@ void ToneMapping::renderToneMapping(
 	ShaderResourceView* sceneColorSRV,
 	ShaderResourceView* indirectSpecularSRV)
 {
+	ShaderParameterTable SPT{};
+	SPT.texture("sceneColor", sceneColorSRV);
+	SPT.texture("indirectSpecular", indirectSpecularSRV);
+
 	commandList->setGraphicsPipelineState(pipelineState.get());
-	commandList->setGraphicsRootSignature(rootSignature.get());
-
+	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);
-
-	// Resource binding
-	{
-		DescriptorHeap* heaps[] = { volatileViewHeap.at(swapchainIndex) };
-		commandList->setDescriptorHeaps(1, heaps);
-
-		constexpr uint32 VOLATILE_IX_SceneColor = 0;
-		constexpr uint32 VOLATILE_IX_IndirectSpecular = 1;
-		gRenderDevice->copyDescriptors(
-			1,
-			heaps[0], VOLATILE_IX_SceneColor,
-			sceneColorSRV->getSourceHeap(), sceneColorSRV->getDescriptorIndexInHeap());
-		gRenderDevice->copyDescriptors(
-			1,
-			heaps[0], VOLATILE_IX_IndirectSpecular,
-			indirectSpecularSRV->getSourceHeap(), indirectSpecularSRV->getDescriptorIndexInHeap());
-		commandList->setGraphicsRootDescriptorTable(RootParameters::InputTexturesSlot, heaps[0], 0);
-	}
-
-	// Fullscreen triangle
-	commandList->drawInstanced(3, 1, 0, 0);
+	commandList->drawInstanced(3, 1, 0, 0); // Fullscreen triangle
 }

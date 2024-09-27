@@ -17,6 +17,7 @@ struct D3DShaderParameter
 	D3D_SHADER_INPUT_TYPE type;
 	uint32 registerSlot;
 	uint32 registerSpace;
+	uint32 numDescriptors;
 
 	// Allocated when generating root signature (except for samplers).
 	uint32 rootParameterIndex;
@@ -26,7 +27,8 @@ struct D3DShaderParameter
 		return this->name == rhs.name
 			&& this->type == rhs.type
 			&& this->registerSlot == rhs.registerSlot
-			&& this->registerSpace == rhs.registerSpace;
+			&& this->registerSpace == rhs.registerSpace
+			&& this->numDescriptors == rhs.numDescriptors;
 	}
 };
 

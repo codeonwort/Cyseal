@@ -21,7 +21,6 @@ public:
 
 private:
 	UniquePtr<GraphicsPipelineState> pipelineState;
-	UniquePtr<RootSignature> rootSignature;
 	VertexInputLayout inputLayout;
 
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;

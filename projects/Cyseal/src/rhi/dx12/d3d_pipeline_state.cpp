@@ -97,11 +97,26 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 		}
 		for (auto& param : parameterTable.constantBuffers)
 		{
+#if 0
 			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 			rootParameters[p].Descriptor.ShaderRegister = param.registerSlot;
 			rootParameters[p].Descriptor.RegisterSpace = param.registerSpace;
 			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+#else
+			D3D12_DESCRIPTOR_RANGE descriptor{
+				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
+				.NumDescriptors     = param.numDescriptors,
+				.BaseShaderRegister = param.registerSlot,
+				.RegisterSpace      = param.registerSpace,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			};
+			descriptorRanges.emplace_back(descriptor);
 
+			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
+			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+#endif
 			param.rootParameterIndex = p;
 			++p;
 		}
@@ -109,7 +124,7 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 		{
 			D3D12_DESCRIPTOR_RANGE descriptor{
 				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
-				.NumDescriptors     = 1,
+				.NumDescriptors     = param.numDescriptors,
 				.BaseShaderRegister = param.registerSlot,
 				.RegisterSpace      = param.registerSpace,
 				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
@@ -128,7 +143,7 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 		{
 			D3D12_DESCRIPTOR_RANGE descriptor{
 				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
-				.NumDescriptors     = 1,
+				.NumDescriptors     = param.numDescriptors,
 				.BaseShaderRegister = param.registerSlot,
 				.RegisterSpace      = param.registerSpace,
 				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
@@ -147,7 +162,7 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 		{
 			D3D12_DESCRIPTOR_RANGE descriptor{
 				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-				.NumDescriptors     = 1,
+				.NumDescriptors     = param.numDescriptors,
 				.BaseShaderRegister = param.registerSlot,
 				.RegisterSpace      = param.registerSpace,
 				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
@@ -166,7 +181,7 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 		{
 			D3D12_DESCRIPTOR_RANGE descriptor{
 				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-				.NumDescriptors     = 1,
+				.NumDescriptors     = param.numDescriptors,
 				.BaseShaderRegister = param.registerSlot,
 				.RegisterSpace      = param.registerSpace,
 				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
@@ -213,6 +228,7 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 			.pParameters       = rootParameters.data(),
 			.NumStaticSamplers = (UINT)staticSamplers.size(),
 			.pStaticSamplers   = staticSamplers.data(),
+			.Flags             = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
 		};
 		WRL::ComPtr<ID3DBlob> serializedRootSig, errorBlob;
 		HRESULT hresult = D3D12SerializeRootSignature(
@@ -259,15 +275,14 @@ static void createShaderParameterHashMap(std::map<std::string, const D3DShaderPa
 
 void D3DGraphicsPipelineState::initialize(ID3D12Device* device, const GraphicsPipelineDesc& inDesc)
 {
+	createRootSignature(device, inDesc.vs, inDesc.ps, inDesc.ds, inDesc.hs, inDesc.gs);
+
 	into_d3d::TempAlloc tempAlloc;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3d_desc;
 	into_d3d::graphicsPipelineDesc(inDesc, d3d_desc, tempAlloc);
+	d3d_desc.pRootSignature = rootSignature.Get();
 
 	HR( device->CreateGraphicsPipelineState(&d3d_desc, IID_PPV_ARGS(&pipelineState)) );
-
-	createRootSignature(device, inDesc.vs, inDesc.ps, inDesc.ds, inDesc.hs, inDesc.gs);
-	// WIP: Create graphics pipeline using the auto-generated root signature.
-	CHECK_NO_ENTRY();
 }
 
 const D3DShaderParameter* D3DGraphicsPipelineState::findShaderParameter(const std::string& name) const

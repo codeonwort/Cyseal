@@ -688,16 +688,16 @@ DepthStencilView* D3DDevice::createDSV(GPUResource* gpuResource, const DepthSten
 
 CommandSignature* D3DDevice::createCommandSignature(
 	const CommandSignatureDesc& inDesc,
-	RootSignature* inRootSignature)
+	GraphicsPipelineState* inPipelineState)
 {
 	into_d3d::TempAlloc tempAlloc;
 	D3D12_COMMAND_SIGNATURE_DESC d3dDesc;
 	into_d3d::commandSignature(inDesc, d3dDesc, tempAlloc);
 
 	ID3D12RootSignature* rootSig = nullptr;
-	if (inRootSignature != nullptr)
+	if (inPipelineState != nullptr)
 	{
-		rootSig = static_cast<D3DRootSignature*>(inRootSignature)->getRaw();
+		rootSig = static_cast<D3DGraphicsPipelineState*>(inPipelineState)->getRootSignature();
 	}
 
 	D3DCommandSignature* cmdSig = new D3DCommandSignature;

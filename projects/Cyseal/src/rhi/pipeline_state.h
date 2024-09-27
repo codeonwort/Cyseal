@@ -342,7 +342,7 @@ struct ScissorRect
 // VkGraphicsPipelineCreateInfo
 struct GraphicsPipelineDesc
 {
-	RootSignature* rootSignature = nullptr;
+	// Root signature is created internally in RHI backend.
 	ShaderStage* vs = nullptr;
 	ShaderStage* ps = nullptr;
 	ShaderStage* ds = nullptr;
@@ -371,6 +371,7 @@ struct GraphicsPipelineDesc
 // VkComputePipelineCreateInfo
 struct ComputePipelineDesc
 {
+	// Root signature is created internally in RHI backend.
 	ShaderStage* cs = nullptr;
 	uint32 nodeMask = 0; // #todo-mgpu
 	// #todo-crossapi: D3D12_CACHED_PIPELINE_STATE CachedPSO;

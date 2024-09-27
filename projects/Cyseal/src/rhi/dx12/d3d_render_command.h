@@ -105,6 +105,10 @@ public:
 	virtual void setGraphicsRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv) override;
 	virtual void setGraphicsRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav) override;
 
+	virtual void bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) override;
+
+	virtual void updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters) override;
+
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
 		uint32 instanceCount,

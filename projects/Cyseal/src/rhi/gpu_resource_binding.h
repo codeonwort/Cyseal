@@ -1,9 +1,10 @@
 #pragma once
 
+#include "pipeline_state.h"
+#include "gpu_resource_view.h"
+#include "descriptor_heap.h"
 #include "core/int_types.h"
 #include "util/enum_util.h"
-#include "pipeline_state.h"
-#include "descriptor_heap.h"
 
 #include <string>
 
@@ -312,20 +313,34 @@ struct ShaderParameterTable
 {
 	using ParameterName = const char*;
 	struct PushConstant       { std::string name; uint32 value; uint32 destOffsetIn32BitValues; };
-	struct ConstantBuffer     { std::string name; ConstantBufferView* buffer; };
+	struct ConstantBuffer     { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
 	struct StructuredBuffer   { std::string name; ShaderResourceView* buffer; };
 	struct RWBuffer           { std::string name; UnorderedAccessView* buffer; };
 	struct RWStructuredBuffer { std::string name; UnorderedAccessView* buffer; };
-	struct Texture            { std::string name; ShaderResourceView* texture; };
+	struct Texture            { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
 	struct RWTexture          { std::string name; UnorderedAccessView* texture; };
 
 public:
 	void pushConstant(ParameterName name, uint32 value, uint32 destOffsetIn32BitValues = 0) { pushConstants.emplace_back(PushConstant{ name, value, destOffsetIn32BitValues }); }
-	void constantBuffer(ParameterName name, ConstantBufferView* buffer)                     { constantBuffers.emplace_back(ConstantBuffer{ name, buffer });                     }
+	void constantBuffer(ParameterName name, ConstantBufferView* buffer)
+	{
+		constantBuffers.emplace_back(ConstantBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 });
+	}
+	void constantBuffer(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount)
+	{
+		constantBuffers.emplace_back(ConstantBuffer{ name, sourceHeap, firstDescriptorIndex, descriptorCount });
+	}
 	void structuredBuffer(ParameterName name, ShaderResourceView* buffer)                   { structuredBuffers.emplace_back(StructuredBuffer{ name, buffer });                 }
 	void rwBuffer(ParameterName name, UnorderedAccessView* buffer)                          { rwBuffers.emplace_back(RWBuffer{ name, buffer });                                 }
 	void rwStructuredBuffer(ParameterName name, UnorderedAccessView* buffer)                { rwStructuredBuffers.emplace_back(RWStructuredBuffer{ name, buffer });             }
-	void texture(ParameterName name, ShaderResourceView* texture)                           { textures.emplace_back(Texture{ name, texture });                                  }
+	void texture(ParameterName name, ShaderResourceView* texture)
+	{
+		textures.emplace_back(Texture{ name, texture->getSourceHeap(), texture->getDescriptorIndexInHeap(), 1 });
+	}
+	void texture(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount)
+	{
+		textures.emplace_back(Texture{ name, sourceHeap, firstDescriptorIndex, descriptorCount });
+	}
 	void rwTexture(ParameterName name, UnorderedAccessView* texture)                        { rwTextures.emplace_back(RWTexture{ name, texture });                              }
 
 	size_t totalParameters() const

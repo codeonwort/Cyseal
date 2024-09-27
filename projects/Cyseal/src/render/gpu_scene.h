@@ -20,6 +20,15 @@ struct MaterialConstants
 class GPUScene final
 {
 public:
+	struct MaterialDescriptorsDesc
+	{
+		DescriptorHeap* cbvHeap;
+		DescriptorHeap* srvHeap;
+		uint32 cbvCount;
+		uint32 srvCount;
+	};
+
+public:
 	void initialize();
 
 	// Update GPU scene buffer.
@@ -34,6 +43,8 @@ public:
 
 	// GPU scene buffer won't be modified from outside, so exposing only SRV is OK.
 	//UnorderedAccessView* getGPUSceneBufferUAV() const;
+
+	MaterialDescriptorsDesc queryMaterialDescriptors(uint32 swapchainIndex) const;
 
 	// Query how many descriptors are needed.
 	// Use this before copyMaterialDescriptors() if you're unsure the dest heap is big enough.

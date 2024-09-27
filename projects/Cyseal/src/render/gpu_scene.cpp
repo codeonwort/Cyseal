@@ -282,6 +282,16 @@ ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
 	return gpuSceneBufferSRV.get();
 }
 
+GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swapchainIndex) const
+{
+	return MaterialDescriptorsDesc{
+		.cbvHeap = materialCBVHeap.at(swapchainIndex),
+		.srvHeap = materialSRVHeap.at(swapchainIndex),
+		.cbvCount = materialCBVActualCounts[swapchainIndex],
+		.srvCount = materialSRVActualCounts[swapchainIndex],
+	};
+}
+
 void GPUScene::queryMaterialDescriptorsCount(uint32 swapchainIndex, uint32& outCBVCount, uint32& outSRVCount)
 {
 	outCBVCount = materialCBVActualCounts[swapchainIndex];

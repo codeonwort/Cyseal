@@ -13,7 +13,7 @@ namespace into_d3d
 	{
 		::memset(&outDesc, 0, sizeof(outDesc));
 
-		outDesc.pRootSignature = static_cast<D3DRootSignature*>(inDesc.rootSignature)->getRaw();
+		outDesc.pRootSignature = NULL; // You must provide this on your own.
 		if (inDesc.vs != nullptr) outDesc.VS = static_cast<D3DShaderStage*>(inDesc.vs)->getBytecode();
 		if (inDesc.ps != nullptr) outDesc.PS = static_cast<D3DShaderStage*>(inDesc.ps)->getBytecode();
 		if (inDesc.ds != nullptr) outDesc.DS = static_cast<D3DShaderStage*>(inDesc.ds)->getBytecode();

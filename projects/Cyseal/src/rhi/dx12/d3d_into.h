@@ -12,9 +12,6 @@
 #include "d3d_util.h"
 #include <vector>
 
-class D3DRootSignature;
-class D3DShaderStage;
-
 // Convert API-agnostic structs into D3D12 structs
 namespace into_d3d
 {
@@ -374,6 +371,7 @@ namespace into_d3d
 		return static_cast<D3D12_INPUT_CLASSIFICATION>(inValue);
 	}
 
+	// NOTE: You must assign pRootSignature yourself.
 	void graphicsPipelineDesc(
 		const GraphicsPipelineDesc& inDesc,
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC& outDesc,

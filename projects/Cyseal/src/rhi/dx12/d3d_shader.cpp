@@ -208,6 +208,7 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 				.type               = inputBindDesc.Type, // D3D_SIT_CBUFFER = ConstantBuffer, D3D_SIT_UAV_RWTYPED = RWBuffer, D3D_SIT_STRUCTURED = StructuredBuffer, ...
 				.registerSlot       = inputBindDesc.BindPoint,
 				.registerSpace      = inputBindDesc.Space,
+				.numDescriptors     = inputBindDesc.BindCount,
 				.rootParameterIndex = 0xffffffff, // Allocated in createRoogSignature()
 			};
 			
@@ -228,8 +229,6 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 					CHECK_NO_ENTRY();
 					break;
 				case D3D_SIT_TEXTURE: // Texture2D, Texture3D, TextureCube, ...
-					// #wip-dxc-reflection: How to represent bindless?
-					// ex) base_pass.hlsl has bindless texture.
 					parameterTable.textures.emplace_back(parameter);
 					break;
 				case D3D_SIT_SAMPLER: // SamplerState

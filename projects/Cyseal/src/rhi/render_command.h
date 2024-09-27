@@ -139,6 +139,13 @@ public:
 	virtual void setGraphicsRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv) = 0;
 	virtual void setGraphicsRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav) = 0;
 
+	virtual void bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) = 0;
+
+	// When a graphics PSO is already bound, only update root constants for fast path.
+	// - pipelineState must have been bound with bindGraphicsShaderParameters().
+	// - parameters may contain only root constants. Other types of parameters are ignored.
+	virtual void updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters) = 0;
+
 	// #todo-rendercommand: Is this the best form?
 	virtual void setGraphicsRootDescriptorTable(
 		uint32 rootParameterIndex,

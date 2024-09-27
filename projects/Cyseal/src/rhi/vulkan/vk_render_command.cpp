@@ -317,6 +317,18 @@ void VulkanRenderCommandList::setGraphicsRootDescriptorUAV(uint32 rootParameterI
 	CHECK_NO_ENTRY();
 }
 
+void VulkanRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+}
+
+void VulkanRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+}
+
 void VulkanRenderCommandList::drawIndexedInstanced(
 	uint32 indexCountPerInstance,
 	uint32 instanceCount,
