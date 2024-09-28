@@ -35,22 +35,16 @@ private:
 
 private:
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
-	UniquePtr<RootSignature> globalRootSignature;
-	UniquePtr<RootSignature> closestHitLocalRootSignature;
 
 	UniquePtr<RaytracingShaderTable> raygenShaderTable;
 	UniquePtr<RaytracingShaderTable> missShaderTable;
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	std::vector<uint32> totalHitGroupShaderRecord;
 
-	// #todo-renderere: Temp dedicated memory
+	// #todo-renderer: Temp dedicated memory
 	UniquePtr<Buffer> uniformMemory;
 	UniquePtr<DescriptorHeap> uniformDescriptorHeap;
 	BufferedUniquePtr<ConstantBufferView> uniformCBVs;
-
-	UniquePtr<ShaderStage> raygenShader;
-	UniquePtr<ShaderStage> closestHitShader;
-	UniquePtr<ShaderStage> missShader;
 
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
