@@ -13,6 +13,9 @@
 #include "rhi/texture_manager.h"
 #include "rhi/hardware_raytracing.h"
 
+// #wip-dxc-reflection: Refactor PathTracing
+#define REFACTOR 1
+
 // I don't call TraceRays() recursively, so this constant actually doesn't matter.
 // Rather see MAX_BOUNCE in rt_reflection.hlsl.
 #define PATH_TRACING_MAX_RECURSION            2
@@ -38,6 +41,7 @@ struct PathTracingUniform
 	uint32 _pad0;
 };
 
+#if !REFACTOR
 namespace RootParameters
 {
 	enum Value
@@ -55,6 +59,7 @@ namespace RootParameters
 		Count
 	};
 }
+#endif
 
 // Just to calculate size in bytes.
 // Should match with RayPayload in path_tracing.hlsl.
@@ -74,15 +79,10 @@ struct TriangleIntersectionAttributes
 	float texcoord[2];
 };
 
-struct RayGenConstantBuffer
-{
-	Float4x4 dummyValue;
-};
 struct ClosestHitPushConstants
 {
 	uint32 objectID; // item index in gpu scene buffer
 };
-static_assert(sizeof(RayGenConstantBuffer) % 4 == 0);
 static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
 
 void PathTracingPass::initialize()
@@ -139,6 +139,7 @@ void PathTracingPass::initialize()
 		}
 	}
 
+#if !REFACTOR
 	// Global root signature
 	{
 		DescriptorRange descRanges[6];
@@ -204,38 +205,49 @@ void PathTracingPass::initialize()
 	// Local root signature
 	{
 		RootParameter rootParameters[1];
-		rootParameters[0].initAsConstants(0, 1, sizeof(RayGenConstantBuffer) / 4); // register(b0, space1)
-
-		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
-		sigDesc.flags = ERootSignatureFlags::LocalRootSignature;
-		raygenLocalRootSignature = UniquePtr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
-	}
-	{
-		RootParameter rootParameters[1];
 		rootParameters[0].initAsConstants(0, 2, sizeof(ClosestHitPushConstants) / 4); // register(b0, space2)
 
 		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
 		sigDesc.flags = ERootSignatureFlags::LocalRootSignature;
 		closestHitLocalRootSignature = UniquePtr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
 	}
+#endif
 
 	// RTPSO
 	{
 		raygenShader = UniquePtr<ShaderStage>(device->createShader(EShaderStage::RT_RAYGEN_SHADER, "PathTracing_Raygen"));
 		closestHitShader = UniquePtr<ShaderStage>(device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "PathTracing_ClosestHit"));
 		missShader = UniquePtr<ShaderStage>(device->createShader(EShaderStage::RT_MISS_SHADER, "PathTracing_Miss"));
-
+		raygenShader->declarePushConstants();
+		closestHitShader->declarePushConstants({ "g_closestHitCB" });
+		missShader->declarePushConstants();
 		raygenShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_RAYGEN);
 		closestHitShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_CLOSEST_HIT);
 		missShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_MISS);
 
+#if REFACTOR
+		RaytracingPipelineStateObjectDesc2 pipelineDesc{
+			.hitGroupName                 = PATH_TRACING_HIT_GROUP_NAME,
+			.hitGroupType                 = ERaytracingHitGroupType::Triangles,
+			.raygenShader                 = raygenShader.get(),
+			.closestHitShader             = closestHitShader.get(),
+			.missShader                   = missShader.get(),
+			.raygenLocalParameters        = {},
+			.closestHitLocalParameters    = { "g_closestHitCB" },
+			.missLocalParameters          = {},
+			.maxPayloadSizeInBytes        = sizeof(RayPayload),
+			.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
+			.maxTraceRecursionDepth       = PATH_TRACING_MAX_RECURSION,
+		};
+		RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
+#else
 		RaytracingPipelineStateObjectDesc desc;
 		desc.hitGroupName                 = PATH_TRACING_HIT_GROUP_NAME;
 		desc.hitGroupType                 = ERaytracingHitGroupType::Triangles;
 		desc.raygenShader                 = raygenShader.get();
 		desc.closestHitShader             = closestHitShader.get();
 		desc.missShader                   = missShader.get();
-		desc.raygenLocalRootSignature     = raygenLocalRootSignature.get();
+		desc.raygenLocalRootSignature     = nullptr;
 		desc.closestHitLocalRootSignature = closestHitLocalRootSignature.get();
 		desc.missLocalRootSignature       = nullptr;
 		desc.globalRootSignature          = globalRootSignature.get();
@@ -243,8 +255,8 @@ void PathTracingPass::initialize()
 		desc.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes);
 		desc.maxTraceRecursionDepth       = PATH_TRACING_MAX_RECURSION;
 
-		RTPSO = UniquePtr<RaytracingPipelineStateObject>(
-			gRenderDevice->createRaytracingPipelineStateObject(desc));
+		RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(desc));
+#endif
 	}
 
 	// Acceleration Structure is built by SceneRenderer.
@@ -252,28 +264,27 @@ void PathTracingPass::initialize()
 
 	// Raygen shader table
 	{
-		struct RootArguments
-		{
-			RayGenConstantBuffer cb;
-		} rootArguments;
-		::memset(&(rootArguments.cb.dummyValue), 0, sizeof(rootArguments.cb.dummyValue));
-
 		uint32 numShaderRecords = 1;
 		raygenShaderTable = UniquePtr<RaytracingShaderTable>(
-			device->createRaytracingShaderTable(
-				RTPSO.get(), numShaderRecords, sizeof(rootArguments), L"RayGenShaderTable"));
-		raygenShaderTable->uploadRecord(0, raygenShader.get(), &rootArguments, sizeof(rootArguments));
+			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"RayGenShaderTable"));
+		raygenShaderTable->uploadRecord(0, raygenShader.get(), nullptr, 0);
 	}
 	// Miss shader table
 	{
 		uint32 numShaderRecords = 1;
 		missShaderTable = UniquePtr<RaytracingShaderTable>(
-			device->createRaytracingShaderTable(
-				RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
+			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
 		missShaderTable->uploadRecord(0, missShader.get(), nullptr, 0);
 	}
 	// Hit group shader table is created in resizeHitGroupShaderTable().
 	// ...
+
+	// Cleanup
+	{
+		raygenShader.reset();
+		closestHitShader.reset();
+		missShader.reset();
+	}
 }
 
 bool PathTracingPass::isAvailable() const
@@ -323,7 +334,14 @@ void PathTracingPass::renderPathTracing(
 		gpuScene->queryMaterialDescriptorsCount(swapchainIndex, materialCBVCount, materialSRVCount);
 
 		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 4; // render target, scene uniform, path tracing uniform, skybox
+		requiredVolatiles += 1; // rtScene
+		requiredVolatiles += 1; // gIndexBuffer
+		requiredVolatiles += 1; // gVertexBuffer
+		requiredVolatiles += 1; // gpuSceneBuffer
+		requiredVolatiles += 1; // skybox
+		requiredVolatiles += 1; // renderTarget
+		requiredVolatiles += 1; // sceneUniform
+		requiredVolatiles += 1; // pathTracingUniform
 		requiredVolatiles += materialCBVCount;
 		requiredVolatiles += materialSRVCount;
 
@@ -390,6 +408,31 @@ void PathTracingPass::renderPathTracing(
 	// Copy descriptors to the volatile heap
 
 	DescriptorHeap* volatileHeap = descriptorHeaps[0];
+	auto skyboxSRVWithFallback = (skyboxSRV != nullptr) ? skyboxSRV.get() : skyboxFallbackSRV.get();
+
+#if REFACTOR
+	commandList->setRaytracingPipelineState(RTPSO.get());
+
+	// Bind global shader parameters.
+	{
+		GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+
+		ShaderParameterTable SPT{};
+		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
+		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
+		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
+		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
+		SPT.texture("skybox", skyboxSRVWithFallback);
+		SPT.rwTexture("renderTarget", sceneColorUAV.get());
+		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
+		SPT.constantBuffer("pathTracingUniform", uniformCBVs[swapchainIndex].get());
+		// Bindless
+		SPT.constantBuffer("materials", gpuSceneDesc.cbvHeap, 0, gpuSceneDesc.cbvCount);
+		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
+
+		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
+	}
+#else
 	const uint32 VOLATILE_DESC_IX_RENDERTARGET = 0;
 	//const uint32 VOLATILE_DESC_IX_ACCELSTRUCT = 2; // Directly bound; no table.
 	const uint32 VOLATILE_DESC_IX_SCENEUNIFORM = 1;
@@ -401,8 +444,6 @@ void PathTracingPass::renderPathTracing(
 	uint32 VOLATILE_DESC_IX_MATERIAL_CBV, unusedMaterialCBVCount;
 	uint32 VOLATILE_DESC_IX_MATERIAL_SRV, unusedMaterialSRVCount;
 	uint32 VOLATILE_DESC_IX_NEXT_FREE;
-
-	auto skyboxSRVWithFallback = (skyboxSRV != nullptr) ? skyboxSRV.get() : skyboxFallbackSRV.get();
 
 	gRenderDevice->copyDescriptors(1,
 		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
@@ -451,6 +492,7 @@ void PathTracingPass::renderPathTracing(
 		volatileHeap, VOLATILE_DESC_IX_MATERIAL_SRV);
 	
 	commandList->setRaytracingPipelineState(RTPSO.get());
+#endif
 	
 	DispatchRaysDesc dispatchDesc{
 		.raygenShaderTable = raygenShaderTable.get(),

@@ -211,23 +211,10 @@ void RayTracedReflections::initialize()
 
 	// Raygen shader table
 	{
-#if 0
-		struct RootArguments
-		{
-			RayGenConstantBuffer cb;
-		} rootArguments;
-		::memset(&(rootArguments.cb.dummyValue), 0, sizeof(rootArguments.cb.dummyValue));
-
-		uint32 numShaderRecords = 1;
-		raygenShaderTable = UniquePtr<RaytracingShaderTable>(
-			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, sizeof(rootArguments), L"RayGenShaderTable"));
-		raygenShaderTable->uploadRecord(0, raygenShader.get(), &rootArguments, sizeof(rootArguments));
-#else
 		uint32 numShaderRecords = 1;
 		raygenShaderTable = UniquePtr<RaytracingShaderTable>(
 			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"RayGenShaderTable"));
 		raygenShaderTable->uploadRecord(0, raygenShader.get(), nullptr, 0);
-#endif
 	}
 	// Miss shader table
 	{
@@ -417,7 +404,6 @@ void RayTracedReflections::renderRayTracedReflections(
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 		SPT.texture("skybox", skyboxSRVWithFallback);
 		SPT.rwTexture("renderTarget", indirectSpecularUAV.get());
-		//SPT.rwTexture("gbufferA", thinGBufferAUAV.get());
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		// Bindless
 		SPT.constantBuffer("materials", gpuSceneDesc.cbvHeap, 0, gpuSceneDesc.cbvCount);
