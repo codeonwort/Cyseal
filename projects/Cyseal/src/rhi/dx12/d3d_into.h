@@ -5,11 +5,14 @@
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/gpu_resource_binding.h"
+#include "rhi/gpu_resource_barrier.h"
+#include "rhi/buffer.h"
+#include "rhi/texture.h"
+#include "rhi/hardware_raytracing.h"
 #include "d3d_util.h"
 #include <vector>
 
-class D3DRootSignature;
-class D3DShaderStage;
+class D3DGraphicsPipelineState;
 
 // Convert API-agnostic structs into D3D12 structs
 namespace into_d3d
@@ -116,24 +119,9 @@ namespace into_d3d
 		}
 	}
 
-	inline D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags(ERootSignatureFlags inFlags)
-	{
-		return static_cast<D3D12_ROOT_SIGNATURE_FLAGS>(inFlags);
-	}
-
-	inline D3D12_ROOT_PARAMETER_TYPE rootParameterType(ERootParameterType inType)
-	{
-		return static_cast<D3D12_ROOT_PARAMETER_TYPE>(inType);
-	}
-
 	inline D3D12_SHADER_VISIBILITY shaderVisibility(EShaderVisibility inSV)
 	{
 		return static_cast<D3D12_SHADER_VISIBILITY>(inSV);
-	}
-
-	inline D3D12_DESCRIPTOR_RANGE_TYPE descriptorRangeType(EDescriptorRangeType inType)
-	{
-		return static_cast<D3D12_DESCRIPTOR_RANGE_TYPE>(inType);
 	}
 
 	inline D3D12_FILTER filter(ETextureFilter inFilter)
@@ -165,86 +153,6 @@ namespace into_d3d
 		outDesc.ShaderRegister = inDesc.shaderRegister;
 		outDesc.RegisterSpace = inDesc.registerSpace;
 		outDesc.ShaderVisibility = shaderVisibility(inDesc.shaderVisibility);
-	}
-
-	inline void descriptorRange(const DescriptorRange& inRange, D3D12_DESCRIPTOR_RANGE& outRange)
-	{
-		outRange.RangeType = descriptorRangeType(inRange.rangeType);
-		outRange.NumDescriptors = inRange.numDescriptors;
-		outRange.BaseShaderRegister = inRange.baseShaderRegister;
-		outRange.RegisterSpace = inRange.registerSpace;
-		outRange.OffsetInDescriptorsFromTableStart = inRange.offsetInDescriptorsFromTableStart;
-	}
-
-	inline void rootConstants(const RootConstants& inConsts, D3D12_ROOT_CONSTANTS& outConsts)
-	{
-		outConsts.ShaderRegister = inConsts.shaderRegister;
-		outConsts.RegisterSpace = inConsts.registerSpace;
-		outConsts.Num32BitValues = inConsts.num32BitValues;
-	}
-
-	inline void rootDescriptor(const RootDescriptor& inDesc, D3D12_ROOT_DESCRIPTOR& outDesc)
-	{
-		outDesc.ShaderRegister = inDesc.shaderRegister;
-		outDesc.RegisterSpace = inDesc.registerSpace;
-	}
-
-	inline void rootParameter(const RootParameter& inParam, D3D12_ROOT_PARAMETER& outParam, TempAlloc& tempAlloc)
-	{
-		outParam.ParameterType = rootParameterType(inParam.parameterType);
-		switch (inParam.parameterType)
-		{
-		case ERootParameterType::DescriptorTable:
-		{
-			const uint32 num = inParam.descriptorTable.numDescriptorRanges;
-			D3D12_DESCRIPTOR_RANGE* tempDescriptorRanges = tempAlloc.allocDescriptorRanges(num);
-			for (uint32 i = 0; i < num; ++i)
-			{
-				descriptorRange(inParam.descriptorTable.descriptorRanges[i], tempDescriptorRanges[i]);
-			}
-			outParam.DescriptorTable.NumDescriptorRanges = num;
-			outParam.DescriptorTable.pDescriptorRanges = tempDescriptorRanges;
-		}
-		break;
-
-		case ERootParameterType::Constants32Bit:
-			rootConstants(inParam.constants, outParam.Constants);
-			break;
-
-		case ERootParameterType::CBV:
-		case ERootParameterType::SRV:
-		case ERootParameterType::UAV:
-			rootDescriptor(inParam.descriptor, outParam.Descriptor);
-			break;
-
-		default:
-			CHECK_NO_ENTRY();
-			break;
-		}
-		outParam.ShaderVisibility = shaderVisibility(inParam.shaderVisibility);
-	}
-
-	inline void rootSignatureDesc(
-		const RootSignatureDesc& inDesc,
-		D3D12_ROOT_SIGNATURE_DESC& outDesc,
-		TempAlloc& tempAlloc)
-	{
-		D3D12_ROOT_PARAMETER* tempParameters = tempAlloc.allocRootParameters(inDesc.numParameters);
-		D3D12_STATIC_SAMPLER_DESC* tempStaticSamplers = tempAlloc.allocStaticSamplers(inDesc.numStaticSamplers);
-		for (uint32 i = 0; i < inDesc.numParameters; ++i)
-		{
-			rootParameter(inDesc.parameters[i], tempParameters[i], tempAlloc);
-		}
-		for (uint32 i = 0; i < inDesc.numStaticSamplers; ++i)
-		{
-			staticSamplerDesc(inDesc.staticSamplers[i], tempStaticSamplers[i]);
-		}
-
-		outDesc.NumParameters = inDesc.numParameters;
-		outDesc.pParameters = tempParameters;
-		outDesc.NumStaticSamplers = inDesc.numStaticSamplers;
-		outDesc.pStaticSamplers = tempStaticSamplers;
-		outDesc.Flags = rootSignatureFlags(inDesc.flags);
 	}
 
 	inline D3D12_FILL_MODE fillMode(EFillMode inMode)
@@ -314,16 +222,16 @@ namespace into_d3d
 	{
 		switch (topology)
 		{
-			case EPrimitiveTopology::UNDEFINED:         return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
-			case EPrimitiveTopology::POINTLIST:         return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-			case EPrimitiveTopology::LINELIST:          return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
-			case EPrimitiveTopology::LINESTRIP:         return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
-			case EPrimitiveTopology::TRIANGLELIST:      return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-			case EPrimitiveTopology::TRIANGLESTRIP:     return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-			case EPrimitiveTopology::LINELIST_ADJ:      return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
-			case EPrimitiveTopology::LINESTRIP_ADJ:     return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ;
-			case EPrimitiveTopology::TRIANGLELIST_ADJ:  return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
-			case EPrimitiveTopology::TRIANGLESTRIP_ADJ: return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
+			case EPrimitiveTopology::UNDEFINED         : return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+			case EPrimitiveTopology::POINTLIST         : return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+			case EPrimitiveTopology::LINELIST          : return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+			case EPrimitiveTopology::LINESTRIP         : return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+			case EPrimitiveTopology::TRIANGLELIST      : return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			case EPrimitiveTopology::TRIANGLESTRIP     : return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+			case EPrimitiveTopology::LINELIST_ADJ      : return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
+			case EPrimitiveTopology::LINESTRIP_ADJ     : return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ;
+			case EPrimitiveTopology::TRIANGLELIST_ADJ  : return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
+			case EPrimitiveTopology::TRIANGLESTRIP_ADJ : return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
 		}
 		CHECK_NO_ENTRY();
 		return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
@@ -333,21 +241,19 @@ namespace into_d3d
 	{
 		switch (inFormat)
 		{
-		case EPixelFormat::UNKNOWN:            return DXGI_FORMAT_UNKNOWN;
-		case EPixelFormat::R32_TYPELESS:       return DXGI_FORMAT_R32_TYPELESS;
-		case EPixelFormat::R8G8B8A8_UNORM:     return DXGI_FORMAT_R8G8B8A8_UNORM;
-		case EPixelFormat::R32G32_FLOAT:       return DXGI_FORMAT_R32G32_FLOAT;
-		case EPixelFormat::R32G32B32_FLOAT:    return DXGI_FORMAT_R32G32B32_FLOAT;
-		case EPixelFormat::R32G32B32A32_FLOAT: return DXGI_FORMAT_R32G32B32A32_FLOAT;
-		case EPixelFormat::R16G16B16A16_FLOAT: return DXGI_FORMAT_R16G16B16A16_FLOAT;
-		case EPixelFormat::R32_UINT:           return DXGI_FORMAT_R32_UINT;
-		case EPixelFormat::R16_UINT:           return DXGI_FORMAT_R16_UINT;
-		case EPixelFormat::D24_UNORM_S8_UINT:  return DXGI_FORMAT_D24_UNORM_S8_UINT;
-		default:
-			// #todo: Unknown pixel format
-			CHECK_NO_ENTRY();
+			case EPixelFormat::UNKNOWN            : return DXGI_FORMAT_UNKNOWN;
+			case EPixelFormat::R32_TYPELESS       : return DXGI_FORMAT_R32_TYPELESS;
+			case EPixelFormat::R8G8B8A8_UNORM     : return DXGI_FORMAT_R8G8B8A8_UNORM;
+			case EPixelFormat::B8G8R8A8_UNORM     : return DXGI_FORMAT_B8G8R8A8_UNORM;
+			case EPixelFormat::R32G32_FLOAT       : return DXGI_FORMAT_R32G32_FLOAT;
+			case EPixelFormat::R32G32B32_FLOAT    : return DXGI_FORMAT_R32G32B32_FLOAT;
+			case EPixelFormat::R32G32B32A32_FLOAT : return DXGI_FORMAT_R32G32B32A32_FLOAT;
+			case EPixelFormat::R16G16B16A16_FLOAT : return DXGI_FORMAT_R16G16B16A16_FLOAT;
+			case EPixelFormat::R32_UINT           : return DXGI_FORMAT_R32_UINT;
+			case EPixelFormat::R16_UINT           : return DXGI_FORMAT_R16_UINT;
+			case EPixelFormat::D24_UNORM_S8_UINT  : return DXGI_FORMAT_D24_UNORM_S8_UINT;
 		}
-
+		CHECK_NO_ENTRY(); // #todo: Unknown pixel format
 		return DXGI_FORMAT_UNKNOWN;
 	}
 
@@ -362,14 +268,11 @@ namespace into_d3d
 		return static_cast<D3D12_INPUT_CLASSIFICATION>(inValue);
 	}
 
+	// NOTE: You must assign pRootSignature yourself.
 	void graphicsPipelineDesc(
 		const GraphicsPipelineDesc& inDesc,
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC& outDesc,
 		TempAlloc& tempAlloc);
-
-	void computePipelineDesc(
-		const ComputePipelineDesc& inDesc,
-		D3D12_COMPUTE_PIPELINE_STATE_DESC& outDesc);
 
 	inline void inputElement(const VertexInputElement& inDesc, D3D12_INPUT_ELEMENT_DESC& outDesc)
 	{
@@ -399,15 +302,15 @@ namespace into_d3d
 	{
 		switch (inType)
 		{
-		case EDescriptorHeapType::CBV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		case EDescriptorHeapType::SRV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		case EDescriptorHeapType::UAV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		case EDescriptorHeapType::CBV_SRV_UAV: return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		case EDescriptorHeapType::SAMPLER:  return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
-		case EDescriptorHeapType::RTV:  return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		case EDescriptorHeapType::DSV:  return D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		case EDescriptorHeapType::NUM_TYPES: CHECK_NO_ENTRY();
+			case EDescriptorHeapType::CBV         : return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::SRV         : return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::UAV         : return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::CBV_SRV_UAV : return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			case EDescriptorHeapType::SAMPLER     : return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+			case EDescriptorHeapType::RTV         : return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			case EDescriptorHeapType::DSV         : return D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 		}
+		CHECK_NO_ENTRY();
 		return D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 	}
 
@@ -428,10 +331,10 @@ namespace into_d3d
 	{
 		switch (dimension)
 		{
-			case ETextureDimension::UNKNOWN: return D3D12_RESOURCE_DIMENSION_UNKNOWN;
-			case ETextureDimension::TEXTURE1D: return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
-			case ETextureDimension::TEXTURE2D: return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-			case ETextureDimension::TEXTURE3D: return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+			case ETextureDimension::UNKNOWN   : return D3D12_RESOURCE_DIMENSION_UNKNOWN;
+			case ETextureDimension::TEXTURE1D : return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
+			case ETextureDimension::TEXTURE2D : return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			case ETextureDimension::TEXTURE3D : return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
 		}
 		CHECK_NO_ENTRY();
 		return D3D12_RESOURCE_DIMENSION_UNKNOWN;
@@ -488,7 +391,11 @@ namespace into_d3d
 		return desc;
 	}
 
-	D3D12_RESOURCE_BARRIER resourceBarrier(const ResourceBarrier& barrier);
+	D3D12_RESOURCE_STATES bufferMemoryLayout(EBufferMemoryLayout layout);
+	D3D12_RESOURCE_STATES textureMemoryLayout(ETextureMemoryLayout layout);
+
+	D3D12_RESOURCE_BARRIER resourceBarrier(const BufferMemoryBarrier& barrier);
+	D3D12_RESOURCE_BARRIER resourceBarrier(const TextureMemoryBarrier& barrier);
 
 	inline D3D12_RAYTRACING_GEOMETRY_TYPE raytracingGeometryType(ERaytracingGeometryType inType)
 	{
@@ -679,6 +586,102 @@ namespace into_d3d
 		return desc;
 	}
 
+	inline D3D12_RTV_DIMENSION rtvDimension(ERTVDimension inDimension)
+	{
+		switch (inDimension)
+		{
+			case ERTVDimension::Unknown          : return D3D12_RTV_DIMENSION_UNKNOWN;
+			case ERTVDimension::Buffer           : return D3D12_RTV_DIMENSION_BUFFER;
+			case ERTVDimension::Texture1D        : return D3D12_RTV_DIMENSION_TEXTURE1D;
+			case ERTVDimension::Texture1DArray   : return D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
+			case ERTVDimension::Texture2D        : return D3D12_RTV_DIMENSION_TEXTURE2D;
+			case ERTVDimension::Texture2DArray   : return D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+			case ERTVDimension::Texture2DMS      : return D3D12_RTV_DIMENSION_TEXTURE2DMS;
+			case ERTVDimension::Texture2DMSArray : return D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
+			case ERTVDimension::Texture3D        : return D3D12_RTV_DIMENSION_TEXTURE3D;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_RTV_DIMENSION_UNKNOWN;
+	}
+
+	inline D3D12_TEX2D_RTV texture2DRTVDesc(const Texture2DRTVDesc& inDesc)
+	{
+		return D3D12_TEX2D_RTV{
+			.MipSlice   = inDesc.mipSlice,
+			.PlaneSlice = inDesc.planeSlice,
+		};
+	}
+
+	inline D3D12_RENDER_TARGET_VIEW_DESC rtvDesc(const RenderTargetViewDesc& inDesc)
+	{
+		D3D12_RENDER_TARGET_VIEW_DESC desc{};
+		desc.Format        = into_d3d::pixelFormat(inDesc.format);
+		desc.ViewDimension = into_d3d::rtvDimension(inDesc.viewDimension);
+		switch (inDesc.viewDimension)
+		{
+			case ERTVDimension::Unknown          : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Buffer           : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture1D        : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture1DArray   : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture2D        : desc.Texture2D = into_d3d::texture2DRTVDesc(inDesc.texture2D); break;
+			case ERTVDimension::Texture2DArray   : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture2DMS      : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture2DMSArray : CHECK_NO_ENTRY(); break;
+			case ERTVDimension::Texture3D        : CHECK_NO_ENTRY(); break;
+		}
+		return desc;
+	}
+
+	inline D3D12_DSV_DIMENSION dsvDimension(EDSVDimension inDimension)
+	{
+		switch (inDimension)
+		{
+			case EDSVDimension::Unknown:          return D3D12_DSV_DIMENSION_UNKNOWN;
+			case EDSVDimension::Texture1D:        return D3D12_DSV_DIMENSION_TEXTURE1D;
+			case EDSVDimension::Texture1DArray:   return D3D12_DSV_DIMENSION_TEXTURE1DARRAY;
+			case EDSVDimension::Texture2D:        return D3D12_DSV_DIMENSION_TEXTURE2D;
+			case EDSVDimension::Texture2DArray:   return D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
+			case EDSVDimension::Texture2DMS:      return D3D12_DSV_DIMENSION_TEXTURE2DMS;
+			case EDSVDimension::Texture2DMSArray: return D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
+		}
+		CHECK_NO_ENTRY(); return D3D12_DSV_DIMENSION_UNKNOWN;
+	}
+
+	inline D3D12_DSV_FLAGS dsvFlags(EDSVFlags inFlags)
+	{
+		D3D12_DSV_FLAGS flags = D3D12_DSV_FLAG_NONE;
+		if (ENUM_HAS_FLAG(inFlags, EDSVFlags::OnlyDepth))   flags |= D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+		if (ENUM_HAS_FLAG(inFlags, EDSVFlags::OnlyStencil)) flags |= D3D12_DSV_FLAG_READ_ONLY_STENCIL;
+		return flags;
+	}
+
+	inline D3D12_TEX2D_DSV texture2DDSVDesc(const Texture2DDSVDesc& inDesc)
+	{
+		return D3D12_TEX2D_DSV{
+			.MipSlice = inDesc.mipSlice,
+		};
+	}
+
+	inline D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc(const DepthStencilViewDesc& inDesc)
+	{
+		D3D12_DEPTH_STENCIL_VIEW_DESC desc{};
+		desc.Format        = into_d3d::pixelFormat(inDesc.format);
+		desc.ViewDimension = into_d3d::dsvDimension(inDesc.viewDimension);
+		desc.Flags         = into_d3d::dsvFlags(inDesc.flags);
+		switch (inDesc.viewDimension)
+		{
+			case EDSVDimension::Unknown:          CHECK_NO_ENTRY(); break;
+			case EDSVDimension::Texture1D:        CHECK_NO_ENTRY(); break;
+			case EDSVDimension::Texture1DArray:   CHECK_NO_ENTRY(); break;
+			case EDSVDimension::Texture2D:        desc.Texture2D = into_d3d::texture2DDSVDesc(inDesc.texture2D); break;
+			case EDSVDimension::Texture2DArray:   CHECK_NO_ENTRY(); break;
+			case EDSVDimension::Texture2DMS:      CHECK_NO_ENTRY(); break;
+			case EDSVDimension::Texture2DMSArray: CHECK_NO_ENTRY(); break;
+			default:                              CHECK_NO_ENTRY(); break;
+		}
+		return desc;
+	}
+
 	inline D3D12_RESOURCE_FLAGS bufferResourceFlags(EBufferAccessFlags inFlags)
 	{
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
@@ -694,7 +697,7 @@ namespace into_d3d
 		return static_cast<D3D12_INDIRECT_ARGUMENT_TYPE>(inType);
 	}
 
-	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc);
+	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, D3DGraphicsPipelineState* pipelineState);
 
 	uint32 calcIndirectArgumentByteStride(const IndirectArgumentDesc& inDesc);
 	uint32 calcCommandSignatureByteStride(const CommandSignatureDesc& inDesc, uint32& outPaddingBytes);
@@ -702,6 +705,7 @@ namespace into_d3d
 	void commandSignature(
 		const CommandSignatureDesc& inDesc,
 		D3D12_COMMAND_SIGNATURE_DESC& outDesc,
+		D3DGraphicsPipelineState* pipelineState,
 		TempAlloc& tempAlloc);
 
 }

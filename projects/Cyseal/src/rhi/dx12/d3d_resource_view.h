@@ -10,21 +10,31 @@ class DescriptorHeap;
 class D3DRenderTargetView : public RenderTargetView
 {
 public:
-	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return handle; }
-	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE rawHandle) { handle = rawHandle; }
+	D3DRenderTargetView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, D3D12_CPU_DESCRIPTOR_HANDLE inCpuHandle)
+		: RenderTargetView(inOwner, inSourceHeap, inDescriptorIndex)
+		, cpuHandle(inCpuHandle)
+	{}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return cpuHandle; }
 
 private:
-	D3D12_CPU_DESCRIPTOR_HANDLE handle;
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
 };
 
 class D3DDepthStencilView : public DepthStencilView
 {
 public:
-	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return handle; }
-	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE rawHandle) { handle = rawHandle; }
+	D3DDepthStencilView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, D3D12_CPU_DESCRIPTOR_HANDLE inCpuHandle)
+		: DepthStencilView(inOwner, inSourceHeap, inDescriptorIndex)
+		, cpuHandle(inCpuHandle)
+	{
+	}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const { return cpuHandle; }
+	void setCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE rawHandle) { cpuHandle = rawHandle; }
 
 private:
-	D3D12_CPU_DESCRIPTOR_HANDLE handle;
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
 };
 
 class D3DShaderResourceView : public ShaderResourceView
@@ -75,7 +85,7 @@ public:
 
 	virtual void writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes) override;
 
-	virtual DescriptorHeap* getSourceHeap() override { return sourceHeap; }
+	virtual DescriptorHeap* getSourceHeap() const override { return sourceHeap; }
 
 	virtual uint32 getDescriptorIndexInHeap() const override { return descriptorIndex; }
 

@@ -13,7 +13,7 @@ namespace into_d3d
 	{
 		::memset(&outDesc, 0, sizeof(outDesc));
 
-		outDesc.pRootSignature = static_cast<D3DRootSignature*>(inDesc.rootSignature)->getRaw();
+		outDesc.pRootSignature = NULL; // You must provide this on your own.
 		if (inDesc.vs != nullptr) outDesc.VS = static_cast<D3DShaderStage*>(inDesc.vs)->getBytecode();
 		if (inDesc.ps != nullptr) outDesc.PS = static_cast<D3DShaderStage*>(inDesc.ps)->getBytecode();
 		if (inDesc.ds != nullptr) outDesc.DS = static_cast<D3DShaderStage*>(inDesc.ds)->getBytecode();
@@ -34,45 +34,66 @@ namespace into_d3d
 		sampleDesc(inDesc.sampleDesc, outDesc.SampleDesc);
 	}
 
-	void computePipelineDesc(
-		const ComputePipelineDesc& inDesc,
-		D3D12_COMPUTE_PIPELINE_STATE_DESC& outDesc)
+	D3D12_RESOURCE_STATES bufferMemoryLayout(EBufferMemoryLayout layout)
 	{
-		::memset(&outDesc, 0, sizeof(outDesc));
-		CHECK(inDesc.cs != nullptr);
-
-		outDesc.pRootSignature = static_cast<D3DRootSignature*>(inDesc.rootSignature)->getRaw();
-		outDesc.CS = static_cast<D3DShaderStage*>(inDesc.cs)->getBytecode();
-		outDesc.NodeMask = (UINT)inDesc.nodeMask;
-		// #todo-dx12: Compute shader - CachedPSO, Flags
-		outDesc.CachedPSO.pCachedBlob = NULL;
-		outDesc.CachedPSO.CachedBlobSizeInBytes = 0;
-		outDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+		switch (layout)
+		{
+			case EBufferMemoryLayout::COMMON                : return D3D12_RESOURCE_STATE_COMMON;
+			case EBufferMemoryLayout::PIXEL_SHADER_RESOURCE : return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			case EBufferMemoryLayout::UNORDERED_ACCESS      : return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			case EBufferMemoryLayout::COPY_SRC              : return D3D12_RESOURCE_STATE_COPY_SOURCE;
+			case EBufferMemoryLayout::COPY_DEST             : return D3D12_RESOURCE_STATE_COPY_DEST;
+			case EBufferMemoryLayout::INDIRECT_ARGUMENT     : return D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
+		}
+		CHECK_NO_ENTRY();
+		return D3D12_RESOURCE_STATE_COMMON;
 	}
 
-	D3D12_RESOURCE_BARRIER resourceBarrier(const ResourceBarrier& barrier)
+	D3D12_RESOURCE_STATES textureMemoryLayout(ETextureMemoryLayout layout)
 	{
-		D3D12_RESOURCE_BARRIER d3dBarrier;
-		d3dBarrier.Type = (D3D12_RESOURCE_BARRIER_TYPE)barrier.type;
-		d3dBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		switch (barrier.type)
+		switch (layout)
 		{
-			case EResourceBarrierType::Transition:
-				d3dBarrier.Transition.pResource = into_d3d::id3d12Resource(barrier.resource);
-				// #todo-barrier: Subresource index?
-				d3dBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-				d3dBarrier.Transition.StateBefore = (D3D12_RESOURCE_STATES)barrier.stateBefore;
-				d3dBarrier.Transition.StateAfter = (D3D12_RESOURCE_STATES)barrier.stateAfter;
-				break;
-			case EResourceBarrierType::Aliasing:
-				CHECK_NO_ENTRY();
-				break;
-			case EResourceBarrierType::UAV:
-				CHECK_NO_ENTRY();
-				break;
-			default:
-				break;
+			case ETextureMemoryLayout::COMMON                : return D3D12_RESOURCE_STATE_COMMON;
+			case ETextureMemoryLayout::RENDER_TARGET         : return D3D12_RESOURCE_STATE_RENDER_TARGET;
+			case ETextureMemoryLayout::DEPTH_STENCIL_TARGET  : return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+			case ETextureMemoryLayout::PIXEL_SHADER_RESOURCE : return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			case ETextureMemoryLayout::UNORDERED_ACCESS      : return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			case ETextureMemoryLayout::COPY_SRC              : return D3D12_RESOURCE_STATE_COPY_SOURCE;
+			case ETextureMemoryLayout::COPY_DEST             : return D3D12_RESOURCE_STATE_COPY_DEST;
+			case ETextureMemoryLayout::PRESENT               : return D3D12_RESOURCE_STATE_PRESENT;
 		}
+		CHECK_NO_ENTRY();
+		return D3D12_RESOURCE_STATE_COMMON;
+	}
+
+	D3D12_RESOURCE_BARRIER resourceBarrier(const BufferMemoryBarrier& barrier)
+	{
+		D3D12_RESOURCE_BARRIER d3dBarrier{
+			.Type       = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+			.Flags      = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+			.Transition = {
+				.pResource   = into_d3d::id3d12Resource(barrier.buffer),
+				// #todo-barrier: offset and size like VkBufferMemoryBarrier?
+				.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+				.StateBefore = into_d3d::bufferMemoryLayout(barrier.stateBefore),
+				.StateAfter  = into_d3d::bufferMemoryLayout(barrier.stateAfter),
+			},
+		};
+		return d3dBarrier;
+	}
+
+	D3D12_RESOURCE_BARRIER resourceBarrier(const TextureMemoryBarrier& barrier)
+	{
+		D3D12_RESOURCE_BARRIER d3dBarrier{
+			.Type       = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+			.Flags      = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+			.Transition = {
+				.pResource   = into_d3d::id3d12Resource(barrier.texture),
+				.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, // #todo-barrier: DX12 texture subresource
+				.StateBefore = into_d3d::textureMemoryLayout(barrier.stateBefore),
+				.StateAfter  = into_d3d::textureMemoryLayout(barrier.stateAfter),
+			},
+		};
 		return d3dBarrier;
 	}
 
@@ -116,7 +137,7 @@ namespace into_d3d
 		}
 	}
 
-	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc)
+	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, D3DGraphicsPipelineState* pipelineState)
 	{
 		outDesc.Type = into_d3d::indirectArgumentType(inDesc.type);
 		if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_VERTEX_BUFFER_VIEW)
@@ -125,21 +146,21 @@ namespace into_d3d
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT)
 		{
-			outDesc.Constant.RootParameterIndex = inDesc.constant.rootParameterIndex;
+			outDesc.Constant.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
 			outDesc.Constant.DestOffsetIn32BitValues = inDesc.constant.destOffsetIn32BitValues;
 			outDesc.Constant.Num32BitValuesToSet = inDesc.constant.num32BitValuesToSet;
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW)
 		{
-			outDesc.ConstantBufferView.RootParameterIndex = inDesc.constantBufferView.rootParameterIndex;
+			outDesc.ConstantBufferView.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_SHADER_RESOURCE_VIEW)
 		{
-			outDesc.ShaderResourceView.RootParameterIndex = inDesc.shaderResourceView.rootParameterIndex;
+			outDesc.ShaderResourceView.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW)
 		{
-			outDesc.UnorderedAccessView.RootParameterIndex = inDesc.unorderedAccessView.rootParameterIndex;
+			outDesc.UnorderedAccessView.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
 		}
 	}
 
@@ -178,13 +199,14 @@ namespace into_d3d
 	void commandSignature(
 		const CommandSignatureDesc& inDesc,
 		D3D12_COMMAND_SIGNATURE_DESC& outDesc,
+		D3DGraphicsPipelineState* pipelineState,
 		TempAlloc& tempAlloc)
 	{
 		uint32 numArgumentDescs = (uint32)inDesc.argumentDescs.size();
 		D3D12_INDIRECT_ARGUMENT_DESC* tempArgumentDescs = tempAlloc.allocIndirectArgumentDescs(numArgumentDescs);
 		for (uint32 i = 0; i < numArgumentDescs; ++i)
 		{
-			into_d3d::indirectArgument(inDesc.argumentDescs[i], tempArgumentDescs[i]);
+			into_d3d::indirectArgument(inDesc.argumentDescs[i], tempArgumentDescs[i], pipelineState);
 		}
 
 		uint32 unusedPaddingBytes;

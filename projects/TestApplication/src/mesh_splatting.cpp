@@ -1,5 +1,6 @@
 #include "mesh_splatting.h"
 
+#include "core/smart_pointer.h"
 #include "rhi/render_command.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/texture_manager.h"
@@ -9,16 +10,16 @@
 
 void MeshSplatting::createResources(const CreateParams& createParams)
 {
-	std::shared_ptr<TextureAsset> baseTextures[] = {
+	SharedPtr<TextureAsset> baseTextures[] = {
 		gTextureManager->getSystemTextureWhite2D(),
 		gTextureManager->getSystemTextureRed2D(),
 		gTextureManager->getSystemTextureGreen2D(),
 		gTextureManager->getSystemTextureBlue2D(),
 	};
-	std::vector<std::shared_ptr<Material>> baseMaterials;
+	std::vector<SharedPtr<Material>> baseMaterials;
 	for (const auto& baseTex : baseTextures)
 	{
-		auto material = std::make_shared<Material>();
+		auto material = makeShared<Material>();
 		material->albedoTexture = baseTex;
 		material->albedoMultiplier[0] = 0.1f;
 		material->albedoMultiplier[1] = 0.1f;
@@ -44,9 +45,9 @@ void MeshSplatting::createResources(const CreateParams& createParams)
 			}
 			AABB localBounds = geom->localBounds;
 
-			auto positionBufferAsset = std::make_shared<VertexBufferAsset>();
-			auto nonPositionBufferAsset = std::make_shared<VertexBufferAsset>();
-			auto indexBufferAsset = std::make_shared<IndexBufferAsset>();
+			auto positionBufferAsset = makeShared<VertexBufferAsset>();
+			auto nonPositionBufferAsset = makeShared<VertexBufferAsset>();
+			auto indexBufferAsset = makeShared<IndexBufferAsset>();
 
 			ENQUEUE_RENDER_COMMAND(UploadMeshBuffers)(
 				[positionBufferAsset,
@@ -62,9 +63,9 @@ void MeshSplatting::createResources(const CreateParams& createParams)
 					nonPositionBuffer->updateData(&commandList, geom->getNonPositionBlob(), geom->getNonPositionStride());
 					indexBuffer->updateData(&commandList, geom->getIndexBlob(), geom->getIndexFormat());
 
-					positionBufferAsset->setGPUResource(std::shared_ptr<VertexBuffer>(positionBuffer));
-					nonPositionBufferAsset->setGPUResource(std::shared_ptr<VertexBuffer>(nonPositionBuffer));
-					indexBufferAsset->setGPUResource(std::shared_ptr<IndexBuffer>(indexBuffer));
+					positionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
+					nonPositionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
+					indexBufferAsset->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
 
 					commandList.enqueueDeferredDealloc(geom);
 				}

@@ -1,8 +1,12 @@
 #pragma once
 
+#include "pipeline_state.h"
+#include "gpu_resource_view.h"
+#include "descriptor_heap.h"
 #include "core/int_types.h"
 #include "util/enum_util.h"
-#include "pipeline_state.h"
+
+#include <string>
 
 // Common interface for DX12 root signature and Vulkan descriptor set.
 // NOTE 1: This file might be merged into another file.
@@ -17,133 +21,7 @@ enum class EShaderVisibility : uint8
 	Domain   = 3,
 	Geometry = 4,
 	Pixel    = 5
-	// #todo-renderdevice: Amplication, Mesh
-};
-
-// D3D12_ROOT_PARAMETER_TYPE
-enum class ERootParameterType : uint8
-{
-	DescriptorTable = 0,
-	Constants32Bit  = 1,
-	CBV             = 2,
-	SRV             = 3,
-	UAV             = 4
-};
-
-// D3D12_DESCRIPTOR_RANGE_TYPE
-enum class EDescriptorRangeType : uint8
-{
-	SRV     = 0,
-	UAV     = 1,
-	CBV     = 2,
-	SAMPLER = 3
-};
-
-// D3D12_DESCRIPTOR_RANGE
-struct DescriptorRange
-{
-	EDescriptorRangeType rangeType;
-	uint32 numDescriptors;
-	uint32 baseShaderRegister;
-	uint32 registerSpace;
-	uint32 offsetInDescriptorsFromTableStart;
-
-	inline void init(
-		EDescriptorRangeType inRangeType,
-		uint32 inNumDescriptors,
-		uint32 inBaseShaderRegister,
-		uint32 inRegisterSpace = 0,
-		// 0xffffffff = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND
-		uint32 inOffsetDescriptorsFromTableStart = 0xffffffff)
-	{
-		rangeType                         = inRangeType;
-		numDescriptors                    = inNumDescriptors;
-		baseShaderRegister                = inBaseShaderRegister;
-		registerSpace                     = inRegisterSpace;
-		offsetInDescriptorsFromTableStart = inOffsetDescriptorsFromTableStart;
-	}
-};
-
-// D3D12_ROOT_DESCRIPTOR_TABLE
-struct RootDescriptorTable
-{
-	uint32 numDescriptorRanges;
-	const DescriptorRange* descriptorRanges;
-};
-
-// D3D12_ROOT_CONSTANTS
-struct RootConstants
-{
-	uint32 shaderRegister;
-	uint32 registerSpace;
-	uint32 num32BitValues;
-};
-
-// D3D12_ROOT_DESCRIPTOR
-struct RootDescriptor
-{
-	uint32 shaderRegister;
-	uint32 registerSpace;
-};
-
-// D3D12_ROOT_PARAMETER
-struct RootParameter
-{
-	ERootParameterType parameterType;
-	union
-	{
-		RootDescriptorTable descriptorTable;
-		RootConstants constants;
-		RootDescriptor descriptor;
-	};
-	EShaderVisibility shaderVisibility;
-
-	void initAsDescriptorTable(
-		uint32 numDescriptorRanges,
-		const DescriptorRange* descriptorRanges)
-	{
-		parameterType = ERootParameterType::DescriptorTable;
-		{
-			descriptorTable.numDescriptorRanges = numDescriptorRanges;
-			descriptorTable.descriptorRanges = descriptorRanges;
-		}
-		shaderVisibility = EShaderVisibility::All;
-	}
-	void initAsSRV(
-		uint32 shaderRegister,
-		uint32 registerSpace)
-	{
-		parameterType = ERootParameterType::SRV;
-		{
-			descriptor.shaderRegister = shaderRegister;
-			descriptor.registerSpace = registerSpace;
-		}
-		shaderVisibility = EShaderVisibility::All;
-	}
-	void initAsUAV(
-		uint32 shaderRegister,
-		uint32 registerSpace)
-	{
-		parameterType = ERootParameterType::UAV;
-		{
-			descriptor.shaderRegister = shaderRegister;
-			descriptor.registerSpace = registerSpace;
-		}
-		shaderVisibility = EShaderVisibility::All;
-	}
-	void initAsConstants(
-		uint32 shaderRegister,
-		uint32 registerSpace,
-		uint32 num32BitValues)
-	{
-		parameterType = ERootParameterType::Constants32Bit;
-		{
-			constants.shaderRegister = shaderRegister;
-			constants.registerSpace = registerSpace;
-			constants.num32BitValues = num32BitValues;
-		}
-		shaderVisibility = EShaderVisibility::All;
-	}
+	// #todo-rhi: EShaderVisibility - Amplication, Mesh
 };
 
 // D3D12_FILTER
@@ -223,120 +101,58 @@ struct StaticSamplerDesc
 	EShaderVisibility shaderVisibility = EShaderVisibility::All;
 };
 
-// D3D12_ROOT_SIGNATURE_FLAGS
-enum class ERootSignatureFlags : uint32
-{
-	None                            = 0,
-	AllowInputAssemblerInputLayout  = 0x1,
-	DenyVertexShaderRootAccess      = 0x2,
-	DenyHullShaderRootAccess        = 0x4,
-	DenyDomainShaderRootAccess      = 0x8,
-	DenyGeometryShaderRootAccess    = 0x10,
-	DenyPixelShaderRootAccess       = 0x20,
-	AllowStreamOutput               = 0x40,
-	LocalRootSignature              = 0x80,
-	DenyAmplicationShaderRootAccess = 0x100,
-	DenyMeshShaderRootAccess        = 0x200,
-	CbvSrvUavHeapDirectlyIndexed    = 0x400,
-	SamplerHeapDirectlyIndexed      = 0x800,
-};
-ENUM_CLASS_FLAGS(ERootSignatureFlags);
+// -----------------------------------------------------------------------
 
-// D3D12_ROOT_SIGNATURE_DESC
-struct RootSignatureDesc
+struct ShaderParameterTable
 {
-	RootSignatureDesc(
-		uint32 inNumParameters                      = 0
-		, const RootParameter* inParameters         = nullptr
-		, uint32 inNumStaticSamplers                = 0
-		, const StaticSamplerDesc* inStaticSamplers = nullptr
-		, ERootSignatureFlags inFlags               = ERootSignatureFlags::None)
-	{
-		numParameters = inNumParameters;
-		parameters = inParameters;
-		numStaticSamplers = inNumStaticSamplers;
-		staticSamplers = inStaticSamplers;
-		flags = inFlags;
-	}
+	using ParameterName = const char*;
+	struct PushConstant       { std::string name; uint32 value; uint32 destOffsetIn32BitValues; };
+	struct ConstantBuffer     { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
+	struct StructuredBuffer   { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
+	struct RWBuffer           { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
+	struct RWStructuredBuffer { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
+	struct ByteAddressBuffer  { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
+	struct Texture            { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
+	struct RWTexture          { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
+	struct AccelerationStruct { std::string name; ShaderResourceView* srv; };
 
-	uint32 numParameters;
-	const RootParameter* parameters;
-	uint32 numStaticSamplers;
-	const StaticSamplerDesc* staticSamplers;
-	ERootSignatureFlags flags;
-};
-
-// https://docs.microsoft.com/en-us/windows/win32/direct3d12/root-signatures-overview
-// ID3D12RootSignature
-// VkPipelineLayout
-// - Defines resource binding for drawcall.
-// - It's a collection of root parameters.
-// - A root parameter is one of root constant, root descirptor, or descriptor table.
-class RootSignature
-{
 public:
-	virtual ~RootSignature() = default;
-};
+	// These API take a single parameter.
+	void pushConstant(ParameterName name, uint32 value, uint32 destOffsetIn32BitValues = 0) { pushConstants.emplace_back(PushConstant{ name, value, destOffsetIn32BitValues }); }
+	void constantBuffer(ParameterName name, ConstantBufferView* buffer) { constantBuffers.emplace_back(ConstantBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
+	void structuredBuffer(ParameterName name, ShaderResourceView* buffer) { structuredBuffers.emplace_back(StructuredBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
+	void rwBuffer(ParameterName name, UnorderedAccessView* buffer) { rwBuffers.emplace_back(RWBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
+	void rwStructuredBuffer(ParameterName name, UnorderedAccessView* buffer) { rwStructuredBuffers.emplace_back(RWStructuredBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
+	void byteAddressBuffer(ParameterName name, ShaderResourceView* buffer) { byteAddressBuffers.emplace_back(ByteAddressBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
+	void texture(ParameterName name, ShaderResourceView* texture) { textures.emplace_back(Texture{ name, texture->getSourceHeap(), texture->getDescriptorIndexInHeap(), 1 }); }
+	void rwTexture(ParameterName name, UnorderedAccessView* texture) { rwTextures.emplace_back(RWTexture{ name, texture->getSourceHeap(), texture->getDescriptorIndexInHeap(), 1 }); }
+	void accelerationStructure(ParameterName name, ShaderResourceView* accelStruct) { accelerationStructures.emplace_back(AccelerationStruct{ name, accelStruct }); }
 
-// ----------------------------------------------------------------------------
-// Descriptor Heap
+	// CAUTION: Use at your own risk. These API directly copy contiguous descriptors in a descriptor heap. No check for resource type.
+	void constantBuffer(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { constantBuffers.emplace_back(ConstantBuffer{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
+	void structuredBuffer(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { structuredBuffers.emplace_back(StructuredBuffer{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
+	void rwBuffer(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { rwBuffers.emplace_back(RWBuffer{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
+	void rwStructuredBuffer(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { rwStructuredBuffers.emplace_back(RWStructuredBuffer{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
+	void byteAddressBuffer(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { byteAddressBuffers.emplace_back(ByteAddressBuffer{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
+	void texture(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { textures.emplace_back(Texture{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
+	void rwTexture(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { rwTextures.emplace_back(RWTexture{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
 
-// D3D12_DESCRIPTOR_HEAP_TYPE
-// VkDescriptorType
-enum class EDescriptorHeapType : uint8
-{
-	CBV         = 0,
-	SRV         = 1,
-	UAV         = 2,
-	CBV_SRV_UAV = 3, // #todo-vulkan-wip: Oops... See VulkanDevice::createDescriptorHeap()
-	SAMPLER     = 4,
-	RTV         = 5,
-	DSV         = 6,
-	NUM_TYPES   = 7
-};
+	size_t totalParameters() const
+	{
+		return pushConstants.size() + constantBuffers.size()
+			+ structuredBuffers.size() + rwBuffers.size() + rwStructuredBuffers.size()
+			+ textures.size() + rwTextures.size()
+			+ accelerationStructures.size();
+	}
 
-// D3D12_DESCRIPTOR_HEAP_FLAGS
-enum class EDescriptorHeapFlags : uint8
-{
-	None          = 0,
-	ShaderVisible = 1,
-};
-
-// D3D12_DESCRIPTOR_HEAP_DESC
-struct DescriptorHeapDesc
-{
-	EDescriptorHeapType type   = EDescriptorHeapType::NUM_TYPES;
-	uint32 numDescriptors      = 0;
-	EDescriptorHeapFlags flags = EDescriptorHeapFlags::None;
-	uint32 nodeMask            = 0; // MGPU thing
-};
-
-// #todo-renderer: Move to gpu_resource.h?
-// ID3D12DescriptorHeap
-// VkDescriptorPool
-class DescriptorHeap
-{
 public:
-	DescriptorHeap(const DescriptorHeapDesc& inDesc)
-		: desc(inDesc)
-	{
-	}
-
-	virtual ~DescriptorHeap() = default;
-
-	virtual void setDebugName(const wchar_t* name) = 0;
-
-	uint32 allocateDescriptorIndex()
-	{
-		CHECK(currentDescriptorIndex < desc.numDescriptors);
-		uint32 ix = currentDescriptorIndex;
-		currentDescriptorIndex += 1;
-		return ix;
-	}
-
-	const DescriptorHeapDesc& getDesc() const { return desc; }
-
-private:
-	const DescriptorHeapDesc desc;
-	uint32 currentDescriptorIndex = 0;
+	std::vector<PushConstant>       pushConstants;
+	std::vector<ConstantBuffer>     constantBuffers;
+	std::vector<StructuredBuffer>   structuredBuffers;
+	std::vector<RWBuffer>           rwBuffers;
+	std::vector<RWStructuredBuffer> rwStructuredBuffers;
+	std::vector<ByteAddressBuffer>  byteAddressBuffers;
+	std::vector<Texture>            textures;
+	std::vector<RWTexture>          rwTextures;
+	std::vector<AccelerationStruct> accelerationStructures;
 };

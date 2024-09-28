@@ -20,19 +20,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
-namespace RootParameters
-{
-	enum BasePass
-	{
-		ObjectIDSlot = 0,
-		SceneUniformSlot,
-		GPUSceneSlot,
-		MaterialConstantsSlot,
-		MaterialTexturesSlot,
-		Count
-	};
-};
-
 void BasePass::initialize()
 {
 	RenderDevice* device = gRenderDevice;
@@ -49,42 +36,46 @@ void BasePass::initialize()
 	totalVolatileDescriptor.resize(swapchainCount, 0);
 	volatileViewHeap.initialize(swapchainCount);
 
-	// Root signature
+	// Input layout
+	// #todo: Should be variant per vertex factory
+	VertexInputLayout inputLayout = {
+			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
+			{"NORMAL", 0, EPixelFormat::R32G32B32_FLOAT, 1, 0, EVertexInputClassification::PerVertex, 0},
+			{"TEXCOORD", 0, EPixelFormat::R32G32_FLOAT, 1, sizeof(float) * 3, EVertexInputClassification::PerVertex, 0}
+	};
+
+	// Shader stages
+	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BasePassVS");
+	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BasePassPS");
+	shaderVS->declarePushConstants({ "pushConstants" });
+	shaderPS->declarePushConstants({ "pushConstants" });
+	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS");
+	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
+
+	// PSO
+	GraphicsPipelineDesc pipelineDesc{
+		.vs                     = shaderVS,
+		.ps                     = shaderPS,
+		.blendDesc              = BlendDesc(),
+		.sampleMask             = 0xffffffff,
+		.rasterizerDesc         = RasterizerDesc(),
+		.depthstencilDesc       = DepthstencilDesc::StandardSceneDepth(),
+		.inputLayout            = inputLayout,
+		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
+		.numRenderTargets       = 2,
+		.rtvFormats             = { PF_sceneColor, PF_thinGBufferA, },
+		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.sampleDesc = SampleDesc{
+			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
+			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
+		},
+	};
+	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
+
+	// Cleanup
 	{
-		RootParameter rootParameters[RootParameters::Count];
-		
-		// #todo-vulkan: Careful with HLSL register space used here.
-		// See: https://github.com/microsoft/DirectXShaderCompiler/blob/main/docs/SPIR-V.rst#hlsl-register-and-vulkan-binding
-		
-		DescriptorRange descriptorRanges[3];
-		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1,            1, 0); // register(b1, space0)
-		descriptorRanges[1].init(EDescriptorRangeType::CBV, (uint32)(-1), 0, 1); // register(b0, space1)
-		descriptorRanges[2].init(EDescriptorRangeType::SRV, (uint32)(-1), 0, 1); // register(t0, space1)
-
-		rootParameters[RootParameters::ObjectIDSlot].initAsConstants(0, 0, 1); // register(b0, space0)
-		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
-		rootParameters[RootParameters::GPUSceneSlot].initAsSRV(0, 0); // register(t0, space0)
-		rootParameters[RootParameters::MaterialConstantsSlot].initAsDescriptorTable(1, &descriptorRanges[1]);
-		rootParameters[RootParameters::MaterialTexturesSlot].initAsDescriptorTable(1, &descriptorRanges[2]);
-
-		StaticSamplerDesc staticSamplers[] = {
-			{
-				.filter = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
-				.addressU = ETextureAddressMode::Wrap,
-				.addressV = ETextureAddressMode::Wrap,
-				.addressW = ETextureAddressMode::Wrap,
-				.shaderVisibility = EShaderVisibility::Pixel,
-			}
-		};
-
-		RootSignatureDesc rootSigDesc(
-			RootParameters::Count,
-			rootParameters,
-			_countof(staticSamplers),
-			staticSamplers,
-			ERootSignatureFlags::AllowInputAssemblerInputLayout);
-
-		rootSignature = UniquePtr<RootSignature>(device->createRootSignature(rootSigDesc));
+		delete shaderVS;
+		delete shaderPS;
 	}
 
 	// Indirect draw
@@ -94,8 +85,8 @@ void BasePass::initialize()
 			.argumentDescs = {
 				IndirectArgumentDesc{
 					.type = EIndirectArgumentType::CONSTANT,
+					.name = "pushConstants",
 					.constant = {
-						.rootParameterIndex = RootParameters::ObjectIDSlot,
 						.destOffsetIn32BitValues = 0,
 						.num32BitValuesToSet = 1,
 					},
@@ -122,7 +113,7 @@ void BasePass::initialize()
 			.nodeMask = 0,
 		};
 		commandSignature = UniquePtr<CommandSignature>(
-			device->createCommandSignature(commandSignatureDesc, rootSignature.get()));
+			device->createCommandSignature(commandSignatureDesc, pipelineState.get()));
 
 		argumentBufferGenerator = UniquePtr<IndirectCommandGenerator>(
 			device->createIndirectCommandGenerator(commandSignatureDesc, 256));
@@ -134,7 +125,7 @@ void BasePass::initialize()
 				BufferCreateParams{
 					.sizeInBytes = sizeof(uint32),
 					.alignment   = 0,
-					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+					.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
 				}
 			));
 
@@ -154,48 +145,6 @@ void BasePass::initialize()
 			drawCounterBufferUAV[i] = UniquePtr<UnorderedAccessView>(
 				gRenderDevice->createUAV(drawCounterBuffer[i].get(), uavDesc));
 		}
-	}
-
-	// Input layout
-	// #todo: Should be variant per vertex factory
-	VertexInputLayout inputLayout = {
-			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
-			{"NORMAL", 0, EPixelFormat::R32G32B32_FLOAT, 1, 0, EVertexInputClassification::PerVertex, 0},
-			{"TEXCOORD", 0, EPixelFormat::R32G32_FLOAT, 1, sizeof(float) * 3, EVertexInputClassification::PerVertex, 0}
-	};
-
-	// Shader stages
-	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BasePassVS");
-	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BasePassPS");
-	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS");
-	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
-
-	// PSO
-	{
-		GraphicsPipelineDesc desc;
-		desc.inputLayout            = inputLayout;
-		desc.rootSignature          = rootSignature.get();
-		desc.vs                     = shaderVS;
-		desc.ps                     = shaderPS;
-		desc.rasterizerDesc         = RasterizerDesc();
-		desc.blendDesc              = BlendDesc();
-		desc.depthstencilDesc       = DepthstencilDesc::StandardSceneDepth();
-		desc.sampleMask             = 0xffffffff;
-		desc.primitiveTopologyType  = EPrimitiveTopologyType::Triangle;
-		desc.numRenderTargets       = 2;
-		desc.rtvFormats[0]          = PF_sceneColor;
-		desc.rtvFormats[1]          = PF_thinGBufferA;
-		desc.sampleDesc.count       = swapchain->supports4xMSAA() ? 4 : 1;
-		desc.sampleDesc.quality     = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0;
-		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();
-
-		pipelineState = UniquePtr<PipelineState>(device->createGraphicsPipelineState(desc));
-	}
-
-	// Cleanup
-	{
-		delete shaderVS;
-		delete shaderPS;
 	}
 }
 
@@ -223,7 +172,8 @@ void BasePass::renderBasePass(
 		gpuScene->queryMaterialDescriptorsCount(swapchainIndex, materialCBVCount, materialSRVCount);
 
 		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // scene uniform
+		requiredVolatiles += 1; // sceneUniform
+		requiredVolatiles += 1; // gpuSceneBuffer
 		requiredVolatiles += materialCBVCount;
 		requiredVolatiles += materialSRVCount;
 
@@ -252,7 +202,7 @@ void BasePass::renderBasePass(
 				BufferCreateParams{
 					.sizeInBytes = requiredCapacity,
 					.alignment   = 0,
-					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
+					.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
 				}
 			));
 
@@ -343,15 +293,22 @@ void BasePass::renderBasePass(
 		}
 	}
 
-	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
-	// Setting a PSO does not change the root signature.
-	// The application must call a dedicated API for setting the root signature.
-	commandList->setPipelineState(pipelineState.get());
-	commandList->setGraphicsRootSignature(rootSignature.get());
 	
+	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->iaSetPrimitiveTopology(primitiveTopology);
 
-	bindRootParameters(commandList, swapchainIndex, sceneUniformBuffer, gpuScene);
+	// Bind shader parameters except for root constants.
+	{
+		GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
+		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
+		SPT.constantBuffer("materials", gpuSceneDesc.cbvHeap, 0, gpuSceneDesc.cbvCount);
+		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
+
+		commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
+	}
 	
 	if (rendererOptions.bEnableIndirectDraw)
 	{
@@ -374,7 +331,9 @@ void BasePass::renderBasePass(
 		{
 			for (const StaticMeshSection& section : mesh->getSections(LOD))
 			{
-				commandList->setGraphicsRootConstant32(RootParameters::ObjectIDSlot, payloadID, 0);
+				ShaderParameterTable SPT{};
+				SPT.pushConstant("pushConstants", payloadID);
+				commandList->updateGraphicsRootConstants(pipelineState.get(), &SPT);
 
 				VertexBuffer* vertexBuffers[] = {
 					section.positionBuffer->getGPUResource().get(),
@@ -390,44 +349,6 @@ void BasePass::renderBasePass(
 			}
 		}
 	}
-}
-
-void BasePass::bindRootParameters(
-	RenderCommandList* cmdList,
-	uint32 swapchainIndex,
-	ConstantBufferView* sceneUniform,
-	GPUScene* gpuScene)
-{
-	// slot0: Updated per drawcall, not here
-	//cmdList->setGraphicsRootConstant32(0, payloadID, 0);
-
-	// #todo-sampler: volatile sampler heap in the second element
-	DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
-	DescriptorHeap* heaps[] = { volatileHeap, };
-	cmdList->setDescriptorHeaps(1, heaps);
-
-	// Scene uniform
-	constexpr uint32 sceneUniformDescIx = 0;
-	gRenderDevice->copyDescriptors(
-		1,
-		volatileHeap, sceneUniformDescIx,
-		sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap());
-	cmdList->setGraphicsRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, sceneUniformDescIx);
-
-	cmdList->setGraphicsRootDescriptorSRV(RootParameters::GPUSceneSlot, gpuScene->getGPUSceneBufferSRV());
-	
-	// Material CBV and SRV
-	uint32 materialCBVBaseIndex, materialCBVCount;
-	uint32 materialSRVBaseIndex, materialSRVCount;
-	uint32 freeDescriptorIndexAfterMaterials;
-	gpuScene->copyMaterialDescriptors(
-		swapchainIndex,
-		volatileHeap, 1,
-		materialCBVBaseIndex, materialCBVCount,
-		materialSRVBaseIndex, materialSRVCount,
-		freeDescriptorIndexAfterMaterials);
-	cmdList->setGraphicsRootDescriptorTable(RootParameters::MaterialConstantsSlot, volatileHeap, materialCBVBaseIndex);
-	cmdList->setGraphicsRootDescriptorTable(RootParameters::MaterialTexturesSlot, volatileHeap, materialSRVBaseIndex);
 }
 
 void BasePass::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)

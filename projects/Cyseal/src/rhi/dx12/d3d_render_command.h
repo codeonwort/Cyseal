@@ -46,8 +46,8 @@ public:
 	virtual void close() override;
 
 	virtual void resourceBarriers(
-		uint32 numBarriers,
-		const ResourceBarrier* barriers) override;
+		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
+		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers) override;
 
 	virtual void clearRenderTargetView(
 		RenderTargetView* RTV,
@@ -62,12 +62,11 @@ public:
 	// ------------------------------------------------------------------------
 	// Pipeline state (graphics, compute, raytracing)
 
-	virtual void setPipelineState(PipelineState* state) override;
+	virtual void setGraphicsPipelineState(GraphicsPipelineState* state) override;
+	virtual void setComputePipelineState(ComputePipelineState* state) override;
 	virtual void setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso) override;
 
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override;
-	virtual void setGraphicsRootSignature(RootSignature* rootSignature) override;
-	virtual void setComputeRootSignature(RootSignature* rootSignature) override;
 
 	// ------------------------------------------------------------------------
 	// Graphics pipeline
@@ -85,24 +84,9 @@ public:
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) override;
 	virtual void omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV) override;
 
-	virtual void setGraphicsRootConstant32(
-		uint32 rootParameterIndex,
-		uint32 constant32,
-		uint32 destOffsetIn32BitValues) override;
-	virtual void setGraphicsRootConstant32Array(
-		uint32 rootParameterIndex,
-		uint32 numValuesToSet,
-		const void* srcData,
-		uint32 destOffsetIn32BitValues) override;
+	virtual void bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) override;
 
-	virtual void setGraphicsRootDescriptorTable(
-		uint32 rootParameterIndex,
-		DescriptorHeap* descriptorHeap,
-		uint32 descriptorStartOffset) override;
-
-	virtual void setGraphicsRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv) override;
-	virtual void setGraphicsRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv) override;
-	virtual void setGraphicsRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav) override;
+	virtual void updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters) override;
 
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
@@ -128,37 +112,16 @@ public:
 	// ------------------------------------------------------------------------
 	// Compute pipeline
 
-	virtual void setComputeRootConstant32(
-		uint32 rootParameterIndex,
-		uint32 constant32,
-		uint32 destOffsetIn32BitValues) override;
-	virtual void setComputeRootConstant32Array(
-		uint32 rootParameterIndex,
-		uint32 numValuesToSet,
-		const void* srcData,
-		uint32 destOffsetIn32BitValues) override;
+	virtual void bindComputeShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) override;
 
-	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
-	virtual void setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv) override;
-	virtual void setComputeRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv) override;
-	virtual void setComputeRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav) override;
-
-	virtual void setComputeRootDescriptorTable(
-		uint32 rootParameterIndex,
-		DescriptorHeap* descriptorHeap,
-		uint32 descriptorStartOffset) override;
-
-	virtual void dispatchCompute(
-		uint32 threadGroupX,
-		uint32 threadGroupY,
-		uint32 threadGroupZ) override;
+	virtual void dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ) override;
 
 	// ------------------------------------------------------------------------
 	// Raytracing pipeline
 
-	virtual AccelerationStructure* buildRaytracingAccelerationStructure(
-		uint32 numBLASDesc,
-		BLASInstanceInitDesc* blasDescArray) override;
+	virtual AccelerationStructure* buildRaytracingAccelerationStructure(uint32 numBLASDesc, BLASInstanceInitDesc* blasDescArray) override;
+
+	virtual void bindRaytracingShaderParameters(RaytracingPipelineStateObject* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) override;
 
 	virtual void dispatchRays(const DispatchRaysDesc& dispatchDesc) override;
 

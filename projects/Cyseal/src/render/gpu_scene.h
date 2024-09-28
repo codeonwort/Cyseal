@@ -2,18 +2,9 @@
 
 #include "core/vec3.h"
 #include "core/smart_pointer.h"
-#include "rhi/gpu_resource.h"
+#include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_view.h"
-#include "rhi/gpu_resource_binding.h"
 
-class RenderCommandList;
-class PipelineState;
-class RootSignature;
-class DescriptorHeap;
-class Buffer;
-class ConstantBufferView;
-class ShaderResourceView;
-class UnorderedAccessView;
 class SceneProxy;
 class Camera;
 
@@ -28,7 +19,14 @@ struct MaterialConstants
 
 class GPUScene final
 {
-	friend class GPUCulling;
+public:
+	struct MaterialDescriptorsDesc
+	{
+		DescriptorHeap* cbvHeap;
+		DescriptorHeap* srvHeap;
+		uint32 cbvCount;
+		uint32 srvCount;
+	};
 
 public:
 	void initialize();
@@ -45,6 +43,8 @@ public:
 
 	// GPU scene buffer won't be modified from outside, so exposing only SRV is OK.
 	//UnorderedAccessView* getGPUSceneBufferUAV() const;
+
+	MaterialDescriptorsDesc queryMaterialDescriptors(uint32 swapchainIndex) const;
 
 	// Query how many descriptors are needed.
 	// Use this before copyMaterialDescriptors() if you're unsure the dest heap is big enough.
@@ -69,8 +69,7 @@ private:
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, uint32 maxSRVCount);
 
 private:
-	UniquePtr<PipelineState> pipelineState;
-	UniquePtr<RootSignature> rootSignature;
+	UniquePtr<ComputePipelineState> pipelineState;
 
 	std::vector<uint32> totalVolatileDescriptors;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
@@ -96,4 +95,5 @@ private:
 	BufferedUniquePtr<DescriptorHeap> materialCBVHeap;
 	BufferedUniquePtr<DescriptorHeap> materialSRVHeap;
 	BufferedUniquePtrVec<ConstantBufferView> materialCBVs;
+	BufferedUniquePtrVec<ShaderResourceView> materialSRVs;
 };

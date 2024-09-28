@@ -1,8 +1,10 @@
 #pragma once
 
+#include "rhi_forward.h"
 #include "gpu_resource.h"
 #include "pipeline_state.h"
 #include "gpu_resource_binding.h"
+#include "gpu_resource_barrier.h"
 #include <functional>
 
 // Forward Declarations
@@ -75,7 +77,9 @@ public:
 	// End command recording.
 	virtual void close() = 0;
 
-	virtual void resourceBarriers(uint32 numBarriers, const ResourceBarrier* barriers) = 0;
+	virtual void resourceBarriers(
+		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
+		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers) = 0;
 
 	// #todo-rendercommand: Maybe not the best way to clear RTV.
 	// (Need to check how loadOp=CLEAR maps to DX12 and Vulkan.)
@@ -92,12 +96,11 @@ public:
 	// ------------------------------------------------------------------------
 	// Pipeline state object (graphics & compute)
 
-	virtual void setPipelineState(PipelineState* state) = 0;
+	virtual void setGraphicsPipelineState(GraphicsPipelineState* state) = 0;
+	virtual void setComputePipelineState(ComputePipelineState* state) = 0;
 	virtual void setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso) = 0;
 
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) = 0;
-	virtual void setGraphicsRootSignature(RootSignature* rootSignature) = 0;
-	virtual void setComputeRootSignature(RootSignature* rootSignature) = 0;
 
 	// ------------------------------------------------------------------------
 	// Graphics pipeline
@@ -116,29 +119,12 @@ public:
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) = 0;
 	virtual void omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV) = 0;
 
-	// #todo-rendercommand: What is DestOffsetIn32BitValues in ID3D12GraphicsCommandList::SetGraphicsRoot32BitConstants() method?
-	virtual void setGraphicsRootConstant32(
-		uint32 rootParameterIndex,
-		uint32 constant32,
-		uint32 destOffsetIn32BitValues) = 0;
-	
-	// NOTE: A sequence of 32-bit values are bound to the corresponding single register.
-	virtual void setGraphicsRootConstant32Array(
-		uint32 rootParameterIndex,
-		uint32 numValuesToSet,
-		const void* srcData,
-		uint32 destOffsetIn32BitValues) = 0;
+	virtual void bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) = 0;
 
-	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
-	virtual void setGraphicsRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv) = 0;
-	virtual void setGraphicsRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv) = 0;
-	virtual void setGraphicsRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav) = 0;
-
-	// #todo-rendercommand: Is this the best form?
-	virtual void setGraphicsRootDescriptorTable(
-		uint32 rootParameterIndex,
-		DescriptorHeap* descriptorHeap,
-		uint32 descriptorStartOffset) = 0;
+	// When a graphics PSO is already bound, only update root constants for fast path.
+	// - pipelineState must have been bound with bindGraphicsShaderParameters().
+	// - parameters may contain only root constants. Other types of parameters are ignored.
+	virtual void updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters) = 0;
 
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
@@ -164,37 +150,16 @@ public:
 	// ------------------------------------------------------------------------
 	// Compute pipeline
 
-	virtual void setComputeRootConstant32(
-		uint32 rootParameterIndex,
-		uint32 constant32,
-		uint32 destOffsetIn32BitValues) = 0;
-	virtual void setComputeRootConstant32Array(
-		uint32 rootParameterIndex,
-		uint32 numValuesToSet,
-		const void* srcData,
-		uint32 destOffsetIn32BitValues) = 0;
+	virtual void bindComputeShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) = 0;
 
-	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
-	virtual void setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv) = 0;
-	virtual void setComputeRootDescriptorCBV(uint32 rootParameterIndex, ConstantBufferView* cbv) = 0;
-	virtual void setComputeRootDescriptorUAV(uint32 rootParameterIndex, UnorderedAccessView* uav) = 0;
-
-	virtual void setComputeRootDescriptorTable(
-		uint32 rootParameterIndex,
-		DescriptorHeap* descriptorHeap,
-		uint32 descriptorStartOffset) = 0;
-
-	virtual void dispatchCompute(
-		uint32 threadGroupX,
-		uint32 threadGroupY,
-		uint32 threadGroupZ) = 0;
+	virtual void dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ) = 0;
 
 	// ------------------------------------------------------------------------
 	// Raytracing pipeline
 
-	virtual AccelerationStructure* buildRaytracingAccelerationStructure(
-		uint32 numBLASDesc,
-		BLASInstanceInitDesc* blasDescArray) = 0;
+	virtual AccelerationStructure* buildRaytracingAccelerationStructure(uint32 numBLASDesc, BLASInstanceInitDesc* blasDescArray) = 0;
+
+	virtual void bindRaytracingShaderParameters(RaytracingPipelineStateObject* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) = 0;
 
 	virtual void dispatchRays(const DispatchRaysDesc& dispatchDesc) = 0;
 

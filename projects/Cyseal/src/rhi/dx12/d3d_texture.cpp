@@ -83,78 +83,6 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 			nullptr,
 			IID_PPV_ARGS(&textureUploadHeap)));
 	}
-
-	// #todo-wip: Don't create texture views from within a texture.
-	
-	if (0 != (params.accessFlags & ETextureAccessFlags::SRV))
-	{
-		// #todo-texture: SRV ViewDimension
-		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
-
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                    = createParams.format;
-		srvDesc.viewDimension             = ESRVDimension::Texture2D;
-		srvDesc.texture2D.mostDetailedMip = 0;
-		srvDesc.texture2D.mipLevels       = textureDesc.MipLevels;
-		srvDesc.texture2D.planeSlice      = 0;
-		srvDesc.texture2D.minLODClamp     = 0.0f;
-
-		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(this, srvDesc));
-		srvHeap = srv->getSourceHeap();
-		srvDescriptorIndex = srv->getDescriptorIndexInHeap();
-	}
-
-	if (0 != (params.accessFlags & ETextureAccessFlags::RTV) && params.numLayers == 1)
-	{
-		// #todo-texture: RTV ViewDimension
-		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
-
-		D3D12_RENDER_TARGET_VIEW_DESC viewDesc{};
-		viewDesc.Format = textureDesc.Format;
-		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-		viewDesc.Texture2D.MipSlice = 0;
-		viewDesc.Texture2D.PlaneSlice = 0;
-
-		getD3DDevice()->allocateRTVHandle(rtvHeap, rtvHandle, rtvDescriptorIndex);
-		device->CreateRenderTargetView(rawResource.Get(), &viewDesc, rtvHandle);
-
-		rtv = std::make_unique<D3DRenderTargetView>();
-		rtv->setCPUHandle(rtvHandle);
-	}
-
-	if (0 != (params.accessFlags & ETextureAccessFlags::DSV))
-	{
-		// #todo-texture: DSV ViewDimension
-		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
-
-		D3D12_DEPTH_STENCIL_VIEW_DESC viewDesc;
-		viewDesc.Format = textureDesc.Format;
-		viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		viewDesc.Flags = D3D12_DSV_FLAG_NONE;
-		viewDesc.Texture2D.MipSlice = 0;
-
-		getD3DDevice()->allocateDSVHandle(dsvHeap, dsvHandle, dsvDescriptorIndex);
-		device->CreateDepthStencilView(rawResource.Get(), &viewDesc, dsvHandle);
-
-		dsv = std::make_unique<D3DDepthStencilView>();
-		dsv->setCPUHandle(dsvHandle);
-	}
-
-	if (0 != (params.accessFlags & ETextureAccessFlags::UAV))
-	{
-		// #todo-texture: UAV ViewDimension
-		CHECK(textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
-
-		UnorderedAccessViewDesc uavDesc{};
-		uavDesc.format               = createParams.format;
-		uavDesc.viewDimension        = EUAVDimension::Texture2D;
-		uavDesc.texture2D.mipSlice   = 0;
-		uavDesc.texture2D.planeSlice = 0;
-
-		uav = std::unique_ptr<UnorderedAccessView>(gRenderDevice->createUAV(this, uavDesc));
-		uavHeap = uav->getSourceHeap();
-		uavDescriptorIndex = uav->getDescriptorIndexInHeap();
-	}
 }
 
 void D3DTexture::uploadData(
@@ -174,13 +102,12 @@ void D3DTexture::uploadData(
 
 	if (bIsPixelShaderResourceState)
 	{
-		ResourceBarrier barrierAfter{
-			EResourceBarrierType::Transition,
+		TextureMemoryBarrier barrierAfter{
+			ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+			ETextureMemoryLayout::COPY_DEST,
 			this,
-			EGPUResourceState::PIXEL_SHADER_RESOURCE,
-			EGPUResourceState::COPY_DEST,
 		};
-		commandList.resourceBarriers(1, &barrierAfter);
+		commandList.resourceBarriers(0, nullptr, 1, &barrierAfter);
 	}
 
 	// [ RESOURCE_MANIPULATION ERROR #864: COPYTEXTUREREGION_INVALIDSRCOFFSET ]
@@ -194,37 +121,16 @@ void D3DTexture::uploadData(
 		subresourceIndex, 1, &textureData);
 	CHECK(ret != 0);
 
-	ResourceBarrier barrierAfter{
-		EResourceBarrierType::Transition,
+	TextureMemoryBarrier barrierAfter{
+		ETextureMemoryLayout::COPY_DEST,
+		ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 		this,
-		EGPUResourceState::COPY_DEST,
-		EGPUResourceState::PIXEL_SHADER_RESOURCE
 	};
-	commandList.resourceBarriers(1, &barrierAfter);
+	commandList.resourceBarriers(0, nullptr, 1, &barrierAfter);
 	bIsPixelShaderResourceState = true;
 }
 
 void D3DTexture::setDebugName(const wchar_t* debugName)
 {
 	rawResource->SetName(debugName);
-}
-
-RenderTargetView* D3DTexture::getRTV() const
-{
-	return rtv.get();
-}
-
-ShaderResourceView* D3DTexture::getSRV() const
-{
-	return srv.get();
-}
-
-DepthStencilView* D3DTexture::getDSV() const
-{
-	return dsv.get();
-}
-
-UnorderedAccessView* D3DTexture::getUAV() const
-{
-	return uav.get();
 }

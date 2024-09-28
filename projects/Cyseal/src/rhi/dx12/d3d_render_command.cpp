@@ -3,6 +3,7 @@
 #include "d3d_resource_view.h"
 #include "d3d_pipeline_state.h"
 #include "d3d_buffer.h"
+#include "d3d_shader.h"
 #include "d3d_into.h"
 #include "core/assertion.h"
 
@@ -140,14 +141,26 @@ void D3DRenderCommandList::rsSetScissorRect(const ScissorRect& scissorRect)
 	commandList->RSSetScissorRects(1, &rect);
 }
 
-void D3DRenderCommandList::resourceBarriers(uint32 numBarriers, const ResourceBarrier* barriers)
+void D3DRenderCommandList::resourceBarriers(
+	uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
+	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers)
 {
-	std::vector<D3D12_RESOURCE_BARRIER> rawBarriers(numBarriers);
-	for (uint32 i = 0; i < numBarriers; ++i)
+	// #todo-barrier: DX12 enhanced barriers
+	// https://learn.microsoft.com/en-us/windows-hardware/drivers/display/enhanced-barriers
+	// https://microsoft.github.io/DirectX-Specs/d3d/D3D12EnhancedBarriers.html#excessive-sync-latency
+
+	uint32 totalBarriers = numBufferMemoryBarriers + numTextureMemoryBarriers;
+	std::vector<D3D12_RESOURCE_BARRIER> rawBarriers(totalBarriers);
+	for (uint32 i = 0; i < numBufferMemoryBarriers; ++i)
 	{
-		rawBarriers[i] = into_d3d::resourceBarrier(barriers[i]);
+		rawBarriers[i] = into_d3d::resourceBarrier(bufferMemoryBarriers[i]);
 	}
-	commandList->ResourceBarrier(numBarriers, rawBarriers.data());
+	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
+	{
+		rawBarriers[i + numBufferMemoryBarriers] = into_d3d::resourceBarrier(textureMemoryBarriers[i]);
+	}
+
+	commandList->ResourceBarrier(totalBarriers, rawBarriers.data());
 }
 
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
@@ -221,29 +234,25 @@ void D3DRenderCommandList::omSetRenderTargets(
 		(DSV != nullptr ? &rawDSV : nullptr));
 }
 
-void D3DRenderCommandList::setPipelineState(PipelineState* state)
+void D3DRenderCommandList::setGraphicsPipelineState(GraphicsPipelineState* state)
 {
-	auto rawState = static_cast<D3DGraphicsPipelineState*>(state)->getRaw();
-	commandList->SetPipelineState(rawState);
+	auto pipelineWrapper = static_cast<D3DGraphicsPipelineState*>(state);
+	ID3D12PipelineState* d3dPipeline = pipelineWrapper->getPipelineState();
+	commandList->SetPipelineState(d3dPipeline);
+}
+
+void D3DRenderCommandList::setComputePipelineState(ComputePipelineState* state)
+{
+	auto pipelineWrapper = static_cast<D3DComputePipelineState*>(state);
+	ID3D12PipelineState* d3dPipeline = pipelineWrapper->getPipelineState();
+	commandList->SetPipelineState(d3dPipeline);
 }
 
 void D3DRenderCommandList::setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso)
 {
-	ID3D12StateObject* rawRTPSO
-		= static_cast<D3DRaytracingPipelineStateObject*>(rtpso)->getRaw();
+	auto pipelineWrapper = static_cast<D3DRaytracingPipelineStateObject*>(rtpso);
+	ID3D12StateObject* rawRTPSO = pipelineWrapper->getRaw();
 	commandList->SetPipelineState1(rawRTPSO);
-}
-
-void D3DRenderCommandList::setGraphicsRootSignature(RootSignature* rootSignature)
-{
-	auto rawSignature = static_cast<D3DRootSignature*>(rootSignature)->getRaw();
-	commandList->SetGraphicsRootSignature(rawSignature);
-}
-
-void D3DRenderCommandList::setComputeRootSignature(RootSignature* rootSignature)
-{
-	auto rawSignature = static_cast<D3DRootSignature*>(rootSignature)->getRaw();
-	commandList->SetComputeRootSignature(rawSignature);
 }
 
 void D3DRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps)
@@ -257,136 +266,117 @@ void D3DRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* cons
 	commandList->SetDescriptorHeaps(count, rawHeaps.data());
 }
 
-void D3DRenderCommandList::setGraphicsRootDescriptorTable(
-	uint32 rootParameterIndex,
-	DescriptorHeap* descriptorHeap,
-	uint32 descriptorStartOffset)
+// #todo-dx12: bindGraphicsShaderParameters(), bindComputeShaderParameters(), and bindRaytracingShaderParameters() are almost same, but a little hard to extract common part.
+void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* inParameters, DescriptorHeap* descriptorHeap)
 {
-	ID3D12DescriptorHeap* rawHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
-	D3D12_GPU_DESCRIPTOR_HANDLE tableHandle = rawHeap->GetGPUDescriptorHandleForHeapStart();
-	tableHandle.ptr += (uint64)descriptorStartOffset * (uint64)device->getDescriptorSizeCbvSrvUav();
-	
-	commandList->SetGraphicsRootDescriptorTable(rootParameterIndex, tableHandle);
+	D3DGraphicsPipelineState* d3dPipelineState = static_cast<D3DGraphicsPipelineState*>(pipelineState);
+	ID3D12RootSignature* d3dRootSig = d3dPipelineState->getRootSignature();
+
+	ID3D12DescriptorHeap* d3dDescriptorHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	D3D12_GPU_DESCRIPTOR_HANDLE baseHandle = d3dDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	const uint64 descriptorSize = (uint64)device->getDescriptorSizeCbvSrvUav();
+	auto calcDescriptorHandle = [&baseHandle, &descriptorSize](uint32 descriptorIndex) {
+		D3D12_GPU_DESCRIPTOR_HANDLE handle = baseHandle;
+		handle.ptr += (uint64)descriptorIndex * descriptorSize;
+		return handle;
+	};
+
+	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-a-root-signature
+	commandList->SetGraphicsRootSignature(d3dRootSig);
+
+	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
+	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
+
+	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	{
+		for (const auto& inParam : parameters)
+		{
+			const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+			device->copyDescriptors(inParam.count, descriptorHeap, *inoutDescriptorIx, inParam.sourceHeap, inParam.startIndex);
+			cmdList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(*inoutDescriptorIx));
+			*inoutDescriptorIx += inParam.count;
+		}
+	};
+
+	// #todo-dx12: Root Descriptor vs Descriptor Table
+	// For now, always use descriptor table.
+	uint32 descriptorIx = 0;
+
+	for (const auto& inParam : inParameters->pushConstants)
+	{
+		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+		commandList->SetGraphicsRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
+	}
+	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->structuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwStructuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->byteAddressBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->textures, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwTextures, &descriptorIx);
+	CHECK(inParameters->accelerationStructures.size() == 0); // Not allowed in graphics pipeline.
 }
 
-void D3DRenderCommandList::setGraphicsRootConstant32(
-	uint32 rootParameterIndex,
-	uint32 constant32,
-	uint32 destOffsetIn32BitValues)
+void D3DRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* inParameters)
 {
-	commandList->SetGraphicsRoot32BitConstant(
-		rootParameterIndex,
-		constant32,
-		destOffsetIn32BitValues);
+	D3DGraphicsPipelineState* d3dPipelineState = static_cast<D3DGraphicsPipelineState*>(pipelineState);
+
+	for (const auto& inParam : inParameters->pushConstants)
+	{
+		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+		commandList->SetGraphicsRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
+	}
 }
 
-void D3DRenderCommandList::setGraphicsRootConstant32Array(
-	uint32 rootParameterIndex,
-	uint32 numValuesToSet,
-	const void* srcData,
-	uint32 destOffsetIn32BitValues)
+void D3DRenderCommandList::bindComputeShaderParameters(
+	PipelineState* pipelineState,
+	const ShaderParameterTable* inParameters,
+	DescriptorHeap* descriptorHeap)
 {
-	commandList->SetGraphicsRoot32BitConstants(
-		rootParameterIndex,
-		numValuesToSet,
-		srcData,
-		destOffsetIn32BitValues);
-}
+	D3DComputePipelineState* d3dPipelineState = static_cast<D3DComputePipelineState*>(pipelineState);
+	ID3D12RootSignature* d3dRootSig = d3dPipelineState->getRootSignature();
 
-void D3DRenderCommandList::setGraphicsRootDescriptorSRV(
-	uint32 rootParameterIndex,
-	ShaderResourceView* srv)
-{
-	D3DShaderResourceView* d3dSRV = static_cast<D3DShaderResourceView*>(srv);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dSRV->getGPUVirtualAddress();
+	ID3D12DescriptorHeap* d3dDescriptorHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	D3D12_GPU_DESCRIPTOR_HANDLE baseHandle = d3dDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	const uint64 descriptorSize = (uint64)device->getDescriptorSizeCbvSrvUav();
+	auto calcDescriptorHandle = [&baseHandle, &descriptorSize](uint32 descriptorIndex) {
+		D3D12_GPU_DESCRIPTOR_HANDLE handle = baseHandle;
+		handle.ptr += (uint64)descriptorIndex * descriptorSize;
+		return handle;
+	};
 
-	commandList->SetGraphicsRootShaderResourceView(rootParameterIndex, gpuAddr);
-}
+	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
+	commandList->SetComputeRootSignature(d3dRootSig);
+	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
-void D3DRenderCommandList::setGraphicsRootDescriptorCBV(
-	uint32 rootParameterIndex,
-	ConstantBufferView* cbv)
-{
-	D3DConstantBufferView* d3dCBV = static_cast<D3DConstantBufferView*>(cbv);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dCBV->getGPUVirtualAddress();
+	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	{
+		for (const auto& inParam : parameters)
+		{
+			const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+			device->copyDescriptors(inParam.count, descriptorHeap, *inoutDescriptorIx, inParam.sourceHeap, inParam.startIndex);
+			cmdList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(*inoutDescriptorIx));
+			*inoutDescriptorIx += inParam.count;
+		}
+	};
 
-	commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, gpuAddr);
-}
+	// #todo-dx12: Root Descriptor vs Descriptor Table
+	// For now, always use descriptor table.
+	uint32 descriptorIx = 0;
 
-void D3DRenderCommandList::setGraphicsRootDescriptorUAV(
-	uint32 rootParameterIndex,
-	UnorderedAccessView* uav)
-{
-	D3DUnorderedAccessView* d3dUAV = static_cast<D3DUnorderedAccessView*>(uav);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dUAV->getGPUVirtualAddress();
-
-	commandList->SetGraphicsRootUnorderedAccessView(rootParameterIndex, gpuAddr);
-}
-
-void D3DRenderCommandList::setComputeRootConstant32(
-	uint32 rootParameterIndex,
-	uint32 constant32,
-	uint32 destOffsetIn32BitValues)
-{
-	commandList->SetComputeRoot32BitConstant(
-		rootParameterIndex,
-		constant32,
-		destOffsetIn32BitValues);
-}
-
-void D3DRenderCommandList::setComputeRootConstant32Array(
-	uint32 rootParameterIndex,
-	uint32 numValuesToSet,
-	const void* srcData,
-	uint32 destOffsetIn32BitValues)
-{
-	commandList->SetComputeRoot32BitConstants(
-		rootParameterIndex,
-		numValuesToSet,
-		srcData,
-		destOffsetIn32BitValues);
-}
-
-void D3DRenderCommandList::setComputeRootDescriptorTable(
-	uint32 rootParameterIndex,
-	DescriptorHeap* descriptorHeap,
-	uint32 descriptorStartOffset)
-{
-	ID3D12DescriptorHeap* rawHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
-	D3D12_GPU_DESCRIPTOR_HANDLE tableHandle = rawHeap->GetGPUDescriptorHandleForHeapStart();
-	tableHandle.ptr += (uint64)descriptorStartOffset * (uint64)device->getDescriptorSizeCbvSrvUav();
-
-	commandList->SetComputeRootDescriptorTable(rootParameterIndex, tableHandle);
-}
-
-void D3DRenderCommandList::setComputeRootDescriptorSRV(
-	uint32 rootParameterIndex,
-	ShaderResourceView* srv)
-{
-	D3DShaderResourceView* d3dSRV = static_cast<D3DShaderResourceView*>(srv);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dSRV->getGPUVirtualAddress();
-
-	commandList->SetComputeRootShaderResourceView(rootParameterIndex, gpuAddr);
-}
-
-void D3DRenderCommandList::setComputeRootDescriptorCBV(
-	uint32 rootParameterIndex,
-	ConstantBufferView* cbv)
-{
-	D3DConstantBufferView* d3dCBV = static_cast<D3DConstantBufferView*>(cbv);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dCBV->getGPUVirtualAddress();
-
-	commandList->SetComputeRootConstantBufferView(rootParameterIndex, gpuAddr);
-}
-
-void D3DRenderCommandList::setComputeRootDescriptorUAV(
-	uint32 rootParameterIndex,
-	UnorderedAccessView* uav)
-{
-	D3DUnorderedAccessView* d3dUAV = static_cast<D3DUnorderedAccessView*>(uav);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dUAV->getGPUVirtualAddress();
-
-	commandList->SetComputeRootUnorderedAccessView(rootParameterIndex, gpuAddr);
+	for (const auto& inParam : inParameters->pushConstants)
+	{
+		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+		commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
+	}
+	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->structuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwStructuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->byteAddressBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->textures, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwTextures, &descriptorIx);
+	CHECK(inParameters->accelerationStructures.size() == 0); // Not allowed in compute pipeline.
 }
 
 void D3DRenderCommandList::drawIndexedInstanced(
@@ -434,10 +424,7 @@ void D3DRenderCommandList::executeIndirect(
 		countBufferOffset);
 }
 
-void D3DRenderCommandList::dispatchCompute(
-	uint32 threadGroupX,
-	uint32 threadGroupY,
-	uint32 threadGroupZ)
+void D3DRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
 	commandList->Dispatch(threadGroupX, threadGroupY, threadGroupZ);
 }
@@ -482,6 +469,64 @@ AccelerationStructure* D3DRenderCommandList::buildRaytracingAccelerationStructur
 	accelStruct->buildTLAS(commandList.Get(), buildFlags);
 
 	return accelStruct;
+}
+
+void D3DRenderCommandList::bindRaytracingShaderParameters(
+	RaytracingPipelineStateObject* pipelineState,
+	const ShaderParameterTable* inParameters,
+	DescriptorHeap* descriptorHeap)
+{
+	D3DRaytracingPipelineStateObject* d3dPipelineState = static_cast<D3DRaytracingPipelineStateObject*>(pipelineState);
+	ID3D12RootSignature* globalRootSig = d3dPipelineState->getGlobalRootSignature();
+
+	ID3D12DescriptorHeap* d3dDescriptorHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	D3D12_GPU_DESCRIPTOR_HANDLE baseHandle = d3dDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	const uint64 descriptorSize = (uint64)device->getDescriptorSizeCbvSrvUav();
+	auto calcDescriptorHandle = [&baseHandle, &descriptorSize](uint32 descriptorIndex) {
+		D3D12_GPU_DESCRIPTOR_HANDLE handle = baseHandle;
+		handle.ptr += (uint64)descriptorIndex * descriptorSize;
+		return handle;
+	};
+
+	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
+	commandList->SetComputeRootSignature(globalRootSig);
+	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
+
+	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	{
+		for (const auto& inParam : parameters)
+		{
+			const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
+			device->copyDescriptors(inParam.count, descriptorHeap, *inoutDescriptorIx, inParam.sourceHeap, inParam.startIndex);
+			cmdList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(*inoutDescriptorIx));
+			*inoutDescriptorIx += inParam.count;
+		}
+	};
+
+	// #todo-dx12: Root Descriptor vs Descriptor Table
+	// For now, always use descriptor table.
+	uint32 descriptorIx = 0;
+
+	for (const auto& inParam : inParameters->pushConstants)
+	{
+		const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
+		commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
+	}
+	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->structuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwStructuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->byteAddressBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->textures, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwTextures, &descriptorIx);
+	for (const auto& inParam : inParameters->accelerationStructures)
+	{
+		D3DShaderResourceView* d3dSRV = static_cast<D3DShaderResourceView*>(inParam.srv);
+		D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dSRV->getGPUVirtualAddress();
+
+		const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
+		commandList->SetComputeRootShaderResourceView(param->rootParameterIndex, gpuAddr);
+	}
 }
 
 void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& inDesc)

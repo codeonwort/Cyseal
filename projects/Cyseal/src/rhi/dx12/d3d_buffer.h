@@ -1,10 +1,8 @@
 #pragma once
 
-#include "rhi/gpu_resource.h"
+#include "rhi/buffer.h"
 #include "d3d_util.h"
 #include "d3d_resource_view.h"
-
-#include <memory>
 
 class RenderDevice;
 class D3DDevice;
@@ -32,7 +30,7 @@ private:
 class D3DVertexBuffer : public VertexBuffer
 {
 public:
-	virtual void initialize(uint32 sizeInBytes) override;
+	virtual void initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags) override;
 
 	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 
@@ -64,7 +62,7 @@ private:
 class D3DIndexBuffer : public IndexBuffer
 {
 public:
-	virtual void initialize(uint32 sizeInBytes, EPixelFormat format) override;
+	virtual void initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags) override;
 
 	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 

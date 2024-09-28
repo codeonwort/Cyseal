@@ -4,6 +4,9 @@
 
 #include "imgui_impl_win32.h"
 
+#include <io.h>
+#include <fcntl.h>
+
 LRESULT CALLBACK Win32WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 ATOM Win32RegisterClass(HINSTANCE hInstance, const wchar_t* windowClassName);
 HWND Win32InitInstance(
@@ -68,6 +71,15 @@ EApplicationReturnCode WindowsApplication::launch(const ApplicationCreateParams&
 		return EApplicationReturnCode::RandomError;
 	}
 
+	if (::AllocConsole() == TRUE)
+	{
+		FILE* fp = NULL;
+		if (::freopen_s(&fp, "CONOUT$", "w", stdout) != 0)
+		{
+			// freopen has failed
+		}
+	}
+
 	// Update actual viewport size
 	RECT clientRect;
 	::GetClientRect(hWnd, &clientRect);
@@ -124,6 +136,11 @@ EApplicationReturnCode WindowsApplication::launch(const ApplicationCreateParams&
 	}
 
 	onTerminate();
+
+	if (::FreeConsole() == FALSE)
+	{
+		// Failed to free the console
+	}
 
 	return EApplicationReturnCode::Ok;
 }

@@ -1,27 +1,15 @@
 #pragma once
 
-#include "core/types.h"
-#include "util/logging.h"
+#include "rhi_forward.h"
 #include "gpu_resource.h"
 #include "gpu_resource_view.h"
+#include "buffer.h"
+#include "texture.h"
 #include "pipeline_state.h"
 #include "shader.h"
 #include "pixel_format.h"
 #include "render_device_capabilities.h"
-
-class RenderCommandAllocator;
-class RenderCommandList;
-class RenderCommandQueue;
-class GPUResource;
-class SwapChain;
-class VertexBufferPool;
-class IndexBufferPool;
-struct RootSignatureDesc;
-class RootSignature;
-struct GraphicsPipelineDesc;
-class PipelineState;
-struct DescriptorHeapDesc;
-class DescriptorHeap;
+#include "util/logging.h"
 
 enum class ERenderDeviceRawAPI
 {
@@ -82,7 +70,7 @@ public:
 	virtual void flushCommandQueue() = 0;
 
 	// ------------------------------------------------------------------------
-	// DearImgui
+	// Plugin: DearImgui
 
 	virtual void initializeDearImgui();
 	virtual void beginDearImguiNewFrame() = 0;
@@ -93,11 +81,12 @@ public:
 	// ------------------------------------------------------------------------
 	// Create
 
+	// #todo-renderdevice: Remove createVertexBuffer and createIndexBuffer?
 	// #todo-renderdevice: uint64 for sizeInBytes
-	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName = nullptr) = 0;
+	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, EBufferAccessFlags usageFlags, const wchar_t* inDebugName = nullptr) = 0;
 	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
 
-	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, const wchar_t* inDebugName = nullptr) = 0;
+	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags, const wchar_t* inDebugName = nullptr) = 0;
 	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes, EPixelFormat format) = 0;
 
 	virtual Buffer* createBuffer(const BufferCreateParams& createParams) = 0;
@@ -105,12 +94,10 @@ public:
 
 	virtual ShaderStage* createShader(EShaderStage shaderStage, const char* debugName) = 0;
 
-	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
-	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
-	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) = 0;
+	virtual GraphicsPipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
+	virtual ComputePipelineState* createComputePipelineState(const ComputePipelineDesc& desc) = 0;
 	
-	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
-		const RaytracingPipelineStateObjectDesc& desc) = 0;
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc) = 0;
 
 	// NOTE: shaderRecordSize = shaderIdentifierSize + rootArgumentSize,
 	// but shaderIdentifierSize is API-specific, so we specify only rootArgumentSize here.
@@ -122,12 +109,21 @@ public:
 
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) = 0;
 
+	// Allocate a descriptor from the specified descriptor heap.
 	virtual ConstantBufferView* createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes) = 0;
+	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams) = 0;
+	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const UnorderedAccessViewDesc& createParams) = 0;
+	virtual RenderTargetView* createRTV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const RenderTargetViewDesc& createParams) = 0;
+	virtual DepthStencilView* createDSV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const DepthStencilViewDesc& createParams) = 0;
+
+	// Allocate a descriptor from a global descriptor heap.
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) = 0;
 	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) = 0;
+	virtual RenderTargetView* createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams) = 0;
+	virtual DepthStencilView* createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams) = 0;
 
 	// Indirect draw
-	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, RootSignature* inRootSignature) = 0;
+	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, GraphicsPipelineState* inPipelineState) = 0;
 	virtual IndirectCommandGenerator* createIndirectCommandGenerator(const CommandSignatureDesc& inDesc, uint32 maxCommandCount) = 0;
 
 	// ------------------------------------------------------------------------

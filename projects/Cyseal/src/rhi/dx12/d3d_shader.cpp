@@ -132,13 +132,14 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 	//arguments.push_back(DXC_ARG_DEBUG);
 #endif
 	
-	DxcBuffer sourceBuffer;
-	sourceBuffer.Ptr = sourceBlob->GetBufferPointer();
-	sourceBuffer.Size = sourceBlob->GetBufferSize();
-	sourceBuffer.Encoding = 0;
+	DxcBuffer sourceBuffer{
+		.Ptr      = sourceBlob->GetBufferPointer(),
+		.Size     = sourceBlob->GetBufferSize(),
+		.Encoding = 0,
+	};
 
 	WRL::ComPtr<IDxcResult> compileResult;
-	// #todo-wip-dxc: Huh? hlsl::Exception? Anyway the application runs fine.
+	// #todo-dx12: hlsl::Exception? Anyway the application runs fine.
 	hr = compiler->Compile(
 		&sourceBuffer,
 		arguments.data(), (uint32)arguments.size(),
@@ -162,12 +163,173 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 	}
 
 	HR(compileResult->GetResult(&bytecodeBlob));
+
+	readShaderReflection(compileResult.Get());
 }
 
 D3D12_SHADER_BYTECODE D3DShaderStage::getBytecode() const
 {
-	D3D12_SHADER_BYTECODE bc;
-	bc.BytecodeLength = bytecodeBlob->GetBufferSize();
-	bc.pShaderBytecode = bytecodeBlob->GetBufferPointer();
+	D3D12_SHADER_BYTECODE bc{
+		.pShaderBytecode = bytecodeBlob->GetBufferPointer(),
+		.BytecodeLength = bytecodeBlob->GetBufferSize(),
+	};
 	return bc;
+}
+
+void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
+{
+	IDxcUtils* const utils = getD3DDevice()->getDxcUtils();
+
+	if (!isRaytracingShader(stageFlag))
+	{
+		// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/nn-d3d12shader-id3d12shaderreflection
+
+		WRL::ComPtr<IDxcBlob> reflectionBlob;
+		HR( compileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(reflectionBlob.GetAddressOf()), NULL) );
+
+		DxcBuffer reflectionBuffer{
+			.Ptr = reflectionBlob->GetBufferPointer(),
+			.Size = reflectionBlob->GetBufferSize(),
+			.Encoding = 0,
+		};
+		WRL::ComPtr<ID3D12ShaderReflection> shaderReflection;
+		HR( utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(shaderReflection.GetAddressOf())) );
+
+		D3D12_SHADER_DESC shaderDesc{};
+		shaderReflection->GetDesc(&shaderDesc);
+
+		// Shader version, e.g., cs_6_6
+		// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/ns-d3d12shader-d3d12_shader_desc
+		programType = static_cast<D3D12_SHADER_VERSION_TYPE>((shaderDesc.Version & 0xFFFF0000) >> 16);
+		programMajorVersion = (shaderDesc.Version & 0x000000F0) >> 4;
+		programMinorVersion = (shaderDesc.Version & 0x0000000F);
+
+		// BoundResources = shader parameters
+		for (UINT i = 0; i < shaderDesc.BoundResources; ++i)
+		{
+			D3D12_SHADER_INPUT_BIND_DESC inputBindDesc{};
+			shaderReflection->GetResourceBindingDesc(i, &inputBindDesc);
+			addToShaderParameterTable(inputBindDesc);
+		}
+
+		if (stageFlag == EShaderStage::COMPUTE_SHADER)
+		{
+			threadGroupTotalSize = shaderReflection->GetThreadGroupSize(&threadGroupSizeX, &threadGroupSizeY, &threadGroupSizeZ);
+		}
+	}
+	else
+	{
+		// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/nn-d3d12shader-id3d12libraryreflection
+
+		WRL::ComPtr<IDxcBlob> reflectionBlob;
+		HR( compileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(reflectionBlob.GetAddressOf()), NULL) );
+
+		DxcBuffer reflectionBuffer{
+			.Ptr = reflectionBlob->GetBufferPointer(),
+			.Size = reflectionBlob->GetBufferSize(),
+			.Encoding = 0,
+		};
+		WRL::ComPtr<ID3D12LibraryReflection> libraryReflection;
+		HR( utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(libraryReflection.GetAddressOf())) );
+
+		D3D12_LIBRARY_DESC libraryDesc{};
+		libraryReflection->GetDesc(&libraryDesc);
+
+		// Loop through functions and process only matching one.
+		for (UINT functionIx = 0; functionIx < libraryDesc.FunctionCount; ++functionIx)
+		{
+			ID3D12FunctionReflection* functionReflection = libraryReflection->GetFunctionByIndex(functionIx);
+
+			D3D12_FUNCTION_DESC functionDesc{};
+			functionReflection->GetDesc(&functionDesc);
+
+			std::string weirdFunctionName = functionDesc.Name;
+			if (weirdFunctionName.find(aEntryPoint) == std::string::npos)
+			{
+				continue;
+			}
+
+			// Shader version, e.g., cs_6_6
+			// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/ns-d3d12shader-d3d12_function_desc
+			programType = static_cast<D3D12_SHADER_VERSION_TYPE>((functionDesc.Version & 0xFFFF0000) >> 16);
+			programMajorVersion = (functionDesc.Version & 0x000000F0) >> 4;
+			programMinorVersion = (functionDesc.Version & 0x0000000F);
+
+			for (UINT resourceIx = 0; resourceIx < functionDesc.BoundResources; ++resourceIx)
+			{
+				D3D12_SHADER_INPUT_BIND_DESC inputBindDesc{};
+				functionReflection->GetResourceBindingDesc(resourceIx, &inputBindDesc);
+				addToShaderParameterTable(inputBindDesc);
+			}
+		}
+	}
+}
+
+void D3DShaderStage::addToShaderParameterTable(const D3D12_SHADER_INPUT_BIND_DESC& inputBindDesc)
+{
+	D3DShaderParameter parameter{
+		.name               = inputBindDesc.Name,
+		.type               = inputBindDesc.Type, // D3D_SIT_CBUFFER = ConstantBuffer, D3D_SIT_UAV_RWTYPED = RWBuffer, D3D_SIT_STRUCTURED = StructuredBuffer, ...
+		.registerSlot       = inputBindDesc.BindPoint,
+		.registerSpace      = inputBindDesc.Space,
+		.numDescriptors     = inputBindDesc.BindCount,
+		.rootParameterIndex = 0xffffffff, // Allocated in createRoogSignature()
+	};
+	
+	// #todo-dx12: Handle missing D3D_SHADER_INPUT_TYPE cases
+	switch (inputBindDesc.Type)
+	{
+		case D3D_SIT_CBUFFER: // ConstantBuffer
+			if (shouldBePushConstants(inputBindDesc.Name))
+			{
+				parameterTable.rootConstants.emplace_back(parameter);
+			}
+			else
+			{
+				parameterTable.constantBuffers.emplace_back(parameter);
+			}
+			break;
+		case D3D_SIT_TBUFFER:
+			CHECK_NO_ENTRY();
+			break;
+		case D3D_SIT_TEXTURE: // Texture2D, Texture3D, TextureCube, ...
+			parameterTable.textures.emplace_back(parameter);
+			break;
+		case D3D_SIT_SAMPLER: // SamplerState
+			parameterTable.samplers.emplace_back(parameter);
+			break;
+		case D3D_SIT_UAV_RWTYPED: // RWBuffer
+			parameterTable.rwBuffers.emplace_back(parameter);
+			break;
+		case D3D_SIT_STRUCTURED: // StructuredBuffer
+			parameterTable.structuredBuffers.emplace_back(parameter);
+			break;
+		case D3D_SIT_UAV_RWSTRUCTURED: // RWStructuredBuffer
+			parameterTable.rwStructuredBuffers.emplace_back(parameter);
+			break;
+		case D3D_SIT_BYTEADDRESS: // ByteAddressBuffer
+			parameterTable.byteAddressBuffers.emplace_back(parameter);
+			break;
+		case D3D_SIT_UAV_RWBYTEADDRESS: // RWByteAddressBuffer
+			CHECK_NO_ENTRY();
+			break;
+		case D3D_SIT_UAV_APPEND_STRUCTURED: // AppendStructuredBuffer
+			CHECK_NO_ENTRY();
+			break;
+		case D3D_SIT_UAV_CONSUME_STRUCTURED:
+			CHECK_NO_ENTRY();
+			break;
+		case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:
+			CHECK_NO_ENTRY();
+			break;
+		case D3D_SIT_RTACCELERATIONSTRUCTURE:
+			parameterTable.accelerationStructures.emplace_back(parameter);
+			break;
+		case D3D_SIT_UAV_FEEDBACKTEXTURE:
+			CHECK_NO_ENTRY();
+			break;
+		default:
+			CHECK_NO_ENTRY();
+			break;
+	}
 }

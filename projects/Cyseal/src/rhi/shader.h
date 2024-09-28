@@ -1,7 +1,9 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "core/assertion.h"
 #include <string>
+#include <vector>
 
 class RenderDevice;
 
@@ -32,6 +34,31 @@ enum class EShaderStage : uint8
 	NUM_TYPES              = 13
 };
 
+inline bool isRaytracingShader(EShaderStage shaderStage)
+{
+	switch (shaderStage)
+	{
+	case EShaderStage::VERTEX_SHADER:
+	case EShaderStage::HULL_SHADER:
+	case EShaderStage::DOMAIN_SHADER:
+	case EShaderStage::GEOMETRY_SHADER:
+	case EShaderStage::PIXEL_SHADER:
+	case EShaderStage::COMPUTE_SHADER:
+	case EShaderStage::MESH_SHADER:
+	case EShaderStage::AMPLICATION_SHADER:
+		return false;
+	case EShaderStage::RT_RAYGEN_SHADER:
+	case EShaderStage::RT_ANYHIT_SHADER:
+	case EShaderStage::RT_CLOSESTHIT_SHADER:
+	case EShaderStage::RT_MISS_SHADER:
+	case EShaderStage::RT_INTERSECTION_SHADER:
+		return true;
+	default:
+		CHECK_NO_ENTRY();
+	}
+	return false;
+}
+
 class ShaderStage
 {
 public:
@@ -41,12 +68,35 @@ public:
 	{}
 	virtual ~ShaderStage() = default;
 
+	// Invoke before loadFromFile().
+	// Need to pre-determine before shader compilation as shader reflection can't discriminate between root constants and CBVs.
+	inline void declarePushConstants(const std::vector<std::string>& inPushConstantNames)
+	{
+		CHECK(!bPushConstantsDeclared);
+		pushConstantNames = inPushConstantNames;
+		bPushConstantsDeclared = true;
+	}
+	inline void declarePushConstants()
+	{
+		CHECK(!bPushConstantsDeclared);
+		pushConstantNames.clear();
+		bPushConstantsDeclared = true;
+	}
+
+	inline bool isPushConstantsDeclared() const { return bPushConstantsDeclared; }
+
 	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) = 0;
 
 	virtual const wchar_t* getEntryPointW() = 0;
 	virtual const char* getEntryPointA() = 0;
 
 protected:
+	inline bool shouldBePushConstants(const std::string& name) { return std::find(pushConstantNames.begin(), pushConstantNames.end(), name) != pushConstantNames.end(); }
+
+protected:
 	EShaderStage stageFlag;
 	std::string debugName;
+
+	std::vector<std::string> pushConstantNames;
+	bool bPushConstantsDeclared = false;
 };

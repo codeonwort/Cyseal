@@ -2,6 +2,7 @@
 #include "static_mesh.h"
 #include "material.h"
 #include "rhi/gpu_resource.h"
+#include "rhi/gpu_resource_binding.h"
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
 #include "rhi/swap_chain.h"
@@ -12,18 +13,6 @@
 #include "util/logging.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
-
-namespace RootParameters
-{
-	enum Value
-	{
-		PushConstantsSlot = 0,
-		SceneUniformSlot,
-		GPUSceneSlot,
-		GPUSceneCommandSlot,
-		Count
-	};
-}
 
 // See GPUSceneItem in common.hlsl
 struct GPUSceneItem
@@ -72,40 +61,21 @@ void GPUScene::initialize()
 	materialCBVHeap.initialize(swapchainCount);
 	materialSRVHeap.initialize(swapchainCount);
 	materialCBVs.initialize(swapchainCount);
-
-	// Root signature
-	{
-		DescriptorRange descriptorRanges[2];
-		descriptorRanges[0].init(EDescriptorRangeType::CBV, 1, 1, 0); // register(b1, space0)
-
-		RootParameter rootParameters[RootParameters::Count];
-		rootParameters[RootParameters::PushConstantsSlot].initAsConstants(0, 0, 1); // register(b0, space0) = numSceneCommands
-		rootParameters[RootParameters::SceneUniformSlot].initAsDescriptorTable(1, &descriptorRanges[0]);
-		rootParameters[RootParameters::GPUSceneSlot].initAsUAV(0, 0);               // register(u0, space0)
-		rootParameters[RootParameters::GPUSceneCommandSlot].initAsSRV(0, 0);        // register(t0, space0)
-
-		RootSignatureDesc rootSigDesc(
-			RootParameters::Count,
-			rootParameters,
-			0, nullptr,
-			ERootSignatureFlags::None);
-		rootSignature = UniquePtr<RootSignature>(gRenderDevice->createRootSignature(rootSigDesc));
-	}
+	materialSRVs.initialize(swapchainCount);
 
 	// Shader
-	ShaderStage* shaderCS = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
-	shaderCS->loadFromFile(L"gpu_scene.hlsl", "mainCS");
+	ShaderStage* gpuSceneShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
+	gpuSceneShader->declarePushConstants({ "pushConstants" });
+	gpuSceneShader->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
-	// PSO
-	pipelineState = UniquePtr<PipelineState>(gRenderDevice->createComputePipelineState(
+	pipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc{
-			.rootSignature = rootSignature.get(),
-			.cs            = shaderCS,
-			.nodeMask      = 0
+			.cs = gpuSceneShader,
+			.nodeMask = 0,
 		}
 	));
 
-	delete shaderCS;
+	delete gpuSceneShader; // No use after PSO creation.
 }
 
 void GPUScene::renderGPUScene(
@@ -142,7 +112,9 @@ void GPUScene::renderGPUScene(
 	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
 
 	uint32 requiredVolatiles = 0;
-	requiredVolatiles += 1; // scene uniform
+	requiredVolatiles += 1; // sceneUniform
+	requiredVolatiles += 1; // gpuSceneBuffer
+	requiredVolatiles += 1; // commandBuffer
 	resizeVolatileHeaps(swapchainIndex, requiredVolatiles);
 
 	// #todo-gpuscene: Don't upload unchanged materials. Also don't copy one by one.
@@ -157,7 +129,13 @@ void GPUScene::renderGPUScene(
 		SCOPED_DRAW_EVENT_STRING(commandList, eventString);
 
 		auto& CBVs = materialCBVs[swapchainIndex];
-		DescriptorHeap* srvHeap = materialSRVHeap[swapchainIndex].get();
+		auto& SRVs = materialSRVs[swapchainIndex];
+		DescriptorHeap* srvHeap = materialSRVHeap.at(swapchainIndex);
+
+		// #todo-gpuscene: Can't do this in resizeMaterialBuffers()
+		srvHeap->resetAllDescriptors();
+		SRVs.clear();
+		SRVs.reserve(numMeshSections);
 
 		for (uint32 i = 0; i < numStaticMeshes; ++i)
 		{
@@ -173,10 +151,18 @@ void GPUScene::renderGPUScene(
 					albedo = material->albedoTexture->getGPUResource();
 				}
 
-				gRenderDevice->copyDescriptors(
-					1,
-					srvHeap, currentMaterialSRVCount,
-					albedo->getSourceSRVHeap(), albedo->getSRVDescriptorIndex());
+				ShaderResourceViewDesc srvDesc{
+					.format              = albedo->getCreateParams().format,
+					.viewDimension       = ESRVDimension::Texture2D,
+					.texture2D           = Texture2DSRVDesc{
+						.mostDetailedMip = 0,
+						.mipLevels       = albedo->getCreateParams().mipLevels,
+						.planeSlice      = 0,
+						.minLODClamp     = 0.0f,
+					}
+				};
+				auto albedoSRV = gRenderDevice->createSRV(albedo.get(), srvHeap, srvDesc);
+				SRVs.emplace_back(UniquePtr<ShaderResourceView>(albedoSRV));
 
 				// CBV
 				MaterialConstants constants;
@@ -238,7 +224,7 @@ void GPUScene::renderGPUScene(
 	}
 
 	const uint32 numSceneCommands = (uint32)sceneCommands.size();
-	if (numSceneCommands)
+	if (numSceneCommands > 0)
 	{
 		char eventString[128];
 		if (bRebuildGPUScene)
@@ -257,59 +243,53 @@ void GPUScene::renderGPUScene(
 			(uint32)(sizeof(GPUSceneCommand) * numSceneCommands),
 			0);
 
-		ResourceBarrier barriersBefore[] = {
+		BufferMemoryBarrier barriersBefore[] = {
 			{
-				EResourceBarrierType::Transition,
+				EBufferMemoryLayout::COMMON,
+				EBufferMemoryLayout::PIXEL_SHADER_RESOURCE,
 				gpuSceneCommandBuffer.at(swapchainIndex),
-				EGPUResourceState::COMMON,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
 			},
 			{
-				EResourceBarrierType::Transition,
+				EBufferMemoryLayout::COMMON,
+				EBufferMemoryLayout::UNORDERED_ACCESS,
 				gpuSceneBuffer.get(),
-				EGPUResourceState::COMMON,
-				EGPUResourceState::UNORDERED_ACCESS
 			},
 		};
-		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore, 0, nullptr);
 
-		commandList->setPipelineState(pipelineState.get());
-		commandList->setComputeRootSignature(rootSignature.get());
+		ShaderParameterTable SPT{};
+		SPT.pushConstant("pushConstants", numSceneCommands);
+		SPT.rwStructuredBuffer("gpuSceneBuffer", gpuSceneBufferUAV.get());
+		SPT.structuredBuffer("commandBuffer", gpuSceneCommandBufferSRV.at(swapchainIndex));
 
-		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
-		DescriptorHeap* heaps[] = { volatileHeap };
-		commandList->setDescriptorHeaps(1, heaps);
-
-		constexpr uint32 VOLATILE_IX_SceneUniform = 0;
-		constexpr uint32 VOLATILE_IX_VisibleCounter = 1;
-		gRenderDevice->copyDescriptors(
-			1,
-			volatileHeap, VOLATILE_IX_SceneUniform,
-			sceneUniform->getSourceHeap(), sceneUniform->getDescriptorIndexInHeap());
-
-		// Bind root parameters
-		commandList->setComputeRootConstant32(RootParameters::PushConstantsSlot, numSceneCommands, 0);
-		commandList->setComputeRootDescriptorTable(RootParameters::SceneUniformSlot, volatileHeap, VOLATILE_IX_SceneUniform);
-		commandList->setComputeRootDescriptorUAV(RootParameters::GPUSceneSlot, gpuSceneBufferUAV.get());
-		commandList->setComputeRootDescriptorSRV(RootParameters::GPUSceneCommandSlot, gpuSceneCommandBufferSRV.at(swapchainIndex));
-
+		commandList->setComputePipelineState(pipelineState.get());
+		commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 		commandList->dispatchCompute(numSceneCommands, 1, 1);
 
-		ResourceBarrier barriersAfter[] = {
+		BufferMemoryBarrier barriersAfter[] = {
 			{
-				EResourceBarrierType::Transition,
+				EBufferMemoryLayout::UNORDERED_ACCESS,
+				EBufferMemoryLayout::PIXEL_SHADER_RESOURCE,
 				gpuSceneBuffer.get(),
-				EGPUResourceState::UNORDERED_ACCESS,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
 		};
-		commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
+		commandList->resourceBarriers(_countof(barriersAfter), barriersAfter, 0, nullptr);
 	}
 }
 
 ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
 {
 	return gpuSceneBufferSRV.get();
+}
+
+GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swapchainIndex) const
+{
+	return MaterialDescriptorsDesc{
+		.cbvHeap = materialCBVHeap.at(swapchainIndex),
+		.srvHeap = materialSRVHeap.at(swapchainIndex),
+		.cbvCount = materialCBVActualCounts[swapchainIndex],
+		.srvCount = materialSRVActualCounts[swapchainIndex],
+	};
 }
 
 void GPUScene::queryMaterialDescriptorsCount(uint32 swapchainIndex, uint32& outCBVCount, uint32& outSRVCount)
@@ -393,7 +373,7 @@ void GPUScene::resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElem
 			BufferCreateParams{
 				.sizeInBytes = viewStride * maxElements,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::CPU_WRITE
+				.accessFlags = EBufferAccessFlags::COPY_SRC
 			}
 		));
 		wchar_t debugName[256];
@@ -489,7 +469,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, 
 			BufferCreateParams{
 				.sizeInBytes = materialMemorySize,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::CPU_WRITE,
+				.accessFlags = EBufferAccessFlags::COPY_SRC,
 			}
 		));
 

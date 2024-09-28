@@ -9,6 +9,8 @@
 #include "rhi/swap_chain.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/global_descriptor_heaps.h"
+#include "rhi/texture_manager.h"
+#include "rhi/hardware_raytracing.h"
 
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
@@ -57,15 +59,15 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		const uint32 swapchainCount = renderDevice->getSwapChain()->getBufferCount();
 		CHECK(sizeof(SceneUniform) * swapchainCount <= SCENE_UNIFORM_MEMORY_POOL_SIZE);
 
-		sceneUniformMemory = std::unique_ptr<Buffer>(device->createBuffer(
+		sceneUniformMemory = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = SCENE_UNIFORM_MEMORY_POOL_SIZE,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::CPU_WRITE,
+				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::CBV,
 			}
 		));
 
-		sceneUniformDescriptorHeap = std::unique_ptr<DescriptorHeap>(device->createDescriptorHeap(
+		sceneUniformDescriptorHeap = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::CBV,
 				.numDescriptors = swapchainCount,
@@ -75,10 +77,10 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		));
 
 		uint32 bufferOffset = 0;
-		sceneUniformCBVs.resize(swapchainCount);
+		sceneUniformCBVs.initialize(swapchainCount);
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
-			sceneUniformCBVs[i] = std::unique_ptr<ConstantBufferView>(
+			sceneUniformCBVs[i] = UniquePtr<ConstantBufferView>(
 				gRenderDevice->createCBV(
 					sceneUniformMemory.get(),
 					sceneUniformDescriptorHeap.get(),
@@ -206,7 +208,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		gpuScene->renderGPUScene(
 			commandList, swapchainIndex,
-			scene, camera, sceneUniformCBVs[swapchainIndex].get());
+			scene, camera, sceneUniformCBVs.at(swapchainIndex));
 	}
 
 	if (bSupportsRaytracing && scene->bRebuildRaytracingScene)
@@ -257,29 +259,27 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, BasePass);
 
-		ResourceBarrier barriers[] = {
+		TextureMemoryBarrier barriers[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::RENDER_TARGET,
 				RT_sceneColor,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
-				EGPUResourceState::RENDER_TARGET
 			},
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::RENDER_TARGET,
 				RT_thinGBufferA,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
-				EGPUResourceState::RENDER_TARGET
 			}
 		};
-		commandList->resourceBarriers(_countof(barriers), barriers);
+		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
-		RenderTargetView* RTVs[] = { RT_sceneColor->getRTV(), RT_thinGBufferA->getRTV() };
-		commandList->omSetRenderTargets(_countof(RTVs), RTVs, RT_sceneDepth->getDSV());
+		RenderTargetView* RTVs[] = { sceneColorRTV.get(), thinGBufferARTV.get() };
+		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
 
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		commandList->clearRenderTargetView(RT_sceneColor->getRTV(), clearColor);
-		commandList->clearRenderTargetView(RT_thinGBufferA->getRTV(), clearColor);
-		commandList->clearDepthStencilView(RT_sceneDepth->getDSV(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
+		commandList->clearRenderTargetView(sceneColorRTV.get(), clearColor);
+		commandList->clearRenderTargetView(thinGBufferARTV.get(), clearColor);
+		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
 
 		basePass->renderBasePass(
 			commandList, swapchainIndex,
@@ -293,15 +293,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, PathTracing);
 
-		ResourceBarrier barriersBefore[] = {
+		TextureMemoryBarrier barriersBefore[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::UNORDERED_ACCESS,
 				RT_pathTracing,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
-				EGPUResourceState::UNORDERED_ACCESS
 			}
 		};
-		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
 		if (bRenderPathTracing)
 		{
@@ -321,43 +320,40 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, ClearRayTracedReflections);
 
-		ResourceBarrier barriersBefore[] = {
+		TextureMemoryBarrier barriersBefore[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::RENDER_TARGET,
 				RT_indirectSpecular,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
-				EGPUResourceState::RENDER_TARGET
 			}
 		};
-		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore);
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
 		// Clear RTR as a render target, every frame. (not so ideal but works)
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		commandList->clearRenderTargetView(RT_indirectSpecular->getRTV(), clearColor);
+		commandList->clearRenderTargetView(indirectSpecularRTV.get(), clearColor);
 
-		ResourceBarrier barriersAfter[] = {
+		TextureMemoryBarrier barriersAfter[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::RENDER_TARGET,
+				ETextureMemoryLayout::UNORDERED_ACCESS,
 				RT_indirectSpecular,
-				EGPUResourceState::RENDER_TARGET,
-				EGPUResourceState::UNORDERED_ACCESS
 			}
 		};
-		commandList->resourceBarriers(_countof(barriersAfter), barriersAfter);
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 	else
 	{
 		SCOPED_DRAW_EVENT(commandList, RayTracedReflections);
 
-		ResourceBarrier barriers[] = {
+		TextureMemoryBarrier barriers[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::UNORDERED_ACCESS,
 				RT_indirectSpecular,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE,
-				EGPUResourceState::UNORDERED_ACCESS
 			}
 		};
-		commandList->resourceBarriers(_countof(barriers), barriers);
+		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
 		rtReflections->renderRayTracedReflections(
 			commandList, swapchainIndex, scene, camera,
@@ -373,50 +369,45 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, ToneMapping);
 
-		ResourceBarrier barriers[] = {
+		TextureMemoryBarrier barriers[] = {
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::RENDER_TARGET,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				RT_sceneColor,
-				EGPUResourceState::RENDER_TARGET,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::RENDER_TARGET,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				RT_thinGBufferA,
-				EGPUResourceState::RENDER_TARGET,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::UNORDERED_ACCESS,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				RT_indirectSpecular,
-				EGPUResourceState::UNORDERED_ACCESS,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::UNORDERED_ACCESS,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				RT_pathTracing,
-				EGPUResourceState::UNORDERED_ACCESS,
-				EGPUResourceState::PIXEL_SHADER_RESOURCE
 			},
 			{
-				EResourceBarrierType::Transition,
+				ETextureMemoryLayout::PRESENT,
+				ETextureMemoryLayout::RENDER_TARGET,
 				swapchainBuffer,
-				EGPUResourceState::PRESENT,
-				EGPUResourceState::RENDER_TARGET
 			}
 		};
-		commandList->resourceBarriers(_countof(barriers), barriers);
+		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
 		// #todo-renderer: Should not be here
 		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
 
-		auto RT_alternateSceneColor = bRenderPathTracing ? RT_pathTracing : RT_sceneColor;
+		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
 		toneMapping->renderToneMapping(
 			commandList,
 			swapchainIndex,
-			RT_alternateSceneColor,
-			RT_indirectSpecular);
+			alternateSceneColorSRV,
+			indirectSpecularSRV.get());
 	}
 
 	// Buffer visualization
@@ -426,9 +417,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, BufferVisualization);
 
 		BufferVisualizationSources sources{
-			.mode             = renderOptions.bufferVisualization,
-			.sceneColor       = RT_sceneColor,
-			.indirectSpecular = RT_indirectSpecular,
+			.mode                = renderOptions.bufferVisualization,
+			.sceneColorSRV       = sceneColorSRV.get(),
+			.indirectSpecularSRV = bRenderRTR ? indirectSpecularSRV.get() : grey2DSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(
@@ -451,13 +442,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize
 
-	ResourceBarrier presentBarrier{
-		EResourceBarrierType::Transition,
+	TextureMemoryBarrier presentBarrier{
+		ETextureMemoryLayout::RENDER_TARGET,
+		ETextureMemoryLayout::PRESENT,
 		swapchainBuffer,
-		EGPUResourceState::RENDER_TARGET,
-		EGPUResourceState::PRESENT
 	};
-	commandList->resourceBarriers(1, &presentBarrier);
+	commandList->resourceBarriers(0, nullptr, 1, &presentBarrier);
 
 	commandList->close();
 	commandAllocator->markValid();
@@ -483,6 +473,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 {
+	// #todo-renderer: Need to delete old RTs, but not immediately their internal GPU resources
+	// as they are being used in GPU.
+
 	RT_sceneColor = device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R32G32B32A32_FLOAT,
@@ -490,6 +483,29 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_sceneColor->setDebugName(L"RT_SceneColor");
+
+	sceneColorSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_sceneColor,
+		ShaderResourceViewDesc{
+			.format              = RT_sceneColor->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_sceneColor->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	sceneColorRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_sceneColor,
+		RenderTargetViewDesc{
+			.format            = RT_sceneColor->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
+		}
+	));
 
 	RT_sceneDepth = device->createTexture(
 		TextureCreateParams::texture2D(
@@ -499,6 +515,17 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			1, 1, 0));
 	RT_sceneDepth->setDebugName(L"RT_SceneDepth");
 
+	sceneDepthDSV = UniquePtr<DepthStencilView>(device->createDSV(RT_sceneDepth,
+		DepthStencilViewDesc{
+			.format        = RT_sceneDepth->getCreateParams().format,
+			.viewDimension = EDSVDimension::Texture2D,
+			.flags         = EDSVFlags::None,
+			.texture2D     = Texture2DDSVDesc{
+				.mipSlice  = 0,
+			}
+		}
+	));
+
 	RT_thinGBufferA = device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R16G16B16A16_FLOAT,
@@ -506,6 +533,17 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_thinGBufferA->setDebugName(L"RT_ThinGBufferA");
+
+	thinGBufferARTV = UniquePtr<RenderTargetView>(device->createRTV(RT_thinGBufferA,
+		RenderTargetViewDesc{
+			.format            = RT_thinGBufferA->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
+		}
+	));
 
 	RT_indirectSpecular = device->createTexture(
 		TextureCreateParams::texture2D(
@@ -515,6 +553,29 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			1, 1, 0));
 	RT_indirectSpecular->setDebugName(L"RT_IndirectSpecular");
 
+	indirectSpecularSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_indirectSpecular,
+		ShaderResourceViewDesc{
+			.format              = RT_indirectSpecular->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_indirectSpecular->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	indirectSpecularRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_indirectSpecular,
+		RenderTargetViewDesc{
+			.format            = RT_indirectSpecular->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
+		}
+	));
+
 	RT_pathTracing = device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R32G32B32A32_FLOAT,
@@ -522,6 +583,33 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			sceneWidth, sceneHeight,
 			1, 1, 0));
 	RT_pathTracing->setDebugName(L"RT_PathTracing");
+
+	pathTracingSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_pathTracing,
+		ShaderResourceViewDesc{
+			.format              = RT_pathTracing->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_pathTracing->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+
+	Texture* grey2D = gTextureManager->getSystemTextureGrey2D()->getGPUResource().get();
+	grey2DSRV = UniquePtr<ShaderResourceView>(device->createSRV(grey2D,
+		ShaderResourceViewDesc{
+			.format              = grey2D->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = grey2D->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
 }
 
 void SceneRenderer::updateSceneUniform(

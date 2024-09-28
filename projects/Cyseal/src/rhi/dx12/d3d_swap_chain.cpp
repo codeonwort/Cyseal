@@ -6,11 +6,6 @@
 
 D3DSwapChain::D3DSwapChain()
 {
-	for (auto i = 0u; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
-	{
-		swapChainBuffers[i] = std::make_unique<D3DSwapChainBuffer>();
-		backBufferRTVs[i] = std::make_unique<D3DRenderTargetView>();
-	}
 }
 
 void D3DSwapChain::initialize(
@@ -33,39 +28,46 @@ void D3DSwapChain::initialize(
 
 	rawSwapChain.Reset();
 
-	DXGI_SWAP_CHAIN_DESC1 desc{};
-	desc.BufferCount        = SWAP_CHAIN_BUFFER_COUNT;
-	desc.Width              = width;
-	desc.Height             = height;
-	desc.Format             = into_d3d::pixelFormat(backbufferFormat);
-	desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	desc.SwapEffect         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	// You can't create a MSAA swap chain.
-	// https://gamedev.stackexchange.com/questions/149822/direct3d-12-cant-create-a-swap-chain
-	desc.SampleDesc.Count   = 1;
-	desc.SampleDesc.Quality = 0;
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{
+		.Width       = width,
+		.Height      = height,
+		.Format      = into_d3d::pixelFormat(backbufferFormat),
+		.Stereo      = FALSE,
+		// You can't create a MSAA swap chain.
+		// https://gamedev.stackexchange.com/questions/149822/direct3d-12-cant-create-a-swap-chain
+		.SampleDesc  = {1, 0},
+		.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+		.BufferCount = SWAP_CHAIN_BUFFER_COUNT,
+		.Scaling     = DXGI_SCALING_STRETCH,
+		.SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+		.AlphaMode   = DXGI_ALPHA_MODE_UNSPECIFIED,
+		.Flags       = 0,
+	};
 
 	IDXGISwapChain1* tempSwapchain = nullptr;
-
 	HR( dxgiFactory->CreateSwapChainForHwnd(
 			commandQueue,
 			hwnd,
-			&desc,
+			&swapChainDesc,
 			nullptr, nullptr,
 			&tempSwapchain)
 	);
-
 	rawSwapChain.Attach(static_cast<IDXGISwapChain3*>(tempSwapchain));
 
-	// Create RTV heap
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC desc;
-		desc.NumDescriptors = SWAP_CHAIN_BUFFER_COUNT;
-		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		desc.NodeMask = 0;
+	// CAUTION: gDescriptorHeaps is not initialized yet.
+	DescriptorHeapDesc heapDesc{
+		.type           = EDescriptorHeapType::RTV,
+		.numDescriptors = SWAP_CHAIN_BUFFER_COUNT,
+		.flags          = EDescriptorHeapFlags::None,
+		.nodeMask       = 0,
+	};
+	heapRTV = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(heapDesc));
 
-		HR( rawDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heapRTV.GetAddressOf())) );
+	swapChainBuffers.initialize(SWAP_CHAIN_BUFFER_COUNT);
+	backBufferRTVs.initialize(SWAP_CHAIN_BUFFER_COUNT);
+	for (auto i = 0u; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
+	{
+		swapChainBuffers[i] = makeUnique<D3DSwapChainBuffer>();
 	}
 
 	createSwapchainImages();
@@ -105,12 +107,12 @@ uint32 D3DSwapChain::getCurrentBackbufferIndex() const
 
 GPUResource* D3DSwapChain::getSwapchainBuffer(uint32 ix) const
 {
-	return swapChainBuffers[ix].get();
+	return swapChainBuffers.at(ix);
 }
 
 RenderTargetView* D3DSwapChain::getSwapchainBufferRTV(uint32 ix) const
 {
-	return backBufferRTVs[ix].get();
+	return backBufferRTVs.at(ix);
 }
 
 void D3DSwapChain::createSwapchainImages()
@@ -128,15 +130,15 @@ void D3DSwapChain::createSwapchainImages()
 		rawSwapChainBuffers[i]->SetName(debugName);
 	}
 
-	// Create RTVs
-	auto descSizeRTV = rawDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(heapRTV->GetCPUDescriptorHandleForHeapStart());
 	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{
-		auto rawResource = rawSwapChainBuffers[i].Get();
-		rawDevice->CreateRenderTargetView(rawResource, nullptr, rtvHeapHandle);
-		backBufferRTVs[i]->setCPUHandle(rtvHeapHandle);
-		rtvHeapHandle.ptr += descSizeRTV;
+		RenderTargetViewDesc rtvDesc{
+			.format        = backbufferFormat,
+			.viewDimension = ERTVDimension::Texture2D,
+			.texture2D     = Texture2DRTVDesc {.mipSlice = 0, .planeSlice = 0 },
+		};
+		auto rtv = gRenderDevice->createRTV(swapChainBuffers.at(i), heapRTV.get(), rtvDesc);
+		backBufferRTVs[i] = UniquePtr<RenderTargetView>(rtv);
 	}
 }
 

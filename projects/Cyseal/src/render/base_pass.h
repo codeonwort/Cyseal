@@ -33,18 +33,10 @@ public:
 		Texture* RT_thinGBufferA);
 
 private:
-	// Bind root parameters for the current root signature
-	void bindRootParameters(
-		RenderCommandList* cmdList,
-		uint32 swapchainIndex,
-		ConstantBufferView* sceneUniform,
-		GPUScene* gpuScene);
-
 	void resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors);
 
 private:
-	UniquePtr<PipelineState> pipelineState;
-	UniquePtr<RootSignature> rootSignature;
+	UniquePtr<GraphicsPipelineState> pipelineState;
 
 	UniquePtr<CommandSignature> commandSignature;
 	UniquePtr<IndirectCommandGenerator> argumentBufferGenerator;

@@ -5,52 +5,11 @@
 #include "rhi/shader.h"
 #include "rhi/texture_manager.h"
 
-namespace RootParameters
-{
-	enum Value
-	{
-		ModeEnumSlot = 0,
-		InputTexturesSlot,
-		Count
-	};
-};
-
 void BufferVisualization::initialize()
 {
 	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
-
-	// Create root signature.
-	{
-		DescriptorRange descriptorRange;
-		// sceneColor       : register(t0, space0)
-		// indirectSpecular : register(t1, space0)
-		descriptorRange.init(EDescriptorRangeType::SRV, 2, 0, 0);
-
-		RootParameter rootParameters[RootParameters::Count];
-		rootParameters[RootParameters::ModeEnumSlot].initAsConstants(0, 0, 1); // register(b0, space0)
-		rootParameters[RootParameters::InputTexturesSlot].initAsDescriptorTable(1, &descriptorRange);
-
-		constexpr uint32 NUM_STATIC_SAMPLERS = 1;
-		StaticSamplerDesc staticSamplers[NUM_STATIC_SAMPLERS];
-
-		memset(staticSamplers + 0, 0, sizeof(staticSamplers[0]));
-		staticSamplers[0].filter = ETextureFilter::MIN_MAG_MIP_POINT;
-		staticSamplers[0].addressU = ETextureAddressMode::Clamp;
-		staticSamplers[0].addressV = ETextureAddressMode::Clamp;
-		staticSamplers[0].addressW = ETextureAddressMode::Clamp;
-		staticSamplers[0].shaderVisibility = EShaderVisibility::Pixel;
-
-		RootSignatureDesc rootSigDesc(
-			RootParameters::Count,
-			rootParameters,
-			NUM_STATIC_SAMPLERS,
-			staticSamplers,
-			ERootSignatureFlags::AllowInputAssemblerInputLayout);
-
-		rootSignature = UniquePtr<RootSignature>(device->createRootSignature(rootSigDesc));
-	}
 
 	uint32 requiredVolatileDescriptors = 0;
 	requiredVolatileDescriptors += 1; // sceneColor
@@ -82,29 +41,30 @@ void BufferVisualization::initialize()
 	// Load shaders.
 	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BufferVisualizationVS");
 	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BufferVisualizationPS");
+	shaderVS->declarePushConstants();
+	shaderPS->declarePushConstants({ "pushConstants" });
 	shaderVS->loadFromFile(L"buffer_visualization.hlsl", "mainVS");
 	shaderPS->loadFromFile(L"buffer_visualization.hlsl", "mainPS");
 
 	// Create PSO.
-	{
-		GraphicsPipelineDesc desc;
-		desc.inputLayout            = inputLayout;
-		desc.rootSignature          = rootSignature.get();
-		desc.vs                     = shaderVS;
-		desc.ps                     = shaderPS;
-		desc.rasterizerDesc         = RasterizerDesc::FrontCull();
-		desc.blendDesc              = BlendDesc();
-		desc.depthstencilDesc       = DepthstencilDesc::NoDepth();
-		desc.sampleMask             = 0xffffffff;
-		desc.primitiveTopologyType  = EPrimitiveTopologyType::Triangle;
-		desc.numRenderTargets       = 1;
-		desc.rtvFormats[0]          = swapchain->getBackbufferFormat();
-		desc.sampleDesc.count       = 1;
-		desc.sampleDesc.quality     = 0;
-		desc.dsvFormat              = swapchain->getBackbufferDepthFormat();
-
-		pipelineState = UniquePtr<PipelineState>(device->createGraphicsPipelineState(desc));
-	}
+	GraphicsPipelineDesc pipelineDesc{
+		.vs                     = shaderVS,
+		.ps                     = shaderPS,
+		.ds                     = nullptr,
+		.hs                     = nullptr,
+		.gs                     = nullptr,
+		.blendDesc              = BlendDesc(),
+		.sampleMask             = 0xffffffff,
+		.rasterizerDesc         = RasterizerDesc::FrontCull(),
+		.depthstencilDesc       = DepthstencilDesc::NoDepth(),
+		.inputLayout            = inputLayout,
+		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
+		.numRenderTargets       = 1,
+		.rtvFormats             = { swapchain->getBackbufferFormat() },
+		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.sampleDesc             = SampleDesc { .count = 1, .quality = 0 },
+	};
+	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
 
 	// Cleanup.
 	{
@@ -118,36 +78,13 @@ void BufferVisualization::renderVisualization(
 	uint32 swapchainIndex,
 	const BufferVisualizationSources& sources)
 {
-	commandList->setPipelineState(pipelineState.get());
-	commandList->setGraphicsRootSignature(rootSignature.get());
+	ShaderParameterTable SPT{};
+	SPT.pushConstant("pushConstants", (uint32)sources.mode);
+	SPT.texture("sceneColor", sources.sceneColorSRV);
+	SPT.texture("indirectSpecular", sources.indirectSpecularSRV);
 
+	commandList->setGraphicsPipelineState(pipelineState.get());
+	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);
-
-	// Resource binding
-	{
-		DescriptorHeap* heaps[] = { volatileViewHeap.at(swapchainIndex) };
-		commandList->setDescriptorHeaps(1, heaps);
-
-		constexpr uint32 VOLATILE_IX_SceneColor = 0;
-		constexpr uint32 VOLATILE_IX_IndirectSpecular = 1;
-
-		auto grey2D = gTextureManager->getSystemTextureGrey2D()->getGPUResource().get();
-		auto copyDescriptor = [&](uint32 volatileIx, Texture* tex)
-		{
-			if (tex == nullptr) tex = grey2D;
-			gRenderDevice->copyDescriptors(
-				1,
-				heaps[0], volatileIx,
-				tex->getSourceSRVHeap(), tex->getSRVDescriptorIndex());
-		};
-
-		copyDescriptor(VOLATILE_IX_SceneColor, sources.sceneColor);
-		copyDescriptor(VOLATILE_IX_IndirectSpecular, sources.indirectSpecular);
-
-		commandList->setGraphicsRootConstant32(RootParameters::ModeEnumSlot, (uint32)sources.mode, 0);
-		commandList->setGraphicsRootDescriptorTable(RootParameters::InputTexturesSlot, heaps[0], 0);
-	}
-
-	// Fullscreen triangle
-	commandList->drawInstanced(3, 1, 0, 0);
+	commandList->drawInstanced(3, 1, 0, 0); // Fullscreen triangle
 }

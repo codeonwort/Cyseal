@@ -48,10 +48,6 @@ struct VertexAttributes
 	float2 texcoord;
 };
 
-struct RayGenConstantBuffer
-{
-	float4x4 dummyValue;
-};
 struct ClosestHitPushConstants
 {
 	uint objectID;
@@ -66,17 +62,13 @@ TextureCube                        skybox             : register(t4, space0);
 RWTexture2D<float4>                renderTarget       : register(u0, space0);
 ConstantBuffer<SceneUniform>       sceneUniform       : register(b0, space0);
 ConstantBuffer<PathTracingUniform> pathTracingUniform : register(b1, space0);
-
-// Local root signature (raygen)
-ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0, space1);
-
-// Local root signature (closest hit)
-ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
-
 // Material binding
 #define TEMP_MAX_SRVS 1024
 ConstantBuffer<Material> materials[]        : register(b0, space3); // bindless in another space
 Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless in another space
+
+// Local root signature (closest hit)
+ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
 
 SamplerState albedoSampler                  : register(s0, space0);
 SamplerState skyboxSampler                  : register(s1, space0);

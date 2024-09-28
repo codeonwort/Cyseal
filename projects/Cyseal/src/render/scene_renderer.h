@@ -2,8 +2,7 @@
 
 #include "renderer.h"
 #include "rhi/gpu_resource_view.h"
-
-#include <memory>
+#include "core/smart_pointer.h"
 
 class Buffer;
 class Texture;
@@ -19,6 +18,7 @@ class ToneMapping;
 class BufferVisualization;
 class PathTracingPass;
 
+// Render a 3D scene with hybrid rendering. (rasterization + raytracing)
 class SceneRenderer final : public Renderer
 {
 public:
@@ -44,21 +44,31 @@ private:
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.
 	Texture* RT_sceneColor = nullptr;
-	Texture* RT_sceneDepth = nullptr; // Actually DS target but let's unify the prefix.
+	UniquePtr<ShaderResourceView> sceneColorSRV;
+	UniquePtr<RenderTargetView> sceneColorRTV;
+
+	Texture* RT_sceneDepth = nullptr;
+	UniquePtr<DepthStencilView> sceneDepthDSV;
 
 	// Gonna stick to forward shading, but render thin GBuffers like DOOM reboot series.
 	Texture* RT_thinGBufferA = nullptr; // #todo-renderer: Maybe switch to R10G10B10A2?
+	UniquePtr<RenderTargetView> thinGBufferARTV;
 
 	Texture* RT_indirectSpecular = nullptr;
+	UniquePtr<ShaderResourceView> indirectSpecularSRV;
+	UniquePtr<RenderTargetView> indirectSpecularRTV;
 
 	Texture* RT_pathTracing = nullptr;
+	UniquePtr<ShaderResourceView> pathTracingSRV;
 
 	// #todo-renderer: Temp dedicated memory and desc heap for scene uniforms
-	std::unique_ptr<Buffer> sceneUniformMemory;
-	std::unique_ptr<DescriptorHeap> sceneUniformDescriptorHeap;
-	std::vector<std::unique_ptr<ConstantBufferView>> sceneUniformCBVs;
+	UniquePtr<Buffer> sceneUniformMemory;
+	UniquePtr<DescriptorHeap> sceneUniformDescriptorHeap;
+	BufferedUniquePtr<ConstantBufferView> sceneUniformCBVs;
 
 	AccelerationStructure* accelStructure = nullptr;
+
+	UniquePtr<ShaderResourceView> grey2DSRV; // SRV for fallback texture
 
 	// ------------------------------------------------------------------------
 	// Render passes

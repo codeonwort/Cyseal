@@ -33,10 +33,10 @@ public:
 	// ------------------------------------------------------------------------
 	// Create
 
-	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, const wchar_t* inDebugName) override;
+	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, EBufferAccessFlags usageFlags, const wchar_t* inDebugName) override;
 	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 
-	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, const wchar_t* inDebugName) override;
+	virtual IndexBuffer* createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags, const wchar_t* inDebugName) override;
 	virtual IndexBuffer* createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes, EPixelFormat format) override;
 
 	virtual Buffer* createBuffer(const BufferCreateParams& createParams) override;
@@ -44,12 +44,11 @@ public:
 
 	virtual ShaderStage* createShader(EShaderStage shaderStage, const char* debugName) override;
 
-	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) override;
-	virtual PipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
-	virtual PipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
+	virtual GraphicsPipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
 
-	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
-		const RaytracingPipelineStateObjectDesc& desc) override;
+	virtual ComputePipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
+
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc) override;
 
 	virtual RaytracingShaderTable* createRaytracingShaderTable(
 		RaytracingPipelineStateObject* RTPSO,
@@ -60,10 +59,17 @@ public:
 	virtual DescriptorHeap* createDescriptorHeap(const DescriptorHeapDesc& desc) override;
 
 	virtual ConstantBufferView* createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes) override;
+	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams) override;
+	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const UnorderedAccessViewDesc& createParams) override;
+	virtual RenderTargetView* createRTV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const RenderTargetViewDesc& createParams) override;
+	virtual DepthStencilView* createDSV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const DepthStencilViewDesc& createParams) override;
+
 	virtual ShaderResourceView* createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams) override;
 	virtual UnorderedAccessView* createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams) override;
+	virtual RenderTargetView* createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams) override;
+	virtual DepthStencilView* createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams) override;
 
-	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, RootSignature* inRootSignature) override;
+	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, GraphicsPipelineState* inPipelineState) override;
 	virtual IndirectCommandGenerator* createIndirectCommandGenerator(const CommandSignatureDesc& inDesc, uint32 maxCommandCount) override;
 
 	// ------------------------------------------------------------------------
@@ -84,22 +90,16 @@ public:
 	// ------------------------------------------------------------------------
 	// Utils
 
-	uint32 getDescriptorSizeCbvSrvUav() { return descSizeCBV_SRV_UAV; }
+	inline uint32 getDescriptorSizeCbvSrvUav()         const { return descSizeCBV_SRV_UAV;     }
 
-	inline IDXGIFactory4* getDXGIFactory() const { return dxgiFactory.Get(); }
-	inline ID3D12DeviceLatest* getRawDevice() const { return device.Get(); }
-	inline ID3D12CommandQueue* getRawCommandQueue() const { return rawCommandQueue; }
+	inline IDXGIFactory4*      getDXGIFactory()        const { return dxgiFactory.Get();       }
+	inline ID3D12DeviceLatest* getRawDevice()          const { return device.Get();            }
+	inline ID3D12CommandQueue* getRawCommandQueue()    const { return rawCommandQueue;         }
 
-	inline D3D_SHADER_MODEL getHighestShaderModel() const { return highestShaderModel; }
-	inline IDxcUtils* getDxcUtils() const { return dxcUtils.Get(); }
-	inline IDxcCompiler3* getDxcCompiler() const { return dxcCompiler.Get(); }
-	inline IDxcIncludeHandler* getDxcIncludeHandler() const { return dxcIncludeHandler.Get(); }
-
-	// #todo-renderdevice: Needs abstraction layer and release mechanism.
-	void allocateSRVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
-	void allocateRTVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
-	void allocateDSVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
-	void allocateUAVHandle(DescriptorHeap*& outSourceHeap, D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, uint32& outDescriptorIndex);
+	inline D3D_SHADER_MODEL    getHighestShaderModel() const { return highestShaderModel;      }
+	inline IDxcUtils*          getDxcUtils()           const { return dxcUtils.Get();          }
+	inline IDxcCompiler3*      getDxcCompiler()        const { return dxcCompiler.Get();       }
+	inline IDxcIncludeHandler* getDxcIncludeHandler()  const { return dxcIncludeHandler.Get(); }
 
 private:
 	void getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter);

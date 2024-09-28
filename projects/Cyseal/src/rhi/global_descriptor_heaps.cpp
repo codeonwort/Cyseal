@@ -8,68 +8,64 @@
 #define MAX_DSV_DESCRIPTORS 64
 #define MAX_UAV_DESCRIPTORS 1024
 
+// gDescriptorHeaps is initialized by gRenderDevice.
 GlobalDescriptorHeaps* gDescriptorHeaps = nullptr;
 
 void GlobalDescriptorHeaps::initialize()
 {
-	{
-		DescriptorHeapDesc desc;
-		desc.type           = EDescriptorHeapType::SRV;
-		desc.numDescriptors = MAX_SRV_DESCRIPTORS;
-		desc.flags          = EDescriptorHeapFlags::None;
-		desc.nodeMask       = 0;
+	srvHeap = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		DescriptorHeapDesc{
+			.type           = EDescriptorHeapType::SRV,
+			.numDescriptors = MAX_SRV_DESCRIPTORS,
+			.flags          = EDescriptorHeapFlags::None,
+			.nodeMask       = 0,
+		}
+	));
 
-		srvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
-	}
-	{
-		DescriptorHeapDesc desc;
-		desc.type           = EDescriptorHeapType::RTV;
-		desc.numDescriptors = MAX_RTV_DESCRIPTORS;
-		desc.flags          = EDescriptorHeapFlags::None;
-		desc.nodeMask = 0;
+	rtvHeap = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		DescriptorHeapDesc{
+			.type           = EDescriptorHeapType::RTV,
+			.numDescriptors = MAX_RTV_DESCRIPTORS,
+			.flags          = EDescriptorHeapFlags::None,
+			.nodeMask       = 0,
+		}
+	));
 
-		rtvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
-	}
-	{
-		DescriptorHeapDesc desc;
-		desc.type           = EDescriptorHeapType::DSV;
-		desc.numDescriptors = MAX_DSV_DESCRIPTORS;
-		desc.flags          = EDescriptorHeapFlags::None;
-		desc.nodeMask = 0;
+	dsvHeap = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		DescriptorHeapDesc{
+			.type           = EDescriptorHeapType::DSV,
+			.numDescriptors = MAX_DSV_DESCRIPTORS,
+			.flags          = EDescriptorHeapFlags::None,
+			.nodeMask       = 0,
+		}
+	));
 
-		dsvHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
-	}
-	{
-		DescriptorHeapDesc desc;
-		desc.type = EDescriptorHeapType::UAV;
-		desc.numDescriptors = MAX_UAV_DESCRIPTORS;
-		desc.flags = EDescriptorHeapFlags::None;
-		desc.nodeMask = 0;
-
-		uavHeap = std::unique_ptr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(desc));
-	}
+	uavHeap = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		DescriptorHeapDesc{
+			.type           = EDescriptorHeapType::UAV,
+			.numDescriptors = MAX_UAV_DESCRIPTORS,
+			.flags          = EDescriptorHeapFlags::None,
+			.nodeMask       = 0,
+		}
+	));
 }
 
 uint32 GlobalDescriptorHeaps::allocateSRVIndex()
 {
-	CHECK(nextSRVIndex < MAX_SRV_DESCRIPTORS);
-	return nextSRVIndex++;
+	return srvHeap->allocateDescriptorIndex();
 }
 
 uint32 GlobalDescriptorHeaps::allocateRTVIndex()
 {
-	CHECK(nextSRVIndex < MAX_SRV_DESCRIPTORS);
-	return nextSRVIndex++;
+	return rtvHeap->allocateDescriptorIndex();
 }
 
 uint32 GlobalDescriptorHeaps::allocateDSVIndex()
 {
-	CHECK(nextDSVIndex < MAX_DSV_DESCRIPTORS);
-	return nextDSVIndex++;
+	return dsvHeap->allocateDescriptorIndex();
 }
 
 uint32 GlobalDescriptorHeaps::allocateUAVIndex()
 {
-	CHECK(nextUAVIndex < MAX_UAV_DESCRIPTORS);
-	return nextUAVIndex++;
+	return uavHeap->allocateDescriptorIndex();
 }

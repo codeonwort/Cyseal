@@ -3,19 +3,11 @@
 #include "core/int_types.h"
 #include "core/smart_pointer.h"
 #include "rhi/gpu_resource_view.h"
+#include "rhi/rhi_forward.h"
 
-class RenderCommandList;
 class Material;
 class SceneProxy;
 class Camera;
-class Texture;
-class RootSignature;
-class ShaderStage;
-class RaytracingPipelineStateObject;
-class RaytracingShaderTable;
-class DescriptorHeap;
-class AccelerationStructure;
-class ConstantBufferView;
 class GPUScene;
 
 class RayTracedReflections final
@@ -44,21 +36,17 @@ private:
 
 private:
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
-	UniquePtr<RootSignature> globalRootSignature;
-	UniquePtr<RootSignature> raygenLocalRootSignature;
-	UniquePtr<RootSignature> closestHitLocalRootSignature;
 
 	UniquePtr<RaytracingShaderTable> raygenShaderTable;
 	UniquePtr<RaytracingShaderTable> missShaderTable;
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	std::vector<uint32> totalHitGroupShaderRecord;
 
-	UniquePtr<ShaderStage> raygenShader;
-	UniquePtr<ShaderStage> closestHitShader;
-	UniquePtr<ShaderStage> missShader;
-
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
+
+	UniquePtr<UnorderedAccessView> indirectSpecularUAV;
+	UniquePtr<UnorderedAccessView> thinGBufferAUAV;
 
 	UniquePtr<ShaderResourceView> skyboxSRV;
 	UniquePtr<ShaderResourceView> skyboxFallbackSRV;

@@ -1,5 +1,6 @@
 #include "render_device.h"
 #include "gpu_resource_binding.h"
+#include "descriptor_heap.h"
 
 RenderDevice* gRenderDevice = nullptr;
 

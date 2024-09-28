@@ -2,9 +2,11 @@
 
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_binding.h"
+#include "rhi/descriptor_heap.h"
+#include "rhi/hardware_raytracing.h"
+#include "core/smart_pointer.h"
 #include "core/assertion.h"
 #include "d3d_util.h"
-#include <memory>
 
 class D3DShaderResourceView;
 class D3DUnorderedAccessView;
@@ -83,7 +85,7 @@ private:
 		ID3D12Resource** ppResource,
 		const wchar_t* resourceName = nullptr);
 
-	std::unique_ptr<D3DShaderResourceView> srv;
+	UniquePtr<D3DShaderResourceView> srv;
 
 	uint32 totalBLAS = 0;
 	std::vector<WRL::ComPtr<ID3D12Resource>> blasResourceArray;

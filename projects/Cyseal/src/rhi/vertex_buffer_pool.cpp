@@ -2,7 +2,7 @@
 #include "core/assertion.h"
 #include "core/engine.h"
 #include "render_device.h"
-#include "gpu_resource.h"
+#include "buffer.h"
 #include "gpu_resource_view.h"
 
 VertexBufferPool* gVertexBufferPool = nullptr;
@@ -15,13 +15,10 @@ void VertexBufferPool::initialize(uint64 totalBytes)
 {
 	CHECK(pool == nullptr);
 
-	//VertexBufferCreateParams desc;
-	//desc.sizeInBytes = totalBytes;
-	//desc.initialData = nullptr;
-	//desc.bCommittedResource = true;
+	const EBufferAccessFlags usageFlags = EBufferAccessFlags::COPY_DST | EBufferAccessFlags::SRV;
 
 	poolSize = totalBytes;
-	pool = gRenderDevice->createVertexBuffer((uint32)totalBytes, L"GlobalVertexBufferPool");
+	pool = gRenderDevice->createVertexBuffer((uint32)totalBytes, usageFlags, L"GlobalVertexBufferPool");
 	
 	// Create raw view (ByteAddressBuffer)
 	{
@@ -33,7 +30,7 @@ void VertexBufferPool::initialize(uint64 totalBytes)
 		srvDesc.buffer.structureByteStride = 0;
 		srvDesc.buffer.flags               = EBufferSRVFlags::Raw;
 
-		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(pool, srvDesc));
+		srv = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(pool, srvDesc));
 	}
 
 	const float size_mb = (float)totalBytes / (1024 * 1024);
@@ -76,10 +73,13 @@ void IndexBufferPool::initialize(uint64 totalBytes)
 {
 	CHECK(pool == nullptr);
 
+	const EBufferAccessFlags usageFlags = EBufferAccessFlags::COPY_DST | EBufferAccessFlags::SRV;
+
 	poolSize = totalBytes;
 	pool = gRenderDevice->createIndexBuffer(
 		(uint32)totalBytes,
 		EPixelFormat::R32_UINT,
+		usageFlags,
 		L"GlobalIndexBufferPool");
 
 	// Create raw view (ByteAddressBuffer)
@@ -92,7 +92,7 @@ void IndexBufferPool::initialize(uint64 totalBytes)
 		srvDesc.buffer.structureByteStride = 0;
 		srvDesc.buffer.flags               = EBufferSRVFlags::Raw;
 
-		srv = std::unique_ptr<ShaderResourceView>(gRenderDevice->createSRV(pool, srvDesc));
+		srv = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(pool, srvDesc));
 	}
 
 	const float size_mb = (float)totalBytes / (1024 * 1024);

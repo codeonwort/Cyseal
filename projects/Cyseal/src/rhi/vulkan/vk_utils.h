@@ -98,6 +98,16 @@ inline void endSingleTimeCommands(VkDevice device, VkCommandPool commandPool, Vk
 	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
+void findImageBarrierFlags(
+	VkImageLayout oldLayout,
+	VkImageLayout newLayout,
+	VkFormat format,
+	VkPipelineStageFlags* outSrcStageMask,
+	VkPipelineStageFlags* outDstStageMask,
+	VkAccessFlags* outSrcAccessMask,
+	VkAccessFlags* outDstAccessMask,
+	VkImageAspectFlags* outAspectMask);
+
 void transitionImageLayout(
 	VkDevice device,
 	VkCommandPool commandPool,

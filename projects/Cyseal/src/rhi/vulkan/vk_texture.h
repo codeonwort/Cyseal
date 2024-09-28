@@ -3,10 +3,9 @@
 #if COMPILE_BACKEND_VULKAN
 
 #include "vk_resource_view.h"
-#include "rhi/gpu_resource.h"
+#include "rhi/texture.h"
 
 #include <vulkan/vulkan_core.h>
-#include <memory>
 
 class VulkanTexture : public Texture
 {
@@ -28,47 +27,12 @@ public:
 
 	virtual void setDebugName(const wchar_t* debugName) override;
 
-	virtual RenderTargetView* getRTV() const override;
-	virtual ShaderResourceView* getSRV() const override;
-	virtual DepthStencilView* getDSV() const override;
-	virtual UnorderedAccessView* getUAV() const override;
-
-	virtual uint32 getSRVDescriptorIndex() const override { return srvDescriptorIndex; }
-	virtual uint32 getRTVDescriptorIndex() const override { return rtvDescriptorIndex; }
-	virtual uint32 getDSVDescriptorIndex() const override { return dsvDescriptorIndex; }
-	virtual uint32 getUAVDescriptorIndex() const override { return uavDescriptorIndex; }
-
-	virtual DescriptorHeap* getSourceSRVHeap() const override { return srvHeap; }
-	virtual DescriptorHeap* getSourceRTVHeap() const override { return rtvHeap; }
-	virtual DescriptorHeap* getSourceDSVHeap() const override { return dsvHeap; }
-	virtual DescriptorHeap* getSourceUAVHeap() const override { return uavHeap; }
-
 private:
 	VkImage vkImage = VK_NULL_HANDLE;
 
 	// #todo-vulkan: Implement custom large block manager or integrate VMA.
 	// Separate VkDeviceMemory per texture for now...
 	VkDeviceMemory vkImageMemory = VK_NULL_HANDLE;
-
-	VkImageView vkSRV = VK_NULL_HANDLE;
-	VkImageView vkRTV = VK_NULL_HANDLE;
-	VkImageView vkUAV = VK_NULL_HANDLE;
-	VkImageView vkDSV = VK_NULL_HANDLE;
-	uint32 srvDescriptorIndex = 0xffffffff;
-	uint32 rtvDescriptorIndex = 0xffffffff;
-	uint32 dsvDescriptorIndex = 0xffffffff;
-	uint32 uavDescriptorIndex = 0xffffffff;
-
-	std::unique_ptr<VulkanRenderTargetView> rtv;
-	std::unique_ptr<ShaderResourceView> srv;
-	std::unique_ptr<VulkanDepthStencilView> dsv;
-	std::unique_ptr<UnorderedAccessView> uav;
-
-	// Source descriptor heaps from which this texture allocated its descriptors.
-	DescriptorHeap* srvHeap = nullptr;
-	DescriptorHeap* rtvHeap = nullptr;
-	DescriptorHeap* dsvHeap = nullptr;
-	DescriptorHeap* uavHeap = nullptr;
 
 	TextureCreateParams createParams;
 };

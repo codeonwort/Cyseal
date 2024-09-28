@@ -10,10 +10,12 @@
 
 #include "gpu_resource.h"
 #include "gpu_resource_binding.h"
+#include "core/smart_pointer.h"
 
-#include <memory>
 #include <vector>
 
+class VertexBuffer;
+class IndexBuffer;
 class ShaderResourceView;
 
 // #todo-vram-pool: Implement free list with this.
@@ -47,7 +49,7 @@ private:
 	uint64 poolSize = 0;
 	VertexBuffer* pool = nullptr;
 
-	std::unique_ptr<ShaderResourceView> srv; // ByteAddressBuffer view
+	UniquePtr<ShaderResourceView> srv; // ByteAddressBuffer view
 	
 	// #todo-vram-pool: Only increment for now. Need a free list.
 	uint64 currentOffset = 0;
@@ -78,7 +80,7 @@ private:
 	uint64 poolSize = 0;
 	IndexBuffer* pool = nullptr;
 
-	std::unique_ptr<ShaderResourceView> srv; // ByteAddressBuffer view
+	UniquePtr<ShaderResourceView> srv; // ByteAddressBuffer view
 
 	// #todo-vram-pool: Only increment for now. Need a free list.
 	uint64 currentOffset = 0;

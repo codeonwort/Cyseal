@@ -10,6 +10,7 @@
 // 2. Implement a method to allocate several numbers at once.
 class FreeNumberList
 {
+	// Represent allocated numbers
 	struct Range { uint32 a, b; Range* next; }; // [a, b]
 
 public:
@@ -19,9 +20,14 @@ public:
 	{
 	}
 
+	~FreeNumberList()
+	{
+		clear();
+	}
+
 	// Allocate a new free number, greater than 0.
 	// It's not guaranteed that the smallest free number will be returned.
-	// @return Allocated number. 0 if failed.
+	// @return The allocated number. 0 if failed.
 	uint32 allocate()
 	{
 		if (head == nullptr)
@@ -29,6 +35,12 @@ public:
 			head = new Range{ 1, 1, nullptr };
 			return head->a;
 		}
+		else if (head->a > 1)
+		{
+			head->a -= 1;
+			return head->a;
+		}
+
 		Range* cand = head;
 		while (cand != nullptr)
 		{
@@ -36,12 +48,6 @@ public:
 			Range* next = cand->next;
 			if (next == nullptr || cand->b < next->a)
 			{
-				// Just expand backward; this breaks 'smallest free number' rule.
-				if (cand == head && cand->a > 1)
-				{
-					cand->a -= 1;
-					return cand->a;
-				}
 				cand->b += 1;
 				uint32 freeNumber = cand->b;
 				if (next != nullptr && cand->b == next->a)
@@ -98,10 +104,8 @@ public:
 		return false;
 	}
 
-	// Check if the list ran out of.
-	// It can be awkaward it's not "isFull()" but actually the list is 'empty'
-	// when we can't allocate any free number.
-	bool isEmpty() const
+	// Returns true if can allocate further.
+	bool canAllocate() const
 	{
 		if (head == nullptr)
 		{
@@ -110,10 +114,22 @@ public:
 		Range* tail = head;
 		while (tail != nullptr && tail->next != nullptr)
 		{
-			if (tail->b < tail->next->a - 1) return false;
+			if (tail->b < tail->next->a - 1) return true;
 			tail = tail->next;
 		}
-		return tail->b == maxNumber;
+		return tail->b != maxNumber;
+	}
+
+	void clear()
+	{
+		Range* item = head;
+		while (item != nullptr)
+		{
+			Range* temp = item;
+			item = item->next;
+			delete temp;
+		}
+		head = nullptr;
 	}
 
 private:

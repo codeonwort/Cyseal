@@ -2,7 +2,10 @@
 
 #if COMPILE_BACKEND_VULKAN
 
+#include "core/smart_pointer.h"
 #include "rhi/swap_chain.h"
+#include "rhi/gpu_resource.h"
+
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -16,7 +19,32 @@ https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkRenderPa
 	The use of a render pass in a command buffer is a render pass instance.
 ------------------------------------------------------------------------------------ */
 
+class DescriptorHeap;
 class VulkanDevice;
+class VulkanRenderTargetView;
+
+class VulkanSwapchainImage : public GPUResource
+{
+public:
+	VulkanSwapchainImage(VkImage inVkImage)
+		: vkImage(inVkImage)
+	{
+	}
+	VkImage getVkImage() const
+	{
+		return vkImage;
+	}
+	virtual void* getRawResource() const override
+	{
+		return vkImage;
+	}
+	virtual void setRawResource(void* inResource) override
+	{
+		vkImage = reinterpret_cast<VkImage>(inResource);
+	}
+private:
+	VkImage vkImage = VK_NULL_HANDLE;
+};
 
 class VulkanSwapchain : public SwapChain
 {
@@ -41,6 +69,11 @@ public:
 	virtual GPUResource* getSwapchainBuffer(uint32 ix) const override;
 	virtual RenderTargetView* getSwapchainBufferRTV(uint32 ix) const override;
 
+	inline VkFormat getVkSwapchainImageFormat() const { return swapchainImageFormat; }
+	inline VkRenderPass getVkRenderPass() const { return backbufferRenderPass; }
+	inline VkFramebuffer getVkFramebuffer(uint32 ix) const { return swapchainFramebuffers[ix]; }
+	inline VkSampleCountFlagBits getVkSampleCountFlagBits() const { return vkSampleCountFlagBits; }
+
 private:
 	VulkanDevice* deviceWrapper = nullptr;
 
@@ -49,10 +82,15 @@ private:
 	VkSwapchainKHR swapchainKHR = VK_NULL_HANDLE;
 	VkExtent2D swapchainExtent = VkExtent2D{ 0,0 };
 	uint32 swapchainImageCount = 0;
+	// #todo-vulkan: backbuffer sample count
+	// Also gotta do something with SwapChain::get4xMSAAQuality()
+	VkSampleCountFlagBits vkSampleCountFlagBits = VK_SAMPLE_COUNT_1_BIT;
 
-	std::vector<VkImage> swapchainImages;
 	VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
-	std::vector<VkImageView> swapchainImageViews;
+	BufferedUniquePtr<VulkanSwapchainImage> swapchainImages;
+
+	UniquePtr<DescriptorHeap> heapRTV;
+	BufferedUniquePtr<RenderTargetView> swapchainImageViews;
 
 	VkRenderPass backbufferRenderPass = VK_NULL_HANDLE;
 	std::vector<VkFramebuffer> swapchainFramebuffers;
