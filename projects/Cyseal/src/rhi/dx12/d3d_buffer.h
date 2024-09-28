@@ -50,7 +50,7 @@ private:
 	// Own buffer or reference to the global buffer.
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;
 
-	// #todo: destroy after the command list is executed and realized.
+	// #todo-dx12: destroy after the command list is executed and realized.
 	WRL::ComPtr<ID3D12Resource> uploadBuffer;
 
 	uint64 offsetInDefaultBuffer = 0;
@@ -84,7 +84,7 @@ public:
 private:
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;
 
-	// #todo: destroy after the command list is executed and realized.
+	// #todo-dx12: destroy after the command list is executed and realized.
 	WRL::ComPtr<ID3D12Resource> uploadBuffer;
 
 	D3D12_INDEX_BUFFER_VIEW view;

@@ -59,7 +59,7 @@ EApplicationReturnCode WindowsApplication::launch(const ApplicationCreateParams&
 	// According to MSDN this is a fixed value, so don't query it every time.
 	::QueryPerformanceFrequency(&time_freq);
 
-	// #todo: Enable dpi awareness for imgui if needed.
+	// #todo-application: Enable dpi awareness for imgui if needed.
 	//ImGui_ImplWin32_EnableDpiAwareness();
 
 	winClass = Win32RegisterClass(hInstance, appName);
@@ -255,7 +255,7 @@ HWND Win32InitInstance(
 		return NULL;
 	}
 
-	// #todo: Hmm... sometimes the window is minimized at startup. Does this always solve it?
+	// #todo-application: Hmm... sometimes the window is minimized at startup. Does this always solve it?
 	::BringWindowToTop(hWnd);
 
 	::ShowWindow(hWnd, SW_SHOW);

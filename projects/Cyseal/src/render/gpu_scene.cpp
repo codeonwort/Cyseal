@@ -213,7 +213,7 @@ void GPUScene::renderGPUScene(
 			sceneCommands[sceneCommandIx].sceneItemIndex                    = sceneItemIx;
 			sceneCommands[sceneCommandIx].sceneItem.modelTransform          = localToWorld;
 			sceneCommands[sceneCommandIx].sceneItem.localMinBounds          = section.localBounds.minBounds;
-			// #todo: uint64 offset
+			// #todo-gpuscene: uint64 offset
 			sceneCommands[sceneCommandIx].sceneItem.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes();
 			sceneCommands[sceneCommandIx].sceneItem.localMaxBounds          = section.localBounds.maxBounds;
 			sceneCommands[sceneCommandIx].sceneItem.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes();

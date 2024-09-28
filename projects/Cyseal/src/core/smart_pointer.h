@@ -6,7 +6,6 @@
 #include <vector>
 
 // ------------------------------------------------------------------
-// #todo: Replace all std smart pointer usages with these types.
 
 template<typename T>
 using UniquePtr = std::unique_ptr<T>;

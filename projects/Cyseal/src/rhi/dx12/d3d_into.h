@@ -253,7 +253,7 @@ namespace into_d3d
 			case EPixelFormat::R16_UINT           : return DXGI_FORMAT_R16_UINT;
 			case EPixelFormat::D24_UNORM_S8_UINT  : return DXGI_FORMAT_D24_UNORM_S8_UINT;
 		}
-		CHECK_NO_ENTRY(); // #todo: Unknown pixel format
+		CHECK_NO_ENTRY(); // #todo-dx12: Unknown pixel format
 		return DXGI_FORMAT_UNKNOWN;
 	}
 

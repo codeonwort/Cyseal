@@ -5,18 +5,12 @@
 #include "pipeline_state.h"
 #include "gpu_resource_binding.h"
 #include "gpu_resource_barrier.h"
+
 #include <functional>
 
 // Forward Declarations
-class RenderDevice;
-class RenderTargetView;
-class DepthStencilView;
-class ShaderResourceView;
-class PipelineState;
-class RootSignature;
 class VertexBuffer;
 class IndexBuffer;
-class DescriptorHeap;
 
 // ID3D12CommandQueue
 // VkQueue
@@ -83,15 +77,9 @@ public:
 
 	// #todo-rendercommand: Maybe not the best way to clear RTV.
 	// (Need to check how loadOp=CLEAR maps to DX12 and Vulkan.)
-	virtual void clearRenderTargetView(
-		RenderTargetView* RTV,
-		const float* rgba) = 0;
+	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) = 0;
 
-	virtual void clearDepthStencilView(
-		DepthStencilView* DSV,
-		EDepthClearFlags clearFlags,
-		float depth,
-		uint8_t stencil) = 0;
+	virtual void clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil) = 0;
 
 	// ------------------------------------------------------------------------
 	// Pipeline state object (graphics & compute)

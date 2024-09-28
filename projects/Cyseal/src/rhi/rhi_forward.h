@@ -1,5 +1,6 @@
 #pragma once
 
+class RenderDevice;
 class RenderCommandAllocator;
 class RenderCommandList;
 class RenderCommandQueue;
