@@ -78,7 +78,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_dx12.cpp" />
-    <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_vulkan.cpp" />
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui.cpp" />
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui_demo.cpp" />
