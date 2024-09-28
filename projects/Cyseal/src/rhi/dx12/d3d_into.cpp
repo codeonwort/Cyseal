@@ -152,15 +152,15 @@ namespace into_d3d
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW)
 		{
-			outDesc.ConstantBufferView.RootParameterIndex = inDesc.constantBufferView.rootParameterIndex;
+			outDesc.ConstantBufferView.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_SHADER_RESOURCE_VIEW)
 		{
-			outDesc.ShaderResourceView.RootParameterIndex = inDesc.shaderResourceView.rootParameterIndex;
+			outDesc.ShaderResourceView.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW)
 		{
-			outDesc.UnorderedAccessView.RootParameterIndex = inDesc.unorderedAccessView.rootParameterIndex;
+			outDesc.UnorderedAccessView.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
 		}
 	}
 

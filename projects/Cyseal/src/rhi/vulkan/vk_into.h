@@ -452,35 +452,6 @@ namespace into_vk
 		return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 	}
 
-	inline VkDescriptorType descriptorRangeType(EDescriptorRangeType inType)
-	{
-		switch (inType)
-		{
-			case EDescriptorRangeType::CBV         : return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			case EDescriptorRangeType::SRV         : return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-			case EDescriptorRangeType::UAV         : return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-			case EDescriptorRangeType::SAMPLER     : return VK_DESCRIPTOR_TYPE_SAMPLER;
-		}
-		CHECK_NO_ENTRY();
-		return VK_DESCRIPTOR_TYPE_MAX_ENUM;
-	}
-
-	inline VkDescriptorType descriptorType(ERootParameterType inType)
-	{
-		switch (inType)
-		{
-			case ERootParameterType::CBV         : return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			// #wip-descriptor: SRV and UAV are both storage buffer in Vulkan
-			// but VkDescriptorSetLayoutBinding::binding overlaps in this way...
-			case ERootParameterType::SRVBuffer   : return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-			case ERootParameterType::UAVBuffer   : return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-			case ERootParameterType::SRVImage    : return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-			case ERootParameterType::UAVImage    : return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		}
-		CHECK_NO_ENTRY();
-		return VK_DESCRIPTOR_TYPE_MAX_ENUM;
-	}
-
 	inline VkShaderStageFlags shaderStageFlags(EShaderVisibility inFlags)
 	{
 		// #wip: D3D12_SHADER_VISIBILITY is single enum but VkShaderStageFlags is enum flags.

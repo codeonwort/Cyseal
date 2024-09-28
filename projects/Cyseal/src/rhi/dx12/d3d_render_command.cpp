@@ -255,12 +255,6 @@ void D3DRenderCommandList::setRaytracingPipelineState(RaytracingPipelineStateObj
 	commandList->SetPipelineState1(rawRTPSO);
 }
 
-void D3DRenderCommandList::setComputeRootSignature(RootSignature* rootSignature)
-{
-	auto rawSignature = static_cast<D3DRootSignature*>(rootSignature)->getRaw();
-	commandList->SetComputeRootSignature(rawSignature);
-}
-
 void D3DRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps)
 {
 	std::vector<ID3D12DescriptorHeap*> rawHeaps;

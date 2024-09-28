@@ -3,19 +3,11 @@
 #include "core/int_types.h"
 #include "core/smart_pointer.h"
 #include "rhi/gpu_resource_view.h"
+#include "rhi/rhi_forward.h"
 
-class RenderCommandList;
 class Material;
 class SceneProxy;
 class Camera;
-class Texture;
-class RootSignature;
-class ShaderStage;
-class RaytracingPipelineStateObject;
-class RaytracingShaderTable;
-class DescriptorHeap;
-class AccelerationStructure;
-class ConstantBufferView;
 class GPUScene;
 
 class RayTracedReflections final

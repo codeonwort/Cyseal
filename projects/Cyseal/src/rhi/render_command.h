@@ -101,7 +101,6 @@ public:
 	virtual void setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso) = 0;
 
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) = 0;
-	virtual void setComputeRootSignature(RootSignature* rootSignature) = 0;
 
 	// ------------------------------------------------------------------------
 	// Graphics pipeline

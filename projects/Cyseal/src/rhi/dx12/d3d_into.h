@@ -119,34 +119,9 @@ namespace into_d3d
 		}
 	}
 
-	inline D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags(ERootSignatureFlags inFlags)
-	{
-		return static_cast<D3D12_ROOT_SIGNATURE_FLAGS>(inFlags);
-	}
-
-	inline D3D12_ROOT_PARAMETER_TYPE rootParameterType(ERootParameterType inType)
-	{
-		switch (inType)
-		{
-			case ERootParameterType::DescriptorTable: return D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			case ERootParameterType::Constants32Bit:  return D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-			case ERootParameterType::CBV:             return D3D12_ROOT_PARAMETER_TYPE_CBV;
-			case ERootParameterType::SRVBuffer:       return D3D12_ROOT_PARAMETER_TYPE_SRV;
-			case ERootParameterType::UAVBuffer:       return D3D12_ROOT_PARAMETER_TYPE_UAV;
-			case ERootParameterType::SRVImage:        return D3D12_ROOT_PARAMETER_TYPE_SRV;
-			case ERootParameterType::UAVImage:        return D3D12_ROOT_PARAMETER_TYPE_UAV;
-		}
-		CHECK_NO_ENTRY(); return (D3D12_ROOT_PARAMETER_TYPE)0;
-	}
-
 	inline D3D12_SHADER_VISIBILITY shaderVisibility(EShaderVisibility inSV)
 	{
 		return static_cast<D3D12_SHADER_VISIBILITY>(inSV);
-	}
-
-	inline D3D12_DESCRIPTOR_RANGE_TYPE descriptorRangeType(EDescriptorRangeType inType)
-	{
-		return static_cast<D3D12_DESCRIPTOR_RANGE_TYPE>(inType);
 	}
 
 	inline D3D12_FILTER filter(ETextureFilter inFilter)
@@ -178,86 +153,6 @@ namespace into_d3d
 		outDesc.ShaderRegister = inDesc.shaderRegister;
 		outDesc.RegisterSpace = inDesc.registerSpace;
 		outDesc.ShaderVisibility = shaderVisibility(inDesc.shaderVisibility);
-	}
-
-	inline void descriptorRange(const DescriptorRange& inRange, D3D12_DESCRIPTOR_RANGE& outRange)
-	{
-		outRange.RangeType = descriptorRangeType(inRange.rangeType);
-		outRange.NumDescriptors = inRange.numDescriptors;
-		outRange.BaseShaderRegister = inRange.baseShaderRegister;
-		outRange.RegisterSpace = inRange.registerSpace;
-		outRange.OffsetInDescriptorsFromTableStart = inRange.offsetInDescriptorsFromTableStart;
-	}
-
-	inline void rootConstants(const RootConstants& inConsts, D3D12_ROOT_CONSTANTS& outConsts)
-	{
-		outConsts.ShaderRegister = inConsts.shaderRegister;
-		outConsts.RegisterSpace = inConsts.registerSpace;
-		outConsts.Num32BitValues = inConsts.num32BitValues;
-	}
-
-	inline void rootDescriptor(const RootDescriptor& inDesc, D3D12_ROOT_DESCRIPTOR& outDesc)
-	{
-		outDesc.ShaderRegister = inDesc.shaderRegister;
-		outDesc.RegisterSpace = inDesc.registerSpace;
-	}
-
-	inline void rootParameter(const RootParameter& inParam, D3D12_ROOT_PARAMETER& outParam, TempAlloc& tempAlloc)
-	{
-		outParam.ParameterType = rootParameterType(inParam.parameterType);
-		switch (inParam.parameterType)
-		{
-		case ERootParameterType::DescriptorTable:
-		{
-			const uint32 num = inParam.descriptorTable.numDescriptorRanges;
-			D3D12_DESCRIPTOR_RANGE* tempDescriptorRanges = tempAlloc.allocDescriptorRanges(num);
-			for (uint32 i = 0; i < num; ++i)
-			{
-				descriptorRange(inParam.descriptorTable.descriptorRanges[i], tempDescriptorRanges[i]);
-			}
-			outParam.DescriptorTable.NumDescriptorRanges = num;
-			outParam.DescriptorTable.pDescriptorRanges = tempDescriptorRanges;
-		}
-		break;
-
-		case ERootParameterType::Constants32Bit:
-			rootConstants(inParam.constants, outParam.Constants);
-			break;
-
-		case ERootParameterType::CBV:
-		case ERootParameterType::SRVBuffer: case ERootParameterType::SRVImage:
-		case ERootParameterType::UAVBuffer: case ERootParameterType::UAVImage:
-			rootDescriptor(inParam.descriptor, outParam.Descriptor);
-			break;
-
-		default:
-			CHECK_NO_ENTRY();
-			break;
-		}
-		outParam.ShaderVisibility = shaderVisibility(inParam.shaderVisibility);
-	}
-
-	inline void rootSignatureDesc(
-		const RootSignatureDesc& inDesc,
-		D3D12_ROOT_SIGNATURE_DESC& outDesc,
-		TempAlloc& tempAlloc)
-	{
-		D3D12_ROOT_PARAMETER* tempParameters = tempAlloc.allocRootParameters(inDesc.numParameters);
-		D3D12_STATIC_SAMPLER_DESC* tempStaticSamplers = tempAlloc.allocStaticSamplers(inDesc.numStaticSamplers);
-		for (uint32 i = 0; i < inDesc.numParameters; ++i)
-		{
-			rootParameter(inDesc.parameters[i], tempParameters[i], tempAlloc);
-		}
-		for (uint32 i = 0; i < inDesc.numStaticSamplers; ++i)
-		{
-			staticSamplerDesc(inDesc.staticSamplers[i], tempStaticSamplers[i]);
-		}
-
-		outDesc.NumParameters = inDesc.numParameters;
-		outDesc.pParameters = tempParameters;
-		outDesc.NumStaticSamplers = inDesc.numStaticSamplers;
-		outDesc.pStaticSamplers = tempStaticSamplers;
-		outDesc.Flags = rootSignatureFlags(inDesc.flags);
 	}
 
 	inline D3D12_FILL_MODE fillMode(EFillMode inMode)

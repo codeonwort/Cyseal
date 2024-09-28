@@ -18,30 +18,6 @@ inline uint32 align(uint32 size, uint32 alignment)
 	return (size + (alignment - 1)) & ~(alignment - 1);
 }
 
-class D3DRootSignature : public RootSignature
-{
-public:
-	void initialize(
-		ID3D12Device* device,
-		uint32 nodeMask,
-		const void* blobWithRootSignature,
-		size_t blobLengthInBytes)
-	{
-		HR(device->CreateRootSignature(
-			nodeMask,
-			blobWithRootSignature,
-			blobLengthInBytes,
-			IID_PPV_ARGS(&rawRootSignature))
-		);
-	}
-	inline ID3D12RootSignature* getRaw() const
-	{
-		return rawRootSignature.Get();
-	}
-private:
-	WRL::ComPtr<ID3D12RootSignature> rawRootSignature;
-};
-
 class D3DGraphicsPipelineState : public GraphicsPipelineState
 {
 public:

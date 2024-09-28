@@ -94,7 +94,6 @@ public:
 
 	virtual ShaderStage* createShader(EShaderStage shaderStage, const char* debugName) = 0;
 
-	virtual RootSignature* createRootSignature(const RootSignatureDesc& desc) = 0;
 	virtual GraphicsPipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) = 0;
 	virtual ComputePipelineState* createComputePipelineState(const ComputePipelineDesc& desc) = 0;
 	

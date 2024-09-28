@@ -5,15 +5,13 @@ class RenderCommandList;
 class RenderCommandQueue;
 
 struct GraphicsPipelineDesc;
-struct RootSignatureDesc;
 struct DescriptorHeapDesc;
 struct BLASInstanceInitDesc;
 
+class ShaderStage;
 class PipelineState;
 class GraphicsPipelineState;
 class ComputePipelineState;
-class RootSignature;
-class ShaderStage;
 class RaytracingPipelineStateObject;
 class RaytracingShaderTable;
 class DescriptorHeap;

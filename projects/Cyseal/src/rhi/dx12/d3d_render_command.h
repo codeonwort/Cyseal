@@ -67,7 +67,6 @@ public:
 	virtual void setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso) override;
 
 	virtual void setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps) override;
-	virtual void setComputeRootSignature(RootSignature* rootSignature) override;
 
 	// ------------------------------------------------------------------------
 	// Graphics pipeline

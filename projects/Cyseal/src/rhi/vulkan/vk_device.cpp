@@ -508,6 +508,8 @@ ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* de
 	return new VulkanShaderStage(shaderStage, debugName);
 }
 
+// #todo-vulkan: Root signature abstraction is deprecated
+#if 0
 RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc)
 {
 	VkResult vkRet = VkResult::VK_RESULT_MAX_ENUM;
@@ -613,6 +615,7 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 
 	return new VulkanPipelineLayout(vkPipelineLayout);
 }
+#endif
 
 GraphicsPipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
 {

@@ -433,34 +433,6 @@ ShaderStage* D3DDevice::createShader(EShaderStage shaderStage, const char* debug
 	return new D3DShaderStage(shaderStage, debugName);
 }
 
-RootSignature* D3DDevice::createRootSignature(const RootSignatureDesc& desc)
-{
-	into_d3d::TempAlloc tempAlloc;
-	D3D12_ROOT_SIGNATURE_DESC d3d_desc;
-	into_d3d::rootSignatureDesc(desc, d3d_desc, tempAlloc);
-
-	WRL::ComPtr<ID3DBlob> serializedRootSig;
-	WRL::ComPtr<ID3DBlob> errorBlob;
-	HRESULT result = D3D12SerializeRootSignature(
-		&d3d_desc,
-		D3D_ROOT_SIGNATURE_VERSION_1,
-		serializedRootSig.GetAddressOf(),
-		errorBlob.GetAddressOf());
-	
-	if (errorBlob != nullptr)
-	{
-		const char* message = reinterpret_cast<char*>(errorBlob->GetBufferPointer());
-		::OutputDebugStringA(message);
-	}
-
-	HR(result);
-
-	D3DRootSignature* rootSignature = new D3DRootSignature;
-	rootSignature->initialize(device.Get(), 0, serializedRootSig->GetBufferPointer(), serializedRootSig->GetBufferSize());
-
-	return rootSignature;
-}
-
 GraphicsPipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
 {
 	D3DGraphicsPipelineState* pipeline = new D3DGraphicsPipelineState;

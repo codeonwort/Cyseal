@@ -8,8 +8,6 @@
 #include <string>
 #include <map>
 
-class D3DRootSignature;
-
 struct D3DShaderParameter
 {
 	// Read from shader reflection.

@@ -202,12 +202,6 @@ void VulkanRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* c
 	CHECK_NO_ENTRY();
 }
 
-void VulkanRenderCommandList::setComputeRootSignature(RootSignature* rootSignature)
-{
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-}
-
 void VulkanRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology inTopology)
 {
 	// The PSO should be created with VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY

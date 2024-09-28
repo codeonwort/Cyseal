@@ -6,22 +6,6 @@
 #include "rhi/pipeline_state.h"
 #include <vulkan/vulkan_core.h>
 
-class VulkanPipelineLayout : public RootSignature
-{
-public:
-	VulkanPipelineLayout(VkPipelineLayout inLayout)
-		: vkPipelineLayout(inLayout)
-	{}
-	~VulkanPipelineLayout()
-	{
-		VkDevice vkDevice = static_cast<VulkanDevice*>(gRenderDevice)->getRaw();
-		vkDestroyPipelineLayout(vkDevice, vkPipelineLayout, nullptr);
-	}
-	inline VkPipelineLayout getVkPipelineLayout() const { return vkPipelineLayout; }
-private:
-	VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
-};
-
 class VulkanGraphicsPipelineState : public GraphicsPipelineState
 {
 public:
