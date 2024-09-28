@@ -272,6 +272,7 @@ void D3DRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* cons
 	commandList->SetDescriptorHeaps(count, rawHeaps.data());
 }
 
+// #todo-dx12: bindGraphicsShaderParameters(), bindComputeShaderParameters(), and bindRaytracingShaderParameters() are almost same, but a little hard to extract common part.
 void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* inParameters, DescriptorHeap* descriptorHeap)
 {
 	D3DGraphicsPipelineState* d3dPipelineState = static_cast<D3DGraphicsPipelineState*>(pipelineState);
@@ -333,18 +334,6 @@ void D3DRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineSt
 	}
 }
 
-void D3DRenderCommandList::setComputeRootDescriptorTable(
-	uint32 rootParameterIndex,
-	DescriptorHeap* descriptorHeap,
-	uint32 descriptorStartOffset)
-{
-	ID3D12DescriptorHeap* rawHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
-	D3D12_GPU_DESCRIPTOR_HANDLE tableHandle = rawHeap->GetGPUDescriptorHandleForHeapStart();
-	tableHandle.ptr += (uint64)descriptorStartOffset * (uint64)device->getDescriptorSizeCbvSrvUav();
-
-	commandList->SetComputeRootDescriptorTable(rootParameterIndex, tableHandle);
-}
-
 void D3DRenderCommandList::bindComputeShaderParameters(
 	PipelineState* pipelineState,
 	const ShaderParameterTable* inParameters,
@@ -394,16 +383,6 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	setRootDescriptorTables(commandList.Get(), inParameters->textures, &descriptorIx);
 	setRootDescriptorTables(commandList.Get(), inParameters->rwTextures, &descriptorIx);
 	CHECK(inParameters->accelerationStructures.size() == 0); // Not allowed in compute pipeline.
-}
-
-void D3DRenderCommandList::setComputeRootDescriptorSRV(
-	uint32 rootParameterIndex,
-	ShaderResourceView* srv)
-{
-	D3DShaderResourceView* d3dSRV = static_cast<D3DShaderResourceView*>(srv);
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dSRV->getGPUVirtualAddress();
-
-	commandList->SetComputeRootShaderResourceView(rootParameterIndex, gpuAddr);
 }
 
 void D3DRenderCommandList::drawIndexedInstanced(
@@ -503,7 +482,6 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 	const ShaderParameterTable* inParameters,
 	DescriptorHeap* descriptorHeap)
 {
-	// #wip-dxc-reflection: Redundant with bindComputeShaderParameters() except for only two lines below.
 	D3DRaytracingPipelineStateObject* d3dPipelineState = static_cast<D3DRaytracingPipelineStateObject*>(pipelineState);
 	ID3D12RootSignature* globalRootSig = d3dPipelineState->getGlobalRootSignature();
 

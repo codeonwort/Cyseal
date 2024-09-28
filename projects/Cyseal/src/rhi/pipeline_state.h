@@ -408,31 +408,6 @@ struct RaytracingPipelineStateObjectDesc
 	ShaderStage* closestHitShader = nullptr;
 	ShaderStage* missShader = nullptr;
 	// #todo-dxr: anyHitShader, intersectionShader
-
-	// https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html#resource-binding
-	// Local root signature  : Arguments come from individual shader tables
-	// Global root signature : Arguments are shared across all raytracing shaders
-	//                         and compute PSOs on CommandLists
-	RootSignature* raygenLocalRootSignature = nullptr;
-	RootSignature* closestHitLocalRootSignature = nullptr;
-	RootSignature* missLocalRootSignature = nullptr;
-	RootSignature* globalRootSignature = nullptr;
-
-	uint32 maxPayloadSizeInBytes = 0;
-	uint32 maxAttributeSizeInBytes = 0;
-
-	uint32 maxTraceRecursionDepth = 1;
-};
-
-struct RaytracingPipelineStateObjectDesc2
-{
-	std::wstring hitGroupName;
-	ERaytracingHitGroupType hitGroupType = ERaytracingHitGroupType::Triangles;
-
-	ShaderStage* raygenShader = nullptr;
-	ShaderStage* closestHitShader = nullptr;
-	ShaderStage* missShader = nullptr;
-	// #todo-dxr: anyHitShader, intersectionShader
 	//ShaderStage* anyHitShader = nullptr;
 	//ShaderStage* intersectionShader = nullptr;
 

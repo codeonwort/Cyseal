@@ -99,7 +99,6 @@ public:
 	virtual ComputePipelineState* createComputePipelineState(const ComputePipelineDesc& desc) = 0;
 	
 	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc) = 0;
-	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc2& desc) = 0;
 
 	// NOTE: shaderRecordSize = shaderIdentifierSize + rootArgumentSize,
 	// but shaderIdentifierSize is API-specific, so we specify only rootArgumentSize here.

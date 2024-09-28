@@ -113,14 +113,6 @@ public:
 	// ------------------------------------------------------------------------
 	// Compute pipeline
 
-	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
-	virtual void setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv) override;
-
-	virtual void setComputeRootDescriptorTable(
-		uint32 rootParameterIndex,
-		DescriptorHeap* descriptorHeap,
-		uint32 descriptorStartOffset) override;
-
 	virtual void bindComputeShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) override;
 
 	virtual void dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ) override;

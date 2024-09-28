@@ -180,9 +180,10 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 {
 	IDxcUtils* const utils = getD3DDevice()->getDxcUtils();
 
-	// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/nn-d3d12shader-id3d12shaderreflection
 	if (!isRaytracingShader(stageFlag))
 	{
+		// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/nn-d3d12shader-id3d12shaderreflection
+
 		WRL::ComPtr<IDxcBlob> reflectionBlob;
 		HR( compileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(reflectionBlob.GetAddressOf()), NULL) );
 
@@ -216,10 +217,10 @@ void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 			threadGroupTotalSize = shaderReflection->GetThreadGroupSize(&threadGroupSizeX, &threadGroupSizeY, &threadGroupSizeZ);
 		}
 	}
-	// #wip-dxc-reflection: ID3D12LibraryReflection for raytracing shaders
-	// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/nn-d3d12shader-id3d12libraryreflection
 	else
 	{
+		// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/nn-d3d12shader-id3d12libraryreflection
+
 		WRL::ComPtr<IDxcBlob> reflectionBlob;
 		HR( compileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(reflectionBlob.GetAddressOf()), NULL) );
 

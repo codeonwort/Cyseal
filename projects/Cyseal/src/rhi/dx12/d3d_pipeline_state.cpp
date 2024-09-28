@@ -248,7 +248,7 @@ static void createRootSignatureFromParameterTable(
 		}
 		for (auto& param : parameterTable.accelerationStructures)
 		{
-			// #wip-dxc-reflection: SRV in D3DAccelerationStructure does not have source heap
+			// #todo-dxr: SRV in D3DAccelerationStructure does not have source heap
 #if 0
 			D3D12_DESCRIPTOR_RANGE descriptor{
 				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
@@ -451,7 +451,7 @@ void D3DRaytracingPipelineStateObject::initialize(ID3D12Device5* device, const D
 	HR(rawRTPSO.As(&rawProperties));
 }
 
-void D3DRaytracingPipelineStateObject::initialize(ID3D12Device5* device, const RaytracingPipelineStateObjectDesc2& inDesc)
+void D3DRaytracingPipelineStateObject::initialize(ID3D12Device5* device, const RaytracingPipelineStateObjectDesc& inDesc)
 {
 	createRootSignatures(device, inDesc);
 
@@ -536,7 +536,7 @@ const D3DShaderParameter* D3DRaytracingPipelineStateObject::findGlobalShaderPara
 	return (it == globalParameterHashMap.end()) ? nullptr : it->second;
 }
 
-void D3DRaytracingPipelineStateObject::createRootSignatures(ID3D12Device* device, const RaytracingPipelineStateObjectDesc2& desc)
+void D3DRaytracingPipelineStateObject::createRootSignatures(ID3D12Device* device, const RaytracingPipelineStateObjectDesc& desc)
 {
 	D3DShaderStage* raygen = static_cast<D3DShaderStage*>(desc.raygenShader);
 	D3DShaderStage* closestHit = static_cast<D3DShaderStage*>(desc.closestHitShader);

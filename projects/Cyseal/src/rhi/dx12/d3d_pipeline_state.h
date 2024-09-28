@@ -87,7 +87,7 @@ class D3DRaytracingPipelineStateObject : public RaytracingPipelineStateObject
 public:
 	void initialize(ID3D12Device5* device, const D3D12_STATE_OBJECT_DESC& desc);
 
-	void initialize(ID3D12Device5* device, const RaytracingPipelineStateObjectDesc2& desc);
+	void initialize(ID3D12Device5* device, const RaytracingPipelineStateObjectDesc& desc);
 
 	inline ID3D12RootSignature* getGlobalRootSignature() const { return globalRootSignature.Get(); }
 	//inline ID3D12RootSignature* getLocalRootSignatureRaygen() const { return localRootSignatureRaygen.Get(); }
@@ -102,7 +102,7 @@ public:
 	const D3DShaderParameter* findGlobalShaderParameter(const std::string& name) const;
 
 private:
-	void createRootSignatures(ID3D12Device* device, const RaytracingPipelineStateObjectDesc2& desc);
+	void createRootSignatures(ID3D12Device* device, const RaytracingPipelineStateObjectDesc& desc);
 
 	D3DShaderParameterTable globalParameterTable; // Copied from D3DShaderStage
 	std::map<std::string, const D3DShaderParameter*> globalParameterHashMap; // For fast query

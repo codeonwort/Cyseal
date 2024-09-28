@@ -76,7 +76,7 @@ void RayTracedReflections::initialize()
 	missShader->loadFromFile(L"rt_reflection.hlsl", "MyMissShader");
 
 	// RTPSO
-	RaytracingPipelineStateObjectDesc2 pipelineDesc{
+	RaytracingPipelineStateObjectDesc pipelineDesc{
 		.hitGroupName                 = RTR_HIT_GROUP_NAME,
 		.hitGroupType                 = ERaytracingHitGroupType::Triangles,
 		.raygenShader                 = raygenShader,

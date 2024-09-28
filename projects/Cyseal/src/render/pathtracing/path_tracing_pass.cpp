@@ -128,7 +128,7 @@ void PathTracingPass::initialize()
 	missShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_MISS);
 
 	// RTPSO
-	RaytracingPipelineStateObjectDesc2 pipelineDesc{
+	RaytracingPipelineStateObjectDesc pipelineDesc{
 		.hitGroupName                 = PATH_TRACING_HIT_GROUP_NAME,
 		.hitGroupType                 = ERaytracingHitGroupType::Triangles,
 		.raygenShader                 = raygenShader,

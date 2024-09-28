@@ -326,18 +326,6 @@ void VulkanRenderCommandList::executeIndirect(
 	// #todo-vulkan
 }
 
-void VulkanRenderCommandList::setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv)
-{
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-}
-
-void VulkanRenderCommandList::setComputeRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap, uint32 descriptorStartOffset)
-{
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-}
-
 void VulkanRenderCommandList::bindComputeShaderParameters(
 	PipelineState* pipelineState,
 	const ShaderParameterTable* parameters,
