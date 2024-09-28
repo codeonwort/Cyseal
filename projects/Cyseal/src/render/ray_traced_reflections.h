@@ -45,7 +45,6 @@ private:
 private:
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
 	UniquePtr<RootSignature> globalRootSignature;
-	UniquePtr<RootSignature> raygenLocalRootSignature;
 	UniquePtr<RootSignature> closestHitLocalRootSignature;
 
 	UniquePtr<RaytracingShaderTable> raygenShaderTable;

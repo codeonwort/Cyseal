@@ -15,6 +15,9 @@
 #include "rhi/texture_manager.h"
 #include "rhi/hardware_raytracing.h"
 
+// #wip-dxc-reflection: Refactor RTR
+#define REFACTOR 1
+
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
@@ -25,6 +28,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogRayTracedReflections);
 
+#if !REFACTOR
 namespace RTRRootParameters
 {
 	enum Value
@@ -41,6 +45,7 @@ namespace RTRRootParameters
 		Count
 	};
 }
+#endif
 
 // Just to calculate size in bytes.
 // Should match with RayPayload in rt_reflection.hlsl.
@@ -59,15 +64,10 @@ struct RTRTriangleIntersectionAttributes
 	float texcoord[2];
 };
 
-struct RayGenConstantBuffer
-{
-	Float4x4 dummyValue;
-};
 struct ClosestHitPushConstants
 {
 	uint32 materialID;
 };
-static_assert(sizeof(RayGenConstantBuffer) % 4 == 0);
 static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
 
 void RayTracedReflections::initialize()
@@ -87,6 +87,7 @@ void RayTracedReflections::initialize()
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
 
+#if !REFACTOR
 	// Global root signature
 	{
 		DescriptorRange descRanges[5];
@@ -146,16 +147,9 @@ void RayTracedReflections::initialize()
 			_countof(staticSamplers), staticSamplers);
 		globalRootSignature = UniquePtr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
 	}
+#endif
 
-	// Local root signature
-	{
-		RootParameter rootParameters[1];
-		rootParameters[0].initAsConstants(0, 1, sizeof(RayGenConstantBuffer) / 4); // register(b0, space1)
-
-		RootSignatureDesc sigDesc(_countof(rootParameters), rootParameters);
-		sigDesc.flags = ERootSignatureFlags::LocalRootSignature;
-		raygenLocalRootSignature = UniquePtr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
-	}
+#if !REFACTOR
 	{
 		RootParameter rootParameters[1];
 		rootParameters[0].initAsConstants(0, 2, sizeof(ClosestHitPushConstants) / 4); // register(b0, space2)
@@ -164,33 +158,52 @@ void RayTracedReflections::initialize()
 		sigDesc.flags = ERootSignatureFlags::LocalRootSignature;
 		closestHitLocalRootSignature = UniquePtr<RootSignature>(gRenderDevice->createRootSignature(sigDesc));
 	}
+#endif
 
 	// RTPSO
 	{
 		raygenShader = UniquePtr<ShaderStage>(device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen"));
 		closestHitShader = UniquePtr<ShaderStage>(device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit"));
 		missShader = UniquePtr<ShaderStage>(device->createShader(EShaderStage::RT_MISS_SHADER, "RTR_Miss"));
-
+		raygenShader->declarePushConstants();
+		closestHitShader->declarePushConstants({ "g_closestHitCB" });
+		missShader->declarePushConstants();
 		raygenShader->loadFromFile(L"rt_reflection.hlsl", "MyRaygenShader");
 		closestHitShader->loadFromFile(L"rt_reflection.hlsl", "MyClosestHitShader");
 		missShader->loadFromFile(L"rt_reflection.hlsl", "MyMissShader");
 
-		RaytracingPipelineStateObjectDesc desc;
-		desc.hitGroupName                 = RTR_HIT_GROUP_NAME;
-		desc.hitGroupType                 = ERaytracingHitGroupType::Triangles;
-		desc.raygenShader                 = raygenShader.get();
-		desc.closestHitShader             = closestHitShader.get();
-		desc.missShader                   = missShader.get();
-		desc.raygenLocalRootSignature     = raygenLocalRootSignature.get();
-		desc.closestHitLocalRootSignature = closestHitLocalRootSignature.get();
-		desc.missLocalRootSignature       = nullptr;
-		desc.globalRootSignature          = globalRootSignature.get();
-		desc.maxPayloadSizeInBytes        = sizeof(RTRRayPayload);
-		desc.maxAttributeSizeInBytes      = sizeof(RTRTriangleIntersectionAttributes);
-		desc.maxTraceRecursionDepth       = RTR_MAX_RECURSION;
-
-		RTPSO = UniquePtr<RaytracingPipelineStateObject>(
-			gRenderDevice->createRaytracingPipelineStateObject(desc));
+#if REFACTOR
+		RaytracingPipelineStateObjectDesc2 pipelineDesc{
+			.hitGroupName                 = RTR_HIT_GROUP_NAME,
+			.hitGroupType                 = ERaytracingHitGroupType::Triangles,
+			.raygenShader                 = raygenShader.get(),
+			.closestHitShader             = closestHitShader.get(),
+			.missShader                   = missShader.get(),
+			.raygenLocalParameters        = {},
+			.closestHitLocalParameters    = { "g_closestHitCB" },
+			.missLocalParameters          = {},
+			.maxPayloadSizeInBytes        = sizeof(RTRRayPayload),
+			.maxAttributeSizeInBytes      = sizeof(RTRTriangleIntersectionAttributes),
+			.maxTraceRecursionDepth       = RTR_MAX_RECURSION,
+		};
+		RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
+#else
+		RaytracingPipelineStateObjectDesc pipelineDesc{
+			.hitGroupName                 = RTR_HIT_GROUP_NAME,
+			.hitGroupType                 = ERaytracingHitGroupType::Triangles,
+			.raygenShader                 = raygenShader.get(),
+			.closestHitShader             = closestHitShader.get(),
+			.missShader                   = missShader.get(),
+			.raygenLocalRootSignature     = nullptr,
+			.closestHitLocalRootSignature = closestHitLocalRootSignature.get(),
+			.missLocalRootSignature       = nullptr,
+			.globalRootSignature          = globalRootSignature.get(),
+			.maxPayloadSizeInBytes        = sizeof(RTRRayPayload),
+			.maxAttributeSizeInBytes      = sizeof(RTRTriangleIntersectionAttributes),
+			.maxTraceRecursionDepth       = RTR_MAX_RECURSION,
+		};
+		RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
+#endif
 	}
 
 	// Acceleration Structure is built by SceneRenderer.
@@ -198,6 +211,7 @@ void RayTracedReflections::initialize()
 
 	// Raygen shader table
 	{
+#if 0
 		struct RootArguments
 		{
 			RayGenConstantBuffer cb;
@@ -206,20 +220,31 @@ void RayTracedReflections::initialize()
 
 		uint32 numShaderRecords = 1;
 		raygenShaderTable = UniquePtr<RaytracingShaderTable>(
-			device->createRaytracingShaderTable(
-				RTPSO.get(), numShaderRecords, sizeof(rootArguments), L"RayGenShaderTable"));
+			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, sizeof(rootArguments), L"RayGenShaderTable"));
 		raygenShaderTable->uploadRecord(0, raygenShader.get(), &rootArguments, sizeof(rootArguments));
+#else
+		uint32 numShaderRecords = 1;
+		raygenShaderTable = UniquePtr<RaytracingShaderTable>(
+			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"RayGenShaderTable"));
+		raygenShaderTable->uploadRecord(0, raygenShader.get(), nullptr, 0);
+#endif
 	}
 	// Miss shader table
 	{
 		uint32 numShaderRecords = 1;
 		missShaderTable = UniquePtr<RaytracingShaderTable>(
-			device->createRaytracingShaderTable(
-				RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
+			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
 		missShaderTable->uploadRecord(0, missShader.get(), nullptr, 0);
 	}
 	// Hit group shader table is created in resizeHitGroupShaderTable().
 	// ...
+
+	// Cleanup
+	{
+		raygenShader.reset();
+		closestHitShader.reset();
+		missShader.reset();
+	}
 }
 
 bool RayTracedReflections::isAvailable() const
@@ -251,9 +276,16 @@ void RayTracedReflections::renderRayTracedReflections(
 		gpuScene->queryMaterialDescriptorsCount(swapchainIndex, materialCBVCount, materialSRVCount);
 
 		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 4; // render target, gbufferA, scene uniform, skybox
-		requiredVolatiles += materialCBVCount;
-		requiredVolatiles += materialSRVCount;
+		requiredVolatiles += 1; // rtScene
+		requiredVolatiles += 1; // gIndexBuffer
+		requiredVolatiles += 1; // gVertexBuffer
+		requiredVolatiles += 1; // gpuSceneBuffer
+		requiredVolatiles += 1; // skybox
+		requiredVolatiles += 1; // renderTarget
+		requiredVolatiles += 1; // gbufferA
+		requiredVolatiles += 1; // sceneUniform
+		requiredVolatiles += materialCBVCount; // materials[]
+		requiredVolatiles += materialSRVCount; // albedoTextures[]
 
 		if (requiredVolatiles > totalVolatileDescriptor[swapchainIndex])
 		{
@@ -334,6 +366,8 @@ void RayTracedReflections::renderRayTracedReflections(
 	// Copy descriptors to the volatile heap
 
 	DescriptorHeap* volatileHeap = descriptorHeaps[0];
+
+#if !REFACTOR
 	const uint32 VOLATILE_DESC_IX_RENDERTARGET = 0;
 	const uint32 VOLATILE_DESC_IX_GBUFFER = 1;
 	//const uint32 VOLATILE_DESC_IX_ACCELSTRUCT = 2; // Directly bound; no table.
@@ -345,9 +379,11 @@ void RayTracedReflections::renderRayTracedReflections(
 	uint32 VOLATILE_DESC_IX_MATERIAL_CBV, unusedMaterialCBVCount;
 	uint32 VOLATILE_DESC_IX_MATERIAL_SRV, unusedMaterialSRVCount;
 	uint32 VOLATILE_DESC_IX_NEXT_FREE;
+#endif
 
 	auto skyboxSRVWithFallback = (skyboxSRV != nullptr) ? skyboxSRV.get() : skyboxFallbackSRV.get();
 
+#if !REFACTOR
 	gRenderDevice->copyDescriptors(1,
 		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET,
 		indirectSpecularUAV->getSourceHeap(), indirectSpecularUAV->getDescriptorIndexInHeap());
@@ -366,33 +402,42 @@ void RayTracedReflections::renderRayTracedReflections(
 		VOLATILE_DESC_IX_MATERIAL_CBV, unusedMaterialCBVCount,
 		VOLATILE_DESC_IX_MATERIAL_SRV, unusedMaterialSRVCount,
 		VOLATILE_DESC_IX_NEXT_FREE);
+#endif
 
-	//////////////////////////////////////////////////////////////////////////
-	// Set root parameters
-
-	commandList->setComputeRootSignature(globalRootSignature.get());
-
-	commandList->setDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-	commandList->setComputeRootDescriptorTable(RTRRootParameters::OutputViewSlot,
-		volatileHeap, VOLATILE_DESC_IX_RENDERTARGET);
-	commandList->setComputeRootDescriptorSRV(RTRRootParameters::AccelerationStructureSlot,
-		raytracingScene->getSRV());
-	commandList->setComputeRootDescriptorTable(RTRRootParameters::SceneUniformSlot,
-		volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM);
-	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalIndexBufferSlot,
-		gIndexBufferPool->getByteAddressBufferView());
-	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalVertexBufferSlot,
-		gVertexBufferPool->getByteAddressBufferView());
-	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GPUSceneSlot,
-		gpuScene->getGPUSceneBufferSRV());
-	commandList->setComputeRootDescriptorTable(RTRRootParameters::SkyboxSlot,
-		volatileHeap, VOLATILE_DESC_IX_SKYBOX);
-	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialConstantsSlot,
-		volatileHeap, VOLATILE_DESC_IX_MATERIAL_CBV);
-	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialTexturesSlot,
-		volatileHeap, VOLATILE_DESC_IX_MATERIAL_SRV);
-	
 	commandList->setRaytracingPipelineState(RTPSO.get());
+#if REFACTOR
+	// Bind global shader parameters.
+	{
+		GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+
+		ShaderParameterTable SPT{};
+		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
+		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
+		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
+		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
+		SPT.texture("skybox", skyboxSRVWithFallback);
+		SPT.rwTexture("renderTarget", indirectSpecularUAV.get());
+		//SPT.rwTexture("gbufferA", thinGBufferAUAV.get());
+		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
+		// Bindless
+		SPT.constantBuffer("materials", gpuSceneDesc.cbvHeap, 0, gpuSceneDesc.cbvCount);
+		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
+
+		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
+	}
+#else
+	commandList->setComputeRootSignature(globalRootSignature.get());
+	commandList->setDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	commandList->setComputeRootDescriptorTable(RTRRootParameters::OutputViewSlot, volatileHeap, VOLATILE_DESC_IX_RENDERTARGET);
+	commandList->setComputeRootDescriptorSRV(RTRRootParameters::AccelerationStructureSlot, raytracingScene->getSRV());
+	commandList->setComputeRootDescriptorTable(RTRRootParameters::SceneUniformSlot, volatileHeap, VOLATILE_DESC_IX_SCENEUNIFORM);
+	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalIndexBufferSlot, gIndexBufferPool->getByteAddressBufferView());
+	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GlobalVertexBufferSlot, gVertexBufferPool->getByteAddressBufferView());
+	commandList->setComputeRootDescriptorSRV(RTRRootParameters::GPUSceneSlot, gpuScene->getGPUSceneBufferSRV());
+	commandList->setComputeRootDescriptorTable(RTRRootParameters::SkyboxSlot, volatileHeap, VOLATILE_DESC_IX_SKYBOX);
+	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialConstantsSlot, volatileHeap, VOLATILE_DESC_IX_MATERIAL_CBV);
+	commandList->setComputeRootDescriptorTable(RTRRootParameters::MaterialTexturesSlot, volatileHeap, VOLATILE_DESC_IX_MATERIAL_SRV);
+#endif
 	
 	DispatchRaysDesc dispatchDesc{
 		.raygenShaderTable = raygenShaderTable.get(),
@@ -435,15 +480,12 @@ void RayTracedReflections::resizeHitGroupShaderTable(uint32 swapchainIndex, uint
 	};
 
 	hitGroupShaderTable[swapchainIndex] = UniquePtr<RaytracingShaderTable>(
-		gRenderDevice->createRaytracingShaderTable(
-			RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
+		gRenderDevice->createRaytracingShaderTable(RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
 
 	for (uint32 i = 0; i < maxRecords; ++i)
 	{
 		RootArguments rootArguments{
-			.pushConstants = ClosestHitPushConstants{
-				.materialID = i
-			}
+			.pushConstants = ClosestHitPushConstants{ .materialID = i }
 		};
 
 		hitGroupShaderTable[swapchainIndex]->uploadRecord(i, RTR_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));

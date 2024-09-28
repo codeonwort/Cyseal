@@ -292,6 +292,17 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
 	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
+	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	{
+		for (const auto& inParam : parameters)
+		{
+			const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+			device->copyDescriptors(inParam.count, descriptorHeap, *inoutDescriptorIx, inParam.sourceHeap, inParam.startIndex);
+			cmdList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(*inoutDescriptorIx));
+			*inoutDescriptorIx += inParam.count;
+		}
+	};
+
 	// #todo-dxc: Root Descriptor vs Descriptor Table
 	// For now, always use descriptor table.
 	uint32 descriptorIx = 0;
@@ -301,48 +312,14 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
 		commandList->SetGraphicsRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
 	}
-	for (const auto& inParam : inParameters->constantBuffers)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
-	for (const auto& inParam : inParameters->structuredBuffers)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
-	for (const auto& inParam : inParameters->rwBuffers)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
-	for (const auto& inParam : inParameters->rwStructuredBuffers)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
-	for (const auto& inParam : inParameters->textures)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
-	for (const auto& inParam : inParameters->rwTextures)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
+	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->structuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwStructuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->byteAddressBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->textures, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwTextures, &descriptorIx);
+	CHECK(inParameters->accelerationStructures.size() == 0); // Not allowed in graphics pipeline.
 }
 
 void D3DRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* inParameters)
@@ -389,6 +366,17 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	commandList->SetComputeRootSignature(d3dRootSig);
 	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
+	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	{
+		for (const auto& inParam : parameters)
+		{
+			const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+			device->copyDescriptors(inParam.count, descriptorHeap, *inoutDescriptorIx, inParam.sourceHeap, inParam.startIndex);
+			cmdList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(*inoutDescriptorIx));
+			*inoutDescriptorIx += inParam.count;
+		}
+	};
+
 	// #todo-dxc: Root Descriptor vs Descriptor Table
 	// For now, always use descriptor table.
 	uint32 descriptorIx = 0;
@@ -398,48 +386,14 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
 		commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
 	}
-	for (const auto& inParam : inParameters->constantBuffers)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
-	for (const auto& inParam : inParameters->structuredBuffers)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
-	for (const auto& inParam : inParameters->rwBuffers)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
-	for (const auto& inParam : inParameters->rwStructuredBuffers)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
-	for (const auto& inParam : inParameters->textures)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
-	for (const auto& inParam : inParameters->rwTextures)
-	{
-		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
-		gRenderDevice->copyDescriptors(inParam.count, descriptorHeap, descriptorIx, inParam.sourceHeap, inParam.startIndex);
-		commandList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(descriptorIx));
-		descriptorIx += inParam.count;
-	}
+	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->structuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwStructuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->byteAddressBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->textures, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwTextures, &descriptorIx);
+	CHECK(inParameters->accelerationStructures.size() == 0); // Not allowed in compute pipeline.
 }
 
 void D3DRenderCommandList::setComputeRootDescriptorSRV(
@@ -542,6 +496,65 @@ AccelerationStructure* D3DRenderCommandList::buildRaytracingAccelerationStructur
 	accelStruct->buildTLAS(commandList.Get(), buildFlags);
 
 	return accelStruct;
+}
+
+void D3DRenderCommandList::bindRaytracingShaderParameters(
+	RaytracingPipelineStateObject* pipelineState,
+	const ShaderParameterTable* inParameters,
+	DescriptorHeap* descriptorHeap)
+{
+	// #wip-dxc-reflection: Redundant with bindComputeShaderParameters() except for only two lines below.
+	D3DRaytracingPipelineStateObject* d3dPipelineState = static_cast<D3DRaytracingPipelineStateObject*>(pipelineState);
+	ID3D12RootSignature* globalRootSig = d3dPipelineState->getGlobalRootSignature();
+
+	ID3D12DescriptorHeap* d3dDescriptorHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	D3D12_GPU_DESCRIPTOR_HANDLE baseHandle = d3dDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	const uint64 descriptorSize = (uint64)device->getDescriptorSizeCbvSrvUav();
+	auto calcDescriptorHandle = [&baseHandle, &descriptorSize](uint32 descriptorIndex) {
+		D3D12_GPU_DESCRIPTOR_HANDLE handle = baseHandle;
+		handle.ptr += (uint64)descriptorIndex * descriptorSize;
+		return handle;
+	};
+
+	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
+	commandList->SetComputeRootSignature(globalRootSig);
+	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
+
+	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	{
+		for (const auto& inParam : parameters)
+		{
+			const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
+			device->copyDescriptors(inParam.count, descriptorHeap, *inoutDescriptorIx, inParam.sourceHeap, inParam.startIndex);
+			cmdList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(*inoutDescriptorIx));
+			*inoutDescriptorIx += inParam.count;
+		}
+	};
+
+	// #todo-dxc: Root Descriptor vs Descriptor Table
+	// For now, always use descriptor table.
+	uint32 descriptorIx = 0;
+
+	for (const auto& inParam : inParameters->pushConstants)
+	{
+		const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
+		commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
+	}
+	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->structuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwStructuredBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->byteAddressBuffers, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->textures, &descriptorIx);
+	setRootDescriptorTables(commandList.Get(), inParameters->rwTextures, &descriptorIx);
+	for (const auto& inParam : inParameters->accelerationStructures)
+	{
+		D3DShaderResourceView* d3dSRV = static_cast<D3DShaderResourceView*>(inParam.srv);
+		D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dSRV->getGPUVirtualAddress();
+
+		const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
+		commandList->SetComputeRootShaderResourceView(param->rootParameterIndex, gpuAddr);
+	}
 }
 
 void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& inDesc)

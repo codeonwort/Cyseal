@@ -154,24 +154,18 @@ public:
 	// NOTE: SRV or UAV root descriptors can only be Raw or Structured buffers.
 	// #wip-dxc-reflection: path tracing and RTR still use them.
 	virtual void setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv) = 0;
-	virtual void setComputeRootDescriptorTable(
-		uint32 rootParameterIndex,
-		DescriptorHeap* descriptorHeap,
-		uint32 descriptorStartOffset) = 0;
+	virtual void setComputeRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap, uint32 descriptorStartOffset) = 0;
 
-	virtual void bindComputeShaderParameters(
-		PipelineState* pipelineState,
-		const ShaderParameterTable* parameters,
-		DescriptorHeap* descriptorHeap) = 0;
+	virtual void bindComputeShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) = 0;
 
 	virtual void dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ) = 0;
 
 	// ------------------------------------------------------------------------
 	// Raytracing pipeline
 
-	virtual AccelerationStructure* buildRaytracingAccelerationStructure(
-		uint32 numBLASDesc,
-		BLASInstanceInitDesc* blasDescArray) = 0;
+	virtual AccelerationStructure* buildRaytracingAccelerationStructure(uint32 numBLASDesc, BLASInstanceInitDesc* blasDescArray) = 0;
+
+	virtual void bindRaytracingShaderParameters(RaytracingPipelineStateObject* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) = 0;
 
 	virtual void dispatchRays(const DispatchRaysDesc& dispatchDesc) = 0;
 

@@ -91,14 +91,7 @@ public:
 	virtual const char* getEntryPointA() = 0;
 
 protected:
-	inline bool shouldBePushConstants(const std::string& name)
-	{
-		for (const auto& x : pushConstantNames)
-		{
-			if (name == x) return true;
-		}
-		return false;
-	}
+	inline bool shouldBePushConstants(const std::string& name) { return std::find(pushConstantNames.begin(), pushConstantNames.end(), name) != pushConstantNames.end(); }
 
 protected:
 	EShaderStage stageFlag;

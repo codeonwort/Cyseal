@@ -199,6 +199,7 @@ void VulkanRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* c
 {
 	// #wip: What to do here?
 	// Vulkan binds descriptor sets, not descriptor pools.
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setComputeRootSignature(RootSignature* rootSignature)
@@ -328,11 +329,13 @@ void VulkanRenderCommandList::executeIndirect(
 void VulkanRenderCommandList::setComputeRootDescriptorSRV(uint32 rootParameterIndex, ShaderResourceView* srv)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::setComputeRootDescriptorTable(uint32 rootParameterIndex, DescriptorHeap* descriptorHeap, uint32 descriptorStartOffset)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::bindComputeShaderParameters(
@@ -341,23 +344,33 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	DescriptorHeap* descriptorHeap)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
 	// #todo-vulkan
 	//vkCmdDispatch(currentCommandBuffer, threadGroupX, threadGroupY, threadGroupZ);
+	CHECK_NO_ENTRY();
 }
 
 AccelerationStructure* VulkanRenderCommandList::buildRaytracingAccelerationStructure(uint32 numBLASDesc, BLASInstanceInitDesc* blasDescArray)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 	return nullptr;
+}
+
+void VulkanRenderCommandList::bindRaytracingShaderParameters(RaytracingPipelineStateObject* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::dispatchRays(const DispatchRaysDesc& dispatchDesc)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::beginEventMarker(const char* eventName)

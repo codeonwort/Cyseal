@@ -919,10 +919,15 @@ ComputePipelineState* VulkanDevice::createComputePipelineState(const ComputePipe
 	return new VulkanComputePipelineState(vkPipeline);
 }
 
-RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject(
-	const RaytracingPipelineStateObjectDesc& desc)
+RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc)
 {
 	// #todo-vulkan
+	CHECK_NO_ENTRY();
+	return nullptr;
+}
+
+RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc2& desc)
+{
 	CHECK_NO_ENTRY();
 	return nullptr;
 }

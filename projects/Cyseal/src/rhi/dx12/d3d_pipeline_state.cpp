@@ -5,12 +5,25 @@
 #include "rhi/buffer.h"
 #include "util/logging.h"
 
+#include <algorithm>
+
 // --------------------------------------------------------
 // common
 
 DEFINE_LOG_CATEGORY_STATIC(LogD3DPipelineState);
 
-static void buildShaderParameterTable(D3DShaderParameterTable& dstTable, const std::vector<ShaderStage*>& shaderStages)
+enum class ESpecialParameterSetPolicy
+{
+	DontCare,      // Ignore the set
+	AcceptOnlySet, // Accept parameters only in the set
+	DiscardSet,    // Discard parameters in the set
+};
+
+static void buildShaderParameterTable(
+	D3DShaderParameterTable& dstTable,
+	const std::vector<ShaderStage*>& shaderStages,
+	const std::vector<std::string>& specialParameterSet,
+	ESpecialParameterSetPolicy policy)
 {
 	struct InvalidParamInfo
 	{
@@ -20,14 +33,23 @@ static void buildShaderParameterTable(D3DShaderParameterTable& dstTable, const s
 	};
 	std::vector<InvalidParamInfo> invalidParamInfo;
 	std::map<std::string, D3DShaderParameter> tempCache;
-	auto appendParameters = [&invalidParamInfo, &tempCache](std::vector<D3DShaderParameter>& dst, const std::vector<D3DShaderParameter>& src, D3DShaderStage* srcShader) {
+	auto appendParameters = [&invalidParamInfo, &tempCache, &specialParameterSet, &policy](std::vector<D3DShaderParameter>& dst, const std::vector<D3DShaderParameter>& src, D3DShaderStage* srcShader) {
 		for (const D3DShaderParameter& param : src)
 		{
 			auto it = tempCache.find(param.name);
 			if (it == tempCache.end())
 			{
-				tempCache.insert(std::make_pair(param.name, param));
-				dst.push_back(param);
+				bool addToTable = true;
+				if (policy != ESpecialParameterSetPolicy::DontCare)
+				{
+					bool isSpecial = std::find(specialParameterSet.begin(), specialParameterSet.end(), param.name) != specialParameterSet.end();
+					addToTable = (isSpecial && policy == ESpecialParameterSetPolicy::AcceptOnlySet) || (!isSpecial && policy == ESpecialParameterSetPolicy::DiscardSet);
+				}
+				if (addToTable)
+				{
+					tempCache.insert(std::make_pair(param.name, param));
+					dst.push_back(param);
+				}
 			}
 			else if (it->second.hasSameReflection(param) == false)
 			{
@@ -42,13 +64,15 @@ static void buildShaderParameterTable(D3DShaderParameterTable& dstTable, const s
 		if (d3dShader == nullptr) continue;
 		
 		const D3DShaderParameterTable& srcTable = d3dShader->getParameterTable();
-		appendParameters(dstTable.rootConstants,       srcTable.rootConstants,       d3dShader);
-		appendParameters(dstTable.constantBuffers,     srcTable.constantBuffers,     d3dShader);
-		appendParameters(dstTable.rwStructuredBuffers, srcTable.rwStructuredBuffers, d3dShader);
-		appendParameters(dstTable.rwBuffers,           srcTable.rwBuffers,           d3dShader);
-		appendParameters(dstTable.structuredBuffers,   srcTable.structuredBuffers,   d3dShader);
-		appendParameters(dstTable.textures,            srcTable.textures,            d3dShader);
-		appendParameters(dstTable.samplers,            srcTable.samplers,            d3dShader);
+		appendParameters(dstTable.rootConstants,          srcTable.rootConstants,          d3dShader);
+		appendParameters(dstTable.constantBuffers,        srcTable.constantBuffers,        d3dShader);
+		appendParameters(dstTable.rwStructuredBuffers,    srcTable.rwStructuredBuffers,    d3dShader);
+		appendParameters(dstTable.rwBuffers,              srcTable.rwBuffers,              d3dShader);
+		appendParameters(dstTable.structuredBuffers,      srcTable.structuredBuffers,      d3dShader);
+		appendParameters(dstTable.byteAddressBuffers,     srcTable.byteAddressBuffers,     d3dShader);
+		appendParameters(dstTable.textures,               srcTable.textures,               d3dShader);
+		appendParameters(dstTable.samplers,               srcTable.samplers,               d3dShader);
+		appendParameters(dstTable.accelerationStructures, srcTable.accelerationStructures, d3dShader);
 	}
 
 	if (invalidParamInfo.size() > 0)
@@ -66,11 +90,15 @@ static void buildShaderParameterTable(D3DShaderParameterTable& dstTable, const s
 }
 
 // Modifies outRootSignature and parameterTable.
-static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignature>& outRootSignature, ID3D12Device* device, D3DShaderParameterTable& inoutParameterTable)
+static void createRootSignatureFromParameterTable(
+	WRL::ComPtr<ID3D12RootSignature>& outRootSignature,
+	ID3D12Device* device,
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags,
+	D3DShaderParameterTable& inoutParameterTable)
 {
 	D3DShaderParameterTable& parameterTable = inoutParameterTable;
 
-	const size_t totalParameters = parameterTable.totalRootConstants() + parameterTable.totalBuffers() + parameterTable.totalTextures();
+	const size_t totalParameters = parameterTable.totalRootConstants() + parameterTable.totalBuffers() + parameterTable.totalTextures() + parameterTable.totalAccelerationStructures();
 	const size_t totalSamplers = parameterTable.samplers.size();
 	std::vector<D3D12_ROOT_PARAMETER> rootParameters(totalParameters);
 	std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers(totalSamplers);
@@ -180,6 +208,25 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 			param.rootParameterIndex = p;
 			++p;
 		}
+		for (auto& param : parameterTable.byteAddressBuffers)
+		{
+			D3D12_DESCRIPTOR_RANGE descriptor{
+				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+				.NumDescriptors     = param.numDescriptors,
+				.BaseShaderRegister = param.registerSlot,
+				.RegisterSpace      = param.registerSpace,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			};
+			descriptorRanges.emplace_back(descriptor);
+
+			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
+			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			param.rootParameterIndex = p;
+			++p;
+		}
 		for (auto& param : parameterTable.textures)
 		{
 			D3D12_DESCRIPTOR_RANGE descriptor{
@@ -195,6 +242,43 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
 			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
 			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			param.rootParameterIndex = p;
+			++p;
+		}
+		for (auto& param : parameterTable.accelerationStructures)
+		{
+			// #wip-dxc-reflection: SRV in D3DAccelerationStructure does not have source heap
+#if 0
+			D3D12_DESCRIPTOR_RANGE descriptor{
+				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+				.NumDescriptors     = param.numDescriptors,
+				.BaseShaderRegister = param.registerSlot,
+				.RegisterSpace      = param.registerSpace,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			};
+			descriptorRanges.emplace_back(descriptor);
+
+			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[p].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
+			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+#else
+			D3D12_DESCRIPTOR_RANGE descriptor{
+				.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+				.NumDescriptors     = param.numDescriptors,
+				.BaseShaderRegister = param.registerSlot,
+				.RegisterSpace      = param.registerSpace,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			};
+			descriptorRanges.emplace_back(descriptor);
+
+			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+			rootParameters[p].Descriptor.ShaderRegister = param.registerSlot;
+			rootParameters[p].Descriptor.RegisterSpace = param.registerSpace;
+			rootParameters[p].DescriptorTable.pDescriptorRanges = lastDescriptorPtr(descriptorRanges);
+			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+#endif
 
 			param.rootParameterIndex = p;
 			++p;
@@ -231,7 +315,7 @@ static void createRootSignatureFromParameterTable(WRL::ComPtr<ID3D12RootSignatur
 			.pParameters       = rootParameters.data(),
 			.NumStaticSamplers = (UINT)staticSamplers.size(),
 			.pStaticSamplers   = staticSamplers.data(),
-			.Flags             = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+			.Flags             = rootSignatureFlags,
 		};
 		WRL::ComPtr<ID3DBlob> serializedRootSig, errorBlob;
 		HRESULT hresult = D3D12SerializeRootSignature(
@@ -269,7 +353,9 @@ static void createShaderParameterHashMap(std::map<std::string, const D3DShaderPa
 	build(parameterTable.rwStructuredBuffers);
 	build(parameterTable.rwBuffers);
 	build(parameterTable.structuredBuffers);
+	build(parameterTable.byteAddressBuffers);
 	build(parameterTable.textures);
+	build(parameterTable.accelerationStructures);
 	build(parameterTable.samplers);
 }
 
@@ -307,8 +393,10 @@ void D3DGraphicsPipelineState::createRootSignature(ID3D12Device* device, ShaderS
 	CHECK(hs == nullptr || hs->isPushConstantsDeclared());
 	CHECK(gs == nullptr || gs->isPushConstantsDeclared());
 
-	buildShaderParameterTable(parameterTable, { vs, ps, ds, hs, gs });
-	createRootSignatureFromParameterTable(rootSignature, device, parameterTable);
+	auto flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	buildShaderParameterTable(parameterTable, { vs, ps, ds, hs, gs }, {}, ESpecialParameterSetPolicy::DontCare);
+	createRootSignatureFromParameterTable(rootSignature, device, flags, parameterTable);
 	createShaderParameterHashMap(parameterHashMap, parameterTable);
 }
 
@@ -346,9 +434,161 @@ const D3DShaderParameter* D3DComputePipelineState::findShaderParameter(const std
 void D3DComputePipelineState::createRootSignature(ID3D12Device* device, D3DShaderStage* computeShader)
 {
 	CHECK(computeShader->isPushConstantsDeclared());
+
+	auto flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
 	parameterTable = computeShader->getParameterTable(); // There is only one shader, just do deep copy rather than calling buildShaderParameterTable().
-	createRootSignatureFromParameterTable(rootSignature, device, parameterTable);
+	createRootSignatureFromParameterTable(rootSignature, device, flags, parameterTable);
 	createShaderParameterHashMap(parameterHashMap, parameterTable);
+}
+
+// --------------------------------------------------------
+// D3DRaytracingPipelineStateObject
+
+void D3DRaytracingPipelineStateObject::initialize(ID3D12Device5* device, const D3D12_STATE_OBJECT_DESC& desc)
+{
+	HR(device->CreateStateObject(&desc, IID_PPV_ARGS(&rawRTPSO)));
+	HR(rawRTPSO.As(&rawProperties));
+}
+
+void D3DRaytracingPipelineStateObject::initialize(ID3D12Device5* device, const RaytracingPipelineStateObjectDesc2& inDesc)
+{
+	createRootSignatures(device, inDesc);
+
+	D3DShaderStage* raygenShader = static_cast<D3DShaderStage*>(inDesc.raygenShader);
+	D3DShaderStage* closestHitShader = static_cast<D3DShaderStage*>(inDesc.closestHitShader);
+	D3DShaderStage* missShader = static_cast<D3DShaderStage*>(inDesc.missShader);
+	// #todo-dxr: anyHitShader, intersectionShader
+	D3DShaderStage* anyHitShader = static_cast<D3DShaderStage*>(nullptr/*desc.anyHitShader*/); 
+	D3DShaderStage* intersectionShader = static_cast<D3DShaderStage*>(nullptr/*desc.intersectionShader*/);
+
+	CD3DX12_STATE_OBJECT_DESC d3d_desc{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
+
+	// DXIL library
+	auto createRTShaderSubobject = [&](D3DShaderStage* shaderStage)
+	{
+		if (shaderStage != nullptr)
+		{
+			D3D12_SHADER_BYTECODE shaderBytecode = shaderStage->getBytecode();
+			auto lib = d3d_desc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+			lib->SetDXILLibrary(&shaderBytecode);
+			lib->DefineExport(shaderStage->getEntryPointW());
+		}
+	};
+	createRTShaderSubobject(raygenShader);
+	createRTShaderSubobject(closestHitShader);
+	createRTShaderSubobject(missShader);
+	//createRTShaderSubobject(anyHitShader); // #todo-dxr: anyHitShader, intersectionShader
+	//createRTShaderSubobject(intersectionShader);
+
+	// #todo-dxr: anyHitShader, intersectionShader
+	// Hit group
+	auto hitGroup = d3d_desc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+	if (closestHitShader != nullptr)
+	{
+		hitGroup->SetClosestHitShaderImport(closestHitShader->getEntryPointW());
+	}
+	hitGroup->SetHitGroupExport(inDesc.hitGroupName.c_str());
+	hitGroup->SetHitGroupType(into_d3d::hitGroupType(inDesc.hitGroupType));
+
+	// Shader config
+	auto shaderConfig = d3d_desc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
+	CHECK(inDesc.maxAttributeSizeInBytes < D3D12_RAYTRACING_MAX_ATTRIBUTE_SIZE_IN_BYTES);
+	shaderConfig->Config(inDesc.maxPayloadSizeInBytes, inDesc.maxAttributeSizeInBytes);
+
+	// Local root signature
+	auto bindLocalRootSignature = [&](ShaderStage* shader, ID3D12RootSignature* rootSig)
+	{
+		if (shader != nullptr && rootSig != nullptr)
+		{
+			auto shaderName = static_cast<D3DShaderStage*>(shader)->getEntryPointW();
+
+			auto localSig = d3d_desc.CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+			localSig->SetRootSignature(rootSig);
+			auto assoc = d3d_desc.CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+			assoc->SetSubobjectToAssociate(*localSig);
+			assoc->AddExport(shaderName);
+		}
+	};
+	bindLocalRootSignature(inDesc.raygenShader, localRootSignatureRaygen.Get());
+	bindLocalRootSignature(inDesc.closestHitShader, localRootSignatureClosestHit.Get());
+	bindLocalRootSignature(inDesc.missShader, localRootSignatureMiss.Get());
+	// #todo-dxr: anyHitShader, intersectionShader
+	//bindLocalRootSignature(desc.anyHitShader, localRootSignatureAnyHit.Get());
+	//bindLocalRootSignature(desc.intersectionShader, localRootSignatureIntersection.Get());
+
+	// Global root signature
+	auto globalSig = d3d_desc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
+	globalSig->SetRootSignature(globalRootSignature.Get());
+
+	// Pipeline config
+	auto pipelineConfig = d3d_desc.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
+	pipelineConfig->Config(inDesc.maxTraceRecursionDepth);
+
+	D3D12_STATE_OBJECT_DESC stateObjectDesc = d3d_desc;
+	HR(device->CreateStateObject(&stateObjectDesc, IID_PPV_ARGS(&rawRTPSO)));
+	HR(rawRTPSO.As(&rawProperties));
+}
+
+const D3DShaderParameter* D3DRaytracingPipelineStateObject::findGlobalShaderParameter(const std::string& name) const
+{
+	auto it = globalParameterHashMap.find(name);
+	return (it == globalParameterHashMap.end()) ? nullptr : it->second;
+}
+
+void D3DRaytracingPipelineStateObject::createRootSignatures(ID3D12Device* device, const RaytracingPipelineStateObjectDesc2& desc)
+{
+	D3DShaderStage* raygen = static_cast<D3DShaderStage*>(desc.raygenShader);
+	D3DShaderStage* closestHit = static_cast<D3DShaderStage*>(desc.closestHitShader);
+	D3DShaderStage* miss = static_cast<D3DShaderStage*>(desc.missShader);
+	// #todo-dxr: anyHitShader, intersectionShader
+	D3DShaderStage* anyHit = static_cast<D3DShaderStage*>(nullptr/*desc.anyHitShader*/);
+	D3DShaderStage* intersection = static_cast<D3DShaderStage*>(nullptr/*desc.intersectionShader*/);
+	CHECK(raygen == nullptr || raygen->isPushConstantsDeclared());
+	CHECK(closestHit == nullptr || closestHit->isPushConstantsDeclared());
+	CHECK(miss == nullptr || miss->isPushConstantsDeclared());
+	CHECK(anyHit == nullptr || anyHit->isPushConstantsDeclared());
+	CHECK(intersection == nullptr || intersection->isPushConstantsDeclared());
+
+	std::vector<std::string> allLocalParameters;
+	{
+		std::vector<std::string> temp;
+		temp.insert(temp.end(), desc.raygenLocalParameters.begin(), desc.raygenLocalParameters.end());
+		temp.insert(temp.end(), desc.closestHitLocalParameters.begin(), desc.closestHitLocalParameters.end());
+		temp.insert(temp.end(), desc.missLocalParameters.begin(), desc.missLocalParameters.end());
+		// #todo-dxr: anyHitShader, intersectionShader
+		//temp.insert(temp.end(), desc.anyHitParameters.begin(), desc.anyHitParameters.end());
+		//temp.insert(temp.end(), desc.missLocalParameters.begin(), desc.missLocalParameters.end());
+		std::sort(temp.begin(), temp.end());
+		for (size_t i = 0; i < temp.size(); ++i)
+		{
+			if (i == 0 || temp[i] != temp[i - 1]) allLocalParameters.push_back(temp[i]);
+		}
+	}
+
+	// Create global root signature.
+	auto globalRootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+	buildShaderParameterTable(globalParameterTable, { raygen, closestHit, miss, anyHit, intersection }, allLocalParameters, ESpecialParameterSetPolicy::DiscardSet);
+	createRootSignatureFromParameterTable(globalRootSignature, device, globalRootSignatureFlags, globalParameterTable);
+	createShaderParameterHashMap(globalParameterHashMap, globalParameterTable);
+
+	auto localRootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+	if (desc.raygenLocalParameters.size() > 0)
+	{
+		buildShaderParameterTable(localParameterTableRaygen, { raygen }, desc.raygenLocalParameters, ESpecialParameterSetPolicy::AcceptOnlySet);
+		createRootSignatureFromParameterTable(localRootSignatureRaygen, device, localRootSignatureFlags, localParameterTableRaygen);
+	}
+	if (desc.closestHitLocalParameters.size() > 0)
+	{
+		buildShaderParameterTable(localParameterTableClosestHit, { closestHit }, desc.closestHitLocalParameters, ESpecialParameterSetPolicy::AcceptOnlySet);
+		createRootSignatureFromParameterTable(localRootSignatureClosestHit, device, localRootSignatureFlags, localParameterTableClosestHit);
+	}
+	if (desc.missLocalParameters.size() > 0)
+	{
+		buildShaderParameterTable(localParameterTableMiss, { miss }, desc.missLocalParameters, ESpecialParameterSetPolicy::AcceptOnlySet);
+		createRootSignatureFromParameterTable(localRootSignatureMiss, device, localRootSignatureFlags, localParameterTableMiss);
+	}
+	// #todo-dxr: anyHitShader, intersectionShader
 }
 
 // --------------------------------------------------------

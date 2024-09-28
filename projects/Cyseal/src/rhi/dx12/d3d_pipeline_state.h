@@ -85,15 +85,41 @@ private:
 class D3DRaytracingPipelineStateObject : public RaytracingPipelineStateObject
 {
 public:
-	void initialize(ID3D12Device5* device, const D3D12_STATE_OBJECT_DESC& desc)
-	{
-		HR(device->CreateStateObject(&desc, IID_PPV_ARGS(&rawRTPSO)));
-		HR(rawRTPSO.As(&rawProperties));
-	}
-	ID3D12StateObject* getRaw() const { return rawRTPSO.Get(); }
-	ID3D12StateObjectProperties* getRawProperties() const { return rawProperties.Get(); }
+	void initialize(ID3D12Device5* device, const D3D12_STATE_OBJECT_DESC& desc);
+
+	void initialize(ID3D12Device5* device, const RaytracingPipelineStateObjectDesc2& desc);
+
+	inline ID3D12RootSignature* getGlobalRootSignature() const { return globalRootSignature.Get(); }
+	//inline ID3D12RootSignature* getLocalRootSignatureRaygen() const { return localRootSignatureRaygen.Get(); }
+	//inline ID3D12RootSignature* getLocalRootSignatureClosestHit() const { return localRootSignatureClosestHit.Get(); }
+	//inline ID3D12RootSignature* getLocalRootSignatureMiss() const { return localRootSignatureMiss.Get(); }
+	//inline ID3D12RootSignature* getLocalRootSignatureAnyHit() const { return localRootSignatureAnyHit.Get(); }
+	//inline ID3D12RootSignature* getLocalRootSignatureIntersection() const { return localRootSignatureIntersection.Get(); }
+
+	inline ID3D12StateObject* getRaw() const { return rawRTPSO.Get(); }
+	inline ID3D12StateObjectProperties* getRawProperties() const { return rawProperties.Get(); }
+
+	const D3DShaderParameter* findGlobalShaderParameter(const std::string& name) const;
 
 private:
+	void createRootSignatures(ID3D12Device* device, const RaytracingPipelineStateObjectDesc2& desc);
+
+	D3DShaderParameterTable globalParameterTable; // Copied from D3DShaderStage
+	std::map<std::string, const D3DShaderParameter*> globalParameterHashMap; // For fast query
+
+	D3DShaderParameterTable localParameterTableRaygen;
+	D3DShaderParameterTable localParameterTableClosestHit;
+	D3DShaderParameterTable localParameterTableMiss;
+	D3DShaderParameterTable localParameterTableAnyHit;
+	D3DShaderParameterTable localParameterTableIntersection;
+
+	WRL::ComPtr<ID3D12RootSignature> globalRootSignature;
+	WRL::ComPtr<ID3D12RootSignature> localRootSignatureRaygen;
+	WRL::ComPtr<ID3D12RootSignature> localRootSignatureClosestHit;
+	WRL::ComPtr<ID3D12RootSignature> localRootSignatureMiss;
+	WRL::ComPtr<ID3D12RootSignature> localRootSignatureAnyHit;
+	WRL::ComPtr<ID3D12RootSignature> localRootSignatureIntersection;
+
 	WRL::ComPtr<ID3D12StateObject> rawRTPSO;
 	WRL::ComPtr<ID3D12StateObjectProperties> rawProperties;
 };

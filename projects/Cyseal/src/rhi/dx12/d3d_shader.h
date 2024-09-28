@@ -20,7 +20,7 @@ struct D3DShaderParameter
 	uint32 numDescriptors;
 
 	// Allocated when generating root signature (except for samplers).
-	uint32 rootParameterIndex;
+	uint32 rootParameterIndex = 0xffffffff;
 
 	inline bool hasSameReflection(const D3DShaderParameter& rhs) const
 	{
@@ -39,21 +39,15 @@ struct D3DShaderParameterTable
 	std::vector<D3DShaderParameter> rwStructuredBuffers;
 	std::vector<D3DShaderParameter> rwBuffers;
 	std::vector<D3DShaderParameter> structuredBuffers;
+	std::vector<D3DShaderParameter> byteAddressBuffers;
 	std::vector<D3DShaderParameter> textures;
 	std::vector<D3DShaderParameter> samplers;
+	std::vector<D3DShaderParameter> accelerationStructures;
 
-	inline size_t totalRootConstants() const
-	{
-		return rootConstants.size();
-	}
-	inline size_t totalBuffers() const
-	{
-		return constantBuffers.size() + rwStructuredBuffers.size() + rwBuffers.size() + structuredBuffers.size();
-	}
-	inline size_t totalTextures() const
-	{
-		return textures.size();
-	}
+	inline size_t totalRootConstants() const { return rootConstants.size(); }
+	inline size_t totalBuffers() const { return constantBuffers.size() + rwStructuredBuffers.size() + rwBuffers.size() + structuredBuffers.size() + byteAddressBuffers.size(); }
+	inline size_t totalTextures() const { return textures.size(); }
+	inline size_t totalAccelerationStructures() const { return accelerationStructures.size(); }
 };
 
 class D3DShaderStage : public ShaderStage
@@ -73,6 +67,7 @@ public:
 
 private:
 	void readShaderReflection(IDxcResult* compileResult);
+	void addToShaderParameterTable(const D3D12_SHADER_INPUT_BIND_DESC& inputBindDesc);
 
 private:
 	bool bInitialized = false;

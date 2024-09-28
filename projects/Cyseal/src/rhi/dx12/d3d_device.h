@@ -48,8 +48,8 @@ public:
 	virtual GraphicsPipelineState* createGraphicsPipelineState(const GraphicsPipelineDesc& desc) override;
 	virtual ComputePipelineState* createComputePipelineState(const ComputePipelineDesc& desc) override;
 
-	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(
-		const RaytracingPipelineStateObjectDesc& desc) override;
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc) override;
+	virtual RaytracingPipelineStateObject* createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc2& desc) override;
 
 	virtual RaytracingShaderTable* createRaytracingShaderTable(
 		RaytracingPipelineStateObject* RTPSO,

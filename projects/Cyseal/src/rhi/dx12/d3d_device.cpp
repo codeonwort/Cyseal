@@ -475,8 +475,7 @@ ComputePipelineState* D3DDevice::createComputePipelineState(const ComputePipelin
 	return pipeline;
 }
 
-RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
-	const RaytracingPipelineStateObjectDesc& desc)
+RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc)
 {
 	CD3DX12_STATE_OBJECT_DESC d3d_desc{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
 
@@ -545,6 +544,13 @@ RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(
 	return RTPSO;
 }
 
+RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc2& desc)
+{
+	D3DRaytracingPipelineStateObject* RTPSO = new D3DRaytracingPipelineStateObject;
+	RTPSO->initialize(device.Get(), desc);
+	return RTPSO;
+}
+
 RaytracingShaderTable* D3DDevice::createRaytracingShaderTable(
 	RaytracingPipelineStateObject* RTPSO,
 	uint32 numShaderRecords,
@@ -552,9 +558,7 @@ RaytracingShaderTable* D3DDevice::createRaytracingShaderTable(
 	const wchar_t* debugName)
 {
 	auto d3dRTPSO = static_cast<D3DRaytracingPipelineStateObject*>(RTPSO);
-	D3DRaytracingShaderTable* table = new D3DRaytracingShaderTable(
-		device.Get(), d3dRTPSO, numShaderRecords, rootArgumentSize, debugName);
-
+	D3DRaytracingShaderTable* table = new D3DRaytracingShaderTable(device.Get(), d3dRTPSO, numShaderRecords, rootArgumentSize, debugName);
 	return table;
 }
 
