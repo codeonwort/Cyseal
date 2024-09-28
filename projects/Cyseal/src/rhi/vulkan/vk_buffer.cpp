@@ -130,7 +130,7 @@ void VulkanBuffer::initialize(const BufferCreateParams& inCreateParams)
 
 void VulkanBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs)
 {
-	// #wip-buffer
+	// #todo-vulkan
 	CHECK_NO_ENTRY();
 }
 

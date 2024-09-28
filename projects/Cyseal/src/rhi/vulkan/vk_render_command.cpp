@@ -19,7 +19,7 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 {
 	VulkanRenderCommandList* vkCmdList = static_cast<VulkanRenderCommandList*>(commandList);
 
-	// #wip-critical: waitSemaphore in executeCommandList()
+	// #todo-vulkan-critical: waitSemaphore in executeCommandList()
 	// - It's possible that current command list is executing some one-time commands,
 	//   not relevant to swapchain present. So I don't wanna wait for imageAvailable sem here...
 	// - Why should I wait for swapchain image here at first? If I do offscreen rendering
@@ -197,7 +197,7 @@ void VulkanRenderCommandList::setRaytracingPipelineState(RaytracingPipelineState
 
 void VulkanRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps)
 {
-	// #wip: What to do here?
+	// #todo-vulkan: What to do here?
 	// Vulkan binds descriptor sets, not descriptor pools.
 	CHECK_NO_ENTRY();
 }

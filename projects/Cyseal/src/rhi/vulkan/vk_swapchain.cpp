@@ -119,7 +119,7 @@ void VulkanSwapchain::initialize(
 		swapchainImageViews.initialize((uint32)swapchainImages.size());
 		for (size_t i = 0; i < swapchainImages.size(); ++i)
 		{
-			// #wip: surfaceFormat.format is bgra8, backbufferFormat is rgba8
+			// #todo-vulkan: surfaceFormat.format is bgra8, backbufferFormat is rgba8
 			EPixelFormat rtvFormat = backbufferFormat;
 			if (rtvFormat == EPixelFormat::R8G8B8A8_UNORM)
 			{

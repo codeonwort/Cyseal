@@ -298,7 +298,7 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 		}
 	};
 
-	// #todo-dxc: Root Descriptor vs Descriptor Table
+	// #todo-dx12: Root Descriptor vs Descriptor Table
 	// For now, always use descriptor table.
 	uint32 descriptorIx = 0;
 
@@ -360,7 +360,7 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 		}
 	};
 
-	// #todo-dxc: Root Descriptor vs Descriptor Table
+	// #todo-dx12: Root Descriptor vs Descriptor Table
 	// For now, always use descriptor table.
 	uint32 descriptorIx = 0;
 
@@ -503,7 +503,7 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 		}
 	};
 
-	// #todo-dxc: Root Descriptor vs Descriptor Table
+	// #todo-dx12: Root Descriptor vs Descriptor Table
 	// For now, always use descriptor table.
 	uint32 descriptorIx = 0;
 

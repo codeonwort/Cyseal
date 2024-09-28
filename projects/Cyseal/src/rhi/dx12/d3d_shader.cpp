@@ -139,7 +139,7 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 	};
 
 	WRL::ComPtr<IDxcResult> compileResult;
-	// #todo-dxc: hlsl::Exception? Anyway the application runs fine.
+	// #todo-dx12: hlsl::Exception? Anyway the application runs fine.
 	hr = compiler->Compile(
 		&sourceBuffer,
 		arguments.data(), (uint32)arguments.size(),
@@ -276,7 +276,7 @@ void D3DShaderStage::addToShaderParameterTable(const D3D12_SHADER_INPUT_BIND_DES
 		.rootParameterIndex = 0xffffffff, // Allocated in createRoogSignature()
 	};
 	
-	// #todo-dxc: Handle missing D3D_SHADER_INPUT_TYPE cases
+	// #todo-dx12: Handle missing D3D_SHADER_INPUT_TYPE cases
 	switch (inputBindDesc.Type)
 	{
 		case D3D_SIT_CBUFFER: // ConstantBuffer

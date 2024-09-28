@@ -75,7 +75,7 @@ void updateDefaultBuffer(
 		byteSize);
 #endif
 
-	// #wip-buffer: D3D12_RESOURCE_STATE_GENERIC_READ is OR of vbuf, ibuf, srv, indirect args, copy src...
+	// #todo-vulkan: D3D12_RESOURCE_STATE_GENERIC_READ is OR of vbuf, ibuf, srv, indirect args, copy src...
 	// Need to extend EBufferAccessFlags
 	auto barrierAfterDesc = CD3DX12_RESOURCE_BARRIER::Transition(
 		defaultBuffer.Get(),

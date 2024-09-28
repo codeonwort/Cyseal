@@ -513,7 +513,7 @@ ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* de
 RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc)
 {
 	VkResult vkRet = VkResult::VK_RESULT_MAX_ENUM;
-	const ERootSignatureFlags flags = inDesc.flags; // #wip
+	const ERootSignatureFlags flags = inDesc.flags; // WIP
 
 
 	// key: register space, value: array of bindings
@@ -534,7 +534,7 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 				.descriptorType     = into_vk::descriptorType(inParameter.parameterType),
 				.descriptorCount    = 1,
 				.stageFlags         = into_vk::shaderStageFlags(inParameter.shaderVisibility),
-				.pImmutableSamplers = nullptr, // #wip
+				.pImmutableSamplers = nullptr, // WIP
 			};
 
 			uint32 registerSpace = inParameter.descriptor.registerSpace;
@@ -551,7 +551,7 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 					.descriptorType     = into_vk::descriptorRangeType(descriptorRange.rangeType),
 					.descriptorCount    = descriptorRange.numDescriptors,
 					.stageFlags         = into_vk::shaderStageFlags(inParameter.shaderVisibility),
-					.pImmutableSamplers = nullptr, // #wip
+					.pImmutableSamplers = nullptr, // WIP
 				};
 
 				uint32 registerSpace = descriptorRange.registerSpace;
@@ -569,7 +569,7 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 		VkDescriptorSetLayoutCreateInfo vkSetLayoutCreateInfo{
 			.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 			.pNext        = nullptr,
-			.flags        = (VkDescriptorSetLayoutCreateFlagBits)0, // #wip-descriptor: VkDescriptorSetLayoutCreateFlagBits
+			.flags        = (VkDescriptorSetLayoutCreateFlagBits)0, // WIP
 			.bindingCount = (uint32)vkBindings.size(),
 			.pBindings    = vkBindings.data(),
 		};
@@ -590,11 +590,11 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 			const RootConstants& inConstants = inParameter.constants;
 			VkPushConstantRange vkPushConstant{
 				.stageFlags = into_vk::shaderStageFlags(inParameter.shaderVisibility),
-				.offset     = 0, // #wip
+				.offset     = 0, // WIP
 				.size       = inConstants.num32BitValues * sizeof(uint32),
 			};
 
-			// #wip-descriptor: register space of push constant?
+			// WIP: register space of push constant?
 			vkPushConstants.emplace_back(vkPushConstant);
 		}
 	}
@@ -619,7 +619,7 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 
 GraphicsPipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
 {
-	// #wip: PSO conversion
+	// WIP: PSO conversion
 	VkPipeline vkPipeline = VK_NULL_HANDLE;
 	VkRenderPass vkRenderPass = VK_NULL_HANDLE;
 
@@ -854,7 +854,7 @@ GraphicsPipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsP
 	};
 
 	// layout
-	// #wip: Take this as parameter
+	// WIP: Take this as parameter
 	RootSignature* inRootSignature = nullptr;
 	VkPipelineLayout vkPipelineLayout = static_cast<VulkanPipelineLayout*>(inRootSignature)->getVkPipelineLayout();
 
@@ -891,7 +891,7 @@ GraphicsPipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsP
 
 ComputePipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
 {
-	// #wip: Compute PSO
+	// WIP: Compute PSO
 	VulkanShaderStage* shaderWrapper = static_cast<VulkanShaderStage*>(inDesc.cs);
 	CHECK(shaderWrapper != nullptr);
 
@@ -902,16 +902,16 @@ ComputePipelineState* VulkanDevice::createComputePipelineState(const ComputePipe
 		.stage               = shaderWrapper->getVkShaderStage(),
 		.module              = shaderWrapper->getVkShaderModule(),
 		.pName               = shaderWrapper->getEntryPointA(),
-		.pSpecializationInfo = nullptr, // #wip: VkSpecializationInfo
+		.pSpecializationInfo = nullptr, // WIP: VkSpecializationInfo
 	};
 
 	VkComputePipelineCreateInfo pipelineCreateInfo{
 		.sType              = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
 		.pNext              = nullptr,
-		.flags              = (VkPipelineCreateFlagBits)0, // #wip: VkPipelineCreateFlagBits
+		.flags              = (VkPipelineCreateFlagBits)0, // WIP: VkPipelineCreateFlagBits
 		.stage              = shaderStageCreateInfo,
-		.layout             = VK_NULL_HANDLE, // #wip: VulkanPipelineLayout //static_cast<VulkanPipelineLayout*>(inDesc.rootSignature)->getVkPipelineLayout(),
-		.basePipelineHandle = VK_NULL_HANDLE, // #wip: basePipelineHandle
+		.layout             = VK_NULL_HANDLE, // WIP: VulkanPipelineLayout //static_cast<VulkanPipelineLayout*>(inDesc.rootSignature)->getVkPipelineLayout(),
+		.basePipelineHandle = VK_NULL_HANDLE, // WIP: basePipelineHandle
 		.basePipelineIndex  = 0,
 	};
 
@@ -989,7 +989,7 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 
 		VkBuffer vkBuffer = (VkBuffer)gpuResource->getRawResource();
 
-		// #wip-buffer: From VertexBufferPool::initialize
+		// #todo-vulkan: From VertexBufferPool::initialize
 		// Is this even needed? First find out how Vulkan binds storage buffers
 		//VkBufferViewCreateInfo createInfo{
 		//	.sType  = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
@@ -1053,7 +1053,7 @@ RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHe
 {
 	VulkanRenderTargetView* rtv = nullptr;
 
-	// #wip: Other dimensions
+	// WIP: Other dimensions
 	CHECK(createParams.viewDimension == ERTVDimension::Texture2D);
 	
 	if (createParams.viewDimension == ERTVDimension::Texture2D)

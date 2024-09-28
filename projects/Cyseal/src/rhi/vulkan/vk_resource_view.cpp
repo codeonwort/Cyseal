@@ -34,7 +34,7 @@ VulkanUnorderedAccessView::~VulkanUnorderedAccessView()
 
 void VulkanConstantBufferView::writeToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes)
 {
-	// #wip-buffer: VulkanConstantBufferView::writeToGPU
+	// #todo-vulkan: VulkanConstantBufferView::writeToGPU
 	CHECK_NO_ENTRY();
 }
 

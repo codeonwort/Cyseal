@@ -473,7 +473,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 {
-	// #wip-texture: Need to delete old RTs, but not immediately their internal GPU resources
+	// #todo-renderer: Need to delete old RTs, but not immediately their internal GPU resources
 	// as they are being used in GPU.
 
 	RT_sceneColor = device->createTexture(

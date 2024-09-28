@@ -45,7 +45,7 @@ namespace into_vk
 
 	inline VkBufferMemoryBarrier bufferMemoryBarrier(const BufferMemoryBarrier& barrier)
 	{
-		// #wip-critical: Access masks for buffer
+		// #todo-vulkan-barrier: Access masks for buffer
 		VkAccessFlags srcAccessMask = VK_ACCESS_NONE;
 		VkAccessFlags dstAccessMask = VK_ACCESS_NONE;
 
@@ -66,16 +66,16 @@ namespace into_vk
 	{
 		VkImageLayout oldLayout = imageLayout(barrier.stateBefore);
 		VkImageLayout newLayout = imageLayout(barrier.stateAfter);
-		VkPipelineStageFlags srcStage, dstStage; // #wip-critical: Cant't use them here
+		VkPipelineStageFlags srcStage, dstStage; // #todo-vulkan-barrier: Cant't use them here
 		VkAccessFlags srcAccessMask, dstAccessMask;
 		VkImageAspectFlags aspectMask;
 		findImageBarrierFlags(
-			oldLayout, newLayout, VK_FORMAT_UNDEFINED, // #wip-critical: Cant't know format here
+			oldLayout, newLayout, VK_FORMAT_UNDEFINED, // #todo-vulkan-barrier: Cant't know format here
 			&srcStage, &dstStage,
 			&srcAccessMask, &dstAccessMask,
 			&aspectMask);
 
-		// #wip-critical: Take subresource as an argument
+		// #todo-vulkan-barrier: Take subresource as an argument
 		VkImageSubresourceRange subresourceRange{
 			.aspectMask     = aspectMask,
 			.baseMipLevel   = 0,
@@ -454,7 +454,7 @@ namespace into_vk
 
 	inline VkShaderStageFlags shaderStageFlags(EShaderVisibility inFlags)
 	{
-		// #wip: D3D12_SHADER_VISIBILITY is single enum but VkShaderStageFlags is enum flags.
+		// #todo-vulkan: D3D12_SHADER_VISIBILITY is single enum but VkShaderStageFlags is enum flags.
 		VkShaderStageFlags vkFlags = 0;
 		switch (inFlags)
 		{
@@ -464,7 +464,7 @@ namespace into_vk
 			case EShaderVisibility::Domain:   vkFlags = VkShaderStageFlagBits::VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT; break;
 			case EShaderVisibility::Geometry: vkFlags = VkShaderStageFlagBits::VK_SHADER_STAGE_GEOMETRY_BIT;                break;
 			case EShaderVisibility::Pixel:    vkFlags = VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT;                break;
-			default: CHECK_NO_ENTRY(); break; // #wip: VkShaderStageFlags contains more flags.
+			default: CHECK_NO_ENTRY(); break; // #todo-vulkan: VkShaderStageFlags contains more flags.
 		}
 		return vkFlags;
 	}
