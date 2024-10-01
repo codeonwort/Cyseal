@@ -25,8 +25,9 @@ public:
 		ConstantBufferView* sceneUniformBuffer,
 		AccelerationStructure* raytracingScene,
 		GPUScene* gpuScene,
-		Texture* thinGBufferATexture,
-		Texture* indirectSpecularTexture,
+		UnorderedAccessView* thinGBufferAUAV,
+		UnorderedAccessView* indirectSpecularUAV,
+		ShaderResourceView* skyboxSRV,
 		uint32 sceneWidth,
 		uint32 sceneHeight);
 
@@ -44,10 +45,4 @@ private:
 
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
-
-	UniquePtr<UnorderedAccessView> indirectSpecularUAV;
-	UniquePtr<UnorderedAccessView> thinGBufferAUAV;
-
-	UniquePtr<ShaderResourceView> skyboxSRV;
-	UniquePtr<ShaderResourceView> skyboxFallbackSRV;
 };

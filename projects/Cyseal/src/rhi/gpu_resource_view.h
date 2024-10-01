@@ -224,7 +224,7 @@ public:
 	{
 	}
 
-	virtual ~RenderTargetView() = default;
+	virtual ~RenderTargetView();
 
 	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
 	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
@@ -244,7 +244,7 @@ public:
 		, descriptorIndex(inDescriptorIndex)
 	{}
 
-	virtual ~DepthStencilView() = default;
+	virtual ~DepthStencilView();
 
 	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
 	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
@@ -264,15 +264,19 @@ public:
 		, descriptorIndex(inDescriptorIndex)
 	{}
 	
-	virtual ~ShaderResourceView() = default;
+	virtual ~ShaderResourceView();
 
 	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
 	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
+
+	inline void temp_markNoSourceHeap() { bNoSourceHeap = true; }
 
 protected:
 	GPUResource* ownerResource;
 	DescriptorHeap* sourceHeap;
 	uint32 descriptorIndex;
+
+	bool bNoSourceHeap = false; // #todo-rhi: Temp hack for AccelerationStructure
 };
 
 class UnorderedAccessView
@@ -284,7 +288,7 @@ public:
 		, descriptorIndex(inDescriptorIndex)
 	{}
 
-	virtual ~UnorderedAccessView() = default;
+	virtual ~UnorderedAccessView();
 
 	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
 	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
@@ -295,6 +299,7 @@ protected:
 	uint32 descriptorIndex;
 };
 
+// #todo-rhi: Why only CBV has no default implementation?
 class ConstantBufferView
 {
 public:

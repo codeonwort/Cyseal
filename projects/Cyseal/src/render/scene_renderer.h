@@ -30,45 +30,55 @@ public:
 
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) override;
 	
+private:
 	void updateSceneUniform(
 		RenderCommandList* commandList,
 		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera);
 
+	void rebuildFrameResources(RenderCommandList* commandList, const SceneProxy* scene);
+
 	void rebuildAccelerationStructure(RenderCommandList* commandList, const SceneProxy* scene);
 
 private:
 	RenderDevice* device = nullptr;
 
+	struct DeferredCleanup { GPUResource* resource; uint32 count; };
+	std::vector<DeferredCleanup> deferredCleanupList;
+
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.
-	Texture* RT_sceneColor = nullptr;
+	UniquePtr<Texture> RT_sceneColor;
 	UniquePtr<ShaderResourceView> sceneColorSRV;
 	UniquePtr<RenderTargetView> sceneColorRTV;
 
-	Texture* RT_sceneDepth = nullptr;
+	UniquePtr<Texture> RT_sceneDepth;
 	UniquePtr<DepthStencilView> sceneDepthDSV;
 
 	// Gonna stick to forward shading, but render thin GBuffers like DOOM reboot series.
-	Texture* RT_thinGBufferA = nullptr; // #todo-renderer: Maybe switch to R10G10B10A2?
+	UniquePtr<Texture> RT_thinGBufferA; // #todo-renderer: Maybe switch to R10G10B10A2?
 	UniquePtr<RenderTargetView> thinGBufferARTV;
+	UniquePtr<UnorderedAccessView> thinGBufferAUAV;
 
-	Texture* RT_indirectSpecular = nullptr;
+	UniquePtr<Texture> RT_indirectSpecular;
 	UniquePtr<ShaderResourceView> indirectSpecularSRV;
 	UniquePtr<RenderTargetView> indirectSpecularRTV;
+	UniquePtr<UnorderedAccessView> indirectSpecularUAV;
 
-	Texture* RT_pathTracing = nullptr;
+	UniquePtr<Texture> RT_pathTracing;
 	UniquePtr<ShaderResourceView> pathTracingSRV;
+	UniquePtr<UnorderedAccessView> pathTracingUAV;
 
 	// #todo-renderer: Temp dedicated memory and desc heap for scene uniforms
 	UniquePtr<Buffer> sceneUniformMemory;
 	UniquePtr<DescriptorHeap> sceneUniformDescriptorHeap;
 	BufferedUniquePtr<ConstantBufferView> sceneUniformCBVs;
 
-	AccelerationStructure* accelStructure = nullptr;
+	UniquePtr<AccelerationStructure> accelStructure;
 
 	UniquePtr<ShaderResourceView> grey2DSRV; // SRV for fallback texture
+	UniquePtr<ShaderResourceView> skyboxSRV;
 
 	// ------------------------------------------------------------------------
 	// Render passes

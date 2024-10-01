@@ -132,8 +132,9 @@ void RayTracedReflections::renderRayTracedReflections(
 	ConstantBufferView* sceneUniformBuffer,
 	AccelerationStructure* raytracingScene,
 	GPUScene* gpuScene,
-	Texture* thinGBufferATexture,
-	Texture* indirectSpecularTexture,
+	UnorderedAccessView* thinGBufferAUAV,
+	UnorderedAccessView* indirectSpecularUAV,
+	ShaderResourceView* skyboxSRV,
 	uint32 sceneWidth,
 	uint32 sceneHeight)
 {
@@ -174,70 +175,11 @@ void RayTracedReflections::renderRayTracedReflections(
 		}
 	}
 
-	if (indirectSpecularUAV == nullptr)
-	{
-		indirectSpecularUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(indirectSpecularTexture,
-			UnorderedAccessViewDesc{
-				.format         = indirectSpecularTexture->getCreateParams().format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{
-					.mipSlice   = 0,
-					.planeSlice = 0,
-				},
-			}
-		));
-	}
-	if (thinGBufferAUAV == nullptr)
-	{
-		thinGBufferAUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(thinGBufferATexture,
-			UnorderedAccessViewDesc{
-				.format         = thinGBufferATexture->getCreateParams().format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{
-					.mipSlice   = 0,
-					.planeSlice = 0,
-				},
-			}
-		));
-	}
-
-	// Create skybox SRV.
-	if (skyboxFallbackSRV == nullptr)
-	{
-		auto blackCube = gTextureManager->getSystemTextureBlackCube()->getGPUResource().get();
-		skyboxFallbackSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(blackCube,
-			ShaderResourceViewDesc{
-				.format              = EPixelFormat::R8G8B8A8_UNORM,
-				.viewDimension       = ESRVDimension::TextureCube,
-				.textureCube         = TextureCubeSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = 1,
-					.minLODClamp     = 0.0f
-				}
-			}
-		));
-	}
-	if (skyboxSRV == nullptr && scene->skyboxTexture != nullptr)
-	{
-		skyboxSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(scene->skyboxTexture.get(),
-			ShaderResourceViewDesc{
-				.format              = EPixelFormat::R8G8B8A8_UNORM,
-				.viewDimension       = ESRVDimension::TextureCube,
-				.textureCube         = TextureCubeSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = 1,
-					.minLODClamp     = 0.0f
-				}
-			}
-		));
-	}
-
 	commandList->setRaytracingPipelineState(RTPSO.get());
 
 	// Bind global shader parameters.
 	{
 		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
-		auto skyboxSRVWithFallback = (skyboxSRV != nullptr) ? skyboxSRV.get() : skyboxFallbackSRV.get();
 		auto gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 		ShaderParameterTable SPT{};
@@ -245,8 +187,8 @@ void RayTracedReflections::renderRayTracedReflections(
 		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
-		SPT.texture("skybox", skyboxSRVWithFallback);
-		SPT.rwTexture("renderTarget", indirectSpecularUAV.get());
+		SPT.texture("skybox", skyboxSRV);
+		SPT.rwTexture("renderTarget", indirectSpecularUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		// Bindless
 		SPT.constantBuffer("materials", gpuSceneDesc.cbvHeap, 0, gpuSceneDesc.cbvCount);

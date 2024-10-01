@@ -133,9 +133,10 @@ void GPUScene::renderGPUScene(
 		DescriptorHeap* srvHeap = materialSRVHeap.at(swapchainIndex);
 
 		// #todo-gpuscene: Can't do this in resizeMaterialBuffers()
-		srvHeap->resetAllDescriptors();
+		// #todo-gpuscene: Destructors are slow here, when we can just wipe out them.
 		SRVs.clear();
 		SRVs.reserve(numMeshSections);
+		srvHeap->resetAllDescriptors(); // Need to clear SRVs first.
 
 		for (uint32 i = 0; i < numStaticMeshes; ++i)
 		{
@@ -296,47 +297,6 @@ void GPUScene::queryMaterialDescriptorsCount(uint32 swapchainIndex, uint32& outC
 {
 	outCBVCount = materialCBVActualCounts[swapchainIndex];
 	outSRVCount = materialSRVActualCounts[swapchainIndex];
-}
-
-void GPUScene::copyMaterialDescriptors(
-	uint32 swapchainIndex,
-	DescriptorHeap* destHeap, uint32 destBaseIndex,
-	uint32& outCBVBaseIndex, uint32& outCBVCount,
-	uint32& outSRVBaseIndex, uint32& outSRVCount,
-	uint32& outNextAvailableIndex)
-{
-	uint32 currentMaterialCBVCount, currentMaterialSRVCount;
-	queryMaterialDescriptorsCount(swapchainIndex, currentMaterialCBVCount, currentMaterialSRVCount);
-
-	outCBVBaseIndex = destBaseIndex;
-	outCBVCount = currentMaterialCBVCount;
-
-	outSRVBaseIndex = destBaseIndex + currentMaterialCBVCount;
-	outSRVCount = currentMaterialSRVCount;
-
-	outNextAvailableIndex = outSRVBaseIndex + outSRVCount;
-
-	if (currentMaterialCBVCount > 0)
-	{
-		// #todo-rhi: It assumes continuous gRenderDevice->createCBV() calls result in
-		// continuous descriptor indices in the same heap.
-		// But once I implement dealloc mechanism for descriptor allocation that assumption might break.
-		// I need something like gRenderDevice->createCBVsContiuous() that guarantees
-		// continuous allocation.
-		ConstantBufferView* firstCBV = materialCBVs[swapchainIndex][0].get();
-		gRenderDevice->copyDescriptors(
-			currentMaterialCBVCount,
-			destHeap, outCBVBaseIndex,
-			materialCBVHeap[swapchainIndex].get(), firstCBV->getDescriptorIndexInHeap());
-	}
-
-	if (currentMaterialSRVCount > 0)
-	{
-		gRenderDevice->copyDescriptors(
-			currentMaterialSRVCount,
-			destHeap, outSRVBaseIndex,
-			materialSRVHeap[swapchainIndex].get(), 0);
-	}
 }
 
 void GPUScene::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)

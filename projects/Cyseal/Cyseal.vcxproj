@@ -194,6 +194,7 @@
     <ClCompile Include="src\rhi\dx12\d3d_into.cpp" />
     <ClCompile Include="src\rhi\dx12\d3d_resource.cpp" />
     <ClCompile Include="src\rhi\dx12\d3d_resource_view.cpp" />
+    <ClCompile Include="src\rhi\gpu_resource_view.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_buffer.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_render_command.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_resource_view.cpp" />

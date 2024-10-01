@@ -37,6 +37,7 @@ void D3DAccelerationStructure::initialize(uint32 numBLAS)
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { NULL };
 	srv = makeUnique<D3DShaderResourceView>(this, nullptr, 0xffffffff, cpuHandle);
+	srv->temp_markNoSourceHeap();
 }
 
 void D3DAccelerationStructure::buildBLAS(

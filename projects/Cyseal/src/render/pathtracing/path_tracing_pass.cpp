@@ -185,7 +185,8 @@ void PathTracingPass::renderPathTracing(
 	ConstantBufferView* sceneUniformBuffer,
 	AccelerationStructure* raytracingScene,
 	GPUScene* gpuScene,
-	Texture* renderTargetTexture,
+	UnorderedAccessView* sceneColorUAV,
+	ShaderResourceView* skyboxSRV,
 	uint32 sceneWidth,
 	uint32 sceneHeight)
 {
@@ -203,8 +204,8 @@ void PathTracingPass::renderPathTracing(
 			uboData->randFloats0[i] = Cymath::randFloat();
 			uboData->randFloats1[i] = Cymath::randFloat();
 		}
-		uboData->renderTargetWidth = renderTargetTexture->getCreateParams().width;
-		uboData->renderTargetHeight = renderTargetTexture->getCreateParams().height;
+		uboData->renderTargetWidth = sceneWidth;
+		uboData->renderTargetHeight = sceneHeight;
 		uboData->bInvalidateHistory = bCameraHasMoved;
 
 		uniformCBVs[swapchainIndex]->writeToGPU(commandList, uboData, sizeof(PathTracingUniform));
@@ -241,57 +242,11 @@ void PathTracingPass::renderPathTracing(
 		resizeHitGroupShaderTable(swapchainIndex, scene);
 	}
 
-	if (sceneColorUAV == nullptr)
-	{
-		sceneColorUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(renderTargetTexture,
-			UnorderedAccessViewDesc{
-				.format         = renderTargetTexture->getCreateParams().format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{
-					.mipSlice   = 0,
-					.planeSlice = 0,
-				},
-			}
-		));
-	}
-
-	// Create skybox SRV.
-	if (skyboxFallbackSRV == nullptr)
-	{
-		auto blackCube = gTextureManager->getSystemTextureBlackCube()->getGPUResource().get();
-		skyboxFallbackSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(blackCube,
-			ShaderResourceViewDesc{
-				.format              = EPixelFormat::R8G8B8A8_UNORM,
-				.viewDimension       = ESRVDimension::TextureCube,
-				.textureCube         = TextureCubeSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = 1,
-					.minLODClamp     = 0.0f
-				}
-			}
-		));
-	}
-	if (skyboxSRV == nullptr && scene->skyboxTexture != nullptr)
-	{
-		skyboxSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(scene->skyboxTexture.get(),
-			ShaderResourceViewDesc{
-				.format              = EPixelFormat::R8G8B8A8_UNORM,
-				.viewDimension       = ESRVDimension::TextureCube,
-				.textureCube         = TextureCubeSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = 1,
-					.minLODClamp     = 0.0f
-				}
-			}
-		));
-	}
-
 	commandList->setRaytracingPipelineState(RTPSO.get());
 
 	// Bind global shader parameters.
 	{
 		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
-		auto skyboxSRVWithFallback = (skyboxSRV != nullptr) ? skyboxSRV.get() : skyboxFallbackSRV.get();
 		auto gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 		ShaderParameterTable SPT{};
@@ -299,8 +254,8 @@ void PathTracingPass::renderPathTracing(
 		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
-		SPT.texture("skybox", skyboxSRVWithFallback);
-		SPT.rwTexture("renderTarget", sceneColorUAV.get());
+		SPT.texture("skybox", skyboxSRV);
+		SPT.rwTexture("renderTarget", sceneColorUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		SPT.constantBuffer("pathTracingUniform", uniformCBVs[swapchainIndex].get());
 		// Bindless

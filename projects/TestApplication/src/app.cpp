@@ -157,8 +157,7 @@ void TestApplication::onTick(float deltaSeconds)
 
 		if (bViewportNeedsResize)
 		{
-			cysealEngine.getRenderDevice()->recreateSwapChain(getHWND(), newViewportWidth, newViewportHeight);
-			cysealEngine.getRenderer()->recreateSceneTextures(newViewportWidth, newViewportHeight);
+			cysealEngine.setRenderResolution(newViewportWidth, newViewportHeight);
 			bViewportNeedsResize = false;
 		}
 
@@ -198,7 +197,7 @@ void TestApplication::onTick(float deltaSeconds)
 
 		SceneProxy* sceneProxy = scene.createProxy();
 
-		cysealEngine.getRenderer()->render(sceneProxy, &camera, appState.rendererOptions);
+		cysealEngine.renderScene(sceneProxy, &camera, appState.rendererOptions);
 
 		delete sceneProxy;
 	}

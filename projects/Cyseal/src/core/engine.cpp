@@ -35,8 +35,10 @@ CysealEngine::~CysealEngine()
 	CHECK(state == EEngineState::SHUTDOWN);
 }
 
-void CysealEngine::startup(const CysealEngineCreateParams& createParams)
+void CysealEngine::startup(const CysealEngineCreateParams& inCreateParams)
 {
+	createParams = inCreateParams;
+
 	CHECK(state == EEngineState::UNINITIALIZED);
 
 	CYLOG(LogEngine, Log, TEXT("Start engine initialization."));
@@ -98,11 +100,8 @@ void CysealEngine::shutdown()
 #endif
 	ImGui::DestroyContext();
 
-	// Subsystems
+	// Subsystems (pre)
 	{
-		delete gDescriptorHeaps;
-		gDescriptorHeaps = nullptr;
-
 		gVertexBufferPool->destroy();
 		delete gVertexBufferPool;
 		gVertexBufferPool = nullptr;
@@ -119,6 +118,12 @@ void CysealEngine::shutdown()
 	// Rendering
 	renderer->destroy();
 	delete renderer;
+
+	// Subsystems (post)
+	{
+		delete gDescriptorHeaps;
+		gDescriptorHeaps = nullptr;
+	}
 
 	delete renderDevice;
 	gRenderDevice = nullptr;
@@ -145,6 +150,18 @@ void CysealEngine::beginImguiNewFrame()
 void CysealEngine::renderImgui()
 {
 	ImGui::Render();
+}
+
+void CysealEngine::renderScene(SceneProxy* sceneProxy, Camera* camera, const RendererOptions& rendererOptions)
+{
+	renderer->render(sceneProxy, camera, rendererOptions);
+}
+
+void CysealEngine::setRenderResolution(uint32 newWidth, uint32 newHeight)
+{
+	void* hwnd = createParams.renderDevice.nativeWindowHandle;
+	renderDevice->recreateSwapChain(hwnd, newWidth, newHeight);
+	renderer->recreateSceneTextures(newWidth, newHeight);
 }
 
 void CysealEngine::createRenderDevice(const RenderDeviceCreateParams& createParams)

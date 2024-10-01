@@ -5,6 +5,9 @@
 #include "core/int_types.h"
 #include "util/logging.h"
 
+class SceneProxy;
+class Camera;
+
 DECLARE_LOG_CATEGORY(LogEngine);
 
 enum class EEngineState : uint8
@@ -32,11 +35,13 @@ public:
 	void startup(const CysealEngineCreateParams& createParams);
 	void shutdown();
 
+	// Call if GUI is resized.
+	void setRenderResolution(uint32 newWidth, uint32 newHeight);
+
 	void beginImguiNewFrame();
 	void renderImgui();
 
-	inline RenderDevice* getRenderDevice() const { return renderDevice; }
-	inline Renderer* getRenderer() const { return renderer; }
+	void renderScene(SceneProxy* sceneProxy, Camera* camera, const RendererOptions& rendererOptions);
 
 private:
 	void createRenderDevice(const RenderDeviceCreateParams& createParams);
@@ -44,6 +49,7 @@ private:
 	void createDearImgui(void* nativeWindowHandle);
 
 private:
+	CysealEngineCreateParams createParams;
 	EEngineState state = EEngineState::UNINITIALIZED;
 
 	RenderDevice* renderDevice = nullptr;

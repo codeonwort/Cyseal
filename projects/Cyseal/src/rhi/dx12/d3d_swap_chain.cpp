@@ -132,6 +132,7 @@ void D3DSwapChain::createSwapchainImages()
 
 	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{
+		backBufferRTVs[i].reset(); // Need to reset first because heapRTV is only as large as swapchain count.
 		RenderTargetViewDesc rtvDesc{
 			.format        = backbufferFormat,
 			.viewDimension = ERTVDimension::Texture2D,
