@@ -46,7 +46,7 @@ public:
 		{
 			if (cand->b == maxNumber) return 0;
 			Range* next = cand->next;
-			if (next == nullptr || cand->b < next->a)
+			if (next == nullptr || cand->b < next->a - 1)
 			{
 				cand->b += 1;
 				uint32 freeNumber = cand->b;
