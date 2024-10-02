@@ -375,15 +375,15 @@ namespace into_d3d
 		
 		// #todo-dx12: Other allow flags
 		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-		if (0 != (params.accessFlags & ETextureAccessFlags::RTV))
+		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::RTV))
 		{
 			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 		}
-		if (0 != (params.accessFlags & ETextureAccessFlags::UAV))
+		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::UAV))
 		{
 			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		}
-		if (0 != (params.accessFlags & ETextureAccessFlags::DSV))
+		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
 		{
 			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 		}
@@ -411,11 +411,11 @@ namespace into_d3d
 	inline D3D12_RAYTRACING_GEOMETRY_FLAGS raytracingGeometryFlags(ERaytracingGeometryFlags inFlags)
 	{
 		D3D12_RAYTRACING_GEOMETRY_FLAGS flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
-		if (0 != (inFlags & ERaytracingGeometryFlags::Opaque))
+		if (ENUM_HAS_FLAG(inFlags, ERaytracingGeometryFlags::Opaque))
 		{
 			flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 		}
-		if (0 != (inFlags & ERaytracingGeometryFlags::NoDuplicateAnyhitInvocation))
+		if (ENUM_HAS_FLAG(inFlags, ERaytracingGeometryFlags::NoDuplicateAnyhitInvocation))
 		{
 			flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION;
 		}
@@ -461,7 +461,7 @@ namespace into_d3d
 	inline D3D12_BUFFER_SRV_FLAGS bufferSRVFlags(EBufferSRVFlags inFlags)
 	{
 		D3D12_BUFFER_SRV_FLAGS flags = D3D12_BUFFER_SRV_FLAG_NONE;
-		if (0 != (inFlags & EBufferSRVFlags::Raw))
+		if (ENUM_HAS_FLAG(inFlags, EBufferSRVFlags::Raw))
 		{
 			flags |= D3D12_BUFFER_SRV_FLAG_RAW;
 		}
@@ -542,7 +542,7 @@ namespace into_d3d
 	inline D3D12_BUFFER_UAV_FLAGS bufferUAVFlags(EBufferUAVFlags inFlags)
 	{
 		D3D12_BUFFER_UAV_FLAGS flags = D3D12_BUFFER_UAV_FLAG_NONE;
-		if (0 != (inFlags & EBufferUAVFlags::Raw))
+		if (ENUM_HAS_FLAG(inFlags, EBufferUAVFlags::Raw))
 		{
 			flags |= D3D12_BUFFER_UAV_FLAG_RAW;
 		}
@@ -685,7 +685,7 @@ namespace into_d3d
 	inline D3D12_RESOURCE_FLAGS bufferResourceFlags(EBufferAccessFlags inFlags)
 	{
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
-		if (0 != (inFlags & EBufferAccessFlags::UAV))
+		if (ENUM_HAS_FLAG(inFlags, EBufferAccessFlags::UAV))
 		{
 			flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		}

@@ -985,7 +985,7 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 	{
 		// Can't know if it's VulkanBuffer, VulkanVertexBuffer, or VulkanIndexBuffer :/
 		// VulkanBuffer* buffer = ?
-		//CHECK(0 != (buffer->getCreateParams().accessFlags & EBufferAccessFlags::SRV));
+		//CHECK(ENUM_HAS_FLAG(buffer->getCreateParams().accessFlags, EBufferAccessFlags::SRV));
 
 		VkBuffer vkBuffer = (VkBuffer)gpuResource->getRawResource();
 

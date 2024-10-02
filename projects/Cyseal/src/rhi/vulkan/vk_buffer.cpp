@@ -108,13 +108,13 @@ void VulkanBuffer::initialize(const BufferCreateParams& inCreateParams)
 	VkPhysicalDevice vkPhysicalDevice = deviceWrapper->getVkPhysicalDevice();
 
 	VkBufferUsageFlags usage = 0;
-	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::COPY_SRC)) usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::COPY_DST)) usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::VERTEX_BUFFER)) usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::INDEX_BUFFER)) usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::CBV)) usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::SRV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Both SRV and UAV are SSBO in Vulkan
-	if (0 != (inCreateParams.accessFlags & EBufferAccessFlags::UAV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::COPY_SRC)) usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::COPY_DST)) usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::VERTEX_BUFFER)) usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::INDEX_BUFFER)) usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::CBV)) usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::SRV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Both SRV and UAV are SSBO in Vulkan
+	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::UAV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
 	// #todo-vulkan-buffer: VkMemoryPropertyFlags
 	VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;

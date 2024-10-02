@@ -243,19 +243,19 @@ namespace into_vk
 	{
 		// #todo-vulkan: Other allow flags
 		VkImageUsageFlags usage = 0;
-		if (0 != (params.accessFlags & ETextureAccessFlags::SRV))
+		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::SRV))
 		{
 			usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
 		}
-		if (0 != (params.accessFlags & ETextureAccessFlags::RTV))
+		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::RTV))
 		{
 			usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 		}
-		if (0 != (params.accessFlags & ETextureAccessFlags::UAV))
+		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::UAV))
 		{
 			usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 		}
-		if (0 != (params.accessFlags & ETextureAccessFlags::DSV))
+		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
 		{
 			usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		}
@@ -328,19 +328,19 @@ namespace into_vk
 	inline VkColorComponentFlags colorWriteMask(EColorWriteEnable inMask)
 	{
 		VkColorComponentFlags mask = 0;
-		if (0 != (inMask & EColorWriteEnable::Red))
+		if (ENUM_HAS_FLAG(inMask, EColorWriteEnable::Red))
 		{
 			mask |= VK_COLOR_COMPONENT_R_BIT;
 		}
-		if (0 != (inMask & EColorWriteEnable::Green))
+		if (ENUM_HAS_FLAG(inMask, EColorWriteEnable::Green))
 		{
 			mask |= VK_COLOR_COMPONENT_G_BIT;
 		}
-		if (0 != (inMask & EColorWriteEnable::Blue))
+		if (ENUM_HAS_FLAG(inMask, EColorWriteEnable::Blue))
 		{
 			mask |= VK_COLOR_COMPONENT_B_BIT;
 		}
-		if (0 != (inMask & EColorWriteEnable::Alpha))
+		if (ENUM_HAS_FLAG(inMask, EColorWriteEnable::Alpha))
 		{
 			mask |= VK_COLOR_COMPONENT_A_BIT;
 		}

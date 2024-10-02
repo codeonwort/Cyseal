@@ -229,7 +229,7 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 			IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
 	}
 	// upload buffer (if requested)
-	if (0 != (createParams.accessFlags & EBufferAccessFlags::COPY_SRC))
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC))
 	{
 		auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes, D3D12_RESOURCE_FLAG_NONE, createParams.alignment);
@@ -249,7 +249,7 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 
 void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs)
 {
-	CHECK(0 != (createParams.accessFlags & EBufferAccessFlags::COPY_SRC));
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
 	for (uint32 i = 0; i < numUploads; ++i)
 	{
 		CHECK((createParams.alignment == 0) || (uploadDescs[i].destOffsetInBytes % createParams.alignment == 0));
