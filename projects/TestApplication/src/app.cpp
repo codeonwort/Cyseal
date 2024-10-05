@@ -56,6 +56,7 @@
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
+// #todo: DX12 + Null renderer -> SystemTexture2DWhite not free'd?
 #define LOAD_PBRT_FILE       1
 // living-room contains an invalid leaf texture only for pbrt format :/
 // It's tungsten and mitsuba versions are fine.

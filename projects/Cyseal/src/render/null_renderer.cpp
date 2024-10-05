@@ -31,6 +31,13 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	commandAllocator->reset();
 	commandList->reset(commandAllocator);
 
+	TextureMemoryBarrier renderToBackbufferBarrier{
+		.stateBefore = ETextureMemoryLayout::PRESENT,
+		.stateAfter  = ETextureMemoryLayout::RENDER_TARGET,
+		.texture     = swapchainBuffer,
+	};
+	commandList->resourceBarriers(0, nullptr, 1, &renderToBackbufferBarrier);
+
 	{
 		SCOPED_DRAW_EVENT(commandList, NullDrawEvent);
 		// Real renderer would render something here.
@@ -38,6 +45,10 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 
 #if VERIFY_DEAR_IMGUI
 	{
+		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
+		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		commandList->clearRenderTargetView(swapchainBufferRTV, clearColor);
+
 		SCOPED_DRAW_EVENT(commandList, DearImgui);
 		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
 		commandList->setDescriptorHeaps(1, imguiHeaps);
@@ -46,11 +57,10 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 #endif
 
 	TextureMemoryBarrier presentBarrier{
-		.stateBefore = ETextureMemoryLayout::COMMON,
+		.stateBefore = ETextureMemoryLayout::RENDER_TARGET,
 		.stateAfter  = ETextureMemoryLayout::PRESENT,
 		.texture     = swapchainBuffer,
 	};
-
 	commandList->resourceBarriers(0, nullptr, 1, &presentBarrier);
 
 	commandList->close();
