@@ -54,6 +54,9 @@
       <SDLCheck>true</SDLCheck>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
     </ClCompile>
     <Lib>
       <AdditionalLibraryDirectories />
@@ -68,6 +71,9 @@
       <SDLCheck>true</SDLCheck>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -104,6 +110,7 @@
     <ClInclude Include="src\loader\ply_loader.h" />
     <ClInclude Include="src\memory\free_number_list.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
+    <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\render\base_pass.h" />
     <ClInclude Include="src\render\buffer_visualization.h" />
     <ClInclude Include="src\render\gpu_culling.h" />
@@ -183,6 +190,10 @@
     <ClCompile Include="src\loader\pbrt_loader.cpp" />
     <ClCompile Include="src\loader\ply_loader.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
+    <ClCompile Include="src\pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\render\base_pass.cpp" />
     <ClCompile Include="src\render\buffer_visualization.cpp" />
     <ClCompile Include="src\render\gpu_culling.cpp" />

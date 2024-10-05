@@ -13,7 +13,7 @@ ImageLoadData* loadImage_internal(char const* filename)
 	int width, height, numActualComponents;
 	unsigned char* buffer = ::stbi_load(filename, &width, &height, &numActualComponents, numRequiredComps);
 
-	uint32 numComponents = std::max(numRequiredComps, numActualComponents);
+	uint32 numComponents = (std::max)(numRequiredComps, numActualComponents);
 
 	if (buffer == nullptr)
 	{

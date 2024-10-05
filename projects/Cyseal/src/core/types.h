@@ -1,5 +1,6 @@
 #pragma once
 
+// Primitive types
 #include "int_types.h"
 #include "vec3.h"
 #include "vec2.h"
