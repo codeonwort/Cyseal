@@ -1,5 +1,6 @@
 #include "app.h"
 #include "world1.h"
+#include "world2.h"
 
 #include "core/core_minimal.h"
 #include "rhi/render_device_capabilities.h"
@@ -37,7 +38,9 @@
 #define CAMERA_Z_NEAR        0.01f
 #define CAMERA_Z_FAR         10000.0f
 
+// #wip: Select world
 #define WORLD_CLASS          World1
+//#define WORLD_CLASS          World2
 
 
 /* -------------------------------------------------------

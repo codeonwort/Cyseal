@@ -103,6 +103,7 @@ void GPUScene::renderGPUScene(
 
 	const bool bRebuildGPUScene = scene->bRebuildGPUScene;
 	uint32 numGPUSceneCommands = bRebuildGPUScene ? numMeshSections : numDirtyMeshSections;
+	// #wip: Crashes if there is no mesh
 	if (numGPUSceneCommands > gpuSceneMaxElements)
 	{
 		resizeGPUSceneBuffer(commandList, numMeshSections);
