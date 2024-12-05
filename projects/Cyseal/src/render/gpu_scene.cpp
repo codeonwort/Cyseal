@@ -108,7 +108,10 @@ void GPUScene::renderGPUScene(
 	{
 		resizeGPUSceneBuffer(commandList, numMeshSections);
 	}
-	resizeGPUSceneCommandBuffer(swapchainIndex, numGPUSceneCommands);
+	if (numGPUSceneCommands > 0)
+	{
+		resizeGPUSceneCommandBuffer(swapchainIndex, numGPUSceneCommands);
+	}
 	// #todo-gpuscene: Don't assume material_max_count == mesh_section_total_count.
 	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
 
