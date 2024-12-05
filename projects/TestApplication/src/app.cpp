@@ -39,8 +39,8 @@
 #define CAMERA_Z_FAR         10000.0f
 
 // #wip: Select world
-#define WORLD_CLASS          World1
-//#define WORLD_CLASS          World2
+//#define WORLD_CLASS          World1
+#define WORLD_CLASS          World2
 
 
 /* -------------------------------------------------------
@@ -64,15 +64,15 @@ bool TestApplication::onInitialize()
 
 	cysealEngine.startup(engineInit);
 
-	world = new WORLD_CLASS;
-	world->preinitialize(&scene, &camera, &appState);
-	world->onInitialize();
-
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 
 	appState.cameraLocation = CAMERA_POSITION;
 	appState.cameraRotationY = -90.0f;
+
+	world = new WORLD_CLASS;
+	world->preinitialize(&scene, &camera, &appState);
+	world->onInitialize();
 
 	return true;
 }

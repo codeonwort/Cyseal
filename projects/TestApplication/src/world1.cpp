@@ -26,6 +26,31 @@
 
 #define CRUMPLED_MESHES      0
 
+static void uploadMeshGeometry(Geometry* G,
+	SharedPtr<VertexBufferAsset> positionBufferAsset,
+	SharedPtr<VertexBufferAsset> nonPositionBufferAsset,
+	SharedPtr<IndexBufferAsset> indexBufferAsset)
+{
+	ENQUEUE_RENDER_COMMAND(UploadMeshGeometry)(
+		[G, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset](RenderCommandList& commandList)
+		{
+			auto positionBuffer = gVertexBufferPool->suballocate(G->getPositionBufferTotalBytes());
+			auto nonPositionBuffer = gVertexBufferPool->suballocate(G->getNonPositionBufferTotalBytes());
+			auto indexBuffer = gIndexBufferPool->suballocate(G->getIndexBufferTotalBytes(), G->getIndexFormat());
+
+			positionBuffer->updateData(&commandList, G->getPositionBlob(), G->getPositionStride());
+			nonPositionBuffer->updateData(&commandList, G->getNonPositionBlob(), G->getNonPositionStride());
+			indexBuffer->updateData(&commandList, G->getIndexBlob(), G->getIndexFormat());
+
+			positionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
+			nonPositionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
+			indexBufferAsset->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
+
+			commandList.enqueueDeferredDealloc(G);
+		}
+	);
+}
+
 void World1::onInitialize()
 {
 	createResources();
@@ -136,24 +161,7 @@ void World1::createResources()
 		SharedPtr<VertexBufferAsset> positionBufferAsset = makeShared<VertexBufferAsset>();
 		SharedPtr<VertexBufferAsset> nonPositionBufferAsset = makeShared<VertexBufferAsset>();
 		SharedPtr<IndexBufferAsset> indexBufferAsset = makeShared<IndexBufferAsset>();
-		ENQUEUE_RENDER_COMMAND(UploadGroundMesh)(
-			[planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset](RenderCommandList& commandList)
-			{
-				auto positionBuffer = gVertexBufferPool->suballocate(planeGeometry->getPositionBufferTotalBytes());
-				auto nonPositionBuffer = gVertexBufferPool->suballocate(planeGeometry->getNonPositionBufferTotalBytes());
-				auto indexBuffer = gIndexBufferPool->suballocate(planeGeometry->getIndexBufferTotalBytes(), planeGeometry->getIndexFormat());
-
-				positionBuffer->updateData(&commandList, planeGeometry->getPositionBlob(), planeGeometry->getPositionStride());
-				nonPositionBuffer->updateData(&commandList, planeGeometry->getNonPositionBlob(), planeGeometry->getNonPositionStride());
-				indexBuffer->updateData(&commandList, planeGeometry->getIndexBlob(), planeGeometry->getIndexFormat());
-
-				positionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
-				nonPositionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
-				indexBufferAsset->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
-
-				commandList.enqueueDeferredDealloc(planeGeometry);
-			}
-		);
+		uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
 
 		auto material = makeShared<Material>();
 		material->albedoMultiplier[0] = 1.0f;
@@ -187,24 +195,7 @@ void World1::createResources()
 		SharedPtr<VertexBufferAsset> positionBufferAsset = makeShared<VertexBufferAsset>();
 		SharedPtr<VertexBufferAsset> nonPositionBufferAsset = makeShared<VertexBufferAsset>();
 		SharedPtr<IndexBufferAsset> indexBufferAsset = makeShared<IndexBufferAsset>();
-		ENQUEUE_RENDER_COMMAND(UploadGroundMesh)(
-			[planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset](RenderCommandList& commandList)
-			{
-				auto positionBuffer = gVertexBufferPool->suballocate(planeGeometry->getPositionBufferTotalBytes());
-				auto nonPositionBuffer = gVertexBufferPool->suballocate(planeGeometry->getNonPositionBufferTotalBytes());
-				auto indexBuffer = gIndexBufferPool->suballocate(planeGeometry->getIndexBufferTotalBytes(), planeGeometry->getIndexFormat());
-
-				positionBuffer->updateData(&commandList, planeGeometry->getPositionBlob(), planeGeometry->getPositionStride());
-				nonPositionBuffer->updateData(&commandList, planeGeometry->getNonPositionBlob(), planeGeometry->getNonPositionStride());
-				indexBuffer->updateData(&commandList, planeGeometry->getIndexBlob(), planeGeometry->getIndexFormat());
-
-				positionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
-				nonPositionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
-				indexBufferAsset->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
-
-				commandList.enqueueDeferredDealloc(planeGeometry);
-			}
-		);
+		uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
 
 		auto material = makeShared<Material>();
 		material->albedoMultiplier[0] = 1.0f;
@@ -323,6 +314,7 @@ void World1::createResources()
 				indexBufferAssets[i] = makeShared<IndexBufferAsset>();
 			}
 
+			// #todo: Make upload util
 			ENQUEUE_RENDER_COMMAND(UploadPBRTSubMeshes)(
 				[pbrtScene, pbrtGeometries, positionBufferAssets, nonPositionBufferAssets, indexBufferAssets](RenderCommandList& commandList)
 				{
