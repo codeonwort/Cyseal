@@ -38,6 +38,10 @@ public:
 		return LODs[lod].sections;
 	}
 
+	inline size_t getNumLODs() const { return LODs.size(); }
+	inline uint32 getActiveLOD() const { return activeLOD; }
+	inline void setActiveLOD(uint32 lod) { activeLOD = lod; }
+
 	inline vec3 getPosition() const { return transform.getPosition(); }
 	inline quaternion getRotation() const { return transform.getRotation(); }
 	inline vec3 getScale() const { return transform.getScale(); }
@@ -69,6 +73,7 @@ public:
 
 private:
 	std::vector<StaticMeshLOD> LODs;
+	uint32 activeLOD = 0;
 
 	Transform transform;
 	bool bTransformDirty = false;

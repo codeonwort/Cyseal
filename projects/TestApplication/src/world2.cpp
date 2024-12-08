@@ -9,7 +9,7 @@
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
-#define CAMERA_POSITION      vec3(0.0f, 20.0f, 100.0f)
+#define CAMERA_POSITION      vec3(0.0f, 6.0f, 70.0f)
 #define CAMERA_LOOKAT        vec3(0.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
 #define CAMERA_FOV_Y         70.0f
@@ -66,7 +66,7 @@ void World2::onInitialize()
 		auto material = makeShared<Material>();
 		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
-		material->roughness = 0.0f;
+		material->roughness = 1.0f;
 
 		ground = new StaticMesh;
 		ground->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
@@ -90,7 +90,7 @@ void World2::onInitialize()
 			auto material = makeShared<Material>();
 			material->albedoTexture = baseTex;
 			material->albedoMultiplier = vec3(0.5f, 0.5f, 0.5f);
-			material->roughness = 0.0f;
+			material->roughness = 1.0f;
 			baseMaterials.push_back(material);
 		}
 
@@ -109,10 +109,10 @@ void World2::onInitialize()
 				balls.emplace_back(ball);
 				scene->addStaticMesh(ball);
 
-				for (uint32 lod = 0; lod < 2; ++lod)
+				for (uint32 lod = 0; lod < 3; ++lod)
 				{
 					Geometry* G = new Geometry;
-					ProceduralGeometry::icosphere(*G, 3 - lod);
+					ProceduralGeometry::icosphere(*G, 2 - lod);
 					AABB localBounds = G->localBounds;
 
 					auto posBuffer = makeShared<VertexBufferAsset>();

@@ -42,6 +42,20 @@ struct GPUSceneCommand
 	GPUSceneItem sceneItem;
 };
 
+static uint32 calculateLOD(const StaticMesh* mesh, const Camera* camera)
+{
+	const size_t numLODs = mesh->getNumLODs();
+	float distance = (camera->getPosition() - mesh->getPosition()).length();
+	// #wip: Temp criteria
+	uint32 lod = 0;
+	if (distance >= 90.0f) lod = 3;
+	else if (distance >= 60.0f) lod = 2;
+	else if (distance >= 30.0f) lod = 1;
+	// Clamp LOD
+	if (lod >= numLODs) lod = (uint32)(numLODs - 1);
+	return lod;
+}
+
 void GPUScene::initialize()
 {
 	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
@@ -85,15 +99,16 @@ void GPUScene::renderGPUScene(
 	const Camera* camera,
 	ConstantBufferView* sceneUniform)
 {
-	const uint32 LOD = 0; // #todo-lod: LOD
-
 	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	uint32 numMeshSections = 0;
 	uint32 numDirtyMeshSections = 0;
+
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
-		const StaticMesh* sm = scene->staticMeshes[i];
-		uint32 currentSections = (uint32)(sm->getSections(LOD).size());
+		StaticMesh* sm = scene->staticMeshes[i];
+		uint32 lod = calculateLOD(sm, camera);
+		sm->setActiveLOD(lod);
+		uint32 currentSections = (uint32)(sm->getSections(lod).size());
 		numMeshSections += currentSections;
 		if (sm->isTransformDirty())
 		{
@@ -145,7 +160,8 @@ void GPUScene::renderGPUScene(
 		for (uint32 i = 0; i < numStaticMeshes; ++i)
 		{
 			StaticMesh* staticMesh = scene->staticMeshes[i];
-			for (const StaticMeshSection& section : staticMesh->getSections(LOD))
+			uint32 lod = staticMesh->getActiveLOD();
+			for (const StaticMeshSection& section : staticMesh->getSections(lod))
 			{
 				Material* const material = section.material.get();
 
@@ -200,7 +216,8 @@ void GPUScene::renderGPUScene(
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
 		StaticMesh* sm = scene->staticMeshes[i];
-		const uint32 smSections = (uint32)(sm->getSections(LOD).size());
+		uint32 lod = sm->getActiveLOD();
+		const uint32 smSections = (uint32)(sm->getSections(lod).size());
 
 		if (bRebuildGPUScene == false && sm->isTransformDirty() == false)
 		{
@@ -212,7 +229,7 @@ void GPUScene::renderGPUScene(
 		
 		for (uint32 j = 0; j < smSections; ++j)
 		{
-			const StaticMeshSection& section = sm->getSections(LOD)[j];
+			const StaticMeshSection& section = sm->getSections(lod)[j];
 			sceneCommands[sceneCommandIx].commandType                       = (uint32)EGPUSceneCommandType::Update;
 			sceneCommands[sceneCommandIx].sceneItemIndex                    = sceneItemIx;
 			sceneCommands[sceneCommandIx].sceneItem.modelTransform          = localToWorld;
