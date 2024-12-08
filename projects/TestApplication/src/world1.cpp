@@ -164,9 +164,7 @@ void World1::createResources()
 		uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
 
 		auto material = makeShared<Material>();
-		material->albedoMultiplier[0] = 1.0f;
-		material->albedoMultiplier[1] = 1.0f;
-		material->albedoMultiplier[2] = 1.0f;
+		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
 		material->roughness = 0.0f;
 
@@ -198,9 +196,7 @@ void World1::createResources()
 		uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
 
 		auto material = makeShared<Material>();
-		material->albedoMultiplier[0] = 1.0f;
-		material->albedoMultiplier[1] = 1.0f;
-		material->albedoMultiplier[2] = 1.0f;
+		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 		material->albedoTexture = albedoTexture;
 		material->roughness = 0.0f;
 
@@ -340,9 +336,7 @@ void World1::createResources()
 			);
 
 			auto fallbackMaterial = makeShared<Material>();
-			fallbackMaterial->albedoMultiplier[0] = 1.0f;
-			fallbackMaterial->albedoMultiplier[1] = 1.0f;
-			fallbackMaterial->albedoMultiplier[2] = 1.0f;
+			fallbackMaterial->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 			fallbackMaterial->albedoTexture = gTextureManager->getSystemTextureGrey2D();
 			fallbackMaterial->roughness = 1.0f;
 

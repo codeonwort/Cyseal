@@ -675,9 +675,9 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	{
 		auto material = makeShared<Material>();
 
-		material->albedoMultiplier[0] = desc.rgbReflectance.x;
-		material->albedoMultiplier[1] = desc.rgbReflectance.y;
-		material->albedoMultiplier[2] = desc.rgbReflectance.z;
+		material->albedoMultiplier.x = desc.rgbReflectance.x;
+		material->albedoMultiplier.y = desc.rgbReflectance.y;
+		material->albedoMultiplier.z = desc.rgbReflectance.z;
 		if (desc.textureReflectance.size() > 0)
 		{
 			auto it = textureAssetDatabase.find(desc.textureReflectance);

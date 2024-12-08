@@ -60,9 +60,7 @@ void World2::onInitialize()
 	uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
 
 	auto material = makeShared<Material>();
-	material->albedoMultiplier[0] = 1.0f;
-	material->albedoMultiplier[1] = 1.0f;
-	material->albedoMultiplier[2] = 1.0f;
+	material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 	material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
 	material->roughness = 0.0f;
 

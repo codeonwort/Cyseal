@@ -173,8 +173,7 @@ void GPUScene::renderGPUScene(
 				MaterialConstants constants;
 				if (material != nullptr)
 				{
-					memcpy_s(constants.albedoMultiplier, sizeof(constants.albedoMultiplier),
-						material->albedoMultiplier, sizeof(material->albedoMultiplier));
+					constants.albedoMultiplier = material->albedoMultiplier;
 					constants.roughness = material->roughness;
 					constants.emission = material->emission;
 				}
