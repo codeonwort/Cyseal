@@ -13,4 +13,5 @@ public:
 
 private:
 	StaticMesh* ground = nullptr;
+	std::vector<StaticMesh*> balls;
 };
