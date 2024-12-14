@@ -46,7 +46,7 @@ static uint32 calculateLOD(const StaticMesh* mesh, const Camera* camera)
 {
 	const size_t numLODs = mesh->getNumLODs();
 	float distance = (camera->getPosition() - mesh->getPosition()).length();
-	// #wip: Temp criteria
+	// #todo-lod: Temp criteria
 	uint32 lod = 0;
 	if (distance >= 90.0f) lod = 3;
 	else if (distance >= 60.0f) lod = 2;
@@ -118,9 +118,14 @@ void GPUScene::renderGPUScene(
 		}
 	}
 
+	if (numMeshSections == 0)
+	{
+		// #todo-zero-size: Release resources if any.
+		return;
+	}
+
 	const bool bRebuildGPUScene = scene->bRebuildGPUScene;
 	uint32 numGPUSceneCommands = bRebuildGPUScene ? numMeshSections : numDirtyMeshSections;
-	// #wip: Crashes if there is no mesh
 	if (numGPUSceneCommands > gpuSceneMaxElements)
 	{
 		resizeGPUSceneBuffer(commandList, numMeshSections);

@@ -160,6 +160,12 @@ void BasePass::renderBasePass(
 	Texture* RT_sceneColor,
 	Texture* RT_thinGBufferA)
 {
+	if (gpuScene->getGPUSceneItemMaxCount() == 0)
+	{
+		// #todo-zero-size: Release resources if any.
+		return;
+	}
+
 	// #todo-renderer: Support other topologies
 	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
 

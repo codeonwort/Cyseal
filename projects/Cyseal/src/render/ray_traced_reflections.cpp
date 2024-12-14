@@ -142,6 +142,11 @@ void RayTracedReflections::renderRayTracedReflections(
 	{
 		return;
 	}
+	if (gpuScene->getGPUSceneItemMaxCount() == 0)
+	{
+		// #todo-zero-size: Release resources if any.
+		return;
+	}
 
 	// Resize volatile heaps if needed.
 	{
