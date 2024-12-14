@@ -37,7 +37,8 @@ public:
 		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera,
-		ConstantBufferView* sceneUniform);
+		ConstantBufferView* sceneUniform,
+		bool bRenderAnyRaytracingPass);
 
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 

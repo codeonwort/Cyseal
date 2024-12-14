@@ -168,7 +168,8 @@ void RayTracedReflections::renderRayTracedReflections(
 
 	// Resize hit group shader table if needed.
 	{
-		uint32 requiredRecordCount = scene->totalMeshSectionsLOD0; // #todo-lod
+		// #todo-lod: Raytracing does not support LOD...
+		uint32 requiredRecordCount = scene->totalMeshSectionsLOD0;
 		if (requiredRecordCount > totalHitGroupShaderRecord[swapchainIndex])
 		{
 			resizeHitGroupShaderTable(swapchainIndex, requiredRecordCount);

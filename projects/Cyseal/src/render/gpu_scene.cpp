@@ -97,7 +97,8 @@ void GPUScene::renderGPUScene(
 	uint32 swapchainIndex,
 	const SceneProxy* scene,
 	const Camera* camera,
-	ConstantBufferView* sceneUniform)
+	ConstantBufferView* sceneUniform,
+	bool bRenderAnyRaytracingPass)
 {
 	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	uint32 numMeshSections = 0;
@@ -106,7 +107,8 @@ void GPUScene::renderGPUScene(
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
 		StaticMesh* sm = scene->staticMeshes[i];
-		uint32 lod = calculateLOD(sm, camera);
+		// #todo-lod: Mesh LOD is currently incompatible with raytracing passes.
+		uint32 lod = bRenderAnyRaytracingPass ? 0 : calculateLOD(sm, camera);
 		sm->setActiveLOD(lod);
 		uint32 currentSections = (uint32)(sm->getSections(lod).size());
 		numMeshSections += currentSections;
