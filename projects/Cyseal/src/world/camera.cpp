@@ -15,32 +15,37 @@ void Camera::perspective(float fovY_degrees, float aspectWH, float n, float f)
 	aspectRatioWH = aspectWH;
 	zNear = n;
 	zFar = f;
+	bProjectionDirty = true;
+}
 
-	const float Y = Cymath::cot(fovY_radians * 0.5f);
-	const float X = Y / aspectWH;
+void Camera::setFovYInDegrees(float fovY_degrees)
+{
+	fovY_radians = Cymath::radians(fovY_degrees);
+	bProjectionDirty = true;
+}
 
-	// NDC z range = [0, 1]
-#if RIGHT_HANDED
-	float P[16] = {
-		X,       0.0f,    0.0f,               0.0f,
-		0.0f,    Y,       0.0f,               0.0f,
-		0.0f,    0.0f,    f / (n - f),       -1.0f,
-		0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
-	};
-#else
-	float P[16] = {
-		X,       0.0f,    0.0f,               0.0f,
-		0.0f,    Y,       0.0f,               0.0f,
-		0.0f,    0.0f,    f / (f - n),        1.0f,
-		0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
-	};
-#endif
-	projection.copyFrom(P);
-	// #todo-matrix: Derive the inverse manually
-	// (generalized inverse math is slower and it loses precision)
-	projectionInv = projection.inverse();
+void Camera::setAspectRatio(float width, float height)
+{
+	aspectRatioWH = width / height;
+	bProjectionDirty = true;
+}
 
-	bDirty = true;
+void Camera::setAspectRatio(float inAspectRatioWH)
+{
+	aspectRatioWH = inAspectRatioWH;
+	bProjectionDirty = true;
+}
+
+void Camera::setZNear(float inZNear)
+{
+	zNear = inZNear;
+	bProjectionDirty = true;
+}
+
+void Camera::setZFar(float inZFar)
+{
+	zFar = inZFar;
+	bProjectionDirty = true;
 }
 
 void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
@@ -76,8 +81,6 @@ void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
 #endif
 	view.copyFrom(V);
 	viewInv = view.inverse();
-
-	bDirty = true;
 }
 
 void Camera::getFrustum(Plane3D outPlanes[6]) const
@@ -117,12 +120,40 @@ void Camera::getFrustum(Plane3D outPlanes[6]) const
 	outPlanes[5] = Plane3D::fromThreePoints(vs[6], vs[4], vs[7]);
 }
 
+void Camera::updateProjection() const
+{
+	if (!bProjectionDirty) return;
+
+	const float Y = Cymath::cot(fovY_radians * 0.5f);
+	const float X = Y / aspectRatioWH;
+	const float n = zNear;
+	const float f = zFar;
+
+	// NDC z range = [0, 1]
+#if RIGHT_HANDED
+	float P[16] = {
+		X,       0.0f,    0.0f,               0.0f,
+		0.0f,    Y,       0.0f,               0.0f,
+		0.0f,    0.0f,    f / (n - f),       -1.0f,
+		0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
+	};
+#else
+	float P[16] = {
+		X,       0.0f,    0.0f,               0.0f,
+		0.0f,    Y,       0.0f,               0.0f,
+		0.0f,    0.0f,    f / (f - n),        1.0f,
+		0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
+	};
+#endif
+	projection.copyFrom(P);
+	// #todo-matrix: Derive the inverse manually
+	// (generalized inverse math is slower and it loses precision)
+	projectionInv = projection.inverse();
+
+	bProjectionDirty = false;
+}
+
 void Camera::updateViewProjection() const
 {
-	if (bDirty)
-	{
-		viewProjection = view * projection;
-		viewProjectionInv = projectionInv * viewInv;
-		bDirty = false;
-	}
+	updateProjection();
 }
