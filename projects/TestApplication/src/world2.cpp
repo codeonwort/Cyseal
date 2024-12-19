@@ -46,10 +46,8 @@ static void uploadMeshGeometry(Geometry* G,
 
 void World2::onInitialize()
 {
-	// #wip: camera's position and appState->cameraLocation
 	camera->lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera->perspective(CAMERA_FOV_Y, camera->getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
-	appState->cameraLocation = CAMERA_POSITION;
 
 	{
 		Geometry* planeGeometry = new Geometry;

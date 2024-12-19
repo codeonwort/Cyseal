@@ -17,7 +17,11 @@ public:
 	inline vec3 getScale() const { return scale; }
 
 	void setPosition(const vec3& newPosition);
-	void setRotation(const vec3& axis, float angle);
+
+	void setRotation(const vec3& axis, float angleInDegrees);
+	// Combined with current rotation.
+	void appendRotation(const vec3& axis, float angleInDegrees);
+
 	void setScale(float newScale);
 	void setScale(const vec3& newScale);
 

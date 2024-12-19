@@ -27,9 +27,9 @@ Matrix& Matrix::operator*=(const Matrix& other)
 	return *this;
 }
 
-Matrix Matrix::inverse()
+Matrix Matrix::inverse() const
 {
-	float* mPtr = &(this->m[0][0]);
+	const float* mPtr = &(this->m[0][0]);
 	DirectX::XMMATRIX xm_src(mPtr);
 	DirectX::XMMATRIX xm_inv = DirectX::XMMatrixInverse(nullptr, xm_src);
 	DirectX::XMFLOAT4X4 float4x4_inv;
@@ -38,4 +38,17 @@ Matrix Matrix::inverse()
 	Matrix inv;
 	inv.copyFrom(&(float4x4_inv.m[0][0]));
 	return inv;
+}
+
+Matrix Matrix::transpose() const
+{
+	const float* mPtr = &(this->m[0][0]);
+	DirectX::XMMATRIX xm_src(mPtr);
+	DirectX::XMMATRIX xm_trans = DirectX::XMMatrixTranspose(xm_src);
+	DirectX::XMFLOAT4X4 float4x4_trans;
+	DirectX::XMStoreFloat4x4(&float4x4_trans, xm_trans);
+
+	Matrix trans;
+	trans.copyFrom(&(trans.m[0][0]));
+	return trans;
 }

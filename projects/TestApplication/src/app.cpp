@@ -64,11 +64,9 @@ bool TestApplication::onInitialize()
 
 	cysealEngine.startup(engineInit);
 
+	// May overwritten by world.
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
-
-	appState.cameraLocation = CAMERA_POSITION;
-	appState.cameraRotationY = -90.0f;
 
 	world = new WORLD_CLASS;
 	world->preinitialize(&scene, &camera, &appState);
@@ -94,20 +92,14 @@ void TestApplication::onTick(float deltaSeconds)
 			float moveX = ImGui::IsKeyDown(ImGuiKey_A) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_D) ? 1.0f : 0.0f;
 			float moveZ = ImGui::IsKeyDown(ImGuiKey_W) ? 1.0f : ImGui::IsKeyDown(ImGuiKey_S) ? -1.0f : 0.0f;
 			float rotateY = ImGui::IsKeyDown(ImGuiKey_Q) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_E) ? 1.0f : 0.0f;
+			float rotateX = ImGui::IsKeyDown(ImGuiKey_Z) ? 1.0f : ImGui::IsKeyDown(ImGuiKey_C) ? -1.0f : 0.0f;
 
 			bCameraHasMoved = (moveX != 0.0f || moveZ != 0.0f || rotateY != 0.0f);
 
-			appState.cameraRotationY += rotateY * deltaSeconds * 45.0f;
-			float theta = Cymath::radians(appState.cameraRotationY);
-			float theta2 = Cymath::radians(appState.cameraRotationY + 90.0f);
-
-			vec3 vForward = vec3(Cymath::cos(theta), 0.0f, Cymath::sin(theta));
-			vec3 vRight = vec3(Cymath::cos(theta2), 0.0f, Cymath::sin(theta2));
-
-			appState.cameraLocation += vForward * moveZ * deltaSeconds * 10.0f;
-			appState.cameraLocation += vRight * moveX * deltaSeconds * 10.0f;
-
-			camera.lookAt(appState.cameraLocation, appState.cameraLocation + vForward, CAMERA_UP);
+			camera.rotatePitch(rotateX * deltaSeconds * 45.0f);
+			camera.rotateYaw(rotateY * deltaSeconds * 45.0f);
+			camera.moveForward(moveZ * deltaSeconds * 10.0f);
+			camera.moveRight(moveX * deltaSeconds * 10.0f);
 		}
 		appState.rendererOptions.bCameraHasMoved = bCameraHasMoved;
 
