@@ -30,7 +30,7 @@
 #define DOUBLE_BUFFERING     true
 #define RAYTRACING_TIER      ERaytracingTier::MaxTier
 
-// #todo-world: Init camera in world, not in app
+// Can be overriden by world
 #define CAMERA_POSITION      vec3(50.0f, 0.0f, 30.0f)
 #define CAMERA_LOOKAT        vec3(50.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
@@ -154,6 +154,17 @@ void TestApplication::onTick(float deltaSeconds)
 			ImGui::SeparatorText("Control");
 			ImGui::Text("WASD : move camera");
 			ImGui::Text("QE   : rotate camera");
+
+			ImGui::SeparatorText("Info");
+			if (appState.rendererOptions.anyRayTracingEnabled())
+			{
+				ImGui::Text("Static Mesh LOD is disabled if any raytracing is enabled");
+			}
+			else
+			{
+				ImGui::Text("Static Mesh LOD is enabled");
+			}
+			
 			
 			ImGui::End();
 		}
