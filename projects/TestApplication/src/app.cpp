@@ -38,9 +38,9 @@
 #define CAMERA_Z_NEAR        0.01f
 #define CAMERA_Z_FAR         10000.0f
 
-// #wip: Select world
-//#define WORLD_CLASS          World1
-#define WORLD_CLASS          World2
+// #todo-world: Select world
+#define WORLD_CLASS          World1
+//#define WORLD_CLASS          World2
 
 
 /* -------------------------------------------------------
@@ -164,7 +164,6 @@ void TestApplication::onTick(float deltaSeconds)
 			{
 				ImGui::Text("Static Mesh LOD is enabled");
 			}
-			
 			
 			ImGui::End();
 		}
