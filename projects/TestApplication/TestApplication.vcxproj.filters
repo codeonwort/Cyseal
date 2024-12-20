@@ -48,12 +48,27 @@
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_win32.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="src\world1.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\world2.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\app.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\mesh_splatting.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\world.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\world1.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\world2.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

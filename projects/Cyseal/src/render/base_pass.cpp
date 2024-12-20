@@ -160,6 +160,12 @@ void BasePass::renderBasePass(
 	Texture* RT_sceneColor,
 	Texture* RT_thinGBufferA)
 {
+	if (gpuScene->getGPUSceneItemMaxCount() == 0)
+	{
+		// #todo-zero-size: Release resources if any.
+		return;
+	}
+
 	// #todo-renderer: Support other topologies
 	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
 
@@ -249,9 +255,6 @@ void BasePass::renderBasePass(
 		}
 	}
 
-	// #todo-lod: LOD selection
-	const uint32 LOD = 0;
-
 	// Fill the indirect draw buffer and perform GPU culling.
 	uint32 maxIndirectDraws = 0;
 	if (rendererOptions.bEnableIndirectDraw)
@@ -259,7 +262,8 @@ void BasePass::renderBasePass(
 		uint32 indirectCommandID = 0;
 		for (const StaticMesh* mesh : scene->staticMeshes)
 		{
-			for (const StaticMeshSection& section : mesh->getSections(LOD))
+			uint32 lod = mesh->getActiveLOD();
+			for (const StaticMeshSection& section : mesh->getSections(lod))
 			{
 				VertexBuffer* positionBuffer = section.positionBuffer->getGPUResource().get();
 				VertexBuffer* nonPositionBuffer = section.nonPositionBuffer->getGPUResource().get();
@@ -329,7 +333,8 @@ void BasePass::renderBasePass(
 		uint32 payloadID = 0;
 		for (const StaticMesh* mesh : scene->staticMeshes)
 		{
-			for (const StaticMeshSection& section : mesh->getSections(LOD))
+			uint32 lod = mesh->getActiveLOD();
+			for (const StaticMeshSection& section : mesh->getSections(lod))
 			{
 				ShaderParameterTable SPT{};
 				SPT.pushConstant("pushConstants", payloadID);

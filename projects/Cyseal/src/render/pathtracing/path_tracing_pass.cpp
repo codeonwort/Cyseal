@@ -194,6 +194,11 @@ void PathTracingPass::renderPathTracing(
 	{
 		return;
 	}
+	if (gpuScene->getGPUSceneItemMaxCount() == 0)
+	{
+		// #todo-zero-size: Release resources if any.
+		return;
+	}
 
 	// Update uniforms.
 	{

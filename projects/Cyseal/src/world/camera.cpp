@@ -1,12 +1,21 @@
 #include "camera.h"
 #include "core/cymath.h"
 
+#include <algorithm>
+
 #define RIGHT_HANDED 1
+
+static const float MAX_PITCH = 80.0f;
+static const float MIN_PITCH = -80.0f;
+
+static const vec3 forward0(0.0f, 0.0f, 1.0f);
+static const vec3 right0(1.0f, 0.0f, 0.0f);
+static const vec3 up0(0.0f, 1.0f, 0.0f);
 
 Camera::Camera()
 {
 	perspective(90.0f, 1920.0f / 1080.0f, 1.0f, 1000.0f);
-	lookAt(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
+	lookAt(vec3(0.0f, 0.0f, 0.0f), forward0, up0);
 }
 
 void Camera::perspective(float fovY_degrees, float aspectWH, float n, float f)
@@ -15,38 +24,41 @@ void Camera::perspective(float fovY_degrees, float aspectWH, float n, float f)
 	aspectRatioWH = aspectWH;
 	zNear = n;
 	zFar = f;
+	bProjectionDirty = true;
+}
 
-	const float Y = Cymath::cot(fovY_radians * 0.5f);
-	const float X = Y / aspectWH;
+void Camera::setFovYInDegrees(float fovY_degrees)
+{
+	fovY_radians = Cymath::radians(fovY_degrees);
+	bProjectionDirty = true;
+}
 
-	// NDC z range = [0, 1]
-#if RIGHT_HANDED
-	float P[16] = {
-		X,       0.0f,    0.0f,               0.0f,
-		0.0f,    Y,       0.0f,               0.0f,
-		0.0f,    0.0f,    f / (n - f),       -1.0f,
-		0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
-	};
-#else
-	float P[16] = {
-		X,       0.0f,    0.0f,               0.0f,
-		0.0f,    Y,       0.0f,               0.0f,
-		0.0f,    0.0f,    f / (f - n),        1.0f,
-		0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
-	};
-#endif
-	projection.copyFrom(P);
-	// #todo-matrix: Derive the inverse manually
-	// (generalized inverse math is slower and it loses precision)
-	projectionInv = projection.inverse();
+void Camera::setAspectRatio(float width, float height)
+{
+	aspectRatioWH = width / height;
+	bProjectionDirty = true;
+}
 
-	bDirty = true;
+void Camera::setAspectRatio(float inAspectRatioWH)
+{
+	aspectRatioWH = inAspectRatioWH;
+	bProjectionDirty = true;
+}
+
+void Camera::setZNear(float inZNear)
+{
+	zNear = inZNear;
+	bProjectionDirty = true;
+}
+
+void Camera::setZFar(float inZFar)
+{
+	zFar = inZFar;
+	bProjectionDirty = true;
 }
 
 void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
 {
-	position = origin;
-
 #if RIGHT_HANDED
 	vec3 Z = normalize(target - origin); // forward
 	vec3 X = normalize(cross(Z, up));    // right
@@ -74,10 +86,78 @@ void Camera::lookAt(const vec3& origin, const vec3& target, const vec3& up)
 		dot(X, origin),  dot(Y, origin), dot(Z, origin),   1.0f
 	};
 #endif
-	view.copyFrom(V);
-	viewInv = view.inverse();
+	Matrix L;
+	L.copyFrom(V);
+	L = L.transpose();
+	vec3 v = L.transformDirection(forward0);
+	v.normalize();
 
-	bDirty = true;
+	position = origin;
+	rotationX = Cymath::degrees(Cymath::asin(v.y));
+	rotationY = Cymath::degrees((v.z >= 0.0f) ? -Cymath::asin(v.x) : Cymath::PI + Cymath::asin(v.x));
+
+	bViewDirty = true;
+}
+
+void Camera::move(const vec3& forwardRightUp)
+{
+	updateView();
+	vec3 delta = forwardRightUp.x * viewInv.transformDirection(-forward0);
+	delta += forwardRightUp.y * viewInv.transformDirection(right0);
+	delta += forwardRightUp.z * viewInv.transformDirection(up0);
+	position += delta;
+	bViewDirty = true;
+}
+
+void Camera::moveForward(float distance)
+{
+	updateView();
+	position += distance * viewInv.transformDirection(-forward0);
+	bViewDirty = true;
+}
+
+void Camera::moveRight(float distance)
+{
+	updateView();
+	position += distance * viewInv.transformDirection(right0);
+	bViewDirty = true;
+}
+
+void Camera::moveUp(float distance)
+{
+	updateView();
+	position += distance * viewInv.transformDirection(up0);
+	bViewDirty = true;
+}
+
+void Camera::rotateYaw(float angleDegree)
+{
+	rotationY -= angleDegree;
+	bViewDirty = true;
+}
+
+void Camera::rotatePitch(float angleDegree)
+{
+	rotationX = std::clamp(rotationX + angleDegree, MIN_PITCH, MAX_PITCH);
+	bViewDirty = true;
+}
+
+void Camera::setPosition(const vec3& newPosition)
+{
+	position = newPosition;
+	bViewDirty = true;
+}
+
+void Camera::setYaw(float newYaw)
+{
+	rotationY = newYaw;
+	bViewDirty = true;
+}
+
+void Camera::setPitch(float newPitch)
+{
+	rotationX = std::clamp(newPitch, MIN_PITCH, MAX_PITCH);
+	bViewDirty = true;
 }
 
 void Camera::getFrustum(Plane3D outPlanes[6]) const
@@ -86,10 +166,6 @@ void Camera::getFrustum(Plane3D outPlanes[6]) const
 	const float hw_near = hh_near * aspectRatioWH;
 	const float hh_far = zFar * tanf(fovY_radians * 0.5f);
 	const float hw_far = hh_far * aspectRatioWH;
-
-	const vec3 forward0(0.0f, 0.0f, 1.0f);
-	const vec3 right0(1.0f, 0.0f, 0.0f);
-	const vec3 up0(0.0f, 1.0f, 0.0f);
 
 	vec3 vs[8];
 	vs[0] = (-forward0 * zNear) + (right0 * hw_near) + (up0 * hh_near);
@@ -117,12 +193,62 @@ void Camera::getFrustum(Plane3D outPlanes[6]) const
 	outPlanes[5] = Plane3D::fromThreePoints(vs[6], vs[4], vs[7]);
 }
 
+void Camera::updateView() const
+{
+	if (!bViewDirty) return;
+
+	Transform R;
+	R.setRotation(right0, rotationX);
+	R.appendRotation(up0, rotationY);
+
+	Matrix T;
+	T.m[3][0] = -position.x;
+	T.m[3][1] = -position.y;
+	T.m[3][2] = -position.z;
+
+	view = R.getMatrix();
+	view = T * view;
+
+	viewInv = view.inverse();
+
+	bViewDirty = false;
+}
+
+void Camera::updateProjection() const
+{
+	if (!bProjectionDirty) return;
+
+	const float Y = Cymath::cot(fovY_radians * 0.5f);
+	const float X = Y / aspectRatioWH;
+	const float n = zNear;
+	const float f = zFar;
+
+	// NDC z range = [0, 1]
+#if RIGHT_HANDED
+	float P[16] = {
+		X,       0.0f,    0.0f,               0.0f,
+		0.0f,    Y,       0.0f,               0.0f,
+		0.0f,    0.0f,    f / (n - f),       -1.0f,
+		0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
+	};
+#else
+	float P[16] = {
+		X,       0.0f,    0.0f,               0.0f,
+		0.0f,    Y,       0.0f,               0.0f,
+		0.0f,    0.0f,    f / (f - n),        1.0f,
+		0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
+	};
+#endif
+	projection.copyFrom(P);
+	// #todo-matrix: Derive the inverse manually
+	// (generalized inverse math is slower and it loses precision)
+	projectionInv = projection.inverse();
+
+	bProjectionDirty = false;
+}
+
 void Camera::updateViewProjection() const
 {
-	if (bDirty)
-	{
-		viewProjection = view * projection;
-		viewProjectionInv = projectionInv * viewInv;
-		bDirty = false;
-	}
+	updateView();
+	updateProjection();
 }

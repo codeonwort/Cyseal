@@ -13,6 +13,14 @@ void Transform::setRotation(const vec3& axis, float angleInDegrees)
 	bDirty = true;
 }
 
+void Transform::appendRotation(const vec3& axis, float angleInDegrees)
+{
+	float t = 0.5f * Cymath::radians(angleInDegrees);
+	quaternion Q(axis * Cymath::sin(t), Cymath::cos(t));
+	rotation = Q * rotation;
+	bDirty = true;
+}
+
 void Transform::setScale(float newScale)
 {
 	setScale(vec3(newScale, newScale, newScale));

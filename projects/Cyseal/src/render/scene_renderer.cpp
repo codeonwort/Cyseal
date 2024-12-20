@@ -173,6 +173,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	// takes sceneColor = pathTracing, indirectSpecular = 0 when path tracing is enabled.
 	bRenderRTR = bRenderRTR && !bRenderPathTracing;
 
+	const bool bRenderAnyRaytracingPass = bRenderRTR || bRenderPathTracing;
+
 	rebuildFrameResources(commandList, scene);
 
 	commandAllocator->reset();
@@ -207,7 +209,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		gpuScene->renderGPUScene(
 			commandList, swapchainIndex,
-			scene, camera, sceneUniformCBVs.at(swapchainIndex));
+			scene, camera, sceneUniformCBVs.at(swapchainIndex),
+			bRenderAnyRaytracingPass);
 	}
 
 	if (bSupportsRaytracing && scene->bRebuildRaytracingScene)
@@ -711,7 +714,7 @@ void SceneRenderer::rebuildAccelerationStructure(
 	// - Each BLAS contains all sections of each StaticMesh.
 
 	const uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
-	const uint32 LOD = 0; // #todo-lod: LOD for BLAS geometries
+	const uint32 LOD = 0; // #todo-lod: LOD for BLAS geometries?
 
 	// Prepare BLAS instances.
 	std::vector<BLASInstanceInitDesc> blasDescArray(numStaticMeshes);

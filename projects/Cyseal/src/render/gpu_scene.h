@@ -10,11 +10,11 @@ class Camera;
 
 struct MaterialConstants
 {
-	float albedoMultiplier[3] = { 1.0f, 1.0f, 1.0f };
+	vec3 albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 	float roughness = 0.0f;
 
 	uint32 albedoTextureIndex;
-	vec3 emission;
+	vec3 emission = vec3(0.0f, 0.0f, 0.0f);
 };
 
 class GPUScene final
@@ -37,7 +37,8 @@ public:
 		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera,
-		ConstantBufferView* sceneUniform);
+		ConstantBufferView* sceneUniform,
+		bool bRenderAnyRaytracingPass);
 
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 

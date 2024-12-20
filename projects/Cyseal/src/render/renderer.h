@@ -39,6 +39,11 @@ struct RendererOptions
 
 	bool bEnablePathTracing = false;
 	bool bCameraHasMoved = false;
+
+	bool anyRayTracingEnabled() const
+	{
+		return bEnableRayTracedReflections || bEnablePathTracing;
+	}
 };
 
 class Renderer
