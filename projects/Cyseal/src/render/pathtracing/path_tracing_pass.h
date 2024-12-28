@@ -31,6 +31,7 @@ public:
 		uint32 sceneHeight);
 
 private:
+	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene);
 
@@ -46,6 +47,10 @@ private:
 	UniquePtr<Buffer> uniformMemory;
 	UniquePtr<DescriptorHeap> uniformDescriptorHeap;
 	BufferedUniquePtr<ConstantBufferView> uniformCBVs;
+
+	uint32 historyWidth = 0;
+	uint32 historyHeight = 0;
+	UniquePtr<Texture> momentHistory[2];
 
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;

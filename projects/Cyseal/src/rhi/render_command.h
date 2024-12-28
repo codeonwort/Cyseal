@@ -161,8 +161,14 @@ public:
 	void executeCustomCommands();
 
 	template<typename T>
-	void enqueueDeferredDealloc(T* addrToDelete)
+	void enqueueDeferredDealloc(T* addrToDelete, bool ignoreNullPtr = false)
 	{
+		if (addrToDelete == nullptr)
+		{
+			if (ignoreNullPtr) return;
+			CHECK_NO_ENTRY();
+		}
+
 		auto deallocFn = [addrToDelete]() {
 			delete (T*)addrToDelete;
 		};

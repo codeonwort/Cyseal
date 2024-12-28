@@ -482,7 +482,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	auto cleanup = [&cleanupList](GPUResource* resource) {
 		if (resource != nullptr)
 		{
-			cleanupList.push_back({ resource, 0 });
+			cleanupList.push_back({ resource });
 		}
 	};
 

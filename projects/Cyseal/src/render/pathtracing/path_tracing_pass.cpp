@@ -200,6 +200,8 @@ void PathTracingPass::renderPathTracing(
 		return;
 	}
 
+	resizeTextures(commandList, sceneWidth, sceneHeight);
+
 	// Update uniforms.
 	{
 		PathTracingUniform* uboData = new PathTracingUniform;
@@ -279,6 +281,30 @@ void PathTracingPass::renderPathTracing(
 		.depth             = 1,
 	};
 	commandList->dispatchRays(dispatchDesc);
+}
+
+void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
+{
+	if (historyWidth == newWidth && historyHeight == newHeight)
+	{
+		return;
+	}
+	historyWidth = newWidth;
+	historyHeight = newHeight;
+
+	commandList->enqueueDeferredDealloc(momentHistory[0].release(), true);
+	commandList->enqueueDeferredDealloc(momentHistory[1].release(), true);
+
+	TextureCreateParams texDesc = TextureCreateParams::texture2D(
+		EPixelFormat::R32G32B32A32_FLOAT,
+		ETextureAccessFlags::UAV,
+		historyWidth, historyHeight,
+		1, 1, 0);
+
+	momentHistory[0] = UniquePtr<Texture>(gRenderDevice->createTexture(texDesc));
+	momentHistory[0]->setDebugName(L"RT_PathTracingMomentHistory0");
+	momentHistory[1] = UniquePtr<Texture>(gRenderDevice->createTexture(texDesc));
+	momentHistory[1]->setDebugName(L"RT_PathTracingMomentHistory1");
 }
 
 void PathTracingPass::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors)
