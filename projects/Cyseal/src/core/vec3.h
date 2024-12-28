@@ -103,6 +103,11 @@ inline vec3 normalize(const vec3& v)
 	return u;
 }
 
+inline vec3 abs(const vec3& v)
+{
+	return vec3((float)fabs(v.x), (float)fabs(v.y), (float)fabs(v.z));
+}
+
 inline float dot(const vec3& v1, const vec3& v2)
 {
 	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;

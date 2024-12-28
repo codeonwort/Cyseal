@@ -36,7 +36,7 @@ struct SceneUniform
 	Float4x4 projInvMatrix;
 	Float4x4 viewProjInvMatrix;
 
-	Plane3D cameraFrustum[6];
+	CameraFrustum cameraFrustum;
 
 	vec3 cameraPosition; float _pad0;
 	vec3 sunDirection;   float _pad1;
@@ -672,7 +672,7 @@ void SceneRenderer::updateSceneUniform(
 	uboData.projInvMatrix     = camera->getProjInvMatrix();
 	uboData.viewProjInvMatrix = camera->getViewProjInvMatrix();
 
-	camera->getFrustum(uboData.cameraFrustum);
+	uboData.cameraFrustum     = camera->getFrustum();
 
 	uboData.cameraPosition    = camera->getPosition();
 	uboData.sunDirection      = scene->sun.direction;

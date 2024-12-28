@@ -160,7 +160,7 @@ void Camera::setPitch(float newPitch)
 	bViewDirty = true;
 }
 
-void Camera::getFrustum(Plane3D outPlanes[6]) const
+CameraFrustum Camera::getFrustum() const
 {
 	const float hh_near = zNear * tanf(fovY_radians * 0.5f);
 	const float hw_near = hh_near * aspectRatioWH;
@@ -185,12 +185,14 @@ void Camera::getFrustum(Plane3D outPlanes[6]) const
 		vs[i] = position + vec3(x, y, z);
 	}
 
-	outPlanes[0] = Plane3D::fromThreePoints(vs[0], vs[1], vs[4]);
-	outPlanes[1] = Plane3D::fromThreePoints(vs[2], vs[6], vs[3]);
-	outPlanes[2] = Plane3D::fromThreePoints(vs[1], vs[3], vs[5]);
-	outPlanes[3] = Plane3D::fromThreePoints(vs[0], vs[4], vs[2]);
-	outPlanes[4] = Plane3D::fromThreePoints(vs[2], vs[3], vs[0]);
-	outPlanes[5] = Plane3D::fromThreePoints(vs[6], vs[4], vs[7]);
+	CameraFrustum frustum;
+	frustum.planes[0] = Plane3D::fromThreePoints(vs[0], vs[1], vs[4]);
+	frustum.planes[1] = Plane3D::fromThreePoints(vs[2], vs[6], vs[3]);
+	frustum.planes[2] = Plane3D::fromThreePoints(vs[1], vs[3], vs[5]);
+	frustum.planes[3] = Plane3D::fromThreePoints(vs[0], vs[4], vs[2]);
+	frustum.planes[4] = Plane3D::fromThreePoints(vs[2], vs[3], vs[0]);
+	frustum.planes[5] = Plane3D::fromThreePoints(vs[6], vs[4], vs[7]);
+	return frustum;
 }
 
 void Camera::updateView() const

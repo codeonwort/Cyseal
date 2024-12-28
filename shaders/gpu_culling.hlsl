@@ -155,7 +155,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         sceneItem.localMinBounds,
         sceneItem.localMaxBounds,
         sceneItem.modelMatrix);
-
+    
     bool bInFrustum = hitTest_AABB_frustum(worldBounds, sceneUniform.cameraFrustum);
 
     if (bInFrustum)

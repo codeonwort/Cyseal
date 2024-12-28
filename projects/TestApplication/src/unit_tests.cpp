@@ -4,6 +4,7 @@
 #include "core/assertion.h"
 #include "memory/free_number_list.h"
 #include "loader/image_loader.h"
+#include "world/camera.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnitTest);
 
@@ -73,3 +74,29 @@ class UnitTestFreeNumber : public UnitTest
 	}
 };
 DEFINE_UNIT_TEST(UnitTestFreeNumber);
+
+class UnitTestFrustumCulling : public UnitTest
+{
+	virtual bool runTest() override
+	{
+		Camera camera;
+		camera.lookAt(vec3(50.0f, 0.0f, 30.0f), vec3(50.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
+		camera.perspective(70.0f, 1.0f, 0.1f, 10000.0f);
+
+		AABB boxes[] = {
+			AABB::fromCenterAndHalfSize(vec3(50.0f, 0.0f, 5.0f), vec3(1.0f)),
+			AABB::fromCenterAndHalfSize(vec3(30.0f, 10.0f, -1005.0f), vec3(10.0f)),
+		};
+		
+		CameraFrustum frustum = camera.getFrustum();
+		for (size_t i = 0; i < _countof(boxes); ++i)
+		{
+			bool bIntersects = frustum.intersectsAABB(boxes[i]);
+			CHECK(bIntersects);
+		}
+		CYLOG(LogUnitTest, Log, L"Frustum culling passed");
+
+		return true;
+	}
+};
+DEFINE_UNIT_TEST(UnitTestFrustumCulling);

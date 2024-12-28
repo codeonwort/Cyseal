@@ -2,7 +2,35 @@
 
 #include "core/matrix.h"
 #include "core/plane.h"
+#include "core/aabb.h"
 #include "geometry/transform.h"
+
+// Should match with Frustum3D in common.hlsl
+struct CameraFrustum
+{
+	// 0: top, 1: bottom, 2: left, 3: right, 4: near, 5: far
+	Plane3D planes[6];
+
+	bool intersectsAABB(const AABB& box) const
+	{
+		for (int i = 0; i < 6; ++i)
+		{
+			if (!checkPlane(box, i)) return false;
+		}
+		return true;
+	}
+
+private:
+	bool checkPlane(const AABB& box, int planeIndex) const
+	{
+		const Plane3D& plane = planes[planeIndex];
+		vec3 boxCenter = 0.5 * (box.maxBounds + box.minBounds);
+		vec3 boxHalfSize = 0.5 * (box.maxBounds - box.minBounds);
+		float r = dot(boxHalfSize, abs(plane.normal));
+		float s = dot(boxCenter, plane.normal) - plane.distance;
+		return -r <= s;
+	}
+};
 
 class Camera
 {
@@ -38,7 +66,7 @@ public:
 
 	inline vec3 getPosition() const { return position; }
 
-	void getFrustum(Plane3D outPlanes[6]) const;
+	CameraFrustum getFrustum() const;
 
 	inline const Matrix& getViewMatrix() const { return view; }
 	inline const Matrix& getViewInvMatrix() const { return viewInv; }
