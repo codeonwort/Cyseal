@@ -25,7 +25,8 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 			CHECK(textureDesc.Format == DXGI_FORMAT_D16_UNORM
 				|| textureDesc.Format == DXGI_FORMAT_D24_UNORM_S8_UINT
 				|| textureDesc.Format == DXGI_FORMAT_D32_FLOAT
-				|| textureDesc.Format == DXGI_FORMAT_D32_FLOAT_S8X24_UINT);
+				|| textureDesc.Format == DXGI_FORMAT_D32_FLOAT_S8X24_UINT
+				|| textureDesc.Format == DXGI_FORMAT_R24G8_TYPELESS);
 		}
 	}
 
@@ -33,6 +34,10 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	bool bNeedsClearValue = false;
 	D3D12_CLEAR_VALUE optClearValue;
 	optClearValue.Format = textureDesc.Format;
+	if (optClearValue.Format == DXGI_FORMAT_R24G8_TYPELESS)
+	{
+		optClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	}
 	if (isColorTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::RTV))
 	{
 		bNeedsClearValue = true;

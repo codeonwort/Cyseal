@@ -314,6 +314,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.raytracingScene    = accelStructure.get(),
 				.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
 				.sceneColorUAV      = pathTracingUAV.get(),
+				.sceneDepthDesc     = &sceneDepthDesc,
+				.sceneDepthSRV      = sceneDepthSRV.get(),
 				.skyboxSRV          = skyboxSRV.get(),
 			};
 			pathTracingPass->renderPathTracing(commandList, swapchainIndex, scene, camera, passInput);
@@ -521,22 +523,31 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	));
 
 	cleanup(RT_sceneDepth.release());
-	RT_sceneDepth = UniquePtr<Texture>(device->createTexture(
-		TextureCreateParams::texture2D(
-			EPixelFormat::D24_UNORM_S8_UINT,
-			ETextureAccessFlags::DSV,
-			sceneWidth, sceneHeight,
-			1, 1, 0)));
+	sceneDepthDesc = TextureCreateParams::texture2D(
+		EPixelFormat::R24G8_TYPELESS, ETextureAccessFlags::DSV, sceneWidth, sceneHeight, 1, 1, 0);
+	RT_sceneDepth = UniquePtr<Texture>(device->createTexture(sceneDepthDesc));
 	RT_sceneDepth->setDebugName(L"RT_SceneDepth");
 
 	sceneDepthDSV = UniquePtr<DepthStencilView>(device->createDSV(RT_sceneDepth.get(),
 		DepthStencilViewDesc{
-			.format        = RT_sceneDepth->getCreateParams().format,
+			.format        = EPixelFormat::D24_UNORM_S8_UINT,
 			.viewDimension = EDSVDimension::Texture2D,
 			.flags         = EDSVFlags::None,
 			.texture2D     = Texture2DDSVDesc{
 				.mipSlice  = 0,
 			}
+		}
+	));
+	sceneDepthSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_sceneDepth.get(),
+		ShaderResourceViewDesc{
+			.format              = EPixelFormat::R24_UNORM_X8_TYPELESS,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_sceneDepth->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
 		}
 	));
 

@@ -206,18 +206,21 @@ namespace into_vk
 	{
 		switch (inFormat)
 		{
-			case EPixelFormat::UNKNOWN            : return VkFormat::VK_FORMAT_UNDEFINED;
-			// #todo-vulkan: R32_TYPLESS in Vulkan?
-			case EPixelFormat::R32_TYPELESS       : return VkFormat::VK_FORMAT_R32_SFLOAT;
-			case EPixelFormat::R8G8B8A8_UNORM     : return VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
-			case EPixelFormat::B8G8R8A8_UNORM     : return VkFormat::VK_FORMAT_B8G8R8A8_UNORM;
-			case EPixelFormat::R32G32_FLOAT       : return VkFormat::VK_FORMAT_R32G32_SFLOAT;
-			case EPixelFormat::R32G32B32_FLOAT    : return VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
-			case EPixelFormat::R32G32B32A32_FLOAT : return VkFormat::VK_FORMAT_R32G32B32A32_SFLOAT;
-			case EPixelFormat::R16G16B16A16_FLOAT : return VkFormat::VK_FORMAT_R16G16B16A16_SFLOAT;
-			case EPixelFormat::R32_UINT           : return VkFormat::VK_FORMAT_R32_UINT;
-			case EPixelFormat::R16_UINT           : return VkFormat::VK_FORMAT_R16_UINT;
-			case EPixelFormat::D24_UNORM_S8_UINT  : return VkFormat::VK_FORMAT_D24_UNORM_S8_UINT;
+			case EPixelFormat::UNKNOWN               : return VkFormat::VK_FORMAT_UNDEFINED;
+			// #todo-vulkan: TYPLESS formats in Vulkan?
+			case EPixelFormat::R32_TYPELESS          : CHECK_NO_ENTRY(); return VkFormat::VK_FORMAT_R32_SFLOAT;
+			case EPixelFormat::R24G8_TYPELESS        : CHECK_NO_ENTRY(); return VkFormat::VK_FORMAT_R32_SFLOAT;
+			case EPixelFormat::R24_UNORM_X8_TYPELESS : CHECK_NO_ENTRY(); return VkFormat::VK_FORMAT_R32_SFLOAT;
+			case EPixelFormat::R8G8B8A8_UNORM        : return VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
+			case EPixelFormat::B8G8R8A8_UNORM        : return VkFormat::VK_FORMAT_B8G8R8A8_UNORM;
+			case EPixelFormat::R32_FLOAT             : return VkFormat::VK_FORMAT_R32_SFLOAT;
+			case EPixelFormat::R32G32_FLOAT          : return VkFormat::VK_FORMAT_R32G32_SFLOAT;
+			case EPixelFormat::R32G32B32_FLOAT       : return VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
+			case EPixelFormat::R32G32B32A32_FLOAT    : return VkFormat::VK_FORMAT_R32G32B32A32_SFLOAT;
+			case EPixelFormat::R16G16B16A16_FLOAT    : return VkFormat::VK_FORMAT_R16G16B16A16_SFLOAT;
+			case EPixelFormat::R32_UINT              : return VkFormat::VK_FORMAT_R32_UINT;
+			case EPixelFormat::R16_UINT              : return VkFormat::VK_FORMAT_R16_UINT;
+			case EPixelFormat::D24_UNORM_S8_UINT     : return VkFormat::VK_FORMAT_D24_UNORM_S8_UINT;
 		}
 		CHECK_NO_ENTRY();
 		return VkFormat::VK_FORMAT_UNDEFINED;
