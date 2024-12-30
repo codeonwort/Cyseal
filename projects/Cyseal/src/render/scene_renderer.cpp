@@ -306,15 +306,17 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		if (bRenderPathTracing)
 		{
-			pathTracingPass->renderPathTracing(
-				commandList, swapchainIndex, scene, camera,
-				renderOptions.bCameraHasMoved,
-				sceneUniformCBVs[swapchainIndex].get(),
-				accelStructure.get(),
-				gpuScene,
-				pathTracingUAV.get(),
-				skyboxSRV.get(),
-				sceneWidth, sceneHeight);
+			PathTracingInput passInput{
+				.bCameraHasMoved    = renderOptions.bCameraHasMoved,
+				.sceneWidth         = sceneWidth,
+				.sceneHeight        = sceneHeight,
+				.gpuScene           = gpuScene,
+				.raytracingScene    = accelStructure.get(),
+				.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
+				.sceneColorUAV      = pathTracingUAV.get(),
+				.skyboxSRV          = skyboxSRV.get(),
+			};
+			pathTracingPass->renderPathTracing(commandList, swapchainIndex, scene, camera, passInput);
 		}
 	}
 

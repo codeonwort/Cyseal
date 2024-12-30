@@ -181,15 +181,17 @@ void PathTracingPass::renderPathTracing(
 	uint32 swapchainIndex,
 	const SceneProxy* scene,
 	const Camera* camera,
-	bool bCameraHasMoved,
-	ConstantBufferView* sceneUniformBuffer,
-	AccelerationStructure* raytracingScene,
-	GPUScene* gpuScene,
-	UnorderedAccessView* sceneColorUAV,
-	ShaderResourceView* skyboxSRV,
-	uint32 sceneWidth,
-	uint32 sceneHeight)
+	const PathTracingInput& passInput)
 {
+	auto bCameraHasMoved    = passInput.bCameraHasMoved;
+	auto sceneWidth         = passInput.sceneWidth;
+	auto sceneHeight        = passInput.sceneHeight;
+	auto gpuScene           = passInput.gpuScene;
+	auto raytracingScene    = passInput.raytracingScene;
+	auto sceneUniformBuffer = passInput.sceneUniformBuffer;
+	auto sceneColorUAV      = passInput.sceneColorUAV;
+	auto skyboxSRV          = passInput.skyboxSRV;
+
 	if (isAvailable() == false)
 	{
 		return;

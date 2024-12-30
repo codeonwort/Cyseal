@@ -9,6 +9,18 @@ class SceneProxy;
 class Camera;
 class GPUScene;
 
+struct PathTracingInput
+{
+	bool                      bCameraHasMoved;
+	uint32                    sceneWidth;
+	uint32                    sceneHeight;
+	GPUScene*                 gpuScene;
+	AccelerationStructure*    raytracingScene;
+	ConstantBufferView*       sceneUniformBuffer;
+	UnorderedAccessView*      sceneColorUAV;
+	ShaderResourceView*       skyboxSRV;
+};
+
 class PathTracingPass final
 {
 public:
@@ -21,14 +33,7 @@ public:
 		uint32 swapchainIndex,
 		const SceneProxy* scene,
 		const Camera* camera,
-		bool bCameraHasMoved,
-		ConstantBufferView* sceneUniformBuffer,
-		AccelerationStructure* raytracingScene,
-		GPUScene* gpuScene,
-		UnorderedAccessView* sceneColorUAV,
-		ShaderResourceView* skyboxSRV,
-		uint32 sceneWidth,
-		uint32 sceneHeight);
+		const PathTracingInput& passInput);
 
 private:
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
