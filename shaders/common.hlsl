@@ -4,6 +4,7 @@
 #define PI         3.14159265
 #define TWO_PI     6.28318530718
 #define HALF_PI    1.57079632679489661923
+#define FLT_MAX    (3.402823466e+38F)
 
 struct GPUSceneItem
 {

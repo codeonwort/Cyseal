@@ -12,6 +12,9 @@ class GPUScene;
 
 struct PathTracingInput
 {
+	Float4x4                   prevViewInvMatrix;
+	Float4x4                   prevProjInvMatrix;
+	Float4x4                   prevViewProjMatrix;
 	bool                       bCameraHasMoved;
 	uint32                     sceneWidth;
 	uint32                     sceneHeight;

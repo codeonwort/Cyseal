@@ -32,6 +32,9 @@ struct PathTracingUniform
 {
 	float randFloats0[RANDOM_SEQUENCE_LENGTH];
 	float randFloats1[RANDOM_SEQUENCE_LENGTH];
+	Float4x4 prevViewInv;
+	Float4x4 prevProjInv;
+	Float4x4 prevViewProj;
 	uint32 renderTargetWidth;
 	uint32 renderTargetHeight;
 	uint32 bInvalidateHistory;
@@ -213,6 +216,9 @@ void PathTracingPass::renderPathTracing(
 			uboData->randFloats0[i] = Cymath::randFloat();
 			uboData->randFloats1[i] = Cymath::randFloat();
 		}
+		uboData->prevViewInv = passInput.prevViewInvMatrix;
+		uboData->prevProjInv = passInput.prevProjInvMatrix;
+		uboData->prevViewProj = passInput.prevViewProjMatrix;
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;
 		uboData->bInvalidateHistory = bCameraHasMoved;
@@ -270,9 +276,9 @@ void PathTracingPass::renderPathTracing(
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 		SPT.texture("skybox", skyboxSRV);
-		SPT.texture("sceneDepth", passInput.sceneDepthSRV);
+		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.rwTexture("renderTarget", sceneColorUAV);
-		SPT.rwTexture("prevSceneDepth", prevSceneDepthUAV.get());
+		SPT.rwTexture("prevSceneDepthTexture", prevSceneDepthUAV.get());
 		SPT.rwTexture("currentMoment", currentMomentUAV);
 		SPT.rwTexture("prevMoment", prevMomentUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);

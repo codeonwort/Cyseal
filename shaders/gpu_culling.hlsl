@@ -81,8 +81,6 @@ RWBuffer<uint> drawCounterBuffer;
 // ------------------------------------------------------------------------
 // Compute shader
 
-#define FLT_MAX (3.402823466e+38F)
-
 AABB calculateWorldBounds(float3 localMin, float3 localMax, float4x4 localToWorld)
 {
     float3 vs[8];

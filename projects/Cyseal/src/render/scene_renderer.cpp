@@ -25,24 +25,6 @@
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 
-// Should match with common.hlsl
-struct SceneUniform
-{
-	Float4x4 viewMatrix;
-	Float4x4 projMatrix;
-	Float4x4 viewProjMatrix;
-
-	Float4x4 viewInvMatrix;
-	Float4x4 projInvMatrix;
-	Float4x4 viewProjInvMatrix;
-
-	CameraFrustum cameraFrustum;
-
-	vec3 cameraPosition; float _pad0;
-	vec3 sunDirection;   float _pad1;
-	vec3 sunIlluminance; float _pad2;
-};
-
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
@@ -307,6 +289,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		if (bRenderPathTracing)
 		{
 			PathTracingInput passInput{
+				.prevViewInvMatrix  = prevSceneUniformData.viewInvMatrix,
+				.prevProjInvMatrix  = prevSceneUniformData.projInvMatrix,
+				.prevViewProjMatrix = prevSceneUniformData.viewProjMatrix,
 				.bCameraHasMoved    = renderOptions.bCameraHasMoved,
 				.sceneWidth         = sceneWidth,
 				.sceneHeight        = sceneHeight,
@@ -676,22 +661,23 @@ void SceneRenderer::updateSceneUniform(
 	const SceneProxy* scene,
 	const Camera* camera)
 {
-	SceneUniform uboData;
-	uboData.viewMatrix        = camera->getViewMatrix();
-	uboData.projMatrix        = camera->getProjMatrix();
-	uboData.viewProjMatrix    = camera->getViewProjMatrix();
+	memcpy_s(&prevSceneUniformData, sizeof(SceneUniform), &sceneUniformData, sizeof(SceneUniform));
 
-	uboData.viewInvMatrix     = camera->getViewInvMatrix();
-	uboData.projInvMatrix     = camera->getProjInvMatrix();
-	uboData.viewProjInvMatrix = camera->getViewProjInvMatrix();
+	sceneUniformData.viewMatrix        = camera->getViewMatrix();
+	sceneUniformData.projMatrix        = camera->getProjMatrix();
+	sceneUniformData.viewProjMatrix    = camera->getViewProjMatrix();
 
-	uboData.cameraFrustum     = camera->getFrustum();
+	sceneUniformData.viewInvMatrix     = camera->getViewInvMatrix();
+	sceneUniformData.projInvMatrix     = camera->getProjInvMatrix();
+	sceneUniformData.viewProjInvMatrix = camera->getViewProjInvMatrix();
 
-	uboData.cameraPosition    = camera->getPosition();
-	uboData.sunDirection      = scene->sun.direction;
-	uboData.sunIlluminance    = scene->sun.illuminance;
+	sceneUniformData.cameraFrustum     = camera->getFrustum();
+
+	sceneUniformData.cameraPosition    = camera->getPosition();
+	sceneUniformData.sunDirection      = scene->sun.direction;
+	sceneUniformData.sunIlluminance    = scene->sun.illuminance;
 	
-	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &uboData, sizeof(uboData));
+	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &sceneUniformData, sizeof(sceneUniformData));
 }
 
 void SceneRenderer::rebuildFrameResources(RenderCommandList* commandList, const SceneProxy* scene)

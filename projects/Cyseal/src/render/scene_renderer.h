@@ -18,6 +18,24 @@ class ToneMapping;
 class BufferVisualization;
 class PathTracingPass;
 
+// Should match with common.hlsl
+struct SceneUniform
+{
+	Float4x4 viewMatrix;
+	Float4x4 projMatrix;
+	Float4x4 viewProjMatrix;
+
+	Float4x4 viewInvMatrix;
+	Float4x4 projInvMatrix;
+	Float4x4 viewProjInvMatrix;
+
+	CameraFrustum cameraFrustum;
+
+	vec3 cameraPosition; float _pad0;
+	vec3 sunDirection;   float _pad1;
+	vec3 sunIlluminance; float _pad2;
+};
+
 // Render a 3D scene with hybrid rendering. (rasterization + raytracing)
 class SceneRenderer final : public Renderer
 {
@@ -31,11 +49,7 @@ public:
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) override;
 	
 private:
-	void updateSceneUniform(
-		RenderCommandList* commandList,
-		uint32 swapchainIndex,
-		const SceneProxy* scene,
-		const Camera* camera);
+	void updateSceneUniform(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene, const Camera* camera);
 
 	void rebuildFrameResources(RenderCommandList* commandList, const SceneProxy* scene);
 
@@ -46,6 +60,9 @@ private:
 
 	struct DeferredCleanup { GPUResource* resource; /*uint32 count;*/ }; // Don't remember why I put 'count' there...?
 	std::vector<DeferredCleanup> deferredCleanupList;
+
+	SceneUniform sceneUniformData;
+	SceneUniform prevSceneUniformData;
 
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.

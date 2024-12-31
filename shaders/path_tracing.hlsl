@@ -36,6 +36,9 @@ struct PathTracingUniform
 {
 	float4 randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
 	float4 randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
+	float4x4 prevViewInvMatrix;
+	float4x4 prevProjInvMatrix;
+	float4x4 prevViewProjMatrix;
 	uint renderTargetWidth;
 	uint renderTargetHeight;
 	uint bInvalidateHistory;
@@ -54,18 +57,18 @@ struct ClosestHitPushConstants
 };
 
 // Global root signature
-RaytracingAccelerationStructure    rtScene            : register(t0, space0);
-ByteAddressBuffer                  gIndexBuffer       : register(t1, space0);
-ByteAddressBuffer                  gVertexBuffer      : register(t2, space0);
-StructuredBuffer<GPUSceneItem>     gpuSceneBuffer     : register(t3, space0);
-TextureCube                        skybox             : register(t4, space0);
-Texture2D                          sceneDepth         : register(t5, space0);
-RWTexture2D<float4>                renderTarget       : register(u0, space0);
-RWTexture2D<float>                 prevSceneDepth     : register(u1, space0);
-RWTexture2D<float4>                currentMoment      : register(u2, space0);
-RWTexture2D<float4>                prevMoment         : register(u3, space0);
-ConstantBuffer<SceneUniform>       sceneUniform       : register(b0, space0);
-ConstantBuffer<PathTracingUniform> pathTracingUniform : register(b1, space0);
+RaytracingAccelerationStructure    rtScene               : register(t0, space0);
+ByteAddressBuffer                  gIndexBuffer          : register(t1, space0);
+ByteAddressBuffer                  gVertexBuffer         : register(t2, space0);
+StructuredBuffer<GPUSceneItem>     gpuSceneBuffer        : register(t3, space0);
+TextureCube                        skybox                : register(t4, space0);
+Texture2D                          sceneDepthTexture     : register(t5, space0);
+RWTexture2D<float4>                renderTarget          : register(u0, space0);
+RWTexture2D<float>                 prevSceneDepthTexture : register(u1, space0);
+RWTexture2D<float4>                currentMoment         : register(u2, space0);
+RWTexture2D<float4>                prevMoment            : register(u3, space0);
+ConstantBuffer<SceneUniform>       sceneUniform          : register(b0, space0);
+ConstantBuffer<PathTracingUniform> pathTracingUniform    : register(b1, space0);
 // Material binding
 #define TEMP_MAX_SRVS 1024
 ConstantBuffer<Material> materials[]        : register(b0, space3); // bindless in another space
@@ -114,6 +117,41 @@ void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
 
 	origin = sceneUniform.cameraPosition.xyz;
 	direction = normalize(worldPos.xyz - origin);
+}
+
+float2 getScreenResolution()
+{
+	return float2(pathTracingUniform.renderTargetWidth, pathTracingUniform.renderTargetHeight);
+}
+
+float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
+{
+	float z = sceneDepth * 2.0 - 1.0; // Use this if not Reverse-Z
+	//float z = sceneDepth; // clipZ is [0,1] in Reverse-Z
+	float4 positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0);
+	float4 positionVS = mul(positionCS, sceneUniform.projInvMatrix);
+	positionVS /= positionVS.w; // Perspective division
+	float4 positionWS = mul(positionVS, sceneUniform.viewInvMatrix);
+	return positionWS.xyz;
+}
+float3 getPrevWorldPosition(float3 currPositionWS)
+{
+	float4 positionCS = mul(float4(currPositionWS, 1.0), pathTracingUniform.prevViewProjMatrix);
+	float2 screenUV = 0.5 * (positionCS.xy / positionCS.w) + float2(0.5, 0.5);
+	if (any(screenUV < float2(0, 0)) || any(screenUV >= float2(1, 1)))
+	{
+		return float3(FLT_MAX, FLT_MAX, FLT_MAX);
+	}
+	float2 resolution = getScreenResolution();
+	float sceneDepth = prevSceneDepthTexture[int2(screenUV * resolution)].r;
+
+	float z = sceneDepth * 2.0 - 1.0; // Use this if not Reverse-Z
+	//float z = sceneDepth; // clipZ is [0,1] in Reverse-Z
+	positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0); // [-1,1]
+	float4 positionVS = mul(positionCS, pathTracingUniform.prevProjInvMatrix);
+	positionVS /= positionVS.w; // Perspective division
+	float4 positionWS = mul(positionVS, pathTracingUniform.prevViewInvMatrix);
+	return positionWS.xyz;
 }
 
 // Return a random direction given u0, u1 in [0, 1)
@@ -342,15 +380,23 @@ float traceAmbientOcclusion(uint2 targetTexel, float3 cameraRayOrigin, float3 ca
 void MainRaygen()
 {
 	uint2 targetTexel = DispatchRaysIndex().xy;
+	float2 screenUV = (float2(targetTexel) + float2(0.5, 0.5)) / getScreenResolution();
 
 	float3 cameraRayOrigin, cameraRayDir;
 	generateCameraRay(targetTexel, cameraRayOrigin, cameraRayDir);
+
+	float sceneDepth = sceneDepthTexture.Load(int3(targetTexel, 0)).r;
+	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
+	float3 prevPositionWS = getPrevWorldPosition(positionWS);
+
+	//bool bTemporalReprojection = (pathTracingUniform.bInvalidateHistory == 0);
+	bool bTemporalReprojection = length(positionWS - prevPositionWS) <= 0.05; // 1.0 = 1 meter
 
 #if TRACE_MODE == TRACE_AMBIENT_OCCLUSION
 	float ambientOcclusion = traceAmbientOcclusion(targetTexel, cameraRayOrigin, cameraRayDir);
 
 	float prevAmbientOcclusion, historyCount;
-	if (pathTracingUniform.bInvalidateHistory == 0)
+	if (bTemporalReprojection)
 	{
 		prevAmbientOcclusion = renderTarget[targetTexel].x;
 		historyCount = prevMoment[targetTexel].w;
@@ -370,7 +416,7 @@ void MainRaygen()
 	float3 Li = traceIncomingRadiance(targetTexel, cameraRayOrigin, cameraRayDir);
 	float3 prevLi;
 	float historyCount;
-	if (pathTracingUniform.bInvalidateHistory == 0)
+	if (bTemporalReprojection)
 	{
 		prevLi = renderTarget[targetTexel].xyz;
 		historyCount = prevMoment[targetTexel].w;
@@ -386,7 +432,7 @@ void MainRaygen()
 	renderTarget[targetTexel] = float4(Li, 1);
 #endif
 
-	prevSceneDepth[targetTexel] = sceneDepth.Load(int3(targetTexel, 0)).r;
+	prevSceneDepthTexture[targetTexel] = sceneDepth;
 	currentMoment[targetTexel] = float4(0, 0, 0, historyCount);
 }
 
