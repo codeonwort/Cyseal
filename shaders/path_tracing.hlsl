@@ -62,6 +62,8 @@ TextureCube                        skybox             : register(t4, space0);
 Texture2D                          sceneDepth         : register(t5, space0);
 RWTexture2D<float4>                renderTarget       : register(u0, space0);
 RWTexture2D<float>                 prevSceneDepth     : register(u1, space0);
+RWTexture2D<float4>                currentMoment      : register(u2, space0);
+RWTexture2D<float4>                prevMoment         : register(u3, space0);
 ConstantBuffer<SceneUniform>       sceneUniform       : register(b0, space0);
 ConstantBuffer<PathTracingUniform> pathTracingUniform : register(b1, space0);
 // Material binding
@@ -351,7 +353,7 @@ void MainRaygen()
 	if (pathTracingUniform.bInvalidateHistory == 0)
 	{
 		prevAmbientOcclusion = renderTarget[targetTexel].x;
-		historyCount = renderTarget[targetTexel].w;
+		historyCount = prevMoment[targetTexel].w;
 	}
 	else
 	{
@@ -362,7 +364,7 @@ void MainRaygen()
 	ambientOcclusion = lerp(prevAmbientOcclusion, ambientOcclusion, 1.0 / (1.0 + historyCount));
 	historyCount += 1;
 
-	renderTarget[targetTexel] = float4(ambientOcclusion.xxx, historyCount);
+	renderTarget[targetTexel] = float4(ambientOcclusion.xxx, 1);
 #elif (TRACE_MODE == TRACE_DIFFUSE_GI || TRACE_MODE == TRACE_FULL_GI)
 
 	float3 Li = traceIncomingRadiance(targetTexel, cameraRayOrigin, cameraRayDir);
@@ -371,7 +373,7 @@ void MainRaygen()
 	if (pathTracingUniform.bInvalidateHistory == 0)
 	{
 		prevLi = renderTarget[targetTexel].xyz;
-		historyCount = renderTarget[targetTexel].w;
+		historyCount = prevMoment[targetTexel].w;
 	}
 	else
 	{
@@ -381,10 +383,11 @@ void MainRaygen()
 	Li = lerp(prevLi, Li, 1.0 / (1.0 + historyCount));
 	historyCount += 1;
 
-	renderTarget[targetTexel] = float4(Li, historyCount);
+	renderTarget[targetTexel] = float4(Li, 1);
 #endif
 
 	prevSceneDepth[targetTexel] = sceneDepth.Load(int3(targetTexel, 0)).r;
+	currentMoment[targetTexel] = float4(0, 0, 0, historyCount);
 }
 
 [shader("closesthit")]

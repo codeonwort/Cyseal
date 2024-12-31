@@ -15,6 +15,7 @@ struct PathTracingInput
 	bool                       bCameraHasMoved;
 	uint32                     sceneWidth;
 	uint32                     sceneHeight;
+
 	GPUScene*                  gpuScene;
 	AccelerationStructure*     raytracingScene;
 	ConstantBufferView*        sceneUniformBuffer;
@@ -59,6 +60,7 @@ private:
 	uint32 historyWidth = 0;
 	uint32 historyHeight = 0;
 	UniquePtr<Texture> momentHistory[2];
+	UniquePtr<UnorderedAccessView> momentHistoryUAV[2];
 
 	UniquePtr<Texture> prevSceneDepth;
 	UniquePtr<UnorderedAccessView> prevSceneDepthUAV;

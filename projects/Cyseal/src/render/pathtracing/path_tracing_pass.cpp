@@ -236,6 +236,8 @@ void PathTracingPass::renderPathTracing(
 		requiredVolatiles += 1; // sceneDepth
 		requiredVolatiles += 1; // renderTarget
 		requiredVolatiles += 1; // prevSceneDepth
+		requiredVolatiles += 1; // currentMoment
+		requiredVolatiles += 1; // prevMoment
 		requiredVolatiles += 1; // sceneUniform
 		requiredVolatiles += 1; // pathTracingUniform
 		requiredVolatiles += materialCBVCount;
@@ -259,6 +261,8 @@ void PathTracingPass::renderPathTracing(
 	{
 		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
 		auto gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+		auto currentMomentUAV = momentHistoryUAV[swapchainIndex % 2].get();
+		auto prevMomentUAV = momentHistoryUAV[(swapchainIndex + 1) % 2].get();
 
 		ShaderParameterTable SPT{};
 		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
@@ -269,6 +273,8 @@ void PathTracingPass::renderPathTracing(
 		SPT.texture("sceneDepth", passInput.sceneDepthSRV);
 		SPT.rwTexture("renderTarget", sceneColorUAV);
 		SPT.rwTexture("prevSceneDepth", prevSceneDepthUAV.get());
+		SPT.rwTexture("currentMoment", currentMomentUAV);
+		SPT.rwTexture("prevMoment", prevMomentUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		SPT.constantBuffer("pathTracingUniform", uniformCBVs[swapchainIndex].get());
 		// Bindless
@@ -304,11 +310,23 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 
 	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
 		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
+	for (uint32 i = 0; i < 2; ++i)
+	{
+		std::wstring debugName = L"RT_PathTracingMomentHistory" + std::to_wstring(i);
+		momentHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(momentDesc));
+		momentHistory[i]->setDebugName(debugName.c_str());
 
-	momentHistory[0] = UniquePtr<Texture>(gRenderDevice->createTexture(momentDesc));
-	momentHistory[0]->setDebugName(L"RT_PathTracingMomentHistory0");
-	momentHistory[1] = UniquePtr<Texture>(gRenderDevice->createTexture(momentDesc));
-	momentHistory[1]->setDebugName(L"RT_PathTracingMomentHistory1");
+		momentHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(momentHistory[i].get(),
+			UnorderedAccessViewDesc{
+				.format         = momentDesc.format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{
+					.mipSlice   = 0,
+					.planeSlice = 0,
+				},
+			}
+		));
+	}
 
 	TextureCreateParams prevSceneDepthDesc = *sceneDepthDesc;
 	prevSceneDepthDesc.format = EPixelFormat::R32_FLOAT;
