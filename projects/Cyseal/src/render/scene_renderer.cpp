@@ -289,6 +289,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		if (bRenderPathTracing)
 		{
 			PathTracingInput passInput{
+				.scene              = scene,
+				.camera             = camera,
+
 				.prevViewInvMatrix  = prevSceneUniformData.viewInvMatrix,
 				.prevProjInvMatrix  = prevSceneUniformData.projInvMatrix,
 				.prevViewProjMatrix = prevSceneUniformData.viewProjMatrix,
@@ -303,7 +306,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.sceneDepthSRV      = sceneDepthSRV.get(),
 				.skyboxSRV          = skyboxSRV.get(),
 			};
-			pathTracingPass->renderPathTracing(commandList, swapchainIndex, scene, camera, passInput);
+			pathTracingPass->renderPathTracing(commandList, swapchainIndex, passInput);
 		}
 	}
 

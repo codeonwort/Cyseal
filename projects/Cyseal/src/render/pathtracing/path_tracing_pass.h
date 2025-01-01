@@ -12,6 +12,9 @@ class GPUScene;
 
 struct PathTracingInput
 {
+	const SceneProxy*          scene;
+	const Camera*              camera;
+
 	Float4x4                   prevViewInvMatrix;
 	Float4x4                   prevProjInvMatrix;
 	Float4x4                   prevViewProjMatrix;
@@ -30,32 +33,40 @@ struct PathTracingInput
 
 class PathTracingPass final
 {
+private:
+	class VolatileDescriptorHelper
+	{
+	public:
+		void initialize(const wchar_t* inPassName, uint32 swapchainCount);
+		void resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors);
+		inline DescriptorHeap* getDescriptorHeap(uint32 swapchainIndex) const { return descriptorHeap.at(swapchainIndex); }
+	private:
+		std::wstring passName;
+		std::vector<uint32> totalDescriptor; // size = swapchain count
+		BufferedUniquePtr<DescriptorHeap> descriptorHeap; // size = swapchain count
+	};
+
 public:
 	void initialize();
 
 	bool isAvailable() const;
 
-	void renderPathTracing(
-		RenderCommandList* commandList,
-		uint32 swapchainIndex,
-		const SceneProxy* scene,
-		const Camera* camera,
-		const PathTracingInput& passInput);
+	void renderPathTracing(RenderCommandList* commandList, uint32 swapchainIndex, const PathTracingInput& passInput);
 
 private:
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight, const TextureCreateParams* sceneDepthDesc);
-	void resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene);
 
 private:
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
-
 	UniquePtr<RaytracingShaderTable> raygenShaderTable;
 	UniquePtr<RaytracingShaderTable> missShaderTable;
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	std::vector<uint32> totalHitGroupShaderRecord;
 
-	// #todo-renderer: Temp dedicated memory
+	UniquePtr<ComputePipelineState> blurPipelineState;
+
+	// #todo-renderer: Temp dedicated memory for pathTracingUniform
 	UniquePtr<Buffer> uniformMemory;
 	UniquePtr<DescriptorHeap> uniformDescriptorHeap;
 	BufferedUniquePtr<ConstantBufferView> uniformCBVs;
@@ -65,9 +76,12 @@ private:
 	UniquePtr<Texture> momentHistory[2];
 	UniquePtr<UnorderedAccessView> momentHistoryUAV[2];
 
+	UniquePtr<Texture> colorScratch;
+	UniquePtr<UnorderedAccessView> colorScratchUAV;
+
 	UniquePtr<Texture> prevSceneDepth;
 	UniquePtr<UnorderedAccessView> prevSceneDepthUAV;
 
-	std::vector<uint32> totalVolatileDescriptor;
-	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
+	VolatileDescriptorHelper rayPassDescriptor;
+	VolatileDescriptorHelper blurPassDescriptor;
 };
