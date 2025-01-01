@@ -41,6 +41,19 @@ struct PathTracingUniform
 	uint32 _pad0;
 };
 
+struct BlurUniform
+{
+	float kernelAndOffset[4 * 25];
+	float cPhi;
+	float nPhi;
+	float pPhi;
+	float _pad0;
+	uint32 textureWidth;
+	uint32 textureHeight;
+	uint32 stepWidth;
+	uint32 _pad1;
+};
+
 // Just to calculate size in bytes.
 // Should match with RayPayload in path_tracing.hlsl.
 struct RayPayload
@@ -76,12 +89,13 @@ void PathTracingPass::initialize()
 	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
-	rayPassDescriptor.initialize(L"RayPass", swapchainCount);
-	blurPassDescriptor.initialize(L"BlurPass", swapchainCount);
+	rayPassDescriptor.initialize(L"RayPass", swapchainCount, sizeof(PathTracingUniform));
+	blurPassDescriptor.initialize(L"BlurPass", swapchainCount, sizeof(BlurUniform));
 
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
 
+#if 0
 	// Uniforms
 	{
 		CHECK(sizeof(PathTracingUniform) * swapchainCount <= UNIFORM_MEMORY_POOL_SIZE);
@@ -118,6 +132,7 @@ void PathTracingPass::initialize()
 			bufferOffset += Cymath::alignBytes(sizeof(PathTracingUniform), alignment);
 		}
 	}
+#endif
 
 	// Raytracing pipeline
 	{
@@ -174,7 +189,7 @@ void PathTracingPass::initialize()
 	// Blur pipeline
 	{
 		ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "BilateralBlurCS");
-		shader->declarePushConstants({ "pushConstants0", "pushConstants1" });
+		shader->declarePushConstants();
 		shader->loadFromFile(L"bilateral_blur.hlsl", "mainCS");
 
 		blurPipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
@@ -235,7 +250,8 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		uboData->renderTargetHeight = sceneHeight;
 		uboData->bInvalidateHistory = bCameraHasMoved;
 
-		uniformCBVs[swapchainIndex]->writeToGPU(commandList, uboData, sizeof(PathTracingUniform));
+		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
+		uniformCBV->writeToGPU(commandList, uboData, sizeof(PathTracingUniform));
 
 		delete uboData;
 	}
@@ -257,6 +273,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		requiredVolatiles += 1; // sceneDepth
 		requiredVolatiles += 1; // renderTarget
 		requiredVolatiles += 1; // prevSceneDepth
+		requiredVolatiles += 1; // worldNormal
 		requiredVolatiles += 1; // currentMoment
 		requiredVolatiles += 1; // prevMoment
 		requiredVolatiles += 1; // sceneUniform
@@ -278,6 +295,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	// Bind global shader parameters.
 	{
 		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
+		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
 		auto gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 		auto currentMomentUAV = momentHistoryUAV[swapchainIndex % 2].get();
 		auto prevMomentUAV = momentHistoryUAV[(swapchainIndex + 1) % 2].get();
@@ -294,7 +312,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.rwTexture("currentMoment", currentMomentUAV);
 		SPT.rwTexture("prevMoment", prevMomentUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
-		SPT.constantBuffer("pathTracingUniform", uniformCBVs[swapchainIndex].get());
+		SPT.constantBuffer("pathTracingUniform", uniformCBV);
 		// Bindless
 		SPT.constantBuffer("materials", gpuSceneDesc.cbvHeap, 0, gpuSceneDesc.cbvCount);
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
@@ -314,16 +332,44 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
+	
+	// #wip: Run this pass 3 times with correct uniform data and different stepWidth values.
 
 	// Resize volatile heaps if needed.
 	{
 		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // pushConstants0
-		requiredVolatiles += 1; // pushConstants1
-		requiredVolatiles += 1; // inputTexture
+		requiredVolatiles += 1; // sceneUniform
+		requiredVolatiles += 1; // blurUniform
+		requiredVolatiles += 1; // inColorTexture
+		requiredVolatiles += 1; // inNormalTexture
+		requiredVolatiles += 1; // inDepthTexture
 		requiredVolatiles += 1; // outputTexture
 
 		blurPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	}
+
+	// Update uniforms.
+	{
+		BlurUniform uboData;
+		for (uint32 i = 0; i < 25; ++i)
+		{
+			float kernel = 1.0f;
+			float offsetX = 0.0f;
+			float offsetY = 0.0f;
+			uboData.kernelAndOffset[i * 4 + 0] = kernel;
+			uboData.kernelAndOffset[i * 4 + 1] = offsetX;
+			uboData.kernelAndOffset[i * 4 + 2] = offsetY;
+			uboData.kernelAndOffset[i * 4 + 3] = 0.0f;
+		}
+		uboData.cPhi = 1.0f;
+		uboData.nPhi = 1.0f;
+		uboData.pPhi = 1.0f;
+		uboData.textureWidth = passInput.sceneWidth;
+		uboData.textureHeight = passInput.sceneHeight;
+		uboData.stepWidth = 1;
+
+		auto uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
+		uniformCBV->writeToGPU(commandList, &uboData, sizeof(BlurUniform));
 	}
 
 	commandList->setComputePipelineState(blurPipelineState.get());
@@ -331,12 +377,14 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	// Bind shader parameters.
 	{
 		DescriptorHeap* volatileHeap = blurPassDescriptor.getDescriptorHeap(swapchainIndex);
+		ConstantBufferView* uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
 
 		ShaderParameterTable SPT{};
-		// #todo-rhi: Support multiple uint32 values in single pushConstants
-		SPT.pushConstant("pushConstants0", sceneWidth);
-		SPT.pushConstant("pushConstants1", sceneHeight);
-		SPT.rwTexture("inputTexture", colorScratchUAV.get());
+		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
+		SPT.constantBuffer("blurUniform", uniformCBV);
+		SPT.rwTexture("inColorTexture", colorScratchUAV.get());
+		SPT.rwTexture("inNormalTexture", passInput.worldNormalUAV);
+		SPT.texture("inDepthTexture", passInput.sceneDepthSRV);
 		SPT.rwTexture("outputTexture", sceneColorUAV);
 
 		commandList->bindComputeShaderParameters(blurPipelineState.get(), &SPT, volatileHeap);
@@ -448,11 +496,48 @@ void PathTracingPass::resizeHitGroupShaderTable(uint32 swapchainIndex, const Sce
 	CYLOG(LogPathTracing, Log, L"Resize hit group shader table [%u]: %u records", swapchainIndex, totalRecords);
 }
 
-void PathTracingPass::VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swapchainCount)
+void PathTracingPass::VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize)
 {
 	passName = inPassName;
 	totalDescriptor.resize(swapchainCount, 0);
 	descriptorHeap.initialize(swapchainCount);
+
+	// Uniforms
+	{
+		CHECK(uniformTotalSize * swapchainCount <= UNIFORM_MEMORY_POOL_SIZE);
+
+		uniformMemory = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = UNIFORM_MEMORY_POOL_SIZE,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::COPY_SRC,
+			}
+		));
+
+		uniformDescriptorHeap = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+			DescriptorHeapDesc{
+				.type           = EDescriptorHeapType::CBV,
+				.numDescriptors = swapchainCount,
+				.flags          = EDescriptorHeapFlags::None,
+				.nodeMask       = 0,
+			}
+		));
+
+		uint32 bufferOffset = 0;
+		uniformCBVs.initialize(swapchainCount);
+		for (uint32 i = 0; i < swapchainCount; ++i)
+		{
+			uniformCBVs[i] = UniquePtr<ConstantBufferView>(
+				gRenderDevice->createCBV(
+					uniformMemory.get(),
+					uniformDescriptorHeap.get(),
+					uniformTotalSize,
+					bufferOffset));
+
+			uint32 alignment = gRenderDevice->getConstantBufferDataAlignment();
+			bufferOffset += Cymath::alignBytes(uniformTotalSize, alignment);
+		}
+	}
 }
 
 void PathTracingPass::VolatileDescriptorHelper::resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors)

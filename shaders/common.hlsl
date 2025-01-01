@@ -6,6 +6,9 @@
 #define HALF_PI    1.57079632679489661923
 #define FLT_MAX    (3.402823466e+38F)
 
+// #todo: Toggle Reverse-Z
+#define REVERSE_Z  0
+
 struct GPUSceneItem
 {
     float4x4 modelMatrix; // local to world

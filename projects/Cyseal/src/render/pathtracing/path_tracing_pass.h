@@ -28,6 +28,7 @@ struct PathTracingInput
 	UnorderedAccessView*       sceneColorUAV;
 	const TextureCreateParams* sceneDepthDesc;
 	ShaderResourceView*        sceneDepthSRV;
+	UnorderedAccessView*       worldNormalUAV;
 	ShaderResourceView*        skyboxSRV;
 };
 
@@ -37,13 +38,18 @@ private:
 	class VolatileDescriptorHelper
 	{
 	public:
-		void initialize(const wchar_t* inPassName, uint32 swapchainCount);
+		void initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize);
 		void resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors);
 		inline DescriptorHeap* getDescriptorHeap(uint32 swapchainIndex) const { return descriptorHeap.at(swapchainIndex); }
+		inline ConstantBufferView* getUniformCBV(uint32 swapchainIndex) const { return uniformCBVs.at(swapchainIndex); }
 	private:
 		std::wstring passName;
 		std::vector<uint32> totalDescriptor; // size = swapchain count
 		BufferedUniquePtr<DescriptorHeap> descriptorHeap; // size = swapchain count
+		// #todo-renderer: Temp dedicated memory for uniforms
+		UniquePtr<Buffer> uniformMemory;
+		UniquePtr<DescriptorHeap> uniformDescriptorHeap;
+		BufferedUniquePtr<ConstantBufferView> uniformCBVs;
 	};
 
 public:
@@ -65,11 +71,6 @@ private:
 	std::vector<uint32> totalHitGroupShaderRecord;
 
 	UniquePtr<ComputePipelineState> blurPipelineState;
-
-	// #todo-renderer: Temp dedicated memory for pathTracingUniform
-	UniquePtr<Buffer> uniformMemory;
-	UniquePtr<DescriptorHeap> uniformDescriptorHeap;
-	BufferedUniquePtr<ConstantBufferView> uniformCBVs;
 
 	uint32 historyWidth = 0;
 	uint32 historyHeight = 0;

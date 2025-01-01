@@ -304,6 +304,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.sceneColorUAV      = pathTracingUAV.get(),
 				.sceneDepthDesc     = &sceneDepthDesc,
 				.sceneDepthSRV      = sceneDepthSRV.get(),
+				.worldNormalUAV     = thinGBufferAUAV.get(),
 				.skyboxSRV          = skyboxSRV.get(),
 			};
 			pathTracingPass->renderPathTracing(commandList, swapchainIndex, passInput);
