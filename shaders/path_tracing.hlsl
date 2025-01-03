@@ -134,6 +134,7 @@ float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
 	float4 positionWS = mul(positionVS, sceneUniform.viewInvMatrix);
 	return positionWS.xyz;
 }
+
 float3 getPrevWorldPosition(float3 currPositionWS)
 {
 	float4 positionCS = mul(float4(currPositionWS, 1.0), pathTracingUniform.prevViewProjMatrix);
@@ -152,6 +153,11 @@ float3 getPrevWorldPosition(float3 currPositionWS)
 	positionVS /= positionVS.w; // Perspective division
 	float4 positionWS = mul(positionVS, pathTracingUniform.prevViewInvMatrix);
 	return positionWS.xyz;
+}
+
+float getLuminance(float3 color)
+{
+	return dot(color, float3(0.2126, 0.7152, 0.0722));
 }
 
 // Return a random direction given u0, u1 in [0, 1)
@@ -390,10 +396,13 @@ void MainRaygen()
 	float3 prevPositionWS = getPrevWorldPosition(positionWS);
 
 	//bool bTemporalReprojection = (pathTracingUniform.bInvalidateHistory == 0);
-	bool bTemporalReprojection = length(positionWS - prevPositionWS) <= 0.05; // 1.0 = 1 meter
+	bool bTemporalReprojection = length(positionWS - prevPositionWS) <= 0.1; // 1.0 = 1 meter
 
 #if TRACE_MODE == TRACE_AMBIENT_OCCLUSION
 	float ambientOcclusion = traceAmbientOcclusion(targetTexel, cameraRayOrigin, cameraRayDir);
+	
+	float2 moments = 0;
+	float variance = 0;
 
 	float prevAmbientOcclusion, historyCount;
 	if (bTemporalReprojection)
@@ -415,25 +424,38 @@ void MainRaygen()
 
 	float3 Li = traceIncomingRadiance(targetTexel, cameraRayOrigin, cameraRayDir);
 	float3 prevLi;
+	float2 prevMoments;
+	float variance;
 	float historyCount;
 	if (bTemporalReprojection)
 	{
 		prevLi = renderTarget[targetTexel].xyz;
+		prevMoments = prevMoment[targetTexel].xy;
 		historyCount = prevMoment[targetTexel].w;
 	}
 	else
 	{
 		prevLi = 0;
+		prevMoments = 0;
 		historyCount = 0;
 	}
+
 	Li = lerp(prevLi, Li, 1.0 / (1.0 + historyCount));
+
+	float2 moments;
+	moments.x = getLuminance(Li);
+	moments.y = moments.x * moments.x;
+	moments = lerp(prevMoments, moments, 1.0 / (1.0 + historyCount));
+
+	variance = max(0.0, moments.y - moments.x * moments.x);
+
 	historyCount += 1;
 
 	renderTarget[targetTexel] = float4(Li, 1);
 #endif
 
 	prevSceneDepthTexture[targetTexel] = sceneDepth;
-	currentMoment[targetTexel] = float4(0, 0, 0, historyCount);
+	currentMoment[targetTexel] = float4(moments.x, moments.y, variance, historyCount);
 }
 
 [shader("closesthit")]

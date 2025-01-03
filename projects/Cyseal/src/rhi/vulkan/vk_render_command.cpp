@@ -323,7 +323,8 @@ void VulkanRenderCommandList::executeIndirect(
 void VulkanRenderCommandList::bindComputeShaderParameters(
 	PipelineState* pipelineState,
 	const ShaderParameterTable* parameters,
-	DescriptorHeap* descriptorHeap)
+	DescriptorHeap* descriptorHeap,
+	DescriptorIndexTracker* tracker)
 {
 	// #todo-vulkan
 	CHECK_NO_ENTRY();

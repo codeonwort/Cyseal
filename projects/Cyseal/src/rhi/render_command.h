@@ -138,7 +138,7 @@ public:
 	// ------------------------------------------------------------------------
 	// Compute pipeline
 
-	virtual void bindComputeShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) = 0;
+	virtual void bindComputeShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap, DescriptorIndexTracker* tracker = nullptr) = 0;
 
 	virtual void dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ) = 0;
 

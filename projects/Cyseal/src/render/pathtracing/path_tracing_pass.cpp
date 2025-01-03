@@ -50,8 +50,8 @@ struct BlurUniform
 	float _pad0;
 	uint32 textureWidth;
 	uint32 textureHeight;
-	uint32 stepWidth;
 	uint32 _pad1;
+	uint32 _pad2;
 };
 
 // Just to calculate size in bytes.
@@ -189,7 +189,7 @@ void PathTracingPass::initialize()
 	// Blur pipeline
 	{
 		ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "BilateralBlurCS");
-		shader->declarePushConstants();
+		shader->declarePushConstants({ "pushConstants" });
 		shader->loadFromFile(L"bilateral_blur.hlsl", "mainCS");
 
 		blurPipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
@@ -332,12 +332,13 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
-	
-	// #wip: Run this pass 3 times with correct uniform data and different stepWidth values.
 
+	const int32 BLUR_COUNT = 3;
+	
 	// Resize volatile heaps if needed.
 	{
 		uint32 requiredVolatiles = 0;
+		requiredVolatiles += 1; // pushConstants
 		requiredVolatiles += 1; // sceneUniform
 		requiredVolatiles += 1; // blurUniform
 		requiredVolatiles += 1; // inColorTexture
@@ -345,28 +346,30 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		requiredVolatiles += 1; // inDepthTexture
 		requiredVolatiles += 1; // outputTexture
 
-		blurPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		blurPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles * BLUR_COUNT);
 	}
 
 	// Update uniforms.
 	{
 		BlurUniform uboData;
-		for (uint32 i = 0; i < 25; ++i)
+		int32 k = 0;
+		float kernel1D[3] = { 1.0f, 2.0f / 3.0f, 1.0f / 6.0f };
+		for (int32 y = -2; y <= 2; ++y)
 		{
-			float kernel = 1.0f;
-			float offsetX = 0.0f;
-			float offsetY = 0.0f;
-			uboData.kernelAndOffset[i * 4 + 0] = kernel;
-			uboData.kernelAndOffset[i * 4 + 1] = offsetX;
-			uboData.kernelAndOffset[i * 4 + 2] = offsetY;
-			uboData.kernelAndOffset[i * 4 + 3] = 0.0f;
+			for (int32 x = -2; x <= 2; ++x)
+			{
+				uboData.kernelAndOffset[k * 4 + 0] = kernel1D[std::abs(x)] * kernel1D[std::abs(y)];
+				uboData.kernelAndOffset[k * 4 + 1] = (float)x;
+				uboData.kernelAndOffset[k * 4 + 2] = (float)y;
+				uboData.kernelAndOffset[k * 4 + 3] = 0.0f;
+				++k;
+			}
 		}
-		uboData.cPhi = 1.0f;
-		uboData.nPhi = 1.0f;
-		uboData.pPhi = 1.0f;
+		uboData.cPhi = 0.1f;
+		uboData.nPhi = 0.2f;
+		uboData.pPhi = 0.1f;
 		uboData.textureWidth = passInput.sceneWidth;
 		uboData.textureHeight = passInput.sceneHeight;
-		uboData.stepWidth = 1;
 
 		auto uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(BlurUniform));
@@ -375,23 +378,32 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	commandList->setComputePipelineState(blurPipelineState.get());
 
 	// Bind shader parameters.
+	DescriptorHeap* volatileHeap = blurPassDescriptor.getDescriptorHeap(swapchainIndex);
+	ConstantBufferView* uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
+	DescriptorIndexTracker tracker;
+	// #wip: Do not feedback blurred color as 'prev frame color' in next frame :/
+	UnorderedAccessView* blurInput = colorScratchUAV.get();
+	UnorderedAccessView* blurOutput = sceneColorUAV;
+	for (int32 phase = 0; phase < BLUR_COUNT; ++phase)
 	{
-		DescriptorHeap* volatileHeap = blurPassDescriptor.getDescriptorHeap(swapchainIndex);
-		ConstantBufferView* uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
-
 		ShaderParameterTable SPT{};
+		SPT.pushConstant("pushConstants", phase + 1);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		SPT.constantBuffer("blurUniform", uniformCBV);
-		SPT.rwTexture("inColorTexture", colorScratchUAV.get());
+		SPT.rwTexture("inColorTexture", blurInput);
 		SPT.rwTexture("inNormalTexture", passInput.worldNormalUAV);
 		SPT.texture("inDepthTexture", passInput.sceneDepthSRV);
-		SPT.rwTexture("outputTexture", sceneColorUAV);
+		SPT.rwTexture("outputTexture", blurOutput);
 
-		commandList->bindComputeShaderParameters(blurPipelineState.get(), &SPT, volatileHeap);
+		commandList->bindComputeShaderParameters(blurPipelineState.get(), &SPT, volatileHeap, &tracker);
+
+		uint32 groupX = (sceneWidth + 7) / 8, groupY = (sceneHeight + 7) / 8;
+		commandList->dispatchCompute(groupX, groupY, 1);
+
+		auto temp = blurInput;
+		blurInput = blurOutput;
+		blurOutput = temp;
 	}
-
-	uint32 groupX = (sceneWidth + 7) / 8, groupY = (sceneHeight + 7) / 8;
-	commandList->dispatchCompute(groupX, groupY, 1);
 }
 
 void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight, const TextureCreateParams* sceneDepthDesc)
