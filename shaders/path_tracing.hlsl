@@ -63,10 +63,11 @@ ByteAddressBuffer                  gVertexBuffer         : register(t2, space0);
 StructuredBuffer<GPUSceneItem>     gpuSceneBuffer        : register(t3, space0);
 TextureCube                        skybox                : register(t4, space0);
 Texture2D                          sceneDepthTexture     : register(t5, space0);
-RWTexture2D<float4>                renderTarget          : register(u0, space0);
-RWTexture2D<float>                 prevSceneDepthTexture : register(u1, space0);
-RWTexture2D<float4>                currentMoment         : register(u2, space0);
-RWTexture2D<float4>                prevMoment            : register(u3, space0);
+RWTexture2D<float4>                currentColorTexture   : register(u0, space0);
+RWTexture2D<float4>                prevColorTexture      : register(u1, space0);
+RWTexture2D<float>                 prevSceneDepthTexture : register(u2, space0);
+RWTexture2D<float4>                currentMoment         : register(u3, space0);
+RWTexture2D<float4>                prevMoment            : register(u4, space0);
 ConstantBuffer<SceneUniform>       sceneUniform          : register(b0, space0);
 ConstantBuffer<PathTracingUniform> pathTracingUniform    : register(b1, space0);
 // Material binding
@@ -396,7 +397,7 @@ void MainRaygen()
 	float3 prevPositionWS = getPrevWorldPosition(positionWS);
 
 	//bool bTemporalReprojection = (pathTracingUniform.bInvalidateHistory == 0);
-	bool bTemporalReprojection = length(positionWS - prevPositionWS) <= 0.1; // 1.0 = 1 meter
+	bool bTemporalReprojection = length(positionWS - prevPositionWS) <= 0.01; // 1.0 = 1 meter
 
 #if TRACE_MODE == TRACE_AMBIENT_OCCLUSION
 	float ambientOcclusion = traceAmbientOcclusion(targetTexel, cameraRayOrigin, cameraRayDir);
@@ -407,7 +408,7 @@ void MainRaygen()
 	float prevAmbientOcclusion, historyCount;
 	if (bTemporalReprojection)
 	{
-		prevAmbientOcclusion = renderTarget[targetTexel].x;
+		prevAmbientOcclusion = prevColorTexture[targetTexel].x;
 		historyCount = prevMoment[targetTexel].w;
 	}
 	else
@@ -419,7 +420,7 @@ void MainRaygen()
 	ambientOcclusion = lerp(prevAmbientOcclusion, ambientOcclusion, 1.0 / (1.0 + historyCount));
 	historyCount += 1;
 
-	renderTarget[targetTexel] = float4(ambientOcclusion.xxx, 1);
+	currentColorTexture[targetTexel] = float4(ambientOcclusion.xxx, 1);
 #elif (TRACE_MODE == TRACE_DIFFUSE_GI || TRACE_MODE == TRACE_FULL_GI)
 
 	float3 Li = traceIncomingRadiance(targetTexel, cameraRayOrigin, cameraRayDir);
@@ -429,7 +430,7 @@ void MainRaygen()
 	float historyCount;
 	if (bTemporalReprojection)
 	{
-		prevLi = renderTarget[targetTexel].xyz;
+		prevLi = prevColorTexture[targetTexel].xyz;
 		prevMoments = prevMoment[targetTexel].xy;
 		historyCount = prevMoment[targetTexel].w;
 	}
@@ -451,8 +452,11 @@ void MainRaygen()
 
 	historyCount += 1;
 
-	renderTarget[targetTexel] = float4(Li, 1);
+	currentColorTexture[targetTexel] = float4(Li, 1);
 #endif
+
+	// Update prevColorTexture also to simplify blur pass setup.
+	prevColorTexture[targetTexel] = currentColorTexture[targetTexel];
 
 	prevSceneDepthTexture[targetTexel] = sceneDepth;
 	currentMoment[targetTexel] = float4(moments.x, moments.y, variance, historyCount);

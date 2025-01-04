@@ -77,6 +77,9 @@ private:
 	UniquePtr<Texture> momentHistory[2];
 	UniquePtr<UnorderedAccessView> momentHistoryUAV[2];
 
+	UniquePtr<Texture> colorHistory[2];
+	UniquePtr<UnorderedAccessView> colorHistoryUAV[2];
+
 	UniquePtr<Texture> colorScratch;
 	UniquePtr<UnorderedAccessView> colorScratchUAV;
 
