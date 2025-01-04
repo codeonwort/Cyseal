@@ -41,7 +41,7 @@ struct PathTracingUniform
 	float4x4 prevViewProjMatrix;
 	uint renderTargetWidth;
 	uint renderTargetHeight;
-	uint bInvalidateHistory;
+	uint bInvalidateHistory; // If nonzero, force invalidate the whole history.
 	uint _pad0;
 };
 
@@ -396,8 +396,7 @@ void MainRaygen()
 	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
 	float3 prevPositionWS = getPrevWorldPosition(positionWS);
 
-	//bool bTemporalReprojection = (pathTracingUniform.bInvalidateHistory == 0);
-	bool bTemporalReprojection = length(positionWS - prevPositionWS) <= 0.01; // 1.0 = 1 meter
+	bool bTemporalReprojection = (pathTracingUniform.bInvalidateHistory == 0) && length(positionWS - prevPositionWS) <= 0.01; // 1.0 = 1 meter
 
 #if TRACE_MODE == TRACE_AMBIENT_OCCLUSION
 	float ambientOcclusion = traceAmbientOcclusion(targetTexel, cameraRayOrigin, cameraRayDir);

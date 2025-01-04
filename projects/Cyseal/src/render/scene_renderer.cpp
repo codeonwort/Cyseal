@@ -148,7 +148,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	const uint32 sceneHeight = swapChain->getBackbufferHeight();
 
 	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
-	const bool bRenderPathTracing = bSupportsRaytracing && renderOptions.bEnablePathTracing;
+	const bool bRenderPathTracing = bSupportsRaytracing && (renderOptions.pathTracing != EPathTracingMode::Disabled);
 	
 	bool bRenderRTR = bSupportsRaytracing && renderOptions.bEnableRayTracedReflections;
 	// Let RT_indirectSpecular cleared as black so that tone mapping pass
@@ -291,6 +291,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			PathTracingInput passInput{
 				.scene              = scene,
 				.camera             = camera,
+				.mode               = renderOptions.pathTracing,
 
 				.prevViewInvMatrix  = prevSceneUniformData.viewInvMatrix,
 				.prevProjInvMatrix  = prevSceneUniformData.projInvMatrix,

@@ -5,6 +5,7 @@
 #include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/texture.h"
+#include "render/renderer.h"
 
 class SceneProxy;
 class Camera;
@@ -14,6 +15,7 @@ struct PathTracingInput
 {
 	const SceneProxy*          scene;
 	const Camera*              camera;
+	EPathTracingMode           mode;
 
 	Float4x4                   prevViewInvMatrix;
 	Float4x4                   prevProjInvMatrix;

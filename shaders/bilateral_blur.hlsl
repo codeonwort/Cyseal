@@ -1,5 +1,7 @@
 #include "common.hlsl"
 
+// [Holger Dammertz] Edge Avoiding A-Trous Wavelet Transform for fast Global Illumination Filtering
+
 // ------------------------------------------------------------------------
 // Resource bindings
 

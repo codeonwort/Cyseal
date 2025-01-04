@@ -251,7 +251,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		uboData->prevViewProj = passInput.prevViewProjMatrix;
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;
-		uboData->bInvalidateHistory = bCameraHasMoved;
+		uboData->bInvalidateHistory = bCameraHasMoved && passInput.mode == EPathTracingMode::Offline;
 
 		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
 		uniformCBV->writeToGPU(commandList, uboData, sizeof(PathTracingUniform));

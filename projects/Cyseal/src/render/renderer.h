@@ -19,6 +19,15 @@ enum class EBufferVisualizationMode : uint32
 	Count,
 };
 
+enum class EPathTracingMode : uint32
+{
+	Disabled         = 0,
+	Offline          = 1,
+	Realtime         = 2,
+
+	Count
+};
+
 inline const char** getBufferVisualizationModeNames()
 {
 	static const char* strings[] =
@@ -30,6 +39,17 @@ inline const char** getBufferVisualizationModeNames()
 	return strings;
 };
 
+inline const char** getPathTracingModeNames()
+{
+	static const char* strings[] =
+	{
+		"Disabled",
+		"Offline",
+		"Realtime",
+	};
+	return strings;
+};
+
 struct RendererOptions
 {
 	bool bEnableRayTracedReflections = true;
@@ -37,11 +57,12 @@ struct RendererOptions
 	bool bEnableGPUCulling = true;
 	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
 
-	bool bEnablePathTracing = false;
+	EPathTracingMode pathTracing = EPathTracingMode::Disabled;
 	bool bCameraHasMoved = false;
 
 	bool anyRayTracingEnabled() const
 	{
+		bool bEnablePathTracing = pathTracing != EPathTracingMode::Disabled;
 		return bEnableRayTracedReflections || bEnablePathTracing;
 	}
 };
