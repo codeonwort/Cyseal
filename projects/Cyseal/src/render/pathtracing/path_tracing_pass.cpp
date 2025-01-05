@@ -38,7 +38,7 @@ struct PathTracingUniform
 	uint32 renderTargetWidth;
 	uint32 renderTargetHeight;
 	uint32 bInvalidateHistory;
-	uint32 _pad0;
+	uint32 bLimitHistory;
 };
 
 struct BlurUniform
@@ -252,6 +252,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;
 		uboData->bInvalidateHistory = bCameraHasMoved && passInput.mode == EPathTracingMode::Offline;
+		uboData->bLimitHistory = passInput.mode == EPathTracingMode::Realtime;
 
 		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
 		uniformCBV->writeToGPU(commandList, uboData, sizeof(PathTracingUniform));
@@ -273,11 +274,11 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		requiredVolatiles += 1; // gVertexBuffer
 		requiredVolatiles += 1; // gpuSceneBuffer
 		requiredVolatiles += 1; // skybox
-		requiredVolatiles += 1; // sceneDepth
+		requiredVolatiles += 1; // sceneDepthTexture
+		requiredVolatiles += 1; // sceneNormalTexture
 		requiredVolatiles += 1; // currentColorTexture
 		requiredVolatiles += 1; // prevColorTexture
-		requiredVolatiles += 1; // prevSceneDepth
-		requiredVolatiles += 1; // worldNormal
+		requiredVolatiles += 1; // prevSceneDepthTexture
 		requiredVolatiles += 1; // currentMoment
 		requiredVolatiles += 1; // prevMoment
 		requiredVolatiles += 1; // sceneUniform
@@ -311,6 +312,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 		SPT.texture("skybox", skyboxSRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+		SPT.rwTexture("sceneNormalTexture", passInput.worldNormalUAV);
 		SPT.rwTexture("currentColorTexture", currentColorUAV);
 		SPT.rwTexture("prevColorTexture", prevColorUAV);
 		SPT.rwTexture("prevSceneDepthTexture", prevSceneDepthUAV.get());

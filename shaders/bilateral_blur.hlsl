@@ -1,6 +1,8 @@
 #include "common.hlsl"
 
-// [Holger Dammertz] Edge Avoiding A-Trous Wavelet Transform for fast Global Illumination Filtering
+// References
+// - [Holger Dammertz] Edge Avoiding A-Trous Wavelet Transform for fast Global Illumination Filtering
+// - [AMD FidelityFX-Denoiser] Temporal reprojection logic: https://github.com/GPUOpen-Effects/FidelityFX-Denoiser/blob/master/ffx-shadows-dnsr/ffx_denoiser_shadows_tileclassification.h
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -86,8 +88,6 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 
         float3 diff; float distSq;
 
-        //float2 uv1 = uv0 + offset * step * stepWidth;
-        //uint2 neighborTexel = uint2(uv1 * resolution);
         int2 neighborTexel = clampTexel(int2(float2(tid.xy) + offset * stepWidth));
 
         float3 color1 = inColorTexture[neighborTexel].xyz;
@@ -105,10 +105,6 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         diff = pos0 - pos1;
         distSq = dot(diff, diff);
         float posWeight = min(1.0, exp(-distSq / blurUniform.pPhi));
-
-        //if (abs(colorWeight - 1.0) > 0.001) colorWeight = 1;
-        //if (abs(normalWeight - 1.0) > 0.001) normalWeight = 1;
-        //if (abs(posWeight - 1.0) > 0.001) posWeight = 1;
 
         float weight = colorWeight * normalWeight * posWeight;
         sum += color1 * weight * kernel;

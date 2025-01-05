@@ -10,5 +10,6 @@
     <FxCompile Include="..\..\shaders\buffer_visualization.hlsl" />
     <FxCompile Include="..\..\shaders\path_tracing.hlsl" />
     <FxCompile Include="..\..\shaders\bsdf.hlsl" />
+    <FxCompile Include="..\..\shaders\bilateral_blur.hlsl" />
   </ItemGroup>
 </Project>
