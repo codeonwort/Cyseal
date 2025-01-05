@@ -103,13 +103,16 @@ void TestApplication::onTick(float deltaSeconds)
 		}
 		appState.rendererOptions.bCameraHasMoved = bCameraHasMoved;
 
-		if (bCameraHasMoved)
+		if (appState.rendererOptions.pathTracing != EPathTracingMode::Disabled)
 		{
-			appState.pathTracingNumFrames = 0;
-		}
-		else if (appState.rendererOptions.bEnablePathTracing)
-		{
-			appState.pathTracingNumFrames += 1;
+			if (bCameraHasMoved && appState.rendererOptions.pathTracing == EPathTracingMode::Offline)
+			{
+				appState.pathTracingNumFrames = 0;
+			}
+			else
+			{
+				appState.pathTracingNumFrames += 1;
+			}
 		}
 
 		world->onTick(deltaSeconds);
@@ -148,7 +151,8 @@ void TestApplication::onTick(float deltaSeconds)
 			appState.rendererOptions.bufferVisualization = (EBufferVisualizationMode)appState.selectedBufferVisualizationMode;
 
 			ImGui::SeparatorText("Path Tracing");
-			ImGui::Checkbox("Enable", &appState.rendererOptions.bEnablePathTracing);
+			ImGui::Combo("Path Tracing Mode", &appState.selectedPathTracingMode, getPathTracingModeNames(), (int32)EPathTracingMode::Count);
+			appState.rendererOptions.pathTracing = (EPathTracingMode)appState.selectedPathTracingMode;
 			ImGui::Text("Frames: %u", appState.pathTracingNumFrames);
 
 			ImGui::SeparatorText("Control");

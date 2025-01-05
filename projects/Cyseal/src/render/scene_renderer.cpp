@@ -25,24 +25,6 @@
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 
-// Should match with common.hlsl
-struct SceneUniform
-{
-	Float4x4 viewMatrix;
-	Float4x4 projMatrix;
-	Float4x4 viewProjMatrix;
-
-	Float4x4 viewInvMatrix;
-	Float4x4 projInvMatrix;
-	Float4x4 viewProjInvMatrix;
-
-	CameraFrustum cameraFrustum;
-
-	vec3 cameraPosition; float _pad0;
-	vec3 sunDirection;   float _pad1;
-	vec3 sunIlluminance; float _pad2;
-};
-
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
@@ -166,7 +148,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	const uint32 sceneHeight = swapChain->getBackbufferHeight();
 
 	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
-	const bool bRenderPathTracing = bSupportsRaytracing && renderOptions.bEnablePathTracing;
+	const bool bRenderPathTracing = bSupportsRaytracing && (renderOptions.pathTracing != EPathTracingMode::Disabled);
 	
 	bool bRenderRTR = bSupportsRaytracing && renderOptions.bEnableRayTracedReflections;
 	// Let RT_indirectSpecular cleared as black so that tone mapping pass
@@ -306,15 +288,27 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		if (bRenderPathTracing)
 		{
-			pathTracingPass->renderPathTracing(
-				commandList, swapchainIndex, scene, camera,
-				renderOptions.bCameraHasMoved,
-				sceneUniformCBVs[swapchainIndex].get(),
-				accelStructure.get(),
-				gpuScene,
-				pathTracingUAV.get(),
-				skyboxSRV.get(),
-				sceneWidth, sceneHeight);
+			PathTracingInput passInput{
+				.scene              = scene,
+				.camera             = camera,
+				.mode               = renderOptions.pathTracing,
+
+				.prevViewInvMatrix  = prevSceneUniformData.viewInvMatrix,
+				.prevProjInvMatrix  = prevSceneUniformData.projInvMatrix,
+				.prevViewProjMatrix = prevSceneUniformData.viewProjMatrix,
+				.bCameraHasMoved    = renderOptions.bCameraHasMoved,
+				.sceneWidth         = sceneWidth,
+				.sceneHeight        = sceneHeight,
+				.gpuScene           = gpuScene,
+				.raytracingScene    = accelStructure.get(),
+				.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
+				.sceneColorUAV      = pathTracingUAV.get(),
+				.sceneDepthDesc     = &sceneDepthDesc,
+				.sceneDepthSRV      = sceneDepthSRV.get(),
+				.worldNormalUAV     = thinGBufferAUAV.get(),
+				.skyboxSRV          = skyboxSRV.get(),
+			};
+			pathTracingPass->renderPathTracing(commandList, swapchainIndex, passInput);
 		}
 	}
 
@@ -482,7 +476,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	auto cleanup = [&cleanupList](GPUResource* resource) {
 		if (resource != nullptr)
 		{
-			cleanupList.push_back({ resource, 0 });
+			cleanupList.push_back({ resource });
 		}
 	};
 
@@ -519,22 +513,31 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	));
 
 	cleanup(RT_sceneDepth.release());
-	RT_sceneDepth = UniquePtr<Texture>(device->createTexture(
-		TextureCreateParams::texture2D(
-			EPixelFormat::D24_UNORM_S8_UINT,
-			ETextureAccessFlags::DSV,
-			sceneWidth, sceneHeight,
-			1, 1, 0)));
+	sceneDepthDesc = TextureCreateParams::texture2D(
+		EPixelFormat::R24G8_TYPELESS, ETextureAccessFlags::DSV, sceneWidth, sceneHeight, 1, 1, 0);
+	RT_sceneDepth = UniquePtr<Texture>(device->createTexture(sceneDepthDesc));
 	RT_sceneDepth->setDebugName(L"RT_SceneDepth");
 
 	sceneDepthDSV = UniquePtr<DepthStencilView>(device->createDSV(RT_sceneDepth.get(),
 		DepthStencilViewDesc{
-			.format        = RT_sceneDepth->getCreateParams().format,
+			.format        = EPixelFormat::D24_UNORM_S8_UINT,
 			.viewDimension = EDSVDimension::Texture2D,
 			.flags         = EDSVFlags::None,
 			.texture2D     = Texture2DDSVDesc{
 				.mipSlice  = 0,
 			}
+		}
+	));
+	sceneDepthSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_sceneDepth.get(),
+		ShaderResourceViewDesc{
+			.format              = EPixelFormat::R24_UNORM_X8_TYPELESS,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_sceneDepth->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
 		}
 	));
 
@@ -663,22 +666,23 @@ void SceneRenderer::updateSceneUniform(
 	const SceneProxy* scene,
 	const Camera* camera)
 {
-	SceneUniform uboData;
-	uboData.viewMatrix        = camera->getViewMatrix();
-	uboData.projMatrix        = camera->getProjMatrix();
-	uboData.viewProjMatrix    = camera->getViewProjMatrix();
+	memcpy_s(&prevSceneUniformData, sizeof(SceneUniform), &sceneUniformData, sizeof(SceneUniform));
 
-	uboData.viewInvMatrix     = camera->getViewInvMatrix();
-	uboData.projInvMatrix     = camera->getProjInvMatrix();
-	uboData.viewProjInvMatrix = camera->getViewProjInvMatrix();
+	sceneUniformData.viewMatrix        = camera->getViewMatrix();
+	sceneUniformData.projMatrix        = camera->getProjMatrix();
+	sceneUniformData.viewProjMatrix    = camera->getViewProjMatrix();
 
-	uboData.cameraFrustum     = camera->getFrustum();
+	sceneUniformData.viewInvMatrix     = camera->getViewInvMatrix();
+	sceneUniformData.projInvMatrix     = camera->getProjInvMatrix();
+	sceneUniformData.viewProjInvMatrix = camera->getViewProjInvMatrix();
 
-	uboData.cameraPosition    = camera->getPosition();
-	uboData.sunDirection      = scene->sun.direction;
-	uboData.sunIlluminance    = scene->sun.illuminance;
+	sceneUniformData.cameraFrustum     = camera->getFrustum();
+
+	sceneUniformData.cameraPosition    = camera->getPosition();
+	sceneUniformData.sunDirection      = scene->sun.direction;
+	sceneUniformData.sunIlluminance    = scene->sun.illuminance;
 	
-	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &uboData, sizeof(uboData));
+	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &sceneUniformData, sizeof(sceneUniformData));
 }
 
 void SceneRenderer::rebuildFrameResources(RenderCommandList* commandList, const SceneProxy* scene)

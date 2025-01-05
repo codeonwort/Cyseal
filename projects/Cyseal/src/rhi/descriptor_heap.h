@@ -34,6 +34,11 @@ struct DescriptorHeapDesc
 	uint32 nodeMask            = 0; // MGPU thing
 };
 
+struct DescriptorIndexTracker
+{
+	int32 lastIndex = 0;
+};
+
 // ID3D12DescriptorHeap
 // VkDescriptorPool
 class DescriptorHeap

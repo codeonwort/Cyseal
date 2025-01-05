@@ -32,14 +32,20 @@
 #define RANDOM_SEQUENCE_HEIGHT    64
 #define RANDOM_SEQUENCE_LENGTH    (RANDOM_SEQUENCE_WIDTH * RANDOM_SEQUENCE_HEIGHT)
 
+// Limit history count for realtime mode.
+#define MAX_REALTIME_HISTORY      64
+
 struct PathTracingUniform
 {
 	float4 randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
 	float4 randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
+	float4x4 prevViewInvMatrix;
+	float4x4 prevProjInvMatrix;
+	float4x4 prevViewProjMatrix;
 	uint renderTargetWidth;
 	uint renderTargetHeight;
-	uint bInvalidateHistory;
-	uint _pad0;
+	uint bInvalidateHistory; // If nonzero, force invalidate the whole history.
+	uint bLimitHistory;
 };
 
 struct VertexAttributes
@@ -54,14 +60,20 @@ struct ClosestHitPushConstants
 };
 
 // Global root signature
-RaytracingAccelerationStructure    rtScene            : register(t0, space0);
-ByteAddressBuffer                  gIndexBuffer       : register(t1, space0);
-ByteAddressBuffer                  gVertexBuffer      : register(t2, space0);
-StructuredBuffer<GPUSceneItem>     gpuSceneBuffer     : register(t3, space0);
-TextureCube                        skybox             : register(t4, space0);
-RWTexture2D<float4>                renderTarget       : register(u0, space0);
-ConstantBuffer<SceneUniform>       sceneUniform       : register(b0, space0);
-ConstantBuffer<PathTracingUniform> pathTracingUniform : register(b1, space0);
+RaytracingAccelerationStructure    rtScene               : register(t0, space0);
+ByteAddressBuffer                  gIndexBuffer          : register(t1, space0);
+ByteAddressBuffer                  gVertexBuffer         : register(t2, space0);
+StructuredBuffer<GPUSceneItem>     gpuSceneBuffer        : register(t3, space0);
+TextureCube                        skybox                : register(t4, space0);
+Texture2D                          sceneDepthTexture     : register(t5, space0);
+RWTexture2D<float4>                sceneNormalTexture    : register(u0, space0);
+RWTexture2D<float4>                currentColorTexture   : register(u1, space0);
+RWTexture2D<float4>                prevColorTexture      : register(u2, space0);
+RWTexture2D<float>                 prevSceneDepthTexture : register(u3, space0);
+RWTexture2D<float4>                currentMoment         : register(u4, space0);
+RWTexture2D<float4>                prevMoment            : register(u5, space0);
+ConstantBuffer<SceneUniform>       sceneUniform          : register(b0, space0);
+ConstantBuffer<PathTracingUniform> pathTracingUniform    : register(b1, space0);
 // Material binding
 #define TEMP_MAX_SRVS 1024
 ConstantBuffer<Material> materials[]        : register(b0, space3); // bindless in another space
@@ -110,6 +122,62 @@ void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
 
 	origin = sceneUniform.cameraPosition.xyz;
 	direction = normalize(worldPos.xyz - origin);
+}
+
+float2 getScreenResolution()
+{
+	return float2(pathTracingUniform.renderTargetWidth, pathTracingUniform.renderTargetHeight);
+}
+
+float getNdcZ(float sceneDepth)
+{
+#if REVERSE_Z
+	return sceneDepth; // clipZ is [0,1] in Reverse-Z
+#else
+	return sceneDepth * 2.0 - 1.0;
+#endif
+}
+
+float getLinearDepth(float2 screenUV, float sceneDepth)
+{
+	float4 positionCS = float4(2.0 * screenUV - 1.0, sceneDepth, 1.0);
+	float4 projected = mul(positionCS, sceneUniform.projInvMatrix);
+	return abs(projected.z / projected.w);
+}
+
+float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
+{
+	float z = getNdcZ(sceneDepth);
+	float4 positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0);
+	float4 positionWS = mul(positionCS, sceneUniform.viewProjInvMatrix);
+	return positionWS.xyz / positionWS.w;
+}
+
+bool getPrevWorldPosition(float3 currPositionWS, out float3 prevPositionWS, out float prevLinearDepth)
+{
+	float4 positionCS = mul(float4(currPositionWS, 1.0), pathTracingUniform.prevViewProjMatrix);
+	float2 screenUV = 0.5 * (positionCS.xy / positionCS.w) + float2(0.5, 0.5);
+	if (any(screenUV < float2(0, 0)) || any(screenUV >= float2(1, 1)))
+	{
+		return false;
+	}
+	float2 resolution = getScreenResolution();
+	float sceneDepth = prevSceneDepthTexture[int2(screenUV * resolution)].r;
+
+	float z = getNdcZ(sceneDepth);
+	positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0); // [-1,1]
+	float4 positionVS = mul(positionCS, pathTracingUniform.prevProjInvMatrix);
+	positionVS /= positionVS.w; // Perspective division
+	float4 positionWS = mul(positionVS, pathTracingUniform.prevViewInvMatrix);
+	
+	prevPositionWS = positionWS.xyz;
+	prevLinearDepth = getLinearDepth(screenUV, sceneDepth);
+	return true;
+}
+
+float getLuminance(float3 color)
+{
+	return dot(color, float3(0.2126, 0.7152, 0.0722));
 }
 
 // Return a random direction given u0, u1 in [0, 1)
@@ -338,18 +406,41 @@ float traceAmbientOcclusion(uint2 targetTexel, float3 cameraRayOrigin, float3 ca
 void MainRaygen()
 {
 	uint2 targetTexel = DispatchRaysIndex().xy;
+	float2 screenUV = (float2(targetTexel) + float2(0.5, 0.5)) / getScreenResolution();
 
 	float3 cameraRayOrigin, cameraRayDir;
 	generateCameraRay(targetTexel, cameraRayOrigin, cameraRayDir);
 
+	float sceneDepth = sceneDepthTexture.Load(int3(targetTexel, 0)).r;
+	float3 sceneNormal = sceneNormalTexture[targetTexel].xyz;
+	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
+	float linearDepth = getLinearDepth(screenUV, sceneDepth);
+
+	float3 prevPositionWS;
+	float prevLinearDepth;
+	bool bPrevValid = getPrevWorldPosition(positionWS, prevPositionWS, prevLinearDepth);
+
+	float3 viewDir = normalize(sceneUniform.cameraPosition.xyz - positionWS);
+	float zAlignment = 1.0 - dot(viewDir, sceneNormal);
+	zAlignment = pow(zAlignment, 8);
+
+	float depthDiff = abs(prevLinearDepth - linearDepth) / linearDepth;
+	float depthTolerance = lerp(1e-2f, 1e-1f, zAlignment);
+
+	bool bClose = bPrevValid && depthDiff < depthTolerance; // length(positionWS - prevPositionWS) <= 0.01; // 1.0 = 1 meter
+	bool bTemporalReprojection = (pathTracingUniform.bInvalidateHistory == 0) && bClose;
+
 #if TRACE_MODE == TRACE_AMBIENT_OCCLUSION
 	float ambientOcclusion = traceAmbientOcclusion(targetTexel, cameraRayOrigin, cameraRayDir);
+	
+	float2 moments = 0;
+	float variance = 0;
 
 	float prevAmbientOcclusion, historyCount;
-	if (pathTracingUniform.bInvalidateHistory == 0)
+	if (bTemporalReprojection)
 	{
-		prevAmbientOcclusion = renderTarget[targetTexel].x;
-		historyCount = renderTarget[targetTexel].w;
+		prevAmbientOcclusion = prevColorTexture[targetTexel].x;
+		historyCount = prevMoment[targetTexel].w;
 	}
 	else
 	{
@@ -360,27 +451,51 @@ void MainRaygen()
 	ambientOcclusion = lerp(prevAmbientOcclusion, ambientOcclusion, 1.0 / (1.0 + historyCount));
 	historyCount += 1;
 
-	renderTarget[targetTexel] = float4(ambientOcclusion.xxx, historyCount);
+	currentColorTexture[targetTexel] = float4(ambientOcclusion.xxx, 1);
 #elif (TRACE_MODE == TRACE_DIFFUSE_GI || TRACE_MODE == TRACE_FULL_GI)
 
 	float3 Li = traceIncomingRadiance(targetTexel, cameraRayOrigin, cameraRayDir);
 	float3 prevLi;
+	float2 prevMoments;
+	float variance;
 	float historyCount;
-	if (pathTracingUniform.bInvalidateHistory == 0)
+	if (bTemporalReprojection)
 	{
-		prevLi = renderTarget[targetTexel].xyz;
-		historyCount = renderTarget[targetTexel].w;
+		prevLi = prevColorTexture[targetTexel].xyz;
+		prevMoments = prevMoment[targetTexel].xy;
+		historyCount = prevMoment[targetTexel].w;
 	}
 	else
 	{
 		prevLi = 0;
+		prevMoments = 0;
 		historyCount = 0;
 	}
+
 	Li = lerp(prevLi, Li, 1.0 / (1.0 + historyCount));
+
+	float2 moments;
+	moments.x = getLuminance(Li);
+	moments.y = moments.x * moments.x;
+	moments = lerp(prevMoments, moments, 1.0 / (1.0 + historyCount));
+
+	variance = max(0.0, moments.y - moments.x * moments.x);
+
 	historyCount += 1;
 
-	renderTarget[targetTexel] = float4(Li, historyCount);
+	currentColorTexture[targetTexel] = float4(Li, 1);
 #endif
+
+	// Update prevColorTexture also to simplify blur pass setup.
+	prevColorTexture[targetTexel] = currentColorTexture[targetTexel];
+
+	if (pathTracingUniform.bLimitHistory != 0)
+	{
+		historyCount = min(historyCount, MAX_REALTIME_HISTORY);
+	}
+
+	prevSceneDepthTexture[targetTexel] = sceneDepth;
+	currentMoment[targetTexel] = float4(moments.x, moments.y, variance, historyCount);
 }
 
 [shader("closesthit")]

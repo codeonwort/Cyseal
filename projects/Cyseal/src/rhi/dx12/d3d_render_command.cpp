@@ -331,7 +331,8 @@ void D3DRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineSt
 void D3DRenderCommandList::bindComputeShaderParameters(
 	PipelineState* pipelineState,
 	const ShaderParameterTable* inParameters,
-	DescriptorHeap* descriptorHeap)
+	DescriptorHeap* descriptorHeap,
+	DescriptorIndexTracker* tracker)
 {
 	D3DComputePipelineState* d3dPipelineState = static_cast<D3DComputePipelineState*>(pipelineState);
 	ID3D12RootSignature* d3dRootSig = d3dPipelineState->getRootSignature();
@@ -362,7 +363,7 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 
 	// #todo-dx12: Root Descriptor vs Descriptor Table
 	// For now, always use descriptor table.
-	uint32 descriptorIx = 0;
+	uint32 descriptorIx = (tracker == nullptr) ? 0 : tracker->lastIndex;
 
 	for (const auto& inParam : inParameters->pushConstants)
 	{
@@ -377,6 +378,8 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	setRootDescriptorTables(commandList.Get(), inParameters->textures, &descriptorIx);
 	setRootDescriptorTables(commandList.Get(), inParameters->rwTextures, &descriptorIx);
 	CHECK(inParameters->accelerationStructures.size() == 0); // Not allowed in compute pipeline.
+
+	if (tracker != nullptr) tracker->lastIndex = descriptorIx;
 }
 
 void D3DRenderCommandList::drawIndexedInstanced(

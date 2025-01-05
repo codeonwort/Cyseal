@@ -655,9 +655,5 @@ void D3DDevice::copyDescriptors(
 	D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = rawSrcHeap->GetCPUDescriptorHandleForHeapStart();
 	srcHandle.ptr += descSize * srcHeapDescriptorStartOffset;
 
-	device->CopyDescriptorsSimple(
-		numDescriptors,
-		destHandle,
-		srcHandle,
-		into_d3d::descriptorHeapType(dstType));
+	device->CopyDescriptorsSimple(numDescriptors, destHandle, srcHandle, into_d3d::descriptorHeapType(dstType));
 }

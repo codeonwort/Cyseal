@@ -59,7 +59,7 @@ void World1::onInitialize()
 void World1::onTick(float deltaSeconds)
 {
 	// Animate meshes.
-	if (!appState->rendererOptions.bEnablePathTracing)
+	if (appState->rendererOptions.pathTracing == EPathTracingMode::Disabled)
 	{
 		static float elapsed = 0.0f;
 		elapsed += deltaSeconds;
