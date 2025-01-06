@@ -148,18 +148,18 @@ void BasePass::initialize()
 	}
 }
 
-void BasePass::renderBasePass(
-	RenderCommandList* commandList,
-	uint32 swapchainIndex,
-	const SceneProxy* scene,
-	const Camera* camera,
-	const RendererOptions& rendererOptions,
-	ConstantBufferView* sceneUniformBuffer,
-	GPUScene* gpuScene,
-	GPUCulling* gpuCulling,
-	Texture* RT_sceneColor,
-	Texture* RT_thinGBufferA)
+void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput)
 {
+	auto scene              = passInput.scene;
+	auto camera             = passInput.camera;
+	auto bIndirectDraw      = passInput.bIndirectDraw;
+	auto bGPUCulling        = passInput.bGPUCulling;
+	auto sceneUniformBuffer = passInput.sceneUniformBuffer;
+	auto gpuScene           = passInput.gpuScene;
+	auto gpuCulling         = passInput.gpuCulling;
+	auto sceneColor         = passInput.sceneColor;
+	auto thinGBufferA       = passInput.thinGBufferA;
+
 	if (gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
 		// #todo-zero-size: Release resources if any.
@@ -169,8 +169,8 @@ void BasePass::renderBasePass(
 	// #todo-renderer: Support other topologies
 	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
 
-	CHECK(RT_sceneColor->getCreateParams().format == PF_sceneColor);
-	CHECK(RT_thinGBufferA->getCreateParams().format == PF_thinGBufferA);
+	CHECK(sceneColor->getCreateParams().format == PF_sceneColor);
+	CHECK(thinGBufferA->getCreateParams().format == PF_thinGBufferA);
 
 	// Resize volatile heaps if needed.
 	{
@@ -257,7 +257,7 @@ void BasePass::renderBasePass(
 
 	// Fill the indirect draw buffer and perform GPU culling.
 	uint32 maxIndirectDraws = 0;
-	if (rendererOptions.bEnableIndirectDraw)
+	if (bIndirectDraw)
 	{
 		uint32 indirectCommandID = 0;
 		for (const StaticMesh* mesh : scene->staticMeshes)
@@ -287,7 +287,7 @@ void BasePass::renderBasePass(
 		Buffer* currentArgumentBuffer = argumentBuffer.at(swapchainIndex);
 		argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, currentArgumentBuffer, 0);
 
-		if (rendererOptions.bEnableGPUCulling)
+		if (bGPUCulling)
 		{
 			gpuCulling->cullDrawCommands(
 				commandList, swapchainIndex, sceneUniformBuffer, camera, gpuScene,
@@ -314,9 +314,9 @@ void BasePass::renderBasePass(
 		commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 	}
 	
-	if (rendererOptions.bEnableIndirectDraw)
+	if (bIndirectDraw)
 	{
-		if (rendererOptions.bEnableGPUCulling)
+		if (bGPUCulling)
 		{
 			Buffer* argBuffer = culledArgumentBuffer.at(swapchainIndex);
 			Buffer* counterBuffer = drawCounterBuffer.at(swapchainIndex);

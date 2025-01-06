@@ -15,22 +15,26 @@ class GPUScene;
 class GPUCulling;
 class Texture;
 
+struct BasePassInput
+{
+	const SceneProxy*      scene;
+	const Camera*          camera;
+	bool                   bIndirectDraw;
+	bool                   bGPUCulling;
+
+	ConstantBufferView*    sceneUniformBuffer;
+	GPUScene*              gpuScene;
+	GPUCulling*            gpuCulling;
+	Texture*               sceneColor;
+	Texture*               thinGBufferA;
+};
+
 class BasePass final
 {
 public:
 	void initialize();
 
-	void renderBasePass(
-		RenderCommandList* commandList,
-		uint32 swapchainIndex,
-		const SceneProxy* scene,
-		const Camera* camera,
-		const RendererOptions& rendererOptions,
-		ConstantBufferView* sceneUniformBuffer,
-		GPUScene* gpuScene,
-		GPUCulling* gpuCulling,
-		Texture* RT_sceneColor,
-		Texture* RT_thinGBufferA);
+	void renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput);
 
 private:
 	void resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors);

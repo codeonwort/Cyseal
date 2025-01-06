@@ -265,13 +265,18 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->clearRenderTargetView(thinGBufferARTV.get(), clearColor);
 		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
 
-		basePass->renderBasePass(
-			commandList, swapchainIndex,
-			scene, camera, renderOptions,
-			sceneUniformCBVs[swapchainIndex].get(),
-			gpuScene,
-			gpuCulling,
-			RT_sceneColor.get(), RT_thinGBufferA.get());
+		BasePassInput passInput{
+			.scene              = scene,
+			.camera             = camera,
+			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
+			.bGPUCulling        = renderOptions.bEnableGPUCulling,
+			.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
+			.gpuScene           = gpuScene,
+			.gpuCulling         = gpuCulling,
+			.sceneColor         = RT_sceneColor.get(),
+			.thinGBufferA       = RT_thinGBufferA.get(),
+		};
+		basePass->renderBasePass(commandList, swapchainIndex, passInput);
 	}
 
 	{
