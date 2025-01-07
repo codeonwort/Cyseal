@@ -21,9 +21,6 @@
     <ClCompile Include="src\app.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\unit_tests.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="src\mesh_splatting.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -52,6 +49,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\world2.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\unit_tests.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
