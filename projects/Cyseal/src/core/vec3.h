@@ -21,8 +21,8 @@ public:
 		z = e2;
 	}
 
-	inline bool operator==(const vec3& v2) { return x == v2.x && y == v2.y && z == v2.z; }
-	inline bool operator!=(const vec3& v2) { return !(*this == v2); }
+	inline bool operator==(const vec3& v2) const { return x == v2.x && y == v2.y && z == v2.z; }
+	inline bool operator!=(const vec3& v2) const { return !(*this == v2); }
 
 	inline const vec3& operator+() const { return *this; }
 	inline vec3 operator-() const { return vec3(-x, -y, -z); }
