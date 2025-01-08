@@ -52,10 +52,12 @@ inline const char** getPathTracingModeNames()
 
 struct RendererOptions
 {
-	bool bEnableRayTracedReflections = true;
 	bool bEnableIndirectDraw = true;
 	bool bEnableGPUCulling = true;
+
 	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
+
+	bool bEnableRayTracedReflections = true;
 
 	EPathTracingMode pathTracing = EPathTracingMode::Disabled;
 	bool bCameraHasMoved = false;

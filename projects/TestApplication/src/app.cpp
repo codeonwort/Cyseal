@@ -103,16 +103,19 @@ void TestApplication::onTick(float deltaSeconds)
 		}
 		appState.rendererOptions.bCameraHasMoved = bCameraHasMoved;
 
-		if (appState.rendererOptions.pathTracing != EPathTracingMode::Disabled)
+		if (appState.rendererOptions.pathTracing == EPathTracingMode::Disabled)
 		{
-			if (bCameraHasMoved && appState.rendererOptions.pathTracing == EPathTracingMode::Offline)
-			{
-				appState.pathTracingNumFrames = 0;
-			}
-			else
-			{
-				appState.pathTracingNumFrames += 1;
-			}
+			appState.pathTracingNumFrames = 0;
+		}
+		else if (appState.rendererOptions.pathTracing == EPathTracingMode::Offline)
+		{
+			appState.pathTracingNumFrames += 1;
+			if (bCameraHasMoved) appState.pathTracingNumFrames = 0;
+		}
+		else
+		{
+			appState.pathTracingNumFrames += 1;
+			if (appState.pathTracingNumFrames > 64) appState.pathTracingNumFrames = 64;
 		}
 
 		world->onTick(deltaSeconds);
@@ -145,14 +148,22 @@ void TestApplication::onTick(float deltaSeconds)
 			{
 				ImGui::EndDisabled();
 			}
-			ImGui::Checkbox("Ray Traced Reflections", &appState.rendererOptions.bEnableRayTracedReflections);
 
-			ImGui::Combo("Visualization Mode", &appState.selectedBufferVisualizationMode, getBufferVisualizationModeNames(), (int32)EBufferVisualizationMode::Count);
+			ImGui::SeparatorText("Debug Visualization");
+			ImGui::Combo("Debug Mode", &appState.selectedBufferVisualizationMode, getBufferVisualizationModeNames(), (int32)EBufferVisualizationMode::Count);
 			appState.rendererOptions.bufferVisualization = (EBufferVisualizationMode)appState.selectedBufferVisualizationMode;
 
+			ImGui::SeparatorText("Ray Tracing");
+			ImGui::Checkbox("Indirect Specular Reflection", &appState.rendererOptions.bEnableRayTracedReflections);
+
 			ImGui::SeparatorText("Path Tracing");
+			auto prevPathTracingMode = appState.selectedPathTracingMode;
 			ImGui::Combo("Path Tracing Mode", &appState.selectedPathTracingMode, getPathTracingModeNames(), (int32)EPathTracingMode::Count);
 			appState.rendererOptions.pathTracing = (EPathTracingMode)appState.selectedPathTracingMode;
+			if (appState.selectedPathTracingMode != prevPathTracingMode)
+			{
+				appState.pathTracingNumFrames = 0;
+			}
 			ImGui::Text("Frames: %u", appState.pathTracingNumFrames);
 
 			ImGui::SeparatorText("Control");
