@@ -20,10 +20,10 @@
 
 // I don't call TraceRays() recursively, so this constant actually doesn't matter.
 // Rather see MAX_BOUNCE in rt_reflection.hlsl.
-#define RTR_MAX_RECURSION            2
-#define RTR_HIT_GROUP_NAME           L"RTR_HitGroup"
+#define INDIRECT_SPECULAR_MAX_RECURSION     2
+#define INDIRECT_SPECULAR_HIT_GROUP_NAME    L"IndirectSpecular_HitGroup"
 
-DEFINE_LOG_CATEGORY_STATIC(LogRayTracedReflections);
+DEFINE_LOG_CATEGORY_STATIC(LogIndirectSpecular);
 
 // Just to calculate size in bytes.
 // Should match with RayPayload in rt_reflection.hlsl.
@@ -48,7 +48,7 @@ struct ClosestHitPushConstants
 };
 static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
 
-void RayTracedReflections::initialize()
+void IndirecSpecularPass::initialize()
 {
 	if (isAvailable() == false)
 	{
@@ -77,7 +77,7 @@ void RayTracedReflections::initialize()
 
 	// RTPSO
 	RaytracingPipelineStateObjectDesc pipelineDesc{
-		.hitGroupName                 = RTR_HIT_GROUP_NAME,
+		.hitGroupName                 = INDIRECT_SPECULAR_HIT_GROUP_NAME,
 		.hitGroupType                 = ERaytracingHitGroupType::Triangles,
 		.raygenShader                 = raygenShader,
 		.closestHitShader             = closestHitShader,
@@ -87,7 +87,7 @@ void RayTracedReflections::initialize()
 		.missLocalParameters          = {},
 		.maxPayloadSizeInBytes        = sizeof(RTRRayPayload),
 		.maxAttributeSizeInBytes      = sizeof(RTRTriangleIntersectionAttributes),
-		.maxTraceRecursionDepth       = RTR_MAX_RECURSION,
+		.maxTraceRecursionDepth       = INDIRECT_SPECULAR_MAX_RECURSION,
 	};
 	RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
 
@@ -119,25 +119,24 @@ void RayTracedReflections::initialize()
 	}
 }
 
-bool RayTracedReflections::isAvailable() const
+bool IndirecSpecularPass::isAvailable() const
 {
 	return gRenderDevice->getRaytracingTier() != ERaytracingTier::NotSupported;
 }
 
-void RayTracedReflections::renderRayTracedReflections(
-	RenderCommandList* commandList,
-	uint32 swapchainIndex,
-	const SceneProxy* scene,
-	const Camera* camera,
-	ConstantBufferView* sceneUniformBuffer,
-	AccelerationStructure* raytracingScene,
-	GPUScene* gpuScene,
-	UnorderedAccessView* thinGBufferAUAV,
-	UnorderedAccessView* indirectSpecularUAV,
-	ShaderResourceView* skyboxSRV,
-	uint32 sceneWidth,
-	uint32 sceneHeight)
+void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
 {
+	auto scene               = passInput.scene;
+	auto camera              = passInput.camera;
+	auto sceneUniformBuffer  = passInput.sceneUniformBuffer;
+	auto raytracingScene     = passInput.raytracingScene;
+	auto gpuScene            = passInput.gpuScene;
+	auto thinGBufferAUAV     = passInput.thinGBufferAUAV;
+	auto indirectSpecularUAV = passInput.indirectSpecularUAV;
+	auto skyboxSRV           = passInput.skyboxSRV;
+	auto sceneWidth          = passInput.sceneWidth;
+	auto sceneHeight         = passInput.sceneHeight;
+
 	if (isAvailable() == false)
 	{
 		return;
@@ -214,7 +213,7 @@ void RayTracedReflections::renderRayTracedReflections(
 	commandList->dispatchRays(dispatchDesc);
 }
 
-void RayTracedReflections::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors)
+void IndirecSpecularPass::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors)
 {
 	totalVolatileDescriptor[swapchainIndex] = maxDescriptors;
 
@@ -231,10 +230,10 @@ void RayTracedReflections::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxD
 	swprintf_s(debugName, L"RTR_VolatileViewHeap_%u", swapchainIndex);
 	volatileViewHeap[swapchainIndex]->setDebugName(debugName);
 
-	CYLOG(LogRayTracedReflections, Log, L"Resize volatile heap [%u]: %u descriptors", swapchainIndex, maxDescriptors);
+	CYLOG(LogIndirectSpecular, Log, L"Resize volatile heap [%u]: %u descriptors", swapchainIndex, maxDescriptors);
 }
 
-void RayTracedReflections::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords)
+void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords)
 {
 	totalHitGroupShaderRecord[swapchainIndex] = maxRecords;
 
@@ -252,8 +251,8 @@ void RayTracedReflections::resizeHitGroupShaderTable(uint32 swapchainIndex, uint
 			.pushConstants = ClosestHitPushConstants{ .materialID = i }
 		};
 
-		hitGroupShaderTable[swapchainIndex]->uploadRecord(i, RTR_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
+		hitGroupShaderTable[swapchainIndex]->uploadRecord(i, INDIRECT_SPECULAR_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
 	}
 
-	CYLOG(LogRayTracedReflections, Log, L"Resize hit group shader table [%u]: %u records", swapchainIndex, maxRecords);
+	CYLOG(LogIndirectSpecular, Log, L"Resize hit group shader table [%u]: %u records", swapchainIndex, maxRecords);
 }

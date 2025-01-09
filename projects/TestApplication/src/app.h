@@ -9,6 +9,7 @@ struct AppState
 {
 	RendererOptions rendererOptions;
 	int32 selectedBufferVisualizationMode = 0;
+	int32 selectedIndirectSpecularMode = 0;
 	int32 selectedPathTracingMode = 0;
 	uint32 pathTracingNumFrames = 0;
 };

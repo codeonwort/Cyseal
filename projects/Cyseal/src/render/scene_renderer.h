@@ -13,7 +13,7 @@ class ConstantBufferView;
 class GPUScene;
 class GPUCulling;
 class BasePass;
-class RayTracedReflections;
+class IndirecSpecularPass;
 class ToneMapping;
 class BufferVisualization;
 class PathTracingPass;
@@ -101,12 +101,11 @@ private:
 
 	// ------------------------------------------------------------------------
 	// Render passes
-	GPUScene*             gpuScene            = nullptr;
-	GPUCulling*           gpuCulling          = nullptr;
-	BasePass*             basePass            = nullptr;
-	RayTracedReflections* rtReflections       = nullptr;
-	ToneMapping*          toneMapping         = nullptr;
-	BufferVisualization*  bufferVisualization = nullptr;
-
-	PathTracingPass*      pathTracingPass     = nullptr;
+	GPUScene*             gpuScene              = nullptr;
+	GPUCulling*           gpuCulling            = nullptr;
+	BasePass*             basePass              = nullptr;
+	IndirecSpecularPass*  indirectSpecularPass  = nullptr;
+	ToneMapping*          toneMapping           = nullptr;
+	BufferVisualization*  bufferVisualization   = nullptr;
+	PathTracingPass*      pathTracingPass       = nullptr;
 };

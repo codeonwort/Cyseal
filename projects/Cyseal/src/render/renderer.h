@@ -19,6 +19,15 @@ enum class EBufferVisualizationMode : uint32
 	Count,
 };
 
+enum class EIndirectSpecularMode
+{
+	Disabled         = 0,
+	ForceMirror      = 1,
+	//BRDF             = 2,
+
+	Count
+};
+
 enum class EPathTracingMode : uint32
 {
 	Disabled         = 0,
@@ -37,7 +46,18 @@ inline const char** getBufferVisualizationModeNames()
 		"IndirectSpecular",
 	};
 	return strings;
-};
+}
+
+inline const char** getIndirectSpecularModeNames()
+{
+	static const char* strings[] =
+	{
+		"Disabled",
+		"ForceMirror",
+		"BRDF",
+	};
+	return strings;
+}
 
 inline const char** getPathTracingModeNames()
 {
@@ -48,7 +68,7 @@ inline const char** getPathTracingModeNames()
 		"Realtime",
 	};
 	return strings;
-};
+}
 
 struct RendererOptions
 {
@@ -57,15 +77,16 @@ struct RendererOptions
 
 	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
 
-	bool bEnableRayTracedReflections = true;
+	EIndirectSpecularMode indirectSpecular = EIndirectSpecularMode::ForceMirror;
 
 	EPathTracingMode pathTracing = EPathTracingMode::Disabled;
 	bool bCameraHasMoved = false;
 
 	bool anyRayTracingEnabled() const
 	{
-		bool bEnablePathTracing = pathTracing != EPathTracingMode::Disabled;
-		return bEnableRayTracedReflections || bEnablePathTracing;
+		bool bIndirectSpecular = indirectSpecular != EIndirectSpecularMode::Disabled;
+		bool bPathTracing = pathTracing != EPathTracingMode::Disabled;
+		return bIndirectSpecular || bPathTracing;
 	}
 };
 

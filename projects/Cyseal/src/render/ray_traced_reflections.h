@@ -10,26 +10,28 @@ class SceneProxy;
 class Camera;
 class GPUScene;
 
-class RayTracedReflections final
+struct IndirectSpecularInput
+{
+	const SceneProxy*      scene;
+	const Camera*          camera;
+	ConstantBufferView*    sceneUniformBuffer;
+	AccelerationStructure* raytracingScene;
+	GPUScene*              gpuScene;
+	UnorderedAccessView*   thinGBufferAUAV;
+	UnorderedAccessView*   indirectSpecularUAV;
+	ShaderResourceView*    skyboxSRV;
+	uint32                 sceneWidth;
+	uint32                 sceneHeight;
+};
+
+class IndirecSpecularPass final
 {
 public:
 	void initialize();
 
 	bool isAvailable() const;
 
-	void renderRayTracedReflections(
-		RenderCommandList* commandList,
-		uint32 swapchainIndex,
-		const SceneProxy* scene,
-		const Camera* camera,
-		ConstantBufferView* sceneUniformBuffer,
-		AccelerationStructure* raytracingScene,
-		GPUScene* gpuScene,
-		UnorderedAccessView* thinGBufferAUAV,
-		UnorderedAccessView* indirectSpecularUAV,
-		ShaderResourceView* skyboxSRV,
-		uint32 sceneWidth,
-		uint32 sceneHeight);
+	void renderIndirectSpecular(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 
 private:
 	void resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors);

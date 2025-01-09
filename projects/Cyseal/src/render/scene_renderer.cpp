@@ -85,8 +85,8 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		basePass = new BasePass;
 		basePass->initialize();
 
-		rtReflections = new RayTracedReflections;
-		rtReflections->initialize();
+		indirectSpecularPass = new IndirecSpecularPass;
+		indirectSpecularPass->initialize();
 
 		toneMapping = new ToneMapping;
 		toneMapping->initialize();
@@ -112,7 +112,7 @@ void SceneRenderer::destroy()
 	delete gpuScene;
 	delete gpuCulling;
 	delete basePass;
-	delete rtReflections;
+	delete indirectSpecularPass;
 	delete toneMapping;
 	delete bufferVisualization;
 	delete pathTracingPass;
@@ -150,12 +150,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
 	const bool bRenderPathTracing = bSupportsRaytracing && (renderOptions.pathTracing != EPathTracingMode::Disabled);
 	
-	bool bRenderRTR = bSupportsRaytracing && renderOptions.bEnableRayTracedReflections;
-	// Let RT_indirectSpecular cleared as black so that tone mapping pass
-	// takes sceneColor = pathTracing, indirectSpecular = 0 when path tracing is enabled.
-	bRenderRTR = bRenderRTR && !bRenderPathTracing;
+	// If disabled, RT_indirectSpecular will be cleared as black
+	// so that tone mapping pass reads indirectSpecular as zero.
+	bool bRenderIndirectSpecular = bSupportsRaytracing
+		&& renderOptions.indirectSpecular != EIndirectSpecularMode::Disabled
+		&& bRenderPathTracing == false;
 
-	const bool bRenderAnyRaytracingPass = bRenderRTR || bRenderPathTracing;
+	const bool bRenderAnyRaytracingPass = renderOptions.anyRayTracingEnabled();
 
 	rebuildFrameResources(commandList, scene);
 
@@ -317,10 +318,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		}
 	}
 
-	// Ray Traced Reflections
-	if (!bRenderRTR)
+	// Indirect Specular Reflection
+	if (!bRenderIndirectSpecular)
 	{
-		SCOPED_DRAW_EVENT(commandList, ClearRayTracedReflections);
+		SCOPED_DRAW_EVENT(commandList, ClearIndirectSpecular);
 
 		TextureMemoryBarrier barriersBefore[] = {
 			{
@@ -331,7 +332,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
-		// Clear RTR as a render target, every frame. (not so ideal but works)
+		// Clear as a render target, every frame. (not so ideal but works)
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		commandList->clearRenderTargetView(indirectSpecularRTV.get(), clearColor);
 
@@ -346,7 +347,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 	else
 	{
-		SCOPED_DRAW_EVENT(commandList, RayTracedReflections);
+		SCOPED_DRAW_EVENT(commandList, IndirectSpecular);
 
 		TextureMemoryBarrier barriers[] = {
 			{
@@ -356,14 +357,20 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			}
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
-
-		rtReflections->renderRayTracedReflections(
-			commandList, swapchainIndex, scene, camera,
-			sceneUniformCBVs[swapchainIndex].get(),
-			accelStructure.get(),
-			gpuScene,
-			thinGBufferAUAV.get(), indirectSpecularUAV.get(), skyboxSRV.get(),
-			sceneWidth, sceneHeight);
+		
+		IndirectSpecularInput passInput{
+			.scene               = scene,
+			.camera              = camera,
+			.sceneUniformBuffer  = sceneUniformCBVs[swapchainIndex].get(),
+			.raytracingScene     = accelStructure.get(),
+			.gpuScene            = gpuScene,
+			.thinGBufferAUAV     = thinGBufferAUAV.get(),
+			.indirectSpecularUAV = indirectSpecularUAV.get(),
+			.skyboxSRV           = skyboxSRV.get(),
+			.sceneWidth          = sceneWidth,
+			.sceneHeight         = sceneHeight,
+		};
+		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
 	}
 
 	// Tone mapping
@@ -421,7 +428,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		BufferVisualizationSources sources{
 			.mode                = renderOptions.bufferVisualization,
 			.sceneColorSRV       = sceneColorSRV.get(),
-			.indirectSpecularSRV = bRenderRTR ? indirectSpecularSRV.get() : grey2DSRV.get(),
+			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(
