@@ -6,6 +6,7 @@
 #include "rhi/gpu_resource_view.h"
 #include "rhi/texture.h"
 #include "render/renderer.h"
+#include "render/util/volatile_descriptor.h"
 
 class SceneProxy;
 class Camera;
@@ -36,24 +37,6 @@ struct PathTracingInput
 
 class PathTracingPass final
 {
-private:
-	class VolatileDescriptorHelper
-	{
-	public:
-		void initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize);
-		void resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors);
-		inline DescriptorHeap* getDescriptorHeap(uint32 swapchainIndex) const { return descriptorHeap.at(swapchainIndex); }
-		inline ConstantBufferView* getUniformCBV(uint32 swapchainIndex) const { return uniformCBVs.at(swapchainIndex); }
-	private:
-		std::wstring passName;
-		std::vector<uint32> totalDescriptor; // size = swapchain count
-		BufferedUniquePtr<DescriptorHeap> descriptorHeap; // size = swapchain count
-		// #todo-renderer: Temp dedicated memory for uniforms
-		UniquePtr<Buffer> uniformMemory;
-		UniquePtr<DescriptorHeap> uniformDescriptorHeap;
-		BufferedUniquePtr<ConstantBufferView> uniformCBVs;
-	};
-
 public:
 	void initialize();
 
