@@ -196,7 +196,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		SPT.rwTexture("renderTarget", indirectSpecularUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		// Bindless
-		SPT.constantBuffer("materials", gpuSceneDesc.cbvHeap, 0, gpuSceneDesc.cbvCount);
+		SPT.structuredBuffer("materials", gpuSceneDesc.constantsSRV);
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
