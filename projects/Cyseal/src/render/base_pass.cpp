@@ -308,7 +308,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
-		SPT.constantBuffer("materials", gpuSceneDesc.cbvHeap, 0, gpuSceneDesc.cbvCount);
+		SPT.structuredBuffer("materials", gpuSceneDesc.constantsSRV);
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));

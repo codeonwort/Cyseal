@@ -192,11 +192,11 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
+		SPT.structuredBuffer("materials", gpuSceneDesc.constantsSRV);
 		SPT.texture("skybox", skyboxSRV);
 		SPT.rwTexture("renderTarget", indirectSpecularUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		// Bindless
-		SPT.structuredBuffer("materials", gpuSceneDesc.constantsSRV);
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);

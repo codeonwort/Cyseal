@@ -16,9 +16,10 @@ struct PushConstants
     uint objectId;
 };
 
-ConstantBuffer<PushConstants> pushConstants   : register(b0);
-ConstantBuffer<SceneUniform> sceneUniform     : register(b1);
+ConstantBuffer<PushConstants>  pushConstants  : register(b0);
+ConstantBuffer<SceneUniform>   sceneUniform   : register(b1);
 StructuredBuffer<GPUSceneItem> gpuSceneBuffer : register(t0);
+StructuredBuffer<Material>     materials      : register(t1);
 
 uint getObjectId() { return pushConstants.objectId; }
 GPUSceneItem getGPUSceneItem() { return gpuSceneBuffer[pushConstants.objectId]; }
@@ -26,8 +27,6 @@ GPUSceneItem getGPUSceneItem() { return gpuSceneBuffer[pushConstants.objectId]; 
 // ------------------------------------------------------------------------
 // Resource bindings (material-specific)
 
-// #wip-descriptor: SPIR-V can't handle it. Switch to StructuredBuffer?
-ConstantBuffer<Material> materials[]        : register(b0, space1); // bindless in another space
 Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space1); // bindless in another space
 SamplerState albedoSampler                  : register(s0);
 
