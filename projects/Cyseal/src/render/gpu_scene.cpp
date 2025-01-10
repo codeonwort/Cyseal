@@ -77,6 +77,10 @@ void GPUScene::initialize()
 	materialCBVs.initialize(swapchainCount);
 	materialSRVs.initialize(swapchainCount);
 
+	materialConstantsMemory.initialize(swapchainCount);
+	materialConstantsHeap.initialize(swapchainCount);
+	materialConstantsSRV.initialize(swapchainCount);
+
 	// Shader
 	ShaderStage* gpuSceneShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
 	gpuSceneShader->declarePushConstants({ "pushConstants" });
@@ -145,8 +149,8 @@ void GPUScene::renderGPUScene(
 
 	// #todo-gpuscene: Don't upload unchanged materials. Also don't copy one by one.
 	// Prepare bindless materials.
-	uint32& currentMaterialCBVCount = materialSRVActualCounts[swapchainIndex];
-	uint32& currentMaterialSRVCount = materialCBVActualCounts[swapchainIndex];
+	uint32& currentMaterialCBVCount = materialCBVActualCounts[swapchainIndex];
+	uint32& currentMaterialSRVCount = materialSRVActualCounts[swapchainIndex];
 	currentMaterialCBVCount = 0;
 	currentMaterialSRVCount = 0;
 	{
@@ -164,6 +168,10 @@ void GPUScene::renderGPUScene(
 		SRVs.reserve(numMeshSections);
 		srvHeap->resetAllDescriptors(); // Need to clear SRVs first.
 
+		auto albedoFallbackTexture = gTextureManager->getSystemTextureGrey2D()->getGPUResource();
+
+		std::vector<MaterialConstants> materialConstantsData(materialCBVMaxCounts[swapchainIndex]);
+
 		for (uint32 i = 0; i < numStaticMeshes; ++i)
 		{
 			StaticMesh* staticMesh = scene->staticMeshes[i];
@@ -173,7 +181,7 @@ void GPUScene::renderGPUScene(
 				Material* const material = section.material.get();
 
 				// SRV
-				auto albedo = gTextureManager->getSystemTextureGrey2D()->getGPUResource();
+				auto albedo = albedoFallbackTexture;
 				if (material != nullptr && material->albedoTexture != nullptr)
 				{
 					albedo = material->albedoTexture->getGPUResource();
@@ -202,6 +210,8 @@ void GPUScene::renderGPUScene(
 				}
 				constants.albedoTextureIndex = currentMaterialSRVCount;
 
+				materialConstantsData[currentMaterialCBVCount] = constants;
+
 				ConstantBufferView* cbv = CBVs[currentMaterialCBVCount].get();
 				cbv->writeToGPU(commandList, &constants, sizeof(constants));
 
@@ -210,6 +220,9 @@ void GPUScene::renderGPUScene(
 				++currentMaterialCBVCount;
 			}
 		}
+
+		uint32 materialDataSize = (uint32)(sizeof(MaterialConstants) * materialConstantsData.size());
+		materialConstantsMemory[swapchainIndex]->singleWriteToGPU(commandList, materialConstantsData.data(), materialDataSize, 0);
 	}
 	
 	// #todo-gpuscene: Avoid recreation of buffers when bRebuildGPUScene == true.
@@ -317,6 +330,7 @@ GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swap
 		.srvHeap = materialSRVHeap.at(swapchainIndex),
 		.cbvCount = materialCBVActualCounts[swapchainIndex],
 		.srvCount = materialSRVActualCounts[swapchainIndex],
+		.constantsSRV = materialConstantsSRV.at(swapchainIndex),
 	};
 }
 
@@ -484,6 +498,37 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, 
 			// #todo-rhi: Let RHI layer handle this alignment
 			cbMemoryOffset += align(sizeof(MaterialConstants), 256);
 		}
+
+		// #wip
+		materialConstantsMemory[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = materialMemorySize,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::COPY_SRC,
+			}
+		));
+		materialConstantsHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+			DescriptorHeapDesc{
+				.type           = EDescriptorHeapType::SRV,
+				.numDescriptors = maxCBVCount,
+				.flags          = EDescriptorHeapFlags::None,
+				.nodeMask       = 0,
+			}
+		));
+		materialConstantsSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(
+			materialConstantsMemory.at(swapchainIndex),
+			materialConstantsHeap.at(swapchainIndex),
+			ShaderResourceViewDesc{
+				.format                  = EPixelFormat::UNKNOWN,
+				.viewDimension           = ESRVDimension::Buffer,
+				.buffer                  = BufferSRVDesc{
+					.firstElement        = 0,
+					.numElements         = maxCBVCount,
+					.structureByteStride = sizeof(MaterialConstants),
+					.flags               = EBufferSRVFlags::None,
+				}
+			}
+		));
 	}
 
 	if (materialSRVMaxCounts[swapchainIndex] < maxSRVCount)

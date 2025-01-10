@@ -26,6 +26,8 @@ public:
 		DescriptorHeap* srvHeap;
 		uint32 cbvCount;
 		uint32 srvCount;
+
+		ShaderResourceView* constantsSRV;
 	};
 
 public:
@@ -83,4 +85,9 @@ private:
 	BufferedUniquePtr<DescriptorHeap> materialSRVHeap;
 	BufferedUniquePtrVec<ConstantBufferView> materialCBVs;
 	BufferedUniquePtrVec<ShaderResourceView> materialSRVs;
+
+	// #wip: Replace materialCBVs
+	BufferedUniquePtr<Buffer> materialConstantsMemory;
+	BufferedUniquePtr<DescriptorHeap> materialConstantsHeap;
+	BufferedUniquePtr<ShaderResourceView> materialConstantsSRV;
 };
