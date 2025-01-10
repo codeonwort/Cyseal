@@ -13,13 +13,18 @@
 class VolatileDescriptorHelper
 {
 public:
+	// If uniformTotalSize is zero, uniform buffer resources are not created.
 	void initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize);
 	
 	void resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors);
 	
 	inline DescriptorHeap* getDescriptorHeap(uint32 swapchainIndex) const { return descriptorHeap.at(swapchainIndex); }
 	
-	inline ConstantBufferView* getUniformCBV(uint32 swapchainIndex) const { return uniformCBVs.at(swapchainIndex); }
+	inline ConstantBufferView* getUniformCBV(uint32 swapchainIndex) const
+	{
+		CHECK(uniformCBVs.size() > 0); // uniformTotalSize was 0 in initialize().
+		return uniformCBVs.at(swapchainIndex);
+	}
 
 private:
 	std::wstring passName;

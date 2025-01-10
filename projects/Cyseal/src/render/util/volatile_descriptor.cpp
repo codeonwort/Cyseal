@@ -12,6 +12,7 @@ void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swap
 	descriptorHeap.initialize(swapchainCount);
 
 	// Uniforms
+	if (uniformTotalSize > 0)
 	{
 		CHECK(uniformTotalSize * swapchainCount <= UNIFORM_MEMORY_POOL_SIZE);
 
