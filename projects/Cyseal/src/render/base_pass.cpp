@@ -165,6 +165,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		// #todo-zero-size: Release resources if any.
 		return;
 	}
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 	// #todo-renderer: Support other topologies
 	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
@@ -174,14 +175,11 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 
 	// Resize volatile heaps if needed.
 	{
-		uint32 materialCBVCount, materialSRVCount;
-		gpuScene->queryMaterialDescriptorsCount(swapchainIndex, materialCBVCount, materialSRVCount);
-
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 1; // sceneUniform
 		requiredVolatiles += 1; // gpuSceneBuffer
-		requiredVolatiles += materialCBVCount;
-		requiredVolatiles += materialSRVCount;
+		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
+		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
 
 		if (requiredVolatiles > totalVolatileDescriptor[swapchainIndex])
 		{
@@ -303,12 +301,10 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 
 	// Bind shader parameters except for root constants.
 	{
-		GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
-
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
-		SPT.constantBuffer("materials", gpuSceneDesc.cbvHeap, 0, gpuSceneDesc.cbvCount);
+		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));

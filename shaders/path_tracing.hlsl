@@ -64,8 +64,9 @@ RaytracingAccelerationStructure    rtScene               : register(t0, space0);
 ByteAddressBuffer                  gIndexBuffer          : register(t1, space0);
 ByteAddressBuffer                  gVertexBuffer         : register(t2, space0);
 StructuredBuffer<GPUSceneItem>     gpuSceneBuffer        : register(t3, space0);
-TextureCube                        skybox                : register(t4, space0);
-Texture2D                          sceneDepthTexture     : register(t5, space0);
+StructuredBuffer<Material>         materials             : register(t4, space0);
+TextureCube                        skybox                : register(t5, space0);
+Texture2D                          sceneDepthTexture     : register(t6, space0);
 RWTexture2D<float4>                sceneNormalTexture    : register(u0, space0);
 RWTexture2D<float4>                currentColorTexture   : register(u1, space0);
 RWTexture2D<float4>                prevColorTexture      : register(u2, space0);
@@ -76,7 +77,6 @@ ConstantBuffer<SceneUniform>       sceneUniform          : register(b0, space0);
 ConstantBuffer<PathTracingUniform> pathTracingUniform    : register(b1, space0);
 // Material binding
 #define TEMP_MAX_SRVS 1024
-ConstantBuffer<Material> materials[]        : register(b0, space3); // bindless in another space
 Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless in another space
 
 // Local root signature (closest hit)

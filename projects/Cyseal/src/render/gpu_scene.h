@@ -17,35 +17,33 @@ struct MaterialConstants
 	vec3 emission = vec3(0.0f, 0.0f, 0.0f);
 };
 
+struct GPUSceneInput
+{
+	const SceneProxy*   scene;
+	const Camera*       camera;
+	ConstantBufferView* sceneUniform;
+	bool                bRenderAnyRaytracingPass;
+};
+
 class GPUScene final
 {
 public:
 	struct MaterialDescriptorsDesc
 	{
-		DescriptorHeap* cbvHeap;
-		DescriptorHeap* srvHeap;
-		uint32 cbvCount;
-		uint32 srvCount;
+		ShaderResourceView* constantsBufferSRV; // Structured buffer that contains all material constants per mesh section.
+		DescriptorHeap* srvHeap; // Descriptor heap that contains all material textures.
+		uint32 srvCount; // Total material texture count.
 	};
 
 public:
 	void initialize();
 
 	// Update GPU scene buffer.
-	void renderGPUScene(
-		RenderCommandList* commandList,
-		uint32 swapchainIndex,
-		const SceneProxy* scene,
-		const Camera* camera,
-		ConstantBufferView* sceneUniform,
-		bool bRenderAnyRaytracingPass);
+	void renderGPUScene(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput);
 
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 
 	MaterialDescriptorsDesc queryMaterialDescriptors(uint32 swapchainIndex) const;
-
-	// Query how many descriptors are needed.
-	void queryMaterialDescriptorsCount(uint32 swapchainIndex, uint32& outCBVCount, uint32& outSRVCount);
 
 	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
 
@@ -53,7 +51,7 @@ private:
 	void resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors);
 	void resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElements);
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
-	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, uint32 maxSRVCount);
+	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
 
 private:
 	UniquePtr<ComputePipelineState> pipelineState;
@@ -74,13 +72,15 @@ private:
 
 	// Bindless materials (per swapchain)
 	// #todo-gpuscene: Maybe I don't need to separate max count and actual count?
-	std::vector<uint32> materialCBVMaxCounts;
+	// Currently constants count = srv count as there are only albedo textures, but srv count will increase.
+	std::vector<uint32> materialConstantsMaxCounts;
 	std::vector<uint32> materialSRVMaxCounts;
-	std::vector<uint32> materialCBVActualCounts; // Currently same as max count.
+	std::vector<uint32> materialConstantsActualCounts; // Currently same as max count.
 	std::vector<uint32> materialSRVActualCounts; // Currently same as max count.
-	BufferedUniquePtr<Buffer> materialCBVMemory;
-	BufferedUniquePtr<DescriptorHeap> materialCBVHeap;
 	BufferedUniquePtr<DescriptorHeap> materialSRVHeap;
-	BufferedUniquePtrVec<ConstantBufferView> materialCBVs;
 	BufferedUniquePtrVec<ShaderResourceView> materialSRVs;
+
+	BufferedUniquePtr<Buffer> materialConstantsMemory;
+	BufferedUniquePtr<DescriptorHeap> materialConstantsHeap;
+	BufferedUniquePtr<ShaderResourceView> materialConstantsSRV;
 };

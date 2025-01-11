@@ -188,6 +188,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		// #todo-zero-size: Release resources if any.
 		return;
 	}
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 	// -------------------------------------------------------------------
 	// Phase: Setup
@@ -225,9 +226,6 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 	// Resize volatile heaps if needed.
 	{
-		uint32 materialCBVCount, materialSRVCount;
-		gpuScene->queryMaterialDescriptorsCount(swapchainIndex, materialCBVCount, materialSRVCount);
-
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 1; // rtScene
 		requiredVolatiles += 1; // gIndexBuffer
@@ -243,8 +241,8 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		requiredVolatiles += 1; // prevMoment
 		requiredVolatiles += 1; // sceneUniform
 		requiredVolatiles += 1; // pathTracingUniform
-		requiredVolatiles += materialCBVCount;
-		requiredVolatiles += materialSRVCount;
+		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
+		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
 
 		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	}
@@ -261,7 +259,6 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	{
 		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
 		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
-		auto gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 		auto currentMomentUAV = momentHistoryUAV[swapchainIndex % 2].get();
 		auto prevMomentUAV = momentHistoryUAV[(swapchainIndex + 1) % 2].get();
 
@@ -270,6 +267,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
+		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
 		SPT.texture("skybox", skyboxSRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.rwTexture("sceneNormalTexture", passInput.worldNormalUAV);
@@ -281,7 +279,6 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		SPT.constantBuffer("pathTracingUniform", uniformCBV);
 		// Bindless
-		SPT.constantBuffer("materials", gpuSceneDesc.cbvHeap, 0, gpuSceneDesc.cbvCount);
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
