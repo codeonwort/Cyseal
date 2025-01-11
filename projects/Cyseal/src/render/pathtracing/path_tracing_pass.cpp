@@ -193,7 +193,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	// -------------------------------------------------------------------
 	// Phase: Setup
 
-	resizeTextures(commandList, sceneWidth, sceneHeight, passInput.sceneDepthDesc);
+	resizeTextures(commandList, sceneWidth, sceneHeight);
 
 	auto currentColorUAV = colorHistoryUAV[swapchainIndex % 2].get();
 	auto prevColorUAV = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
@@ -233,10 +233,10 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		requiredVolatiles += 1; // gpuSceneBuffer
 		requiredVolatiles += 1; // skybox
 		requiredVolatiles += 1; // sceneDepthTexture
+		requiredVolatiles += 1; // prevSceneDepthTexture
 		requiredVolatiles += 1; // sceneNormalTexture
 		requiredVolatiles += 1; // currentColorTexture
 		requiredVolatiles += 1; // prevColorTexture
-		requiredVolatiles += 1; // prevSceneDepthTexture
 		requiredVolatiles += 1; // currentMoment
 		requiredVolatiles += 1; // prevMoment
 		requiredVolatiles += 1; // sceneUniform
@@ -270,10 +270,10 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
 		SPT.texture("skybox", skyboxSRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
 		SPT.rwTexture("sceneNormalTexture", passInput.worldNormalUAV);
 		SPT.rwTexture("currentColorTexture", currentColorUAV);
 		SPT.rwTexture("prevColorTexture", prevColorUAV);
-		SPT.rwTexture("prevSceneDepthTexture", prevSceneDepthUAV.get());
 		SPT.rwTexture("currentMoment", currentMomentUAV);
 		SPT.rwTexture("prevMoment", prevMomentUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
@@ -371,7 +371,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	}
 }
 
-void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight, const TextureCreateParams* sceneDepthDesc)
+void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
 {
 	if (historyWidth == newWidth && historyHeight == newHeight)
 	{
@@ -385,7 +385,6 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 	commandList->enqueueDeferredDealloc(colorHistory[0].release(), true);
 	commandList->enqueueDeferredDealloc(colorHistory[1].release(), true);
 	commandList->enqueueDeferredDealloc(colorScratch.release(), true);
-	commandList->enqueueDeferredDealloc(prevSceneDepth.release(), true);
 
 	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
 		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
@@ -434,24 +433,6 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 	colorScratchUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorScratch.get(),
 		UnorderedAccessViewDesc{
 			.format         = colorDesc.format,
-			.viewDimension  = EUAVDimension::Texture2D,
-			.texture2D      = Texture2DUAVDesc{
-				.mipSlice   = 0,
-				.planeSlice = 0,
-			},
-		}
-	));
-
-	TextureCreateParams prevSceneDepthDesc = *sceneDepthDesc;
-	prevSceneDepthDesc.format = EPixelFormat::R32_FLOAT;
-	prevSceneDepthDesc.accessFlags = ETextureAccessFlags::UAV;
-
-	prevSceneDepth = UniquePtr<Texture>(gRenderDevice->createTexture(prevSceneDepthDesc));
-	prevSceneDepth->setDebugName(L"RT_PathTracingPrevSceneDepth");
-
-	prevSceneDepthUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(prevSceneDepth.get(),
-		UnorderedAccessViewDesc{
-			.format         = EPixelFormat::R32_FLOAT,
 			.viewDimension  = EUAVDimension::Texture2D,
 			.texture2D      = Texture2DUAVDesc{
 				.mipSlice   = 0,

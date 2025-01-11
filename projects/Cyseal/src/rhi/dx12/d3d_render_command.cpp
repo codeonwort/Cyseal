@@ -171,11 +171,7 @@ void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const fl
 	commandList->ClearRenderTargetView(rawRTV, rgba, 0, nullptr);
 }
 
-void D3DRenderCommandList::clearDepthStencilView(
-	DepthStencilView* DSV,
-	EDepthClearFlags clearFlags,
-	float depth,
-	uint8_t stencil)
+void D3DRenderCommandList::clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil)
 {
 	auto d3dDSV = static_cast<D3DDepthStencilView*>(DSV);
 	auto rawDSV = d3dDSV->getCPUHandle();
@@ -184,6 +180,29 @@ void D3DRenderCommandList::clearDepthStencilView(
 		rawDSV, (D3D12_CLEAR_FLAGS)clearFlags,
 		depth, stencil,
 		0, nullptr);
+}
+
+void D3DRenderCommandList::copyTexture2D(Texture* src, Texture* dst)
+{
+	D3D12_TEXTURE_COPY_LOCATION pDst{
+		.pResource        = into_d3d::id3d12Resource(dst),
+		.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		.SubresourceIndex = 0,
+	};
+	D3D12_TEXTURE_COPY_LOCATION pSrc{
+		.pResource        = into_d3d::id3d12Resource(src),
+		.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		.SubresourceIndex = 0,
+	};
+	D3D12_BOX srcRegion{
+		.left   = 0,
+		.top    = 0,
+		.front  = 0,
+		.right  = src->getCreateParams().width,
+		.bottom = src->getCreateParams().height,
+		.back   = 1,
+	};
+	commandList->CopyTextureRegion(&pDst, 0, 0, 0, &pSrc, &srcRegion);
 }
 
 void D3DRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV)

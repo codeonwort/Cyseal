@@ -75,6 +75,9 @@ private:
 	UniquePtr<DepthStencilView> sceneDepthDSV;
 	UniquePtr<ShaderResourceView> sceneDepthSRV;
 
+	UniquePtr<Texture> RT_prevSceneDepth;
+	UniquePtr<ShaderResourceView> prevSceneDepthSRV;
+
 	// Gonna stick to forward shading, but render thin GBuffers like DOOM reboot series.
 	UniquePtr<Texture> RT_thinGBufferA; // #todo-renderer: Maybe switch to R10G10B10A2?
 	UniquePtr<RenderTargetView> thinGBufferARTV;

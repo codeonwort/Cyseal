@@ -56,6 +56,8 @@ public:
 	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override;
 	virtual void clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil) override;
 
+	virtual void copyTexture2D(Texture* src, Texture* dst) override;
+
 	// ------------------------------------------------------------------------
 	// Pipeline state (graphics, compute, raytracing)
 

@@ -103,6 +103,7 @@ void SceneRenderer::destroy()
 {
 	RT_sceneColor.reset();
 	RT_sceneDepth.reset();
+	RT_prevSceneDepth.reset();
 	RT_thinGBufferA.reset();
 	RT_indirectSpecular.reset();
 	RT_pathTracing.reset();
@@ -257,7 +258,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				ETextureMemoryLayout::RENDER_TARGET,
 				RT_thinGBufferA.get(),
-			}
+			},
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
@@ -312,8 +313,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.raytracingScene    = accelStructure.get(),
 				.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
 				.sceneColorUAV      = pathTracingUAV.get(),
-				.sceneDepthDesc     = &sceneDepthDesc,
 				.sceneDepthSRV      = sceneDepthSRV.get(),
+				.prevSceneDepthSRV  = prevSceneDepthSRV.get(),
 				.worldNormalUAV     = thinGBufferAUAV.get(),
 				.skyboxSRV          = skyboxSRV.get(),
 			};
@@ -440,6 +441,41 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			sources);
 	}
 
+	// Store history
+	{
+		SCOPED_DRAW_EVENT(commandList, StoreFrameHistory);
+
+		TextureMemoryBarrier barriersBefore[] = {
+			{
+				ETextureMemoryLayout::DEPTH_STENCIL_TARGET,
+				ETextureMemoryLayout::COPY_SRC,
+				RT_sceneDepth.get(),
+			},
+			{
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::COPY_DEST,
+				RT_prevSceneDepth.get(),
+			},
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{
+				ETextureMemoryLayout::COPY_SRC,
+				ETextureMemoryLayout::DEPTH_STENCIL_TARGET,
+				RT_sceneDepth.get(),
+			},
+			{
+				ETextureMemoryLayout::COPY_DEST,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				RT_prevSceneDepth.get(),
+			},
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	// Dear Imgui: Record commands
 
@@ -550,6 +586,24 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			.texture2D           = Texture2DSRVDesc{
 				.mostDetailedMip = 0,
 				.mipLevels       = RT_sceneDepth->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+
+	cleanup(RT_prevSceneDepth.release());
+	TextureCreateParams prevSceneDepthDesc = sceneDepthDesc;
+	prevSceneDepthDesc.accessFlags = ETextureAccessFlags::SRV;
+	RT_prevSceneDepth = UniquePtr<Texture>(device->createTexture(prevSceneDepthDesc));
+	RT_prevSceneDepth->setDebugName(L"RT_prevSceneDepth");
+	prevSceneDepthSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_prevSceneDepth.get(),
+		ShaderResourceViewDesc{
+			.format              = EPixelFormat::R24_UNORM_X8_TYPELESS,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_prevSceneDepth->getCreateParams().mipLevels,
 				.planeSlice      = 0,
 				.minLODClamp     = 0.0f,
 			},

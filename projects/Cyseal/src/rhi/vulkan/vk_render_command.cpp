@@ -177,6 +177,12 @@ void VulkanRenderCommandList::clearDepthStencilView(DepthStencilView* DSV, EDept
 	CHECK_NO_ENTRY();
 }
 
+void VulkanRenderCommandList::copyTexture2D(Texture* src, Texture* dst)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+}
+
 void VulkanRenderCommandList::setGraphicsPipelineState(GraphicsPipelineState* state)
 {
 	// #todo-vulkan

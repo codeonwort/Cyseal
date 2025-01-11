@@ -67,12 +67,12 @@ StructuredBuffer<GPUSceneItem>     gpuSceneBuffer        : register(t3, space0);
 StructuredBuffer<Material>         materials             : register(t4, space0);
 TextureCube                        skybox                : register(t5, space0);
 Texture2D                          sceneDepthTexture     : register(t6, space0);
+Texture2D                          prevSceneDepthTexture : register(t7, space0);
 RWTexture2D<float4>                sceneNormalTexture    : register(u0, space0);
 RWTexture2D<float4>                currentColorTexture   : register(u1, space0);
 RWTexture2D<float4>                prevColorTexture      : register(u2, space0);
-RWTexture2D<float>                 prevSceneDepthTexture : register(u3, space0);
-RWTexture2D<float4>                currentMoment         : register(u4, space0);
-RWTexture2D<float4>                prevMoment            : register(u5, space0);
+RWTexture2D<float4>                currentMoment         : register(u3, space0);
+RWTexture2D<float4>                prevMoment            : register(u4, space0);
 ConstantBuffer<SceneUniform>       sceneUniform          : register(b0, space0);
 ConstantBuffer<PathTracingUniform> pathTracingUniform    : register(b1, space0);
 // Material binding
@@ -162,7 +162,8 @@ bool getPrevWorldPosition(float3 currPositionWS, out float3 prevPositionWS, out 
 		return false;
 	}
 	float2 resolution = getScreenResolution();
-	float sceneDepth = prevSceneDepthTexture[int2(screenUV * resolution)].r;
+	int2 targetTexel = int2(screenUV * resolution);
+	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
 
 	float z = getNdcZ(sceneDepth);
 	positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0); // [-1,1]
@@ -494,7 +495,6 @@ void MainRaygen()
 		historyCount = min(historyCount, MAX_REALTIME_HISTORY);
 	}
 
-	prevSceneDepthTexture[targetTexel] = sceneDepth;
 	currentMoment[targetTexel] = float4(moments.x, moments.y, variance, historyCount);
 }
 

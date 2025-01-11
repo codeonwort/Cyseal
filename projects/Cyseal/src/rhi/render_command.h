@@ -81,6 +81,10 @@ public:
 
 	virtual void clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil) = 0;
 
+	// #todo-rendercommand: Specify subregion
+	// For now I only need copy between 2D textures of the same size.
+	virtual void copyTexture2D(Texture* src, Texture* dst) = 0;
+
 	// ------------------------------------------------------------------------
 	// Pipeline state object (graphics & compute)
 
