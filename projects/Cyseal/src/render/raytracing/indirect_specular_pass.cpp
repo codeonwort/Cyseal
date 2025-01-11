@@ -1,8 +1,7 @@
-#include "ray_traced_reflections.h"
-#include "static_mesh.h"
-#include "gpu_scene.h"
+#include "indirect_specular_pass.h"
 
-#include "util/logging.h"
+#include "render/static_mesh.h"
+#include "render/gpu_scene.h"
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
@@ -15,19 +14,21 @@
 #include "rhi/texture_manager.h"
 #include "rhi/hardware_raytracing.h"
 
+#include "util/logging.h"
+
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
 // I don't call TraceRays() recursively, so this constant actually doesn't matter.
-// Rather see MAX_BOUNCE in rt_reflection.hlsl.
+// Rather see MAX_BOUNCE in indirect_specular_reflection.hlsl.
 #define INDIRECT_SPECULAR_MAX_RECURSION     2
 #define INDIRECT_SPECULAR_HIT_GROUP_NAME    L"IndirectSpecular_HitGroup"
 
 DEFINE_LOG_CATEGORY_STATIC(LogIndirectSpecular);
 
 // Just to calculate size in bytes.
-// Should match with RayPayload in rt_reflection.hlsl.
-struct RTRRayPayload
+// Should match with RayPayload in indirect_specular_reflection.hlsl.
+struct RayPayload
 {
 	float  surfaceNormal[3];
 	float  roughness;
@@ -36,8 +37,8 @@ struct RTRRayPayload
 	uint32 objectID;
 };
 // Just to calculate size in bytes.
-// Should match with MyAttributes in rt_reflection.hlsl.
-struct RTRTriangleIntersectionAttributes
+// Should match with MyAttributes in indirect_specular_reflection.hlsl.
+struct TriangleIntersectionAttributes
 {
 	float texcoord[2];
 };
@@ -52,7 +53,7 @@ void IndirecSpecularPass::initialize()
 {
 	if (isAvailable() == false)
 	{
-		CYLOG(LogDevice, Warning, L"HardwareRT is not available. Ray Traced Reflections will be disabled.");
+		CYLOG(LogDevice, Warning, L"HardwareRT is not available. Indirect Specular Reflection will be disabled.");
 		return;
 	}
 
@@ -70,9 +71,9 @@ void IndirecSpecularPass::initialize()
 	raygenShader->declarePushConstants();
 	closestHitShader->declarePushConstants({ "g_closestHitCB" });
 	missShader->declarePushConstants();
-	raygenShader->loadFromFile(L"rt_reflection.hlsl", "MyRaygenShader");
-	closestHitShader->loadFromFile(L"rt_reflection.hlsl", "MyClosestHitShader");
-	missShader->loadFromFile(L"rt_reflection.hlsl", "MyMissShader");
+	raygenShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MyRaygenShader");
+	closestHitShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MyClosestHitShader");
+	missShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MyMissShader");
 
 	// RTPSO
 	RaytracingPipelineStateObjectDesc pipelineDesc{
@@ -84,8 +85,8 @@ void IndirecSpecularPass::initialize()
 		.raygenLocalParameters        = {},
 		.closestHitLocalParameters    = { "g_closestHitCB" },
 		.missLocalParameters          = {},
-		.maxPayloadSizeInBytes        = sizeof(RTRRayPayload),
-		.maxAttributeSizeInBytes      = sizeof(RTRTriangleIntersectionAttributes),
+		.maxPayloadSizeInBytes        = sizeof(RayPayload),
+		.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
 		.maxTraceRecursionDepth       = INDIRECT_SPECULAR_MAX_RECURSION,
 	};
 	RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));

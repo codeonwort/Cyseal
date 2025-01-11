@@ -231,7 +231,7 @@
     <ClInclude Include="src\rhi\render_device_capabilities.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\ray_traced_reflections.h">
+    <ClInclude Include="src\render\raytracing\indirect_specular_pass.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="src\rhi\global_descriptor_heaps.h">
@@ -431,7 +431,7 @@
     <ClCompile Include="src\render\gpu_scene.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\ray_traced_reflections.cpp">
+    <ClCompile Include="src\render\raytracing\indirect_specular_pass.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\rhi\global_descriptor_heaps.cpp">

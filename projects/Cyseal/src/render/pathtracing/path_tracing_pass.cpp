@@ -14,7 +14,7 @@
 #include "rhi/hardware_raytracing.h"
 
 // I don't call TraceRays() recursively, so this constant actually doesn't matter.
-// Rather see MAX_BOUNCE in rt_reflection.hlsl.
+// Rather see MAX_BOUNCE in path_tracing.hlsl.
 #define PATH_TRACING_MAX_RECURSION            2
 #define PATH_TRACING_HIT_GROUP_NAME           L"PathTracing_HitGroup"
 

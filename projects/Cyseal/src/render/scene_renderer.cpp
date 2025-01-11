@@ -16,9 +16,9 @@
 #include "render/gpu_scene.h"
 #include "render/gpu_culling.h"
 #include "render/base_pass.h"
-#include "render/ray_traced_reflections.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
+#include "render/raytracing/indirect_specular_pass.h"
 #include "render/pathtracing/path_tracing_pass.h"
 
 #include "util/profiling.h"
