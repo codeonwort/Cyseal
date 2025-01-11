@@ -4,6 +4,7 @@
 #include "core/smart_pointer.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/rhi_forward.h"
+#include "render/util/volatile_descriptor.h"
 
 class Material;
 class SceneProxy;
@@ -34,7 +35,6 @@ public:
 	void renderIndirectSpecular(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 
 private:
-	void resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
 
 private:
@@ -45,6 +45,5 @@ private:
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	std::vector<uint32> totalHitGroupShaderRecord;
 
-	std::vector<uint32> totalVolatileDescriptor;
-	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
+	VolatileDescriptorHelper rayPassDescriptor;
 };

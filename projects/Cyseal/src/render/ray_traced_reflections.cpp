@@ -59,8 +59,7 @@ void IndirecSpecularPass::initialize()
 	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
-	totalVolatileDescriptor.resize(swapchainCount, 0);
-	volatileViewHeap.initialize(swapchainCount);
+	rayPassDescriptor.initialize(L"IndirectSpecular_RayPass", swapchainCount, 0);
 
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
@@ -162,10 +161,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
 		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
 
-		if (requiredVolatiles > totalVolatileDescriptor[swapchainIndex])
-		{
-			resizeVolatileHeap(swapchainIndex, requiredVolatiles);
-		}
+		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	}
 
 	// Resize hit group shader table if needed.
@@ -182,7 +178,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 	// Bind global shader parameters.
 	{
-		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
+		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
 
 		ShaderParameterTable SPT{};
 		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
@@ -208,26 +204,6 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		.depth             = 1,
 	};
 	commandList->dispatchRays(dispatchDesc);
-}
-
-void IndirecSpecularPass::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors)
-{
-	totalVolatileDescriptor[swapchainIndex] = maxDescriptors;
-
-	volatileViewHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
-		DescriptorHeapDesc{
-			.type           = EDescriptorHeapType::CBV_SRV_UAV,
-			.numDescriptors = maxDescriptors,
-			.flags          = EDescriptorHeapFlags::ShaderVisible,
-			.nodeMask       = 0,
-		}
-	));
-
-	wchar_t debugName[256];
-	swprintf_s(debugName, L"RTR_VolatileViewHeap_%u", swapchainIndex);
-	volatileViewHeap[swapchainIndex]->setDebugName(debugName);
-
-	CYLOG(LogIndirectSpecular, Log, L"Resize volatile heap [%u]: %u descriptors", swapchainIndex, maxDescriptors);
 }
 
 void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords)
