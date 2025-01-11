@@ -50,7 +50,7 @@ public:
 private:
 	void createSwapchainImages();
 
-	D3DDevice* device;
+	D3DDevice* device = nullptr;
 
 	WRL::ComPtr<IDXGISwapChain3> rawSwapChain;
 	WRL::ComPtr<ID3D12Resource> rawSwapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];

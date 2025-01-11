@@ -161,7 +161,7 @@ protected:
 
 	// #todo-renderdevice: Move backbuffer formats to swapchain
 	EPixelFormat            backbufferFormat = EPixelFormat::R8G8B8A8_UNORM;
-	EPixelFormat            backbufferDepthFormat = EPixelFormat::D24_UNORM_S8_UINT;
+	EPixelFormat            backbufferDepthFormat = EPixelFormat::D32_FLOAT_S8_UINT; //EPixelFormat::D24_UNORM_S8_UINT;
 	SwapChain*              swapChain = nullptr;
 
 	DescriptorHeap*         imguiSRVHeap = nullptr;

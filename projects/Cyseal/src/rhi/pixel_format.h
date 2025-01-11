@@ -15,6 +15,8 @@ enum class EPixelFormat : uint8
 	R32_TYPELESS,
 	R24G8_TYPELESS,
 	R24_UNORM_X8_TYPELESS,
+	R32G8X24_TYPELESS,
+	R32_FLOAT_X8X24_TYPELESS,
 
 	// UNORM
 	R8G8B8A8_UNORM,
@@ -32,25 +34,29 @@ enum class EPixelFormat : uint8
 	R16_UINT,
 
 	// DepthStencil
-	D24_UNORM_S8_UINT
+	D24_UNORM_S8_UINT,
+	D32_FLOAT_S8_UINT,
 };
 
 inline uint32 getPixelFormatBytes(EPixelFormat format)
 {
+	// #todo-rhi: Ignore depth formats?
 	switch (format)
 	{
-		case EPixelFormat::R32_TYPELESS          : return 4;
-		case EPixelFormat::R24G8_TYPELESS        : return 4;
-		case EPixelFormat::R24_UNORM_X8_TYPELESS : return 4;
-		case EPixelFormat::R8G8B8A8_UNORM        : return 4;
-		case EPixelFormat::B8G8R8A8_UNORM        : return 4;
-		case EPixelFormat::R32_FLOAT             : return 4;
-		case EPixelFormat::R32G32_FLOAT          : return 8;
-		case EPixelFormat::R32G32B32_FLOAT       : return 12;
-		case EPixelFormat::R32G32B32A32_FLOAT    : return 16;
-		case EPixelFormat::R16G16B16A16_FLOAT    : return 8;
-		case EPixelFormat::R32_UINT              : return 4;
-		case EPixelFormat::R16_UINT              : return 2;
+		case EPixelFormat::R32_TYPELESS             : return 4;
+		case EPixelFormat::R24G8_TYPELESS           : return 4;
+		case EPixelFormat::R24_UNORM_X8_TYPELESS    : return 4;
+		case EPixelFormat::R32G8X24_TYPELESS        : return 8;
+		case EPixelFormat::R32_FLOAT_X8X24_TYPELESS : return 8;
+		case EPixelFormat::R8G8B8A8_UNORM           : return 4;
+		case EPixelFormat::B8G8R8A8_UNORM           : return 4;
+		case EPixelFormat::R32_FLOAT                : return 4;
+		case EPixelFormat::R32G32_FLOAT             : return 8;
+		case EPixelFormat::R32G32B32_FLOAT          : return 12;
+		case EPixelFormat::R32G32B32A32_FLOAT       : return 16;
+		case EPixelFormat::R16G16B16A16_FLOAT       : return 8;
+		case EPixelFormat::R32_UINT                 : return 4;
+		case EPixelFormat::R16_UINT                 : return 2;
 		default: CHECK_NO_ENTRY();
 	}
 	return 0;

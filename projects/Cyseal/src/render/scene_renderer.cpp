@@ -563,15 +563,29 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 		}
 	));
 
+	// https://github.com/microsoft/DirectX-Specs/blob/master/d3d/PlanarDepthStencilDDISpec.md
+	// NOTE: Also need to change backbufferDepthFormat in render_device.h
+#if 0
+	// Depth 24-bit, Stencil 8-bit
+	const EPixelFormat DEPTH_TEXTURE_FORMAT = EPixelFormat::R24G8_TYPELESS;
+	const EPixelFormat DEPTH_DSV_FORMAT = EPixelFormat::D24_UNORM_S8_UINT;
+	const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R24_UNORM_X8_TYPELESS;
+#else
+	// Depth 32-bit, Stencil 8-bit
+	const EPixelFormat DEPTH_TEXTURE_FORMAT = EPixelFormat::R32G8X24_TYPELESS;
+	const EPixelFormat DEPTH_DSV_FORMAT = EPixelFormat::D32_FLOAT_S8_UINT;
+	const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R32_FLOAT_X8X24_TYPELESS;
+#endif
+
 	cleanup(RT_sceneDepth.release());
 	sceneDepthDesc = TextureCreateParams::texture2D(
-		EPixelFormat::R24G8_TYPELESS, ETextureAccessFlags::DSV, sceneWidth, sceneHeight, 1, 1, 0);
+		DEPTH_TEXTURE_FORMAT, ETextureAccessFlags::DSV, sceneWidth, sceneHeight, 1, 1, 0);
 	RT_sceneDepth = UniquePtr<Texture>(device->createTexture(sceneDepthDesc));
 	RT_sceneDepth->setDebugName(L"RT_SceneDepth");
 
 	sceneDepthDSV = UniquePtr<DepthStencilView>(device->createDSV(RT_sceneDepth.get(),
 		DepthStencilViewDesc{
-			.format        = EPixelFormat::D24_UNORM_S8_UINT,
+			.format        = DEPTH_DSV_FORMAT,
 			.viewDimension = EDSVDimension::Texture2D,
 			.flags         = EDSVFlags::None,
 			.texture2D     = Texture2DDSVDesc{
@@ -581,7 +595,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	));
 	sceneDepthSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_sceneDepth.get(),
 		ShaderResourceViewDesc{
-			.format              = EPixelFormat::R24_UNORM_X8_TYPELESS,
+			.format              = DEPTH_SRV_FORMAT,
 			.viewDimension       = ESRVDimension::Texture2D,
 			.texture2D           = Texture2DSRVDesc{
 				.mostDetailedMip = 0,
@@ -599,7 +613,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	RT_prevSceneDepth->setDebugName(L"RT_prevSceneDepth");
 	prevSceneDepthSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_prevSceneDepth.get(),
 		ShaderResourceViewDesc{
-			.format              = EPixelFormat::R24_UNORM_X8_TYPELESS,
+			.format              = DEPTH_SRV_FORMAT,
 			.viewDimension       = ESRVDimension::Texture2D,
 			.texture2D           = Texture2DSRVDesc{
 				.mostDetailedMip = 0,
