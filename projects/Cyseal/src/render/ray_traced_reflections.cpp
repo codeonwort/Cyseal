@@ -146,12 +146,10 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		// #todo-zero-size: Release resources if any.
 		return;
 	}
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 	// Resize volatile heaps if needed.
 	{
-		uint32 materialCBVCount, materialSRVCount;
-		gpuScene->queryMaterialDescriptorsCount(swapchainIndex, materialCBVCount, materialSRVCount);
-
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 1; // rtScene
 		requiredVolatiles += 1; // gIndexBuffer
@@ -161,8 +159,8 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		requiredVolatiles += 1; // renderTarget
 		requiredVolatiles += 1; // gbufferA
 		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += materialCBVCount; // materials[]
-		requiredVolatiles += materialSRVCount; // albedoTextures[]
+		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
+		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
 
 		if (requiredVolatiles > totalVolatileDescriptor[swapchainIndex])
 		{
@@ -185,14 +183,13 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	// Bind global shader parameters.
 	{
 		DescriptorHeap* volatileHeap = volatileViewHeap.at(swapchainIndex);
-		auto gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 		ShaderParameterTable SPT{};
 		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
 		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
-		SPT.structuredBuffer("materials", gpuSceneDesc.constantsSRV);
+		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
 		SPT.texture("skybox", skyboxSRV);
 		SPT.rwTexture("renderTarget", indirectSpecularUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);

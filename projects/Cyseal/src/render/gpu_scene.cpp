@@ -67,14 +67,11 @@ void GPUScene::initialize()
 	totalVolatileDescriptors.resize(swapchainCount, 0);
 	volatileViewHeap.initialize(swapchainCount);
 
-	materialCBVMaxCounts.resize(swapchainCount, 0);
+	materialConstantsMaxCounts.resize(swapchainCount, 0);
 	materialSRVMaxCounts.resize(swapchainCount, 0);
-	materialCBVActualCounts.resize(swapchainCount, 0);
+	materialConstantsActualCounts.resize(swapchainCount, 0);
 	materialSRVActualCounts.resize(swapchainCount, 0);
-	materialCBVMemory.initialize(swapchainCount);
-	materialCBVHeap.initialize(swapchainCount);
 	materialSRVHeap.initialize(swapchainCount);
-	materialCBVs.initialize(swapchainCount);
 	materialSRVs.initialize(swapchainCount);
 
 	materialConstantsMemory.initialize(swapchainCount);
@@ -149,16 +146,15 @@ void GPUScene::renderGPUScene(
 
 	// #todo-gpuscene: Don't upload unchanged materials. Also don't copy one by one.
 	// Prepare bindless materials.
-	uint32& currentMaterialCBVCount = materialCBVActualCounts[swapchainIndex];
+	uint32& currentConstantsCount = materialConstantsActualCounts[swapchainIndex];
 	uint32& currentMaterialSRVCount = materialSRVActualCounts[swapchainIndex];
-	currentMaterialCBVCount = 0;
+	currentConstantsCount = 0;
 	currentMaterialSRVCount = 0;
 	{
 		char eventString[128];
 		sprintf_s(eventString, "UpdateMaterialBuffer (count=%u)", numMeshSections);
 		SCOPED_DRAW_EVENT_STRING(commandList, eventString);
 
-		auto& CBVs = materialCBVs[swapchainIndex];
 		auto& SRVs = materialSRVs[swapchainIndex];
 		DescriptorHeap* srvHeap = materialSRVHeap.at(swapchainIndex);
 
@@ -170,7 +166,7 @@ void GPUScene::renderGPUScene(
 
 		auto albedoFallbackTexture = gTextureManager->getSystemTextureGrey2D()->getGPUResource();
 
-		std::vector<MaterialConstants> materialConstantsData(materialCBVMaxCounts[swapchainIndex]);
+		std::vector<MaterialConstants> materialConstantsData(materialConstantsMaxCounts[swapchainIndex]);
 
 		for (uint32 i = 0; i < numStaticMeshes; ++i)
 		{
@@ -180,7 +176,7 @@ void GPUScene::renderGPUScene(
 			{
 				Material* const material = section.material.get();
 
-				// SRV
+				// Texture SRV
 				auto albedo = albedoFallbackTexture;
 				if (material != nullptr && material->albedoTexture != nullptr)
 				{
@@ -200,7 +196,7 @@ void GPUScene::renderGPUScene(
 				auto albedoSRV = gRenderDevice->createSRV(albedo.get(), srvHeap, srvDesc);
 				SRVs.emplace_back(UniquePtr<ShaderResourceView>(albedoSRV));
 
-				// CBV
+				// Constants
 				MaterialConstants constants;
 				if (material != nullptr)
 				{
@@ -210,14 +206,11 @@ void GPUScene::renderGPUScene(
 				}
 				constants.albedoTextureIndex = currentMaterialSRVCount;
 
-				materialConstantsData[currentMaterialCBVCount] = constants;
-
-				ConstantBufferView* cbv = CBVs[currentMaterialCBVCount].get();
-				cbv->writeToGPU(commandList, &constants, sizeof(constants));
+				materialConstantsData[currentConstantsCount] = std::move(constants);
 
 				// #todo-gpuscene: Currently always increment even if duplicate items are generated.
 				++currentMaterialSRVCount;
-				++currentMaterialCBVCount;
+				++currentConstantsCount;
 			}
 		}
 
@@ -326,18 +319,10 @@ ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
 GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swapchainIndex) const
 {
 	return MaterialDescriptorsDesc{
-		.cbvHeap = materialCBVHeap.at(swapchainIndex),
+		.constantsBufferSRV = materialConstantsSRV.at(swapchainIndex),
 		.srvHeap = materialSRVHeap.at(swapchainIndex),
-		.cbvCount = materialCBVActualCounts[swapchainIndex],
 		.srvCount = materialSRVActualCounts[swapchainIndex],
-		.constantsSRV = materialConstantsSRV.at(swapchainIndex),
 	};
-}
-
-void GPUScene::queryMaterialDescriptorsCount(uint32 swapchainIndex, uint32& outCBVCount, uint32& outSRVCount)
-{
-	outCBVCount = materialCBVActualCounts[swapchainIndex];
-	outSRVCount = materialSRVActualCounts[swapchainIndex];
 }
 
 void GPUScene::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)
@@ -448,58 +433,23 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 }
 
 // Bindless materials
-void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, uint32 maxSRVCount)
+void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount)
 {
 	auto align = [](uint32 size, uint32 alignment) -> uint32
 	{
 		return (size + (alignment - 1)) & ~(alignment - 1);
 	};
 
-	if (materialCBVMaxCounts[swapchainIndex] < maxCBVCount)
+	if (materialConstantsMaxCounts[swapchainIndex] < maxConstantsCount)
 	{
-		materialCBVMaxCounts[swapchainIndex] = maxCBVCount;
+		materialConstantsMaxCounts[swapchainIndex] = maxConstantsCount;
 
-		// #todo-rhi: D3D12-specific alignments
-		uint32 materialMemorySize = align(sizeof(MaterialConstants), 256) * maxCBVCount;
-		materialMemorySize = align(materialMemorySize, 65536);
+		// Was ConstantBuffer but now StructuredBuffer, so don't need memory alignment.
+		const uint32 materialMemorySize = sizeof(MaterialConstants) * maxConstantsCount;
 
 		CYLOG(LogGPUScene, Log, L"Resize material constants memory [%u]: %u bytes (%.3f MiB)",
 			swapchainIndex, materialMemorySize, (float)materialMemorySize / (1024.0f * 1024.0f));
 
-		materialCBVMemory[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
-			BufferCreateParams{
-				.sizeInBytes = materialMemorySize,
-				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC,
-			}
-		));
-
-		materialCBVHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
-			DescriptorHeapDesc{
-				.type           = EDescriptorHeapType::CBV,
-				.numDescriptors = maxCBVCount,
-				.flags          = EDescriptorHeapFlags::None,
-				.nodeMask       = 0,
-			}
-		));
-
-		uint32 cbMemoryOffset = 0;
-		auto& CBVs = materialCBVs[swapchainIndex];
-
-		CBVs.resize(maxCBVCount);
-		for (size_t i = 0; i < CBVs.size(); ++i)
-		{
-			CBVs[i] = UniquePtr<ConstantBufferView>(
-				gRenderDevice->createCBV(
-					materialCBVMemory.at(swapchainIndex),
-					materialCBVHeap.at(swapchainIndex),
-					sizeof(MaterialConstants),
-					cbMemoryOffset));
-			// #todo-rhi: Let RHI layer handle this alignment
-			cbMemoryOffset += align(sizeof(MaterialConstants), 256);
-		}
-
-		// #wip
 		materialConstantsMemory[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = materialMemorySize,
@@ -510,7 +460,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, 
 		materialConstantsHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::SRV,
-				.numDescriptors = maxCBVCount,
+				.numDescriptors = maxConstantsCount,
 				.flags          = EDescriptorHeapFlags::None,
 				.nodeMask       = 0,
 			}
@@ -523,7 +473,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxCBVCount, 
 				.viewDimension           = ESRVDimension::Buffer,
 				.buffer                  = BufferSRVDesc{
 					.firstElement        = 0,
-					.numElements         = maxCBVCount,
+					.numElements         = maxConstantsCount,
 					.structureByteStride = sizeof(MaterialConstants),
 					.flags               = EBufferSRVFlags::None,
 				}
