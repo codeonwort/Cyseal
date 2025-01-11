@@ -17,6 +17,14 @@ struct MaterialConstants
 	vec3 emission = vec3(0.0f, 0.0f, 0.0f);
 };
 
+struct GPUSceneInput
+{
+	const SceneProxy*   scene;
+	const Camera*       camera;
+	ConstantBufferView* sceneUniform;
+	bool                bRenderAnyRaytracingPass;
+};
+
 class GPUScene final
 {
 public:
@@ -31,13 +39,7 @@ public:
 	void initialize();
 
 	// Update GPU scene buffer.
-	void renderGPUScene(
-		RenderCommandList* commandList,
-		uint32 swapchainIndex,
-		const SceneProxy* scene,
-		const Camera* camera,
-		ConstantBufferView* sceneUniform,
-		bool bRenderAnyRaytracingPass);
+	void renderGPUScene(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput);
 
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 

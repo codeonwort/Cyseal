@@ -93,14 +93,13 @@ void GPUScene::initialize()
 	delete gpuSceneShader; // No use after PSO creation.
 }
 
-void GPUScene::renderGPUScene(
-	RenderCommandList* commandList,
-	uint32 swapchainIndex,
-	const SceneProxy* scene,
-	const Camera* camera,
-	ConstantBufferView* sceneUniform,
-	bool bRenderAnyRaytracingPass)
+void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput)
 {
+	auto scene                    = passInput.scene;
+	auto camera                   = passInput.camera;
+	auto sceneUniform             = passInput.sceneUniform;
+	auto bRenderAnyRaytracingPass = passInput.bRenderAnyRaytracingPass;
+
 	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	uint32 numMeshSections = 0;
 	uint32 numDirtyMeshSections = 0;

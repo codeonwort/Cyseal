@@ -190,10 +190,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
 
-		gpuScene->renderGPUScene(
-			commandList, swapchainIndex,
-			scene, camera, sceneUniformCBVs.at(swapchainIndex),
-			bRenderAnyRaytracingPass);
+		GPUSceneInput passInput{
+			.scene                    = scene,
+			.camera                   = camera,
+			.sceneUniform             = sceneUniformCBVs.at(swapchainIndex),
+			.bRenderAnyRaytracingPass = bRenderAnyRaytracingPass,
+		};
+		gpuScene->renderGPUScene(commandList, swapchainIndex, passInput);
 	}
 
 	if (bSupportsRaytracing && scene->bRebuildRaytracingScene)
