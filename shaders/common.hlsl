@@ -28,6 +28,28 @@ struct Material
     float3 emission;
 };
 
+struct GBufferData
+{
+    float3 albedo;
+    float  roughness;
+    float3 normalWS;
+};
+
+GBufferData decodeGBuffers(float4 gbuffer0, float4 gbuffer1)
+{
+    GBufferData data;
+    data.albedo    = gbuffer0.xyz;
+    data.roughness = gbuffer0.w;
+    data.normalWS  = gbuffer1.xyz;
+    return data;
+}
+void encodeGBuffers(in GBufferData data, out float4 gbuffer0, out float4 gbuffer1)
+{
+    gbuffer0.xyz = data.albedo;
+    gbuffer0.w   = data.roughness;
+    gbuffer1.xyz = data.normalWS;
+}
+
 struct AABB
 {
     float3 minBounds;

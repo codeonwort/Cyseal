@@ -446,16 +446,15 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, BufferVisualization);
 
-		BufferVisualizationSources sources{
+		BufferVisualizationInput sources{
 			.mode                = renderOptions.bufferVisualization,
+			.gbuffer0SRV         = gbufferSRVs[0].get(),
+			.gbuffer1SRV         = gbufferSRVs[1].get(),
 			.sceneColorSRV       = sceneColorSRV.get(),
 			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
 		};
 
-		bufferVisualization->renderVisualization(
-			commandList,
-			swapchainIndex,
-			sources);
+		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
 	}
 
 	// Store history
@@ -659,6 +658,18 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 				.texture2D         = Texture2DRTVDesc{
 					.mipSlice      = 0,
 					.planeSlice    = 0,
+				},
+			}
+		));
+		gbufferSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(RT_gbuffers[i].get(),
+			ShaderResourceViewDesc{
+				.format              = PF_gbuffers[i],
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = RT_gbuffers[i]->getCreateParams().mipLevels,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
 				},
 			}
 		));

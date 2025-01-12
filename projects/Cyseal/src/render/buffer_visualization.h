@@ -9,9 +9,11 @@
 class RenderCommandList;
 class ShaderResourceView;
 
-struct BufferVisualizationSources
+struct BufferVisualizationInput
 {
 	EBufferVisualizationMode mode           = EBufferVisualizationMode::None;
+	ShaderResourceView* gbuffer0SRV         = nullptr;
+	ShaderResourceView* gbuffer1SRV         = nullptr;
 	ShaderResourceView* sceneColorSRV       = nullptr;
 	ShaderResourceView* indirectSpecularSRV = nullptr;
 };
@@ -22,10 +24,7 @@ class BufferVisualization final
 public:
 	void initialize();
 
-	void renderVisualization(
-		RenderCommandList* commandList,
-		uint32 swapchainIndex,
-		const BufferVisualizationSources& sources);
+	void renderVisualization(RenderCommandList* commandList, uint32 swapchainIndex, const BufferVisualizationInput& passInput);
 
 private:
 	UniquePtr<GraphicsPipelineState> pipelineState;

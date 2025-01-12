@@ -84,6 +84,7 @@ private:
 	// Render gbuffers for hybrid raytracing.
 	UniquePtr<Texture> RT_gbuffers[NUM_GBUFFERS];
 	UniquePtr<RenderTargetView> gbufferRTVs[NUM_GBUFFERS];
+	UniquePtr<ShaderResourceView> gbufferSRVs[NUM_GBUFFERS];
 	UniquePtr<UnorderedAccessView> gbufferUAVs[NUM_GBUFFERS];
 
 	UniquePtr<Texture> RT_indirectSpecular;

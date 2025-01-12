@@ -12,6 +12,8 @@ void BufferVisualization::initialize()
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
 	uint32 requiredVolatileDescriptors = 0;
+	requiredVolatileDescriptors += 1; // gbuffer0
+	requiredVolatileDescriptors += 1; // gbuffer1
 	requiredVolatileDescriptors += 1; // sceneColor
 	requiredVolatileDescriptors += 1; // indirectSpecular
 
@@ -73,15 +75,14 @@ void BufferVisualization::initialize()
 	}
 }
 
-void BufferVisualization::renderVisualization(
-	RenderCommandList* commandList,
-	uint32 swapchainIndex,
-	const BufferVisualizationSources& sources)
+void BufferVisualization::renderVisualization(RenderCommandList* commandList, uint32 swapchainIndex, const BufferVisualizationInput& passInput)
 {
 	ShaderParameterTable SPT{};
-	SPT.pushConstant("pushConstants", (uint32)sources.mode);
-	SPT.texture("sceneColor", sources.sceneColorSRV);
-	SPT.texture("indirectSpecular", sources.indirectSpecularSRV);
+	SPT.pushConstant("pushConstants", (uint32)passInput.mode);
+	SPT.texture("gbuffer0", passInput.gbuffer0SRV);
+	SPT.texture("gbuffer1", passInput.gbuffer1SRV);
+	SPT.texture("sceneColor", passInput.sceneColorSRV);
+	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
 
 	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));

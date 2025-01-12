@@ -111,9 +111,13 @@ PixelOutput mainPS(Interpolants interpolants)
 
     float3 luminance = diffuse + specular;
 
+    GBufferData gbufferData;
+    gbufferData.albedo = albedo;
+    gbufferData.roughness = roughness;
+    gbufferData.normalWS = N;
+
     PixelOutput output;
     output.sceneColor = float4(luminance, 1.0);
-    output.gbuffer0 = float4(albedo, roughness);
-    output.gbuffer1 = float4(N, 1.0);
+    encodeGBuffers(gbufferData, output.gbuffer0, output.gbuffer1);
     return output;
 }

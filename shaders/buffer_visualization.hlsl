@@ -1,6 +1,12 @@
+#include "common.hlsl"
+
+// Should match with EBufferVisualizationMode
 #define MODE_NONE              0
-#define MODE_DIRECT_LIGHTING   1
-#define MODE_INDIRECT_SPECULAR 2
+#define MODE_ALBEDO            1
+#define MODE_ROUGHNESS         2
+#define MODE_NORMAL            3
+#define MODE_DIRECT_LIGHTING   4
+#define MODE_INDIRECT_SPECULAR 5
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -11,8 +17,10 @@ struct PushConstants
 };
 
 ConstantBuffer<PushConstants> pushConstants : register(b0, space0);
-Texture2D sceneColor                        : register(t0, space0);
-Texture2D indirectSpecular                  : register(t1, space0);
+Texture2D gbuffer0                          : register(t0, space0);
+Texture2D gbuffer1                          : register(t1, space0);
+Texture2D sceneColor                        : register(t2, space0);
+Texture2D indirectSpecular                  : register(t3, space0);
 SamplerState textureSampler                 : register(s0, space0);
 
 // ------------------------------------------------------------------------
@@ -46,7 +54,23 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     uint modeEnum = pushConstants.modeEnum;
     float4 color = float4(0.0, 0.0, 0.0, 1.0);
 
-    if (modeEnum == MODE_DIRECT_LIGHTING)
+    float4 encodedGBuffer0 = gbuffer0.SampleLevel(textureSampler, screenUV, 0.0);
+    float4 encodedGBuffer1 = gbuffer1.SampleLevel(textureSampler, screenUV, 0.0);
+    GBufferData gbufferData = decodeGBuffers(encodedGBuffer0, encodedGBuffer1);
+
+    if (modeEnum == MODE_ALBEDO)
+    {
+        color.rgb = gbufferData.albedo;
+    }
+    else if (modeEnum == MODE_ROUGHNESS)
+    {
+        color.rgb = gbufferData.roughness.xxx;
+    }
+    else if (modeEnum == MODE_NORMAL)
+    {
+        color.rgb = 0.5 * (1.0 + gbufferData.normalWS);
+    }
+    else if (modeEnum == MODE_DIRECT_LIGHTING)
     {
         color.rgb = sceneColor.SampleLevel(textureSampler, screenUV, 0.0).rgb;
     }
