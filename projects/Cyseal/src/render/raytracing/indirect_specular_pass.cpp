@@ -131,7 +131,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	auto sceneUniformBuffer  = passInput.sceneUniformBuffer;
 	auto raytracingScene     = passInput.raytracingScene;
 	auto gpuScene            = passInput.gpuScene;
-	auto thinGBufferAUAV     = passInput.thinGBufferAUAV;
+	auto gbuffer1UAV         = passInput.gbuffer1UAV;
 	auto indirectSpecularUAV = passInput.indirectSpecularUAV;
 	auto skyboxSRV           = passInput.skyboxSRV;
 	auto sceneWidth          = passInput.sceneWidth;

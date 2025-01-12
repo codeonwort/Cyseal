@@ -79,8 +79,9 @@ Interpolants mainVS(VertexInput input)
 
 struct PixelOutput
 {
-    float4 sceneColor   : SV_TARGET0;
-    float4 thinGBufferA : SV_TARGET1;
+    float4 sceneColor : SV_TARGET0;
+    float4 gbuffer0   : SV_TARGET1;
+    float4 gbuffer1   : SV_TARGET2;
 };
 
 PixelOutput mainPS(Interpolants interpolants)
@@ -95,6 +96,7 @@ PixelOutput mainPS(Interpolants interpolants)
     Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
     float3 albedo = albedoTex.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
     albedo *= material.albedoMultiplier.rgb;
+    float roughness = 0.9;
 
     // Direct lighting
     float3 diffuse = float3(0.0, 0.0, 0.0);
@@ -111,6 +113,7 @@ PixelOutput mainPS(Interpolants interpolants)
 
     PixelOutput output;
     output.sceneColor = float4(luminance, 1.0);
-    output.thinGBufferA = float4(N, 1.0);
+    output.gbuffer0 = float4(albedo, roughness);
+    output.gbuffer1 = float4(N, 1.0);
     return output;
 }

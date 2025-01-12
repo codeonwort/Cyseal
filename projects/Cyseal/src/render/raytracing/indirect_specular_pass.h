@@ -18,7 +18,7 @@ struct IndirectSpecularInput
 	ConstantBufferView*    sceneUniformBuffer;
 	AccelerationStructure* raytracingScene;
 	GPUScene*              gpuScene;
-	UnorderedAccessView*   thinGBufferAUAV;
+	UnorderedAccessView*   gbuffer1UAV;
 	UnorderedAccessView*   indirectSpecularUAV;
 	ShaderResourceView*    skyboxSRV;
 	uint32                 sceneWidth;

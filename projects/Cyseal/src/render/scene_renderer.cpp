@@ -25,6 +25,12 @@
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 
+static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
+static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
+	EPixelFormat::R16G16B16A16_FLOAT,
+	EPixelFormat::R16G16B16A16_FLOAT,
+};
+
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
@@ -83,7 +89,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		gpuCulling->initialize();
 
 		basePass = new BasePass;
-		basePass->initialize();
+		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS);
 
 		indirectSpecularPass = new IndirecSpecularPass;
 		indirectSpecularPass->initialize();
@@ -104,7 +110,7 @@ void SceneRenderer::destroy()
 	RT_sceneColor.reset();
 	RT_sceneDepth.reset();
 	RT_prevSceneDepth.reset();
-	RT_thinGBufferA.reset();
+	for (uint32 i=0; i<NUM_GBUFFERS; ++i) RT_gbuffers[i].reset();
 	RT_indirectSpecular.reset();
 	RT_pathTracing.reset();
 
@@ -257,17 +263,25 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			{
 				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				ETextureMemoryLayout::RENDER_TARGET,
-				RT_thinGBufferA.get(),
+				RT_gbuffers[0].get(),
+			},
+			{
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				ETextureMemoryLayout::RENDER_TARGET,
+				RT_gbuffers[1].get(),
 			},
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
-		RenderTargetView* RTVs[] = { sceneColorRTV.get(), thinGBufferARTV.get() };
+		RenderTargetView* RTVs[] = { sceneColorRTV.get(), gbufferRTVs[0].get(), gbufferRTVs[1].get() };
 		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
 
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		commandList->clearRenderTargetView(sceneColorRTV.get(), clearColor);
-		commandList->clearRenderTargetView(thinGBufferARTV.get(), clearColor);
+		for (uint32 i = 0; i < NUM_GBUFFERS; ++i)
+		{
+			commandList->clearRenderTargetView(gbufferRTVs[i].get(), clearColor);
+		}
 		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
 
 		BasePassInput passInput{
@@ -278,8 +292,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
 			.gpuScene           = gpuScene,
 			.gpuCulling         = gpuCulling,
-			.sceneColor         = RT_sceneColor.get(),
-			.thinGBufferA       = RT_thinGBufferA.get(),
 		};
 		basePass->renderBasePass(commandList, swapchainIndex, passInput);
 	}
@@ -315,7 +327,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.sceneColorUAV      = pathTracingUAV.get(),
 				.sceneDepthSRV      = sceneDepthSRV.get(),
 				.prevSceneDepthSRV  = prevSceneDepthSRV.get(),
-				.worldNormalUAV     = thinGBufferAUAV.get(),
+				.worldNormalUAV     = gbufferUAVs[1].get(),
 				.skyboxSRV          = skyboxSRV.get(),
 			};
 			pathTracingPass->renderPathTracing(commandList, swapchainIndex, passInput);
@@ -368,7 +380,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneUniformBuffer  = sceneUniformCBVs[swapchainIndex].get(),
 			.raytracingScene     = accelStructure.get(),
 			.gpuScene            = gpuScene,
-			.thinGBufferAUAV     = thinGBufferAUAV.get(),
+			.gbuffer1UAV         = gbufferUAVs[1].get(),
 			.indirectSpecularUAV = indirectSpecularUAV.get(),
 			.skyboxSRV           = skyboxSRV.get(),
 			.sceneWidth          = sceneWidth,
@@ -391,7 +403,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			{
 				ETextureMemoryLayout::RENDER_TARGET,
 				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				RT_thinGBufferA.get(),
+				RT_gbuffers[0].get(),
+			},
+			{
+				ETextureMemoryLayout::RENDER_TARGET,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				RT_gbuffers[1].get(),
 			},
 			{
 				ETextureMemoryLayout::UNORDERED_ACCESS,
@@ -624,35 +641,38 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 		}
 	));
 
-	cleanup(RT_thinGBufferA.release());
-	RT_thinGBufferA = UniquePtr<Texture>(device->createTexture(
-		TextureCreateParams::texture2D(
-			EPixelFormat::R16G16B16A16_FLOAT,
-			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
-			sceneWidth, sceneHeight,
-			1, 1, 0)));
-	RT_thinGBufferA->setDebugName(L"RT_ThinGBufferA");
+	for (uint32 i = 0; i < NUM_GBUFFERS; ++i)
+	{
+		cleanup(RT_gbuffers[i].release());
+		RT_gbuffers[i] = UniquePtr<Texture>(device->createTexture(
+			TextureCreateParams::texture2D(
+				PF_gbuffers[i],
+				ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+				sceneWidth, sceneHeight, 1, 1, 0)));
+		std::wstring debugName = L"RT_GBuffer" + std::to_wstring(i);
+		RT_gbuffers[i]->setDebugName(debugName.c_str());
 
-	thinGBufferARTV = UniquePtr<RenderTargetView>(device->createRTV(RT_thinGBufferA.get(),
-		RenderTargetViewDesc{
-			.format            = RT_thinGBufferA->getCreateParams().format,
-			.viewDimension     = ERTVDimension::Texture2D,
-			.texture2D         = Texture2DRTVDesc{
-				.mipSlice      = 0,
-				.planeSlice    = 0,
-			},
-		}
-	));
-	thinGBufferAUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_thinGBufferA.get(),
-		UnorderedAccessViewDesc{
-			.format         = RT_thinGBufferA->getCreateParams().format,
-			.viewDimension  = EUAVDimension::Texture2D,
-			.texture2D      = Texture2DUAVDesc{
-				.mipSlice   = 0,
-				.planeSlice = 0,
-			},
-		}
-	));
+		gbufferRTVs[i] = UniquePtr<RenderTargetView>(device->createRTV(RT_gbuffers[i].get(),
+			RenderTargetViewDesc{
+				.format            = PF_gbuffers[i],
+				.viewDimension     = ERTVDimension::Texture2D,
+				.texture2D         = Texture2DRTVDesc{
+					.mipSlice      = 0,
+					.planeSlice    = 0,
+				},
+			}
+		));
+		gbufferUAVs[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_gbuffers[i].get(),
+			UnorderedAccessViewDesc{
+				.format         = PF_gbuffers[i],
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{
+					.mipSlice   = 0,
+					.planeSlice = 0,
+				},
+			}
+		));
+	}
 
 	cleanup(RT_indirectSpecular.release());
 	RT_indirectSpecular = UniquePtr<Texture>(device->createTexture(

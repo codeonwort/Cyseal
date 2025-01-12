@@ -14,13 +14,9 @@
 #include "rhi/texture_manager.h"
 #include "rhi/vertex_buffer_pool.h"
 
-// Force MRT formats for now.
-#define PF_sceneColor            EPixelFormat::R32G32B32A32_FLOAT
-#define PF_thinGBufferA          EPixelFormat::R16G16B16A16_FLOAT
-
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
-void BasePass::initialize()
+void BasePass::initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbufferFormats[], uint32 numGBuffers)
 {
 	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
@@ -62,14 +58,16 @@ void BasePass::initialize()
 		.depthstencilDesc       = DepthstencilDesc::StandardSceneDepth(),
 		.inputLayout            = inputLayout,
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
-		.numRenderTargets       = 2,
-		.rtvFormats             = { PF_sceneColor, PF_thinGBufferA, },
+		.numRenderTargets       = 1 + numGBuffers,
+		.rtvFormats             = { EPixelFormat::UNKNOWN, }, // Fill later
 		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
 		.sampleDesc = SampleDesc{
 			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
 			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
 		},
 	};
+	pipelineDesc.rtvFormats[0] = sceneColorFormat;
+	for (uint32 i = 0; i < numGBuffers; ++i) pipelineDesc.rtvFormats[i + 1] = gbufferFormats[i];
 	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
 
 	// Cleanup
@@ -157,8 +155,6 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	auto sceneUniformBuffer = passInput.sceneUniformBuffer;
 	auto gpuScene           = passInput.gpuScene;
 	auto gpuCulling         = passInput.gpuCulling;
-	auto sceneColor         = passInput.sceneColor;
-	auto thinGBufferA       = passInput.thinGBufferA;
 
 	if (gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
@@ -169,9 +165,6 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 
 	// #todo-renderer: Support other topologies
 	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
-
-	CHECK(sceneColor->getCreateParams().format == PF_sceneColor);
-	CHECK(thinGBufferA->getCreateParams().format == PF_thinGBufferA);
 
 	// Resize volatile heaps if needed.
 	{

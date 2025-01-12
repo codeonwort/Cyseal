@@ -25,14 +25,12 @@ struct BasePassInput
 	ConstantBufferView*    sceneUniformBuffer;
 	GPUScene*              gpuScene;
 	GPUCulling*            gpuCulling;
-	Texture*               sceneColor;
-	Texture*               thinGBufferA;
 };
 
 class BasePass final
 {
 public:
-	void initialize();
+	void initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbufferForamts[], uint32 numGBuffers);
 
 	void renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput);
 

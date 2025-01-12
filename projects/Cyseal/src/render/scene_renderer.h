@@ -40,6 +40,9 @@ struct SceneUniform
 class SceneRenderer final : public Renderer
 {
 public:
+	constexpr static uint32 NUM_GBUFFERS = 2;
+
+public:
 	~SceneRenderer() = default;
 
 	virtual void initialize(RenderDevice* renderDevice) override;
@@ -78,10 +81,10 @@ private:
 	UniquePtr<Texture> RT_prevSceneDepth;
 	UniquePtr<ShaderResourceView> prevSceneDepthSRV;
 
-	// Gonna stick to forward shading, but render thin GBuffers like DOOM reboot series.
-	UniquePtr<Texture> RT_thinGBufferA; // #todo-renderer: Maybe switch to R10G10B10A2?
-	UniquePtr<RenderTargetView> thinGBufferARTV;
-	UniquePtr<UnorderedAccessView> thinGBufferAUAV;
+	// Render gbuffers for hybrid raytracing.
+	UniquePtr<Texture> RT_gbuffers[NUM_GBUFFERS];
+	UniquePtr<RenderTargetView> gbufferRTVs[NUM_GBUFFERS];
+	UniquePtr<UnorderedAccessView> gbufferUAVs[NUM_GBUFFERS];
 
 	UniquePtr<Texture> RT_indirectSpecular;
 	UniquePtr<ShaderResourceView> indirectSpecularSRV;
