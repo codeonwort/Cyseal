@@ -46,15 +46,16 @@ int2 clampTexel(int2 texel)
     return clamp(texel, int2(0, 0), int2(blurUniform.textureWidth - 1, blurUniform.textureHeight - 1));
 }
 
+float getNdcZ(float sceneDepth)
+{
+    return sceneDepth; // clipZ is always [0,1] in DirectX
+}
+
 float3 getWorldPosition(uint2 tid)
 {
     float sceneDepth = inDepthTexture.Load(int3(tid.xy, 0)).r;
     float2 uv = (float2(tid.xy) + float2(0.5, 0.5)) / getResolution();
-#if REVERSE_Z
-    float z = sceneDepth; // clipZ is [0,1] in Reverse-Z
-#else
-    float z = sceneDepth * 2.0 - 1.0; // Use this if not Reverse-Z
-#endif
+    float z = getNdcZ(sceneDepth);
     float4 positionCS = float4(uv * 2.0 - 1.0, z, 1.0);
     float4 positionVS = mul(positionCS, sceneUniform.projInvMatrix);
     positionVS /= positionVS.w; // Perspective division

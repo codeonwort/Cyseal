@@ -131,11 +131,7 @@ float2 getScreenResolution()
 
 float getNdcZ(float sceneDepth)
 {
-#if REVERSE_Z
-	return sceneDepth; // clipZ is [0,1] in Reverse-Z
-#else
-	return sceneDepth * 2.0 - 1.0;
-#endif
+	return sceneDepth; // clipZ is always [0,1] in DirectX
 }
 
 float4 getPositionCS(float2 screenUV, float z)
@@ -145,15 +141,14 @@ float4 getPositionCS(float2 screenUV, float z)
 
 float getLinearDepth(float2 screenUV, float sceneDepth)
 {
-	float4 positionCS = getPositionCS(screenUV, sceneDepth);
+	float4 positionCS = getPositionCS(screenUV, getNdcZ(sceneDepth));
 	float4 projected = mul(positionCS, sceneUniform.projInvMatrix);
 	return abs(projected.z / projected.w);
 }
 
 float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
 {
-	float z = getNdcZ(sceneDepth);
-	float4 positionCS = getPositionCS(screenUV, z);
+	float4 positionCS = getPositionCS(screenUV, getNdcZ(sceneDepth));
 	float4 positionWS = mul(positionCS, sceneUniform.viewProjInvMatrix);
 	return positionWS.xyz / positionWS.w;
 }
@@ -176,8 +171,7 @@ bool getPrevWorldPosition(float3 currPositionWS, out float3 prevPositionWS, out 
 	int2 targetTexel = int2(screenUV * resolution);
 	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
 
-	float z = getNdcZ(sceneDepth);
-	positionCS = getPositionCS(screenUV, z); // [-1,1]
+	positionCS = getPositionCS(screenUV, getNdcZ(sceneDepth));
 	float4 positionVS = mul(positionCS, pathTracingUniform.prevProjInvMatrix);
 	positionVS /= positionVS.w; // Perspective division
 	float4 positionWS = mul(positionVS, pathTracingUniform.prevViewInvMatrix);
