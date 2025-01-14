@@ -9,6 +9,11 @@ float3 fresnelSchlick(float cosTheta, float3 F0)
 	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+float3 fresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
+{
+	return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
 // All vectors are in local space.
 // N     : macrosurface normal
 // M     : half-vector
@@ -81,7 +86,7 @@ float3 rotateVector(float3 v, float3x3 M)
 }
 
 // "Microfacet Models for Refraction through Rough Surfaces"
-void microfactBRDF(
+void microfacetBRDF(
 	float3 inRayDir, float3 surfaceNormal,
 	float3 baseColor, float roughness, float metallic,
 	float rand0, float rand1,

@@ -29,7 +29,7 @@ ConstantBuffer<PushConstants>  pushConstants;
 ConstantBuffer<SceneUniform>   sceneUniform;
 ConstantBuffer<BlurUniform>    blurUniform;
 RWTexture2D<float4>            inColorTexture;
-RWTexture2D<float4>            inNormalTexture;
+Texture2D<float4>              inNormalTexture;
 Texture2D<float>               inDepthTexture;
 RWTexture2D<float4>            outputTexture;
 
@@ -75,7 +75,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 
     float2 uv0 = (float2(tid.xy) + float2(0.5, 0.5)) / resolution;
     float3 color0 = inColorTexture[tid.xy].xyz;
-    float3 normal0 = inNormalTexture[tid.xy].xyz;
+    float3 normal0 = inNormalTexture.Load(int3(tid.xy, 0)).xyz;
     float3 pos0 = getWorldPosition(tid.xy);
 
     float3 sum = float3(0.0, 0.0, 0.0);
@@ -91,7 +91,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         int2 neighborTexel = clampTexel(int2(float2(tid.xy) + offset * stepWidth));
 
         float3 color1 = inColorTexture[neighborTexel].xyz;
-        float3 normal1 = inNormalTexture[neighborTexel].xyz;
+        float3 normal1 = inNormalTexture.Load(int3(neighborTexel, 0)).xyz;
         float3 pos1 = getWorldPosition(neighborTexel);
 
         diff = color0 - color1;

@@ -24,7 +24,23 @@
 #define INDIRECT_SPECULAR_MAX_RECURSION     2
 #define INDIRECT_SPECULAR_HIT_GROUP_NAME    L"IndirectSpecular_HitGroup"
 
+#define RANDOM_SEQUENCE_LENGTH              (64 * 64)
+
 DEFINE_LOG_CATEGORY_STATIC(LogIndirectSpecular);
+
+struct IndirectSpecularUniform
+{
+	float       randFloats0[RANDOM_SEQUENCE_LENGTH];
+	float       randFloats1[RANDOM_SEQUENCE_LENGTH];
+	Float4x4    prevViewInv;
+	Float4x4    prevProjInv;
+	Float4x4    prevViewProj;
+	uint32      renderTargetWidth;
+	uint32      renderTargetHeight;
+	uint32      bInvalidateHistory;
+	uint32      bLimitHistory;
+	uint32      traceMode;
+};
 
 // Just to calculate size in bytes.
 // Should match with RayPayload in indirect_specular_reflection.hlsl.
@@ -34,6 +50,7 @@ struct RayPayload
 	float  roughness;
 	float  albedo[3];
 	float  hitTime;
+	float  emission[3];
 	uint32 objectID;
 };
 // Just to calculate size in bytes.
@@ -60,7 +77,7 @@ void IndirecSpecularPass::initialize()
 	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
-	rayPassDescriptor.initialize(L"IndirectSpecular_RayPass", swapchainCount, 0);
+	rayPassDescriptor.initialize(L"IndirectSpecular_RayPass", swapchainCount, sizeof(IndirectSpecularUniform));
 
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
@@ -71,9 +88,9 @@ void IndirecSpecularPass::initialize()
 	raygenShader->declarePushConstants();
 	closestHitShader->declarePushConstants({ "g_closestHitCB" });
 	missShader->declarePushConstants();
-	raygenShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MyRaygenShader");
-	closestHitShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MyClosestHitShader");
-	missShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MyMissShader");
+	raygenShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainRaygen");
+	closestHitShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainClosestHit");
+	missShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainMiss");
 
 	// RTPSO
 	RaytracingPipelineStateObjectDesc pipelineDesc{
@@ -128,14 +145,13 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 {
 	auto scene               = passInput.scene;
 	auto camera              = passInput.camera;
-	auto sceneUniformBuffer  = passInput.sceneUniformBuffer;
-	auto raytracingScene     = passInput.raytracingScene;
-	auto gpuScene            = passInput.gpuScene;
-	auto gbuffer1UAV         = passInput.gbuffer1UAV;
-	auto indirectSpecularUAV = passInput.indirectSpecularUAV;
-	auto skyboxSRV           = passInput.skyboxSRV;
 	auto sceneWidth          = passInput.sceneWidth;
 	auto sceneHeight         = passInput.sceneHeight;
+	auto gpuScene            = passInput.gpuScene;
+	auto raytracingScene     = passInput.raytracingScene;
+	auto sceneUniformBuffer  = passInput.sceneUniformBuffer;
+	auto indirectSpecularUAV = passInput.indirectSpecularUAV;
+	auto skyboxSRV           = passInput.skyboxSRV;
 
 	if (isAvailable() == false)
 	{
@@ -148,18 +164,57 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	}
 	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 
+	// -------------------------------------------------------------------
+	// Phase: Setup
+
+	resizeTextures(commandList, sceneWidth, sceneHeight);
+
+	auto currentColorUAV = colorHistoryUAV[swapchainIndex % 2].get();
+	auto prevColorUAV = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
+
+	// Update uniforms.
+	{
+		IndirectSpecularUniform* uboData = new IndirectSpecularUniform;
+
+		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
+		{
+			uboData->randFloats0[i] = Cymath::randFloat();
+			uboData->randFloats1[i] = Cymath::randFloat();
+		}
+		uboData->prevViewInv = passInput.prevViewInvMatrix;
+		uboData->prevProjInv = passInput.prevProjInvMatrix;
+		uboData->prevViewProj = passInput.prevViewProjMatrix;
+		uboData->renderTargetWidth = sceneWidth;
+		uboData->renderTargetHeight = sceneHeight;
+		// #wip: Always invalidate history until reprojection works
+		uboData->bInvalidateHistory = (passInput.mode == EIndirectSpecularMode::ForceMirror)
+			|| (passInput.bCameraHasMoved && passInput.mode == EIndirectSpecularMode::BRDF);
+		uboData->bLimitHistory = 0;
+		uboData->traceMode = (uint32)passInput.mode;
+
+		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
+		uniformCBV->writeToGPU(commandList, uboData, sizeof(IndirectSpecularUniform));
+
+		delete uboData;
+	}
+
 	// Resize volatile heaps if needed.
 	{
 		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // rtScene
+		requiredVolatiles += 1; // sceneUniform
+		requiredVolatiles += 1; // indirectSpecularUniform
 		requiredVolatiles += 1; // gIndexBuffer
 		requiredVolatiles += 1; // gVertexBuffer
 		requiredVolatiles += 1; // gpuSceneBuffer
-		requiredVolatiles += 1; // skybox
-		requiredVolatiles += 1; // renderTarget
-		requiredVolatiles += 1; // gbufferA
-		requiredVolatiles += 1; // sceneUniform
 		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
+		requiredVolatiles += 1; // rtScene
+		requiredVolatiles += 1; // skybox
+		requiredVolatiles += 1; // sceneDepthTexture
+		requiredVolatiles += 1; // prevSceneDepthTexture
+		requiredVolatiles += 1; // renderTarget
+		requiredVolatiles += 2; // gbuffer0, gbuffer1
+		requiredVolatiles += 1; // currentColorTexture
+		requiredVolatiles += 1; // prevColorTexture
 		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
 
 		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
@@ -180,6 +235,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	// Bind global shader parameters.
 	{
 		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
+		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
 
 		ShaderParameterTable SPT{};
 		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
@@ -188,8 +244,13 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
 		SPT.texture("skybox", skyboxSRV);
+		SPT.texture("gbuffer0", passInput.gbuffer0SRV);
+		SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 		SPT.rwTexture("renderTarget", indirectSpecularUAV);
+		SPT.rwTexture("currentColorTexture", currentColorUAV);
+		SPT.rwTexture("prevColorTexture", prevColorUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
+		SPT.constantBuffer("indirectSpecularUniform", uniformCBV);
 		// Bindless
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
@@ -205,6 +266,77 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		.depth             = 1,
 	};
 	commandList->dispatchRays(dispatchDesc);
+}
+
+void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
+{
+	if (historyWidth == newWidth && historyHeight == newHeight)
+	{
+		return;
+	}
+	historyWidth = newWidth;
+	historyHeight = newHeight;
+
+	commandList->enqueueDeferredDealloc(momentHistory[0].release(), true);
+	commandList->enqueueDeferredDealloc(momentHistory[1].release(), true);
+	commandList->enqueueDeferredDealloc(colorHistory[0].release(), true);
+	commandList->enqueueDeferredDealloc(colorHistory[1].release(), true);
+	commandList->enqueueDeferredDealloc(colorScratch.release(), true);
+
+	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
+		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
+	for (uint32 i = 0; i < 2; ++i)
+	{
+		std::wstring debugName = L"RT_SpecularMomentHistory" + std::to_wstring(i);
+		momentHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(momentDesc));
+		momentHistory[i]->setDebugName(debugName.c_str());
+
+		momentHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(momentHistory[i].get(),
+			UnorderedAccessViewDesc{
+				.format         = momentDesc.format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{
+					.mipSlice   = 0,
+					.planeSlice = 0,
+				},
+			}
+		));
+	}
+
+	TextureCreateParams colorDesc = TextureCreateParams::texture2D(
+		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
+
+	for (uint32 i = 0; i < 2; ++i)
+	{
+		std::wstring debugName = L"RT_SpecularColorHistory" + std::to_wstring(i);
+		colorHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
+		colorHistory[i]->setDebugName(debugName.c_str());
+
+		colorHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorHistory[i].get(),
+			UnorderedAccessViewDesc{
+				.format         = colorDesc.format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{
+					.mipSlice   = 0,
+					.planeSlice = 0,
+				},
+			}
+		));
+	}
+
+	colorScratch = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
+	colorScratch->setDebugName(L"RT_SpecularColorScratch");
+
+	colorScratchUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorScratch.get(),
+		UnorderedAccessViewDesc{
+			.format         = colorDesc.format,
+			.viewDimension  = EUAVDimension::Texture2D,
+			.texture2D      = Texture2DUAVDesc{
+				.mipSlice   = 0,
+				.planeSlice = 0,
+			},
+		}
+	));
 }
 
 void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords)

@@ -1,20 +1,7 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// This code is licensed under the MIT License (MIT).
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
-
 // https://learn.microsoft.com/en-us/windows/win32/direct3d12/direct3d-12-raytracing-hlsl-reference
 
-#ifndef RAYTRACING_HLSL
-#define RAYTRACING_HLSL
-
 #include "common.hlsl"
+#include "bsdf.hlsl"
 
 //#ifndef SHADER_STAGE
 //    #error Definition of SHADER_STAGE must be provided
@@ -33,6 +20,33 @@
 #define RAYGEN_T_MIN              0.001
 #define RAYGEN_T_MAX              10000.0
 #define MAX_BOUNCE                5
+#define SURFACE_NORMAL_OFFSET     0.001
+
+// Temp boost sky light.
+#define SKYBOX_BOOST              1.0
+
+#define RANDOM_SEQUENCE_WIDTH     64
+#define RANDOM_SEQUENCE_HEIGHT    64
+#define RANDOM_SEQUENCE_LENGTH    (RANDOM_SEQUENCE_WIDTH * RANDOM_SEQUENCE_HEIGHT)
+
+// EIndirectSpecularMode
+#define TRACE_DISABLED            0
+#define TRACE_FORCE_MIRROR        1
+#define TRACE_BRDF                2
+
+struct IndirectSpecularUniform
+{
+	float4      randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
+	float4      randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
+	float4x4    prevViewInvMatrix;
+	float4x4    prevProjInvMatrix;
+	float4x4    prevViewProjMatrix;
+	uint        renderTargetWidth;
+	uint        renderTargetHeight;
+	uint        bInvalidateHistory; // If nonzero, force invalidate the whole history.
+	uint        bLimitHistory;
+	uint        traceMode;
+};
 
 struct VertexAttributes
 {
@@ -48,15 +62,21 @@ struct ClosestHitPushConstants
 //*********************************************************
 
 // Global root signature
-RaytracingAccelerationStructure rtScene        : register(t0, space0);
-ByteAddressBuffer               gIndexBuffer   : register(t1, space0);
-ByteAddressBuffer               gVertexBuffer  : register(t2, space0);
-StructuredBuffer<GPUSceneItem>  gpuSceneBuffer : register(t3, space0);
-StructuredBuffer<Material>      materials      : register(t4, space0);
-TextureCube                     skybox         : register(t5, space0);
-RWTexture2D<float4>             renderTarget   : register(u0, space0);
-RWTexture2D<float4>             gbufferA       : register(u1, space0);
-ConstantBuffer<SceneUniform>    sceneUniform   : register(b0, space0);
+ConstantBuffer<SceneUniform>            sceneUniform            : register(b0, space0);
+ConstantBuffer<IndirectSpecularUniform> indirectSpecularUniform : register(b1, space0);
+ByteAddressBuffer                       gIndexBuffer            : register(t0, space0);
+ByteAddressBuffer                       gVertexBuffer           : register(t1, space0);
+StructuredBuffer<GPUSceneItem>          gpuSceneBuffer          : register(t2, space0);
+StructuredBuffer<Material>              materials               : register(t3, space0);
+RaytracingAccelerationStructure         rtScene                 : register(t4, space0);
+TextureCube                             skybox                  : register(t5, space0);
+Texture2D                               gbuffer0                : register(t6, space0);
+Texture2D                               gbuffer1                : register(t7, space0);
+Texture2D                               sceneDepthTexture       : register(t8, space0);
+Texture2D                               prevSceneDepthTexture   : register(t9, space0);
+RWTexture2D<float4>                     renderTarget            : register(u0, space0);
+RWTexture2D<float4>                     currentColorTexture     : register(u1, space0);
+RWTexture2D<float4>                     prevColorTexture        : register(u2, space0);
 
 // Material resource binding
 #define TEMP_MAX_SRVS 1024
@@ -77,6 +97,7 @@ struct RayPayload
 	float3 albedo;
 	float  hitTime;
 
+	float3 emission;
 	uint   objectID;
 };
 
@@ -87,140 +108,227 @@ RayPayload createRayPayload()
 	payload.roughness     = 1.0;
 	payload.albedo        = float3(0, 0, 0);
 	payload.hitTime       = -1.0;
+	payload.emission      = float3(0, 0, 0);
 	payload.objectID      = OBJECT_ID_NONE;
 	return payload;
 }
 
-void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
+float2 getScreenResolution()
 {
-	float2 xy = float2(texel) + 0.5;
-	float2 screenPos = (xy / DispatchRaysDimensions().xy) * 2.0 - 1.0;
-	screenPos.y = -screenPos.y;
+	return float2(indirectSpecularUniform.renderTargetWidth, indirectSpecularUniform.renderTargetHeight);
+}
 
-	float4 worldPos = mul(float4(screenPos, 0.0, 1.0), sceneUniform.viewProjInvMatrix);
-	worldPos.xyz /= worldPos.w;
+float2 getScreenUV(uint2 texel)
+{
+	return (float2(texel) + float2(0.5, 0.5)) / getScreenResolution();
+}
 
-	origin = sceneUniform.cameraPosition.xyz;
-	direction = normalize(worldPos.xyz - origin);
+float getNdcZ(float sceneDepth)
+{
+#if REVERSE_Z
+	return sceneDepth; // clipZ is [0,1] in Reverse-Z
+#else
+	return sceneDepth * 2.0 - 1.0;
+#endif
+}
+
+float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
+{
+	float z = getNdcZ(sceneDepth);
+	float4 positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0);
+	float4 positionWS = mul(positionCS, sceneUniform.viewProjInvMatrix);
+	return positionWS.xyz / positionWS.w;
+}
+
+float2 getRandoms(uint2 texel, uint bounce)
+{
+	uint first = texel.x + indirectSpecularUniform.renderTargetWidth * texel.y;
+	uint seq0 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
+	uint seq1 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
+	float rand0 = indirectSpecularUniform.randFloats0[seq0 / 4][seq0 % 4];
+	float rand1 = indirectSpecularUniform.randFloats1[seq1 / 4][seq1 % 4];
+	return (rand0, rand1);
+}
+
+float3 traceIncomingRadiance(uint2 texel, float3 surfacePosition, float3 rayDir)
+{
+	RayPayload currentRayPayload = createRayPayload();
+
+	RayDesc currentRay;
+	currentRay.Origin = surfacePosition;
+	currentRay.Direction = rayDir;
+	currentRay.TMin = RAYGEN_T_MIN;
+	currentRay.TMax = RAYGEN_T_MAX;
+
+	float3 reflectanceHistory[MAX_BOUNCE + 1];
+	float3 radianceHistory[MAX_BOUNCE + 1];
+	float pdfHistory[MAX_BOUNCE + 1];
+	uint numBounces = 0;
+
+	while (numBounces < MAX_BOUNCE)
+	{
+		uint instanceInclusionMask = ~0; // Do not ignore anything
+		uint rayContributionToHitGroupIndex = 0;
+		uint multiplierForGeometryContributionToHitGroupIndex = 1;
+		uint missShaderIndex = 0;
+		TraceRay(
+			rtScene,
+			RAY_FLAG_NONE,
+			instanceInclusionMask,
+			rayContributionToHitGroupIndex,
+			multiplierForGeometryContributionToHitGroupIndex,
+			missShaderIndex,
+			currentRay,
+			currentRayPayload);
+
+		// Hit the sky. Sample the skybox.
+		if (currentRayPayload.objectID == OBJECT_ID_NONE)
+		{
+			radianceHistory[numBounces] = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, currentRay.Direction, 0.0).rgb;
+			reflectanceHistory[numBounces] = 1;
+			pdfHistory[numBounces] = 1;
+			break;
+		}
+		// Emissive shape. Exit the loop.
+		else if (any(currentRayPayload.emission > 0))
+		{
+			radianceHistory[numBounces] = currentRayPayload.emission;
+			reflectanceHistory[numBounces] = 1;
+			pdfHistory[numBounces] = 1;
+			break;
+		}
+
+		float3 surfaceNormal = currentRayPayload.surfaceNormal;
+		float3 surfaceTangent, surfaceBitangent;
+		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
+
+		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
+		float metallic = 0.0; // #todo: No metallic yet
+
+		float2 randoms = getRandoms(texel, numBounces);
+
+		// #todo: Handle transmission.
+		float3 scatteredReflectance, scatteredDir; float scatteredPdf;
+		if (indirectSpecularUniform.traceMode == TRACE_BRDF)
+		{
+			microfacetBRDF(
+				currentRay.Direction, surfaceNormal,
+				currentRayPayload.albedo, currentRayPayload.roughness, metallic,
+				randoms.x, randoms.y,
+				scatteredReflectance, scatteredDir, scatteredPdf);
+		}
+		else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
+		{
+			scatteredReflectance = 1.0;
+			scatteredDir = reflect(currentRay.Direction, surfaceNormal);
+			scatteredPdf = 1.0;
+		}
+		
+		// #todo: It happens :(
+		if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
+		{
+			scatteredPdf = 0.0;
+		}
+
+		radianceHistory[numBounces] = 0;
+		reflectanceHistory[numBounces] = scatteredReflectance;
+		pdfHistory[numBounces] = scatteredPdf;
+
+		if (scatteredPdf <= 0.0)
+		{
+			break;
+		}
+
+		currentRay.Origin = surfacePosition + SURFACE_NORMAL_OFFSET * surfaceNormal;
+		currentRay.Direction = scatteredDir;
+		//currentRay.TMin = RAYGEN_T_MIN;
+		//currentRay.TMax = RAYGEN_T_MAX;
+
+		numBounces += 1;
+	}
+
+	float3 Li = 0;
+	if (numBounces < MAX_BOUNCE)
+	{
+		for (uint i = 0; i <= numBounces; ++i)
+		{
+			uint j = numBounces - i;
+			if (pdfHistory[j] > 0.0)
+			{
+				Li = reflectanceHistory[j] * (Li + radianceHistory[j]) / pdfHistory[j];
+			}
+		}
+	}
+
+	return Li;
 }
 
 [shader("raygeneration")]
-void MyRaygenShader()
+void MainRaygen()
 {
-	float3 cameraRayOrigin, cameraRayDir;
-	generateCameraRay(DispatchRaysIndex().xy, cameraRayOrigin, cameraRayDir);
+	uint2 texel = DispatchRaysIndex().xy;
+	float2 screenUV = getScreenUV(texel);
 
-	// Actually no need to do RT for primary visibility.
-	// We can reconstruct surface normal and worldPos from gbuffers and sceneDepth.
-	// I'm just practicing DXR here.
-	RayPayload primaryPayload = createRayPayload();
+	float sceneDepth = sceneDepthTexture.Load(int3(texel, 0)).r;
+	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
+	float3 viewDirection = normalize(positionWS - sceneUniform.cameraPosition.xyz);
+
+	float4 gbuffer0Data = gbuffer0.Load(int3(texel, 0));
+	float4 gbuffer1Data = gbuffer1.Load(int3(texel, 0));
+	GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
+
+	float3 albedo = gbufferData.albedo;
+	float3 normalWS = gbufferData.normalWS;
+	float roughness = gbufferData.roughness;
+	float metallic = 0.0; // #todo: No metallic yet
+
+	float2 randoms = getRandoms(texel, 0);
+
+	float3 scatteredReflectance, scatteredDir; float scatteredPdf;
+	if (indirectSpecularUniform.traceMode == TRACE_BRDF)
 	{
-		// Trace the ray.
-		// Set the ray's extents.
-		RayDesc ray;
-		ray.Origin = cameraRayOrigin;
-		ray.Direction = cameraRayDir;
-		ray.TMin = RAYGEN_T_MIN;
-		ray.TMax = RAYGEN_T_MAX;
-
-		uint instanceInclusionMask = ~0; // Do not ignore anything
-		uint rayContributionToHitGroupIndex = 0;
-		// #todo: Need to satisfy one of following conditions.
-		//        I don't understand hit groups enough yet...
-		// 1) numShaderRecords for hitGroupShaderTable is 1 and this is 0
-		// 2) numShaderRecords for hitGroupShaderTable is N and this is 1
-		//    where N = number of geometries
-		uint multiplierForGeometryContributionToHitGroupIndex = 1;
-		uint missShaderIndex = 0;
-		TraceRay(
-			rtScene,
-			RAY_FLAG_NONE,
-			instanceInclusionMask,
-			rayContributionToHitGroupIndex,
-			multiplierForGeometryContributionToHitGroupIndex,
-			missShaderIndex,
-			ray,
-			primaryPayload);
+		microfacetBRDF(viewDirection, normalWS, albedo, roughness, metallic, randoms.x, randoms.y,
+			scatteredReflectance, scatteredDir, scatteredPdf);
+	}
+	else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
+	{
+		scatteredReflectance = 1.0;
+		scatteredDir = reflect(viewDirection, normalWS);
+		scatteredPdf = 1.0;
 	}
 
-	// Hit the sky. Let's sample skybox.
-	if (primaryPayload.objectID == OBJECT_ID_NONE)
+	float3 Li = traceIncomingRadiance(texel, positionWS, scatteredDir);
+	float3 Wo = scatteredReflectance * Li;
+
+	float3 prevColor;
+	float historyCount;
+
+	if (indirectSpecularUniform.bInvalidateHistory == 0)
 	{
-		float3 skyLight = skybox.SampleLevel(skyboxSampler, cameraRayDir, 0.0).rgb;
-		renderTarget[DispatchRaysIndex().xy] = float4(skyLight, OBJECT_ID_NONE);
-		return;
+		prevColor = prevColorTexture[texel].xyz;
+		historyCount = prevColorTexture[texel].w;
+	}
+	else
+	{
+		prevColor = float3(0.0, 0.0, 0.0);
+		historyCount = 0;
 	}
 
-	RayPayload currentPayload = primaryPayload;
-	float3 indirectLighting = float3(0.0, 0.0, 0.0);
-	float reflectiveness = 1.0;
+	Wo = lerp(prevColor, Wo, 1.0 / (1.0 + historyCount));
+	historyCount += 1;
 
-	float3 currentRayOrigin = cameraRayOrigin;
-	float3 currentRayDir = cameraRayDir;
-
-	for (uint i = 0; i < MAX_BOUNCE; ++i)
-	{
-		bool bReflective = (currentPayload.objectID != OBJECT_ID_NONE) && (currentPayload.roughness < 1.0);
-		if (!bReflective)
-		{
-			break;
-		}
-
-		RayDesc ray;
-		ray.Origin = (currentPayload.hitTime * currentRayDir + currentRayOrigin);
-		ray.Origin += 0.001 * currentPayload.surfaceNormal; // Slightly push origin
-		ray.Direction = reflect(currentRayDir, currentPayload.surfaceNormal);
-		ray.TMin = RAYGEN_T_MIN;
-		ray.TMax = RAYGEN_T_MAX;
-
-		currentRayOrigin = ray.Origin;
-		currentRayDir = ray.Direction;
-
-		uint instanceInclusionMask = ~0; // Do not ignore anything
-		uint rayContributionToHitGroupIndex = 0;
-		uint multiplierForGeometryContributionToHitGroupIndex = 1;
-		uint missShaderIndex = 0;
-		RayPayload nextPayload = createRayPayload();
-
-		TraceRay(
-			rtScene,
-			RAY_FLAG_NONE,
-			instanceInclusionMask,
-			rayContributionToHitGroupIndex,
-			multiplierForGeometryContributionToHitGroupIndex,
-			missShaderIndex,
-			ray,
-			nextPayload);
-
-		if (nextPayload.objectID == OBJECT_ID_NONE)
-		{
-			currentPayload = nextPayload;
-			break;
-		}
-
-		reflectiveness *= (1.0 - currentPayload.roughness);
-		indirectLighting += nextPayload.albedo * reflectiveness;
-		currentPayload = nextPayload;
-	}
-
-	if (currentPayload.objectID == OBJECT_ID_NONE)
-	{
-		float3 skyLight = skybox.SampleLevel(skyboxSampler, currentRayDir, 0.0).rgb;
-		indirectLighting += skyLight;
-	}
-	renderTarget[DispatchRaysIndex().xy] = float4(indirectLighting, currentPayload.objectID);
+	// #wip: Should store history in moment texture
+	currentColorTexture[texel] = float4(Wo, historyCount);
+	renderTarget[texel] = float4(Wo, 1.0);
 }
 
 [shader("closesthit")]
-void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
+void MainClosestHit(inout RayPayload payload, in MyAttributes attr)
 {
-	// #todo: I have no idea how is this automatically updated?
-	// All I did is creating a bunch of shader records for hit group
-	// and suddenly this value is equal to geometry index.
 	uint objectID = g_closestHitCB.objectID;
-
 	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
 	
+	// #wip: Make raytracing_common.hlsl for raytracing passes
 	// Get the base index of the triangle's first 32 bit index.
 	uint triangleIndexStride = 3 * 4; // 4 = sizeof(uint32)
 	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
@@ -236,10 +344,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 	VertexAttributes v1 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.y);
 	VertexAttributes v2 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.z);
 
-	float3 barycentrics = float3(
-		1 - attr.barycentrics.x - attr.barycentrics.y,
-		attr.barycentrics.x,
-		attr.barycentrics.y);
+	float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
 	
 	float2 texcoord = barycentrics.x * v0.texcoord
 		+ barycentrics.y * v1.texcoord
@@ -257,18 +362,16 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 	payload.surfaceNormal = surfaceNormal;
 
 	payload.roughness = material.roughness;
-	payload.albedo = albedoTex.SampleLevel(albedoSampler, texcoord, 0.0).rgb
-		* material.albedoMultiplier.rgb;
+	payload.albedo = albedoTex.SampleLevel(albedoSampler, texcoord, 0.0).rgb * material.albedoMultiplier.rgb;
+	payload.emission = material.emission;
 
 	payload.hitTime = RayTCurrent();
 	payload.objectID = objectID;
 }
 
 [shader("miss")]
-void MyMissShader(inout RayPayload payload)
+void MainMiss(inout RayPayload payload)
 {
 	payload.objectID = OBJECT_ID_NONE;
 	payload.hitTime = -1.0;
 }
-
-#endif // RAYTRACING_HLSL

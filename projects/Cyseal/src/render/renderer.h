@@ -26,7 +26,7 @@ enum class EIndirectSpecularMode
 {
 	Disabled         = 0,
 	ForceMirror      = 1,
-	//BRDF             = 2,
+	BRDF             = 2,
 
 	Count
 };

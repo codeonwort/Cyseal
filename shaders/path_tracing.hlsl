@@ -37,15 +37,15 @@
 
 struct PathTracingUniform
 {
-	float4 randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
-	float4 randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
-	float4x4 prevViewInvMatrix;
-	float4x4 prevProjInvMatrix;
-	float4x4 prevViewProjMatrix;
-	uint renderTargetWidth;
-	uint renderTargetHeight;
-	uint bInvalidateHistory; // If nonzero, force invalidate the whole history.
-	uint bLimitHistory;
+	float4      randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
+	float4      randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
+	float4x4    prevViewInvMatrix;
+	float4x4    prevProjInvMatrix;
+	float4x4    prevViewProjMatrix;
+	uint        renderTargetWidth;
+	uint        renderTargetHeight;
+	uint        bInvalidateHistory; // If nonzero, force invalidate the whole history.
+	uint        bLimitHistory;
 };
 
 struct VertexAttributes
@@ -68,7 +68,7 @@ StructuredBuffer<Material>         materials             : register(t4, space0);
 TextureCube                        skybox                : register(t5, space0);
 Texture2D                          sceneDepthTexture     : register(t6, space0);
 Texture2D                          prevSceneDepthTexture : register(t7, space0);
-RWTexture2D<float4>                sceneNormalTexture    : register(u0, space0);
+Texture2D                          sceneNormalTexture    : register(t8, space0);
 RWTexture2D<float4>                currentColorTexture   : register(u1, space0);
 RWTexture2D<float4>                prevColorTexture      : register(u2, space0);
 RWTexture2D<float4>                currentMoment         : register(u3, space0);
@@ -254,7 +254,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		// #todo-pathtracing: Handle transmission.
 		float3 scatteredReflectance, scatteredDir;
 		float scatteredPdf;
-		microfactBRDF(
+		microfacetBRDF(
 			currentRay.Direction, surfaceNormal,
 			currentRayPayload.albedo,
 			currentRayPayload.roughness,
@@ -413,7 +413,7 @@ void MainRaygen()
 	generateCameraRay(targetTexel, cameraRayOrigin, cameraRayDir);
 
 	float sceneDepth = sceneDepthTexture.Load(int3(targetTexel, 0)).r;
-	float3 sceneNormal = sceneNormalTexture[targetTexel].xyz;
+	float3 sceneNormal = sceneNormalTexture.Load(int3(targetTexel, 0)).xyz;
 	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
 	float linearDepth = getLinearDepth(screenUV, sceneDepth);
 
@@ -502,7 +502,6 @@ void MainRaygen()
 void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 {
 	uint objectID = g_closestHitCB.objectID;
-
 	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
 	
 	// Get the base index of the triangle's first 32 bit index.
@@ -520,10 +519,7 @@ void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 	VertexAttributes v1 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.y);
 	VertexAttributes v2 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.z);
 
-	float3 barycentrics = float3(
-		1 - attr.barycentrics.x - attr.barycentrics.y,
-		attr.barycentrics.x,
-		attr.barycentrics.y);
+	float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
 	
 	float2 texcoord = barycentrics.x * v0.texcoord
 		+ barycentrics.y * v1.texcoord

@@ -166,7 +166,7 @@ void World1::createResources()
 		auto material = makeShared<Material>();
 		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
-		material->roughness = 0.0f;
+		material->roughness = 1.0f;
 
 		ground = new StaticMesh;
 		ground->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);

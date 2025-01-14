@@ -31,7 +31,7 @@ struct PathTracingInput
 	UnorderedAccessView*       sceneColorUAV;
 	ShaderResourceView*        sceneDepthSRV;
 	ShaderResourceView*        prevSceneDepthSRV;
-	UnorderedAccessView*       worldNormalUAV;
+	ShaderResourceView*        gbuffer1SRV;
 	ShaderResourceView*        skyboxSRV;
 };
 

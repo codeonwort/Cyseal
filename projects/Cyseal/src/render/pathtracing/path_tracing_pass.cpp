@@ -271,7 +271,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.texture("skybox", skyboxSRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
-		SPT.rwTexture("sceneNormalTexture", passInput.worldNormalUAV);
+		SPT.texture("sceneNormalTexture", passInput.gbuffer1SRV);
 		SPT.rwTexture("currentColorTexture", currentColorUAV);
 		SPT.rwTexture("prevColorTexture", prevColorUAV);
 		SPT.rwTexture("currentMoment", currentMomentUAV);
@@ -356,7 +356,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		SPT.constantBuffer("blurUniform", uniformCBV);
 		SPT.rwTexture("inColorTexture", blurInput);
-		SPT.rwTexture("inNormalTexture", passInput.worldNormalUAV);
+		SPT.texture("inNormalTexture", passInput.gbuffer1SRV);
 		SPT.texture("inDepthTexture", passInput.sceneDepthSRV);
 		SPT.rwTexture("outputTexture", blurOutput);
 
