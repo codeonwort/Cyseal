@@ -31,6 +31,7 @@ struct IndirectSpecularInput
 	ShaderResourceView*        skyboxSRV;
 	ShaderResourceView*        gbuffer0SRV;
 	ShaderResourceView*        gbuffer1SRV;
+	ShaderResourceView*        sceneDepthSRV;
 	UnorderedAccessView*       indirectSpecularUAV;
 };
 

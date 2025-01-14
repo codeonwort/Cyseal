@@ -150,8 +150,6 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	auto gpuScene            = passInput.gpuScene;
 	auto raytracingScene     = passInput.raytracingScene;
 	auto sceneUniformBuffer  = passInput.sceneUniformBuffer;
-	auto indirectSpecularUAV = passInput.indirectSpecularUAV;
-	auto skyboxSRV           = passInput.skyboxSRV;
 
 	if (isAvailable() == false)
 	{
@@ -243,10 +241,11 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
-		SPT.texture("skybox", skyboxSRV);
+		SPT.texture("skybox", passInput.skyboxSRV);
 		SPT.texture("gbuffer0", passInput.gbuffer0SRV);
 		SPT.texture("gbuffer1", passInput.gbuffer1SRV);
-		SPT.rwTexture("renderTarget", indirectSpecularUAV);
+		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+		SPT.rwTexture("renderTarget", passInput.indirectSpecularUAV);
 		SPT.rwTexture("currentColorTexture", currentColorUAV);
 		SPT.rwTexture("prevColorTexture", prevColorUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);

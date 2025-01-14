@@ -112,7 +112,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		sm->setActiveLOD(lod);
 		uint32 currentSections = (uint32)(sm->getSections(lod).size());
 		numMeshSections += currentSections;
-		if (sm->isTransformDirty())
+		if (sm->isTransformDirty() || sm->isLodDirty())
 		{
 			numDirtyMeshSections += currentSections;
 		}
@@ -231,7 +231,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		uint32 lod = sm->getActiveLOD();
 		const uint32 smSections = (uint32)(sm->getSections(lod).size());
 
-		if (bRebuildGPUScene == false && sm->isTransformDirty() == false)
+		if (bRebuildGPUScene == false && sm->isTransformDirty() == false && sm->isLodDirty() == false)
 		{
 			sceneItemIx += smSections;
 			continue;

@@ -403,6 +403,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.skyboxSRV           = skyboxSRV.get(),
 			.gbuffer0SRV         = gbufferSRVs[0].get(),
 			.gbuffer1SRV         = gbufferSRVs[1].get(),
+			.sceneDepthSRV       = sceneDepthSRV.get(),
 			.indirectSpecularUAV = indirectSpecularUAV.get(),
 		};
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
