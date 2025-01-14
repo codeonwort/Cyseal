@@ -21,6 +21,8 @@
 #define RAYGEN_T_MAX              10000.0
 #define MAX_BOUNCE                5
 #define SURFACE_NORMAL_OFFSET     0.001
+// Precision of world position from scene depth is bad; need more bias.
+#define GBUFFER_NORMAL_OFFSET     0.05
 
 // Temp boost sky light.
 #define SKYBOX_BOOST              1.0
@@ -125,11 +127,7 @@ float2 getScreenUV(uint2 texel)
 
 float getNdcZ(float sceneDepth)
 {
-#if REVERSE_Z
-	return sceneDepth; // clipZ is [0,1] in Reverse-Z
-#else
-	return sceneDepth * 2.0 - 1.0;
-#endif
+	return sceneDepth; // clipZ is always [0,1] in DirectX
 }
 
 float4 getPositionCS(float2 screenUV, float z)
@@ -139,8 +137,7 @@ float4 getPositionCS(float2 screenUV, float z)
 
 float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
 {
-	float z = getNdcZ(sceneDepth);
-	float4 positionCS = getPositionCS(screenUV, z);
+	float4 positionCS = getPositionCS(screenUV, getNdcZ(sceneDepth));
 	float4 positionWS = mul(positionCS, sceneUniform.viewProjInvMatrix);
 	return positionWS.xyz / positionWS.w;
 }
@@ -155,12 +152,12 @@ float2 getRandoms(uint2 texel, uint bounce)
 	return float2(rand0, rand1);
 }
 
-float3 traceIncomingRadiance(uint2 texel, float3 surfacePosition, float3 rayDir)
+float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 {
 	RayPayload currentRayPayload = createRayPayload();
 
 	RayDesc currentRay;
-	currentRay.Origin = surfacePosition;
+	currentRay.Origin = rayOrigin;
 	currentRay.Direction = rayDir;
 	currentRay.TMin = RAYGEN_T_MIN;
 	currentRay.TMax = RAYGEN_T_MAX;
@@ -291,7 +288,7 @@ void MainRaygen()
 	GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
 
 	float3 albedo = gbufferData.albedo;
-	float3 normalWS = gbufferData.normalWS;
+	float3 normalWS = normalize(gbufferData.normalWS);
 	float roughness = gbufferData.roughness;
 	float metallic = 0.0; // #todo: No metallic yet
 
@@ -300,6 +297,7 @@ void MainRaygen()
 	float3 scatteredReflectance, scatteredDir; float scatteredPdf;
 	if (indirectSpecularUniform.traceMode == TRACE_BRDF)
 	{
+		// #wip: Need to exclude diffuse term.
 		microfacetBRDF(viewDirection, normalWS, albedo, roughness, metallic, randoms.x, randoms.y,
 			scatteredReflectance, scatteredDir, scatteredPdf);
 	}
@@ -309,9 +307,10 @@ void MainRaygen()
 		scatteredDir = reflect(viewDirection, normalWS);
 		scatteredPdf = 1.0;
 	}
-
-	float3 Li = traceIncomingRadiance(texel, positionWS, scatteredDir);
-	float3 Wo = scatteredReflectance * Li;
+	
+	float3 relaxedPositionWS = normalWS * GBUFFER_NORMAL_OFFSET + positionWS;
+	float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, scatteredDir);
+	float3 Wo = (scatteredReflectance / scatteredPdf) * Li;
 
 	float3 prevColor;
 	float historyCount;
@@ -327,8 +326,15 @@ void MainRaygen()
 		historyCount = 0;
 	}
 
-	Wo = lerp(prevColor, Wo, 1.0 / (1.0 + historyCount));
-	historyCount += 1;
+	if (scatteredPdf == 0.0)
+	{
+		Wo = prevColor;
+	}
+	else
+	{
+		Wo = lerp(prevColor, Wo, 1.0 / (1.0 + historyCount));
+		historyCount += 1;
+	}
 
 	// #wip: Should store history in moment texture
 	currentColorTexture[texel] = float4(Wo, historyCount);
