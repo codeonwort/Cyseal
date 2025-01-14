@@ -132,10 +132,15 @@ float getNdcZ(float sceneDepth)
 #endif
 }
 
+float4 getPositionCS(float2 screenUV, float z)
+{
+	return float4(2.0 * screenUV.x - 1.0, 1.0 - 2.0 * screenUV.y, z, 1.0);
+}
+
 float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
 {
 	float z = getNdcZ(sceneDepth);
-	float4 positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0);
+	float4 positionCS = getPositionCS(screenUV, z);
 	float4 positionWS = mul(positionCS, sceneUniform.viewProjInvMatrix);
 	return positionWS.xyz / positionWS.w;
 }

@@ -138,9 +138,14 @@ float getNdcZ(float sceneDepth)
 #endif
 }
 
+float4 getPositionCS(float2 screenUV, float z)
+{
+	return float4(2.0 * screenUV.x - 1.0, 1.0 - 2.0 * screenUV.y, z, 1.0);
+}
+
 float getLinearDepth(float2 screenUV, float sceneDepth)
 {
-	float4 positionCS = float4(2.0 * screenUV - 1.0, sceneDepth, 1.0);
+	float4 positionCS = getPositionCS(screenUV, sceneDepth);
 	float4 projected = mul(positionCS, sceneUniform.projInvMatrix);
 	return abs(projected.z / projected.w);
 }
@@ -148,15 +153,21 @@ float getLinearDepth(float2 screenUV, float sceneDepth)
 float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
 {
 	float z = getNdcZ(sceneDepth);
-	float4 positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0);
+	float4 positionCS = getPositionCS(screenUV, z);
 	float4 positionWS = mul(positionCS, sceneUniform.viewProjInvMatrix);
 	return positionWS.xyz / positionWS.w;
+}
+
+float2 clipSpaceToTextureUV(float4 positionCS)
+{
+	positionCS.xy /= positionCS.w;
+	return float2(0.5, -0.5) * positionCS.xy + float2(0.5, 0.5);
 }
 
 bool getPrevWorldPosition(float3 currPositionWS, out float3 prevPositionWS, out float prevLinearDepth)
 {
 	float4 positionCS = mul(float4(currPositionWS, 1.0), pathTracingUniform.prevViewProjMatrix);
-	float2 screenUV = 0.5 * (positionCS.xy / positionCS.w) + float2(0.5, 0.5);
+	float2 screenUV = clipSpaceToTextureUV(positionCS);
 	if (any(screenUV < float2(0, 0)) || any(screenUV >= float2(1, 1)))
 	{
 		return false;
@@ -166,7 +177,7 @@ bool getPrevWorldPosition(float3 currPositionWS, out float3 prevPositionWS, out 
 	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
 
 	float z = getNdcZ(sceneDepth);
-	positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0); // [-1,1]
+	positionCS = getPositionCS(screenUV, z); // [-1,1]
 	float4 positionVS = mul(positionCS, pathTracingUniform.prevProjInvMatrix);
 	positionVS /= positionVS.w; // Perspective division
 	float4 positionWS = mul(positionVS, pathTracingUniform.prevViewInvMatrix);
