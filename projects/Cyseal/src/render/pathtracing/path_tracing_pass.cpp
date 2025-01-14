@@ -49,7 +49,7 @@ struct BlurUniform
 	float _pad0;
 	uint32 textureWidth;
 	uint32 textureHeight;
-	uint32 _pad1;
+	uint32 bSkipBlur;
 	uint32 _pad2;
 };
 
@@ -334,6 +334,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		uboData.pPhi = 0.5f;
 		uboData.textureWidth = passInput.sceneWidth;
 		uboData.textureHeight = passInput.sceneHeight;
+		uboData.bSkipBlur = (passInput.mode == EPathTracingMode::Offline) ? 1 : 0;
 
 		auto uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(BlurUniform));
@@ -347,9 +348,11 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	DescriptorIndexTracker tracker;
 	UnorderedAccessView* blurInput = prevColorUAV;
 	UnorderedAccessView* blurOutput = colorScratchUAV.get();
-	for (int32 phase = 0; phase < BLUR_COUNT; ++phase)
+	
+	int32 actualBlurCount = (passInput.mode == EPathTracingMode::Offline) ? 1 : BLUR_COUNT;
+	for (int32 phase = 0; phase < actualBlurCount; ++phase)
 	{
-		if (phase == BLUR_COUNT - 1) blurOutput = sceneColorUAV;
+		if (phase == actualBlurCount - 1) blurOutput = sceneColorUAV;
 
 		ShaderParameterTable SPT{};
 		SPT.pushConstant("pushConstants", phase + 1);

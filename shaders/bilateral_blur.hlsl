@@ -21,7 +21,7 @@ struct BlurUniform
     float _pad0;
     uint textureWidth;
     uint textureHeight;
-    uint _pad1;
+    uint bSkipBlur;
     uint _pad2;
 };
 
@@ -77,6 +77,12 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
     float3 color0 = inColorTexture[tid.xy].xyz;
     float3 normal0 = inNormalTexture.Load(int3(tid.xy, 0)).xyz;
     float3 pos0 = getWorldPosition(tid.xy);
+
+    if (blurUniform.bSkipBlur != 0)
+    {
+        outputTexture[tid.xy] = float4(color0, 1.0);
+        return;
+    }
 
     float3 sum = float3(0.0, 0.0, 0.0);
     float weightSum = 0.0;
