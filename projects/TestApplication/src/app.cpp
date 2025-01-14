@@ -94,7 +94,7 @@ void TestApplication::onTick(float deltaSeconds)
 			float rotateY = ImGui::IsKeyDown(ImGuiKey_Q) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_E) ? 1.0f : 0.0f;
 			float rotateX = ImGui::IsKeyDown(ImGuiKey_Z) ? 1.0f : ImGui::IsKeyDown(ImGuiKey_C) ? -1.0f : 0.0f;
 
-			bCameraHasMoved = (moveX != 0.0f || moveZ != 0.0f || rotateY != 0.0f);
+			bCameraHasMoved = (moveX != 0.0f || moveZ != 0.0f || rotateY != 0.0f || rotateX != 0.0f);
 
 			camera.rotatePitch(rotateX * deltaSeconds * 45.0f);
 			camera.rotateYaw(rotateY * deltaSeconds * 45.0f);
