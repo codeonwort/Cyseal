@@ -297,9 +297,11 @@ void MainRaygen()
 	float3 scatteredReflectance, scatteredDir; float scatteredPdf;
 	if (indirectSpecularUniform.traceMode == TRACE_BRDF)
 	{
-		// #wip: Need to exclude diffuse term.
-		microfacetBRDF(viewDirection, normalWS, albedo, roughness, metallic, randoms.x, randoms.y,
-			scatteredReflectance, scatteredDir, scatteredPdf);
+		// Consider only specular part for first indirect bounce, but consider both for further bounces.
+		// Therefore it's L(D|S)SE path.
+		float3 dummy;
+		splitMicrofacetBRDF(viewDirection, normalWS, albedo, roughness, metallic, randoms.x, randoms.y,
+			dummy, scatteredReflectance, scatteredDir, scatteredPdf);
 	}
 	else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
 	{
