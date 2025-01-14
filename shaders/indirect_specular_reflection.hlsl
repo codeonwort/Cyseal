@@ -152,7 +152,7 @@ float2 getRandoms(uint2 texel, uint bounce)
 	uint seq1 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
 	float rand0 = indirectSpecularUniform.randFloats0[seq0 / 4][seq0 % 4];
 	float rand1 = indirectSpecularUniform.randFloats1[seq1 / 4][seq1 % 4];
-	return (rand0, rand1);
+	return float2(rand0, rand1);
 }
 
 float3 traceIncomingRadiance(uint2 texel, float3 surfacePosition, float3 rayDir)
@@ -277,6 +277,14 @@ void MainRaygen()
 	float sceneDepth = sceneDepthTexture.Load(int3(texel, 0)).r;
 	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
 	float3 viewDirection = normalize(positionWS - sceneUniform.cameraPosition.xyz);
+
+	if (sceneDepth == 1.0)
+	{
+		float3 Wo = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, viewDirection, 0.0).rgb;
+		currentColorTexture[texel] = float4(Wo, 1.0);
+		renderTarget[texel] = float4(Wo, 1.0);
+		return;
+	}
 
 	float4 gbuffer0Data = gbuffer0.Load(int3(texel, 0));
 	float4 gbuffer1Data = gbuffer1.Load(int3(texel, 0));
