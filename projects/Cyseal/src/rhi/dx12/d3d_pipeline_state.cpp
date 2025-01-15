@@ -288,6 +288,7 @@ static void createRootSignatureFromParameterTable(
 		p = 0;
 		for (const auto& samp : parameterTable.samplers)
 		{
+			// #wip: Oops... I forgot to deal with sampler desc :o
 			staticSamplers[p] = D3D12_STATIC_SAMPLER_DESC{
 				.Filter           = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
 				.AddressU         = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
