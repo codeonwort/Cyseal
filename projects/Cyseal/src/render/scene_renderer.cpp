@@ -282,7 +282,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		{
 			commandList->clearRenderTargetView(gbufferRTVs[i].get(), clearColor);
 		}
-		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
+		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
 
 		BasePassInput passInput{
 			.scene              = scene,

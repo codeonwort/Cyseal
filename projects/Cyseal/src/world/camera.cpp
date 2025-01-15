@@ -1,5 +1,6 @@
 #include "camera.h"
 #include "core/cymath.h"
+#include "render/renderer_options.h"
 
 #include <algorithm>
 
@@ -227,21 +228,48 @@ void Camera::updateProjection() const
 
 	// NDC z range = [0, 1]
 #if RIGHT_HANDED
-	float P[16] = {
-		X,       0.0f,    0.0f,               0.0f,
-		0.0f,    Y,       0.0f,               0.0f,
-		0.0f,    0.0f,    f / (n - f),       -1.0f,
-		0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
-	};
+	if (getReverseZPolicy() == EReverseZPolicy::Reverse)
+	{
+		float P[16] = {
+			X,       0.0f,    0.0f,               0.0f,
+			0.0f,    Y,       0.0f,               0.0f,
+			0.0f,    0.0f,    n / (f - n),       -1.0f,
+			0.0f,    0.0f,    (n * f) / (f - n),  0.0f
+		};
+		projection.copyFrom(P);
+	}
+	else
+	{
+		float P[16] = {
+			X,       0.0f,    0.0f,               0.0f,
+			0.0f,    Y,       0.0f,               0.0f,
+			0.0f,    0.0f,    f / (n - f),       -1.0f,
+			0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
+		};
+		projection.copyFrom(P);
+	}
 #else
-	float P[16] = {
-		X,       0.0f,    0.0f,               0.0f,
-		0.0f,    Y,       0.0f,               0.0f,
-		0.0f,    0.0f,    f / (f - n),        1.0f,
-		0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
-	};
+	if (getReverseZPolicy() == EReverseZPolicy::Reverse)
+	{
+		float P[16] = {
+			X,       0.0f,    0.0f,               0.0f,
+			0.0f,    Y,       0.0f,               0.0f,
+			0.0f,    0.0f,    -n / (f - n),       1.0f,
+			0.0f,    0.0f,    (n * f) / (f - n),  0.0f
+		};
+		projection.copyFrom(P);
+	}
+	else
+	{
+		float P[16] = {
+			X,       0.0f,    0.0f,               0.0f,
+			0.0f,    Y,       0.0f,               0.0f,
+			0.0f,    0.0f,    f / (f - n),        1.0f,
+			0.0f,    0.0f,    -(n * f) / (f - n), 0.0f
+		};
+		projection.copyFrom(P);
+	}
 #endif
-	projection.copyFrom(P);
 	// #todo-matrix: Derive the inverse manually
 	// (generalized inverse math is slower and it loses precision)
 	projectionInv = projection.inverse();

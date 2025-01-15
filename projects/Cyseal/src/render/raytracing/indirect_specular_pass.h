@@ -4,7 +4,7 @@
 #include "core/smart_pointer.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/rhi_forward.h"
-#include "render/renderer.h"
+#include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
 
 class Material;

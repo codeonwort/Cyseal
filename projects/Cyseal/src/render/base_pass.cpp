@@ -55,7 +55,7 @@ void BasePass::initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbuf
 		.blendDesc              = BlendDesc(),
 		.sampleMask             = 0xffffffff,
 		.rasterizerDesc         = RasterizerDesc(),
-		.depthstencilDesc       = DepthstencilDesc::StandardSceneDepth(),
+		.depthstencilDesc       = getReverseZPolicy() == EReverseZPolicy::Reverse ? DepthstencilDesc::ReverseZSceneDepth() : DepthstencilDesc::StandardSceneDepth(),
 		.inputLayout            = inputLayout,
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = 1 + numGBuffers,

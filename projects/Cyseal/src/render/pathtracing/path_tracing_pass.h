@@ -5,7 +5,7 @@
 #include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/texture.h"
-#include "render/renderer.h"
+#include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
 
 class SceneProxy;

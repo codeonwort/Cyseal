@@ -7,7 +7,7 @@
 #define FLT_MAX    (3.402823466e+38F)
 
 // #todo: Toggle Reverse-Z
-#define REVERSE_Z  0
+#define REVERSE_Z  1
 
 struct GPUSceneItem
 {

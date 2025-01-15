@@ -1,6 +1,6 @@
 #pragma once
 
-#include "renderer.h"
+#include "renderer_options.h"
 #include "core/smart_pointer.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"

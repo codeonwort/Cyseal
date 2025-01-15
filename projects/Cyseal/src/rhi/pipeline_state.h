@@ -309,6 +309,19 @@ struct DepthstencilDesc
 			{ EStencilOp::Keep, EStencilOp::Keep, EStencilOp::Keep, EComparisonFunc::Always }
 		};
 	}
+	static DepthstencilDesc ReverseZSceneDepth()
+	{
+		return DepthstencilDesc{
+			true,
+			EDepthWriteMask::All,
+			EComparisonFunc::Greater,
+			false,
+			0xff,
+			0xff,
+			{ EStencilOp::Keep, EStencilOp::Keep, EStencilOp::Keep, EComparisonFunc::Always },
+			{ EStencilOp::Keep, EStencilOp::Keep, EStencilOp::Keep, EComparisonFunc::Always }
+		};
+	}
 };
 
 struct Viewport

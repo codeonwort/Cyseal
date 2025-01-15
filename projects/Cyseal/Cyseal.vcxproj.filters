@@ -294,6 +294,9 @@
     <ClInclude Include="src\render\util\volatile_descriptor.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\renderer_options.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
