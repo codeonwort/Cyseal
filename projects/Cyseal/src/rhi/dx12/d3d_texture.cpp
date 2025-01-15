@@ -6,6 +6,10 @@
 #include "d3d_into.h"
 #include "core/assertion.h"
 
+// For getDeviceFarDepth() but it's a little odd that rhi includes render?
+// #wip: Move reverse-z policy to core or rhi
+#include "render/renderer_options.h"
+
 void D3DTexture::initialize(const TextureCreateParams& params)
 {
 	createParams = params;
@@ -50,7 +54,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	else if (isDepthTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
 	{
 		bNeedsClearValue = true;
-		optClearValue.DepthStencil.Depth = 1.0f;
+		optClearValue.DepthStencil.Depth = getDeviceFarDepth();
 		optClearValue.DepthStencil.Stencil = 0;
 	}
 
