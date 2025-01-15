@@ -18,8 +18,7 @@ struct PathTracingInput
 	const Camera*              camera;
 	EPathTracingMode           mode;
 
-	Float4x4                   prevViewInvMatrix;
-	Float4x4                   prevProjInvMatrix;
+	Float4x4                   prevViewProjInvMatrix;
 	Float4x4                   prevViewProjMatrix;
 	bool                       bCameraHasMoved;
 	uint32                     sceneWidth;

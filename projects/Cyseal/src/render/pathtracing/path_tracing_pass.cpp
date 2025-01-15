@@ -31,8 +31,7 @@ struct PathTracingUniform
 {
 	float randFloats0[RANDOM_SEQUENCE_LENGTH];
 	float randFloats1[RANDOM_SEQUENCE_LENGTH];
-	Float4x4 prevViewInv;
-	Float4x4 prevProjInv;
+	Float4x4 prevViewProjInv;
 	Float4x4 prevViewProj;
 	uint32 renderTargetWidth;
 	uint32 renderTargetHeight;
@@ -207,8 +206,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 			uboData->randFloats0[i] = Cymath::randFloat();
 			uboData->randFloats1[i] = Cymath::randFloat();
 		}
-		uboData->prevViewInv = passInput.prevViewInvMatrix;
-		uboData->prevProjInv = passInput.prevProjInvMatrix;
+		uboData->prevViewProjInv = passInput.prevViewProjInvMatrix;
 		uboData->prevViewProj = passInput.prevViewProjMatrix;
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;

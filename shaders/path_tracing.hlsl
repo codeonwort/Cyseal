@@ -39,8 +39,7 @@ struct PathTracingUniform
 {
 	float4      randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
 	float4      randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
-	float4x4    prevViewInvMatrix;
-	float4x4    prevProjInvMatrix;
+	float4x4    prevViewProjInvMatrix;
 	float4x4    prevViewProjMatrix;
 	uint        renderTargetWidth;
 	uint        renderTargetHeight;
@@ -155,13 +154,26 @@ float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
 
 float2 clipSpaceToTextureUV(float4 positionCS)
 {
-	positionCS.xy /= positionCS.w;
 	return float2(0.5, -0.5) * positionCS.xy + float2(0.5, 0.5);
 }
 
-bool getPrevWorldPosition(float3 currPositionWS, out float3 prevPositionWS, out float prevLinearDepth)
+float3 clipSpaceToWorldSpace(float4 positionCS, float4x4 viewProjInv)
 {
-	float4 positionCS = mul(float4(currPositionWS, 1.0), pathTracingUniform.prevViewProjMatrix);
+	float4 positionWS = mul(positionCS, viewProjInv);
+	positionWS /= positionWS.w;
+	return positionWS.xyz;
+}
+
+float4 worldSpaceToClipSpace(float3 positionWS, float4x4 viewProj)
+{
+	float4 positionCS = mul(float4(positionWS, 1.0), viewProj);
+	positionCS /= positionCS.w;
+	return positionCS;
+}
+
+bool getPrevFrame(float3 currPositionWS, out float3 prevPositionWS, out float prevLinearDepth, out float3 prevColor)
+{
+	float4 positionCS = worldSpaceToClipSpace(currPositionWS, pathTracingUniform.prevViewProjMatrix);
 	float2 screenUV = clipSpaceToTextureUV(positionCS);
 	if (any(screenUV < float2(0, 0)) || any(screenUV >= float2(1, 1)))
 	{
@@ -172,12 +184,10 @@ bool getPrevWorldPosition(float3 currPositionWS, out float3 prevPositionWS, out 
 	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
 
 	positionCS = getPositionCS(screenUV, getNdcZ(sceneDepth));
-	float4 positionVS = mul(positionCS, pathTracingUniform.prevProjInvMatrix);
-	positionVS /= positionVS.w; // Perspective division
-	float4 positionWS = mul(positionVS, pathTracingUniform.prevViewInvMatrix);
 	
-	prevPositionWS = positionWS.xyz;
+	prevPositionWS = clipSpaceToWorldSpace(positionCS, pathTracingUniform.prevViewProjInvMatrix);
 	prevLinearDepth = getLinearDepth(screenUV, sceneDepth);
+	prevColor = prevColorTexture.Load(int3(targetTexel, 0)).rgb;
 	return true;
 }
 
@@ -422,9 +432,8 @@ void MainRaygen()
 	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
 	float linearDepth = getLinearDepth(screenUV, sceneDepth);
 
-	float3 prevPositionWS;
-	float prevLinearDepth;
-	bool bPrevValid = getPrevWorldPosition(positionWS, prevPositionWS, prevLinearDepth);
+	float3 prevPositionWS; float prevLinearDepth; float3 prevColor;
+	bool bPrevValid = getPrevFrame(positionWS, prevPositionWS, prevLinearDepth, prevColor);
 
 	float3 viewDir = normalize(sceneUniform.cameraPosition.xyz - positionWS);
 	float zAlignment = 1.0 - dot(viewDir, sceneNormal);
@@ -445,7 +454,7 @@ void MainRaygen()
 	float prevAmbientOcclusion, historyCount;
 	if (bTemporalReprojection)
 	{
-		prevAmbientOcclusion = prevColorTexture[targetTexel].x;
+		prevAmbientOcclusion = prevColor.x;
 		historyCount = prevMoment[targetTexel].w;
 	}
 	else
@@ -467,7 +476,7 @@ void MainRaygen()
 	float historyCount;
 	if (bTemporalReprojection)
 	{
-		prevLi = prevColorTexture[targetTexel].xyz;
+		prevLi = prevColor;
 		prevMoments = prevMoment[targetTexel].xy;
 		historyCount = prevMoment[targetTexel].w;
 	}
