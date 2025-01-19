@@ -151,7 +151,10 @@ public:
 
 	virtual AccelerationStructure* buildRaytracingAccelerationStructure(uint32 numBLASDesc, BLASInstanceInitDesc* blasDescArray) = 0;
 
-	virtual void bindRaytracingShaderParameters(RaytracingPipelineStateObject* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) = 0;
+	// parameters             : Contains all parameters - CBVs, SRVs, UAVs, and samplers.
+	// descriptorHeap         : For CBVs, SRVs, and UAVs.
+	// (optional) samplerHeap : For samplers. If not exist, static samplers will be used.
+	virtual void bindRaytracingShaderParameters(RaytracingPipelineStateObject* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap, DescriptorHeap* samplerHeap = nullptr) = 0;
 
 	virtual void dispatchRays(const DispatchRaysDesc& dispatchDesc) = 0;
 

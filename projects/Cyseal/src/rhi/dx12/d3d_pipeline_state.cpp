@@ -94,7 +94,8 @@ static void createRootSignatureFromParameterTable(
 	WRL::ComPtr<ID3D12RootSignature>& outRootSignature,
 	ID3D12Device* device,
 	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags,
-	D3DShaderParameterTable& inoutParameterTable)
+	D3DShaderParameterTable& inoutParameterTable,
+	const std::vector<StaticSamplerDesc>& inStaticSamplers = {})
 {
 	D3DShaderParameterTable& parameterTable = inoutParameterTable;
 
@@ -286,24 +287,42 @@ static void createRootSignatureFromParameterTable(
 		CHECK(p == totalParameters);
 
 		p = 0;
-		for (const auto& samp : parameterTable.samplers)
+		for (const D3DShaderParameter& samplerReflection : parameterTable.samplers)
 		{
-			// #wip: Oops... I forgot to deal with sampler desc :o
-			staticSamplers[p] = D3D12_STATIC_SAMPLER_DESC{
-				.Filter           = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-				.AddressU         = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				.AddressV         = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				.AddressW         = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				.MipLODBias       = 0.0f,
-				.MaxAnisotropy    = 0,
-				.ComparisonFunc   = D3D12_COMPARISON_FUNC_ALWAYS,
-				.BorderColor      = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-				.MinLOD           = 0.0f,
-				.MaxLOD           = 0.0f,
-				.ShaderRegister   = samp.registerSlot,
-				.RegisterSpace    = samp.registerSpace,
-				.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-			};
+			size_t sampDescIx;
+			for (sampDescIx = 0; sampDescIx < inStaticSamplers.size(); ++sampDescIx)
+			{
+				if (inStaticSamplers[sampDescIx].registerSpace == samplerReflection.registerSpace
+					&& inStaticSamplers[sampDescIx].shaderRegister == samplerReflection.registerSlot)
+				{
+					break;
+				}
+			}
+			if (sampDescIx == inStaticSamplers.size())
+			{
+				CYLOG(LogD3DPipelineState, Error, L"Sampler desc for %S : register(s%d, space%d) was not provided. A default desc will be used.",
+					samplerReflection.name.c_str(), samplerReflection.registerSlot, samplerReflection.registerSpace);
+
+				staticSamplers[p] = D3D12_STATIC_SAMPLER_DESC{
+					.Filter           = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+					.AddressU         = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+					.AddressV         = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+					.AddressW         = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+					.MipLODBias       = 0.0f,
+					.MaxAnisotropy    = 0,
+					.ComparisonFunc   = D3D12_COMPARISON_FUNC_ALWAYS,
+					.BorderColor      = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+					.MinLOD           = 0.0f,
+					.MaxLOD           = 0.0f,
+					.ShaderRegister   = samplerReflection.registerSlot,
+					.RegisterSpace    = samplerReflection.registerSpace,
+					.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+				};
+			}
+			else
+			{
+				into_d3d::staticSamplerDesc(inStaticSamplers[sampDescIx], staticSamplers[p]);
+			}
 			++p;
 		}
 		CHECK(p == totalSamplers);
@@ -553,6 +572,7 @@ void D3DRaytracingPipelineStateObject::createRootSignatures(ID3D12Device* device
 
 	std::vector<std::string> allLocalParameters;
 	{
+		// If a parameter is used in multiple stages, exclude redundant reflections of it here.
 		std::vector<std::string> temp;
 		temp.insert(temp.end(), desc.raygenLocalParameters.begin(), desc.raygenLocalParameters.end());
 		temp.insert(temp.end(), desc.closestHitLocalParameters.begin(), desc.closestHitLocalParameters.end());
@@ -570,7 +590,7 @@ void D3DRaytracingPipelineStateObject::createRootSignatures(ID3D12Device* device
 	// Create global root signature.
 	auto globalRootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
 	buildShaderParameterTable(globalParameterTable, { raygen, closestHit, miss, anyHit, intersection }, allLocalParameters, ESpecialParameterSetPolicy::DiscardSet);
-	createRootSignatureFromParameterTable(globalRootSignature, device, globalRootSignatureFlags, globalParameterTable);
+	createRootSignatureFromParameterTable(globalRootSignature, device, globalRootSignatureFlags, globalParameterTable, desc.staticSamplers);
 	createShaderParameterHashMap(globalParameterHashMap, globalParameterTable);
 
 	auto localRootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;

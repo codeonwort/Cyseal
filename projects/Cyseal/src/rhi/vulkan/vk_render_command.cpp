@@ -350,7 +350,7 @@ AccelerationStructure* VulkanRenderCommandList::buildRaytracingAccelerationStruc
 	return nullptr;
 }
 
-void VulkanRenderCommandList::bindRaytracingShaderParameters(RaytracingPipelineStateObject* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap)
+void VulkanRenderCommandList::bindRaytracingShaderParameters(RaytracingPipelineStateObject* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap, DescriptorHeap* samplerHeap)
 {
 	// #todo-vulkan
 	CHECK_NO_ENTRY();

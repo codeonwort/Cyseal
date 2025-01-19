@@ -496,12 +496,18 @@ AccelerationStructure* D3DRenderCommandList::buildRaytracingAccelerationStructur
 void D3DRenderCommandList::bindRaytracingShaderParameters(
 	RaytracingPipelineStateObject* pipelineState,
 	const ShaderParameterTable* inParameters,
-	DescriptorHeap* descriptorHeap)
+	DescriptorHeap* descriptorHeap,
+	DescriptorHeap* samplerHeap /* = nullptr */)
 {
+	CHECK(descriptorHeap != nullptr && descriptorHeap->getCreateParams().type == EDescriptorHeapType::CBV_SRV_UAV);
+	CHECK(samplerHeap == nullptr || samplerHeap->getCreateParams().type == EDescriptorHeapType::SAMPLER);
+
 	D3DRaytracingPipelineStateObject* d3dPipelineState = static_cast<D3DRaytracingPipelineStateObject*>(pipelineState);
 	ID3D12RootSignature* globalRootSig = d3dPipelineState->getGlobalRootSignature();
 
 	ID3D12DescriptorHeap* d3dDescriptorHeap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
+	uint32 numValidHeaps = 1;
+
 	D3D12_GPU_DESCRIPTOR_HANDLE baseHandle = d3dDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	const uint64 descriptorSize = (uint64)device->getDescriptorSizeCbvSrvUav();
 	auto calcDescriptorHandle = [&baseHandle, &descriptorSize](uint32 descriptorIndex) {
@@ -510,11 +516,21 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 		return handle;
 	};
 
-	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
-	commandList->SetComputeRootSignature(globalRootSig);
-	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
+	// #wip-sampler: Use sampler heap to bind samplers
+	// #wip-sampler: Do the same for bindGraphicsShaderParameters() and bindComputeShaderParameters()
+	ID3D12DescriptorHeap* d3dSamplerHeap = nullptr;
+	if (samplerHeap != nullptr)
+	{
+		d3dSamplerHeap = static_cast<D3DDescriptorHeap*>(samplerHeap)->getRaw();
+		numValidHeaps += 1;
+	}
 
-	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap, d3dSamplerHeap };
+	commandList->SetComputeRootSignature(globalRootSig);
+	commandList->SetDescriptorHeaps(numValidHeaps, d3dDescriptorHeaps);
+
+	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]
+		<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
 	{
 		for (const auto& inParam : parameters)
 		{
@@ -528,6 +544,7 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 	// #todo-dx12: Root Descriptor vs Descriptor Table
 	// For now, always use descriptor table.
 	uint32 descriptorIx = 0;
+	uint32 samplerDescriptorIx = 0;
 
 	for (const auto& inParam : inParameters->pushConstants)
 	{

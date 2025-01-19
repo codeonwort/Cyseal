@@ -117,7 +117,7 @@ public:
 
 	virtual AccelerationStructure* buildRaytracingAccelerationStructure(uint32 numBLASDesc, BLASInstanceInitDesc* blasDescArray) override;
 
-	virtual void bindRaytracingShaderParameters(RaytracingPipelineStateObject* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) override;
+	virtual void bindRaytracingShaderParameters(RaytracingPipelineStateObject* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap, DescriptorHeap* samplerHeap) override;
 
 	virtual void dispatchRays(const DispatchRaysDesc& dispatchDesc) override;
 
