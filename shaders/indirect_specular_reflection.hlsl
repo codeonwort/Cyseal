@@ -84,11 +84,12 @@ RWTexture2D<float4>                     prevColorTexture        : register(u2, s
 #define TEMP_MAX_SRVS 1024
 Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless in another space
 
+// Samplers
+SamplerState albedoSampler : register(s0, space0);
+SamplerState skyboxSampler : register(s1, space0);
+
 // Local root signature (closest hit)
 ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
-
-SamplerState albedoSampler                  : register(s0, space0);
-SamplerState skyboxSampler                  : register(s1, space0);
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload

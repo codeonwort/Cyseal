@@ -93,6 +93,38 @@ void IndirecSpecularPass::initialize()
 	missShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainMiss");
 
 	// RTPSO
+	std::vector<StaticSamplerDesc> staticSamplers = {
+		StaticSamplerDesc{
+			.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+			.addressU         = ETextureAddressMode::Wrap,
+			.addressV         = ETextureAddressMode::Wrap,
+			.addressW         = ETextureAddressMode::Wrap,
+			.mipLODBias       = 0.0f,
+			.maxAnisotropy    = 1,
+			.comparisonFunc   = EComparisonFunc::Always,
+			.borderColor      = EStaticBorderColor::TransparentBlack,
+			.minLOD           = 0.0f,
+			.maxLOD           = 0.0f,
+			.shaderRegister   = 0,
+			.registerSpace    = 0,
+			.shaderVisibility = EShaderVisibility::All,
+		},
+		StaticSamplerDesc{
+			.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+			.addressU         = ETextureAddressMode::Wrap,
+			.addressV         = ETextureAddressMode::Wrap,
+			.addressW         = ETextureAddressMode::Wrap,
+			.mipLODBias       = 0.0f,
+			.maxAnisotropy    = 1,
+			.comparisonFunc   = EComparisonFunc::Always,
+			.borderColor      = EStaticBorderColor::TransparentBlack,
+			.minLOD           = 0.0f,
+			.maxLOD           = 0.0f,
+			.shaderRegister   = 1,
+			.registerSpace    = 0,
+			.shaderVisibility = EShaderVisibility::All,
+		},
+	};
 	RaytracingPipelineStateObjectDesc pipelineDesc{
 		.hitGroupName                 = INDIRECT_SPECULAR_HIT_GROUP_NAME,
 		.hitGroupType                 = ERaytracingHitGroupType::Triangles,
@@ -105,6 +137,7 @@ void IndirecSpecularPass::initialize()
 		.maxPayloadSizeInBytes        = sizeof(RayPayload),
 		.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
 		.maxTraceRecursionDepth       = INDIRECT_SPECULAR_MAX_RECURSION,
+		.staticSamplers               = std::move(staticSamplers),
 	};
 	RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
 
