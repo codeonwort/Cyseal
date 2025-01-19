@@ -292,8 +292,7 @@ static void createRootSignatureFromParameterTable(
 			size_t sampDescIx;
 			for (sampDescIx = 0; sampDescIx < inStaticSamplers.size(); ++sampDescIx)
 			{
-				if (inStaticSamplers[sampDescIx].registerSpace == samplerReflection.registerSpace
-					&& inStaticSamplers[sampDescIx].shaderRegister == samplerReflection.registerSlot)
+				if (inStaticSamplers[sampDescIx].name == samplerReflection.name)
 				{
 					break;
 				}
@@ -321,7 +320,7 @@ static void createRootSignatureFromParameterTable(
 			}
 			else
 			{
-				into_d3d::staticSamplerDesc(inStaticSamplers[sampDescIx], staticSamplers[p]);
+				into_d3d::staticSamplerDesc(inStaticSamplers[sampDescIx], samplerReflection.registerSlot, samplerReflection.registerSpace, staticSamplers[p]);
 			}
 			++p;
 		}

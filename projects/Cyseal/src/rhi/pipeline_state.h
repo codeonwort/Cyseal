@@ -420,6 +420,7 @@ enum EStaticBorderColor : uint8
 // D3D12_STATIC_SAMPLER_DESC
 struct StaticSamplerDesc
 {
+	std::string name;
 	ETextureFilter filter              = ETextureFilter::MIN_MAG_MIP_POINT;
 	ETextureAddressMode addressU       = ETextureAddressMode::Wrap;
 	ETextureAddressMode addressV       = ETextureAddressMode::Wrap;
@@ -430,9 +431,8 @@ struct StaticSamplerDesc
 	EStaticBorderColor borderColor     = EStaticBorderColor::TransparentBlack;
 	float minLOD                       = 0.0f;
 	float maxLOD                       = 0.0f;
-	// #wip-sampler: Replace shaderRegister+registerSpace with parameter name?
-	uint32 shaderRegister              = 0;
-	uint32 registerSpace               = 0;
+	//uint32 shaderRegister              = 0; // Read from shader reflection
+	//uint32 registerSpace               = 0; // Read from shader reflection
 	EShaderVisibility shaderVisibility = EShaderVisibility::All;
 };
 

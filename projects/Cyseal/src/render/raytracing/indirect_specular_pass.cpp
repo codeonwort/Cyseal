@@ -95,6 +95,7 @@ void IndirecSpecularPass::initialize()
 	// RTPSO
 	std::vector<StaticSamplerDesc> staticSamplers = {
 		StaticSamplerDesc{
+			.name             = "albedoSampler",
 			.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
 			.addressU         = ETextureAddressMode::Wrap,
 			.addressV         = ETextureAddressMode::Wrap,
@@ -105,11 +106,10 @@ void IndirecSpecularPass::initialize()
 			.borderColor      = EStaticBorderColor::TransparentBlack,
 			.minLOD           = 0.0f,
 			.maxLOD           = 0.0f,
-			.shaderRegister   = 0,
-			.registerSpace    = 0,
 			.shaderVisibility = EShaderVisibility::All,
 		},
 		StaticSamplerDesc{
+			.name             = "skyboxSampler",
 			.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
 			.addressU         = ETextureAddressMode::Wrap,
 			.addressV         = ETextureAddressMode::Wrap,
@@ -120,8 +120,6 @@ void IndirecSpecularPass::initialize()
 			.borderColor      = EStaticBorderColor::TransparentBlack,
 			.minLOD           = 0.0f,
 			.maxLOD           = 0.0f,
-			.shaderRegister   = 1,
-			.registerSpace    = 0,
 			.shaderVisibility = EShaderVisibility::All,
 		},
 	};

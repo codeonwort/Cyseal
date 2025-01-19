@@ -138,7 +138,7 @@ namespace into_d3d
 		return static_cast<D3D12_TEXTURE_ADDRESS_MODE>(mode);
 	}
 
-	inline void staticSamplerDesc(const StaticSamplerDesc& inDesc, D3D12_STATIC_SAMPLER_DESC& outDesc)
+	inline void staticSamplerDesc(const StaticSamplerDesc& inDesc, uint32 shaderRegister, uint32 registerSpace, D3D12_STATIC_SAMPLER_DESC& outDesc)
 	{
 		outDesc.Filter = filter(inDesc.filter);
 		outDesc.AddressU = textureAddressMode(inDesc.addressU);
@@ -150,8 +150,8 @@ namespace into_d3d
 		outDesc.BorderColor = staticBorderColor(inDesc.borderColor);
 		outDesc.MinLOD = inDesc.minLOD;
 		outDesc.MaxLOD = inDesc.maxLOD;
-		outDesc.ShaderRegister = inDesc.shaderRegister;
-		outDesc.RegisterSpace = inDesc.registerSpace;
+		outDesc.ShaderRegister = shaderRegister;
+		outDesc.RegisterSpace = registerSpace;
 		outDesc.ShaderVisibility = shaderVisibility(inDesc.shaderVisibility);
 	}
 
