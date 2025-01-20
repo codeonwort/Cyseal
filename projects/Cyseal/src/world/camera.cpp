@@ -1,6 +1,6 @@
 #include "camera.h"
 #include "core/cymath.h"
-#include "render/renderer_options.h"
+#include "rhi/rhi_policy.h"
 
 #include <algorithm>
 

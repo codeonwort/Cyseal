@@ -4,6 +4,7 @@
 #include "core/platform.h"
 #include "core/plane.h"
 
+#include "rhi/rhi_policy.h"
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/swap_chain.h"

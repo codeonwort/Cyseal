@@ -5,10 +5,7 @@
 #include "d3d_resource_view.h"
 #include "d3d_into.h"
 #include "core/assertion.h"
-
-// For getDeviceFarDepth() but it's a little odd that rhi includes render?
-// #wip: Move reverse-z policy to core or rhi
-#include "render/renderer_options.h"
+#include "rhi/rhi_policy.h"
 
 void D3DTexture::initialize(const TextureCreateParams& params)
 {

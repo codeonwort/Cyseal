@@ -6,6 +6,7 @@
 #include "util/logging.h"
 
 #include "rhi/render_device.h"
+#include "rhi/rhi_policy.h"
 #include "rhi/swap_chain.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource_view.h"
