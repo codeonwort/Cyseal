@@ -276,7 +276,7 @@ void MainRaygen()
 	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
 	float3 viewDirection = normalize(positionWS - sceneUniform.cameraPosition.xyz);
 
-	if (sceneDepth == 1.0)
+	if (sceneDepth == DEVICE_Z_FAR)
 	{
 		float3 Wo = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, viewDirection, 0.0).rgb;
 		currentColorTexture[texel] = float4(Wo, 1.0);

@@ -96,12 +96,12 @@ void IndirecSpecularPass::initialize()
 	std::vector<StaticSamplerDesc> staticSamplers = {
 		StaticSamplerDesc{
 			.name             = "albedoSampler",
-			.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+			.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
 			.addressU         = ETextureAddressMode::Wrap,
 			.addressV         = ETextureAddressMode::Wrap,
 			.addressW         = ETextureAddressMode::Wrap,
 			.mipLODBias       = 0.0f,
-			.maxAnisotropy    = 1,
+			.maxAnisotropy    = 0,
 			.comparisonFunc   = EComparisonFunc::Always,
 			.borderColor      = EStaticBorderColor::TransparentBlack,
 			.minLOD           = 0.0f,
@@ -115,7 +115,7 @@ void IndirecSpecularPass::initialize()
 			.addressV         = ETextureAddressMode::Wrap,
 			.addressW         = ETextureAddressMode::Wrap,
 			.mipLODBias       = 0.0f,
-			.maxAnisotropy    = 1,
+			.maxAnisotropy    = 0,
 			.comparisonFunc   = EComparisonFunc::Always,
 			.borderColor      = EStaticBorderColor::TransparentBlack,
 			.minLOD           = 0.0f,

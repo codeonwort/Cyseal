@@ -9,6 +9,12 @@
 // #todo: Toggle Reverse-Z
 #define REVERSE_Z  1
 
+#if REVERSE_Z
+    #define DEVICE_Z_FAR 0.0
+#else
+    #define DEVICE_Z_FAR 1.0
+#endif
+
 struct GPUSceneItem
 {
     float4x4 modelMatrix; // local to world
