@@ -29,7 +29,7 @@ public:
 	const D3DShaderParameter* findShaderParameter(const std::string& name) const;
 
 private:
-	void createRootSignature(ID3D12Device* device, ShaderStage* vertexShader, ShaderStage* pixelShader, ShaderStage* domainShader, ShaderStage* hullShader, ShaderStage* geometryShader);
+	void createRootSignature(ID3D12Device* device, const GraphicsPipelineDesc& inDesc);
 
 	D3DShaderParameterTable parameterTable; // Copied from D3DShaderStage
 	std::map<std::string, const D3DShaderParameter*> parameterHashMap; // For fast query
@@ -49,7 +49,7 @@ public:
 	const D3DShaderParameter* findShaderParameter(const std::string& name) const;
 
 private:
-	void createRootSignature(ID3D12Device* device, D3DShaderStage* computeShader);
+	void createRootSignature(ID3D12Device* device, D3DShaderStage* computeShader, const std::vector<StaticSamplerDesc>& staticSamplers);
 
 	D3DShaderParameterTable parameterTable; // Copied from D3DShaderStage
 	std::map<std::string, const D3DShaderParameter*> parameterHashMap; // For fast query

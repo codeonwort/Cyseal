@@ -105,7 +105,7 @@ void IndirecSpecularPass::initialize()
 			.comparisonFunc   = EComparisonFunc::Always,
 			.borderColor      = EStaticBorderColor::TransparentBlack,
 			.minLOD           = 0.0f,
-			.maxLOD           = 0.0f,
+			.maxLOD           = FLT_MAX,
 			.shaderVisibility = EShaderVisibility::All,
 		},
 		StaticSamplerDesc{

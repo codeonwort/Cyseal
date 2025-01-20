@@ -516,8 +516,6 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 		return handle;
 	};
 
-	// #wip-sampler: Use sampler heap to bind samplers
-	// #wip-sampler: Do the same for bindGraphicsShaderParameters() and bindComputeShaderParameters()
 	ID3D12DescriptorHeap* d3dSamplerHeap = nullptr;
 	if (samplerHeap != nullptr)
 	{
@@ -566,6 +564,9 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 		const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
 		commandList->SetComputeRootShaderResourceView(param->rootParameterIndex, gpuAddr);
 	}
+
+	// #wip-sampler: Use sampler heap to bind samplers
+	// #wip-sampler: Do the same for bindGraphicsShaderParameters() and bindComputeShaderParameters()
 }
 
 void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& inDesc)

@@ -466,6 +466,8 @@ struct GraphicsPipelineDesc
 	// #todo-crossapi: UINT NodeMask
 	// #todo-crossapi: D3D12_CACHED_PIPELINE_STATE CachedPSO
 	// #todo-crossapi: D3D12_PIPELINE_STATE_FLAGS Flags
+
+	std::vector<StaticSamplerDesc> staticSamplers;
 };
 
 // D3D12_COMPUTE_PIPELINE_STATE_DESC
@@ -477,6 +479,8 @@ struct ComputePipelineDesc
 	uint32 nodeMask = 0; // #todo-mgpu
 	// #todo-crossapi: D3D12_CACHED_PIPELINE_STATE CachedPSO;
 	// #todo-crossapi: D3D12_PIPELINE_STATE_FLAGS  Flags;
+
+	std::vector<StaticSamplerDesc> staticSamplers;
 };
 
 // ID3D12PipelineState

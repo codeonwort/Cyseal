@@ -50,6 +50,22 @@ void BasePass::initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbuf
 	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
 
 	// PSO
+	std::vector<StaticSamplerDesc> staticSamplers = {
+		StaticSamplerDesc{
+			.name             = "albedoSampler",
+			.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
+			.addressU         = ETextureAddressMode::Wrap,
+			.addressV         = ETextureAddressMode::Wrap,
+			.addressW         = ETextureAddressMode::Wrap,
+			.mipLODBias       = 0.0f,
+			.maxAnisotropy    = 0,
+			.comparisonFunc   = EComparisonFunc::Always,
+			.borderColor      = EStaticBorderColor::TransparentBlack,
+			.minLOD           = 0.0f,
+			.maxLOD           = FLT_MAX,
+			.shaderVisibility = EShaderVisibility::All,
+		},
+	};
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = shaderVS,
 		.ps                     = shaderPS,
@@ -66,6 +82,7 @@ void BasePass::initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbuf
 			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
 			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
 		},
+		.staticSamplers         = std::move(staticSamplers),
 	};
 	pipelineDesc.rtvFormats[0] = sceneColorFormat;
 	for (uint32 i = 0; i < numGBuffers; ++i) pipelineDesc.rtvFormats[i + 1] = gbufferFormats[i];

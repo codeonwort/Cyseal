@@ -383,7 +383,7 @@ static void createShaderParameterHashMap(std::map<std::string, const D3DShaderPa
 
 void D3DGraphicsPipelineState::initialize(ID3D12Device* device, const GraphicsPipelineDesc& inDesc)
 {
-	createRootSignature(device, inDesc.vs, inDesc.ps, inDesc.ds, inDesc.hs, inDesc.gs);
+	createRootSignature(device, inDesc);
 
 	into_d3d::TempAlloc tempAlloc;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3d_desc;
@@ -399,13 +399,13 @@ const D3DShaderParameter* D3DGraphicsPipelineState::findShaderParameter(const st
 	return (it == parameterHashMap.end()) ? nullptr : it->second;
 }
 
-void D3DGraphicsPipelineState::createRootSignature(ID3D12Device* device, ShaderStage* inVertexShader, ShaderStage* inPixelShader, ShaderStage* inDomainShader, ShaderStage* inHullShader, ShaderStage* inGeometryShader)
+void D3DGraphicsPipelineState::createRootSignature(ID3D12Device* device, const GraphicsPipelineDesc& inDesc)
 {
-	D3DShaderStage* vs = static_cast<D3DShaderStage*>(inVertexShader);
-	D3DShaderStage* ps = static_cast<D3DShaderStage*>(inPixelShader);
-	D3DShaderStage* ds = static_cast<D3DShaderStage*>(inDomainShader);
-	D3DShaderStage* hs = static_cast<D3DShaderStage*>(inHullShader);
-	D3DShaderStage* gs = static_cast<D3DShaderStage*>(inGeometryShader);
+	D3DShaderStage* vs = static_cast<D3DShaderStage*>(inDesc.vs);
+	D3DShaderStage* ps = static_cast<D3DShaderStage*>(inDesc.ps);
+	D3DShaderStage* ds = static_cast<D3DShaderStage*>(inDesc.ds);
+	D3DShaderStage* hs = static_cast<D3DShaderStage*>(inDesc.hs);
+	D3DShaderStage* gs = static_cast<D3DShaderStage*>(inDesc.gs);
 	CHECK(vs == nullptr || vs->isPushConstantsDeclared());
 	CHECK(ps == nullptr || ps->isPushConstantsDeclared());
 	CHECK(ds == nullptr || ds->isPushConstantsDeclared());
@@ -415,7 +415,7 @@ void D3DGraphicsPipelineState::createRootSignature(ID3D12Device* device, ShaderS
 	auto flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	buildShaderParameterTable(parameterTable, { vs, ps, ds, hs, gs }, {}, ESpecialParameterSetPolicy::DontCare);
-	createRootSignatureFromParameterTable(rootSignature, device, flags, parameterTable);
+	createRootSignatureFromParameterTable(rootSignature, device, flags, parameterTable, inDesc.staticSamplers);
 	createShaderParameterHashMap(parameterHashMap, parameterTable);
 }
 
@@ -427,7 +427,7 @@ void D3DComputePipelineState::initialize(ID3D12Device* device, const ComputePipe
 	CHECK(inDesc.cs != nullptr);
 	D3DShaderStage* shaderStage = static_cast<D3DShaderStage*>(inDesc.cs);
 
-	createRootSignature(device, shaderStage);
+	createRootSignature(device, shaderStage, inDesc.staticSamplers);
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC pipelineDesc{
 		.pRootSignature = rootSignature.Get(),
@@ -450,14 +450,14 @@ const D3DShaderParameter* D3DComputePipelineState::findShaderParameter(const std
 	return (it == parameterHashMap.end()) ? nullptr : it->second;
 }
 
-void D3DComputePipelineState::createRootSignature(ID3D12Device* device, D3DShaderStage* computeShader)
+void D3DComputePipelineState::createRootSignature(ID3D12Device* device, D3DShaderStage* computeShader, const std::vector<StaticSamplerDesc>& staticSamplers)
 {
 	CHECK(computeShader->isPushConstantsDeclared());
 
 	auto flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
 
 	parameterTable = computeShader->getParameterTable(); // There is only one shader, just do deep copy rather than calling buildShaderParameterTable().
-	createRootSignatureFromParameterTable(rootSignature, device, flags, parameterTable);
+	createRootSignatureFromParameterTable(rootSignature, device, flags, parameterTable, staticSamplers);
 	createShaderParameterHashMap(parameterHashMap, parameterTable);
 }
 
