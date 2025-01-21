@@ -128,49 +128,6 @@ float2 getScreenResolution()
 	return float2(pathTracingUniform.renderTargetWidth, pathTracingUniform.renderTargetHeight);
 }
 
-float getNdcZ(float sceneDepth)
-{
-	return sceneDepth; // clipZ is always [0,1] in DirectX
-}
-
-float4 getPositionCS(float2 screenUV, float z)
-{
-	return float4(2.0 * screenUV.x - 1.0, 1.0 - 2.0 * screenUV.y, z, 1.0);
-}
-
-float getLinearDepth(float2 screenUV, float sceneDepth)
-{
-	float4 positionCS = getPositionCS(screenUV, getNdcZ(sceneDepth));
-	float4 projected = mul(positionCS, sceneUniform.projInvMatrix);
-	return abs(projected.z / projected.w);
-}
-
-float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
-{
-	float4 positionCS = getPositionCS(screenUV, getNdcZ(sceneDepth));
-	float4 positionWS = mul(positionCS, sceneUniform.viewProjInvMatrix);
-	return positionWS.xyz / positionWS.w;
-}
-
-float2 clipSpaceToTextureUV(float4 positionCS)
-{
-	return float2(0.5, -0.5) * positionCS.xy + float2(0.5, 0.5);
-}
-
-float3 clipSpaceToWorldSpace(float4 positionCS, float4x4 viewProjInv)
-{
-	float4 positionWS = mul(positionCS, viewProjInv);
-	positionWS /= positionWS.w;
-	return positionWS.xyz;
-}
-
-float4 worldSpaceToClipSpace(float3 positionWS, float4x4 viewProj)
-{
-	float4 positionCS = mul(float4(positionWS, 1.0), viewProj);
-	positionCS /= positionCS.w;
-	return positionCS;
-}
-
 bool getPrevFrame(float3 currPositionWS, out float3 prevPositionWS, out float prevLinearDepth, out float3 prevColor)
 {
 	float4 positionCS = worldSpaceToClipSpace(currPositionWS, pathTracingUniform.prevViewProjMatrix);
@@ -183,10 +140,10 @@ bool getPrevFrame(float3 currPositionWS, out float3 prevPositionWS, out float pr
 	int2 targetTexel = int2(screenUV * resolution);
 	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
 
-	positionCS = getPositionCS(screenUV, getNdcZ(sceneDepth));
+	positionCS = getPositionCS(screenUV, sceneDepth);
 	
 	prevPositionWS = clipSpaceToWorldSpace(positionCS, pathTracingUniform.prevViewProjInvMatrix);
-	prevLinearDepth = getLinearDepth(screenUV, sceneDepth);
+	prevLinearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
 	prevColor = prevColorTexture.Load(int3(targetTexel, 0)).rgb;
 	return true;
 }
@@ -429,8 +386,8 @@ void MainRaygen()
 
 	float sceneDepth = sceneDepthTexture.Load(int3(targetTexel, 0)).r;
 	float3 sceneNormal = sceneNormalTexture.Load(int3(targetTexel, 0)).xyz;
-	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
-	float linearDepth = getLinearDepth(screenUV, sceneDepth);
+	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth, sceneUniform.viewProjInvMatrix);
+	float linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix);
 
 	float3 prevPositionWS; float prevLinearDepth; float3 prevColor;
 	bool bPrevValid = getPrevFrame(positionWS, prevPositionWS, prevLinearDepth, prevColor);

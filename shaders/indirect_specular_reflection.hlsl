@@ -126,23 +126,6 @@ float2 getScreenUV(uint2 texel)
 	return (float2(texel) + float2(0.5, 0.5)) / getScreenResolution();
 }
 
-float getNdcZ(float sceneDepth)
-{
-	return sceneDepth; // clipZ is always [0,1] in DirectX
-}
-
-float4 getPositionCS(float2 screenUV, float z)
-{
-	return float4(2.0 * screenUV.x - 1.0, 1.0 - 2.0 * screenUV.y, z, 1.0);
-}
-
-float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
-{
-	float4 positionCS = getPositionCS(screenUV, getNdcZ(sceneDepth));
-	float4 positionWS = mul(positionCS, sceneUniform.viewProjInvMatrix);
-	return positionWS.xyz / positionWS.w;
-}
-
 float2 getRandoms(uint2 texel, uint bounce)
 {
 	uint first = texel.x + indirectSpecularUniform.renderTargetWidth * texel.y;
@@ -273,7 +256,7 @@ void MainRaygen()
 	float2 screenUV = getScreenUV(texel);
 
 	float sceneDepth = sceneDepthTexture.Load(int3(texel, 0)).r;
-	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
+	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth, sceneUniform.viewProjInvMatrix);
 	float3 viewDirection = normalize(positionWS - sceneUniform.cameraPosition.xyz);
 
 	if (sceneDepth == DEVICE_Z_FAR)

@@ -36,9 +36,14 @@ RWTexture2D<float4>            outputTexture;
 // ------------------------------------------------------------------------
 // Compute shader
 
-float2 getResolution()
+float2 getScreenResolution()
 {
     return float2(blurUniform.textureWidth, blurUniform.textureHeight);
+}
+
+float2 getScreenUV(uint2 texel)
+{
+    return (float2(texel) + float2(0.5, 0.5)) / getScreenResolution();
 }
 
 int2 clampTexel(int2 texel)
@@ -46,21 +51,12 @@ int2 clampTexel(int2 texel)
     return clamp(texel, int2(0, 0), int2(blurUniform.textureWidth - 1, blurUniform.textureHeight - 1));
 }
 
-float getNdcZ(float sceneDepth)
-{
-    return sceneDepth; // clipZ is always [0,1] in DirectX
-}
-
 float3 getWorldPosition(uint2 tid)
 {
     float sceneDepth = inDepthTexture.Load(int3(tid.xy, 0)).r;
-    float2 uv = (float2(tid.xy) + float2(0.5, 0.5)) / getResolution();
-    float z = getNdcZ(sceneDepth);
-    float4 positionCS = float4(uv * 2.0 - 1.0, z, 1.0);
-    float4 positionVS = mul(positionCS, sceneUniform.projInvMatrix);
-    positionVS /= positionVS.w; // Perspective division
-    float4 positionWS = mul(positionVS, sceneUniform.viewInvMatrix);
-    return positionWS.xyz;
+    float2 uv = getScreenUV(tid.xy);
+    float4 positionCS = getPositionCS(uv, sceneDepth);
+    return clipSpaceToWorldSpace(positionCS, sceneUniform.viewProjInvMatrix);
 }
 
 [numthreads(8, 8, 1)]
@@ -71,7 +67,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         return;
     }
 
-    float2 resolution = getResolution();
+    float2 resolution = getScreenResolution();
     float stepWidth = float(pushConstants.stepWidth);
 
     float2 uv0 = (float2(tid.xy) + float2(0.5, 0.5)) / resolution;
