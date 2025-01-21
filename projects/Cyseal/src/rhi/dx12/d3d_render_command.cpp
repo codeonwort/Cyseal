@@ -499,6 +499,13 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 	DescriptorHeap* descriptorHeap,
 	DescriptorHeap* samplerHeap /* = nullptr */)
 {
+	// #todo-sampler: Currently only support static samplers. What to do in future:
+	// 1. Implement RenderDevice::createSampler().
+	// 2. Maintain global sampler heap.
+	// 3. Use samplerHeap to bind samplers.
+	// 4. Add samplerHeap parameter to bindGraphicsShaderParameters() and bindComputeShaderParameters() also.
+	CHECK(samplerHeap == nullptr);
+
 	CHECK(descriptorHeap != nullptr && descriptorHeap->getCreateParams().type == EDescriptorHeapType::CBV_SRV_UAV);
 	CHECK(samplerHeap == nullptr || samplerHeap->getCreateParams().type == EDescriptorHeapType::SAMPLER);
 
@@ -564,9 +571,6 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 		const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
 		commandList->SetComputeRootShaderResourceView(param->rootParameterIndex, gpuAddr);
 	}
-
-	// #wip-sampler: Use sampler heap to bind samplers
-	// #wip-sampler: Do the same for bindGraphicsShaderParameters() and bindComputeShaderParameters()
 }
 
 void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& inDesc)

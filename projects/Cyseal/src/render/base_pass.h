@@ -52,5 +52,4 @@ private:
 
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
-	// #todo-sampler: Maybe need a volatileSamplerHeap in similar way?
 };
