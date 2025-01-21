@@ -18,8 +18,7 @@ struct IndirectSpecularInput
 	const Camera*              camera;
 	EIndirectSpecularMode      mode;
 
-	Float4x4                   prevViewInvMatrix;
-	Float4x4                   prevProjInvMatrix;
+	Float4x4                   prevViewProjInvMatrix;
 	Float4x4                   prevViewProjMatrix;
 	bool                       bCameraHasMoved;
 	uint32                     sceneWidth;
@@ -32,6 +31,7 @@ struct IndirectSpecularInput
 	ShaderResourceView*        gbuffer0SRV;
 	ShaderResourceView*        gbuffer1SRV;
 	ShaderResourceView*        sceneDepthSRV;
+	ShaderResourceView*        prevSceneDepthSRV;
 	UnorderedAccessView*       indirectSpecularUAV;
 };
 

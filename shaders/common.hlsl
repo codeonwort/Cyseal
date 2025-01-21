@@ -52,6 +52,11 @@ void computeTangentFrame(float3 N, out float3 T, out float3 B)
 // ---------------------------------------------------------
 // Space Transform
 
+bool uvOutOfBounds(float2 uv)
+{
+    return (any(uv < float2(0, 0)) || any(uv >= float2(1, 1)));
+}
+
 float getNdcZ(float sceneDepth)
 {
     return sceneDepth; // clipZ is always [0,1] in DirectX

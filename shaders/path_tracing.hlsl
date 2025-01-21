@@ -128,14 +128,17 @@ float2 getScreenResolution()
 	return float2(pathTracingUniform.renderTargetWidth, pathTracingUniform.renderTargetHeight);
 }
 
+// Returns true if reprojection is valid.
 bool getPrevFrame(float3 currPositionWS, out float3 prevPositionWS, out float prevLinearDepth, out float3 prevColor)
 {
 	float4 positionCS = worldSpaceToClipSpace(currPositionWS, pathTracingUniform.prevViewProjMatrix);
 	float2 screenUV = clipSpaceToTextureUV(positionCS);
-	if (any(screenUV < float2(0, 0)) || any(screenUV >= float2(1, 1)))
+
+	if (uvOutOfBounds(screenUV))
 	{
 		return false;
 	}
+
 	float2 resolution = getScreenResolution();
 	int2 targetTexel = int2(screenUV * resolution);
 	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
@@ -434,7 +437,7 @@ void MainRaygen()
 	if (bTemporalReprojection)
 	{
 		prevLi = prevColor;
-		prevMoments = prevMoment[targetTexel].xy;
+		prevMoments = prevMoment[targetTexel].xy; // #todo: not targetTexel, but prevTexel...
 		historyCount = prevMoment[targetTexel].w;
 	}
 	else

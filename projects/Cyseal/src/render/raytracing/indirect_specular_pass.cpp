@@ -32,8 +32,7 @@ struct IndirectSpecularUniform
 {
 	float       randFloats0[RANDOM_SEQUENCE_LENGTH];
 	float       randFloats1[RANDOM_SEQUENCE_LENGTH];
-	Float4x4    prevViewInv;
-	Float4x4    prevProjInv;
+	Float4x4    prevViewProjInv;
 	Float4x4    prevViewProj;
 	uint32      renderTargetWidth;
 	uint32      renderTargetHeight;
@@ -210,15 +209,12 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 			uboData->randFloats0[i] = Cymath::randFloat();
 			uboData->randFloats1[i] = Cymath::randFloat();
 		}
-		uboData->prevViewInv = passInput.prevViewInvMatrix;
-		uboData->prevProjInv = passInput.prevProjInvMatrix;
+		uboData->prevViewProjInv = passInput.prevViewProjInvMatrix;
 		uboData->prevViewProj = passInput.prevViewProjMatrix;
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;
-		// #wip: Always invalidate history until reprojection works
-		uboData->bInvalidateHistory = (passInput.mode == EIndirectSpecularMode::ForceMirror)
-			|| (passInput.bCameraHasMoved && passInput.mode == EIndirectSpecularMode::BRDF);
-		uboData->bLimitHistory = 0;
+		uboData->bInvalidateHistory = (passInput.mode == EIndirectSpecularMode::ForceMirror);
+		uboData->bLimitHistory = (passInput.mode == EIndirectSpecularMode::BRDF);
 		uboData->traceMode = (uint32)passInput.mode;
 
 		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
@@ -276,6 +272,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		SPT.texture("gbuffer0", passInput.gbuffer0SRV);
 		SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
 		SPT.rwTexture("renderTarget", passInput.indirectSpecularUAV);
 		SPT.rwTexture("currentColorTexture", currentColorUAV);
 		SPT.rwTexture("prevColorTexture", prevColorUAV);

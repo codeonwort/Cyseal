@@ -10,8 +10,8 @@
 //#define SHADER_STAGE_CLOSESTHIT 2
 //#define SHADER_STAGE_MISS       3
 
-//*********************************************************
-//#include "RaytracingHlslCompat.h"
+// ---------------------------------------------------------
+
 #define OBJECT_ID_NONE            0xffff
 
 // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
@@ -31,6 +31,9 @@
 #define RANDOM_SEQUENCE_HEIGHT    64
 #define RANDOM_SEQUENCE_LENGTH    (RANDOM_SEQUENCE_WIDTH * RANDOM_SEQUENCE_HEIGHT)
 
+// Limit history count for glossy reflection mode.
+#define MAX_GLOSSY_HISTORY        64
+
 // EIndirectSpecularMode
 #define TRACE_DISABLED            0
 #define TRACE_FORCE_MIRROR        1
@@ -40,8 +43,7 @@ struct IndirectSpecularUniform
 {
 	float4      randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
 	float4      randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
-	float4x4    prevViewInvMatrix;
-	float4x4    prevProjInvMatrix;
+	float4x4    prevViewProjInvMatrix;
 	float4x4    prevViewProjMatrix;
 	uint        renderTargetWidth;
 	uint        renderTargetHeight;
@@ -61,9 +63,9 @@ struct ClosestHitPushConstants
 	uint objectID;
 };
 
-//*********************************************************
-
+// ---------------------------------------------------------
 // Global root signature
+
 ConstantBuffer<SceneUniform>            sceneUniform            : register(b0, space0);
 ConstantBuffer<IndirectSpecularUniform> indirectSpecularUniform : register(b1, space0);
 ByteAddressBuffer                       gIndexBuffer            : register(t0, space0);
@@ -88,8 +90,12 @@ Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless 
 SamplerState albedoSampler : register(s0, space0);
 SamplerState skyboxSampler : register(s1, space0);
 
+// ---------------------------------------------------------
 // Local root signature (closest hit)
+
 ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
+
+// ---------------------------------------------------------
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload
@@ -249,6 +255,29 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 	return Li;
 }
 
+bool getPrevFrame(float3 currPositionWS,
+	out uint2 prevTexel, out float3 prevPositionWS, out float prevLinearDepth, out float3 prevColor)
+{
+	float4 positionCS = worldSpaceToClipSpace(currPositionWS, indirectSpecularUniform.prevViewProjMatrix);
+	float2 screenUV = clipSpaceToTextureUV(positionCS);
+
+	if (uvOutOfBounds(screenUV))
+	{
+		return false;
+	}
+
+	float2 resolution = getScreenResolution();
+	int2 targetTexel = int2(screenUV * resolution);
+	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
+	positionCS = getPositionCS(screenUV, sceneDepth);
+
+	prevTexel = targetTexel;
+	prevPositionWS = clipSpaceToWorldSpace(positionCS, indirectSpecularUniform.prevViewProjInvMatrix);
+	prevLinearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
+	prevColor = prevColorTexture.Load(int3(targetTexel, 0)).rgb;
+	return true;
+}
+
 [shader("raygeneration")]
 void MainRaygen()
 {
@@ -258,6 +287,7 @@ void MainRaygen()
 	float sceneDepth = sceneDepthTexture.Load(int3(texel, 0)).r;
 	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth, sceneUniform.viewProjInvMatrix);
 	float3 viewDirection = normalize(positionWS - sceneUniform.cameraPosition.xyz);
+	float linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix);
 
 	if (sceneDepth == DEVICE_Z_FAR)
 	{
@@ -275,6 +305,22 @@ void MainRaygen()
 	float3 normalWS = normalize(gbufferData.normalWS);
 	float roughness = gbufferData.roughness;
 	float metallic = 0.0; // #todo: No metallic yet
+
+	// Temporal reprojection
+	bool bTemporalReprojection = false;
+	uint2 prevTexel = 0;
+	float3 prevColor = 0;
+	{
+		float3 prevPositionWS; float prevLinearDepth;
+		bool bPrevValid = getPrevFrame(positionWS, prevTexel, prevPositionWS, prevLinearDepth, prevColor);
+
+		float zAlignment = pow(1.0 - dot(-viewDirection, normalWS), 8);
+		float depthDiff = abs(prevLinearDepth - linearDepth) / linearDepth;
+		float depthTolerance = lerp(1e-2f, 1e-1f, zAlignment);
+		bool bClose = bPrevValid && depthDiff < depthTolerance;
+
+		bTemporalReprojection = (indirectSpecularUniform.bInvalidateHistory == 0) && bClose;
+	}
 
 	float2 randoms = getRandoms(texel, 0);
 
@@ -298,19 +344,8 @@ void MainRaygen()
 	float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, scatteredDir);
 	float3 Wo = (scatteredReflectance / scatteredPdf) * Li;
 
-	float3 prevColor;
-	float historyCount;
-
-	if (indirectSpecularUniform.bInvalidateHistory == 0)
-	{
-		prevColor = prevColorTexture[texel].xyz;
-		historyCount = prevColorTexture[texel].w;
-	}
-	else
-	{
-		prevColor = float3(0.0, 0.0, 0.0);
-		historyCount = 0;
-	}
+	//prevColor was already acquired by getPrevFrame()
+	float historyCount = bTemporalReprojection ? prevColorTexture[prevTexel].w : 0;
 
 	if (scatteredPdf == 0.0)
 	{
@@ -320,6 +355,11 @@ void MainRaygen()
 	{
 		Wo = lerp(prevColor, Wo, 1.0 / (1.0 + historyCount));
 		historyCount += 1;
+	}
+
+	if (indirectSpecularUniform.bLimitHistory != 0)
+	{
+		historyCount = min(historyCount, MAX_GLOSSY_HISTORY);
 	}
 
 	// #wip: Should store history in moment texture
