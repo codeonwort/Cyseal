@@ -255,15 +255,25 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 	return Li;
 }
 
-bool getPrevFrame(float3 currPositionWS,
-	out uint2 prevTexel, out float3 prevPositionWS, out float prevLinearDepth, out float3 prevColor)
+struct PrevFrameInfo
+{
+	bool bValid;
+	float3 positionWS;
+	float linearDepth;
+	float3 color;
+	float historyCount;
+};
+
+PrevFrameInfo getReprojectedInfo(float3 currPositionWS)
 {
 	float4 positionCS = worldSpaceToClipSpace(currPositionWS, indirectSpecularUniform.prevViewProjMatrix);
 	float2 screenUV = clipSpaceToTextureUV(positionCS);
 
+	PrevFrameInfo info;
 	if (uvOutOfBounds(screenUV))
 	{
-		return false;
+		info.bValid = false;
+		return info;
 	}
 
 	float2 resolution = getScreenResolution();
@@ -271,11 +281,14 @@ bool getPrevFrame(float3 currPositionWS,
 	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
 	positionCS = getPositionCS(screenUV, sceneDepth);
 
-	prevTexel = targetTexel;
-	prevPositionWS = clipSpaceToWorldSpace(positionCS, indirectSpecularUniform.prevViewProjInvMatrix);
-	prevLinearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
-	prevColor = prevColorTexture.Load(int3(targetTexel, 0)).rgb;
-	return true;
+	float4 colorAndHistory = prevColorTexture.Load(int3(targetTexel, 0));
+
+	info.bValid = true;
+	info.positionWS = clipSpaceToWorldSpace(positionCS, indirectSpecularUniform.prevViewProjInvMatrix);
+	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
+	info.color = colorAndHistory.rgb;
+	info.historyCount = colorAndHistory.a;
+	return info;
 }
 
 [shader("raygeneration")]
@@ -307,17 +320,13 @@ void MainRaygen()
 	float metallic = 0.0; // #todo: No metallic yet
 
 	// Temporal reprojection
+	PrevFrameInfo prevFrame = getReprojectedInfo(positionWS);
 	bool bTemporalReprojection = false;
-	uint2 prevTexel = 0;
-	float3 prevColor = 0;
 	{
-		float3 prevPositionWS; float prevLinearDepth;
-		bool bPrevValid = getPrevFrame(positionWS, prevTexel, prevPositionWS, prevLinearDepth, prevColor);
-
 		float zAlignment = pow(1.0 - dot(-viewDirection, normalWS), 8);
-		float depthDiff = abs(prevLinearDepth - linearDepth) / linearDepth;
+		float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;
 		float depthTolerance = lerp(1e-2f, 1e-1f, zAlignment);
-		bool bClose = bPrevValid && depthDiff < depthTolerance;
+		bool bClose = prevFrame.bValid && depthDiff < depthTolerance;
 
 		bTemporalReprojection = (indirectSpecularUniform.bInvalidateHistory == 0) && bClose;
 	}
@@ -332,6 +341,12 @@ void MainRaygen()
 		float3 dummy;
 		splitMicrofacetBRDF(viewDirection, normalWS, albedo, roughness, metallic, randoms.x, randoms.y,
 			dummy, scatteredReflectance, scatteredDir, scatteredPdf);
+
+		// #todo: It happens :(
+		if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
+		{
+			scatteredPdf = 0.0;
+		}
 	}
 	else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
 	{
@@ -345,15 +360,15 @@ void MainRaygen()
 	float3 Wo = (scatteredReflectance / scatteredPdf) * Li;
 
 	//prevColor was already acquired by getPrevFrame()
-	float historyCount = bTemporalReprojection ? prevColorTexture[prevTexel].w : 0;
+	float historyCount = bTemporalReprojection ? prevFrame.historyCount : 0;
 
 	if (scatteredPdf == 0.0)
 	{
-		Wo = prevColor;
+		Wo = prevFrame.color;
 	}
 	else
 	{
-		Wo = lerp(prevColor, Wo, 1.0 / (1.0 + historyCount));
+		Wo = lerp(prevFrame.color, Wo, 1.0 / (1.0 + historyCount));
 		historyCount += 1;
 	}
 

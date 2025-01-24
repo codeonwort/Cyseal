@@ -128,27 +128,43 @@ float2 getScreenResolution()
 	return float2(pathTracingUniform.renderTargetWidth, pathTracingUniform.renderTargetHeight);
 }
 
+struct PrevFrameInfo
+{
+	bool   bValid;
+	float3 positionWS;
+	float  linearDepth;
+	float3 color;
+	float2 moments;
+	float  historyCount;
+};
+
 // Returns true if reprojection is valid.
-bool getPrevFrame(float3 currPositionWS, out float3 prevPositionWS, out float prevLinearDepth, out float3 prevColor)
+PrevFrameInfo getReprojectedInfo(float3 currPositionWS)
 {
 	float4 positionCS = worldSpaceToClipSpace(currPositionWS, pathTracingUniform.prevViewProjMatrix);
 	float2 screenUV = clipSpaceToTextureUV(positionCS);
 
+	PrevFrameInfo info;
 	if (uvOutOfBounds(screenUV))
 	{
-		return false;
+		info.bValid = false;
+		return info;
 	}
 
 	float2 resolution = getScreenResolution();
 	int2 targetTexel = int2(screenUV * resolution);
 	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
-
 	positionCS = getPositionCS(screenUV, sceneDepth);
+
+	float4 momentsAndHistory = prevMoment[targetTexel];
 	
-	prevPositionWS = clipSpaceToWorldSpace(positionCS, pathTracingUniform.prevViewProjInvMatrix);
-	prevLinearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
-	prevColor = prevColorTexture.Load(int3(targetTexel, 0)).rgb;
-	return true;
+	info.bValid = true;
+	info.positionWS = clipSpaceToWorldSpace(positionCS, pathTracingUniform.prevViewProjInvMatrix);
+	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
+	info.color = prevColorTexture.Load(int3(targetTexel, 0)).rgb;
+	info.moments = momentsAndHistory.xy;
+	info.historyCount = momentsAndHistory.w;
+	return info;
 }
 
 float getLuminance(float3 color)
@@ -392,17 +408,16 @@ void MainRaygen()
 	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth, sceneUniform.viewProjInvMatrix);
 	float linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix);
 
-	float3 prevPositionWS; float prevLinearDepth; float3 prevColor;
-	bool bPrevValid = getPrevFrame(positionWS, prevPositionWS, prevLinearDepth, prevColor);
+	PrevFrameInfo prevFrame = getReprojectedInfo(positionWS);
 
 	float3 viewDir = normalize(sceneUniform.cameraPosition.xyz - positionWS);
 	float zAlignment = 1.0 - dot(viewDir, sceneNormal);
 	zAlignment = pow(zAlignment, 8);
 
-	float depthDiff = abs(prevLinearDepth - linearDepth) / linearDepth;
+	float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;
 	float depthTolerance = lerp(1e-2f, 1e-1f, zAlignment);
 
-	bool bClose = bPrevValid && depthDiff < depthTolerance; // length(positionWS - prevPositionWS) <= 0.01; // 1.0 = 1 meter
+	bool bClose = prevFrame.bValid && depthDiff < depthTolerance; // length(positionWS - prevPositionWS) <= 0.01; // 1.0 = 1 meter
 	bool bTemporalReprojection = (pathTracingUniform.bInvalidateHistory == 0) && bClose;
 
 #if TRACE_MODE == TRACE_AMBIENT_OCCLUSION
@@ -414,8 +429,8 @@ void MainRaygen()
 	float prevAmbientOcclusion, historyCount;
 	if (bTemporalReprojection)
 	{
-		prevAmbientOcclusion = prevColor.x;
-		historyCount = prevMoment[targetTexel].w;
+		prevAmbientOcclusion = prevFrame.color.x;
+		historyCount = prevFrame.historyCount;
 	}
 	else
 	{
@@ -436,9 +451,9 @@ void MainRaygen()
 	float historyCount;
 	if (bTemporalReprojection)
 	{
-		prevLi = prevColor;
-		prevMoments = prevMoment[targetTexel].xy; // #todo: not targetTexel, but prevTexel...
-		historyCount = prevMoment[targetTexel].w;
+		prevLi = prevFrame.color;
+		prevMoments = prevFrame.moments;
+		historyCount = prevFrame.historyCount;
 	}
 	else
 	{
