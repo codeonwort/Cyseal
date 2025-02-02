@@ -230,6 +230,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 			break;
 		}
 
+		// #todo-pathtracing: Sometimes surfaceNormal is NaN
 		float3 surfaceNormal = currentRayPayload.surfaceNormal;
 		float3 surfaceTangent, surfaceBitangent;
 		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
@@ -253,7 +254,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 			rand0, rand1,
 			scatteredReflectance, scatteredDir, scatteredPdf);
 		
-		// #todo-pathtracing: It happens :(
+		// #todo-pathtracing: Sometimes surfaceNormal is NaN
 		if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
 		{
 			scatteredPdf = 0.0;

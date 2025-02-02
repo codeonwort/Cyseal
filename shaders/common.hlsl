@@ -98,6 +98,11 @@ float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth, float4x
     return positionWS.xyz / positionWS.w;
 }
 
+float3 transformDirection(float3 dir, float4x4 transform)
+{
+    return mul(float4(dir, 0.0), transform).xyz;
+}
+
 float getLinearDepth(float2 screenUV, float sceneDepth, float4x4 projInv)
 {
     float4 positionCS = getPositionCS(screenUV, getNdcZ(sceneDepth));

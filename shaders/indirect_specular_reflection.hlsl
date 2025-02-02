@@ -190,6 +190,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			break;
 		}
 
+		// #todo: Sometimes surfaceNormal is NaN
 		float3 surfaceNormal = currentRayPayload.surfaceNormal;
 		float3 surfaceTangent, surfaceBitangent;
 		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
@@ -216,7 +217,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			scatteredPdf = 1.0;
 		}
 		
-		// #todo: It happens :(
+		// #todo: Sometimes surfaceNormal is NaN
 		if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
 		{
 			scatteredPdf = 0.0;
@@ -414,11 +415,8 @@ void MainClosestHit(inout RayPayload payload, in MyAttributes attr)
 	// https://asawicki.info/news_1608_direct3d_12_-_watch_out_for_non-uniform_resource_index
 	Texture2D albedoTex = albedoTextures[NonUniformResourceIndex(material.albedoTextureIndex)];
 
-	float3 surfaceNormal = normalize(
-		barycentrics.x * v0.normal
-		+ barycentrics.y * v1.normal
-		+ barycentrics.z * v2.normal);
-	surfaceNormal = normalize(mul(float4(surfaceNormal, 0.0), sceneItem.modelMatrix).xyz);
+	float3 surfaceNormal = barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal;
+	surfaceNormal = normalize(transformDirection(surfaceNormal, sceneItem.modelMatrix));
 	payload.surfaceNormal = surfaceNormal;
 
 	payload.roughness = material.roughness;
