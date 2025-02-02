@@ -11,7 +11,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 // #todo-test: Check if porting was valid (possibly different math conventions).
 // #todo-test: Assert if distribution is right.
-// #todo-test: Find out why BxDF in shaders produces NaN.
+// #todo-test: Find out why BxDF in shaders produces NaN. -> surfaceNormal calculated from closestHit was NaN, not BxDF.
 
 // Port of bsdf.hlsl
 namespace BxDF

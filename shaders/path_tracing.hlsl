@@ -494,11 +494,10 @@ void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 	uint objectID = g_closestHitCB.objectID;
 	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
 	
-	// Get the base index of the triangle's first 32 bit index.
-	uint triangleIndexStride = 3 * 4; // 4 = sizeof(uint32)
-	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-	baseIndex += sceneItem.indexBufferOffset;
-	uint3 indices = gIndexBuffer.Load<uint3>(baseIndex);
+	uint triangleIndexStride = 3 * 4; // A triangle has 3 indices, 4 = sizeof(uint32)
+	// Byte offset of first index in gIndexBuffer
+	uint firstIndexOffset = PrimitiveIndex() * triangleIndexStride + sceneItem.indexBufferOffset;
+	uint3 indices = gIndexBuffer.Load<uint3>(firstIndexOffset);
 
 	// position = float3 = 12 bytes
 	float3 p0 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.x);
@@ -511,34 +510,28 @@ void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 
 	float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
 	
-	float2 texcoord = barycentrics.x * v0.texcoord
-		+ barycentrics.y * v1.texcoord
-		+ barycentrics.z * v2.texcoord;
+	float2 texcoord = barycentrics.x * v0.texcoord + barycentrics.y * v1.texcoord + barycentrics.z * v2.texcoord;
+
+	float3 surfaceNormal = normalize(barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal);
+	surfaceNormal = normalize(transformDirection(surfaceNormal, sceneItem.modelMatrix));
 
 	Material material = materials[objectID];
 	Texture2D albedoTex = albedoTextures[NonUniformResourceIndex(material.albedoTextureIndex)];
+	float3 albedo = albedoTex.SampleLevel(albedoSampler, texcoord, 0.0).rgb * material.albedoMultiplier.rgb;
+	
+	// Output payload
 
-	float3 surfaceNormal = normalize(
-		barycentrics.x * v0.normal
-		+ barycentrics.y * v1.normal
-		+ barycentrics.z * v2.normal);
-	surfaceNormal = normalize(mul(float4(surfaceNormal, 0.0), sceneItem.modelMatrix).xyz);
-	// Hmm if hit the back face I should flip surfaceNormal but how to know it?
 	payload.surfaceNormal = surfaceNormal;
-
-	payload.roughness = material.roughness;
-	payload.emission = material.emission;
-
-	payload.albedo = albedoTex.SampleLevel(albedoSampler, texcoord, 0.0).rgb;
-	payload.albedo *= material.albedoMultiplier.rgb;
-
-	payload.hitTime = RayTCurrent();
-	payload.objectID = objectID;
+	payload.roughness     = material.roughness;
+	payload.albedo        = albedo;
+	payload.hitTime       = RayTCurrent();
+	payload.emission      = material.emission;
+	payload.objectID      = objectID;
 }
 
 [shader("miss")]
 void MainMiss(inout RayPayload payload)
 {
-	payload.objectID = OBJECT_ID_NONE;
-	payload.hitTime = -1.0;
+	payload.hitTime       = -1.0;
+	payload.objectID      = OBJECT_ID_NONE;
 }
