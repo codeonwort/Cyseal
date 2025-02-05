@@ -68,10 +68,10 @@ TextureCube                        skybox                : register(t5, space0);
 Texture2D                          sceneDepthTexture     : register(t6, space0);
 Texture2D                          prevSceneDepthTexture : register(t7, space0);
 Texture2D                          sceneNormalTexture    : register(t8, space0);
-RWTexture2D<float4>                currentColorTexture   : register(u1, space0);
-RWTexture2D<float4>                prevColorTexture      : register(u2, space0);
-RWTexture2D<float4>                currentMoment         : register(u3, space0);
-RWTexture2D<float4>                prevMoment            : register(u4, space0);
+Texture2D                          prevColorTexture      : register(t9, space0);
+RWTexture2D<float4>                currentColorTexture   : register(u0, space0);
+RWTexture2D<float4>                currentMoment         : register(u1, space0);
+RWTexture2D<float4>                prevMoment            : register(u2, space0);
 ConstantBuffer<SceneUniform>       sceneUniform          : register(b0, space0);
 ConstantBuffer<PathTracingUniform> pathTracingUniform    : register(b1, space0);
 // Material binding
@@ -83,6 +83,7 @@ ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
 
 SamplerState albedoSampler                  : register(s0, space0);
 SamplerState skyboxSampler                  : register(s1, space0);
+SamplerState linearSampler                  : register(s2, space0);
 
 typedef BuiltInTriangleIntersectionAttributes IntersectionAttributes;
 // Should match with path_tracing_pass.cpp
@@ -161,7 +162,7 @@ PrevFrameInfo getReprojectedInfo(float3 currPositionWS)
 	info.bValid = true;
 	info.positionWS = clipSpaceToWorldSpace(positionCS, pathTracingUniform.prevViewProjInvMatrix);
 	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
-	info.color = prevColorTexture.Load(int3(targetTexel, 0)).rgb;
+	info.color = prevColorTexture.SampleLevel(linearSampler, screenUV, 0).rgb;
 	info.moments = momentsAndHistory.xy;
 	info.historyCount = momentsAndHistory.w;
 	return info;
@@ -476,9 +477,6 @@ void MainRaygen()
 
 	currentColorTexture[targetTexel] = float4(Li, 1);
 #endif
-
-	// Update prevColorTexture also to simplify blur pass setup.
-	prevColorTexture[targetTexel] = currentColorTexture[targetTexel];
 
 	if (pathTracingUniform.bLimitHistory != 0)
 	{

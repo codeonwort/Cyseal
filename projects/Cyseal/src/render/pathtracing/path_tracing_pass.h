@@ -63,6 +63,7 @@ private:
 
 	UniquePtr<Texture> colorHistory[2];
 	UniquePtr<UnorderedAccessView> colorHistoryUAV[2];
+	UniquePtr<ShaderResourceView> colorHistorySRV[2];
 
 	UniquePtr<Texture> colorScratch;
 	UniquePtr<UnorderedAccessView> colorScratchUAV;

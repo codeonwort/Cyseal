@@ -107,6 +107,50 @@ void PathTracingPass::initialize()
 		missShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_MISS);
 
 		// RTPSO
+		std::vector<StaticSamplerDesc> staticSamplers = {
+			StaticSamplerDesc{
+				.name             = "albedoSampler",
+				.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
+				.addressU         = ETextureAddressMode::Wrap,
+				.addressV         = ETextureAddressMode::Wrap,
+				.addressW         = ETextureAddressMode::Wrap,
+				.mipLODBias       = 0.0f,
+				.maxAnisotropy    = 0,
+				.comparisonFunc   = EComparisonFunc::Always,
+				.borderColor      = EStaticBorderColor::TransparentBlack,
+				.minLOD           = 0.0f,
+				.maxLOD           = FLT_MAX,
+				.shaderVisibility = EShaderVisibility::All,
+			},
+			StaticSamplerDesc{
+				.name             = "skyboxSampler",
+				.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+				.addressU         = ETextureAddressMode::Wrap,
+				.addressV         = ETextureAddressMode::Wrap,
+				.addressW         = ETextureAddressMode::Wrap,
+				.mipLODBias       = 0.0f,
+				.maxAnisotropy    = 0,
+				.comparisonFunc   = EComparisonFunc::Always,
+				.borderColor      = EStaticBorderColor::TransparentBlack,
+				.minLOD           = 0.0f,
+				.maxLOD           = 0.0f,
+				.shaderVisibility = EShaderVisibility::All,
+			},
+			StaticSamplerDesc{
+				.name             = "linearSampler",
+				.filter           = ETextureFilter::MIN_MAG_MIP_POINT,
+				.addressU         = ETextureAddressMode::Clamp,
+				.addressV         = ETextureAddressMode::Clamp,
+				.addressW         = ETextureAddressMode::Clamp,
+				.mipLODBias       = 0.0f,
+				.maxAnisotropy    = 0,
+				.comparisonFunc   = EComparisonFunc::Always,
+				.borderColor      = EStaticBorderColor::TransparentBlack,
+				.minLOD           = 0.0f,
+				.maxLOD           = FLT_MAX,
+				.shaderVisibility = EShaderVisibility::All,
+			},
+		};
 		RaytracingPipelineStateObjectDesc pipelineDesc{
 			.hitGroupName                 = PATH_TRACING_HIT_GROUP_NAME,
 			.hitGroupType                 = ERaytracingHitGroupType::Triangles,
@@ -194,8 +238,11 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 	resizeTextures(commandList, sceneWidth, sceneHeight);
 
+	Texture* currentColorTexture = colorHistory[swapchainIndex % 2].get();
 	auto currentColorUAV = colorHistoryUAV[swapchainIndex % 2].get();
+	Texture* prevColorTexture = colorHistory[(swapchainIndex + 1) % 2].get();
 	auto prevColorUAV = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
+	auto prevColorSRV = colorHistorySRV[(swapchainIndex + 1) % 2].get();
 
 	// Update uniforms.
 	{
@@ -270,8 +317,8 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
 		SPT.texture("sceneNormalTexture", passInput.gbuffer1SRV);
+		SPT.texture("prevColorTexture", prevColorSRV);
 		SPT.rwTexture("currentColorTexture", currentColorUAV);
-		SPT.rwTexture("prevColorTexture", prevColorUAV);
 		SPT.rwTexture("currentMoment", currentMomentUAV);
 		SPT.rwTexture("prevMoment", prevMomentUAV);
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
@@ -336,6 +383,24 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 		auto uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(BlurUniform));
+	}
+
+	{
+		SCOPED_DRAW_EVENT(commandList, CopyColorToPrevColor);
+
+		TextureMemoryBarrier barriersBefore[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, currentColorTexture },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::COPY_DEST, prevColorTexture },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+		commandList->copyTexture2D(currentColorTexture, prevColorTexture);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::UNORDERED_ACCESS, currentColorTexture },
+			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 
 	commandList->setComputePipelineState(blurPipelineState.get());
@@ -423,6 +488,18 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 				.texture2D      = Texture2DUAVDesc{
 					.mipSlice   = 0,
 					.planeSlice = 0,
+				},
+			}
+		));
+		colorHistorySRV[i] = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(colorHistory[i].get(),
+			ShaderResourceViewDesc{
+				.format              = colorDesc.format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = colorHistory[i]->getCreateParams().mipLevels,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
 				},
 			}
 		));
