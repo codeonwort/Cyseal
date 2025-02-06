@@ -60,6 +60,7 @@ private:
 	uint32 historyHeight = 0;
 	UniquePtr<Texture> colorHistory[2];
 	UniquePtr<UnorderedAccessView> colorHistoryUAV[2];
+	UniquePtr<ShaderResourceView> colorHistorySRV[2];
 	UniquePtr<Texture> momentHistory[2];
 	UniquePtr<UnorderedAccessView> momentHistoryUAV[2];
 	UniquePtr<Texture> colorScratch;

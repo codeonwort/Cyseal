@@ -138,7 +138,7 @@ void PathTracingPass::initialize()
 			},
 			StaticSamplerDesc{
 				.name             = "linearSampler",
-				.filter           = ETextureFilter::MIN_MAG_MIP_POINT,
+				.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
 				.addressU         = ETextureAddressMode::Clamp,
 				.addressV         = ETextureAddressMode::Clamp,
 				.addressW         = ETextureAddressMode::Clamp,
@@ -239,8 +239,9 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	resizeTextures(commandList, sceneWidth, sceneHeight);
 
 	Texture* currentColorTexture = colorHistory[swapchainIndex % 2].get();
-	auto currentColorUAV = colorHistoryUAV[swapchainIndex % 2].get();
 	Texture* prevColorTexture = colorHistory[(swapchainIndex + 1) % 2].get();
+
+	auto currentColorUAV = colorHistoryUAV[swapchainIndex % 2].get();
 	auto prevColorUAV = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
 	auto prevColorSRV = colorHistorySRV[(swapchainIndex + 1) % 2].get();
 

@@ -78,9 +78,9 @@ Texture2D                               gbuffer0                : register(t6, s
 Texture2D                               gbuffer1                : register(t7, space0);
 Texture2D                               sceneDepthTexture       : register(t8, space0);
 Texture2D                               prevSceneDepthTexture   : register(t9, space0);
+Texture2D                               prevColorTexture        : register(t10, space0);
 RWTexture2D<float4>                     renderTarget            : register(u0, space0);
 RWTexture2D<float4>                     currentColorTexture     : register(u1, space0);
-RWTexture2D<float4>                     prevColorTexture        : register(u2, space0);
 
 // Material resource binding
 #define TEMP_MAX_SRVS 1024
@@ -89,6 +89,7 @@ Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless 
 // Samplers
 SamplerState albedoSampler : register(s0, space0);
 SamplerState skyboxSampler : register(s1, space0);
+SamplerState linearSampler : register(s2, space0);
 
 // ---------------------------------------------------------
 // Local root signature (closest hit)
@@ -282,13 +283,14 @@ PrevFrameInfo getReprojectedInfo(float3 currPositionWS)
 	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
 	positionCS = getPositionCS(screenUV, sceneDepth);
 
-	float4 colorAndHistory = prevColorTexture.Load(int3(targetTexel, 0));
+	// #wip: Super ghosting. Reject by color diff also.
+	float4 colorAndHistory = prevColorTexture.SampleLevel(linearSampler, screenUV, 0);
 
 	info.bValid = true;
 	info.positionWS = clipSpaceToWorldSpace(positionCS, indirectSpecularUniform.prevViewProjInvMatrix);
 	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
 	info.color = colorAndHistory.rgb;
-	info.historyCount = colorAndHistory.a;
+	info.historyCount = colorAndHistory.a; // #wip: history is bilinear sampled...
 	return info;
 }
 
