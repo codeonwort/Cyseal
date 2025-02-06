@@ -244,6 +244,15 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	auto prevColorUAV = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
 	auto prevColorSRV = colorHistorySRV[(swapchainIndex + 1) % 2].get();
 
+	{
+		SCOPED_DRAW_EVENT(commandList, PrevColorBarrier);
+
+		TextureMemoryBarrier barriers[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
+	}
+
 	// Update uniforms.
 	{
 		PathTracingUniform* uboData = new PathTracingUniform;
@@ -503,6 +512,15 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 				},
 			}
 		));
+	}
+	{
+		SCOPED_DRAW_EVENT(commandList, ColorHistoryBarrier);
+
+		TextureMemoryBarrier barriers[] = {
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[0].get() },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[1].get() },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}
 
 	colorScratch = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
