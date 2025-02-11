@@ -4,6 +4,7 @@
 #include "core/platform.h"
 #include "core/plane.h"
 
+#include "rhi/rhi_policy.h"
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/swap_chain.h"
@@ -282,7 +283,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		{
 			commandList->clearRenderTargetView(gbufferRTVs[i].get(), clearColor);
 		}
-		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, 1.0f, 0);
+		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
 
 		BasePassInput passInput{
 			.scene              = scene,
@@ -294,6 +295,20 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gpuCulling         = gpuCulling,
 		};
 		basePass->renderBasePass(commandList, swapchainIndex, passInput);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{
+				ETextureMemoryLayout::RENDER_TARGET,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				RT_gbuffers[0].get(),
+			},
+			{
+				ETextureMemoryLayout::RENDER_TARGET,
+				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
+				RT_gbuffers[1].get(),
+			},
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 
 	{
@@ -311,24 +326,22 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		if (bRenderPathTracing)
 		{
 			PathTracingInput passInput{
-				.scene              = scene,
-				.camera             = camera,
-				.mode               = renderOptions.pathTracing,
-
-				.prevViewInvMatrix  = prevSceneUniformData.viewInvMatrix,
-				.prevProjInvMatrix  = prevSceneUniformData.projInvMatrix,
-				.prevViewProjMatrix = prevSceneUniformData.viewProjMatrix,
-				.bCameraHasMoved    = renderOptions.bCameraHasMoved,
-				.sceneWidth         = sceneWidth,
-				.sceneHeight        = sceneHeight,
-				.gpuScene           = gpuScene,
-				.raytracingScene    = accelStructure.get(),
-				.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
-				.sceneColorUAV      = pathTracingUAV.get(),
-				.sceneDepthSRV      = sceneDepthSRV.get(),
-				.prevSceneDepthSRV  = prevSceneDepthSRV.get(),
-				.worldNormalUAV     = gbufferUAVs[1].get(),
-				.skyboxSRV          = skyboxSRV.get(),
+				.scene                 = scene,
+				.camera                = camera,
+				.mode                  = renderOptions.pathTracing,
+				.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix,
+				.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix,
+				.bCameraHasMoved       = renderOptions.bCameraHasMoved,
+				.sceneWidth            = sceneWidth,
+				.sceneHeight           = sceneHeight,
+				.gpuScene              = gpuScene,
+				.raytracingScene       = accelStructure.get(),
+				.sceneUniformBuffer    = sceneUniformCBVs[swapchainIndex].get(),
+				.sceneColorUAV         = pathTracingUAV.get(),
+				.sceneDepthSRV         = sceneDepthSRV.get(),
+				.prevSceneDepthSRV     = prevSceneDepthSRV.get(),
+				.gbuffer1SRV           = gbufferSRVs[1].get(),
+				.skyboxSRV             = skyboxSRV.get(),
 			};
 			pathTracingPass->renderPathTracing(commandList, swapchainIndex, passInput);
 		}
@@ -375,16 +388,23 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 		
 		IndirectSpecularInput passInput{
-			.scene               = scene,
-			.camera              = camera,
-			.sceneUniformBuffer  = sceneUniformCBVs[swapchainIndex].get(),
-			.raytracingScene     = accelStructure.get(),
-			.gpuScene            = gpuScene,
-			.gbuffer1UAV         = gbufferUAVs[1].get(),
-			.indirectSpecularUAV = indirectSpecularUAV.get(),
-			.skyboxSRV           = skyboxSRV.get(),
-			.sceneWidth          = sceneWidth,
-			.sceneHeight         = sceneHeight,
+			.scene                 = scene,
+			.camera                = camera,
+			.mode                  = renderOptions.indirectSpecular,
+			.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix,
+			.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix,
+			.bCameraHasMoved       = renderOptions.bCameraHasMoved,
+			.sceneWidth            = sceneWidth,
+			.sceneHeight           = sceneHeight,
+			.sceneUniformBuffer    = sceneUniformCBVs[swapchainIndex].get(),
+			.gpuScene              = gpuScene,
+			.raytracingScene       = accelStructure.get(),
+			.skyboxSRV             = skyboxSRV.get(),
+			.gbuffer0SRV           = gbufferSRVs[0].get(),
+			.gbuffer1SRV           = gbufferSRVs[1].get(),
+			.sceneDepthSRV         = sceneDepthSRV.get(),
+			.prevSceneDepthSRV     = prevSceneDepthSRV.get(),
+			.indirectSpecularUAV   = indirectSpecularUAV.get(),
 		};
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
 	}
@@ -399,16 +419,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				ETextureMemoryLayout::RENDER_TARGET,
 				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
 				RT_sceneColor.get(),
-			},
-			{
-				ETextureMemoryLayout::RENDER_TARGET,
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				RT_gbuffers[0].get(),
-			},
-			{
-				ETextureMemoryLayout::RENDER_TARGET,
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				RT_gbuffers[1].get(),
 			},
 			{
 				ETextureMemoryLayout::UNORDERED_ACCESS,

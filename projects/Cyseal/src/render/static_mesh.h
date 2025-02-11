@@ -40,7 +40,11 @@ public:
 
 	inline size_t getNumLODs() const { return LODs.size(); }
 	inline uint32 getActiveLOD() const { return activeLOD; }
-	inline void setActiveLOD(uint32 lod) { activeLOD = lod; }
+	inline void setActiveLOD(uint32 lod)
+	{
+		bLodDirty = bLodDirty || (activeLOD != lod);
+		activeLOD = lod;
+	}
 
 	inline vec3 getPosition() const { return transform.getPosition(); }
 	inline quaternion getRotation() const { return transform.getRotation(); }
@@ -69,7 +73,10 @@ public:
 	inline Matrix getTransformMatrix() { return transform.getMatrix(); }
 	inline const Matrix& getTransformMatrix() const { return transform.getMatrix(); }
 	inline bool isTransformDirty() const { return bTransformDirty; }
-	inline void clearDirtyFlags() { bTransformDirty = false; }
+
+	inline bool isLodDirty() const { return bLodDirty; }
+
+	inline void clearDirtyFlags() { bTransformDirty = bLodDirty = false; }
 
 private:
 	std::vector<StaticMeshLOD> LODs;
@@ -77,4 +84,5 @@ private:
 
 	Transform transform;
 	bool bTransformDirty = false;
+	bool bLodDirty = false;
 };

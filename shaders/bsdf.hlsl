@@ -9,6 +9,11 @@ float3 fresnelSchlick(float cosTheta, float3 F0)
 	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+float3 fresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
+{
+	return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
 // All vectors are in local space.
 // N     : macrosurface normal
 // M     : half-vector
@@ -81,7 +86,7 @@ float3 rotateVector(float3 v, float3x3 M)
 }
 
 // "Microfacet Models for Refraction through Rough Surfaces"
-void microfactBRDF(
+void microfacetBRDF(
 	float3 inRayDir, float3 surfaceNormal,
 	float3 baseColor, float roughness, float metallic,
 	float rand0, float rand1,
@@ -133,6 +138,66 @@ void microfactBRDF(
 	float3 specular = (F * G * NDF) / (4.0 * NdotWi * NdotWo + 0.001);
 
 	outReflectance = (kD * diffuse + kS * specular) * NdotWi;
+	outScatteredDir = rotateVector(Wi, localToWorld);
+	outPdf = 1.0 / (0.001 + 4.0 * dot(Wh, Wo));
+}
+
+// For indirect specular pass
+// Same as microfacetBRDF(), but output diffuse and specular separately.
+void splitMicrofacetBRDF(
+	float3 inRayDir, float3 surfaceNormal,
+	float3 baseColor, float roughness, float metallic,
+	float rand0, float rand1,
+	out float3 outDiffuseReflectance, out float3 outSpecularReflectance, out float3 outScatteredDir, out float outPdf)
+{
+	// Incoming ray can hit any side of the surface, so if hit backface, then rather flip the surfaceNormal.
+	if (dot(surfaceNormal, inRayDir) > 0.0)
+	{
+		surfaceNormal *= -1;
+	}
+
+	// Do all BRDF calculations in local space where macrosurface normal is z-axis (0, 0, 1).
+	// Pick random tangent and bitangent in xy-plane.
+	float3 worldT, worldB;
+	computeTangentFrame(surfaceNormal, worldT, worldB);
+	float3x3 localToWorld = float3x3(worldT, worldB, surfaceNormal);
+	float3x3 worldToLocal = transpose(localToWorld);
+
+	// Wh = normalized half-vector
+	float3 N = float3(0, 0, 1); // #todo-pathtracing: No bump mapping yet
+	float3 Wo = rotateVector(-inRayDir, worldToLocal);
+	float3 Wh = sampleGGXVNDF(Wo, roughness, roughness, rand0, rand1);
+	float3 Wi = reflect(-Wo, Wh);
+
+	// As I'm sampling Wh and deriving Wi from Wo and Wh, Wi actually can go other side of the surface.
+	// In that case, invalidate current sample by setting pdf = 0.
+	// The integrator will reject a sample with zero probability.
+	bool bInvalidWi = Wi.z <= 0.0;
+	if (bInvalidWi)
+	{
+		outDiffuseReflectance = 0;
+		outSpecularReflectance = 0;
+		outScatteredDir = rotateVector(Wi, localToWorld);
+		outPdf = 0;
+		return;
+	}
+
+	float NdotWo = dot(N, Wo);
+	float NdotWi = dot(N, Wi);
+
+	float3 F0 = lerp(float3(0.04, 0.04, 0.04), baseColor, metallic);
+
+	float3 F = fresnelSchlick(dot(Wh, Wi), F0);
+	float G = geometrySmithGGX(Wh, Wo, Wi, roughness);
+	float NDF = distributionGGX(N, Wh, roughness);
+
+	float3 kS = F;
+	float3 kD = 1.0 - kS;
+	float3 diffuse = baseColor * (1.0 - metallic);
+	float3 specular = (F * G * NDF) / (4.0 * NdotWi * NdotWo + 0.001);
+
+	outDiffuseReflectance = kD * diffuse * NdotWi;
+	outSpecularReflectance = kS * specular * NdotWi;
 	outScatteredDir = rotateVector(Wi, localToWorld);
 	outPdf = 1.0 / (0.001 + 4.0 * dot(Wh, Wo));
 }

@@ -21,8 +21,8 @@ void MeshSplatting::createResources(const CreateParams& createParams)
 	{
 		auto material = makeShared<Material>();
 		material->albedoTexture = baseTex;
-		material->albedoMultiplier = vec3(0.1f, 0.1f, 0.1f);
-		material->roughness = 0.0f;
+		material->albedoMultiplier = vec3(0.2f);
+		material->roughness = 0.1f;
 		baseMaterials.push_back(material);
 	}
 

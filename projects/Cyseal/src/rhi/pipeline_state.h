@@ -1,9 +1,10 @@
 #pragma once
 
 #include "rhi_forward.h"
+#include "pixel_format.h"
 #include "core/int_types.h"
 #include "util/enum_util.h"
-#include "pixel_format.h"
+
 #include <vector>
 #include <string>
 
@@ -309,6 +310,19 @@ struct DepthstencilDesc
 			{ EStencilOp::Keep, EStencilOp::Keep, EStencilOp::Keep, EComparisonFunc::Always }
 		};
 	}
+	static DepthstencilDesc ReverseZSceneDepth()
+	{
+		return DepthstencilDesc{
+			true,
+			EDepthWriteMask::All,
+			EComparisonFunc::Greater,
+			false,
+			0xff,
+			0xff,
+			{ EStencilOp::Keep, EStencilOp::Keep, EStencilOp::Keep, EComparisonFunc::Always },
+			{ EStencilOp::Keep, EStencilOp::Keep, EStencilOp::Keep, EComparisonFunc::Always }
+		};
+	}
 };
 
 struct Viewport
@@ -327,6 +341,99 @@ struct ScissorRect
 	uint32 top;
 	uint32 right;
 	uint32 bottom;
+};
+
+//////////////////////////////////////////////////////////////////////////
+// #todo-rhi: Moved from gpu_resource_binding.h
+
+// D3D12_SHADER_VISIBILITY
+enum class EShaderVisibility : uint8
+{
+	All      = 0, // Compute always use this; so does RT.
+	Vertex   = 1,
+	Hull     = 2,
+	Domain   = 3,
+	Geometry = 4,
+	Pixel    = 5
+	// #todo-rhi: EShaderVisibility - Amplication, Mesh
+};
+
+// D3D12_FILTER
+enum class ETextureFilter : uint16
+{
+	MIN_MAG_MIP_POINT                          = 0,
+	MIN_MAG_POINT_MIP_LINEAR                   = 0x1,
+	MIN_POINT_MAG_LINEAR_MIP_POINT             = 0x4,
+	MIN_POINT_MAG_MIP_LINEAR                   = 0x5,
+	MIN_LINEAR_MAG_MIP_POINT                   = 0x10,
+	MIN_LINEAR_MAG_POINT_MIP_LINEAR            = 0x11,
+	MIN_MAG_LINEAR_MIP_POINT                   = 0x14,
+	MIN_MAG_MIP_LINEAR                         = 0x15,
+	ANISOTROPIC                                = 0x55,
+	COMPARISON_MIN_MAG_MIP_POINT               = 0x80,
+	COMPARISON_MIN_MAG_POINT_MIP_LINEAR        = 0x81,
+	COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT  = 0x84,
+	COMPARISON_MIN_POINT_MAG_MIP_LINEAR        = 0x85,
+	COMPARISON_MIN_LINEAR_MAG_MIP_POINT        = 0x90,
+	COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x91,
+	COMPARISON_MIN_MAG_LINEAR_MIP_POINT        = 0x94,
+	COMPARISON_MIN_MAG_MIP_LINEAR              = 0x95,
+	COMPARISON_ANISOTROPIC                     = 0xd5,
+	MINIMUM_MIN_MAG_MIP_POINT                  = 0x100,
+	MINIMUM_MIN_MAG_POINT_MIP_LINEAR           = 0x101,
+	MINIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT     = 0x104,
+	MINIMUM_MIN_POINT_MAG_MIP_LINEAR           = 0x105,
+	MINIMUM_MIN_LINEAR_MAG_MIP_POINT           = 0x110,
+	MINIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR    = 0x111,
+	MINIMUM_MIN_MAG_LINEAR_MIP_POINT           = 0x114,
+	MINIMUM_MIN_MAG_MIP_LINEAR                 = 0x115,
+	MINIMUM_ANISOTROPIC                        = 0x155,
+	MAXIMUM_MIN_MAG_MIP_POINT                  = 0x180,
+	MAXIMUM_MIN_MAG_POINT_MIP_LINEAR           = 0x181,
+	MAXIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT     = 0x184,
+	MAXIMUM_MIN_POINT_MAG_MIP_LINEAR           = 0x185,
+	MAXIMUM_MIN_LINEAR_MAG_MIP_POINT           = 0x190,
+	MAXIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR    = 0x191,
+	MAXIMUM_MIN_MAG_LINEAR_MIP_POINT           = 0x194,
+	MAXIMUM_MIN_MAG_MIP_LINEAR                 = 0x195,
+	MAXIMUM_ANISOTROPIC                        = 0x1d5
+};
+
+// D3D12_TEXTURE_ADDRESS_MODE
+enum class ETextureAddressMode : uint8
+{
+	Wrap       = 1,
+	Mirror     = 2,
+	Clamp      = 3,
+	Border     = 4,
+	MirrorOnce = 5
+};
+
+// D3D12_STATIC_BORDER_COLOR
+enum EStaticBorderColor : uint8
+{
+	TransparentBlack = 0,
+	OpaqueBlack      = 1,
+	OpaqueWhite      = 2
+};
+
+// D3D12_STATIC_SAMPLER_DESC
+struct StaticSamplerDesc
+{
+	std::string name;
+	ETextureFilter filter              = ETextureFilter::MIN_MAG_MIP_POINT;
+	ETextureAddressMode addressU       = ETextureAddressMode::Wrap;
+	ETextureAddressMode addressV       = ETextureAddressMode::Wrap;
+	ETextureAddressMode addressW       = ETextureAddressMode::Wrap;
+	float mipLODBias                   = 0.0f;
+	uint32 maxAnisotropy               = 1;
+	EComparisonFunc comparisonFunc     = EComparisonFunc::Always;
+	EStaticBorderColor borderColor     = EStaticBorderColor::TransparentBlack;
+	float minLOD                       = 0.0f;
+	float maxLOD                       = 0.0f;
+	//uint32 shaderRegister              = 0; // Read from shader reflection
+	//uint32 registerSpace               = 0; // Read from shader reflection
+	EShaderVisibility shaderVisibility = EShaderVisibility::All;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -359,6 +466,8 @@ struct GraphicsPipelineDesc
 	// #todo-crossapi: UINT NodeMask
 	// #todo-crossapi: D3D12_CACHED_PIPELINE_STATE CachedPSO
 	// #todo-crossapi: D3D12_PIPELINE_STATE_FLAGS Flags
+
+	std::vector<StaticSamplerDesc> staticSamplers;
 };
 
 // D3D12_COMPUTE_PIPELINE_STATE_DESC
@@ -370,6 +479,8 @@ struct ComputePipelineDesc
 	uint32 nodeMask = 0; // #todo-mgpu
 	// #todo-crossapi: D3D12_CACHED_PIPELINE_STATE CachedPSO;
 	// #todo-crossapi: D3D12_PIPELINE_STATE_FLAGS  Flags;
+
+	std::vector<StaticSamplerDesc> staticSamplers;
 };
 
 // ID3D12PipelineState
@@ -417,6 +528,8 @@ struct RaytracingPipelineStateObjectDesc
 	uint32 maxPayloadSizeInBytes = 0;
 	uint32 maxAttributeSizeInBytes = 0;
 	uint32 maxTraceRecursionDepth = 1;
+
+	std::vector<StaticSamplerDesc> staticSamplers;
 };
 
 // ID3D12StateObject (RTPSO)

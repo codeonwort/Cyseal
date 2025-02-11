@@ -5,7 +5,7 @@
 #include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/texture.h"
-#include "render/renderer.h"
+#include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
 
 class SceneProxy;
@@ -18,8 +18,7 @@ struct PathTracingInput
 	const Camera*              camera;
 	EPathTracingMode           mode;
 
-	Float4x4                   prevViewInvMatrix;
-	Float4x4                   prevProjInvMatrix;
+	Float4x4                   prevViewProjInvMatrix;
 	Float4x4                   prevViewProjMatrix;
 	bool                       bCameraHasMoved;
 	uint32                     sceneWidth;
@@ -31,7 +30,7 @@ struct PathTracingInput
 	UnorderedAccessView*       sceneColorUAV;
 	ShaderResourceView*        sceneDepthSRV;
 	ShaderResourceView*        prevSceneDepthSRV;
-	UnorderedAccessView*       worldNormalUAV;
+	ShaderResourceView*        gbuffer1SRV;
 	ShaderResourceView*        skyboxSRV;
 };
 
@@ -64,6 +63,7 @@ private:
 
 	UniquePtr<Texture> colorHistory[2];
 	UniquePtr<UnorderedAccessView> colorHistoryUAV[2];
+	UniquePtr<ShaderResourceView> colorHistorySRV[2];
 
 	UniquePtr<Texture> colorScratch;
 	UniquePtr<UnorderedAccessView> colorScratchUAV;

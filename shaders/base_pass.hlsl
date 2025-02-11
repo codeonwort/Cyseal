@@ -96,7 +96,7 @@ PixelOutput mainPS(Interpolants interpolants)
     Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
     float3 albedo = albedoTex.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
     albedo *= material.albedoMultiplier.rgb;
-    float roughness = 0.9;
+    float roughness = material.roughness;
 
     // Direct lighting
     float3 diffuse = float3(0.0, 0.0, 0.0);

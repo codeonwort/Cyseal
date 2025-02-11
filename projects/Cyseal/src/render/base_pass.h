@@ -1,6 +1,6 @@
 #pragma once
 
-#include "renderer.h"
+#include "renderer_options.h"
 #include "core/smart_pointer.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"
@@ -52,5 +52,4 @@ private:
 
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
-	// #todo-sampler: Maybe need a volatileSamplerHeap in similar way?
 };

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/win/windows_application.h"
-#include "render/renderer.h"
+#include "render/renderer_options.h"
 #include "world/scene.h"
 #include "world/camera.h"
 

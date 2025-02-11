@@ -4,7 +4,7 @@
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_binding.h"
-#include "render/renderer.h"
+#include "render/renderer_options.h"
 
 class RenderCommandList;
 class ShaderResourceView;

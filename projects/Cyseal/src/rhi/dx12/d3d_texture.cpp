@@ -5,6 +5,7 @@
 #include "d3d_resource_view.h"
 #include "d3d_into.h"
 #include "core/assertion.h"
+#include "rhi/rhi_policy.h"
 
 void D3DTexture::initialize(const TextureCreateParams& params)
 {
@@ -50,7 +51,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	else if (isDepthTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
 	{
 		bNeedsClearValue = true;
-		optClearValue.DepthStencil.Depth = 1.0f;
+		optClearValue.DepthStencil.Depth = getDeviceFarDepth();
 		optClearValue.DepthStencil.Stencil = 0;
 	}
 

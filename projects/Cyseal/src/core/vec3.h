@@ -113,6 +113,11 @@ inline float dot(const vec3& v1, const vec3& v2)
 	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
+inline vec3 lerp(const vec3& v1, const vec3& v2, float k)
+{
+	return v1 * (1 - k) + v2 * k;
+}
+
 inline vec3 cross(const vec3& v1, const vec3& v2)
 {
 	return vec3(
@@ -156,6 +161,11 @@ inline vec3 vecMax(const vec3& v1, const vec3& v2)
 		v1.y >= v2.y ? v1.y : v2.y,
 		v1.z >= v2.z ? v1.z : v2.z,
 	};
+}
+
+inline bool anyIsNaN(const vec3& v)
+{
+	return isnan(v.x) || isnan(v.y) || isnan(v.z);
 }
 
 inline vec3& vec3::operator+=(const vec3& v)

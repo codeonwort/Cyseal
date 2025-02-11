@@ -37,15 +37,14 @@
 
 struct PathTracingUniform
 {
-	float4 randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
-	float4 randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
-	float4x4 prevViewInvMatrix;
-	float4x4 prevProjInvMatrix;
-	float4x4 prevViewProjMatrix;
-	uint renderTargetWidth;
-	uint renderTargetHeight;
-	uint bInvalidateHistory; // If nonzero, force invalidate the whole history.
-	uint bLimitHistory;
+	float4      randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
+	float4      randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
+	float4x4    prevViewProjInvMatrix;
+	float4x4    prevViewProjMatrix;
+	uint        renderTargetWidth;
+	uint        renderTargetHeight;
+	uint        bInvalidateHistory; // If nonzero, force invalidate the whole history.
+	uint        bLimitHistory;
 };
 
 struct VertexAttributes
@@ -68,11 +67,11 @@ StructuredBuffer<Material>         materials             : register(t4, space0);
 TextureCube                        skybox                : register(t5, space0);
 Texture2D                          sceneDepthTexture     : register(t6, space0);
 Texture2D                          prevSceneDepthTexture : register(t7, space0);
-RWTexture2D<float4>                sceneNormalTexture    : register(u0, space0);
-RWTexture2D<float4>                currentColorTexture   : register(u1, space0);
-RWTexture2D<float4>                prevColorTexture      : register(u2, space0);
-RWTexture2D<float4>                currentMoment         : register(u3, space0);
-RWTexture2D<float4>                prevMoment            : register(u4, space0);
+Texture2D                          sceneNormalTexture    : register(t8, space0);
+Texture2D                          prevColorTexture      : register(t9, space0);
+RWTexture2D<float4>                currentColorTexture   : register(u0, space0);
+RWTexture2D<float4>                currentMoment         : register(u1, space0);
+RWTexture2D<float4>                prevMoment            : register(u2, space0);
 ConstantBuffer<SceneUniform>       sceneUniform          : register(b0, space0);
 ConstantBuffer<PathTracingUniform> pathTracingUniform    : register(b1, space0);
 // Material binding
@@ -84,6 +83,7 @@ ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
 
 SamplerState albedoSampler                  : register(s0, space0);
 SamplerState skyboxSampler                  : register(s1, space0);
+SamplerState linearSampler                  : register(s2, space0);
 
 typedef BuiltInTriangleIntersectionAttributes IntersectionAttributes;
 // Should match with path_tracing_pass.cpp
@@ -129,51 +129,43 @@ float2 getScreenResolution()
 	return float2(pathTracingUniform.renderTargetWidth, pathTracingUniform.renderTargetHeight);
 }
 
-float getNdcZ(float sceneDepth)
+struct PrevFrameInfo
 {
-#if REVERSE_Z
-	return sceneDepth; // clipZ is [0,1] in Reverse-Z
-#else
-	return sceneDepth * 2.0 - 1.0;
-#endif
-}
+	bool   bValid;
+	float3 positionWS;
+	float  linearDepth;
+	float3 color;
+	float2 moments;
+	float  historyCount;
+};
 
-float getLinearDepth(float2 screenUV, float sceneDepth)
+// Returns true if reprojection is valid.
+PrevFrameInfo getReprojectedInfo(float3 currPositionWS)
 {
-	float4 positionCS = float4(2.0 * screenUV - 1.0, sceneDepth, 1.0);
-	float4 projected = mul(positionCS, sceneUniform.projInvMatrix);
-	return abs(projected.z / projected.w);
-}
+	float4 positionCS = worldSpaceToClipSpace(currPositionWS, pathTracingUniform.prevViewProjMatrix);
+	float2 screenUV = clipSpaceToTextureUV(positionCS);
 
-float3 getWorldPositionFromSceneDepth(float2 screenUV, float sceneDepth)
-{
-	float z = getNdcZ(sceneDepth);
-	float4 positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0);
-	float4 positionWS = mul(positionCS, sceneUniform.viewProjInvMatrix);
-	return positionWS.xyz / positionWS.w;
-}
-
-bool getPrevWorldPosition(float3 currPositionWS, out float3 prevPositionWS, out float prevLinearDepth)
-{
-	float4 positionCS = mul(float4(currPositionWS, 1.0), pathTracingUniform.prevViewProjMatrix);
-	float2 screenUV = 0.5 * (positionCS.xy / positionCS.w) + float2(0.5, 0.5);
-	if (any(screenUV < float2(0, 0)) || any(screenUV >= float2(1, 1)))
+	PrevFrameInfo info;
+	if (uvOutOfBounds(screenUV))
 	{
-		return false;
+		info.bValid = false;
+		return info;
 	}
+
 	float2 resolution = getScreenResolution();
 	int2 targetTexel = int2(screenUV * resolution);
 	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
+	positionCS = getPositionCS(screenUV, sceneDepth);
 
-	float z = getNdcZ(sceneDepth);
-	positionCS = float4(screenUV * 2.0 - 1.0, z, 1.0); // [-1,1]
-	float4 positionVS = mul(positionCS, pathTracingUniform.prevProjInvMatrix);
-	positionVS /= positionVS.w; // Perspective division
-	float4 positionWS = mul(positionVS, pathTracingUniform.prevViewInvMatrix);
+	float4 momentsAndHistory = prevMoment[targetTexel];
 	
-	prevPositionWS = positionWS.xyz;
-	prevLinearDepth = getLinearDepth(screenUV, sceneDepth);
-	return true;
+	info.bValid = true;
+	info.positionWS = clipSpaceToWorldSpace(positionCS, pathTracingUniform.prevViewProjInvMatrix);
+	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
+	info.color = prevColorTexture.SampleLevel(linearSampler, screenUV, 0).rgb;
+	info.moments = momentsAndHistory.xy;
+	info.historyCount = momentsAndHistory.w;
+	return info;
 }
 
 float getLuminance(float3 color)
@@ -239,6 +231,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 			break;
 		}
 
+		// #todo-pathtracing: Sometimes surfaceNormal is NaN
 		float3 surfaceNormal = currentRayPayload.surfaceNormal;
 		float3 surfaceTangent, surfaceBitangent;
 		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
@@ -254,7 +247,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		// #todo-pathtracing: Handle transmission.
 		float3 scatteredReflectance, scatteredDir;
 		float scatteredPdf;
-		microfactBRDF(
+		microfacetBRDF(
 			currentRay.Direction, surfaceNormal,
 			currentRayPayload.albedo,
 			currentRayPayload.roughness,
@@ -262,7 +255,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 			rand0, rand1,
 			scatteredReflectance, scatteredDir, scatteredPdf);
 		
-		// #todo-pathtracing: It happens :(
+		// #todo-pathtracing: Sometimes surfaceNormal is NaN
 		if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
 		{
 			scatteredPdf = 0.0;
@@ -413,22 +406,20 @@ void MainRaygen()
 	generateCameraRay(targetTexel, cameraRayOrigin, cameraRayDir);
 
 	float sceneDepth = sceneDepthTexture.Load(int3(targetTexel, 0)).r;
-	float3 sceneNormal = sceneNormalTexture[targetTexel].xyz;
-	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth);
-	float linearDepth = getLinearDepth(screenUV, sceneDepth);
+	float3 sceneNormal = sceneNormalTexture.Load(int3(targetTexel, 0)).xyz;
+	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth, sceneUniform.viewProjInvMatrix);
+	float linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix);
 
-	float3 prevPositionWS;
-	float prevLinearDepth;
-	bool bPrevValid = getPrevWorldPosition(positionWS, prevPositionWS, prevLinearDepth);
+	PrevFrameInfo prevFrame = getReprojectedInfo(positionWS);
 
 	float3 viewDir = normalize(sceneUniform.cameraPosition.xyz - positionWS);
 	float zAlignment = 1.0 - dot(viewDir, sceneNormal);
 	zAlignment = pow(zAlignment, 8);
 
-	float depthDiff = abs(prevLinearDepth - linearDepth) / linearDepth;
+	float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;
 	float depthTolerance = lerp(1e-2f, 1e-1f, zAlignment);
 
-	bool bClose = bPrevValid && depthDiff < depthTolerance; // length(positionWS - prevPositionWS) <= 0.01; // 1.0 = 1 meter
+	bool bClose = prevFrame.bValid && depthDiff < depthTolerance; // length(positionWS - prevPositionWS) <= 0.01; // 1.0 = 1 meter
 	bool bTemporalReprojection = (pathTracingUniform.bInvalidateHistory == 0) && bClose;
 
 #if TRACE_MODE == TRACE_AMBIENT_OCCLUSION
@@ -440,8 +431,8 @@ void MainRaygen()
 	float prevAmbientOcclusion, historyCount;
 	if (bTemporalReprojection)
 	{
-		prevAmbientOcclusion = prevColorTexture[targetTexel].x;
-		historyCount = prevMoment[targetTexel].w;
+		prevAmbientOcclusion = prevFrame.color.x;
+		historyCount = prevFrame.historyCount;
 	}
 	else
 	{
@@ -462,9 +453,9 @@ void MainRaygen()
 	float historyCount;
 	if (bTemporalReprojection)
 	{
-		prevLi = prevColorTexture[targetTexel].xyz;
-		prevMoments = prevMoment[targetTexel].xy;
-		historyCount = prevMoment[targetTexel].w;
+		prevLi = prevFrame.color;
+		prevMoments = prevFrame.moments;
+		historyCount = prevFrame.historyCount;
 	}
 	else
 	{
@@ -487,9 +478,6 @@ void MainRaygen()
 	currentColorTexture[targetTexel] = float4(Li, 1);
 #endif
 
-	// Update prevColorTexture also to simplify blur pass setup.
-	prevColorTexture[targetTexel] = currentColorTexture[targetTexel];
-
 	if (pathTracingUniform.bLimitHistory != 0)
 	{
 		historyCount = min(historyCount, MAX_REALTIME_HISTORY);
@@ -502,14 +490,12 @@ void MainRaygen()
 void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 {
 	uint objectID = g_closestHitCB.objectID;
-
 	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
 	
-	// Get the base index of the triangle's first 32 bit index.
-	uint triangleIndexStride = 3 * 4; // 4 = sizeof(uint32)
-	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-	baseIndex += sceneItem.indexBufferOffset;
-	uint3 indices = gIndexBuffer.Load<uint3>(baseIndex);
+	uint triangleIndexStride = 3 * 4; // A triangle has 3 indices, 4 = sizeof(uint32)
+	// Byte offset of first index in gIndexBuffer
+	uint firstIndexOffset = PrimitiveIndex() * triangleIndexStride + sceneItem.indexBufferOffset;
+	uint3 indices = gIndexBuffer.Load<uint3>(firstIndexOffset);
 
 	// position = float3 = 12 bytes
 	float3 p0 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.x);
@@ -520,39 +506,30 @@ void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 	VertexAttributes v1 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.y);
 	VertexAttributes v2 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.z);
 
-	float3 barycentrics = float3(
-		1 - attr.barycentrics.x - attr.barycentrics.y,
-		attr.barycentrics.x,
-		attr.barycentrics.y);
+	float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
 	
-	float2 texcoord = barycentrics.x * v0.texcoord
-		+ barycentrics.y * v1.texcoord
-		+ barycentrics.z * v2.texcoord;
+	float2 texcoord = barycentrics.x * v0.texcoord + barycentrics.y * v1.texcoord + barycentrics.z * v2.texcoord;
+
+	float3 surfaceNormal = normalize(barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal);
+	surfaceNormal = normalize(transformDirection(surfaceNormal, sceneItem.modelMatrix));
 
 	Material material = materials[objectID];
 	Texture2D albedoTex = albedoTextures[NonUniformResourceIndex(material.albedoTextureIndex)];
+	float3 albedo = albedoTex.SampleLevel(albedoSampler, texcoord, 0.0).rgb * material.albedoMultiplier.rgb;
+	
+	// Output payload
 
-	float3 surfaceNormal = normalize(
-		barycentrics.x * v0.normal
-		+ barycentrics.y * v1.normal
-		+ barycentrics.z * v2.normal);
-	surfaceNormal = normalize(mul(float4(surfaceNormal, 0.0), sceneItem.modelMatrix).xyz);
-	// Hmm if hit the back face I should flip surfaceNormal but how to know it?
 	payload.surfaceNormal = surfaceNormal;
-
-	payload.roughness = material.roughness;
-	payload.emission = material.emission;
-
-	payload.albedo = albedoTex.SampleLevel(albedoSampler, texcoord, 0.0).rgb;
-	payload.albedo *= material.albedoMultiplier.rgb;
-
-	payload.hitTime = RayTCurrent();
-	payload.objectID = objectID;
+	payload.roughness     = material.roughness;
+	payload.albedo        = albedo;
+	payload.hitTime       = RayTCurrent();
+	payload.emission      = material.emission;
+	payload.objectID      = objectID;
 }
 
 [shader("miss")]
 void MainMiss(inout RayPayload payload)
 {
-	payload.objectID = OBJECT_ID_NONE;
-	payload.hitTime = -1.0;
+	payload.hitTime       = -1.0;
+	payload.objectID      = OBJECT_ID_NONE;
 }

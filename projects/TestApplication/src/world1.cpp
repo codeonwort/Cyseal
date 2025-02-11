@@ -164,9 +164,9 @@ void World1::createResources()
 		uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
 
 		auto material = makeShared<Material>();
-		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
-		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
-		material->roughness = 0.0f;
+		material->albedoMultiplier = vec3(0.1f);
+		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
+		material->roughness = 0.05f;
 
 		ground = new StaticMesh;
 		ground->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
@@ -196,9 +196,9 @@ void World1::createResources()
 		uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
 
 		auto material = makeShared<Material>();
-		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
+		material->albedoMultiplier = vec3(0.1f);
 		material->albedoTexture = albedoTexture;
-		material->roughness = 0.0f;
+		material->roughness = 0.1f;
 
 		wallA = new StaticMesh;
 		wallA->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);

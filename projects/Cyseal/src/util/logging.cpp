@@ -5,7 +5,7 @@
 	#include <Windows.h>
 #endif
 
-#define LOG_BUFFER_SIZE 1024
+#define LOG_BUFFER_SIZE 10240
 
 void Logger::log(const char* inCategory, LogLevel inLevel, const wchar_t* inMessage...)
 {
