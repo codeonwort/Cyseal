@@ -283,14 +283,14 @@ PrevFrameInfo getReprojectedInfo(float3 currPositionWS)
 	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
 	positionCS = getPositionCS(screenUV, sceneDepth);
 
-	// #wip: Super ghosting. Reject by color diff also.
+	// #todo-specular: Super ghosting. Reject by color diff also.
 	float4 colorAndHistory = prevColorTexture.SampleLevel(linearSampler, screenUV, 0);
 
 	info.bValid = true;
 	info.positionWS = clipSpaceToWorldSpace(positionCS, indirectSpecularUniform.prevViewProjInvMatrix);
 	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
 	info.color = colorAndHistory.rgb;
-	info.historyCount = colorAndHistory.a; // #wip: history is bilinear sampled...
+	info.historyCount = colorAndHistory.a; // #todo-specular: history is bilinear sampled...
 	return info;
 }
 
@@ -380,7 +380,7 @@ void MainRaygen()
 		historyCount = min(historyCount, MAX_GLOSSY_HISTORY);
 	}
 
-	// #wip: Should store history in moment texture
+	// #todo-specular: Should store history in moment texture
 	currentColorTexture[texel] = float4(Wo, historyCount);
 	renderTarget[texel] = float4(Wo, 1.0);
 }
@@ -391,7 +391,7 @@ void MainClosestHit(inout RayPayload payload, in MyAttributes attr)
 	uint objectID = g_closestHitCB.objectID;
 	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
 	
-	// #wip: Make raytracing_common.hlsl for raytracing passes
+	// #todo-specular: Make raytracing_common.hlsl for raytracing passes
 	
 	uint triangleIndexStride = 3 * 4; // A triangle has 3 indices, 4 = sizeof(uint32)
 	// Byte offset of first index in gIndexBuffer

@@ -344,7 +344,7 @@ struct ScissorRect
 };
 
 //////////////////////////////////////////////////////////////////////////
-// #wip: Moved from gpu_resource_binding.h
+// #todo-rhi: Moved from gpu_resource_binding.h
 
 // D3D12_SHADER_VISIBILITY
 enum class EShaderVisibility : uint8
