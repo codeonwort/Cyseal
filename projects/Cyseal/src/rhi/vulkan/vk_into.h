@@ -509,7 +509,7 @@ namespace into_vk
 				for (size_t j = i; j < elems.size() && elems[i].inputSlot == elems[j].inputSlot; ++j)
 				{
 					uint32 x = elems[j].alignedByteOffset + getPixelFormatBytes(elems[j].format);
-					bindingDesc.stride = std::max(bindingDesc.stride, x);
+					bindingDesc.stride = (std::max)(bindingDesc.stride, x);
 				}
 				outBindings.emplace_back(bindingDesc);
 			}

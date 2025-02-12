@@ -23,7 +23,7 @@ void VulkanSwapchain::preinitialize(RenderDevice* renderDevice)
 	auto physicalDevice = deviceWrapper->vkPhysicalDevice;
 	SwapChainSupportDetails supportDetails = deviceWrapper->querySwapChainSupport(physicalDevice);
 
-	uint32 imageCount = std::max(2u, supportDetails.capabilities.minImageCount);
+	uint32 imageCount = (std::max)(2u, supportDetails.capabilities.minImageCount);
 	// maxImageCount = 0 means there's no limit besides memory requirements
 	if (supportDetails.capabilities.maxImageCount > 0 && imageCount > supportDetails.capabilities.maxImageCount)
 	{
