@@ -32,7 +32,6 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		}
 	}
 
-	// #todo-shadows: Parameterize texture clear value
 	// #todo-dx12: Texture clear value
 	bool bNeedsClearValue = false;
 	D3D12_CLEAR_VALUE optClearValue;
@@ -44,10 +43,10 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	if (isColorTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::RTV))
 	{
 		bNeedsClearValue = true;
-		optClearValue.Color[0] = 0.0f;
-		optClearValue.Color[1] = 0.0f;
-		optClearValue.Color[2] = 0.0f;
-		optClearValue.Color[3] = 0.0f;
+		optClearValue.Color[0] = params.optimalClearColor[0];
+		optClearValue.Color[1] = params.optimalClearColor[1];
+		optClearValue.Color[2] = params.optimalClearColor[2];
+		optClearValue.Color[3] = params.optimalClearColor[3];
 	}
 	else if (isDepthTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
 	{

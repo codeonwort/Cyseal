@@ -267,21 +267,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, BasePass);
 
 		TextureMemoryBarrier barriers[] = {
-			{
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				ETextureMemoryLayout::RENDER_TARGET,
-				RT_sceneColor.get(),
-			},
-			{
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				ETextureMemoryLayout::RENDER_TARGET,
-				RT_gbuffers[0].get(),
-			},
-			{
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				ETextureMemoryLayout::RENDER_TARGET,
-				RT_gbuffers[1].get(),
-			},
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_sceneColor.get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[0].get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[1].get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
@@ -308,16 +296,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		basePass->renderBasePass(commandList, swapchainIndex, passInput);
 
 		TextureMemoryBarrier barriersAfter[] = {
-			{
-				ETextureMemoryLayout::RENDER_TARGET,
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				RT_gbuffers[0].get(),
-			},
-			{
-				ETextureMemoryLayout::RENDER_TARGET,
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				RT_gbuffers[1].get(),
-			},
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[0].get() },
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[1].get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
@@ -335,7 +315,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
 		// Clear as a render target. (not so ideal but works)
-		float clearColor[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+		float clearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		commandList->clearRenderTargetView(shadowMaskRTV.get(), clearColor);
 
 		TextureMemoryBarrier barriersAfter[] = {
@@ -759,7 +739,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			EPixelFormat::R32_FLOAT,
 			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			sceneWidth, sceneHeight,
-			1, 1, 0)));
+			1, 1, 0).setOptimalClearColor(1.0f, 1.0f, 1.0f, 1.0f)));
 	RT_shadowMask->setDebugName(L"RT_ShadowMask");
 
 	shadowMaskRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_shadowMask.get(),
