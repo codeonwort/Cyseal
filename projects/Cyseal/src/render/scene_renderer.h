@@ -12,6 +12,7 @@ class ConstantBufferView;
 // Render passes
 class GPUScene;
 class GPUCulling;
+class RayTracedShadowsPass;
 class BasePass;
 class IndirecSpecularPass;
 class ToneMapping;
@@ -110,6 +111,7 @@ private:
 	// Render passes
 	GPUScene*             gpuScene              = nullptr;
 	GPUCulling*           gpuCulling            = nullptr;
+	RayTracedShadowsPass* rayTracedShadowsPass  = nullptr;
 	BasePass*             basePass              = nullptr;
 	IndirecSpecularPass*  indirectSpecularPass  = nullptr;
 	ToneMapping*          toneMapping           = nullptr;

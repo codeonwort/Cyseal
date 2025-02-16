@@ -19,6 +19,7 @@
 #include "render/base_pass.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
+#include "render/raytracing/ray_traced_shadows.h"
 #include "render/raytracing/indirect_specular_pass.h"
 #include "render/pathtracing/path_tracing_pass.h"
 
@@ -89,6 +90,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		gpuCulling = new GPUCulling;
 		gpuCulling->initialize();
 
+		rayTracedShadowsPass = new RayTracedShadowsPass;
+		rayTracedShadowsPass->initialize();
+
 		basePass = new BasePass;
 		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS);
 
@@ -119,6 +123,7 @@ void SceneRenderer::destroy()
 
 	delete gpuScene;
 	delete gpuCulling;
+	delete rayTracedShadowsPass;
 	delete basePass;
 	delete indirectSpecularPass;
 	delete toneMapping;

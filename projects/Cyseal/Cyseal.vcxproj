@@ -115,6 +115,7 @@
     <ClInclude Include="src\render\buffer_visualization.h" />
     <ClInclude Include="src\render\gpu_culling.h" />
     <ClInclude Include="src\render\pathtracing\path_tracing_pass.h" />
+    <ClInclude Include="src\render\raytracing\ray_traced_shadows.h" />
     <ClInclude Include="src\render\renderer_options.h" />
     <ClInclude Include="src\render\util\volatile_descriptor.h" />
     <ClInclude Include="src\rhi\buffer.h" />
@@ -201,6 +202,7 @@
     <ClCompile Include="src\render\buffer_visualization.cpp" />
     <ClCompile Include="src\render\gpu_culling.cpp" />
     <ClCompile Include="src\render\pathtracing\path_tracing_pass.cpp" />
+    <ClCompile Include="src\render\raytracing\ray_traced_shadows.cpp" />
     <ClCompile Include="src\render\util\volatile_descriptor.cpp" />
     <ClCompile Include="src\rhi\dx12\d3d_pipeline_state.cpp" />
     <ClCompile Include="src\rhi\global_descriptor_heaps.cpp" />
