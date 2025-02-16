@@ -1,12 +1,13 @@
 #include "common.hlsl"
 
 // Should match with EBufferVisualizationMode
-#define MODE_NONE              0
-#define MODE_ALBEDO            1
-#define MODE_ROUGHNESS         2
-#define MODE_NORMAL            3
-#define MODE_DIRECT_LIGHTING   4
-#define MODE_INDIRECT_SPECULAR 5
+#define MODE_NONE               0
+#define MODE_ALBEDO             1
+#define MODE_ROUGHNESS          2
+#define MODE_NORMAL             3
+#define MODE_DIRECT_LIGHTING    4
+#define MODE_RAY_TRACED_SHADOWS 5
+#define MODE_INDIRECT_SPECULAR  6
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -20,7 +21,8 @@ ConstantBuffer<PushConstants> pushConstants : register(b0, space0);
 Texture2D gbuffer0                          : register(t0, space0);
 Texture2D gbuffer1                          : register(t1, space0);
 Texture2D sceneColor                        : register(t2, space0);
-Texture2D indirectSpecular                  : register(t3, space0);
+Texture2D shadowMask                        : register(t3, space0);
+Texture2D indirectSpecular                  : register(t4, space0);
 SamplerState textureSampler                 : register(s0, space0);
 
 // ------------------------------------------------------------------------
@@ -73,6 +75,10 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     else if (modeEnum == MODE_DIRECT_LIGHTING)
     {
         color.rgb = sceneColor.SampleLevel(textureSampler, screenUV, 0.0).rgb;
+    }
+    else if (modeEnum == MODE_RAY_TRACED_SHADOWS)
+    {
+        color.rgb = shadowMask.SampleLevel(textureSampler, screenUV, 0.0).rrr;
     }
     else if (modeEnum == MODE_INDIRECT_SPECULAR)
     {

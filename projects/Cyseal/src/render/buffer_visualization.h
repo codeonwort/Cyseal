@@ -15,6 +15,7 @@ struct BufferVisualizationInput
 	ShaderResourceView* gbuffer0SRV         = nullptr;
 	ShaderResourceView* gbuffer1SRV         = nullptr;
 	ShaderResourceView* sceneColorSRV       = nullptr;
+	ShaderResourceView* shadowMaskSRV       = nullptr;
 	ShaderResourceView* indirectSpecularSRV = nullptr;
 };
 

@@ -13,7 +13,8 @@ enum class EBufferVisualizationMode : uint32
 	Roughness        = 2,
 	Normal           = 3,
 	DirectLighting   = 4,
-	IndirectSpecular = 5,
+	RayTracedShadows = 5,
+	IndirectSpecular = 6,
 
 	Count,
 };
@@ -53,6 +54,7 @@ inline const char** getBufferVisualizationModeNames()
 		"Roughness",
 		"NormalWS",
 		"DirectLighting",
+		"RayTracedShadows",
 		"IndirectSpecular",
 	};
 	return strings;

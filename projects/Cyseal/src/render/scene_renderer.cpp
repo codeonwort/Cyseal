@@ -491,6 +491,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gbuffer0SRV         = gbufferSRVs[0].get(),
 			.gbuffer1SRV         = gbufferSRVs[1].get(),
 			.sceneColorSRV       = sceneColorSRV.get(),
+			.shadowMaskSRV       = shadowMaskSRV.get(),
 			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
 		};
 
