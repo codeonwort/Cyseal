@@ -18,7 +18,15 @@ enum class EBufferVisualizationMode : uint32
 	Count,
 };
 
-enum class EIndirectSpecularMode
+enum class ERayTracedShadowsMode : uint32
+{
+	Disabled         = 0,
+	HardShadows      = 1,
+
+	Count
+};
+
+enum class EIndirectSpecularMode : uint32
 {
 	Disabled         = 0,
 	ForceMirror      = 1,
@@ -46,6 +54,16 @@ inline const char** getBufferVisualizationModeNames()
 		"NormalWS",
 		"DirectLighting",
 		"IndirectSpecular",
+	};
+	return strings;
+}
+
+inline const char** getRayTracedShadowsModeNames()
+{
+	static const char* strings[] =
+	{
+		"Disabled",
+		"HardShadows",
 	};
 	return strings;
 }
@@ -79,6 +97,7 @@ struct RendererOptions
 
 	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
 
+	ERayTracedShadowsMode rayTracedShadows = ERayTracedShadowsMode::Disabled;
 	EIndirectSpecularMode indirectSpecular = EIndirectSpecularMode::ForceMirror;
 
 	EPathTracingMode pathTracing = EPathTracingMode::Disabled;
@@ -86,8 +105,9 @@ struct RendererOptions
 
 	bool anyRayTracingEnabled() const
 	{
+		bool bShadows = rayTracedShadows != ERayTracedShadowsMode::Disabled;
 		bool bIndirectSpecular = indirectSpecular != EIndirectSpecularMode::Disabled;
 		bool bPathTracing = pathTracing != EPathTracingMode::Disabled;
-		return bIndirectSpecular || bPathTracing;
+		return bShadows || bIndirectSpecular || bPathTracing;
 	}
 };

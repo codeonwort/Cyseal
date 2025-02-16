@@ -32,6 +32,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		}
 	}
 
+	// #todo-shadows: Parameterize texture clear value
 	// #todo-dx12: Texture clear value
 	bool bNeedsClearValue = false;
 	D3D12_CLEAR_VALUE optClearValue;

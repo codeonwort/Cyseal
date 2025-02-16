@@ -88,6 +88,11 @@ private:
 	UniquePtr<ShaderResourceView> gbufferSRVs[NUM_GBUFFERS];
 	UniquePtr<UnorderedAccessView> gbufferUAVs[NUM_GBUFFERS];
 
+	UniquePtr<Texture> RT_shadowMask;
+	UniquePtr<RenderTargetView> shadowMaskRTV;
+	UniquePtr<ShaderResourceView> shadowMaskSRV;
+	UniquePtr<UnorderedAccessView> shadowMaskUAV;
+
 	UniquePtr<Texture> RT_indirectSpecular;
 	UniquePtr<ShaderResourceView> indirectSpecularSRV;
 	UniquePtr<RenderTargetView> indirectSpecularRTV;

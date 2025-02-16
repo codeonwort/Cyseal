@@ -154,7 +154,9 @@ void TestApplication::onTick(float deltaSeconds)
 			appState.rendererOptions.bufferVisualization = (EBufferVisualizationMode)appState.selectedBufferVisualizationMode;
 
 			ImGui::SeparatorText("Ray Tracing");
+			ImGui::Combo("Ray Traced Shadows", &appState.selectedRayTracedShadowsMode, getRayTracedShadowsModeNames(), (int32)ERayTracedShadowsMode::Count);
 			ImGui::Combo("Indirect Specular Reflection", &appState.selectedIndirectSpecularMode, getIndirectSpecularModeNames(), (int32)EIndirectSpecularMode::Count);
+			appState.rendererOptions.rayTracedShadows = (ERayTracedShadowsMode)appState.selectedRayTracedShadowsMode;
 			appState.rendererOptions.indirectSpecular = (EIndirectSpecularMode)appState.selectedIndirectSpecularMode;
 
 			ImGui::SeparatorText("Path Tracing");

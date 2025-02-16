@@ -163,9 +163,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
 	const bool bRenderPathTracing = bSupportsRaytracing && (renderOptions.pathTracing != EPathTracingMode::Disabled);
 	
+	const bool bRenderRayTracedShadows = bSupportsRaytracing
+		&& renderOptions.rayTracedShadows != ERayTracedShadowsMode::Disabled
+		&& bRenderPathTracing == false;
+
 	// If disabled, RT_indirectSpecular will be cleared as black
 	// so that tone mapping pass reads indirectSpecular as zero.
-	bool bRenderIndirectSpecular = bSupportsRaytracing
+	const bool bRenderIndirectSpecular = bSupportsRaytracing
 		&& renderOptions.indirectSpecular != EIndirectSpecularMode::Disabled
 		&& bRenderPathTracing == false;
 
@@ -255,6 +259,27 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	// #todo-renderer: Depth PrePass
 	{
 	}
+
+	// Ray Traced Shadows
+	//if (!bRenderRayTracedShadows)
+	{
+		SCOPED_DRAW_EVENT(commandList, ClearRayTracedShadows);
+
+		TextureMemoryBarrier barriersBefore[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_shadowMask.get() }
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+		// Clear as a render target. (not so ideal but works)
+		float clearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		commandList->clearRenderTargetView(shadowMaskRTV.get(), clearColor);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_shadowMask.get() }
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
+	}
+	// #todo-shadows: Render RT shadows
 
 	// Base pass
 	{
@@ -699,6 +724,42 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			}
 		));
 	}
+
+	cleanup(RT_shadowMask.release());
+	RT_shadowMask = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::R32_FLOAT,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			sceneWidth, sceneHeight,
+			1, 1, 0)));
+	RT_shadowMask->setDebugName(L"RT_ShadowMask");
+
+	shadowMaskRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_shadowMask.get(),
+		RenderTargetViewDesc{
+			.format            = RT_shadowMask->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+	shadowMaskSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_shadowMask.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_shadowMask->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_shadowMask->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	shadowMaskUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_shadowMask.get(),
+		UnorderedAccessViewDesc{
+			.format         = RT_shadowMask->getCreateParams().format,
+			.viewDimension  = EUAVDimension::Texture2D,
+			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
 
 	cleanup(RT_indirectSpecular.release());
 	RT_indirectSpecular = UniquePtr<Texture>(device->createTexture(
