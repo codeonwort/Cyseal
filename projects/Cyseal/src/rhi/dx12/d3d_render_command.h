@@ -47,7 +47,8 @@ public:
 
 	virtual void resourceBarriers(
 		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
-		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers) override;
+		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
+		uint32 numUAVBarriers, GPUResource* const* uavBarrierResources) override;
 
 	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override;
 

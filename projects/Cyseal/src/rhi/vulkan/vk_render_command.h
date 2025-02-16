@@ -51,7 +51,8 @@ public:
 
 	virtual void resourceBarriers(
 		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
-		uint32 numTexureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers) override;
+		uint32 numTexureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
+		uint32 numUAVBarriers, GPUResource* const* uavBarrierResources) override;
 
 	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override;
 	virtual void clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil) override;

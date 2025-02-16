@@ -224,6 +224,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		// Recreate every BLAS
 		rebuildAccelerationStructure(commandList, scene);
+
+		GPUResource* uavBarrierResources[] = { accelStructure.get() };
+		commandList->resourceBarriers(0, nullptr, 0, nullptr, 1, uavBarrierResources);
 	}
 
 	if (bSupportsRaytracing && !scene->bRebuildRaytracingScene)
@@ -256,53 +259,15 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			// #todo-async-compute: Building accel structure can be moved to async compute pipeline.
 			accelStructure->rebuildTLAS(commandList, (uint32)updateDescs.size(), updateDescs.data());
 		}
+
+		GPUResource* uavBarrierResources[] = { accelStructure.get() };
+		commandList->resourceBarriers(0, nullptr, 0, nullptr, 1, uavBarrierResources);
 	}
 
 	// #todo-renderer: Depth PrePass
 	{
 	}
 
-	// Base pass
-	{
-		SCOPED_DRAW_EVENT(commandList, BasePass);
-
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_sceneColor.get() },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[0].get() },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[1].get() },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
-
-		RenderTargetView* RTVs[] = { sceneColorRTV.get(), gbufferRTVs[0].get(), gbufferRTVs[1].get() };
-		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
-
-		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		commandList->clearRenderTargetView(sceneColorRTV.get(), clearColor);
-		for (uint32 i = 0; i < NUM_GBUFFERS; ++i)
-		{
-			commandList->clearRenderTargetView(gbufferRTVs[i].get(), clearColor);
-		}
-		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
-
-		BasePassInput passInput{
-			.scene              = scene,
-			.camera             = camera,
-			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
-			.bGPUCulling        = renderOptions.bEnableGPUCulling,
-			.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
-			.gpuScene           = gpuScene,
-			.gpuCulling         = gpuCulling,
-		};
-		basePass->renderBasePass(commandList, swapchainIndex, passInput);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[0].get() },
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[1].get() },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
-	}
-
-	// #todo-shadows: Extremely laggy if run before base pass?
 	// #todo-shadows: Generates weird shadow masks on sphere surfaces.
 	// Ray Traced Shadows
 	if (!bRenderRayTracedShadows)
@@ -351,6 +316,46 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 
+	// Base pass
+	{
+		SCOPED_DRAW_EVENT(commandList, BasePass);
+
+		TextureMemoryBarrier barriers[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_sceneColor.get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[0].get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[1].get() },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
+
+		RenderTargetView* RTVs[] = { sceneColorRTV.get(), gbufferRTVs[0].get(), gbufferRTVs[1].get() };
+		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
+
+		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		commandList->clearRenderTargetView(sceneColorRTV.get(), clearColor);
+		for (uint32 i = 0; i < NUM_GBUFFERS; ++i)
+		{
+			commandList->clearRenderTargetView(gbufferRTVs[i].get(), clearColor);
+		}
+		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
+
+		BasePassInput passInput{
+			.scene              = scene,
+			.camera             = camera,
+			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
+			.bGPUCulling        = renderOptions.bEnableGPUCulling,
+			.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
+			.gpuScene           = gpuScene,
+			.gpuCulling         = gpuCulling,
+		};
+		basePass->renderBasePass(commandList, swapchainIndex, passInput);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[0].get() },
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[1].get() },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
+	}
+
 	// Path Tracing
 	{
 		SCOPED_DRAW_EVENT(commandList, PathTracing);
@@ -390,11 +395,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, ClearIndirectSpecular);
 
 		TextureMemoryBarrier barriersBefore[] = {
-			{
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				ETextureMemoryLayout::RENDER_TARGET,
-				RT_indirectSpecular.get(),
-			}
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_indirectSpecular.get() }
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
@@ -403,11 +404,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->clearRenderTargetView(indirectSpecularRTV.get(), clearColor);
 
 		TextureMemoryBarrier barriersAfter[] = {
-			{
-				ETextureMemoryLayout::RENDER_TARGET,
-				ETextureMemoryLayout::UNORDERED_ACCESS,
-				RT_indirectSpecular.get(),
-			}
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::UNORDERED_ACCESS, RT_indirectSpecular.get() }
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
@@ -416,11 +413,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, IndirectSpecular);
 
 		TextureMemoryBarrier barriers[] = {
-			{
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				ETextureMemoryLayout::UNORDERED_ACCESS,
-				RT_indirectSpecular.get(),
-			}
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_indirectSpecular.get() }
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 		
@@ -452,26 +445,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, ToneMapping);
 
 		TextureMemoryBarrier barriers[] = {
-			{
-				ETextureMemoryLayout::RENDER_TARGET,
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				RT_sceneColor.get(),
-			},
-			{
-				ETextureMemoryLayout::UNORDERED_ACCESS,
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				RT_indirectSpecular.get(),
-			},
-			{
-				ETextureMemoryLayout::UNORDERED_ACCESS,
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				RT_pathTracing.get(),
-			},
-			{
-				ETextureMemoryLayout::PRESENT,
-				ETextureMemoryLayout::RENDER_TARGET,
-				swapchainBuffer,
-			}
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_sceneColor.get() },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_indirectSpecular.get() },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_pathTracing.get() },
+			{ ETextureMemoryLayout::PRESENT, ETextureMemoryLayout::RENDER_TARGET, swapchainBuffer, }
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 

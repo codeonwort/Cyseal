@@ -143,13 +143,14 @@ void D3DRenderCommandList::rsSetScissorRect(const ScissorRect& scissorRect)
 
 void D3DRenderCommandList::resourceBarriers(
 	uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
-	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers)
+	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
+	uint32 numUAVBarriers, GPUResource* const* uavBarrierResources)
 {
 	// #todo-barrier: DX12 enhanced barriers
 	// https://learn.microsoft.com/en-us/windows-hardware/drivers/display/enhanced-barriers
 	// https://microsoft.github.io/DirectX-Specs/d3d/D3D12EnhancedBarriers.html#excessive-sync-latency
 
-	uint32 totalBarriers = numBufferMemoryBarriers + numTextureMemoryBarriers;
+	uint32 totalBarriers = numBufferMemoryBarriers + numTextureMemoryBarriers + numUAVBarriers;
 	std::vector<D3D12_RESOURCE_BARRIER> rawBarriers(totalBarriers);
 	for (uint32 i = 0; i < numBufferMemoryBarriers; ++i)
 	{
@@ -158,6 +159,15 @@ void D3DRenderCommandList::resourceBarriers(
 	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
 	{
 		rawBarriers[i + numBufferMemoryBarriers] = into_d3d::resourceBarrier(textureMemoryBarriers[i]);
+	}
+	for (uint32 i = 0; i < numUAVBarriers; ++i)
+	{
+		D3D12_RESOURCE_BARRIER uavBarrier{
+			.Type       = D3D12_RESOURCE_BARRIER_TYPE_UAV,
+			.Flags      = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+			.UAV        = { .pResource = into_d3d::id3d12Resource(uavBarrierResources[i]) }
+		};
+		rawBarriers[i + numBufferMemoryBarriers + numTextureMemoryBarriers] = uavBarrier;
 	}
 
 	commandList->ResourceBarrier(totalBarriers, rawBarriers.data());

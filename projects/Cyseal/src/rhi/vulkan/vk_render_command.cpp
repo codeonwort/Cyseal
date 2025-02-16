@@ -126,7 +126,8 @@ void VulkanRenderCommandList::close()
 
 void VulkanRenderCommandList::resourceBarriers(
 	uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
-	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers)
+	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
+	uint32 numUAVBarriers, GPUResource* const* uavBarrierResources)
 {
 	// [Vulkanised 2021 - Ensure Correct Vulkan Synchronization by Using Synchornization Validation]
 	// Barrier types
@@ -154,6 +155,7 @@ void VulkanRenderCommandList::resourceBarriers(
 	{
 		vkImageMemoryBarriers[i] = into_vk::imageMemoryBarrier(textureMemoryBarriers[i]);
 	}
+	// #todo-barrier: UAV barriers
 
 	vkCmdPipelineBarrier(
 		currentCommandBuffer, srcStageMask, dstStageMask,

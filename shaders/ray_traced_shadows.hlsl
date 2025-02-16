@@ -67,16 +67,6 @@ RayPayload createRayPayload()
 	return payload;
 }
 
-float2 getScreenResolution()
-{
-	return sceneUniform.screenResolution.xy;
-}
-
-float2 getScreenUV(uint2 texel)
-{
-	return (float2(texel) + float2(0.5, 0.5)) / getScreenResolution();
-}
-
 void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
 {
 	float2 xy = float2(texel) + 0.5;
@@ -151,14 +141,14 @@ float traceShadowing(uint2 texel, float3 rayOrigin, float3 rayDir)
 			missShaderIndex,
 			currentRay,
 			currentRayPayload);
-
+	
 		// Hit the sky.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
 			bIsSkyPixel = true;
 		}
 	}
-
+	
 	return bIsSkyPixel ? 1.0 : 0.0;
 }
 

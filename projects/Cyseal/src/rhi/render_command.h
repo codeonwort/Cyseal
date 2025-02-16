@@ -73,7 +73,8 @@ public:
 
 	virtual void resourceBarriers(
 		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
-		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers) = 0;
+		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
+		uint32 numUAVBarriers = 0, GPUResource* const* uavBarrierResources = nullptr) = 0;
 
 	// #todo-rendercommand: Maybe not the best way to clear RTV.
 	// (Need to check how loadOp=CLEAR maps to DX12 and Vulkan.)
