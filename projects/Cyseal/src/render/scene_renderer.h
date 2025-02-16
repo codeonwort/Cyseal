@@ -22,19 +22,19 @@ class PathTracingPass;
 // Should match with common.hlsl
 struct SceneUniform
 {
-	Float4x4 viewMatrix;
-	Float4x4 projMatrix;
-	Float4x4 viewProjMatrix;
+	Float4x4      viewMatrix;
+	Float4x4      projMatrix;
+	Float4x4      viewProjMatrix;
 
-	Float4x4 viewInvMatrix;
-	Float4x4 projInvMatrix;
-	Float4x4 viewProjInvMatrix;
+	Float4x4      viewInvMatrix;
+	Float4x4      projInvMatrix;
+	Float4x4      viewProjInvMatrix;
 
+	float         screenResolution[4]; // (w, h, 1/w, 1/h)
 	CameraFrustum cameraFrustum;
-
-	vec3 cameraPosition; float _pad0;
-	vec3 sunDirection;   float _pad1;
-	vec3 sunIlluminance; float _pad2;
+	vec3          cameraPosition; float _pad0;
+	vec3          sunDirection;   float _pad1;
+	vec3          sunIlluminance; float _pad2;
 };
 
 // Render a 3D scene with hybrid rendering. (rasterization + raytracing)

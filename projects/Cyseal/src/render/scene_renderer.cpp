@@ -116,6 +116,7 @@ void SceneRenderer::destroy()
 	RT_sceneDepth.reset();
 	RT_prevSceneDepth.reset();
 	for (uint32 i=0; i<NUM_GBUFFERS; ++i) RT_gbuffers[i].reset();
+	RT_shadowMask.reset();
 	RT_indirectSpecular.reset();
 	RT_pathTracing.reset();
 
@@ -125,6 +126,7 @@ void SceneRenderer::destroy()
 	delete gpuCulling;
 	delete rayTracedShadowsPass;
 	delete basePass;
+	delete rayTracedShadowsPass;
 	delete indirectSpecularPass;
 	delete toneMapping;
 	delete bufferVisualization;
@@ -260,27 +262,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 	}
 
-	// Ray Traced Shadows
-	//if (!bRenderRayTracedShadows)
-	{
-		SCOPED_DRAW_EVENT(commandList, ClearRayTracedShadows);
-
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_shadowMask.get() }
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
-
-		// Clear as a render target. (not so ideal but works)
-		float clearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-		commandList->clearRenderTargetView(shadowMaskRTV.get(), clearColor);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_shadowMask.get() }
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
-	}
-	// #todo-shadows: Render RT shadows
-
 	// Base pass
 	{
 		SCOPED_DRAW_EVENT(commandList, BasePass);
@@ -341,15 +322,61 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 
+	// #todo-shadows: Extremely laggy if run before base pass?
+	// #todo-shadows: Generates weird shadow masks on sphere surfaces.
+	// Ray Traced Shadows
+	if (!bRenderRayTracedShadows)
+	{
+		SCOPED_DRAW_EVENT(commandList, ClearRayTracedShadows);
+
+		TextureMemoryBarrier barriersBefore[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_shadowMask.get() }
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+		// Clear as a render target. (not so ideal but works)
+		float clearColor[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+		commandList->clearRenderTargetView(shadowMaskRTV.get(), clearColor);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_shadowMask.get() }
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
+	}
+	else
+	{
+		SCOPED_DRAW_EVENT(commandList, RayTracedShadows);
+
+		TextureMemoryBarrier barriersBefore[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_shadowMask.get(), }
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+		RayTracedShadowsInput passInput{
+			.scene              = scene,
+			.camera             = camera,
+			.mode               = renderOptions.rayTracedShadows,
+			.sceneWidth         = sceneWidth,
+			.sceneHeight        = sceneHeight,
+			.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
+			.gpuScene           = gpuScene,
+			.raytracingScene    = accelStructure.get(),
+			.shadowMaskUAV      = shadowMaskUAV.get(),
+		};
+		rayTracedShadowsPass->renderRayTracedShadows(commandList, swapchainIndex, passInput);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_shadowMask.get(), }
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
+	}
+
+	// Path Tracing
 	{
 		SCOPED_DRAW_EVENT(commandList, PathTracing);
 
 		TextureMemoryBarrier barriersBefore[] = {
-			{
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				ETextureMemoryLayout::UNORDERED_ACCESS,
-				RT_pathTracing.get(),
-			}
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_pathTracing.get(), }
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
@@ -857,21 +884,27 @@ void SceneRenderer::updateSceneUniform(
 	const SceneProxy* scene,
 	const Camera* camera)
 {
+	const float sceneWidth = (float)gRenderDevice->getSwapChain()->getBackbufferWidth();
+	const float sceneHeight = (float)gRenderDevice->getSwapChain()->getBackbufferHeight();
+
 	memcpy_s(&prevSceneUniformData, sizeof(SceneUniform), &sceneUniformData, sizeof(SceneUniform));
 
-	sceneUniformData.viewMatrix        = camera->getViewMatrix();
-	sceneUniformData.projMatrix        = camera->getProjMatrix();
-	sceneUniformData.viewProjMatrix    = camera->getViewProjMatrix();
+	sceneUniformData.viewMatrix          = camera->getViewMatrix();
+	sceneUniformData.projMatrix          = camera->getProjMatrix();
+	sceneUniformData.viewProjMatrix      = camera->getViewProjMatrix();
 
-	sceneUniformData.viewInvMatrix     = camera->getViewInvMatrix();
-	sceneUniformData.projInvMatrix     = camera->getProjInvMatrix();
-	sceneUniformData.viewProjInvMatrix = camera->getViewProjInvMatrix();
+	sceneUniformData.viewInvMatrix       = camera->getViewInvMatrix();
+	sceneUniformData.projInvMatrix       = camera->getProjInvMatrix();
+	sceneUniformData.viewProjInvMatrix   = camera->getViewProjInvMatrix();
 
-	sceneUniformData.cameraFrustum     = camera->getFrustum();
-
-	sceneUniformData.cameraPosition    = camera->getPosition();
-	sceneUniformData.sunDirection      = scene->sun.direction;
-	sceneUniformData.sunIlluminance    = scene->sun.illuminance;
+	sceneUniformData.screenResolution[0] = sceneWidth;
+	sceneUniformData.screenResolution[1] = sceneHeight;
+	sceneUniformData.screenResolution[2] = 1.0f / sceneWidth;
+	sceneUniformData.screenResolution[3] = 1.0f / sceneHeight;
+	sceneUniformData.cameraFrustum       = camera->getFrustum();
+	sceneUniformData.cameraPosition      = camera->getPosition();
+	sceneUniformData.sunDirection        = scene->sun.direction;
+	sceneUniformData.sunIlluminance      = scene->sun.illuminance;
 	
 	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &sceneUniformData, sizeof(sceneUniformData));
 }

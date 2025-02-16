@@ -61,7 +61,7 @@ struct TriangleIntersectionAttributes
 
 struct ClosestHitPushConstants
 {
-	uint32 materialID;
+	uint32 objectID;
 };
 static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
 
@@ -249,6 +249,9 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 		delete uboData;
 	}
+
+	// -------------------------------------------------------------------
+	// Phase: Raytracing + Temporal Reconstruction
 
 	// Resize volatile heaps if needed.
 	{
@@ -438,7 +441,7 @@ void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint3
 	for (uint32 i = 0; i < maxRecords; ++i)
 	{
 		RootArguments rootArguments{
-			.pushConstants = ClosestHitPushConstants{ .materialID = i }
+			.pushConstants = ClosestHitPushConstants{ .objectID = i }
 		};
 
 		hitGroupShaderTable[swapchainIndex]->uploadRecord(i, INDIRECT_SPECULAR_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
