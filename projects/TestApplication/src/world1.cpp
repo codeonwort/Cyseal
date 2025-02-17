@@ -22,7 +22,7 @@
 // living-room contains an invalid leaf texture only for pbrt format :/
 // It's tungsten and mitsuba versions are fine.
 //#define PBRT_FILEPATH        L"external/pbrt4/living-room/scene-v4.pbrt"
-#define PBRT_FILEPATH        L"external/pbrt4/bedroom/scene-v4.pbrt"
+#define PBRT_FILEPATH        L"external/pbrt4_bedroom/bedroom/scene-v4.pbrt"
 
 #define CRUMPLED_MESHES      0
 

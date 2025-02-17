@@ -32,7 +32,13 @@ $zip_list  = @(
 		'https://benedikt-bitterli.me/resources/pbrt-v4/bedroom.zip',
 		'external',
 		'pbrt4_bedroom.zip',
-		'external/pbrt4'
+		'external/pbrt4_bedroom'
+	),
+	@(
+		'https://benedikt-bitterli.me/resources/pbrt-v4/house.zip',
+		'external',
+		'pbrt4_house.zip',
+		'external/pbrt4_house'
 	),
 	@(
 		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.7.2207/dxc_2022_07_18.zip',
