@@ -173,6 +173,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	auto sceneUniformBuffer = passInput.sceneUniformBuffer;
 	auto gpuScene           = passInput.gpuScene;
 	auto gpuCulling         = passInput.gpuCulling;
+	auto shadowMaskSRV      = passInput.shadowMaskSRV;
 
 	if (gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
@@ -191,6 +192,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		requiredVolatiles += 1; // gpuSceneBuffer
 		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
 		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
+		requiredVolatiles += 1; // shadowMaskSRV
 
 		if (requiredVolatiles > totalVolatileDescriptor[swapchainIndex])
 		{
@@ -316,6 +318,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
+		SPT.texture("shadowMask", shadowMaskSRV);
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));

@@ -345,6 +345,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
 			.gpuScene           = gpuScene,
 			.gpuCulling         = gpuCulling,
+			.shadowMaskSRV      = shadowMaskSRV.get(),
 		};
 		basePass->renderBasePass(commandList, swapchainIndex, passInput);
 

@@ -25,6 +25,7 @@ struct BasePassInput
 	ConstantBufferView*    sceneUniformBuffer;
 	GPUScene*              gpuScene;
 	GPUCulling*            gpuCulling;
+	ShaderResourceView*    shadowMaskSRV;
 };
 
 class BasePass final

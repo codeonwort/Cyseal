@@ -20,6 +20,7 @@ ConstantBuffer<PushConstants>  pushConstants  : register(b0);
 ConstantBuffer<SceneUniform>   sceneUniform   : register(b1);
 StructuredBuffer<GPUSceneItem> gpuSceneBuffer : register(t0);
 StructuredBuffer<Material>     materials      : register(t1);
+Texture2D                      shadowMask     : register(t2);
 
 uint getObjectId() { return pushConstants.objectId; }
 GPUSceneItem getGPUSceneItem() { return gpuSceneBuffer[pushConstants.objectId]; }
@@ -27,8 +28,8 @@ GPUSceneItem getGPUSceneItem() { return gpuSceneBuffer[pushConstants.objectId]; 
 // ------------------------------------------------------------------------
 // Resource bindings (material-specific)
 
-Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space1); // bindless in another space
-SamplerState albedoSampler                  : register(s0);
+Texture2D albedoTextures[TEMP_MAX_SRVS]       : register(t0, space1); // bindless in another space
+SamplerState albedoSampler                    : register(s0);
 
 Material getMaterial() { return materials[getObjectId()]; }
 
@@ -110,6 +111,9 @@ PixelOutput mainPS(Interpolants interpolants)
     }
 
     float3 luminance = diffuse + specular;
+
+    float shadow = shadowMask.Load(int3(interpolants.svPosition.xy, 0)).r;
+    luminance *= shadow;
 
     GBufferData gbufferData;
     gbufferData.albedo = albedo;
