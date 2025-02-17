@@ -15,12 +15,10 @@
 
 // Set TMin to a non-zero small value to avoid aliasing issues due to floating point errors.
 // TMin should be kept small to prevent missing geometry at close contact areas.
-// #todo: See 'Ray Tracing Gems' series.
-#define RAYGEN_T_MIN              0.001
+// #todo-shadows: Bad shadow masks on sphere surfaces :(
+#define RAYGEN_T_MIN              0.05
 #define RAYGEN_T_MAX              10000.0
-#define SURFACE_NORMAL_OFFSET     0.001
-// Precision of world position from scene depth is bad; need more bias.
-#define GBUFFER_NORMAL_OFFSET     0.05
+#define SURFACE_NORMAL_OFFSET     0.05
 
 struct VertexAttributes
 {

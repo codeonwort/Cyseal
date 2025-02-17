@@ -268,7 +268,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 	}
 
-	// #todo-shadows: Generates weird shadow masks on sphere surfaces.
 	// Ray Traced Shadows
 	if (!bRenderRayTracedShadows)
 	{
