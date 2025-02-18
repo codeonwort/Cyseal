@@ -17,6 +17,7 @@
 #include "render/gpu_scene.h"
 #include "render/gpu_culling.h"
 #include "render/base_pass.h"
+#include "render/sky_pass.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
 #include "render/raytracing/ray_traced_shadows.h"
@@ -96,6 +97,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		basePass = new BasePass;
 		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS);
 
+		skyPass = new SkyPass;
+		skyPass->initialize();
+
 		indirectSpecularPass = new IndirecSpecularPass;
 		indirectSpecularPass->initialize();
 
@@ -126,7 +130,7 @@ void SceneRenderer::destroy()
 	delete gpuCulling;
 	delete rayTracedShadowsPass;
 	delete basePass;
-	delete rayTracedShadowsPass;
+	delete skyPass;
 	delete indirectSpecularPass;
 	delete toneMapping;
 	delete bufferVisualization;
