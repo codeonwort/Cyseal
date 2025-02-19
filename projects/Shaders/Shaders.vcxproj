@@ -90,6 +90,7 @@
     <FxCompile Include="..\..\shaders\path_tracing.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_reflection.hlsl" />
     <FxCompile Include="..\..\shaders\ray_traced_shadows.hlsl" />
+    <FxCompile Include="..\..\shaders\sky_pass.hlsl" />
     <FxCompile Include="..\..\shaders\tone_mapping.hlsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -25,6 +25,8 @@ class SkyPass final
 public:
 	void initialize();
 
+	void renderSky(RenderCommandList* commandList, uint32 swapchainIndex, const SkyPassInput& passInput);
+
 private:
 	UniquePtr<GraphicsPipelineState> pipelineState;
 

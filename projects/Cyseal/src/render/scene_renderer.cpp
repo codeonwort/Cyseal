@@ -209,6 +209,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	});
 
 	updateSceneUniform(commandList, swapchainIndex, scene, camera);
+	auto sceneUniformCBV = sceneUniformCBVs.at(swapchainIndex);
 
 	{
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
@@ -216,7 +217,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		GPUSceneInput passInput{
 			.scene                    = scene,
 			.camera                   = camera,
-			.sceneUniform             = sceneUniformCBVs.at(swapchainIndex),
+			.sceneUniform             = sceneUniformCBV,
 			.bRenderAnyRaytracingPass = bRenderAnyRaytracingPass,
 		};
 		gpuScene->renderGPUScene(commandList, swapchainIndex, passInput);
@@ -306,7 +307,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.mode               = renderOptions.rayTracedShadows,
 			.sceneWidth         = sceneWidth,
 			.sceneHeight        = sceneHeight,
-			.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
+			.sceneUniformBuffer = sceneUniformCBV,
 			.gpuScene           = gpuScene,
 			.raytracingScene    = accelStructure.get(),
 			.shadowMaskUAV      = shadowMaskUAV.get(),
@@ -346,7 +347,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.camera             = camera,
 			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
 			.bGPUCulling        = renderOptions.bEnableGPUCulling,
-			.sceneUniformBuffer = sceneUniformCBVs[swapchainIndex].get(),
+			.sceneUniformBuffer = sceneUniformCBV,
 			.gpuScene           = gpuScene,
 			.gpuCulling         = gpuCulling,
 			.shadowMaskSRV      = shadowMaskSRV.get(),
@@ -358,6 +359,21 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[1].get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
+	}
+	// Sky pass
+	{
+		SCOPED_DRAW_EVENT(commandList, SkyPass);
+
+		RenderTargetView* RTVs[] = { sceneColorRTV.get() };
+		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
+
+		SkyPassInput passInput{
+			.scene              = scene,
+			.camera             = camera,
+			.sceneUniformBuffer = sceneUniformCBV,
+			.skyboxSRV          = skyboxSRV.get(),
+		};
+		skyPass->renderSky(commandList, swapchainIndex, passInput);
 	}
 
 	// Path Tracing
@@ -382,7 +398,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.sceneHeight           = sceneHeight,
 				.gpuScene              = gpuScene,
 				.raytracingScene       = accelStructure.get(),
-				.sceneUniformBuffer    = sceneUniformCBVs[swapchainIndex].get(),
+				.sceneUniformBuffer    = sceneUniformCBV,
 				.sceneColorUAV         = pathTracingUAV.get(),
 				.sceneDepthSRV         = sceneDepthSRV.get(),
 				.prevSceneDepthSRV     = prevSceneDepthSRV.get(),
@@ -430,7 +446,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.bCameraHasMoved       = renderOptions.bCameraHasMoved,
 			.sceneWidth            = sceneWidth,
 			.sceneHeight           = sceneHeight,
-			.sceneUniformBuffer    = sceneUniformCBVs[swapchainIndex].get(),
+			.sceneUniformBuffer    = sceneUniformCBV,
 			.gpuScene              = gpuScene,
 			.raytracingScene       = accelStructure.get(),
 			.skyboxSRV             = skyboxSRV.get(),

@@ -24,6 +24,8 @@
 // Precision of world position from scene depth is bad; need more bias.
 #define GBUFFER_NORMAL_OFFSET     0.05
 
+// Sky pass will write sky pixels.
+#define WRITE_SKY_PIXEL           0
 // Temp boost sky light.
 #define SKYBOX_BOOST              1.0
 
@@ -307,7 +309,11 @@ void MainRaygen()
 
 	if (sceneDepth == DEVICE_Z_FAR)
 	{
+#if WRITE_SKY_PIXEL
 		float3 Wo = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, viewDirection, 0.0).rgb;
+#else
+		float3 Wo = 0;
+#endif
 		currentColorTexture[texel] = float4(Wo, 1.0);
 		renderTarget[texel] = float4(Wo, 1.0);
 		return;
