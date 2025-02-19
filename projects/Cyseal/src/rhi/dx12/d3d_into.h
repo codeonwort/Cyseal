@@ -103,6 +103,7 @@ namespace into_d3d
 		outDesc.BlendOp = blendOp(inDesc.blendOp);
 		outDesc.SrcBlendAlpha = blend(inDesc.srcBlendAlpha);
 		outDesc.DestBlendAlpha = blend(inDesc.destBlendAlpha);
+		outDesc.BlendOpAlpha = blendOp(inDesc.blendOpAlpha);
 		outDesc.LogicOp = logicOp(inDesc.logicOp);
 		outDesc.RenderTargetWriteMask = colorWriteEnable(inDesc.renderTargetWriteMask);
 	}
