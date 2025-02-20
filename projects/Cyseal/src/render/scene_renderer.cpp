@@ -368,8 +368,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
 
 		SkyPassInput passInput{
-			.scene              = scene,
-			.camera             = camera,
 			.sceneUniformBuffer = sceneUniformCBV,
 			.skyboxSRV          = skyboxSRV.get(),
 		};
@@ -507,32 +505,16 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, StoreFrameHistory);
 
 		TextureMemoryBarrier barriersBefore[] = {
-			{
-				ETextureMemoryLayout::DEPTH_STENCIL_TARGET,
-				ETextureMemoryLayout::COPY_SRC,
-				RT_sceneDepth.get(),
-			},
-			{
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				ETextureMemoryLayout::COPY_DEST,
-				RT_prevSceneDepth.get(),
-			},
+			{ ETextureMemoryLayout::DEPTH_STENCIL_TARGET, ETextureMemoryLayout::COPY_SRC, RT_sceneDepth.get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::COPY_DEST, RT_prevSceneDepth.get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
 		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
 
 		TextureMemoryBarrier barriersAfter[] = {
-			{
-				ETextureMemoryLayout::COPY_SRC,
-				ETextureMemoryLayout::DEPTH_STENCIL_TARGET,
-				RT_sceneDepth.get(),
-			},
-			{
-				ETextureMemoryLayout::COPY_DEST,
-				ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-				RT_prevSceneDepth.get(),
-			},
+			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::DEPTH_STENCIL_TARGET, RT_sceneDepth.get() },
+			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_prevSceneDepth.get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
@@ -551,11 +533,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize
 
-	TextureMemoryBarrier presentBarrier{
-		ETextureMemoryLayout::RENDER_TARGET,
-		ETextureMemoryLayout::PRESENT,
-		swapchainBuffer,
-	};
+	TextureMemoryBarrier presentBarrier{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PRESENT, swapchainBuffer };
 	commandList->resourceBarriers(0, nullptr, 1, &presentBarrier);
 
 	commandList->close();

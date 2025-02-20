@@ -14,8 +14,6 @@ class Camera;
 
 struct SkyPassInput
 {
-	const SceneProxy*      scene;
-	const Camera*          camera;
 	ConstantBufferView*    sceneUniformBuffer;
 	ShaderResourceView*    skyboxSRV;
 };
