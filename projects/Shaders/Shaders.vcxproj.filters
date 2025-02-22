@@ -13,5 +13,6 @@
     <FxCompile Include="..\..\shaders\bilateral_blur.hlsl" />
     <FxCompile Include="..\..\shaders\ray_traced_shadows.hlsl" />
     <FxCompile Include="..\..\shaders\sky_pass.hlsl" />
+    <FxCompile Include="..\..\shaders\indirect_diffuse_reflection.hlsl" />
   </ItemGroup>
 </Project>

@@ -7,7 +7,7 @@
 #include "rhi/shader.h"
 #include "rhi/render_command.h"
 
-void SkyPass::initialize()
+void SkyPass::initialize(EPixelFormat sceneColorFormat)
 {
 	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
@@ -81,7 +81,7 @@ void SkyPass::initialize()
 		.inputLayout            = inputLayout,
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = 1,
-		.rtvFormats             = { swapchain->getBackbufferFormat() },
+		.rtvFormats             = { sceneColorFormat },
 		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
 		.sampleDesc             = SampleDesc { .count = 1, .quality = 0 },
 		.staticSamplers         = std::move(staticSamplers),

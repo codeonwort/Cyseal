@@ -87,6 +87,7 @@
     <FxCompile Include="..\..\shaders\common.hlsl" />
     <FxCompile Include="..\..\shaders\gpu_culling.hlsl" />
     <FxCompile Include="..\..\shaders\gpu_scene.hlsl" />
+    <FxCompile Include="..\..\shaders\indirect_diffuse_reflection.hlsl" />
     <FxCompile Include="..\..\shaders\path_tracing.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_reflection.hlsl" />
     <FxCompile Include="..\..\shaders\ray_traced_shadows.hlsl" />

@@ -16,6 +16,7 @@ void BufferVisualization::initialize()
 	requiredVolatileDescriptors += 1; // gbuffer1
 	requiredVolatileDescriptors += 1; // sceneColor
 	requiredVolatileDescriptors += 1; // shadowMask
+	requiredVolatileDescriptors += 1; // indirectDiffuse
 	requiredVolatileDescriptors += 1; // indirectSpecular
 
 	// Create volatile heap.
@@ -84,6 +85,7 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 	SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 	SPT.texture("sceneColor", passInput.sceneColorSRV);
 	SPT.texture("shadowMask", passInput.shadowMaskSRV);
+	SPT.texture("indirectDiffuse", passInput.indirectDiffuseSRV);
 	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
 
 	commandList->setGraphicsPipelineState(pipelineState.get());

@@ -21,7 +21,7 @@ struct SkyPassInput
 class SkyPass final
 {
 public:
-	void initialize();
+	void initialize(EPixelFormat sceneColorFormat);
 
 	void renderSky(RenderCommandList* commandList, uint32 swapchainIndex, const SkyPassInput& passInput);
 

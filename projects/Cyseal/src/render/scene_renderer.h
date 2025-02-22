@@ -95,6 +95,11 @@ private:
 	UniquePtr<ShaderResourceView> shadowMaskSRV;
 	UniquePtr<UnorderedAccessView> shadowMaskUAV;
 
+	UniquePtr<Texture> RT_indirectDiffuse;
+	UniquePtr<ShaderResourceView> indirectDiffuseSRV;
+	UniquePtr<RenderTargetView> indirectDiffuseRTV;
+	UniquePtr<UnorderedAccessView> indirectDiffuseUAV;
+
 	UniquePtr<Texture> RT_indirectSpecular;
 	UniquePtr<ShaderResourceView> indirectSpecularSRV;
 	UniquePtr<RenderTargetView> indirectSpecularRTV;

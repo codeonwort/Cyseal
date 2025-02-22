@@ -14,7 +14,8 @@ enum class EBufferVisualizationMode : uint32
 	Normal           = 3,
 	DirectLighting   = 4,
 	RayTracedShadows = 5,
-	IndirectSpecular = 6,
+	IndirectDiffuse  = 6,
+	IndirectSpecular = 7,
 
 	Count,
 };
@@ -30,7 +31,7 @@ enum class ERayTracedShadowsMode : uint32
 enum class EIndirectDiffuseMode : uint32
 {
 	Disabled         = 0,
-	Enabled          = 2,
+	Enabled          = 1,
 
 	Count
 };
@@ -63,6 +64,7 @@ inline const char** getBufferVisualizationModeNames()
 		"NormalWS",
 		"DirectLighting",
 		"RayTracedShadows",
+		"IndirectDiffuse",
 		"IndirectSpecular",
 	};
 	return strings;
@@ -118,6 +120,7 @@ struct RendererOptions
 	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
 
 	ERayTracedShadowsMode rayTracedShadows = ERayTracedShadowsMode::Disabled;
+	EIndirectDiffuseMode indirectDiffuse = EIndirectDiffuseMode::Enabled;
 	EIndirectSpecularMode indirectSpecular = EIndirectSpecularMode::ForceMirror;
 
 	EPathTracingMode pathTracing = EPathTracingMode::Disabled;
@@ -126,8 +129,9 @@ struct RendererOptions
 	bool anyRayTracingEnabled() const
 	{
 		bool bShadows = rayTracedShadows != ERayTracedShadowsMode::Disabled;
+		bool bIndirectDiffuse = indirectDiffuse != EIndirectDiffuseMode::Disabled;
 		bool bIndirectSpecular = indirectSpecular != EIndirectSpecularMode::Disabled;
 		bool bPathTracing = pathTracing != EPathTracingMode::Disabled;
-		return bShadows || bIndirectSpecular || bPathTracing;
+		return bShadows || bIndirectDiffuse || bIndirectSpecular || bPathTracing;
 	}
 };

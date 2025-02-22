@@ -27,6 +27,7 @@ struct IndirectDiffuseInput
 	AccelerationStructure*     raytracingScene;
 	ShaderResourceView*        skyboxSRV;
 	ShaderResourceView*        gbuffer0SRV;
+	ShaderResourceView*        gbuffer1SRV;
 	ShaderResourceView*        sceneDepthSRV;
 	ShaderResourceView*        prevSceneDepthSRV;
 	UnorderedAccessView*       indirectDiffuseUAV;

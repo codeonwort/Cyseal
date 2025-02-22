@@ -35,6 +35,20 @@ static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
 	EPixelFormat::R16G16B16A16_FLOAT,
 };
 
+// https://github.com/microsoft/DirectX-Specs/blob/master/d3d/PlanarDepthStencilDDISpec.md
+// NOTE: Also need to change backbufferDepthFormat in render_device.h
+#if 0
+	// Depth 24-bit, Stencil 8-bit
+static const EPixelFormat DEPTH_TEXTURE_FORMAT = EPixelFormat::R24G8_TYPELESS;
+static const EPixelFormat DEPTH_DSV_FORMAT = EPixelFormat::D24_UNORM_S8_UINT;
+static const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R24_UNORM_X8_TYPELESS;
+#else
+	// Depth 32-bit, Stencil 8-bit
+static const EPixelFormat DEPTH_TEXTURE_FORMAT = EPixelFormat::R32G8X24_TYPELESS;
+static const EPixelFormat DEPTH_DSV_FORMAT = EPixelFormat::D32_FLOAT_S8_UINT;
+static const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R32_FLOAT_X8X24_TYPELESS;
+#endif
+
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
@@ -99,7 +113,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS);
 
 		skyPass = new SkyPass;
-		skyPass->initialize();
+		skyPass->initialize(PF_sceneColor);
 
 		indirectDiffusePass = new IndirectDiffusePass;
 		indirectDiffusePass->initialize();
@@ -125,6 +139,7 @@ void SceneRenderer::destroy()
 	RT_prevSceneDepth.reset();
 	for (uint32 i=0; i<NUM_GBUFFERS; ++i) RT_gbuffers[i].reset();
 	RT_shadowMask.reset();
+	RT_indirectDiffuse.reset();
 	RT_indirectSpecular.reset();
 	RT_pathTracing.reset();
 
@@ -176,6 +191,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	
 	const bool bRenderRayTracedShadows = bSupportsRaytracing
 		&& renderOptions.rayTracedShadows != ERayTracedShadowsMode::Disabled
+		&& bRenderPathTracing == false;
+
+	// If disabled, RT_indirectDiffuse will be cleared as black
+	// so that tone mapping pass reads indirectDiffuse as zero.
+	const bool bRenderIndirectDiffuse = bSupportsRaytracing
+		&& renderOptions.indirectDiffuse != EIndirectDiffuseMode::Disabled
 		&& bRenderPathTracing == false;
 
 	// If disabled, RT_indirectSpecular will be cleared as black
@@ -412,6 +433,55 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		}
 	}
 
+	// Indirect Diffuse Reflection
+	if (!bRenderIndirectDiffuse)
+	{
+		SCOPED_DRAW_EVENT(commandList, ClearIndirectDiffuse);
+
+		TextureMemoryBarrier barriersBefore[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_indirectDiffuse.get() }
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+		// Clear as a render target, every frame. (not so ideal but works)
+		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		commandList->clearRenderTargetView(indirectDiffuseRTV.get(), clearColor);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::UNORDERED_ACCESS, RT_indirectDiffuse.get() }
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
+	}
+	else
+	{
+		SCOPED_DRAW_EVENT(commandList, IndirectDiffuse);
+
+		TextureMemoryBarrier barriers[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_indirectDiffuse.get() }
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
+		
+		IndirectDiffuseInput passInput{
+			.scene                 = scene,
+			.camera                = camera,
+			.mode                  = renderOptions.indirectDiffuse,
+			.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix,
+			.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix,
+			.sceneWidth            = sceneWidth,
+			.sceneHeight           = sceneHeight,
+			.sceneUniformBuffer    = sceneUniformCBV,
+			.gpuScene              = gpuScene,
+			.raytracingScene       = accelStructure.get(),
+			.skyboxSRV             = skyboxSRV.get(),
+			.gbuffer0SRV           = gbufferSRVs[0].get(),
+			.gbuffer1SRV           = gbufferSRVs[1].get(),
+			.sceneDepthSRV         = sceneDepthSRV.get(),
+			.prevSceneDepthSRV     = prevSceneDepthSRV.get(),
+			.indirectDiffuseUAV    = indirectDiffuseUAV.get(),
+		};
+		indirectDiffusePass->renderIndirectDiffuse(commandList, swapchainIndex, passInput);
+	}
+
 	// Indirect Specular Reflection
 	if (!bRenderIndirectSpecular)
 	{
@@ -469,6 +539,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		TextureMemoryBarrier barriers[] = {
 			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_sceneColor.get() },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_indirectDiffuse.get() },
 			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_indirectSpecular.get() },
 			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_pathTracing.get() },
 			{ ETextureMemoryLayout::PRESENT, ETextureMemoryLayout::RENDER_TARGET, swapchainBuffer, }
@@ -499,6 +570,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gbuffer1SRV         = gbufferSRVs[1].get(),
 			.sceneColorSRV       = sceneColorSRV.get(),
 			.shadowMaskSRV       = shadowMaskSRV.get(),
+			.indirectDiffuseSRV  = bRenderIndirectDiffuse ? indirectDiffuseSRV.get() : grey2DSRV.get(),
 			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
 		};
 
@@ -578,10 +650,9 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	cleanup(RT_sceneColor.release());
 	RT_sceneColor = UniquePtr<Texture>(device->createTexture(
 		TextureCreateParams::texture2D(
-			EPixelFormat::R32G32B32A32_FLOAT,
+			PF_sceneColor,
 			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
-			sceneWidth, sceneHeight,
-			1, 1, 0)));
+			sceneWidth, sceneHeight, 1, 1, 0)));
 	RT_sceneColor->setDebugName(L"RT_SceneColor");
 
 	sceneColorSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_sceneColor.get(),
@@ -607,20 +678,6 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 		}
 	));
 
-	// https://github.com/microsoft/DirectX-Specs/blob/master/d3d/PlanarDepthStencilDDISpec.md
-	// NOTE: Also need to change backbufferDepthFormat in render_device.h
-#if 0
-	// Depth 24-bit, Stencil 8-bit
-	const EPixelFormat DEPTH_TEXTURE_FORMAT = EPixelFormat::R24G8_TYPELESS;
-	const EPixelFormat DEPTH_DSV_FORMAT = EPixelFormat::D24_UNORM_S8_UINT;
-	const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R24_UNORM_X8_TYPELESS;
-#else
-	// Depth 32-bit, Stencil 8-bit
-	const EPixelFormat DEPTH_TEXTURE_FORMAT = EPixelFormat::R32G8X24_TYPELESS;
-	const EPixelFormat DEPTH_DSV_FORMAT = EPixelFormat::D32_FLOAT_S8_UINT;
-	const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R32_FLOAT_X8X24_TYPELESS;
-#endif
-
 	cleanup(RT_sceneDepth.release());
 	sceneDepthDesc = TextureCreateParams::texture2D(
 		DEPTH_TEXTURE_FORMAT, ETextureAccessFlags::DSV, sceneWidth, sceneHeight, 1, 1, 0);
@@ -632,9 +689,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			.format        = DEPTH_DSV_FORMAT,
 			.viewDimension = EDSVDimension::Texture2D,
 			.flags         = EDSVFlags::None,
-			.texture2D     = Texture2DDSVDesc{
-				.mipSlice  = 0,
-			}
+			.texture2D     = Texture2DDSVDesc{ .mipSlice = 0 }
 		}
 	));
 	sceneDepthSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_sceneDepth.get(),
@@ -749,13 +804,47 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 		}
 	));
 
+	cleanup(RT_indirectDiffuse.release());
+	RT_indirectDiffuse = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::R16G16B16A16_FLOAT,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			sceneWidth, sceneHeight, 1, 1, 0)));
+	RT_indirectDiffuse->setDebugName(L"RT_IndirectDiffuse");
+
+	indirectDiffuseSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_indirectDiffuse.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_indirectDiffuse->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_indirectDiffuse->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	indirectDiffuseRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_indirectDiffuse.get(),
+		RenderTargetViewDesc{
+			.format         = RT_indirectDiffuse->getCreateParams().format,
+			.viewDimension  = ERTVDimension::Texture2D,
+			.texture2D      = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+	indirectDiffuseUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_indirectDiffuse.get(),
+		UnorderedAccessViewDesc{
+			.format         = RT_indirectDiffuse->getCreateParams().format,
+			.viewDimension  = EUAVDimension::Texture2D,
+			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+
 	cleanup(RT_indirectSpecular.release());
 	RT_indirectSpecular = UniquePtr<Texture>(device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R16G16B16A16_FLOAT,
 			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
-			sceneWidth, sceneHeight,
-			1, 1, 0)));
+			sceneWidth, sceneHeight, 1, 1, 0)));
 	RT_indirectSpecular->setDebugName(L"RT_IndirectSpecular");
 
 	indirectSpecularSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_indirectSpecular.get(),
@@ -772,22 +861,16 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	));
 	indirectSpecularRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_indirectSpecular.get(),
 		RenderTargetViewDesc{
-			.format            = RT_indirectSpecular->getCreateParams().format,
-			.viewDimension     = ERTVDimension::Texture2D,
-			.texture2D         = Texture2DRTVDesc{
-				.mipSlice      = 0,
-				.planeSlice    = 0,
-			},
+			.format         = RT_indirectSpecular->getCreateParams().format,
+			.viewDimension  = ERTVDimension::Texture2D,
+			.texture2D      = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
 	indirectSpecularUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_indirectSpecular.get(),
 		UnorderedAccessViewDesc{
 			.format         = RT_indirectSpecular->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
-			.texture2D      = Texture2DUAVDesc{
-				.mipSlice   = 0,
-				.planeSlice = 0,
-			},
+			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
 
@@ -796,8 +879,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 		TextureCreateParams::texture2D(
 			EPixelFormat::R32G32B32A32_FLOAT,
 			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
-			sceneWidth, sceneHeight,
-			1, 1, 0)));
+			sceneWidth, sceneHeight, 1, 1, 0)));
 	RT_pathTracing->setDebugName(L"RT_PathTracing");
 
 	pathTracingSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_pathTracing.get(),
@@ -816,10 +898,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 		UnorderedAccessViewDesc{
 			.format         = RT_pathTracing->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
-			.texture2D      = Texture2DUAVDesc{
-				.mipSlice   = 0,
-				.planeSlice = 0,
-			},
+			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
 
@@ -894,9 +973,7 @@ void SceneRenderer::rebuildFrameResources(RenderCommandList* commandList, const 
 	));
 }
 
-void SceneRenderer::rebuildAccelerationStructure(
-	RenderCommandList* commandList,
-	const SceneProxy* scene)
+void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList, const SceneProxy* scene)
 {
 	// - Entire scene is a TLAS that contains a list of BLAS instances.
 	// - Each BLAS contains all sections of each StaticMesh.
