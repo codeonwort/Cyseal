@@ -115,6 +115,7 @@
     <ClInclude Include="src\render\buffer_visualization.h" />
     <ClInclude Include="src\render\gpu_culling.h" />
     <ClInclude Include="src\render\pathtracing\path_tracing_pass.h" />
+    <ClInclude Include="src\render\raytracing\indirect_diffuse_pass.h" />
     <ClInclude Include="src\render\raytracing\ray_traced_shadows.h" />
     <ClInclude Include="src\render\renderer_options.h" />
     <ClInclude Include="src\render\sky_pass.h" />
@@ -203,6 +204,7 @@
     <ClCompile Include="src\render\buffer_visualization.cpp" />
     <ClCompile Include="src\render\gpu_culling.cpp" />
     <ClCompile Include="src\render\pathtracing\path_tracing_pass.cpp" />
+    <ClCompile Include="src\render\raytracing\indirect_diffuse_pass.cpp" />
     <ClCompile Include="src\render\raytracing\ray_traced_shadows.cpp" />
     <ClCompile Include="src\render\sky_pass.cpp" />
     <ClCompile Include="src\render\util\volatile_descriptor.cpp" />

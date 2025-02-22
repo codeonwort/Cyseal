@@ -21,6 +21,7 @@
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
 #include "render/raytracing/ray_traced_shadows.h"
+#include "render/raytracing/indirect_diffuse_pass.h"
 #include "render/raytracing/indirect_specular_pass.h"
 #include "render/pathtracing/path_tracing_pass.h"
 
@@ -100,6 +101,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		skyPass = new SkyPass;
 		skyPass->initialize();
 
+		indirectDiffusePass = new IndirectDiffusePass;
+		indirectDiffusePass->initialize();
+
 		indirectSpecularPass = new IndirecSpecularPass;
 		indirectSpecularPass->initialize();
 
@@ -131,6 +135,7 @@ void SceneRenderer::destroy()
 	delete rayTracedShadowsPass;
 	delete basePass;
 	delete skyPass;
+	delete indirectDiffusePass;
 	delete indirectSpecularPass;
 	delete toneMapping;
 	delete bufferVisualization;

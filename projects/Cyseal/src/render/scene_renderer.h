@@ -15,6 +15,7 @@ class GPUCulling;
 class RayTracedShadowsPass;
 class BasePass;
 class SkyPass;
+class IndirectDiffusePass;
 class IndirecSpecularPass;
 class ToneMapping;
 class BufferVisualization;
@@ -120,6 +121,7 @@ private:
 	RayTracedShadowsPass* rayTracedShadowsPass  = nullptr;
 	BasePass*             basePass              = nullptr;
 	SkyPass*              skyPass               = nullptr;
+	IndirectDiffusePass*  indirectDiffusePass   = nullptr;
 	IndirecSpecularPass*  indirectSpecularPass  = nullptr;
 	ToneMapping*          toneMapping           = nullptr;
 	BufferVisualization*  bufferVisualization   = nullptr;

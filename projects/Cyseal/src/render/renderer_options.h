@@ -27,6 +27,14 @@ enum class ERayTracedShadowsMode : uint32
 	Count
 };
 
+enum class EIndirectDiffuseMode : uint32
+{
+	Disabled         = 0,
+	Enabled          = 2,
+
+	Count
+};
+
 enum class EIndirectSpecularMode : uint32
 {
 	Disabled         = 0,
@@ -66,6 +74,16 @@ inline const char** getRayTracedShadowsModeNames()
 	{
 		"Disabled",
 		"HardShadows",
+	};
+	return strings;
+}
+
+inline const char** getIndirectDiffuseModeNames()
+{
+	static const char* strings[] =
+	{
+		"Disabled",
+		"Enabled",
 	};
 	return strings;
 }
