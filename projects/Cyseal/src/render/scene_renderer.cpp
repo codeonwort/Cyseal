@@ -551,11 +551,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
-		toneMapping->renderToneMapping(
-			commandList,
-			swapchainIndex,
-			alternateSceneColorSRV,
-			indirectSpecularSRV.get());
+		ToneMappingInput passInput{
+			.sceneColorSRV       = alternateSceneColorSRV,
+			.indirectDiffuseSRV  = indirectDiffuseSRV.get(),
+			.indirectSpecularSRV = indirectSpecularSRV.get(),
+		};
+		toneMapping->renderToneMapping(commandList, swapchainIndex, passInput);
 	}
 
 	// Buffer visualization

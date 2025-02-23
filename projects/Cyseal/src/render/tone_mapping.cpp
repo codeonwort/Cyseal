@@ -6,8 +6,7 @@
 #include "rhi/render_command.h"
 #include "rhi/texture_manager.h"
 
-// Currently only for sceneColor SRV
-#define MAX_VOLATILE_DESCRIPTORS 2
+#define MAX_VOLATILE_DESCRIPTORS 3
 
 void ToneMapping::initialize()
 {
@@ -74,15 +73,12 @@ void ToneMapping::initialize()
 	}
 }
 
-void ToneMapping::renderToneMapping(
-	RenderCommandList* commandList,
-	uint32 swapchainIndex,
-	ShaderResourceView* sceneColorSRV,
-	ShaderResourceView* indirectSpecularSRV)
+void ToneMapping::renderToneMapping(RenderCommandList* commandList, uint32 swapchainIndex, const ToneMappingInput& passInput)
 {
 	ShaderParameterTable SPT{};
-	SPT.texture("sceneColor", sceneColorSRV);
-	SPT.texture("indirectSpecular", indirectSpecularSRV);
+	SPT.texture("sceneColor", passInput.sceneColorSRV);
+	SPT.texture("indirectDiffuse", passInput.indirectDiffuseSRV);
+	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
 
 	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));

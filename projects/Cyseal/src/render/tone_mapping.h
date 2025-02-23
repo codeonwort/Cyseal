@@ -8,16 +8,19 @@
 class RenderCommandList;
 class ShaderResourceView;
 
+struct ToneMappingInput
+{
+	ShaderResourceView* sceneColorSRV;
+	ShaderResourceView* indirectDiffuseSRV;
+	ShaderResourceView* indirectSpecularSRV;
+};
+
 class ToneMapping final
 {
 public:
 	void initialize();
 
-	void renderToneMapping(
-		RenderCommandList* commandList,
-		uint32 swapchainIndex,
-		ShaderResourceView* sceneColorSRV,
-		ShaderResourceView* indirectSpecularSRV);
+	void renderToneMapping(RenderCommandList* commandList, uint32 swapchainIndex, const ToneMappingInput& passInput);
 
 private:
 	UniquePtr<GraphicsPipelineState> pipelineState;
