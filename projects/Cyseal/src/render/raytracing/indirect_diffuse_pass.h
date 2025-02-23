@@ -54,6 +54,8 @@ private:
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	std::vector<uint32> totalHitGroupShaderRecord;
 
+	UniquePtr<ComputePipelineState> blurPipelineState;
+
 	uint32 historyWidth = 0;
 	uint32 historyHeight = 0;
 	UniquePtr<Texture> colorHistory[2];
@@ -65,4 +67,5 @@ private:
 	UniquePtr<UnorderedAccessView> colorScratchUAV;
 
 	VolatileDescriptorHelper rayPassDescriptor;
+	VolatileDescriptorHelper blurPassDescriptor;
 };
