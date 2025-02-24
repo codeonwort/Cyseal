@@ -79,6 +79,8 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     screenUV.y = 1.0 - screenUV.y;
 
     float4 color = sceneColor.SampleLevel(sceneColorSampler, screenUV, 0.0);
+
+    // #todo: Apply diffuse and specular coefficients
     color.rgb += indirectDiffuse.SampleLevel(sceneColorSampler, screenUV, 0.0).rgb;
     color.rgb += indirectSpecular.SampleLevel(sceneColorSampler, screenUV, 0.0).rgb;
 

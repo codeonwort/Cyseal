@@ -290,11 +290,7 @@ void MainRaygen()
 
 	if (sceneDepth == DEVICE_Z_FAR)
 	{
-#if WRITE_SKY_PIXEL
-		float3 Wo = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, viewDirection, 0.0).rgb;
-#else
 		float3 Wo = 0;
-#endif
 		currentColorTexture[texel] = float4(Wo, 1.0);
 		renderTarget[texel] = float4(Wo, 1.0);
 		return;
@@ -307,13 +303,14 @@ void MainRaygen()
 	float3 albedo = gbufferData.albedo;
 	float3 normalWS = normalize(gbufferData.normalWS);
 	float roughness = gbufferData.roughness;
-	float metallic = 0.0; // #todo: No metallic yet
+
+	float NdotV = dot(-viewDirection, normalWS);
 
 	// Temporal reprojection
 	PrevFrameInfo prevFrame = getReprojectedInfo(positionWS);
 	bool bTemporalReprojection = false;
 	{
-		float zAlignment = pow(1.0 - dot(-viewDirection, normalWS), 8);
+		float zAlignment = pow(1.0 - NdotV, 8);
 		float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;
 		float depthTolerance = lerp(1e-2f, 1e-1f, zAlignment);
 		bool bClose = prevFrame.bValid && depthDiff < depthTolerance;
