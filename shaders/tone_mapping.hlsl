@@ -1,4 +1,7 @@
 
+#include "common.hlsl"
+#include "bsdf.hlsl"
+
 // #todo-hlsl: Parameterize
 #define GAMMA_CORRECTION 2.2
 #define EXPOSURE         1.0
@@ -45,10 +48,14 @@ float3 ACESFitted(float3 color)
 // ------------------------------------------------------------------------
 // Resource bindings
 
-Texture2D sceneColor           : register(t0);
-Texture2D indirectDiffuse      : register(t1);
-Texture2D indirectSpecular     : register(t2);
-SamplerState sceneColorSampler : register(s0);
+ConstantBuffer<SceneUniform> sceneUniform;
+Texture2D                    sceneColor;
+Texture2D                    sceneDepth;
+Texture2D                    gbuffer0;
+Texture2D                    gbuffer1;
+Texture2D                    indirectDiffuse;
+Texture2D                    indirectSpecular;
+SamplerState                 sceneColorSampler;
 
 // ------------------------------------------------------------------------
 // Vertex shader
@@ -78,11 +85,27 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     float2 screenUV = interpolants.uv;
     screenUV.y = 1.0 - screenUV.y;
 
-    float4 color = sceneColor.SampleLevel(sceneColorSampler, screenUV, 0.0);
+    float deviceZ = sceneDepth.SampleLevel(sceneColorSampler, screenUV, 0).r;
+    float4 positionCS = getPositionCS(screenUV, deviceZ);
+    float3 positionWS = clipSpaceToWorldSpace(positionCS, sceneUniform.viewProjInvMatrix);
+    float3 viewDirection = normalize(positionWS - sceneUniform.cameraPosition.xyz);
 
-    // #todo: Apply diffuse and specular coefficients
-    color.rgb += indirectDiffuse.SampleLevel(sceneColorSampler, screenUV, 0.0).rgb;
-    color.rgb += indirectSpecular.SampleLevel(sceneColorSampler, screenUV, 0.0).rgb;
+    float4 gbuffer0Data = gbuffer0.SampleLevel(sceneColorSampler, screenUV, 0);
+    float4 gbuffer1Data = gbuffer1.SampleLevel(sceneColorSampler, screenUV, 0);
+    GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
+
+    float NdotV = max(0.0, dot(-viewDirection, gbufferData.normalWS));
+
+    const float3 F0 = lerp(0.04, gbufferData.albedo, gbufferData.metallic);
+    const float3 F = fresnelSchlickRoughness(NdotV, F0, gbufferData.roughness);
+    const float3 kS = F;
+    const float3 kD = (1.0 - gbufferData.metallic) * (1.0 - kS);
+
+    float4 color = sceneColor.SampleLevel(sceneColorSampler, screenUV, 0);
+
+    color.rgb += kD * gbufferData.albedo * indirectDiffuse.SampleLevel(sceneColorSampler, screenUV, 0).rgb;
+    // #todo: Apply specular coefficient
+    color.rgb += indirectSpecular.SampleLevel(sceneColorSampler, screenUV, 0).rgb;
 
     // Reinhard tone mapper
     //color.rgb = float3(1.0, 1.0, 1.0) - exp(-color.rgb * EXPOSURE);

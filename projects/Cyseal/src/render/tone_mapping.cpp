@@ -6,7 +6,7 @@
 #include "rhi/render_command.h"
 #include "rhi/texture_manager.h"
 
-#define MAX_VOLATILE_DESCRIPTORS 3
+#define MAX_VOLATILE_DESCRIPTORS 7
 
 void ToneMapping::initialize()
 {
@@ -76,7 +76,11 @@ void ToneMapping::initialize()
 void ToneMapping::renderToneMapping(RenderCommandList* commandList, uint32 swapchainIndex, const ToneMappingInput& passInput)
 {
 	ShaderParameterTable SPT{};
+	SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 	SPT.texture("sceneColor", passInput.sceneColorSRV);
+	SPT.texture("sceneDepth", passInput.sceneDepthSRV);
+	SPT.texture("gbuffer0", passInput.gbuffer0SRV);
+	SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 	SPT.texture("indirectDiffuse", passInput.indirectDiffuseSRV);
 	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
 

@@ -552,7 +552,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
 		ToneMappingInput passInput{
+			.sceneUniformCBV     = sceneUniformCBV,
 			.sceneColorSRV       = alternateSceneColorSRV,
+			.sceneDepthSRV       = sceneDepthSRV.get(),
+			.gbuffer0SRV         = gbufferSRVs[0].get(),
+			.gbuffer1SRV         = gbufferSRVs[1].get(),
 			.indirectDiffuseSRV  = indirectDiffuseSRV.get(),
 			.indirectSpecularSRV = indirectSpecularSRV.get(),
 		};

@@ -10,7 +10,11 @@ class ShaderResourceView;
 
 struct ToneMappingInput
 {
+	ConstantBufferView* sceneUniformCBV;
 	ShaderResourceView* sceneColorSRV;
+	ShaderResourceView* sceneDepthSRV;
+	ShaderResourceView* gbuffer0SRV;
+	ShaderResourceView* gbuffer1SRV;
 	ShaderResourceView* indirectDiffuseSRV;
 	ShaderResourceView* indirectSpecularSRV;
 };

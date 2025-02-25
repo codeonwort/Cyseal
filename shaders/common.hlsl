@@ -157,6 +157,7 @@ struct GBufferData
     float3 albedo;
     float  roughness;
     float3 normalWS;
+    float  metallic;
 };
 
 GBufferData decodeGBuffers(float4 gbuffer0, float4 gbuffer1)
@@ -165,6 +166,7 @@ GBufferData decodeGBuffers(float4 gbuffer0, float4 gbuffer1)
     data.albedo    = gbuffer0.xyz;
     data.roughness = gbuffer0.w;
     data.normalWS  = gbuffer1.xyz;
+    data.metallic  = 0.0; // #todo: metallic
     return data;
 }
 void encodeGBuffers(in GBufferData data, out float4 gbuffer0, out float4 gbuffer1)
@@ -172,6 +174,7 @@ void encodeGBuffers(in GBufferData data, out float4 gbuffer0, out float4 gbuffer
     gbuffer0.xyz = data.albedo;
     gbuffer0.w   = data.roughness;
     gbuffer1.xyz = data.normalWS;
+    gbuffer1.w   = data.metallic;
 }
 
 #endif // _COMMON_H
