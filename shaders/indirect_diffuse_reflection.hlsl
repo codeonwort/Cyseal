@@ -208,8 +208,10 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			scatteredPdf = 0.0;
 		}
 
+		float NdotV = max(0.0, dot(surfaceNormal, scatteredDir));
+
 		radianceHistory[numBounces] = 0;
-		reflectanceHistory[numBounces] = scatteredReflectance;
+		reflectanceHistory[numBounces] = NdotV * scatteredReflectance;
 		pdfHistory[numBounces] = scatteredPdf;
 
 		if (scatteredPdf <= 0.0)

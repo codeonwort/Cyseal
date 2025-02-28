@@ -273,8 +273,10 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		float scatteredPdf = 1;
 #endif
 
+		float NdotV = max(0.0, dot(surfaceNormal, scatteredDir));
+
 		radianceHistory[numBounces] = 0;
-		reflectanceHistory[numBounces] = scatteredReflectance;
+		reflectanceHistory[numBounces] = NdotV * scatteredReflectance;
 		pdfHistory[numBounces] = scatteredPdf;
 
 		if (scatteredPdf <= 0.0)
