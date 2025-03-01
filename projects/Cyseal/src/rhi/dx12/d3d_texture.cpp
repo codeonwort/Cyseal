@@ -77,7 +77,12 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::CPU_WRITE))
 	{
 		// #todo-rhi: Properly count subresources?
-		const uint32 numSubresources = textureDesc.DepthOrArraySize;
+		uint32 numSubresources = textureDesc.DepthOrArraySize;
+		if (params.dimension == ETextureDimension::TEXTURE3D)
+		{
+			numSubresources = 1;
+		}
+
 		const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, numSubresources);
 
 		auto uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);

@@ -94,6 +94,30 @@ struct TextureCreateParams
 			6
 		};
 	}
+
+    static TextureCreateParams texture3D(
+		EPixelFormat inFormat,
+		ETextureAccessFlags inAccessFlags,
+		uint32 inWidth,
+		uint32 inHeight,
+		uint16 inDepth,
+		uint16 inMipLevels = 1,
+		uint32 inSampleCount = 1,
+		uint32 inSampleQuality = 0)
+	{
+		return TextureCreateParams{
+			ETextureDimension::TEXTURE3D,
+			inFormat,
+			inAccessFlags,
+			inWidth,
+			inHeight,
+			inDepth,
+			inMipLevels,
+			inSampleCount,
+			inSampleQuality,
+			1
+		};
+	}
 };
 
 class Texture : public GPUResource

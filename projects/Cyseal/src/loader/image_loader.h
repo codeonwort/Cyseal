@@ -27,7 +27,7 @@ struct ImageLoadData
 class ImageLoader
 {
 public:
-	// Returns null if failed.
+	// Returns null if failed. You need to free the memory manually.
 	ImageLoadData* load(const std::wstring& path);
 
 private:

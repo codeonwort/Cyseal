@@ -3,6 +3,8 @@
 #include "render_command.h"
 #include "gpu_resource.h"
 #include "core/assertion.h"
+#include "util/resource_finder.h"
+#include "loader/image_loader.h"
 
 #include <vector>
 
@@ -11,16 +13,36 @@
 #define MAX_DSV_DESCRIPTORS 64
 #define MAX_UAV_DESCRIPTORS 1024
 
+#define STBN_DIR            L"external/NVidiaSTBNUnzippedAssets/STBN/"
+#define STBN_WIDTH          128
+#define STBN_HEIGHT         128
+#define STBN_SLICES         64
+std::wstring STBN_FILEPATH(size_t ix)
+{
+	wchar_t buf[256];
+	swprintf_s(buf, L"%s%s%d.png", STBN_DIR, L"stbn_unitvec3_cosine_2Dx1D_128x128x64_", (int32)ix);
+	return buf;
+}
+
 TextureManager* gTextureManager = nullptr;
 
 void TextureManager::initialize()
 {
 	createSystemTextures();
+	createBlueNoiseTextures();
 }
 
 void TextureManager::destroy()
 {
-	//
+	systemTexture_grey2D.reset();
+	systemTexture_white2D.reset();
+	systemTexture_black2D.reset();
+	systemTexture_red2D.reset();
+	systemTexture_green2D.reset();
+	systemTexture_blue2D.reset();
+	systemTexture_blackCube.reset();
+
+	blueNoise_vec3cosine.reset();
 }
 
 void TextureManager::createSystemTextures()
@@ -92,6 +114,48 @@ void TextureManager::createSystemTextures()
 				}
 			}
 			commandList.enqueueDeferredDealloc(initTablePtr);
+		}
+	);
+}
+
+void TextureManager::createBlueNoiseTextures()
+{
+	ImageLoader loader;
+	std::vector<ImageLoadData*> blobs(STBN_SLICES, nullptr);
+	for (size_t ix = 0; ix < STBN_SLICES; ++ix)
+	{
+		std::wstring filepath = STBN_FILEPATH(ix);
+		filepath = ResourceFinder::get().find(filepath);
+		
+		blobs[ix] = loader.load(filepath);
+	}
+
+	const uint64 rowPitch = blobs[0]->getRowPitch();
+	const uint64 slicePitch = blobs[0]->getSlicePitch();
+
+	uint8* totalBlob = new uint8[slicePitch * STBN_SLICES];
+	for (size_t ix = 0; ix < STBN_SLICES; ++ix)
+	{
+		memcpy_s(totalBlob + ix * slicePitch, slicePitch, blobs[ix]->buffer, slicePitch);
+		delete blobs[ix];
+	}
+	blobs.clear();
+
+	TextureCreateParams params = TextureCreateParams::texture3D(
+		EPixelFormat::R8G8B8A8_UNORM,
+		ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
+		STBN_WIDTH, STBN_HEIGHT, STBN_SLICES, 1);
+	Texture* tex = gRenderDevice->createTexture(params);
+	tex->setDebugName(L"STBNVec3Cosine");
+
+	blueNoise_vec3cosine = makeShared<TextureAsset>();
+	blueNoise_vec3cosine->setGPUResource(SharedPtr<Texture>(tex));
+
+	ENQUEUE_RENDER_COMMAND(UploadSTBN)(
+		[totalBlob, rowPitch, slicePitch, tex](RenderCommandList& commandList)
+		{
+			tex->uploadData(commandList, totalBlob, rowPitch, slicePitch, 0);
+			commandList.enqueueDeferredDealloc(totalBlob);
 		}
 	);
 }

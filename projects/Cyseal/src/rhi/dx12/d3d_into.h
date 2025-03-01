@@ -495,6 +495,15 @@ namespace into_d3d
 		return desc;
 	}
 
+	inline D3D12_TEX3D_SRV texture3DSRVDesc(const Texture3DSRVDesc& inDesc)
+	{
+		return D3D12_TEX3D_SRV{
+			.MostDetailedMip     = inDesc.mostDetailedMip,
+			.MipLevels           = inDesc.mipLevels,
+			.ResourceMinLODClamp = inDesc.minLODClamp,
+		};
+	}
+
 	inline D3D12_TEXCUBE_SRV textureCubeSRVDesc(const TextureCubeSRVDesc& inDesc)
 	{
 		return D3D12_TEXCUBE_SRV{
@@ -521,7 +530,7 @@ namespace into_d3d
 			case ESRVDimension::Texture2DArray:                    CHECK_NO_ENTRY(); break;
 			case ESRVDimension::Texture2DMultiSampled:             CHECK_NO_ENTRY(); break;
 			case ESRVDimension::Texture2DMultiSampledArray:        CHECK_NO_ENTRY(); break;
-			case ESRVDimension::Texture3D:                         CHECK_NO_ENTRY(); break;
+			case ESRVDimension::Texture3D:                         desc.Texture3D = into_d3d::texture3DSRVDesc(inDesc.texture3D); break;
 			case ESRVDimension::TextureCube:                       desc.TextureCube = into_d3d::textureCubeSRVDesc(inDesc.textureCube); break;
 			case ESRVDimension::TextureCubeArray:                  CHECK_NO_ENTRY(); break;
 			case ESRVDimension::RaytracingAccelerationStructure:   CHECK_NO_ENTRY(); break;

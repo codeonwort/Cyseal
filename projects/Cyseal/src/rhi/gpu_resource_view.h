@@ -55,6 +55,13 @@ struct Texture2DSRVDesc
 	float minLODClamp      = 0.0f;
 };
 
+struct Texture3DSRVDesc
+{
+	uint32 mostDetailedMip = 0;
+	uint32 mipLevels       = (uint32)(-1);
+	float minLODClamp      = 0.0f;
+};
+
 // D3D12_TEXCUBE_SRV
 struct TextureCubeSRVDesc
 {
@@ -79,7 +86,7 @@ struct ShaderResourceViewDesc
 		//Texture2DArraySRVDesc            texture2DArray;
 		//Texture2DMultisampleSRVDesc      texture2DMS;
 		//Texture2DMultisampleArraySRVDesc texture2DMSArray;
-		//Texture3DSRVDesc                 texture3D;
+		Texture3DSRVDesc                 texture3D;
 		TextureCubeSRVDesc               textureCube;
 		//TextureCubeArraySRVDesc          textureCubeArray;
 		//RaytracingAccelStructSRVDesc     raytracingAccelStruct;

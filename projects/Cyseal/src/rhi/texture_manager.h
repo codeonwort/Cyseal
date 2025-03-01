@@ -24,8 +24,11 @@ public:
 	SharedPtr<TextureAsset> getSystemTextureBlue2D()    const { return systemTexture_blue2D;    }
 	SharedPtr<TextureAsset> getSystemTextureBlackCube() const { return systemTexture_blackCube; }
 
+	SharedPtr<TextureAsset> getSTBNVec3Cosine()         const { return blueNoise_vec3cosine;    }
+
 private:
 	void createSystemTextures();
+	void createBlueNoiseTextures();
 
 	SharedPtr<TextureAsset> systemTexture_grey2D;
 	SharedPtr<TextureAsset> systemTexture_white2D;
@@ -34,6 +37,8 @@ private:
 	SharedPtr<TextureAsset> systemTexture_green2D;
 	SharedPtr<TextureAsset> systemTexture_blue2D;
 	SharedPtr<TextureAsset> systemTexture_blackCube;
+
+	SharedPtr<TextureAsset> blueNoise_vec3cosine;
 };
 
 extern TextureManager* gTextureManager;
