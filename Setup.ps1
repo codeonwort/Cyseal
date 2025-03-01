@@ -18,16 +18,14 @@ $dry_run = $false
 
 $should_download = !($PSBoundParameters.ContainsKey('skipdownload'))
 
-$zip_list  = @(
+$zip_list = @(
 	# Format: (url, zip_dir, zip_filename, unzip_dir)
-	<#
 	@(
-		'https://github.com/NVIDIAGameWorks/SpatiotemporalBlueNoiseSDK/raw/main/STBN.zip',
-		'contents',
-		'STBN.zip',
-		'contents/NVidiaSpatioTemporalBlueNoise'
+		'https://github.com/NVIDIA-RTX/STBN/archive/refs/tags/v1.0.0.zip',
+		'external',
+		'NVidiaSTBN.zip',
+		'external/NVidiaSTBN'
 	),
-	#>
 	@(
 		'https://benedikt-bitterli.me/resources/pbrt-v4/bedroom.zip',
 		'external',
@@ -70,6 +68,16 @@ $zip_list  = @(
 		'skybox_IceRiver.zip',
 		'external/skybox_IceRiver'
 	)
+)
+
+$post_unzip_list = @(
+	# Format: (zip_path, unzip_dir)
+	@(
+		'external/NVidiaSTBN/STBN-1.0.0/Assets/STBN.zip',
+		'external/NVidiaSTBNUnzippedAssets/'
+	),
+	# Silly powershell
+	$null
 )
 
 #
@@ -121,7 +129,7 @@ function Unzip {
 }
 
 #
-# Download contents
+# Download contents and unzip
 #
 $num_zip_files = $zip_list.length
 if ($should_download) {
@@ -148,6 +156,26 @@ if ($should_download) {
 	#$webclient.Close()
 } else {
 	Write-Host "Skip download due to -skipdownload" -ForegroundColor Green
+}
+
+#
+# Unzipped files might have another zip inside
+#
+$num_post_unzip_files = $post_unzip_list.length
+if ($num_post_unzip_files -gt 0) {
+	Write-Host "Post unzip process... (count=$num_post_unzip_files)" -ForegroundColor Green
+	foreach ($desc in $post_unzip_list) {
+		if ($desc -eq $null) {
+			continue
+		}
+		$zip_fullpath = $desc[0]
+		$unzip_dir = $desc[1]
+		
+		Ensure-Subdirectory "$pwd/$unzip_dir/"
+		Write-Host ">" $unzip_dir #-ForegroundColor Green
+		
+		Unzip $zip_fullpath $unzip_dir
+	}
 }
 
 #
