@@ -29,6 +29,11 @@
 #define SKYBOX_BOOST              1.0
 #define MAX_HISTORY               64
 
+// EIndirectDiffuseMode
+#define MODE_DISABLED             0
+#define MODE_RANDOM_SAMPLED       1
+#define MODE_STBN_SAMPLED         2
+
 struct IndirectDiffuseUniform
 {
 	float4      randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
@@ -37,6 +42,8 @@ struct IndirectDiffuseUniform
 	float4x4    prevViewProjMatrix;
 	uint        renderTargetWidth;
 	uint        renderTargetHeight;
+	uint        frameCounter;
+	uint        mode;
 };
 
 struct VertexAttributes { float3 normal; float2 texcoord; };
@@ -53,11 +60,12 @@ StructuredBuffer<GPUSceneItem>          gpuSceneBuffer          : register(t2, s
 StructuredBuffer<Material>              materials               : register(t3, space0);
 RaytracingAccelerationStructure         rtScene                 : register(t4, space0);
 TextureCube                             skybox                  : register(t5, space0);
-Texture2D                               gbuffer0                : register(t6, space0);
-Texture2D                               gbuffer1                : register(t7, space0);
-Texture2D                               sceneDepthTexture       : register(t8, space0);
-Texture2D                               prevSceneDepthTexture   : register(t9, space0);
-Texture2D                               prevColorTexture        : register(t10, space0);
+Texture3D                               stbnTexture             : register(t6, space0);
+Texture2D                               gbuffer0                : register(t7, space0);
+Texture2D                               gbuffer1                : register(t8, space0);
+Texture2D                               sceneDepthTexture       : register(t9, space0);
+Texture2D                               prevSceneDepthTexture   : register(t10, space0);
+Texture2D                               prevColorTexture        : register(t11, space0);
 RWTexture2D<float4>                     renderTarget            : register(u0, space0);
 RWTexture2D<float4>                     currentColorTexture     : register(u1, space0);
 
@@ -130,6 +138,26 @@ float3 cosineWeightedHemisphereSample(float u0, float u1)
 	return float3(cos(phi) * cos(theta), sin(phi) * cos(theta), sin(theta));
 }
 
+float3 sampleRandomDirectionCosineWeighted(uint2 texel, uint bounce)
+{
+	bool bUseSTBN = indirectDiffuseUniform.mode == MODE_STBN_SAMPLED;
+
+	if (bUseSTBN)
+	{
+		int x = int(texel.x & 127);
+		int y = int(texel.y & 127);
+		int z = (indirectDiffuseUniform.frameCounter + bounce) & 63;
+		float3 stbn = stbnTexture.Load(int4(x, y, z, 0)).rgb;
+		stbn = 2.0 * stbn - 1.0;
+		return normalize(stbn);
+	}
+	else
+	{
+		float2 randoms = getRandoms(texel, bounce);
+		return cosineWeightedHemisphereSample(randoms.x, randoms.y);
+	}
+}
+
 float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 {
 	RayPayload currentRayPayload = createRayPayload();
@@ -197,7 +225,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			scatteredReflectance, scatteredDir, scatteredPdf);
 #else
 		float3 scatteredReflectance = currentRayPayload.albedo;
-		float3 scatteredDir = cosineWeightedHemisphereSample(randoms.x, randoms.y);
+		float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, numBounces + 1);
 		scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (surfaceNormal * scatteredDir.z);
 		float scatteredPdf = 1;
 #endif
@@ -320,12 +348,11 @@ void MainRaygen()
 		bTemporalReprojection = bClose;
 	}
 
-	float2 randoms = getRandoms(texel, 0);
 	float3 surfaceTangent, surfaceBitangent;
 	computeTangentFrame(normalWS, surfaceTangent, surfaceBitangent);
 
 	float3 scatteredReflectance = albedo;
-	float3 scatteredDir = cosineWeightedHemisphereSample(randoms.x, randoms.y);
+	float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, 0);
 	scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (normalWS * scatteredDir.z);
 	float scatteredPdf = 1;
 	

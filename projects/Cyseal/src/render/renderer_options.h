@@ -31,7 +31,8 @@ enum class ERayTracedShadowsMode : uint32
 enum class EIndirectDiffuseMode : uint32
 {
 	Disabled         = 0,
-	Enabled          = 1,
+	RandomSampled    = 1,
+	STBNSampled      = 2,
 
 	Count
 };
@@ -85,7 +86,8 @@ inline const char** getIndirectDiffuseModeNames()
 	static const char* strings[] =
 	{
 		"Disabled",
-		"Enabled",
+		"RandomSampled",
+		"STBNSampled",
 	};
 	return strings;
 }
@@ -120,7 +122,7 @@ struct RendererOptions
 	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
 
 	ERayTracedShadowsMode rayTracedShadows = ERayTracedShadowsMode::Disabled;
-	EIndirectDiffuseMode indirectDiffuse = EIndirectDiffuseMode::Enabled;
+	EIndirectDiffuseMode indirectDiffuse = EIndirectDiffuseMode::Disabled;
 	EIndirectSpecularMode indirectSpecular = EIndirectSpecularMode::ForceMirror;
 
 	EPathTracingMode pathTracing = EPathTracingMode::Disabled;

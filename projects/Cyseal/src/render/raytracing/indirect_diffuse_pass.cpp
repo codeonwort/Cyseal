@@ -39,6 +39,8 @@ struct IndirectDiffuseUniform
 	Float4x4    prevViewProj;
 	uint32      renderTargetWidth;
 	uint32      renderTargetHeight;
+	uint32      frameCounter;
+	uint32      mode;
 };
 
 struct BlurUniform
@@ -262,9 +264,13 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		uboData->prevViewProj = passInput.prevViewProjMatrix;
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;
+		uboData->frameCounter = frameCounter;
+		uboData->mode = (uint32)passInput.mode;
 
 		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
 		uniformCBV->writeToGPU(commandList, uboData, sizeof(IndirectDiffuseUniform));
+
+		frameCounter = (frameCounter + 1) & 63;
 
 		delete uboData;
 	}
@@ -283,6 +289,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
 		requiredVolatiles += 1; // rtScene
 		requiredVolatiles += 1; // skybox
+		requiredVolatiles += 1; // STBN
 		requiredVolatiles += 1; // sceneDepthTexture
 		requiredVolatiles += 1; // prevSceneDepthTexture
 		requiredVolatiles += 1; // renderTarget
@@ -320,6 +327,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
 		SPT.texture("skybox", passInput.skyboxSRV);
+		SPT.texture("stbnTexture", stbnSRV.get());
 		SPT.texture("gbuffer0", passInput.gbuffer0SRV);
 		SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
@@ -518,6 +526,19 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 			.format         = colorDesc.format,
 			.viewDimension  = EUAVDimension::Texture2D,
 			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+
+	Texture* stbnTexture = gTextureManager->getSTBNVec3Cosine()->getGPUResource().get();
+	stbnSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(stbnTexture,
+		ShaderResourceViewDesc{
+			.format              = stbnTexture->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture3D,
+			.texture3D           = Texture3DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = stbnTexture->getCreateParams().mipLevels,
+				.minLODClamp     = 0.0f,
+			},
 		}
 	));
 }

@@ -66,6 +66,9 @@ private:
 	UniquePtr<Texture> colorScratch;
 	UniquePtr<UnorderedAccessView> colorScratchUAV;
 
+	uint32 frameCounter = 0;
+	UniquePtr<ShaderResourceView> stbnSRV;
+
 	VolatileDescriptorHelper rayPassDescriptor;
 	VolatileDescriptorHelper blurPassDescriptor;
 };
