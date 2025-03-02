@@ -97,6 +97,7 @@
     <ClCompile Include="TestCamera.cpp" />
     <ClCompile Include="TestFreeNumberList.cpp" />
     <ClCompile Include="TestImageLoader.cpp" />
+    <ClCompile Include="TestSTBN.cpp" />
     <ClCompile Include="TestVector.cpp" />
   </ItemGroup>
   <ItemGroup>
