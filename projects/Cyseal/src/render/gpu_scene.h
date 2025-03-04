@@ -8,13 +8,19 @@
 class SceneProxy;
 class Camera;
 
+// Should match with Material in material.hlsl.
 struct MaterialConstants
 {
-	vec3 albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
-	float roughness = 0.0f;
+	vec3   albedoMultiplier   = vec3(1.0f, 1.0f, 1.0f);
+	float  roughness          = 0.0f;
 
-	uint32 albedoTextureIndex;
-	vec3 emission = vec3(0.0f, 0.0f, 0.0f);
+	uint32 albedoTextureIndex = 0xffffffff;
+	vec3   emission           = vec3(0.0f, 0.0f, 0.0f);
+
+	float  metalMask          = 0.0f;
+	uint32 _pad0;
+	uint32 _pad1;
+	uint32 _pad2;
 };
 
 struct GPUSceneInput

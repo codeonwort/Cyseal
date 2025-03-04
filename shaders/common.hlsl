@@ -1,6 +1,8 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
+#include "material.hlsl"
+
 // ---------------------------------------------------------
 // Constants
 
@@ -124,14 +126,6 @@ struct GPUSceneItem
     float3   _pad0;
 };
 
-struct Material
-{
-    float3 albedoMultiplier;
-    float  roughness;
-    uint   albedoTextureIndex;
-    float3 emission;
-};
-
 struct SceneUniform
 {
     float4x4  viewMatrix;
@@ -157,7 +151,7 @@ struct GBufferData
     float3 albedo;
     float  roughness;
     float3 normalWS;
-    float  metallic;
+    float  metalMask;
 };
 
 GBufferData decodeGBuffers(float4 gbuffer0, float4 gbuffer1)
@@ -166,7 +160,7 @@ GBufferData decodeGBuffers(float4 gbuffer0, float4 gbuffer1)
     data.albedo    = gbuffer0.xyz;
     data.roughness = gbuffer0.w;
     data.normalWS  = gbuffer1.xyz;
-    data.metallic  = 0.0; // #todo: metallic
+    data.metalMask = gbuffer1.w;
     return data;
 }
 void encodeGBuffers(in GBufferData data, out float4 gbuffer0, out float4 gbuffer1)
@@ -174,7 +168,7 @@ void encodeGBuffers(in GBufferData data, out float4 gbuffer0, out float4 gbuffer
     gbuffer0.xyz = data.albedo;
     gbuffer0.w   = data.roughness;
     gbuffer1.xyz = data.normalWS;
-    gbuffer1.w   = data.metallic;
+    gbuffer1.w   = data.metalMask;
 }
 
 #endif // _COMMON_H

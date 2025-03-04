@@ -96,10 +96,10 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 
     float NdotV = max(0.0, dot(-viewDirection, gbufferData.normalWS));
 
-    const float3 F0 = lerp(0.04, gbufferData.albedo, gbufferData.metallic);
+    const float3 F0 = lerp(0.04, gbufferData.albedo, gbufferData.metalMask);
     const float3 F = fresnelSchlickRoughness(NdotV, F0, gbufferData.roughness);
     const float3 kS = F;
-    const float3 kD = (1.0 - gbufferData.metallic) * (1.0 - kS);
+    const float3 kD = (1.0 - gbufferData.metalMask) * (1.0 - kS);
 
     float4 color = sceneColor.SampleLevel(sceneColorSampler, screenUV, 0);
 
