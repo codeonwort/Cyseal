@@ -8,6 +8,13 @@
 class SceneProxy;
 class Camera;
 
+enum class EMaterialId : uint32
+{
+	None        = 0,
+	DefaultLit  = 1,
+	Transparent = 2, // #todo-material: Implement transmission.
+};
+
 // Should match with Material in material.hlsl.
 struct MaterialConstants
 {
@@ -18,9 +25,9 @@ struct MaterialConstants
 	vec3   emission           = vec3(0.0f, 0.0f, 0.0f);
 
 	float  metalMask          = 0.0f;
+	uint32 materialID         = (uint32)EMaterialId::DefaultLit;
+	float  indexOfRefraction  = 1.0f;
 	uint32 _pad0;
-	uint32 _pad1;
-	uint32 _pad2;
 };
 
 struct GPUSceneInput

@@ -4,11 +4,12 @@
 #define MODE_NONE               0
 #define MODE_ALBEDO             1
 #define MODE_ROUGHNESS          2
-#define MODE_NORMAL             3
-#define MODE_DIRECT_LIGHTING    4
-#define MODE_RAY_TRACED_SHADOWS 5
-#define MODE_INDIRECT_DIFFUSE   6
-#define MODE_INDIRECT_SPECULAR  7
+#define MODE_METAL_MASK         3
+#define MODE_NORMAL             4
+#define MODE_DIRECT_LIGHTING    5
+#define MODE_RAY_TRACED_SHADOWS 6
+#define MODE_INDIRECT_DIFFUSE   7
+#define MODE_INDIRECT_SPECULAR  8
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -69,6 +70,10 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     else if (modeEnum == MODE_ROUGHNESS)
     {
         color.rgb = gbufferData.roughness.xxx;
+    }
+    else if (modeEnum == MODE_METAL_MASK)
+    {
+        color.rgb = gbufferData.metalMask.xxx;
     }
     else if (modeEnum == MODE_NORMAL)
     {
