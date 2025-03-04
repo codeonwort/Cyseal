@@ -97,6 +97,9 @@ struct RayPayload
 
 	float3 emission;
 	uint   objectID;
+
+	float  metalMask;
+	uint3  _pad0;
 };
 
 RayPayload createRayPayload()
@@ -251,7 +254,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 			currentRay.Direction, surfaceNormal,
 			currentRayPayload.albedo,
 			currentRayPayload.roughness,
-			0.0, // #todo-pathtracing: No metallic yet
+			currentRayPayload.metalMask,
 			rand0, rand1,
 			scatteredReflectance, scatteredDir, scatteredPdf);
 		
@@ -527,6 +530,7 @@ void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 	payload.hitTime       = RayTCurrent();
 	payload.emission      = material.emission;
 	payload.objectID      = objectID;
+	payload.metalMask     = material.metalMask;
 }
 
 [shader("miss")]

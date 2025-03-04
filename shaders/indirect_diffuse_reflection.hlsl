@@ -96,6 +96,9 @@ struct RayPayload
 
 	float3 emission;
 	uint   objectID;
+
+	float  metalMask;
+	uint3  _pad0;
 };
 
 RayPayload createRayPayload()
@@ -212,7 +215,6 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
-		float metallic = 0.0;
 
 		float2 randoms = getRandoms(texel, numBounces + 1);
 
@@ -220,7 +222,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		float3 scatteredReflectance, scatteredDir; float scatteredPdf;
 		microfacetBRDF(
 			currentRay.Direction, surfaceNormal,
-			currentRayPayload.albedo, currentRayPayload.roughness, metallic,
+			currentRayPayload.albedo, currentRayPayload.roughness, currentRayPayload.metalMask,
 			randoms.x, randoms.y,
 			scatteredReflectance, scatteredDir, scatteredPdf);
 #else
@@ -429,6 +431,7 @@ void MainClosestHit(inout RayPayload payload, in MyAttributes attr)
 	payload.hitTime       = RayTCurrent();
 	payload.emission      = material.emission;
 	payload.objectID      = objectID;
+	payload.metalMask     = material.metalMask;
 }
 
 [shader("miss")]

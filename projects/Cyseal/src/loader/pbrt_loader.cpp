@@ -706,6 +706,8 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			material->roughness = desc.roughness;
 		}
 
+		// #todo-material: Parse metallic
+
 		// #todo-pbrt: Other NamedMaterialDesc properties
 
 		materialDatabase.insert(std::make_pair(desc.materialName, material));

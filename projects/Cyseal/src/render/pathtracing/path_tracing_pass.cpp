@@ -62,6 +62,8 @@ struct RayPayload
 	float  hitTime;
 	float  emission[3];
 	uint32 objectID;
+	float  metalMask;
+	uint32 _pad[3];
 };
 // Just to calculate size in bytes.
 // Should match with IntersectionAttributes in path_tracing.hlsl.

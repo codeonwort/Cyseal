@@ -51,6 +51,8 @@ struct RayPayload
 	float  hitTime;
 	float  emission[3];
 	uint32 objectID;
+	float  metalMask;
+	uint32 _pad[3];
 };
 // Just to calculate size in bytes.
 // Should match with MyAttributes in indirect_specular_reflection.hlsl.

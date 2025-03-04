@@ -111,6 +111,9 @@ struct RayPayload
 
 	float3 emission;
 	uint   objectID;
+
+	float  metalMask;
+	uint3  _pad0;
 };
 
 RayPayload createRayPayload()
@@ -199,7 +202,6 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
-		float metallic = 0.0; // #todo: No metallic yet
 
 		float2 randoms = getRandoms(texel, numBounces);
 
@@ -209,7 +211,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		{
 			microfacetBRDF(
 				currentRay.Direction, surfaceNormal,
-				currentRayPayload.albedo, currentRayPayload.roughness, metallic,
+				currentRayPayload.albedo, currentRayPayload.roughness, currentRayPayload.metalMask,
 				randoms.x, randoms.y,
 				scatteredReflectance, scatteredDir, scatteredPdf);
 		}
@@ -328,7 +330,7 @@ void MainRaygen()
 	float3 albedo = gbufferData.albedo;
 	float3 normalWS = normalize(gbufferData.normalWS);
 	float roughness = gbufferData.roughness;
-	float metallic = 0.0; // #todo: No metallic yet
+	float metalMask = gbufferData.metalMask;
 
 	// Temporal reprojection
 	PrevFrameInfo prevFrame = getReprojectedInfo(positionWS);
@@ -350,7 +352,7 @@ void MainRaygen()
 		// Consider only specular part for first indirect bounce, but consider both for further bounces.
 		// Therefore it's L(D|S)SE path.
 		float3 dummy;
-		splitMicrofacetBRDF(viewDirection, normalWS, albedo, roughness, metallic, randoms.x, randoms.y,
+		splitMicrofacetBRDF(viewDirection, normalWS, albedo, roughness, metalMask, randoms.x, randoms.y,
 			dummy, scatteredReflectance, scatteredDir, scatteredPdf);
 
 		// #todo: It happens :(
@@ -435,6 +437,7 @@ void MainClosestHit(inout RayPayload payload, in MyAttributes attr)
 	payload.hitTime       = RayTCurrent();
 	payload.emission      = material.emission;
 	payload.objectID      = objectID;
+	payload.metalMask     = material.metalMask;
 }
 
 [shader("miss")]
