@@ -203,8 +203,8 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 					constants.roughness = material->roughness;
 					constants.emission = material->emission;
 					constants.metalMask = material->metalMask;
-					constants.materialID = (uint32)EMaterialId::DefaultLit; // #todo-material
-					constants.indexOfRefraction = 1.0f;
+					constants.materialID = (uint32)material->materialID;
+					constants.indexOfRefraction = material->indexOfRefraction;
 				}
 				constants.albedoTextureIndex = currentMaterialSRVCount;
 
