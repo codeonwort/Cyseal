@@ -16,10 +16,10 @@ void MeshSplatting::createResources(const CreateParams& createParams)
 		gTextureManager->getSystemTextureGreen2D(),
 		gTextureManager->getSystemTextureBlue2D(),
 	};
-	std::vector<SharedPtr<Material>> baseMaterials;
+	std::vector<SharedPtr<MaterialAsset>> baseMaterials;
 	for (const auto& baseTex : baseTextures)
 	{
-		auto material = makeShared<Material>();
+		auto material = makeShared<MaterialAsset>();
 		material->albedoTexture = baseTex;
 		material->albedoMultiplier = vec3(0.2f);
 		material->roughness = 0.1f;

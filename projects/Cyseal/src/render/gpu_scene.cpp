@@ -173,7 +173,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 			uint32 lod = staticMesh->getActiveLOD();
 			for (const StaticMeshSection& section : staticMesh->getSections(lod))
 			{
-				Material* const material = section.material.get();
+				MaterialAsset* const material = section.material.get();
 
 				// Texture SRV
 				auto albedo = albedoFallbackTexture;

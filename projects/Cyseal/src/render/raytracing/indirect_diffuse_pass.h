@@ -6,7 +6,7 @@
 #include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
 
-class Material;
+class MaterialAsset;
 class SceneProxy;
 class Camera;
 class GPUScene;

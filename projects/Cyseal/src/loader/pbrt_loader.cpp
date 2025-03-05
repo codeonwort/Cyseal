@@ -540,7 +540,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 							break;
 						}
 					}
-					SharedPtr<Material> material = makeShared<Material>();
+					SharedPtr<MaterialAsset> material = makeShared<MaterialAsset>();
 					material->emission = currentEmission;
 
 					PBRT4TriangleMesh desc{
@@ -619,7 +619,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 
 	//std::map<std::string, ImageLoadData*> imageDatabase;
 	std::map<std::string, SharedPtr<TextureAsset>> textureAssetDatabase;
-	std::map<std::string, SharedPtr<Material>> materialDatabase;
+	std::map<std::string, SharedPtr<MaterialAsset>> materialDatabase;
 
 	ImageLoader imageLoader;
 	for (const TextureFileDesc& desc : textureFileDescs)
@@ -673,7 +673,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 
 	for (const NamedMaterialDesc& desc : namedMaterialDescs)
 	{
-		auto material = makeShared<Material>();
+		auto material = makeShared<MaterialAsset>();
 
 		material->albedoMultiplier.x = desc.rgbReflectance.x;
 		material->albedoMultiplier.y = desc.rgbReflectance.y;

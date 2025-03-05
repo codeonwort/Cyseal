@@ -60,7 +60,7 @@ void World2::onInitialize()
 		SharedPtr<IndexBufferAsset> indexBufferAsset = makeShared<IndexBufferAsset>();
 		uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
 
-		auto material = makeShared<Material>();
+		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
 		material->roughness = 1.0f;
@@ -81,10 +81,10 @@ void World2::onInitialize()
 			gTextureManager->getSystemTextureGreen2D(),
 			gTextureManager->getSystemTextureBlue2D(),
 		};
-		std::vector<SharedPtr<Material>> baseMaterials;
+		std::vector<SharedPtr<MaterialAsset>> baseMaterials;
 		for (const auto& baseTex : baseTextures)
 		{
-			auto material = makeShared<Material>();
+			auto material = makeShared<MaterialAsset>();
 			material->albedoTexture = baseTex;
 			material->albedoMultiplier = vec3(0.5f, 0.5f, 0.5f);
 			material->roughness = 1.0f;

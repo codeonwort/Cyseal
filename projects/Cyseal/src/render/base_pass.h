@@ -8,7 +8,7 @@
 #include "rhi/gpu_resource_view.h"
 
 class RenderCommandList;
-class Material;
+class MaterialAsset;
 class SceneProxy;
 class Camera;
 class GPUScene;

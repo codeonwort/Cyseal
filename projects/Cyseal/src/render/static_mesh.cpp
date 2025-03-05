@@ -6,7 +6,7 @@ void StaticMesh::addSection(
 	SharedPtr<VertexBufferAsset> positionBuffer,
 	SharedPtr<VertexBufferAsset> nonPositionBuffer,
 	SharedPtr<IndexBufferAsset> indexBuffer,
-	SharedPtr<Material> material,
+	SharedPtr<MaterialAsset> material,
 	const AABB& localBounds)
 {
 	if (LODs.size() <= lod)

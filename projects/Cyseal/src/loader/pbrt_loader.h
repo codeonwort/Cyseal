@@ -19,7 +19,7 @@ struct PBRT4TriangleMesh
 	std::vector<vec2> texcoordBuffer;
 	std::vector<uint32> indexBuffer;
 
-	SharedPtr<Material> material;
+	SharedPtr<MaterialAsset> material;
 };
 
 struct PBRT4Scene

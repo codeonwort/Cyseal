@@ -31,7 +31,7 @@ public:
 	uint32 getVertexCount() const { return (uint32)positionBuffer.size(); }
 	uint32 getIndexCount() const { return (uint32)indexBuffer.size(); }
 
-	SharedPtr<Material> material;
+	SharedPtr<MaterialAsset> material;
 
 	std::vector<vec3> positionBuffer;
 	std::vector<vec3> normalBuffer;

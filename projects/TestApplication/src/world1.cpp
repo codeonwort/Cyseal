@@ -164,7 +164,7 @@ void World1::createResources()
 		SharedPtr<IndexBufferAsset> indexBufferAsset = makeShared<IndexBufferAsset>();
 		uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
 
-		auto material = makeShared<Material>();
+		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(0.1f);
 		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
 		material->roughness = 0.05f;
@@ -196,7 +196,7 @@ void World1::createResources()
 		SharedPtr<IndexBufferAsset> indexBufferAsset = makeShared<IndexBufferAsset>();
 		uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
 
-		auto material = makeShared<Material>();
+		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(0.1f);
 		material->albedoTexture = albedoTexture;
 		material->roughness = 0.1f;
@@ -274,7 +274,7 @@ void World1::createResources()
 			std::vector<SharedPtr<VertexBufferAsset>> positionBufferAssets(totalSubMeshes, nullptr);
 			std::vector<SharedPtr<VertexBufferAsset>> nonPositionBufferAssets(totalSubMeshes, nullptr);
 			std::vector<SharedPtr<IndexBufferAsset>> indexBufferAssets(totalSubMeshes, nullptr);
-			std::vector<SharedPtr<Material>> subMaterials(totalSubMeshes, nullptr);
+			std::vector<SharedPtr<MaterialAsset>> subMaterials(totalSubMeshes, nullptr);
 			for (size_t i = 0; i < totalSubMeshes; ++i)
 			{
 				Geometry* pbrtGeometry = pbrtGeometries[i] = new Geometry;
@@ -336,7 +336,7 @@ void World1::createResources()
 				}
 			);
 
-			auto fallbackMaterial = makeShared<Material>();
+			auto fallbackMaterial = makeShared<MaterialAsset>();
 			fallbackMaterial->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 			fallbackMaterial->albedoTexture = gTextureManager->getSystemTextureGrey2D();
 			fallbackMaterial->roughness = 1.0f;
