@@ -32,6 +32,7 @@ enum class EPixelFormat : uint8
 	// UINT
 	R32_UINT,
 	R16_UINT,
+	R32G32B32A32_UINT,
 
 	// DepthStencil
 	D24_UNORM_S8_UINT,
@@ -57,6 +58,7 @@ inline uint32 getPixelFormatBytes(EPixelFormat format)
 		case EPixelFormat::R16G16B16A16_FLOAT       : return 8;
 		case EPixelFormat::R32_UINT                 : return 4;
 		case EPixelFormat::R16_UINT                 : return 2;
+		case EPixelFormat::R32G32B32A32_UINT        : return 16;
 		default: CHECK_NO_ENTRY();
 	}
 	return 0;

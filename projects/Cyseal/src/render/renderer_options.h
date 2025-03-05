@@ -9,14 +9,15 @@ enum class ERendererType
 enum class EBufferVisualizationMode : uint32
 {
 	None             = 0,
-	Albedo           = 1,
-	Roughness        = 2,
-	MetalMask        = 3,
-	Normal           = 4,
-	DirectLighting   = 5,
-	RayTracedShadows = 6,
-	IndirectDiffuse  = 7,
-	IndirectSpecular = 8,
+	MaterialId       = 1,
+	Albedo           = 2,
+	Roughness        = 3,
+	MetalMask        = 4,
+	Normal           = 5,
+	DirectLighting   = 6,
+	RayTracedShadows = 7,
+	IndirectDiffuse  = 8,
+	IndirectSpecular = 9,
 
 	Count,
 };
@@ -61,6 +62,7 @@ inline const char** getBufferVisualizationModeNames()
 	static const char* strings[] =
 	{
 		"None",
+		"MaterialId",
 		"Albedo",
 		"Roughness",
 		"MetalMask",

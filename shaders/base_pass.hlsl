@@ -80,9 +80,9 @@ Interpolants mainVS(VertexInput input)
 
 struct PixelOutput
 {
-    float4 sceneColor : SV_TARGET0;
-    float4 gbuffer0   : SV_TARGET1;
-    float4 gbuffer1   : SV_TARGET2;
+    float4            sceneColor : SV_TARGET0;
+    GBUFFER0_DATATYPE gbuffer0   : SV_TARGET1;
+    GBUFFER1_DATATYPE gbuffer1   : SV_TARGET2;
 };
 
 PixelOutput mainPS(Interpolants interpolants)
@@ -117,10 +117,11 @@ PixelOutput mainPS(Interpolants interpolants)
     luminance *= shadow;
 
     GBufferData gbufferData;
-    gbufferData.albedo    = albedo;
-    gbufferData.roughness = roughness;
-    gbufferData.normalWS  = N;
-    gbufferData.metalMask = metalMask;
+    gbufferData.albedo     = albedo;
+    gbufferData.roughness  = roughness;
+    gbufferData.normalWS   = N;
+    gbufferData.metalMask  = metalMask;
+    gbufferData.materialID = material.materialID;
 
     PixelOutput output;
     output.sceneColor = float4(luminance, 1.0);

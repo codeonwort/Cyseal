@@ -76,8 +76,8 @@ StructuredBuffer<GPUSceneItem>          gpuSceneBuffer          : register(t2, s
 StructuredBuffer<Material>              materials               : register(t3, space0);
 RaytracingAccelerationStructure         rtScene                 : register(t4, space0);
 TextureCube                             skybox                  : register(t5, space0);
-Texture2D                               gbuffer0                : register(t6, space0);
-Texture2D                               gbuffer1                : register(t7, space0);
+Texture2D<GBUFFER0_DATATYPE>            gbuffer0                : register(t6, space0);
+Texture2D<GBUFFER1_DATATYPE>            gbuffer1                : register(t7, space0);
 Texture2D                               sceneDepthTexture       : register(t8, space0);
 Texture2D                               prevSceneDepthTexture   : register(t9, space0);
 Texture2D                               prevColorTexture        : register(t10, space0);
@@ -323,8 +323,8 @@ void MainRaygen()
 		return;
 	}
 
-	float4 gbuffer0Data = gbuffer0.Load(int3(texel, 0));
-	float4 gbuffer1Data = gbuffer1.Load(int3(texel, 0));
+	GBUFFER0_DATATYPE gbuffer0Data = gbuffer0.Load(int3(texel, 0));
+	GBUFFER1_DATATYPE gbuffer1Data = gbuffer1.Load(int3(texel, 0));
 	GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
 
 	float3 albedo = gbufferData.albedo;

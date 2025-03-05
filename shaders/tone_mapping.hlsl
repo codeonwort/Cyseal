@@ -51,8 +51,8 @@ float3 ACESFitted(float3 color)
 ConstantBuffer<SceneUniform> sceneUniform;
 Texture2D                    sceneColor;
 Texture2D                    sceneDepth;
-Texture2D                    gbuffer0;
-Texture2D                    gbuffer1;
+Texture2D<GBUFFER0_DATATYPE> gbuffer0;
+Texture2D<GBUFFER1_DATATYPE> gbuffer1;
 Texture2D                    indirectDiffuse;
 Texture2D                    indirectSpecular;
 SamplerState                 sceneColorSampler;
@@ -90,8 +90,8 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     float3 positionWS = clipSpaceToWorldSpace(positionCS, sceneUniform.viewProjInvMatrix);
     float3 viewDirection = normalize(positionWS - sceneUniform.cameraPosition.xyz);
 
-    float4 gbuffer0Data = gbuffer0.SampleLevel(sceneColorSampler, screenUV, 0);
-    float4 gbuffer1Data = gbuffer1.SampleLevel(sceneColorSampler, screenUV, 0);
+    GBUFFER0_DATATYPE gbuffer0Data = gbuffer0.Load(int3(interpolants.posH.xy, 0));
+    GBUFFER1_DATATYPE gbuffer1Data = gbuffer1.Load(int3(interpolants.posH.xy, 0));
     GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
 
     float NdotV = max(0.0, dot(-viewDirection, gbufferData.normalWS));

@@ -31,7 +31,7 @@
 
 static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
 static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
-	EPixelFormat::R16G16B16A16_FLOAT,
+	EPixelFormat::R32G32B32A32_UINT, //EPixelFormat::R16G16B16A16_FLOAT,
 	EPixelFormat::R16G16B16A16_FLOAT,
 };
 

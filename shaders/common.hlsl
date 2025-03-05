@@ -146,27 +146,40 @@ struct SceneUniform
 // ---------------------------------------------------------
 // GBuffer
 
+#define GBUFFER0_DATATYPE uint4
+#define GBUFFER1_DATATYPE float4
+
 struct GBufferData
 {
     float3 albedo;
     float  roughness;
     float3 normalWS;
     float  metalMask;
+
+    uint   materialID;
 };
 
-GBufferData decodeGBuffers(float4 gbuffer0, float4 gbuffer1)
+GBufferData decodeGBuffers(GBUFFER0_DATATYPE gbuffer0, GBUFFER1_DATATYPE gbuffer1)
 {
+    uint3 packedAlbedo = uint3(gbuffer0.x >> 16, gbuffer0.x & 0xFFFF, gbuffer0.y & 0xFFFF);
+    float3 albedo = f16tof32(packedAlbedo);
+
     GBufferData data;
-    data.albedo    = gbuffer0.xyz;
-    data.roughness = gbuffer0.w;
-    data.normalWS  = gbuffer1.xyz;
-    data.metalMask = gbuffer1.w;
+    data.albedo     = albedo;
+    data.materialID = gbuffer0.z;
+    data.roughness  = asfloat(gbuffer0.w);
+    data.normalWS   = gbuffer1.xyz;
+    data.metalMask  = gbuffer1.w;
     return data;
 }
-void encodeGBuffers(in GBufferData data, out float4 gbuffer0, out float4 gbuffer1)
+void encodeGBuffers(in GBufferData data, out GBUFFER0_DATATYPE gbuffer0, out GBUFFER1_DATATYPE gbuffer1)
 {
-    gbuffer0.xyz = data.albedo;
-    gbuffer0.w   = data.roughness;
+    uint3 packedAlbedo = f32tof16(data.albedo); // Each contained in low 16 bits.
+
+    gbuffer0.x   = (packedAlbedo.x << 16) | packedAlbedo.y;
+    gbuffer0.y   = packedAlbedo.z;
+    gbuffer0.z   = data.materialID;
+    gbuffer0.w   = asuint(data.roughness);
     gbuffer1.xyz = data.normalWS;
     gbuffer1.w   = data.metalMask;
 }
