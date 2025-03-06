@@ -23,6 +23,7 @@
 #define SURFACE_NORMAL_OFFSET     0.001
 // Precision of world position from scene depth is bad; need more bias.
 #define GBUFFER_NORMAL_OFFSET     0.05
+#define REFRACTION_START_OFFSET   0.1
 
 // Sky pass will write sky pixels.
 #define WRITE_SKY_PIXEL           0
@@ -181,6 +182,8 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			currentRay,
 			currentRayPayload);
 
+		const uint materialID = currentRayPayload.materialID;
+
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
@@ -207,21 +210,35 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 
 		float2 randoms = getRandoms(texel, numBounces);
 
-		// #todo: Handle transmission.
+		float3 nextRayOffset = 0;
 		float3 scatteredReflectance, scatteredDir; float scatteredPdf;
-		if (indirectSpecularUniform.traceMode == TRACE_BRDF)
+		if (materialID == MATERIAL_ID_DEFAULT_LIT)
 		{
-			microfacetBRDF(
-				currentRay.Direction, surfaceNormal,
-				currentRayPayload.albedo, currentRayPayload.roughness, currentRayPayload.metalMask,
-				randoms.x, randoms.y,
-				scatteredReflectance, scatteredDir, scatteredPdf);
+			if (indirectSpecularUniform.traceMode == TRACE_BRDF)
+			{
+				microfacetBRDF(
+					currentRay.Direction, surfaceNormal,
+					currentRayPayload.albedo, currentRayPayload.roughness, currentRayPayload.metalMask,
+					randoms.x, randoms.y,
+					scatteredReflectance, scatteredDir, scatteredPdf);
+			}
+			else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
+			{
+				scatteredReflectance = 1.0;
+				scatteredDir = reflect(currentRay.Direction, surfaceNormal);
+				scatteredPdf = 1.0;
+			}
+
+			nextRayOffset = SURFACE_NORMAL_OFFSET * surfaceNormal;
 		}
-		else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
+		else if (materialID == MATERIAL_ID_TRANSPARENT)
 		{
+			// #todo: Change scatteredDir by the Law of Refraction.
 			scatteredReflectance = 1.0;
-			scatteredDir = reflect(currentRay.Direction, surfaceNormal);
+			scatteredDir = currentRay.Direction;
 			scatteredPdf = 1.0;
+
+			nextRayOffset = REFRACTION_START_OFFSET * currentRay.Direction;
 		}
 		
 		// #todo: Sometimes surfaceNormal is NaN
@@ -230,10 +247,8 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			scatteredPdf = 0.0;
 		}
 
-		float NdotV = max(0.0, dot(surfaceNormal, scatteredDir));
-
 		radianceHistory[numBounces] = 0;
-		reflectanceHistory[numBounces] = NdotV * scatteredReflectance;
+		reflectanceHistory[numBounces] = scatteredReflectance;
 		pdfHistory[numBounces] = scatteredPdf;
 
 		if (scatteredPdf <= 0.0)
@@ -241,7 +256,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			break;
 		}
 
-		currentRay.Origin = surfacePosition + SURFACE_NORMAL_OFFSET * surfaceNormal;
+		currentRay.Origin = surfacePosition + nextRayOffset;
 		currentRay.Direction = scatteredDir;
 		//currentRay.TMin = RAYGEN_T_MIN;
 		//currentRay.TMax = RAYGEN_T_MAX;
@@ -379,20 +394,37 @@ void MainRaygen()
 	}
 	else if (gbufferData.materialID == MATERIAL_ID_TRANSPARENT)
 	{
-		// #todo: transmission here
+		// #todo: Change scatteredDir by the Law of Refraction.
+		scatteredReflectance = 1.0;
+		scatteredDir = viewDirection;
+		scatteredPdf = 1.0;
+
+		float3 relaxedPositionWS = positionWS + (scatteredDir * REFRACTION_START_OFFSET);
+		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, scatteredDir);
+
+		Wo = (scatteredReflectance / scatteredPdf) * Li;
+	}
+	else
+	{
 		Wo = 0;
 	}
 
 	//prevColor was already acquired by getPrevFrame()
-	float historyCount = bTemporalReprojection ? prevFrame.historyCount : 0;
+	float historyCount = 0;
+	float3 prevWo = 0;
+	if (bTemporalReprojection)
+	{
+		historyCount = prevFrame.historyCount;
+		prevWo = prevFrame.color;
+	}
 
 	if (scatteredPdf == 0.0)
 	{
-		Wo = prevFrame.color;
+		Wo = prevWo;
 	}
 	else
 	{
-		Wo = lerp(prevFrame.color, Wo, 1.0 / (1.0 + historyCount));
+		Wo = lerp(prevWo, Wo, 1.0 / (1.0 + historyCount));
 		historyCount += 1;
 	}
 
