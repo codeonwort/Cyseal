@@ -157,29 +157,35 @@ struct GBufferData
     float  metalMask;
 
     uint   materialID;
+    float  indexOfRefraction;
 };
 
 GBufferData decodeGBuffers(GBUFFER0_DATATYPE gbuffer0, GBUFFER1_DATATYPE gbuffer1)
 {
-    uint3 packedAlbedo = uint3(gbuffer0.x >> 16, gbuffer0.x & 0xFFFF, gbuffer0.y & 0xFFFF);
+    uint3 packedAlbedo = uint3(gbuffer0.x >> 16, gbuffer0.x & 0xFFFF, gbuffer0.y >> 16);
+    uint packedIoR = gbuffer0.y & 0xFFFF;
+
     float3 albedo = f16tof32(packedAlbedo);
+    float ior = f16tof32(packedIoR);
 
     GBufferData data;
-    data.albedo     = albedo;
-    data.materialID = gbuffer0.z;
-    data.roughness  = asfloat(gbuffer0.w);
-    data.normalWS   = gbuffer1.xyz;
-    data.metalMask  = gbuffer1.w;
+    data.albedo            = albedo;
+    data.indexOfRefraction = ior;
+    data.roughness         = asfloat(gbuffer0.z);
+    data.materialID        = gbuffer0.w;
+    data.normalWS          = gbuffer1.xyz;
+    data.metalMask         = gbuffer1.w;
     return data;
 }
 void encodeGBuffers(in GBufferData data, out GBUFFER0_DATATYPE gbuffer0, out GBUFFER1_DATATYPE gbuffer1)
 {
     uint3 packedAlbedo = f32tof16(data.albedo); // Each contained in low 16 bits.
+    uint packedIoR = f32tof16(data.indexOfRefraction);
 
     gbuffer0.x   = (packedAlbedo.x << 16) | packedAlbedo.y;
-    gbuffer0.y   = packedAlbedo.z;
-    gbuffer0.z   = data.materialID;
-    gbuffer0.w   = asuint(data.roughness);
+    gbuffer0.y   = (packedAlbedo.z << 16) | packedIoR;
+    gbuffer0.z   = asuint(data.roughness);
+    gbuffer0.w   = data.materialID;
     gbuffer1.xyz = data.normalWS;
     gbuffer1.w   = data.metalMask;
 }

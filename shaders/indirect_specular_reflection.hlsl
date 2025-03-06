@@ -151,9 +151,18 @@ float2 getRandoms(uint2 texel, uint bounce)
 	return float2(rand0, rand1);
 }
 
+float3 getRefractedDirection(float3 V, float3 N, float ior)
+{
+	float inCosTheta = dot(-V, N);
+	float outSinThetaSq = ior * ior * (1 - inCosTheta * inCosTheta);
+
+	return ior * V + (ior * inCosTheta - sqrt(1 - outSinThetaSq)) * N;
+}
+
 float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 {
 	RayPayload currentRayPayload = createRayPayload();
+	float prevIoR = IOR_AIR; // #todo-refraction: Assume primary ray is always in air.
 
 	RayDesc currentRay;
 	currentRay.Origin = rayOrigin;
@@ -233,12 +242,15 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		}
 		else if (materialID == MATERIAL_ID_TRANSPARENT)
 		{
-			// #todo: Change scatteredDir by the Law of Refraction.
+			float3 V = currentRay.Direction;
+			float3 N = dot(surfaceNormal, V) <= 0 ? surfaceNormal : -surfaceNormal;
+			float ior = prevIoR / currentRayPayload.indexOfRefraction;
+
 			scatteredReflectance = 1.0;
-			scatteredDir = currentRay.Direction;
+			scatteredDir = getRefractedDirection(V, N, ior);
 			scatteredPdf = 1.0;
 
-			nextRayOffset = REFRACTION_START_OFFSET * currentRay.Direction;
+			nextRayOffset = REFRACTION_START_OFFSET * scatteredDir;
 		}
 		
 		// #todo: Sometimes surfaceNormal is NaN
@@ -262,6 +274,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		//currentRay.TMax = RAYGEN_T_MAX;
 
 		numBounces += 1;
+		prevIoR = currentRayPayload.indexOfRefraction;
 	}
 
 	float3 Li = 0;
@@ -394,9 +407,12 @@ void MainRaygen()
 	}
 	else if (gbufferData.materialID == MATERIAL_ID_TRANSPARENT)
 	{
-		// #todo: Change scatteredDir by the Law of Refraction.
+		float3 V = viewDirection;
+		float3 N = normalWS;
+		float ior = IOR_AIR / gbufferData.indexOfRefraction; // #todo-refraction: Assume primary ray is always in air.
+
 		scatteredReflectance = 1.0;
-		scatteredDir = viewDirection;
+		scatteredDir = getRefractedDirection(V, N, ior);
 		scatteredPdf = 1.0;
 
 		float3 relaxedPositionWS = positionWS + (scatteredDir * REFRACTION_START_OFFSET);

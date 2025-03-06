@@ -5,6 +5,9 @@
 #define MATERIAL_ID_DEFAULT_LIT 1
 #define MATERIAL_ID_TRANSPARENT 2
 
+// See material.h.
+#define IOR_AIR                 1.00029
+
 // Should match with MaterialConstants in gpu_scene.h.
 struct Material
 {

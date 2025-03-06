@@ -97,8 +97,6 @@ PixelOutput mainPS(Interpolants interpolants)
     Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
     float3 albedo = albedoTex.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
     albedo *= material.albedoMultiplier.rgb;
-    float roughness = material.roughness;
-    float metalMask = material.metalMask;
 
     // Direct lighting
     float3 diffuse = float3(0.0, 0.0, 0.0);
@@ -117,11 +115,12 @@ PixelOutput mainPS(Interpolants interpolants)
     luminance *= shadow;
 
     GBufferData gbufferData;
-    gbufferData.albedo     = albedo;
-    gbufferData.roughness  = roughness;
-    gbufferData.normalWS   = N;
-    gbufferData.metalMask  = metalMask;
-    gbufferData.materialID = material.materialID;
+    gbufferData.albedo            = albedo;
+    gbufferData.roughness         = material.roughness;
+    gbufferData.normalWS          = N;
+    gbufferData.metalMask         = material.metalMask;
+    gbufferData.materialID        = material.materialID;
+    gbufferData.indexOfRefraction = material.indexOfRefraction;
 
     PixelOutput output;
     output.sceneColor = float4(luminance, 1.0);

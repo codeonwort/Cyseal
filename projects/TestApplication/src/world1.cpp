@@ -213,12 +213,12 @@ void World1::createResources()
 	// glassBox
 	{
 		Geometry* geometry = new Geometry;
-		ProceduralGeometry::cube(*geometry, 8.0f, 8.0f, 8.0f);
+		ProceduralGeometry::icosphere(*geometry, 1);
 		AABB localBounds = geometry->localBounds;
 
 		auto material = makeShared<MaterialAsset>();
 		material->materialID = EMaterialId::Transparent;
-		material->albedoMultiplier = vec3(1.0f);
+		material->albedoMultiplier = vec3(0.0f);
 		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
 		material->roughness = 0.1f;
 		material->indexOfRefraction = IoR::CrownGlass;
@@ -230,6 +230,7 @@ void World1::createResources()
 
 		glassBox = new StaticMesh;
 		glassBox->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
+		glassBox->setScale(10.0f);
 
 		scene->addStaticMesh(glassBox);
 	}
