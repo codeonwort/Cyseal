@@ -20,4 +20,5 @@ private:
 	StaticMesh* pbrtMesh = nullptr;
 	StaticMesh* ground = nullptr;
 	StaticMesh* wallA = nullptr;
+	StaticMesh* glassBox = nullptr;
 };

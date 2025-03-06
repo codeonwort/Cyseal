@@ -78,6 +78,7 @@ void World1::onTerminate()
 	meshSplatting.destroyResources();
 	delete ground;
 	delete wallA;
+	delete glassBox;
 	if (LOAD_PBRT_FILE && pbrtMesh != nullptr) delete pbrtMesh;
 
 	scene->skyboxTexture.reset();
@@ -207,6 +208,30 @@ void World1::createResources()
 		wallA->setRotation(vec3(0.0f, 0.0f, 1.0f), -10.0f);
 
 		scene->addStaticMesh(wallA);
+	}
+
+	// glassBox
+	{
+		Geometry* geometry = new Geometry;
+		ProceduralGeometry::cube(*geometry, 8.0f, 8.0f, 8.0f);
+		AABB localBounds = geometry->localBounds;
+
+		auto material = makeShared<MaterialAsset>();
+		material->materialID = EMaterialId::Transparent;
+		material->albedoMultiplier = vec3(1.0f);
+		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
+		material->roughness = 0.1f;
+		material->indexOfRefraction = IoR::CrownGlass;
+
+		SharedPtr<VertexBufferAsset> positionBufferAsset = makeShared<VertexBufferAsset>();
+		SharedPtr<VertexBufferAsset> nonPositionBufferAsset = makeShared<VertexBufferAsset>();
+		SharedPtr<IndexBufferAsset> indexBufferAsset = makeShared<IndexBufferAsset>();
+		uploadMeshGeometry(geometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
+
+		glassBox = new StaticMesh;
+		glassBox->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
+
+		scene->addStaticMesh(glassBox);
 	}
 
 	// Skybox

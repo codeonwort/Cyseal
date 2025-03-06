@@ -113,7 +113,9 @@ struct RayPayload
 	uint   objectID;
 
 	float  metalMask;
-	uint3  _pad0;
+	uint   materialID;
+	float  indexOfRefraction;
+	uint   _pad0;
 };
 
 RayPayload createRayPayload()
@@ -346,31 +348,40 @@ void MainRaygen()
 
 	float2 randoms = getRandoms(texel, 0);
 
+	float3 Wo = 0;
 	float3 scatteredReflectance, scatteredDir; float scatteredPdf;
-	if (indirectSpecularUniform.traceMode == TRACE_BRDF)
+	if (gbufferData.materialID == MATERIAL_ID_DEFAULT_LIT)
 	{
-		// Consider only specular part for first indirect bounce, but consider both for further bounces.
-		// Therefore it's L(D|S)SE path.
-		float3 dummy;
-		splitMicrofacetBRDF(viewDirection, normalWS, albedo, roughness, metalMask, randoms.x, randoms.y,
-			dummy, scatteredReflectance, scatteredDir, scatteredPdf);
-
-		// #todo: It happens :(
-		if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
+		if (indirectSpecularUniform.traceMode == TRACE_BRDF)
 		{
-			scatteredPdf = 0.0;
+			// Consider only specular part for first indirect bounce, but consider both for further bounces.
+			// Therefore it's L(D|S)SE path.
+			float3 dummy;
+			splitMicrofacetBRDF(viewDirection, normalWS, albedo, roughness, metalMask, randoms.x, randoms.y,
+				dummy, scatteredReflectance, scatteredDir, scatteredPdf);
+
+			// #todo: It happens :(
+			if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
+			{
+				scatteredPdf = 0.0;
+			}
 		}
+		else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
+		{
+			scatteredReflectance = 1.0;
+			scatteredDir = reflect(viewDirection, normalWS);
+			scatteredPdf = 1.0;
+		}
+		float3 relaxedPositionWS = normalWS * GBUFFER_NORMAL_OFFSET + positionWS;
+		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, scatteredDir);
+		
+		Wo = (scatteredReflectance / scatteredPdf) * Li;
 	}
-	else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
+	else if (gbufferData.materialID == MATERIAL_ID_TRANSPARENT)
 	{
-		scatteredReflectance = 1.0;
-		scatteredDir = reflect(viewDirection, normalWS);
-		scatteredPdf = 1.0;
+		// #todo: transmission here
+		Wo = 0;
 	}
-	
-	float3 relaxedPositionWS = normalWS * GBUFFER_NORMAL_OFFSET + positionWS;
-	float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, scatteredDir);
-	float3 Wo = (scatteredReflectance / scatteredPdf) * Li;
 
 	//prevColor was already acquired by getPrevFrame()
 	float historyCount = bTemporalReprojection ? prevFrame.historyCount : 0;
@@ -431,13 +442,15 @@ void MainClosestHit(inout RayPayload payload, in MyAttributes attr)
 
 	// Output payload
 	
-	payload.surfaceNormal = surfaceNormal;
-	payload.roughness     = material.roughness;
-	payload.albedo        = albedo;
-	payload.hitTime       = RayTCurrent();
-	payload.emission      = material.emission;
-	payload.objectID      = objectID;
-	payload.metalMask     = material.metalMask;
+	payload.surfaceNormal     = surfaceNormal;
+	payload.roughness         = material.roughness;
+	payload.albedo            = albedo;
+	payload.hitTime           = RayTCurrent();
+	payload.emission          = material.emission;
+	payload.objectID          = objectID;
+	payload.metalMask         = material.metalMask;
+	payload.materialID        = material.materialID;
+	payload.indexOfRefraction = material.indexOfRefraction;
 }
 
 [shader("miss")]
