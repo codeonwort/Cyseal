@@ -27,6 +27,12 @@ $zip_list = @(
 		'external/NVidiaSTBN'
 	),
 	@(
+		'https://github.com/RenderKit/oidn/releases/download/v2.3.2/oidn-2.3.2.x64.windows.zip',
+		'external',
+		'IntelOpenImageDenoise.zip',
+		'external/IntelOpenImageDenoise'
+	),
+	@(
 		'https://benedikt-bitterli.me/resources/pbrt-v4/bedroom.zip',
 		'external',
 		'pbrt4_bedroom.zip',
