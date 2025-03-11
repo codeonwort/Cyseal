@@ -15,6 +15,10 @@
 
 #if PLATFORM_WINDOWS
 	#include "imgui_impl_win32.h"
+
+	// #todo: oidn is not Windows-only but I'm downloading Windows pre-built binaries.
+	#include "OpenImageDenoise/oidn.h"
+	#pragma comment(lib, "OpenImageDenoise.lib")
 #endif
 
 #if COMPILE_BACKEND_DX12
@@ -70,6 +74,27 @@ void CysealEngine::startup(const CysealEngineCreateParams& inCreateParams)
 	createRenderer(createParams.rendererType);
 
 	CYLOG(LogEngine, Log, TEXT("Renderer has been initialized."));
+
+	// Intel OpenImageDenoise
+	// #todo-oidn
+	OIDNDevice oidnDevice = oidnNewDevice(OIDN_DEVICE_TYPE_DEFAULT);
+	oidnCommitDevice(oidnDevice);
+	const char* oidnErr;
+	if (oidnGetDeviceError(oidnDevice, &oidnErr) != OIDN_ERROR_NONE)
+	{
+		CYLOG(LogEngine, Error, L"oidn error: %S", oidnErr);
+	}
+	else
+	{
+		int32 deviceType = oidnGetDeviceInt(oidnDevice, "type"); // OIDNDeviceType
+		int32 majorVer = oidnGetDeviceInt(oidnDevice, "versionMajor");
+		int32 minorVer = oidnGetDeviceInt(oidnDevice, "versionMinor");
+		int32 patchVer = oidnGetDeviceInt(oidnDevice, "versionPatch");
+
+		CYLOG(LogEngine, Log, TEXT("Intel OpenImageDenoise type=%d ver=%d.%d.%d"),
+			deviceType, majorVer, minorVer, patchVer);
+	}
+	oidnReleaseDevice(oidnDevice);
 
 	// Dear IMGUI
 	createDearImgui(createParams.renderDevice.nativeWindowHandle);

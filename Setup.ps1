@@ -185,7 +185,7 @@ if ($num_post_unzip_files -gt 0) {
 }
 
 #
-# Copy DXC binaries to bin/
+# Copy third party binaries to bin/
 #
 Ensure-Subdirectory "$pwd/bin/Debug"
 Ensure-Subdirectory "$pwd/bin/Release"
@@ -193,3 +193,5 @@ Copy-Item -Path "$pwd/external/dxc/bin/x64/dxcompiler.dll" -Destination "$pwd/bi
 Copy-Item -Path "$pwd/external/dxc/bin/x64/dxcompiler.dll" -Destination "$pwd/bin/Release"
 Copy-Item -Path "$pwd/external/dxc/bin/x64/dxil.dll" -Destination "$pwd/bin/Debug"
 Copy-Item -Path "$pwd/external/dxc/bin/x64/dxil.dll" -Destination "$pwd/bin/Release"
+Copy-Item -Path "$pwd/external/IntelOpenImageDenoise/oidn-2.3.2.x64.windows/bin/*.dll" -Destination "$pwd/bin/Debug"
+Copy-Item -Path "$pwd/external/IntelOpenImageDenoise/oidn-2.3.2.x64.windows/bin/*.dll" -Destination "$pwd/bin/Release"
