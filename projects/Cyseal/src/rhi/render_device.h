@@ -172,9 +172,10 @@ protected:
 	EPixelFormat            backbufferDepthFormat = EPixelFormat::D32_FLOAT_S8_UINT; //EPixelFormat::D24_UNORM_S8_UINT;
 	SwapChain*              swapChain = nullptr;
 
+	// Plugin: DearImGui
 	DescriptorHeap*         imguiSRVHeap = nullptr;
-
-	DenoiserDevice*         denoiserDevice = nullptr; // #todo-oidn: who should own it?
+	// Plugin: Intel OpenImageDenoise
+	DenoiserDevice*         denoiserDevice = nullptr;
 
 	// https://learn.microsoft.com/en-us/windows/win32/direct3d12/recording-command-lists-and-bundles
 	// Command allocators should hold memory for render commands while GPU is accessing them,

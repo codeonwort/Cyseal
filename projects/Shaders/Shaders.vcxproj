@@ -82,6 +82,7 @@
   <ItemGroup>
     <FxCompile Include="..\..\shaders\base_pass.hlsl" />
     <FxCompile Include="..\..\shaders\bilateral_blur.hlsl" />
+    <FxCompile Include="..\..\shaders\blit_denoiser_input.hlsl" />
     <FxCompile Include="..\..\shaders\bsdf.hlsl" />
     <FxCompile Include="..\..\shaders\buffer_visualization.hlsl" />
     <FxCompile Include="..\..\shaders\common.hlsl" />

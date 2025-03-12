@@ -25,6 +25,7 @@
 #include "render/raytracing/indirect_diffuse_pass.h"
 #include "render/raytracing/indirect_specular_pass.h"
 #include "render/pathtracing/path_tracing_pass.h"
+#include "render/pathtracing/denoiser_plugin_pass.h"
 
 #include "util/profiling.h"
 
@@ -130,6 +131,9 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 		pathTracingPass = new PathTracingPass;
 		pathTracingPass->initialize();
+
+		denoiserPluginPass = new DenoiserPluginPass;
+		denoiserPluginPass->initialize();
 	}
 }
 
@@ -156,6 +160,7 @@ void SceneRenderer::destroy()
 	delete toneMapping;
 	delete bufferVisualization;
 	delete pathTracingPass;
+	delete denoiserPluginPass;
 }
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
@@ -431,6 +436,36 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.skyboxSRV             = skyboxSRV.get(),
 			};
 			pathTracingPass->renderPathTracing(commandList, swapchainIndex, passInput);
+		}
+	}
+	// Path Tracing Denoising
+	{
+		// #todo-oidn: After enough path accumulation, flush the command queue, run denoiser, then copy the result to sceneColor.
+		// #todo-oidn: Well to do so I need to resurrect FLUSH_RENDER_COMMANDS().
+		bool runDenoiserNow = true;
+
+		if (bRenderPathTracing && runDenoiserNow)
+		{
+			SCOPED_DRAW_EVENT(commandList, BlitDenoiserInput);
+
+			TextureMemoryBarrier barriersBefore[] = {
+				{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_pathTracing.get(), }
+			};
+			commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+			DenoiserPluginInput passInput{
+				.imageWidth    = sceneWidth,
+				.imageHeight   = sceneHeight,
+				.sceneColorSRV = pathTracingSRV.get(),
+				.gbuffer0SRV   = gbufferSRVs[0].get(),
+				.gbuffer1SRV   = gbufferSRVs[1].get()
+			};
+			denoiserPluginPass->blitTextures(commandList, swapchainIndex, passInput);
+
+			TextureMemoryBarrier barriersAfter[] = {
+				{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_pathTracing.get(), }
+			};
+			commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersAfter);
 		}
 	}
 

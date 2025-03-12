@@ -15,5 +15,6 @@
     <FxCompile Include="..\..\shaders\sky_pass.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_reflection.hlsl" />
     <FxCompile Include="..\..\shaders\material.hlsl" />
+    <FxCompile Include="..\..\shaders\blit_denoiser_input.hlsl" />
   </ItemGroup>
 </Project>

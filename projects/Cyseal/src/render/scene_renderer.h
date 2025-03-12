@@ -20,6 +20,7 @@ class IndirecSpecularPass;
 class ToneMapping;
 class BufferVisualization;
 class PathTracingPass;
+class DenoiserPluginPass;
 
 // Should match with common.hlsl
 struct SceneUniform
@@ -131,4 +132,5 @@ private:
 	ToneMapping*          toneMapping           = nullptr;
 	BufferVisualization*  bufferVisualization   = nullptr;
 	PathTracingPass*      pathTracingPass       = nullptr;
+	DenoiserPluginPass*   denoiserPluginPass    = nullptr;
 };
