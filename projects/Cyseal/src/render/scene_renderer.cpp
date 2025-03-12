@@ -12,6 +12,7 @@
 #include "rhi/global_descriptor_heaps.h"
 #include "rhi/texture_manager.h"
 #include "rhi/hardware_raytracing.h"
+#include "rhi/denoiser_device.h"
 
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
@@ -644,6 +645,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 {
+	gRenderDevice->getDenoiserDevice()->recreateResources(sceneWidth, sceneHeight);
+
 	auto& cleanupList = this->deferredCleanupList;
 	auto cleanup = [&cleanupList](GPUResource* resource) {
 		if (resource != nullptr)

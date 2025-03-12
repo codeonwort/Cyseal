@@ -2,9 +2,28 @@
 #include "gpu_resource_binding.h"
 #include "descriptor_heap.h"
 
+#include "denoiser_device.h"
+
 RenderDevice* gRenderDevice = nullptr;
 
 DEFINE_LOG_CATEGORY(LogDevice);
+
+void RenderDevice::initialize(const RenderDeviceCreateParams& inCreateParams)
+{
+	createParams = inCreateParams;
+
+	initializeDenoiserDevice();
+
+	onInitialize(createParams);
+}
+
+void RenderDevice::destroy()
+{
+	onDestroy();
+
+	denoiserDevice->destroy();
+	delete denoiserDevice;
+}
 
 void RenderDevice::initializeDearImgui()
 {
@@ -23,4 +42,10 @@ void RenderDevice::shutdownDearImgui()
 	CHECK(imguiSRVHeap != nullptr);
 	delete imguiSRVHeap;
 	imguiSRVHeap = nullptr;
+}
+
+void RenderDevice::initializeDenoiserDevice()
+{
+	denoiserDevice = new DenoiserDevice;
+	denoiserDevice->create();
 }

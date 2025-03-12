@@ -11,6 +11,8 @@
 #include "render_device_capabilities.h"
 #include "util/logging.h"
 
+class DenoiserDevice;
+
 enum class ERenderDeviceRawAPI
 {
 	DirectX12,
@@ -58,12 +60,11 @@ public:
 	RenderDevice() = default;
 	virtual ~RenderDevice() = default;
 
-	void initialize(const RenderDeviceCreateParams& inCreateParams)
-	{
-		createParams = inCreateParams;
-		onInitialize(createParams);
-	}
+	void initialize(const RenderDeviceCreateParams& inCreateParams);
+	void destroy();
+
 	virtual void onInitialize(const RenderDeviceCreateParams& createParams) = 0;
+	virtual void onDestroy() {}
 
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) = 0;
 
@@ -77,6 +78,11 @@ public:
 	virtual void renderDearImgui(RenderCommandList* commandList) = 0;
 	virtual void shutdownDearImgui();
 	inline DescriptorHeap* getDearImguiSRVHeap() const { return imguiSRVHeap; }
+
+	// ------------------------------------------------------------------------
+	// Plugin: Intel OpenImageDenoise
+
+	void initializeDenoiserDevice();
 
 	// ------------------------------------------------------------------------
 	// Create
@@ -154,6 +160,8 @@ public:
 	inline EMeshShaderTier getMeshShaderTier() const { return meshShaderTier; }
 	inline ESamplerFeedbackTier getSamplerFeedbackTier() const { return samplerFeedbackTier; }
 
+	inline DenoiserDevice* getDenoiserDevice() { return denoiserDevice; }
+
 	virtual uint32 getConstantBufferDataAlignment() const = 0;
 
 protected:
@@ -165,6 +173,8 @@ protected:
 	SwapChain*              swapChain = nullptr;
 
 	DescriptorHeap*         imguiSRVHeap = nullptr;
+
+	DenoiserDevice*         denoiserDevice = nullptr; // #todo-oidn: who should own it?
 
 	// https://learn.microsoft.com/en-us/windows/win32/direct3d12/recording-command-lists-and-bundles
 	// Command allocators should hold memory for render commands while GPU is accessing them,

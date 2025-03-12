@@ -309,6 +309,9 @@
     <ClInclude Include="src\render\raytracing\indirect_diffuse_pass.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\rhi\denoiser_device.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -492,6 +495,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\render\raytracing\indirect_diffuse_pass.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rhi\denoiser_device.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
