@@ -207,10 +207,48 @@ float3 cosineWeightedHemisphereSample(float u0, float u1)
 	return float3(cos(phi) * cos(theta), sin(phi) * cos(theta), sin(theta));
 }
 
+// ---------------------------------------------------------
+// Light sampling
+
 float3 sampleSky(float3 dir)
 {
 	return SKYBOX_BOOST* skybox.SampleLevel(skyboxSampler, dir, 0.0).rgb;
 }
+
+float3 traceSun(float3 rayOrigin)
+{
+	RayPayload rayPayload = createRayPayload();
+
+	RayDesc rayDesc;
+	rayDesc.Origin = rayOrigin;
+	rayDesc.Direction = sceneUniform.sunDirection.xyz;
+	rayDesc.TMin = RAYGEN_T_MIN;
+	rayDesc.TMax = RAYGEN_T_MAX;
+
+	uint instanceInclusionMask = ~0; // Do not ignore anything
+	uint rayContributionToHitGroupIndex = 0;
+	uint multiplierForGeometryContributionToHitGroupIndex = 1;
+	uint missShaderIndex = 0;
+	TraceRay(
+		rtScene,
+		RAY_FLAG_NONE,
+		instanceInclusionMask,
+		rayContributionToHitGroupIndex,
+		multiplierForGeometryContributionToHitGroupIndex,
+		missShaderIndex,
+		rayDesc,
+		rayPayload);
+
+	if (rayPayload.objectID == OBJECT_ID_NONE)
+	{
+		return sceneUniform.sunIlluminance;
+	}
+
+	return 0;
+}
+
+// ---------------------------------------------------------
+// Shader stages
 
 float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 cameraRayDir)
 {
@@ -250,14 +288,6 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
 			radianceHistory[numBounces] = sampleSky(currentRay.Direction);
-			reflectanceHistory[numBounces] = 1;
-			pdfHistory[numBounces] = 1;
-			break;
-		}
-		// Emissive shape. Exit the loop.
-		else if (any(currentRayPayload.emission > 0))
-		{
-			radianceHistory[numBounces] = currentRayPayload.emission;
 			reflectanceHistory[numBounces] = 1;
 			pdfHistory[numBounces] = 1;
 			break;
@@ -316,7 +346,10 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		float scatteredPdf = 1;
 #endif
 
-		radianceHistory[numBounces] = 0;
+		float3 E = 0;
+		E += traceSun(surfacePosition);
+
+		radianceHistory[numBounces] = currentRayPayload.emission + E;
 		reflectanceHistory[numBounces] = scatteredReflectance;
 		pdfHistory[numBounces] = scatteredPdf;
 
