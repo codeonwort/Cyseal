@@ -13,12 +13,15 @@ public:
 	virtual void onTerminate() override;
 
 private:
-	void createResources();
+	void prepareScene();
+	void createTestMeshes();
+	void createSkybox();
+	void createPbrtResources();
 
 	MeshSplatting meshSplatting;
-
-	StaticMesh* pbrtMesh = nullptr;
 	StaticMesh* ground = nullptr;
 	StaticMesh* wallA = nullptr;
 	StaticMesh* glassBox = nullptr;
+
+	StaticMesh* pbrtMesh = nullptr;
 };

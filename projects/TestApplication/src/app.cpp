@@ -30,13 +30,16 @@
 #define DOUBLE_BUFFERING     true
 #define RAYTRACING_TIER      ERaytracingTier::MaxTier
 
-// Can be overriden by world
+// Camera position and direction can be overriden by world.
 #define CAMERA_POSITION      vec3(50.0f, 0.0f, 30.0f)
 #define CAMERA_LOOKAT        vec3(50.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
 #define CAMERA_FOV_Y         70.0f
 #define CAMERA_Z_NEAR        0.01f
 #define CAMERA_Z_FAR         10000.0f
+// Per second
+#define CAMERA_SPEED_FORWARD 20.0f
+#define CAMERA_SPEED_RIGHT   20.0f
 
 // #todo-world: Select world
 #define WORLD_CLASS          World1
@@ -98,8 +101,8 @@ void TestApplication::onTick(float deltaSeconds)
 
 			camera.rotatePitch(rotateX * deltaSeconds * 45.0f);
 			camera.rotateYaw(rotateY * deltaSeconds * 45.0f);
-			camera.moveForward(moveZ * deltaSeconds * 10.0f);
-			camera.moveRight(moveX * deltaSeconds * 10.0f);
+			camera.moveForward(moveZ * deltaSeconds * CAMERA_SPEED_FORWARD);
+			camera.moveRight(moveX * deltaSeconds * CAMERA_SPEED_RIGHT);
 		}
 		appState.rendererOptions.bCameraHasMoved = bCameraHasMoved;
 

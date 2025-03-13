@@ -608,6 +608,10 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			bCurrentTransformIdentity = true;
 			currentEmission = vec3(0.0f);
 		}
+		else
+		{
+			CYLOG(LogPBRT, Error, L"Can't parse token: %S", token.c_str());
+		}
 	}
 
 	if (!bValidFormat)
