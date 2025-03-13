@@ -15,6 +15,8 @@ class D3DTexture : public Texture
 public:
 	void initialize(const TextureCreateParams& params);
 
+	virtual void setDebugName(const wchar_t* debugName) override;
+
 	virtual const TextureCreateParams& getCreateParams() const override { return createParams; }
 
 	virtual void uploadData(
@@ -23,7 +25,14 @@ public:
 		uint64 rowPitch,
 		uint64 slicePitch,
 		uint32 subresourceIndex = 0) override;
-	virtual void setDebugName(const wchar_t* debugName) override;
+
+	virtual uint64 getRowPitch() const override { return rowPitch; }
+
+	virtual uint64 getReadbackBufferSize() const override { return readbackBufferSize; }
+
+	virtual bool prepareReadback(RenderCommandList* commandList) override;
+
+	virtual bool readbackData(void* dst) override;
 
 	virtual void* getRawResource() const override { return rawResource.Get(); }
 
@@ -37,4 +46,11 @@ private:
 	// prematurely destroyed.
 	WRL::ComPtr<ID3D12Resource> textureUploadHeap;
 	bool bIsPixelShaderResourceState = false; // I don't have resource barrier auto-tracking :/
+
+	uint64 rowPitch = 0;
+
+	WRL::ComPtr<ID3D12Resource> readbackBuffer;
+	D3D12_TEXTURE_COPY_LOCATION readbackFootprintDesc;
+	uint64 readbackBufferSize = 0;
+	bool bReadbackPrepared = false;
 };

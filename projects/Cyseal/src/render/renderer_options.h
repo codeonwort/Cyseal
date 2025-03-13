@@ -57,6 +57,13 @@ enum class EPathTracingMode : uint32
 	Count
 };
 
+enum class EPathTracingDenoiserState
+{
+	WaitForFrameAccumulation,
+	DenoiseNow,
+	KeepDenoisingResult,
+};
+
 inline const char** getBufferVisualizationModeNames()
 {
 	static const char* strings[] =
@@ -131,6 +138,7 @@ struct RendererOptions
 
 	EPathTracingMode pathTracing = EPathTracingMode::Disabled;
 	bool bCameraHasMoved = false;
+	EPathTracingDenoiserState pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
 
 	bool anyRayTracingEnabled() const
 	{

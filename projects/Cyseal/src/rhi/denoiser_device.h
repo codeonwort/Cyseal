@@ -1,8 +1,10 @@
 #pragma once
 
 #include "OpenImageDenoise/oidn.h"
+#include <vector>
 
 class Texture;
+class RenderCommandList;
 
 class DenoiserDevice
 {
@@ -17,9 +19,9 @@ public:
 	// @param inColor Noisy raytracing result.
 	// @param inAlbedo Clean albedo image.
 	// @param inNormal Clean surface normal image.
-	// @param outDenoised Texture to write the denoising result.
+	// @param outResult Raw buffer that contains denoised result.
 	// @return false if unable to denoise.
-	bool denoise(Texture* inColor, Texture* inAlbedo, Texture* inNormal, Texture* outDenoised);
+	bool denoise(Texture* inColor, Texture* inAlbedo, Texture* inNormal, std::vector<uint8>& outResult);
 
 	bool isValid() const;
 
@@ -31,6 +33,8 @@ private:
 
 	uint32 width = 0;
 	uint32 height = 0;
+	size_t oidnBufferPixelByteStride = 0;
+	size_t oidnBufferSize = 0;
 	OIDNBuffer oidnColorBuffer = nullptr;
 	OIDNBuffer oidnAlbedoBuffer = nullptr;
 	OIDNBuffer oidnNormalBuffer = nullptr;

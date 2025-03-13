@@ -20,6 +20,7 @@ enum class ETextureAccessFlags : uint32
     UAV          = 1 << 2,
     DSV          = 1 << 3,
     CPU_WRITE    = 1 << 4,
+	CPU_READBACK = 1 << 5,
 
     COLOR_ALL = SRV | RTV | UAV
 };
@@ -131,4 +132,18 @@ public:
 		uint64 rowPitch,
 		uint64 slicePitch,
 		uint32 subresourceIndex = 0) = 0;
+
+	virtual uint64 getRowPitch() const { return 0; }
+
+	// createParams should have CPU_READBACK flag.
+	virtual uint64 getReadbackBufferSize() const { return 0; }
+
+	// Invoke while constructing command list.
+	// @return false if failed.
+	virtual bool prepareReadback(RenderCommandList* commandList) { return false; }
+
+	// Invoke after flushing command queue.
+	// dst should be a preallocated memory as large as the size returned by getReadbackBufferSize().
+	// @return false if failed.
+	virtual bool readbackData(void* dst) { return false; }
 };

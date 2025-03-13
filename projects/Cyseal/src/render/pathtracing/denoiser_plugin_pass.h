@@ -22,8 +22,7 @@ public:
 	bool isAvailable() const;
 
 	void blitTextures(RenderCommandList* commandList, uint32 swapchainIndex, const DenoiserPluginInput& passInput);
-
-	void executeDenoiser();
+	void executeDenoiser(RenderCommandList* commandList, Texture* dst);
 
 private:
 	void resizeTextures(uint32 newWidth, uint32 newHeight);

@@ -103,19 +103,41 @@ void TestApplication::onTick(float deltaSeconds)
 		}
 		appState.rendererOptions.bCameraHasMoved = bCameraHasMoved;
 
+		const uint32 PATH_TRACING_MAX_FRAMES = 64;
+
 		if (appState.rendererOptions.pathTracing == EPathTracingMode::Disabled)
 		{
 			appState.pathTracingNumFrames = 0;
+			appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
 		}
 		else if (appState.rendererOptions.pathTracing == EPathTracingMode::Offline)
 		{
-			appState.pathTracingNumFrames += 1;
-			if (bCameraHasMoved) appState.pathTracingNumFrames = 0;
+			if (bCameraHasMoved)
+			{
+				appState.pathTracingNumFrames = 0;
+				appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
+			}
+			else
+			{
+				appState.pathTracingNumFrames += 1;
+				if (appState.pathTracingNumFrames == PATH_TRACING_MAX_FRAMES)
+				{
+					appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::DenoiseNow;
+				}
+				else if (appState.pathTracingNumFrames > PATH_TRACING_MAX_FRAMES)
+				{
+					appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::KeepDenoisingResult;
+				}
+			}
 		}
 		else
 		{
 			appState.pathTracingNumFrames += 1;
-			if (appState.pathTracingNumFrames > 64) appState.pathTracingNumFrames = 64;
+			if (appState.pathTracingNumFrames > PATH_TRACING_MAX_FRAMES)
+			{
+				appState.pathTracingNumFrames = PATH_TRACING_MAX_FRAMES;
+			}
+			appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
 		}
 
 		world->onTick(deltaSeconds);

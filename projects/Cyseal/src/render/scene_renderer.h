@@ -56,6 +56,9 @@ public:
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) override;
 	
 private:
+	void resetCommandList(RenderCommandAllocator* commandAllocator, RenderCommandList* commandList);
+	void immediateFlushCommandQueue(RenderCommandQueue* commandQueue, RenderCommandAllocator* commandAllocator, RenderCommandList* commandList);
+
 	void updateSceneUniform(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene, const Camera* camera);
 
 	void rebuildFrameResources(RenderCommandList* commandList, const SceneProxy* scene);

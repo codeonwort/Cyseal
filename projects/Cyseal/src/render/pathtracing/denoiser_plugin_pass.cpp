@@ -82,13 +82,27 @@ void DenoiserPluginPass::blitTextures(RenderCommandList* commandList, uint32 swa
 	commandList->setComputePipelineState(blitPipelineState.get());
 	commandList->bindComputeShaderParameters(blitPipelineState.get(), &SPT, descriptorHeap);
 	commandList->dispatchCompute(dispatchX, dispatchY, 1);
+
+	colorTexture->prepareReadback(commandList);
+	albedoTexture->prepareReadback(commandList);
+	normalTexture->prepareReadback(commandList);
 }
 
-void DenoiserPluginPass::executeDenoiser()
+void DenoiserPluginPass::executeDenoiser(RenderCommandList* commandList, Texture* dst)
 {
 	DenoiserDevice* denoiserDevice = gRenderDevice->getDenoiserDevice();
 
-	denoiserDevice->denoise(colorTexture.get(), albedoTexture.get(), normalTexture.get(), denoisedTexture.get());
+	std::vector<uint8> denoisedBuffer;
+	denoiserDevice->denoise(colorTexture.get(), albedoTexture.get(), normalTexture.get(), denoisedBuffer);
+
+	const uint32 width = denoisedTexture->getCreateParams().width;
+	const uint32 height = denoisedTexture->getCreateParams().height;
+	const uint64 rowPitch = denoisedTexture->getRowPitch();
+	const uint64 slicePitch = rowPitch * height;
+
+	denoisedTexture->uploadData(*commandList, denoisedBuffer.data(), rowPitch, slicePitch, 0);
+
+	commandList->copyTexture2D(denoisedTexture.get(), dst);
 }
 
 void DenoiserPluginPass::resizeTextures(uint32 newWidth, uint32 newHeight)
@@ -104,25 +118,30 @@ void DenoiserPluginPass::resizeTextures(uint32 newWidth, uint32 newHeight)
 		normalTexture.reset();
 		denoisedTexture.reset();
 
-		TextureCreateParams textureDesc = TextureCreateParams::texture2D(
+		const TextureCreateParams readbackTextureDesc = TextureCreateParams::texture2D(
+			DENOISER_INPUT_FORMAT,
+			ETextureAccessFlags::UAV | ETextureAccessFlags::CPU_READBACK,
+			newWidth, newHeight, 1, 1, 0);
+
+		colorTexture = UniquePtr<Texture>(gRenderDevice->createTexture(readbackTextureDesc));
+		colorTexture->setDebugName(L"Texture_DenoiserInput_Color");
+
+		albedoTexture = UniquePtr<Texture>(gRenderDevice->createTexture(readbackTextureDesc));
+		albedoTexture->setDebugName(L"Texture_DenoiserInput_Albedo");
+
+		normalTexture = UniquePtr<Texture>(gRenderDevice->createTexture(readbackTextureDesc));
+		normalTexture->setDebugName(L"Texture_DenoiserInput_Normal");
+
+		const TextureCreateParams uploadTextureDesc = TextureCreateParams::texture2D(
 			DENOISER_INPUT_FORMAT,
 			ETextureAccessFlags::UAV | ETextureAccessFlags::CPU_WRITE,
 			newWidth, newHeight, 1, 1, 0);
 
-		colorTexture = UniquePtr<Texture>(gRenderDevice->createTexture(textureDesc));
-		colorTexture->setDebugName(L"Texture_DenoiserInput_Color");
-
-		albedoTexture = UniquePtr<Texture>(gRenderDevice->createTexture(textureDesc));
-		albedoTexture->setDebugName(L"Texture_DenoiserInput_Albedo");
-
-		normalTexture = UniquePtr<Texture>(gRenderDevice->createTexture(textureDesc));
-		normalTexture->setDebugName(L"Texture_DenoiserInput_Normal");
-
-		denoisedTexture = UniquePtr<Texture>(gRenderDevice->createTexture(textureDesc));
+		denoisedTexture = UniquePtr<Texture>(gRenderDevice->createTexture(uploadTextureDesc));
 		denoisedTexture->setDebugName(L"Texture_DenoiserOutput");
 
-		UnorderedAccessViewDesc uavDesc{
-			.format         = textureDesc.format,
+		const UnorderedAccessViewDesc uavDesc{
+			.format         = readbackTextureDesc.format,
 			.viewDimension  = EUAVDimension::Texture2D,
 			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 }
 		};

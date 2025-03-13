@@ -1,4 +1,5 @@
 #include "denoiser_device.h"
+#include "rhi/texture.h"
 #include "core/platform.h"
 #include "util/logging.h"
 
@@ -92,36 +93,53 @@ void DenoiserDevice::recreateResources(uint32 imageWidth, uint32 imageHeight)
 	if (oidnNormalBuffer != nullptr) oidnReleaseBuffer(oidnNormalBuffer);
 	if (oidnDenoisedBuffer != nullptr) oidnReleaseBuffer(oidnDenoisedBuffer);
 
-	const size_t pixelSize = 3 * sizeof(float);
-	const size_t bufferSize = width * height * pixelSize;
+	oidnBufferPixelByteStride = 4 * sizeof(float);
+	oidnBufferSize = width * height * oidnBufferPixelByteStride;
 
 	//oidnNewSharedBufferFromWin32Handle(oidnDevice, OIDN_EXTERNAL_MEMORY_TYPE_FLAG_D3D12_RESOURCE, 
-	oidnColorBuffer = oidnNewBufferWithStorage(oidnDevice, bufferSize, OIDN_STORAGE_DEVICE);
-	oidnAlbedoBuffer = oidnNewBufferWithStorage(oidnDevice, bufferSize, OIDN_STORAGE_DEVICE);
-	oidnNormalBuffer = oidnNewBufferWithStorage(oidnDevice, bufferSize, OIDN_STORAGE_DEVICE);
-	oidnDenoisedBuffer = oidnNewBufferWithStorage(oidnDevice, bufferSize, OIDN_STORAGE_DEVICE);
+	oidnColorBuffer = oidnNewBufferWithStorage(oidnDevice, oidnBufferSize, OIDN_STORAGE_DEVICE);
+	oidnAlbedoBuffer = oidnNewBufferWithStorage(oidnDevice, oidnBufferSize, OIDN_STORAGE_DEVICE);
+	oidnNormalBuffer = oidnNewBufferWithStorage(oidnDevice, oidnBufferSize, OIDN_STORAGE_DEVICE);
+	oidnDenoisedBuffer = oidnNewBufferWithStorage(oidnDevice, oidnBufferSize, OIDN_STORAGE_DEVICE);
 	checkNoDeviceError();
 }
 
-bool DenoiserDevice::denoise(Texture* noisy, Texture* albedo, Texture* normal, Texture* denoised)
+bool DenoiserDevice::denoise(Texture* noisy, Texture* albedo, Texture* normal, std::vector<uint8>& outResult)
 {
 	if (!isValid())
 	{
 		return false;
 	}
 
-	// #todo-oidn: Copy input textures to oidn buffers.
-	// ...
+	CHECK(oidnBufferSize == noisy->getReadbackBufferSize());
+	CHECK(oidnBufferSize == albedo->getReadbackBufferSize());
+	CHECK(oidnBufferSize == normal->getReadbackBufferSize());
+	
+	std::vector<uint8> noisyReadback(oidnBufferSize);
+	std::vector<uint8> albedoReadback(oidnBufferSize);
+	std::vector<uint8> normalReadback(oidnBufferSize);
+	noisy->readbackData(noisyReadback.data());
+	albedo->readbackData(albedoReadback.data());
+	normal->readbackData(normalReadback.data());
 
-	//oidnSetFilterImage(oidnFilter, "color", oidnColorBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, 0, 0);
-	//oidnSetFilterImage(oidnFilter, "albedo", oidnAlbedoBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, 0, 0);
-	//oidnSetFilterImage(oidnFilter, "normal", oidnNormalBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, 0, 0);
-	//oidnSetFilterImage(oidnFilter, "output", oidnDenoisedBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, 0, 0);
-	//oidnCommitFilter(oidnFilter);
-	//oidnExecuteFilter(oidnFilter);
+	oidnWriteBuffer(oidnColorBuffer, 0, oidnBufferSize, noisyReadback.data());
+	oidnWriteBuffer(oidnAlbedoBuffer, 0, oidnBufferSize, albedoReadback.data());
+	oidnWriteBuffer(oidnNormalBuffer, 0, oidnBufferSize, normalReadback.data());
 
-	// #todo-oidn: Copy denoised buffer to output.
-	// ...
+	CHECK(checkNoDeviceError());
+
+	oidnSetFilterImage(oidnFilter, "color", oidnColorBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, oidnBufferPixelByteStride, 0);
+	oidnSetFilterImage(oidnFilter, "albedo", oidnAlbedoBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, oidnBufferPixelByteStride, 0);
+	oidnSetFilterImage(oidnFilter, "normal", oidnNormalBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, oidnBufferPixelByteStride, 0);
+	oidnSetFilterImage(oidnFilter, "output", oidnDenoisedBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, oidnBufferPixelByteStride, 0);
+	
+	oidnCommitFilter(oidnFilter);
+	oidnExecuteFilter(oidnFilter);
+
+	CHECK(checkNoDeviceError());
+
+	outResult.resize(oidnBufferSize);
+	oidnReadBuffer(oidnDenoisedBuffer, 0, oidnBufferSize, outResult.data());
 
 	return true;
 }

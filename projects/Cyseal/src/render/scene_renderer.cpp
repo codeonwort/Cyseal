@@ -215,8 +215,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	rebuildFrameResources(commandList, scene);
 
-	commandAllocator->reset();
-	commandList->reset(commandAllocator);
+	resetCommandList(commandAllocator, commandList);
 
 	// Just execute prior to any standard renderer works.
 	// If some custom commands should execute in midst of frame rendering,
@@ -415,7 +414,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
-		if (bRenderPathTracing)
+		const bool keepDenoisingResult = renderOptions.pathTracingDenoiserState == EPathTracingDenoiserState::KeepDenoisingResult;
+
+		if (bRenderPathTracing && !keepDenoisingResult)
 		{
 			PathTracingInput passInput{
 				.scene                 = scene,
@@ -440,9 +441,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 	// Path Tracing Denoising
 	{
-		// #todo-oidn: After enough path accumulation, flush the command queue, run denoiser, then copy the result to sceneColor.
-		// #todo-oidn: Well to do so I need to resurrect FLUSH_RENDER_COMMANDS().
-		bool runDenoiserNow = true;
+		const bool runDenoiserNow = renderOptions.pathTracingDenoiserState == EPathTracingDenoiserState::DenoiseNow;
 
 		if (bRenderPathTracing && runDenoiserNow)
 		{
@@ -466,6 +465,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_pathTracing.get(), }
 			};
 			commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersAfter);
+
+			// Flush GPU to readback input textures.
+			immediateFlushCommandQueue(commandQueue, commandAllocator, commandList);
+			resetCommandList(commandAllocator, commandList);
+
+			denoiserPluginPass->executeDenoiser(commandList, RT_pathTracing.get());
 		}
 	}
 
@@ -958,6 +963,24 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			},
 		}
 	));
+}
+
+void SceneRenderer::resetCommandList(RenderCommandAllocator* commandAllocator, RenderCommandList* commandList)
+{
+	commandAllocator->reset();
+	commandList->reset(commandAllocator);
+}
+
+void SceneRenderer::immediateFlushCommandQueue(RenderCommandQueue* commandQueue, RenderCommandAllocator* commandAllocator, RenderCommandList* commandList)
+{
+	commandList->close();
+	commandAllocator->markValid();
+	commandQueue->executeCommandList(commandList);
+
+	{
+		SCOPED_CPU_EVENT(WaitForGPU);
+		device->flushCommandQueue();
+	}
 }
 
 void SceneRenderer::updateSceneUniform(
