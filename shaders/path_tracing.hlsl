@@ -58,7 +58,9 @@ struct ClosestHitPushConstants
 	uint objectID;
 };
 
+// ---------------------------------------------------------
 // Global root signature
+
 RaytracingAccelerationStructure    rtScene               : register(t0, space0);
 ByteAddressBuffer                  gIndexBuffer          : register(t1, space0);
 ByteAddressBuffer                  gVertexBuffer         : register(t2, space0);
@@ -74,16 +76,21 @@ RWTexture2D<float4>                currentMoment         : register(u1, space0);
 RWTexture2D<float4>                prevMoment            : register(u2, space0);
 ConstantBuffer<SceneUniform>       sceneUniform          : register(b0, space0);
 ConstantBuffer<PathTracingUniform> pathTracingUniform    : register(b1, space0);
+
 // Material binding
 #define TEMP_MAX_SRVS 1024
 Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless in another space
 
+SamplerState albedoSampler : register(s0, space0);
+SamplerState skyboxSampler : register(s1, space0);
+SamplerState linearSampler : register(s2, space0);
+
+// ---------------------------------------------------------
 // Local root signature (closest hit)
+
 ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
 
-SamplerState albedoSampler                  : register(s0, space0);
-SamplerState skyboxSampler                  : register(s1, space0);
-SamplerState linearSampler                  : register(s2, space0);
+// ---------------------------------------------------------
 
 typedef BuiltInTriangleIntersectionAttributes IntersectionAttributes;
 // Should match with path_tracing_pass.cpp
@@ -99,18 +106,23 @@ struct RayPayload
 	uint   objectID;
 
 	float  metalMask;
-	uint3  _pad0;
+	uint   materialID;
+	float  indexOfRefraction;
+	uint   _pad0;
 };
 
 RayPayload createRayPayload()
 {
 	RayPayload payload;
-	payload.surfaceNormal = float3(0, 0, 0);
-	payload.roughness     = 1.0;
-	payload.albedo        = float3(0, 0, 0);
-	payload.hitTime       = -1.0;
-	payload.emission      = float3(0, 0, 0);
-	payload.objectID      = OBJECT_ID_NONE;
+	payload.surfaceNormal     = float3(0, 0, 0);
+	payload.roughness         = 1.0;
+	payload.albedo            = float3(0, 0, 0);
+	payload.hitTime           = -1.0;
+	payload.emission          = float3(0, 0, 0);
+	payload.objectID          = OBJECT_ID_NONE;
+	payload.metalMask         = 0.0f;
+	payload.materialID        = MATERIAL_ID_NONE;
+	payload.indexOfRefraction = IOR_AIR;
 	return payload;
 }
 
@@ -130,6 +142,16 @@ void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
 float2 getScreenResolution()
 {
 	return float2(pathTracingUniform.renderTargetWidth, pathTracingUniform.renderTargetHeight);
+}
+
+float2 getRandoms(uint2 texel, uint bounce)
+{
+	uint first = texel.x + pathTracingUniform.renderTargetWidth * texel.y;
+	uint seq0 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
+	uint seq1 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
+	float rand0 = pathTracingUniform.randFloats0[seq0 / 4][seq0 % 4];
+	float rand1 = pathTracingUniform.randFloats1[seq1 / 4][seq1 % 4];
+	return float2(rand0, rand1);
 }
 
 struct PrevFrameInfo
@@ -184,10 +206,13 @@ float3 cosineWeightedHemisphereSample(float u0, float u1)
 	return float3(cos(phi) * cos(theta), sin(phi) * cos(theta), sin(theta));
 }
 
+float3 sampleSky(float3 dir)
+{
+	return SKYBOX_BOOST* skybox.SampleLevel(skyboxSampler, dir, 0.0).rgb;
+}
+
 float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 cameraRayDir)
 {
-	uint firstSeqLinearIndex = targetTexel.x + pathTracingUniform.renderTargetWidth * targetTexel.y;
-
 	RayPayload currentRayPayload = createRayPayload();
 
 	RayDesc currentRay;
@@ -220,7 +245,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
-			radianceHistory[numBounces] = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, currentRay.Direction, 0.0).rgb;
+			radianceHistory[numBounces] = sampleSky(currentRay.Direction);
 			reflectanceHistory[numBounces] = 1;
 			pdfHistory[numBounces] = 1;
 			break;
@@ -242,10 +267,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
 
 #if TRACE_MODE == TRACE_FULL_GI
-		uint seqLinearIndex0 = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
-		uint seqLinearIndex1 = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
-		float rand0 = pathTracingUniform.randFloats0[seqLinearIndex0 / 4][seqLinearIndex0 % 4];
-		float rand1 = pathTracingUniform.randFloats1[seqLinearIndex1 / 4][seqLinearIndex1 % 4];
+		float2 randoms = getRandoms(targetTexel, numBounces);
 
 		// #todo-pathtracing: Handle transmission.
 		float3 scatteredReflectance, scatteredDir;
@@ -255,7 +277,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 			currentRayPayload.albedo,
 			currentRayPayload.roughness,
 			currentRayPayload.metalMask,
-			rand0, rand1,
+			randoms.x, randoms.y,
 			scatteredReflectance, scatteredDir, scatteredPdf);
 		
 		// #todo-pathtracing: Sometimes surfaceNormal is NaN
@@ -266,12 +288,10 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 
 #else
 		// Diffuse term only
-		uint seqLinearIndex = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
-		float rand0 = pathTracingUniform.randFloats0[seqLinearIndex / 4][seqLinearIndex % 4];
-		float rand1 = pathTracingUniform.randFloats1[seqLinearIndex / 4][seqLinearIndex % 4];
+		float2 randoms = getRandoms(targetTexel, numBounces);
 
 		float3 scatteredReflectance = currentRayPayload.albedo;
-		float3 scatteredDir = cosineWeightedHemisphereSample(rand0, rand1);
+		float3 scatteredDir = cosineWeightedHemisphereSample(randoms.x, randoms.y);
 		scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (surfaceNormal * scatteredDir.z);
 		float scatteredPdf = 1;
 #endif
@@ -339,10 +359,10 @@ float traceAmbientOcclusion(uint2 targetTexel, float3 cameraRayOrigin, float3 ca
 	// Current pixel is the sky.
 	if (cameraRayPayload.objectID == OBJECT_ID_NONE)
 	{
-		return 1.0;
+		// Due to my stupid implementation of shader parameter binding :p
+		// Assertion fails if trying to bind an unused shader parameter.
+		return clamp(sampleSky(cameraRayDir).x, 1.0, 1.0);
 	}
-
-	uint firstSeqLinearIndex = targetTexel.x + pathTracingUniform.renderTargetWidth * targetTexel.y;
 
 	RayPayload currentRayPayload = cameraRayPayload;
 	RayDesc currentRayDesc = cameraRay;
@@ -357,9 +377,9 @@ float traceAmbientOcclusion(uint2 targetTexel, float3 cameraRayOrigin, float3 ca
 		float3 surfacePosition = currentRayPayload.hitTime * currentRayDesc.Direction + currentRayDesc.Origin;
 		surfacePosition += SURFACE_NORMAL_OFFSET * surfaceNormal; // Slightly push toward N
 
-		uint seqLinearIndex = (firstSeqLinearIndex + numBounces) % RANDOM_SEQUENCE_LENGTH;
-		float theta = pathTracingUniform.randFloats0[seqLinearIndex / 4][seqLinearIndex % 4];
-		float phi = pathTracingUniform.randFloats1[seqLinearIndex / 4][seqLinearIndex % 4];
+		float2 randoms = getRandoms(targetTexel, numBounces);
+		float theta = randoms.x * 2.0 * PI;
+		float phi = randoms.y * PI;
 		float3 aoRayDir = float3(cos(phi) * cos(theta), sin(phi) * cos(theta), sin(theta));
 		aoRayDir = (surfaceTangent * aoRayDir.x) + (surfaceBitangent * aoRayDir.y) + (surfaceNormal * aoRayDir.z);
 
@@ -524,13 +544,15 @@ void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 	
 	// Output payload
 
-	payload.surfaceNormal = surfaceNormal;
-	payload.roughness     = material.roughness;
-	payload.albedo        = albedo;
-	payload.hitTime       = RayTCurrent();
-	payload.emission      = material.emission;
-	payload.objectID      = objectID;
-	payload.metalMask     = material.metalMask;
+	payload.surfaceNormal     = surfaceNormal;
+	payload.roughness         = material.roughness;
+	payload.albedo            = albedo;
+	payload.hitTime           = RayTCurrent();
+	payload.emission          = material.emission;
+	payload.objectID          = objectID;
+	payload.metalMask         = material.metalMask;
+	payload.materialID        = material.materialID;
+	payload.indexOfRefraction = material.indexOfRefraction;
 }
 
 [shader("miss")]

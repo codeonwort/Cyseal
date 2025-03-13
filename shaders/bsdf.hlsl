@@ -202,4 +202,12 @@ void splitMicrofacetBRDF(
 	outPdf = 1.0 / (0.001 + 4.0 * dot(Wh, Wo));
 }
 
+float3 getRefractedDirection(float3 V, float3 N, float ior)
+{
+	float inCosTheta = dot(-V, N);
+	float outSinThetaSq = ior * ior * (1 - inCosTheta * inCosTheta);
+
+	return ior * V + (ior * inCosTheta - sqrt(1 - outSinThetaSq)) * N;
+}
+
 #endif // _BSDF_H

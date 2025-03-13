@@ -122,12 +122,15 @@ struct RayPayload
 RayPayload createRayPayload()
 {
 	RayPayload payload;
-	payload.surfaceNormal = float3(0, 0, 0);
-	payload.roughness     = 1.0;
-	payload.albedo        = float3(0, 0, 0);
-	payload.hitTime       = -1.0;
-	payload.emission      = float3(0, 0, 0);
-	payload.objectID      = OBJECT_ID_NONE;
+	payload.surfaceNormal     = float3(0, 0, 0);
+	payload.roughness         = 1.0;
+	payload.albedo            = float3(0, 0, 0);
+	payload.hitTime           = -1.0;
+	payload.emission          = float3(0, 0, 0);
+	payload.objectID          = OBJECT_ID_NONE;
+	payload.metalMask         = 0.0f;
+	payload.materialID        = MATERIAL_ID_NONE;
+	payload.indexOfRefraction = IOR_AIR;
 	return payload;
 }
 
@@ -151,12 +154,9 @@ float2 getRandoms(uint2 texel, uint bounce)
 	return float2(rand0, rand1);
 }
 
-float3 getRefractedDirection(float3 V, float3 N, float ior)
+float3 sampleSky(float3 dir)
 {
-	float inCosTheta = dot(-V, N);
-	float outSinThetaSq = ior * ior * (1 - inCosTheta * inCosTheta);
-
-	return ior * V + (ior * inCosTheta - sqrt(1 - outSinThetaSq)) * N;
+	return SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, dir, 0.0).rgb;
 }
 
 float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
@@ -196,7 +196,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
-			radianceHistory[numBounces] = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, currentRay.Direction, 0.0).rgb;
+			radianceHistory[numBounces] = sampleSky(currentRay.Direction);
 			reflectanceHistory[numBounces] = 1;
 			pdfHistory[numBounces] = 1;
 			break;
@@ -344,7 +344,7 @@ void MainRaygen()
 	if (sceneDepth == DEVICE_Z_FAR)
 	{
 #if WRITE_SKY_PIXEL
-		float3 Wo = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, viewDirection, 0.0).rgb;
+		float3 Wo = sampleSky(viewDirection, 0.0);
 #else
 		float3 Wo = 0;
 #endif
