@@ -24,6 +24,7 @@
 #define RAYGEN_T_MAX              10000.0
 #define MAX_BOUNCE                8
 #define SURFACE_NORMAL_OFFSET     0.001
+#define REFRACTION_START_OFFSET   0.01
 
 // Temp boost sky light.
 #define SKYBOX_BOOST              1.0
@@ -214,6 +215,7 @@ float3 sampleSky(float3 dir)
 float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 cameraRayDir)
 {
 	RayPayload currentRayPayload = createRayPayload();
+	float prevIoR = IOR_AIR; // #todo-refraction: Assume primary ray is always in air.
 
 	RayDesc currentRay;
 	currentRay.Origin = cameraRayOrigin;
@@ -242,6 +244,8 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 			currentRay,
 			currentRayPayload);
 
+		const uint materialID = currentRayPayload.materialID;
+
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
@@ -269,16 +273,32 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 #if TRACE_MODE == TRACE_FULL_GI
 		float2 randoms = getRandoms(targetTexel, numBounces);
 
-		// #todo-pathtracing: Handle transmission.
-		float3 scatteredReflectance, scatteredDir;
-		float scatteredPdf;
-		microfacetBRDF(
-			currentRay.Direction, surfaceNormal,
-			currentRayPayload.albedo,
-			currentRayPayload.roughness,
-			currentRayPayload.metalMask,
-			randoms.x, randoms.y,
-			scatteredReflectance, scatteredDir, scatteredPdf);
+		float3 nextRayOffset = 0;
+		float3 scatteredReflectance, scatteredDir; float scatteredPdf;
+		if (materialID == MATERIAL_ID_DEFAULT_LIT)
+		{
+			microfacetBRDF(
+				currentRay.Direction, surfaceNormal,
+				currentRayPayload.albedo,
+				currentRayPayload.roughness,
+				currentRayPayload.metalMask,
+				randoms.x, randoms.y,
+				scatteredReflectance, scatteredDir, scatteredPdf);
+
+			nextRayOffset = SURFACE_NORMAL_OFFSET * surfaceNormal;
+		}
+		else if (materialID == MATERIAL_ID_TRANSPARENT)
+		{
+			float3 V = currentRay.Direction;
+			float3 N = dot(surfaceNormal, V) <= 0 ? surfaceNormal : -surfaceNormal;
+			float ior = prevIoR / currentRayPayload.indexOfRefraction;
+
+			scatteredReflectance = 1.0;
+			scatteredDir = getRefractedDirection(V, N, ior);
+			scatteredPdf = 1.0;
+
+			nextRayOffset = REFRACTION_START_OFFSET * scatteredDir;
+		}
 		
 		// #todo-pathtracing: Sometimes surfaceNormal is NaN
 		if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
@@ -296,10 +316,8 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		float scatteredPdf = 1;
 #endif
 
-		float NdotV = max(0.0, dot(surfaceNormal, scatteredDir));
-
 		radianceHistory[numBounces] = 0;
-		reflectanceHistory[numBounces] = NdotV * scatteredReflectance;
+		reflectanceHistory[numBounces] = scatteredReflectance;
 		pdfHistory[numBounces] = scatteredPdf;
 
 		if (scatteredPdf <= 0.0)
@@ -307,12 +325,13 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 			break;
 		}
 
-		currentRay.Origin = surfacePosition + SURFACE_NORMAL_OFFSET * surfaceNormal;
+		currentRay.Origin = surfacePosition + nextRayOffset;
 		currentRay.Direction = scatteredDir;
 		//currentRay.TMin = RAYGEN_T_MIN;
 		//currentRay.TMax = RAYGEN_T_MAX;
 
 		numBounces += 1;
+		prevIoR = currentRayPayload.indexOfRefraction;
 	}
 
 	float3 Li = 0;
