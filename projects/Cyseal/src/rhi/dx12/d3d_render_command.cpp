@@ -171,6 +171,13 @@ void D3DRenderCommandList::resourceBarriers(
 	}
 
 	commandList->ResourceBarrier(totalBarriers, rawBarriers.data());
+
+	// Store last state.
+	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
+	{
+		auto& desc = textureMemoryBarriers[i];
+		static_cast<D3DTexture*>(desc.texture)->saveLastMemoryLayout(desc.stateAfter);
+	}
 }
 
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)

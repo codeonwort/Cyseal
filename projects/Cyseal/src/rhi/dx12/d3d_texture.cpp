@@ -189,13 +189,16 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	}
 
 	D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
+	lastMemoryLayout = ETextureMemoryLayout::COMMON;
 	if (isColorTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::CPU_WRITE))
 	{
 		initialState |= D3D12_RESOURCE_STATE_COPY_DEST;
+		saveLastMemoryLayout(ETextureMemoryLayout::COPY_DEST);
 	}
 	else if (isDepthTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
 	{
 		initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		saveLastMemoryLayout(ETextureMemoryLayout::DEPTH_STENCIL_TARGET);
 	}
 
 	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -273,14 +276,10 @@ void D3DTexture::uploadData(
 		.SlicePitch = (LONG_PTR)slicePitch,
 	};
 
-	if (bIsPixelShaderResourceState)
+	if (lastMemoryLayout != ETextureMemoryLayout::COPY_DEST)
 	{
-		TextureMemoryBarrier barrierAfter{
-			ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-			ETextureMemoryLayout::COPY_DEST,
-			this,
-		};
-		commandList.resourceBarriers(0, nullptr, 1, &barrierAfter);
+		TextureMemoryBarrier barrierBefore{ lastMemoryLayout, ETextureMemoryLayout::COPY_DEST, this };
+		commandList.resourceBarriers(0, nullptr, 1, &barrierBefore);
 	}
 
 	// [ RESOURCE_MANIPULATION ERROR #864: COPYTEXTUREREGION_INVALIDSRCOFFSET ]
@@ -294,23 +293,22 @@ void D3DTexture::uploadData(
 		subresourceIndex, 1, &textureData);
 	CHECK(ret != 0);
 
-	TextureMemoryBarrier barrierAfter{
-		ETextureMemoryLayout::COPY_DEST,
-		ETextureMemoryLayout::PIXEL_SHADER_RESOURCE,
-		this,
-	};
-	commandList.resourceBarriers(0, nullptr, 1, &barrierAfter);
-	bIsPixelShaderResourceState = true;
+	if (lastMemoryLayout != ETextureMemoryLayout::COPY_DEST)
+	{
+		TextureMemoryBarrier barrierAfter{ ETextureMemoryLayout::COPY_DEST, lastMemoryLayout, this };
+		commandList.resourceBarriers(0, nullptr, 1, &barrierAfter);
+	}
 }
 
 bool D3DTexture::prepareReadback(RenderCommandList* commandList)
 {
 	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, ETextureAccessFlags::CPU_READBACK));
 
-	TextureMemoryBarrier barrierBefore{
-		ETextureMemoryLayout::COMMON, ETextureMemoryLayout::COPY_SRC, this,
-	};
-	commandList->resourceBarriers(0, nullptr, 1, &barrierBefore);
+	if (lastMemoryLayout != ETextureMemoryLayout::COPY_SRC)
+	{
+		TextureMemoryBarrier barrierBefore{ lastMemoryLayout, ETextureMemoryLayout::COPY_SRC, this };
+		commandList->resourceBarriers(0, nullptr, 1, &barrierBefore);
+	}
 
 	ID3D12GraphicsCommandList4* d3dCommandList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
@@ -329,10 +327,11 @@ bool D3DTexture::prepareReadback(RenderCommandList* commandList)
 	};
 	d3dCommandList->CopyTextureRegion(&readbackFootprintDesc, 0, 0, 0, &pSrc, &srcRegion);
 
-	TextureMemoryBarrier barrierAfter{
-		ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::COMMON, this,
-	};
-	commandList->resourceBarriers(0, nullptr, 1, &barrierAfter);
+	if (lastMemoryLayout != ETextureMemoryLayout::COPY_SRC)
+	{
+		TextureMemoryBarrier barrierAfter{ ETextureMemoryLayout::COPY_SRC, lastMemoryLayout, this };
+		commandList->resourceBarriers(0, nullptr, 1, &barrierAfter);
+	}
 
 	bReadbackPrepared = true;
 

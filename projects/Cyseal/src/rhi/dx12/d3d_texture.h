@@ -1,6 +1,7 @@
 #pragma once
 
 #include "rhi/texture.h"
+#include "rhi/gpu_resource_barrier.h"
 #include "d3d_util.h"
 
 class RenderTargetView;
@@ -36,16 +37,18 @@ public:
 
 	virtual void* getRawResource() const override { return rawResource.Get(); }
 
+	void saveLastMemoryLayout(ETextureMemoryLayout layout) { lastMemoryLayout = layout; }
+
 private:
 	WRL::ComPtr<ID3D12Resource> rawResource;
 	TextureCreateParams createParams;
+	ETextureMemoryLayout lastMemoryLayout;
 
 	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 	// the command list that references it has finished executing on the GPU.
 	// We will flush the GPU at the end of this method to ensure the resource is not
 	// prematurely destroyed.
 	WRL::ComPtr<ID3D12Resource> textureUploadHeap;
-	bool bIsPixelShaderResourceState = false; // I don't have resource barrier auto-tracking :/
 
 	uint64 rowPitch = 0;
 

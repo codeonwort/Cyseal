@@ -447,10 +447,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		{
 			SCOPED_DRAW_EVENT(commandList, BlitDenoiserInput);
 
-			TextureMemoryBarrier barriersBefore[] = {
+			TextureMemoryBarrier barriers1[] = {
 				{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_pathTracing.get(), }
 			};
-			commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+			commandList->resourceBarriers(0, nullptr, _countof(barriers1), barriers1);
 
 			DenoiserPluginInput passInput{
 				.imageWidth    = sceneWidth,
@@ -461,16 +461,21 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			};
 			denoiserPluginPass->blitTextures(commandList, swapchainIndex, passInput);
 
-			TextureMemoryBarrier barriersAfter[] = {
-				{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_pathTracing.get(), }
-			};
-			commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersAfter);
-
 			// Flush GPU to readback input textures.
 			immediateFlushCommandQueue(commandQueue, commandAllocator, commandList);
 			resetCommandList(commandAllocator, commandList);
 
+			TextureMemoryBarrier barriers2[] = {
+				{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::COPY_DEST, RT_pathTracing.get(), }
+			};
+			commandList->resourceBarriers(0, nullptr, _countof(barriers2), barriers2);
+
 			denoiserPluginPass->executeDenoiser(commandList, RT_pathTracing.get());
+
+			TextureMemoryBarrier barriers3[] = {
+				{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, RT_pathTracing.get(), }
+			};
+			commandList->resourceBarriers(0, nullptr, _countof(barriers3), barriers3);
 		}
 	}
 
