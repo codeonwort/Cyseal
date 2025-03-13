@@ -45,6 +45,12 @@ $zip_list = @(
 		'external/pbrt4_house'
 	),
 	@(
+		'https://benedikt-bitterli.me/resources/pbrt-v4/dining-room.zip',
+		'external',
+		'pbrt4_dining_room.zip',
+		'external/pbrt4_dining_room'
+	),
+	@(
 		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.7.2207/dxc_2022_07_18.zip',
 		'external',
 		'dxc_2022_07_18.zip',
