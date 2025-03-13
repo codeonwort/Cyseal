@@ -14,9 +14,10 @@ class D3DDevice : public RenderDevice
 
 public:
 	D3DDevice();
-	~D3DDevice();
 
 	virtual void onInitialize(const RenderDeviceCreateParams& createParams) override;
+
+	virtual void onDestroy() override;
 
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;
 

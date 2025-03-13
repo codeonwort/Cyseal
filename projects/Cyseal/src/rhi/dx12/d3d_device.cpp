@@ -70,20 +70,6 @@ D3DDevice::D3DDevice()
 	std::atexit(reportD3DLiveObjects);
 }
 
-D3DDevice::~D3DDevice()
-{
-	delete swapChain;
-	for (size_t i = 0; i < commandAllocators.size(); ++i)
-	{
-		delete commandAllocators[i];
-	}
-	for (size_t i = 0; i < commandLists.size(); ++i)
-	{
-		delete commandLists[i];
-	}
-	delete commandQueue;
-}
-
 void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 {
 	UINT dxgiFactoryFlags = 0;
@@ -259,6 +245,20 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	HR(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils)));
 	HR(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler)));
 	HR(dxcUtils->CreateDefaultIncludeHandler(&dxcIncludeHandler));
+}
+
+void D3DDevice::onDestroy()
+{
+	delete swapChain;
+	for (size_t i = 0; i < commandAllocators.size(); ++i)
+	{
+		delete commandAllocators[i];
+	}
+	for (size_t i = 0; i < commandLists.size(); ++i)
+	{
+		delete commandLists[i];
+	}
+	delete commandQueue;
 }
 
 void D3DDevice::initializeDearImgui()
