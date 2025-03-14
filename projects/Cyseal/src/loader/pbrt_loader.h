@@ -43,5 +43,4 @@ class PBRT4Loader
 public:
 	// @return Parsed scene. Should dealloc yourself. Null if load has failed.
 	PBRT4Scene* loadFromFile(const std::wstring& filepath);
-
 };
