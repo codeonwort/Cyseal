@@ -22,6 +22,7 @@
 #define TOKEN_CAMERA                 "Camera"
 #define TOKEN_SAMPLER                "Sampler"
 #define TOKEN_INTEGRATOR             "Integrator"
+#define TOKEN_PIXEL_FILTER           "PixelFilter"
 #define TOKEN_FILM                   "Film"
 
 #define TOKEN_WORLD_BEGIN            "WorldBegin"
@@ -91,18 +92,28 @@ namespace
 		return stream;
 	}
 
+	// \"asd\" -> std::string("asd")
 	std::string readQuoteWord(std::istream& stream)
 	{
 		std::string str;
 		stream >> str;
 		return str.substr(1, str.size() - 2);
-	}
+	} 
+	// \"asd zxc\" -> std::string("asd zxc")
 	std::string readQuoteTwoWords(std::istream& stream)
 	{
 		std::string word1, word2;
 		stream >> word1 >> word2;
 		return word1.substr(1) + " " + word2.substr(0, word2.size() - 1);
 	}
+	// #todo-pbrt: Replace readQuoteTwoWords with readQuoteTwoWordsVer2
+	std::pair<std::string, std::string> readQuoteTwoWordsVer2(std::istream& stream)
+	{
+		std::string word1, word2;
+		stream >> word1 >> word2;
+		return std::make_pair(word1.substr(1), word2.substr(0, word2.size() - 1));
+	}
+	// [ "asd" ] -> std::string("asd")
 	std::string readBracketQuoteWord(std::istream& stream)
 	{
 		char ch;
@@ -111,6 +122,15 @@ namespace
 		stream >> ch;
 		return str;
 	}
+	// [ false ] -> false
+	bool readBracketBool(std::istream& stream)
+	{
+		char ch;
+		bool x;
+		stream >> ch >> x >> ch;
+		return x;
+	}
+	// [ 1.0 ] -> 1.0
 	float readBracketFloat(std::istream& stream)
 	{
 		char ch;
@@ -118,6 +138,15 @@ namespace
 		stream >> ch >> x >> ch;
 		return x;
 	}
+	// [ 1 ] -> 1
+	int32 readBracketInt32(std::istream& stream)
+	{
+		char ch;
+		int32 x;
+		stream >> ch >> x >> ch;
+		return x;
+	}
+	// [ 1 2 3 ] -> vec3(1, 2, 3)
 	vec3 readBracketVec3(std::istream& stream)
 	{
 		char ch;
@@ -243,6 +272,63 @@ namespace
 			outArray.push_back(i);
 		}
 	}
+
+	bool peekQuoteString(std::istream& stream)
+	{
+		auto posBackup = stream.tellg();
+		std::string str;
+		stream >> str;
+		stream.seekg(posBackup);
+		return str.size() > 0 && str[0] == '\"';
+	}
+
+	enum class PBRT4ParameterType { String, Float, Int, Bool };
+	struct PBRT4Parameter
+	{
+		PBRT4ParameterType datatype;
+		std::string name;
+
+		std::string asString;
+		float asFloat = 0.0f;
+		int32 asInt = 0;
+		bool asBool = false;
+	};
+	std::vector<PBRT4Parameter> readParameters(std::istream& stream)
+	{
+		std::vector<PBRT4Parameter> paramArray;
+		while (peekQuoteString(stream))
+		{
+			auto typeAndName = readQuoteTwoWordsVer2(stream);
+			PBRT4Parameter param{};
+			param.name = typeAndName.second;
+			if (typeAndName.first == "string")
+			{
+				param.datatype = PBRT4ParameterType::String;
+				param.asString = readBracketQuoteWord(stream);
+			}
+			else if (typeAndName.first == "float")
+			{
+				param.datatype = PBRT4ParameterType::Float;
+				param.asFloat = readBracketFloat(stream);
+			}
+			else if (typeAndName.first == "integer")
+			{
+				param.datatype = PBRT4ParameterType::Int;
+				param.asInt = readBracketInt32(stream);
+			}
+			else if (typeAndName.first == "bool")
+			{
+				param.datatype = PBRT4ParameterType::Bool;
+				param.asBool = readBracketBool(stream);
+			}
+			else
+			{
+				CHECK_NO_ENTRY();
+			}
+			paramArray.emplace_back(param);
+		}
+		return paramArray;
+	}
 }
 
 class PBRT4Parser
@@ -277,21 +363,28 @@ public:
 			}
 			else if (token == TOKEN_CAMERA)
 			{
-				// #todo-pbrt: Parse token Camera
-				int z = 0;
+				if (!checkRenderingOptionsPhase()) break;
+				parseCamera(stream);
 			}
 			else if (token == TOKEN_SAMPLER)
 			{
-				// #todo-pbrt: Parse token Sampler
+				if (!checkRenderingOptionsPhase()) break;
+				parseSampler(stream);
 			}
 			else if (token == TOKEN_INTEGRATOR)
 			{
 				if (!checkRenderingOptionsPhase()) break;
-				//parseIntegrator(stream); // #todo-pbrt: Parse token Integrator
+				parseIntegrator(stream);
+			}
+			else if (token == TOKEN_PIXEL_FILTER)
+			{
+				if (!checkRenderingOptionsPhase()) break;
+				parsePixelFilter(stream);
 			}
 			else if (token == TOKEN_FILM)
 			{
-				// #todo-pbrt: Parse token Film
+				if (!checkRenderingOptionsPhase()) break;
+				parseFilm(stream);
 			}
 			else if (token == TOKEN_WORLD_BEGIN)
 			{
@@ -409,6 +502,27 @@ private:
 		stream >> pbrtScene->lookAtPosition;
 		stream >> pbrtScene->upVector;
 	}
+	void parseCamera(std::istream& stream)
+	{
+		// "orthographic", "perspective", "realistic", "spherical"
+		std::string camera = readQuoteWord(stream);
+
+		// #todo-pbrt: Parse Camera parameters.
+		std::vector<PBRT4Parameter> params = readParameters(stream);
+	}
+	void parseSampler(std::istream& stream)
+	{
+		// "halton"
+		// "independent"
+		// "paddedsobol"
+		// "sobol"
+		// "stratified"
+		// "zsobol"
+		std::string sampler = readQuoteWord(stream);
+
+		// #todo-pbrt: Parse Sampler parameters.
+		std::vector<PBRT4Parameter> params = readParameters(stream);
+	}
 	void parseIntegrator(std::istream& stream)
 	{
 		// "ambientocclusion" Ambient occlusion (accessibility over the hemisphere)
@@ -421,10 +535,69 @@ private:
 		// "simplevolpath"	  Volumetric path tracing with very basic sampling algorithms
 		// "sppm"			  Stochastic progressive photon mapping
 		// "volpath"		  Volumetric path tracing
-		std::string name = readQuoteWord(stream);
+		std::string integrator = readQuoteWord(stream);
 
-		// #todo-pbrt: Parse parameters of Integrator token
+		// #todo-pbrt: Utilize these parameters.
+		int32 maxDepth = 5;
+		std::string lightsampler = "bvh";
+		bool regularize = false;
+
+		const auto parameters = readParameters(stream);
+		for (const PBRT4Parameter& param : parameters)
+		{
+			if (param.name == "maxdepth")
+			{
+				CHECK(param.datatype == PBRT4ParameterType::Int);
+				maxDepth = param.asInt;
+				if (integrator == "ambientocclusion")
+				{
+					CYLOG(LogPBRT, Error, L"maxdepth parameter is invalid for integrator=ambientocclusion");
+				}
+			}
+			else if (param.name == "lightsampler")
+			{
+				CHECK(param.datatype == PBRT4ParameterType::String);
+				lightsampler = param.asString;
+				if (integrator != "path" && integrator != "volpath")
+				{
+					CYLOG(LogPBRT, Error, L"lightsampler parameter is only valid for integrator=path,volpath");
+				}
+				if (lightsampler != "bvh" && lightsampler != "uniform" && lightsampler != "power")
+				{
+					CYLOG(LogPBRT, Error, L"lightsampler parameter should be \"bvh\", \"uniform\", or \"power\"");
+				}
+			}
+			else if (param.name == "regularize")
+			{
+				CHECK(param.datatype == PBRT4ParameterType::Bool);
+				regularize = param.asBool;
+				if (integrator != "bdpt" && integrator != "mlt" && integrator != "path" && integrator != "volpath")
+				{
+					CYLOG(LogPBRT, Error, L"regularize parameter is only valid for integrator=bdpt,mlt,path,volpath");
+				}
+			}
+		}
+
+		// #todo-pbrt: Parse more parameters for each integrator
+		// e.g., cossample for ambientocclusion integrator.
 	}
+	void parsePixelFilter(std::istream& stream)
+	{
+		// "box", "gaussian", "mitchell", "sinc", "triangle"
+		std::string pixelFilter = readQuoteWord(stream);
+
+		// #todo-pbrt: Parse PixelFilter parameters.
+		std::vector<PBRT4Parameter> params = readParameters(stream);
+	}
+	void parseFilm(std::istream& stream)
+	{
+		// "rgb", "gbuffer", "spectral"
+		std::string film = readQuoteWord(stream);
+
+		// #todo-pbrt: Parse Film parameters.
+		std::vector<PBRT4Parameter> params = readParameters(stream);
+	}
+
 	void parseTexture(std::istream& stream)
 	{
 		std::string textureName = readQuoteWord(stream);
