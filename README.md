@@ -4,7 +4,8 @@ A toy rendering engine to experiment with DX12 and Vulkan.
 
 # Environment
 
-* Graphics API: DirectX 12 / Vulkan (WIP)
+* Graphics API: DirectX 12
+  * Vulkan is work in progress, but does not run at all.
 * Language: C++20
 * OS: Windows 11
 * IDE: Visual Studio 2022
@@ -20,9 +21,11 @@ This project is at a very early stage. Only basic rendering features work with D
 
 # Features
 
-* Bindless textures
-* GPU scene management
-* GPU culling and indirect draw
+* GPU-driven rendering
+  * Bindless textures
+  * GPU scene management
+  * GPU culling and indirect draw
 * Hardware Raytracing
-  * Ray Traced Reflections
-  * Monte Carlo path tracing
+  * Raytraced indirect diffuse reflection
+  * Raytraced indirect specular reflection and refraction
+  * Monte Carlo path tracing with denoiser integration (Intel OpenImageDenoise)
