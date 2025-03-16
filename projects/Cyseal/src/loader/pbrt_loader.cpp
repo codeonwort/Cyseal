@@ -18,6 +18,10 @@
 #include <fstream>
 #include <filesystem>
 
+#define TOKEN_WORLD_BEGIN            "WorldBegin"
+#define TOKEN_ATTRIBUTE_BEGIN        "AttributeBegin"
+#define TOKEN_ATTRIBUTE_END          "AttributeEnd"
+
 #define TOKEN_LOOKAT                 "LookAt"
 #define TOKEN_CAMERA                 "Camera"
 #define TOKEN_SAMPLER                "Sampler"
@@ -25,11 +29,7 @@
 #define TOKEN_PIXEL_FILTER           "PixelFilter"
 #define TOKEN_FILM                   "Film"
 
-#define TOKEN_WORLD_BEGIN            "WorldBegin"
-
 #define TOKEN_LIGHT_SOURCE           "LightSource"
-#define TOKEN_ATTRIBUTE_BEGIN        "AttributeBegin"
-#define TOKEN_ATTRIBUTE_END          "AttributeEnd"
 #define TOKEN_MATERIAL               "Material"
 #define TOKEN_NAMED_MATERIAL         "NamedMaterial"
 #define TOKEN_MAKE_NAMED_MATERIAL    "MakeNamedMaterial"
@@ -38,6 +38,10 @@
 #define TOKEN_TRANSLATE              "Translate"
 #define TOKEN_TRANSFORM              "Transform"
 #define TOKEN_AREA_LIGHT_SOURCE      "AreaLightSource"
+
+// Legacy tokens (pbrt-v3)
+#define TOKEN_TRANSFORM_BEGIN        "TransformBegin"
+#define TOKEN_TRANSFORM_END          "TransformEnd"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPBRT);
 
@@ -106,7 +110,6 @@ namespace
 		stream >> word1 >> word2;
 		return word1.substr(1) + " " + word2.substr(0, word2.size() - 1);
 	}
-	// #todo-pbrt: Replace readQuoteTwoWords with readQuoteTwoWordsVer2
 	std::pair<std::string, std::string> readQuoteTwoWordsVer2(std::istream& stream)
 	{
 		std::string word1, word2;
@@ -295,6 +298,8 @@ namespace
 	};
 	std::vector<PBRT4Parameter> readParameters(std::istream& stream)
 	{
+		// #todo-pbrt: Might be not two words and prefix is not someting ordinary
+		// "string type" "diffuse" "rgb reflectance" [ 0.1 0.5 0.2 ]
 		std::vector<PBRT4Parameter> paramArray;
 		while (peekQuoteString(stream))
 		{
@@ -451,6 +456,19 @@ public:
 				currentTransform.identity();
 				bCurrentTransformIsIdentity = true;
 				currentEmission = vec3(0.0f);
+			}
+			else if (token == TOKEN_TRANSFORM_BEGIN)
+			{
+				CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
+				parsePhase = PBRT4ParsePhase::InsideAttribute; // Just reuse InsideAttribute phase
+				CYLOG(LogPBRT, Warning, L"TransformBegin is deprecated");
+			}
+			else if (token == TOKEN_TRANSFORM_END)
+			{
+				CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
+				parsePhase = PBRT4ParsePhase::SceneElements;
+				currentTransform.identity();
+				bCurrentTransformIsIdentity = true;
 			}
 			else
 			{
@@ -652,6 +670,7 @@ private:
 	{
 		NamedMaterialDesc materialDesc{};
 		materialDesc.materialName = readQuoteWord(stream);
+
 		while (true)
 		{
 			std::string maybeParam = readMaybeQuoteWords(stream);

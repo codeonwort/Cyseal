@@ -107,6 +107,8 @@
     <ClInclude Include="src\geometry\transform.h" />
     <ClInclude Include="src\loader\image_loader.h" />
     <ClInclude Include="src\loader\pbrt_loader.h" />
+    <ClInclude Include="src\loader\pbrt_parser.h" />
+    <ClInclude Include="src\loader\pbrt_scanner.h" />
     <ClInclude Include="src\loader\ply_loader.h" />
     <ClInclude Include="src\memory\free_number_list.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
@@ -196,6 +198,7 @@
     <ClCompile Include="src\geometry\transform.cpp" />
     <ClCompile Include="src\loader\image_loader.cpp" />
     <ClCompile Include="src\loader\pbrt_loader.cpp" />
+    <ClCompile Include="src\loader\pbrt_scanner.cpp" />
     <ClCompile Include="src\loader\ply_loader.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\pch.cpp">
