@@ -3,6 +3,23 @@
 
 #include "common.hlsl"
 
+struct MicrofacetBRDFInput
+{
+	float3 inRayDir;
+	float3 surfaceNormal;
+	float3 baseColor;
+	float roughness;
+	float metallic;
+	float rand0, rand1; // Uniform R.V.
+};
+struct MicrofacetBRDFOutput
+{
+	float3 diffuseReflectance;
+	float3 specularReflectance;
+	float3 outRayDir;
+	float pdf;
+};
+
 // cosTheta = dot(incident_or_exitant_light, half_vector)
 float3 fresnelSchlick(float cosTheta, float3 F0)
 {
@@ -85,13 +102,26 @@ float3 rotateVector(float3 v, float3x3 M)
 	return mul(v, M);
 }
 
-// "Microfacet Models for Refraction through Rough Surfaces"
-void microfacetBRDF(
-	float3 inRayDir, float3 surfaceNormal,
-	float3 baseColor, float roughness, float metallic,
-	float rand0, float rand1,
-	out float3 outReflectance, out float3 outScatteredDir, out float outPdf)
+bool microfacetBRDFOutputHasNaN(MicrofacetBRDFOutput output)
 {
+	bool b1 = any(isnan(output.diffuseReflectance));
+	bool b2 = any(isnan(output.specularReflectance));
+	bool b3 = any(isnan(output.outRayDir));
+	bool b4 = isnan(output.pdf);
+	return b1 || b2 || b3 || b4;
+}
+
+// "Microfacet Models for Refraction through Rough Surfaces"
+MicrofacetBRDFOutput microfacetBRDF(MicrofacetBRDFInput input)
+{
+	float3 inRayDir      = input.inRayDir;
+	float3 surfaceNormal = input.surfaceNormal;
+	float3 baseColor     = input.baseColor;
+	float roughness      = input.roughness;
+	float metallic       = input.metallic;
+	float rand0          = input.rand0;
+	float rand1          = input.rand1;
+
 	// Incoming ray can hit any side of the surface, so if hit backface, then rather flip the surfaceNormal.
 	if (dot(surfaceNormal, inRayDir) > 0.0)
 	{
@@ -117,10 +147,12 @@ void microfacetBRDF(
 	bool bInvalidWi = Wi.z <= 0.0;
 	if (bInvalidWi)
 	{
-		outReflectance = 0;
-		outScatteredDir = rotateVector(Wi, localToWorld);
-		outPdf = 0;
-		return;
+		MicrofacetBRDFOutput output;
+		output.diffuseReflectance = 0;
+		output.specularReflectance = 0;
+		output.outRayDir = rotateVector(Wi, localToWorld);
+		output.pdf = 0;
+		return output;
 	}
 
 	float NdotWo = dot(N, Wo);
@@ -137,9 +169,12 @@ void microfacetBRDF(
 	float3 diffuse = baseColor * (1.0 - metallic);
 	float3 specular = (F * G * NDF) / (4.0 * NdotWi * NdotWo + 0.001);
 
-	outReflectance = (kD * diffuse + kS * specular) * NdotWi;
-	outScatteredDir = rotateVector(Wi, localToWorld);
-	outPdf = 1.0 / (0.001 + 4.0 * dot(Wh, Wo));
+	MicrofacetBRDFOutput output;
+	output.diffuseReflectance = (kD * diffuse) * NdotWi;
+	output.specularReflectance = (kS * specular) * NdotWi;
+	output.outRayDir = rotateVector(Wi, localToWorld);
+	output.pdf = 1.0 / (0.001 + 4.0 * dot(Wh, Wo));
+	return output;
 }
 
 // For indirect specular pass

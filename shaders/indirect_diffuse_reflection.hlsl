@@ -200,14 +200,6 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			pdfHistory[numBounces] = 1;
 			break;
 		}
-		// Emissive shape. Exit the loop.
-		else if (any(currentRayPayload.emission > 0))
-		{
-			radianceHistory[numBounces] = currentRayPayload.emission;
-			reflectanceHistory[numBounces] = 1;
-			pdfHistory[numBounces] = 1;
-			break;
-		}
 
 		// #todo: Sometimes surfaceNormal is NaN
 		float3 surfaceNormal = currentRayPayload.surfaceNormal;
@@ -219,12 +211,20 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		float2 randoms = getRandoms(texel, numBounces + 1);
 
 #if 0
-		float3 scatteredReflectance, scatteredDir; float scatteredPdf;
-		microfacetBRDF(
-			currentRay.Direction, surfaceNormal,
-			currentRayPayload.albedo, currentRayPayload.roughness, currentRayPayload.metalMask,
-			randoms.x, randoms.y,
-			scatteredReflectance, scatteredDir, scatteredPdf);
+		MicrofacetBRDFInput brdfInput;
+		brdfInput.inRayDir = currentRay.Direction;
+		brdfInput.surfaceNormal = surfaceNormal;
+		brdfInput.baseColor = currentRayPayload.albedo;
+		brdfInput.roughness = currentRayPayload.roughness;
+		brdfInput.metallic = currentRayPayload.metalMask;
+		brdfInput.rand0 = randoms.x;
+		brdfInput.rand1 = randoms.y;
+
+		MicrofacetBRDFOutput brdfOutput = microfacetBRDF(brdfInput);
+
+		float3 scatteredReflectance = brdfOutput.diffuseReflectance + brdfOutput.specularReflectance;
+		float3 scatteredDir = brdfOutput.outRayDir;
+		float scatteredPdf = brdfOutput.pdf;
 #else
 		float3 scatteredReflectance = currentRayPayload.albedo;
 		float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, numBounces + 1);
@@ -238,7 +238,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			scatteredPdf = 0.0;
 		}
 
-		radianceHistory[numBounces] = 0;
+		radianceHistory[numBounces] = currentRayPayload.emission;
 		reflectanceHistory[numBounces] = scatteredReflectance;
 		pdfHistory[numBounces] = scatteredPdf;
 

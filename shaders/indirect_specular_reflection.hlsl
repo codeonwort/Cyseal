@@ -201,14 +201,6 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			pdfHistory[numBounces] = 1;
 			break;
 		}
-		// Emissive shape. Exit the loop.
-		else if (any(currentRayPayload.emission > 0))
-		{
-			radianceHistory[numBounces] = currentRayPayload.emission;
-			reflectanceHistory[numBounces] = 1;
-			pdfHistory[numBounces] = 1;
-			break;
-		}
 
 		// #todo: Sometimes surfaceNormal is NaN
 		float3 surfaceNormal = currentRayPayload.surfaceNormal;
@@ -220,22 +212,28 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		float2 randoms = getRandoms(texel, numBounces);
 
 		float3 nextRayOffset = 0;
-		float3 scatteredReflectance, scatteredDir; float scatteredPdf;
+		MicrofacetBRDFOutput brdfOutput;
 		if (materialID == MATERIAL_ID_DEFAULT_LIT)
 		{
 			if (indirectSpecularUniform.traceMode == TRACE_BRDF)
 			{
-				microfacetBRDF(
-					currentRay.Direction, surfaceNormal,
-					currentRayPayload.albedo, currentRayPayload.roughness, currentRayPayload.metalMask,
-					randoms.x, randoms.y,
-					scatteredReflectance, scatteredDir, scatteredPdf);
+				MicrofacetBRDFInput brdfInput;
+				brdfInput.inRayDir = currentRay.Direction;
+				brdfInput.surfaceNormal = surfaceNormal;
+				brdfInput.baseColor = currentRayPayload.albedo;
+				brdfInput.roughness = currentRayPayload.roughness;
+				brdfInput.metallic = currentRayPayload.metalMask;
+				brdfInput.rand0 = randoms.x;
+				brdfInput.rand1 = randoms.y;
+
+				brdfOutput = microfacetBRDF(brdfInput);
 			}
 			else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
 			{
-				scatteredReflectance = 1.0;
-				scatteredDir = reflect(currentRay.Direction, surfaceNormal);
-				scatteredPdf = 1.0;
+				brdfOutput.diffuseReflectance = 0.0;
+				brdfOutput.specularReflectance = 1.0;
+				brdfOutput.outRayDir = reflect(currentRay.Direction, surfaceNormal);
+				brdfOutput.pdf = 1.0;
 			}
 
 			nextRayOffset = SURFACE_NORMAL_OFFSET * surfaceNormal;
@@ -246,30 +244,31 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			float3 N = dot(surfaceNormal, V) <= 0 ? surfaceNormal : -surfaceNormal;
 			float ior = prevIoR / currentRayPayload.indexOfRefraction;
 
-			scatteredReflectance = 1.0;
-			scatteredDir = getRefractedDirection(V, N, ior);
-			scatteredPdf = 1.0;
+			brdfOutput.diffuseReflectance = 0.0;
+			brdfOutput.specularReflectance = 1.0;
+			brdfOutput.outRayDir = getRefractedDirection(V, N, ior);
+			brdfOutput.pdf = 1.0;
 
-			nextRayOffset = REFRACTION_START_OFFSET * scatteredDir;
+			nextRayOffset = REFRACTION_START_OFFSET * brdfOutput.outRayDir;
 		}
 		
-		// #todo: Sometimes surfaceNormal is NaN
-		if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
+		// #todo: Sometimes surfaceNormal is NaN so brdfOutput is also NaN.
+		if (microfacetBRDFOutputHasNaN(brdfOutput))
 		{
-			scatteredPdf = 0.0;
+			brdfOutput.pdf = 0.0;
 		}
 
-		radianceHistory[numBounces] = 0;
-		reflectanceHistory[numBounces] = scatteredReflectance;
-		pdfHistory[numBounces] = scatteredPdf;
+		radianceHistory[numBounces] = currentRayPayload.emission;
+		reflectanceHistory[numBounces] = brdfOutput.diffuseReflectance + brdfOutput.specularReflectance;
+		pdfHistory[numBounces] = brdfOutput.pdf;
 
-		if (scatteredPdf <= 0.0)
+		if (brdfOutput.pdf <= 0.0)
 		{
 			break;
 		}
 
 		currentRay.Origin = surfacePosition + nextRayOffset;
-		currentRay.Direction = scatteredDir;
+		currentRay.Direction = brdfOutput.outRayDir;
 		//currentRay.TMin = RAYGEN_T_MIN;
 		//currentRay.TMax = RAYGEN_T_MAX;
 
