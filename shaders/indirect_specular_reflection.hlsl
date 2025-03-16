@@ -19,7 +19,7 @@
 // #todo: See 'Ray Tracing Gems' series.
 #define RAYGEN_T_MIN              0.001
 #define RAYGEN_T_MAX              10000.0
-#define MAX_BOUNCE                5
+#define MAX_PATH_LEN              5
 #define SURFACE_NORMAL_OFFSET     0.001
 // Precision of world position from scene depth is bad; need more bias.
 #define GBUFFER_NORMAL_OFFSET     0.05
@@ -154,10 +154,48 @@ float2 getRandoms(uint2 texel, uint bounce)
 	return float2(rand0, rand1);
 }
 
+// ---------------------------------------------------------
+// Light sampling
+
 float3 sampleSky(float3 dir)
 {
 	return SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, dir, 0.0).rgb;
 }
+
+float3 traceSun(float3 rayOrigin)
+{
+	RayPayload rayPayload = createRayPayload();
+
+	RayDesc rayDesc;
+	rayDesc.Origin = rayOrigin;
+	rayDesc.Direction = sceneUniform.sunDirection.xyz;
+	rayDesc.TMin = RAYGEN_T_MIN;
+	rayDesc.TMax = RAYGEN_T_MAX;
+
+	uint instanceInclusionMask = ~0; // Do not ignore anything
+	uint rayContributionToHitGroupIndex = 0;
+	uint multiplierForGeometryContributionToHitGroupIndex = 1;
+	uint missShaderIndex = 0;
+	TraceRay(
+		rtScene,
+		RAY_FLAG_NONE,
+		instanceInclusionMask,
+		rayContributionToHitGroupIndex,
+		multiplierForGeometryContributionToHitGroupIndex,
+		missShaderIndex,
+		rayDesc,
+		rayPayload);
+
+	if (rayPayload.objectID == OBJECT_ID_NONE)
+	{
+		return sceneUniform.sunIlluminance;
+	}
+
+	return 0;
+}
+
+// ---------------------------------------------------------
+// Shader stages
 
 float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 {
@@ -170,12 +208,12 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 	currentRay.TMin = RAYGEN_T_MIN;
 	currentRay.TMax = RAYGEN_T_MAX;
 
-	float3 reflectanceHistory[MAX_BOUNCE + 1];
-	float3 radianceHistory[MAX_BOUNCE + 1];
-	float pdfHistory[MAX_BOUNCE + 1];
-	uint numBounces = 0;
+	float3 reflectanceHistory[MAX_PATH_LEN + 1];
+	float3 radianceHistory[MAX_PATH_LEN + 1];
+	float pdfHistory[MAX_PATH_LEN + 1];
+	uint pathLen = 0;
 
-	while (numBounces < MAX_BOUNCE)
+	while (pathLen < MAX_PATH_LEN)
 	{
 		uint instanceInclusionMask = ~0; // Do not ignore anything
 		uint rayContributionToHitGroupIndex = 0;
@@ -196,9 +234,10 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
-			radianceHistory[numBounces] = sampleSky(currentRay.Direction);
-			reflectanceHistory[numBounces] = 1;
-			pdfHistory[numBounces] = 1;
+			radianceHistory[pathLen] = sampleSky(currentRay.Direction);
+			reflectanceHistory[pathLen] = 1;
+			pdfHistory[pathLen] = 1;
+			pathLen += 1;
 			break;
 		}
 
@@ -209,7 +248,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
 
-		float2 randoms = getRandoms(texel, numBounces);
+		float2 randoms = getRandoms(texel, pathLen);
 
 		float3 nextRayOffset = 0;
 		MicrofacetBRDFOutput brdfOutput;
@@ -258,9 +297,12 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			brdfOutput.pdf = 0.0;
 		}
 
-		radianceHistory[numBounces] = currentRayPayload.emission;
-		reflectanceHistory[numBounces] = brdfOutput.diffuseReflectance + brdfOutput.specularReflectance;
-		pdfHistory[numBounces] = brdfOutput.pdf;
+		float3 E = 0;
+		E += traceSun(surfacePosition);
+
+		radianceHistory[pathLen] = currentRayPayload.emission + E;
+		reflectanceHistory[pathLen] = brdfOutput.diffuseReflectance + brdfOutput.specularReflectance;
+		pdfHistory[pathLen] = brdfOutput.pdf;
 
 		if (brdfOutput.pdf <= 0.0)
 		{
@@ -272,21 +314,15 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		//currentRay.TMin = RAYGEN_T_MIN;
 		//currentRay.TMax = RAYGEN_T_MAX;
 
-		numBounces += 1;
+		pathLen += 1;
 		prevIoR = currentRayPayload.indexOfRefraction;
 	}
 
 	float3 Li = 0;
-	if (numBounces < MAX_BOUNCE)
+	for (uint i = 0; i < pathLen; ++i)
 	{
-		for (uint i = 0; i <= numBounces; ++i)
-		{
-			uint j = numBounces - i;
-			if (pdfHistory[j] > 0.0)
-			{
-				Li = reflectanceHistory[j] * (Li + radianceHistory[j]) / pdfHistory[j];
-			}
-		}
+		uint j = pathLen - i - 1;
+		Li = reflectanceHistory[j] * (Li + radianceHistory[j]) / pdfHistory[j];
 	}
 
 	return Li;

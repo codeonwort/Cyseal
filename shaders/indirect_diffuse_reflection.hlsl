@@ -17,7 +17,7 @@
 // #todo: See 'Ray Tracing Gems' series.
 #define RAYGEN_T_MIN              0.001
 #define RAYGEN_T_MAX              10000.0
-#define MAX_BOUNCE                3
+#define MAX_PATH_LEN              3
 #define SURFACE_NORMAL_OFFSET     0.001
 // Precision of world position from scene depth is bad; need more bias.
 #define GBUFFER_NORMAL_OFFSET     0.05
@@ -161,6 +161,50 @@ float3 sampleRandomDirectionCosineWeighted(uint2 texel, uint bounce)
 	}
 }
 
+// ---------------------------------------------------------
+// Light sampling
+
+float3 sampleSky(float3 dir)
+{
+	return SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, dir, 0.0).rgb;
+}
+
+float3 traceSun(float3 rayOrigin)
+{
+	RayPayload rayPayload = createRayPayload();
+
+	RayDesc rayDesc;
+	rayDesc.Origin = rayOrigin;
+	rayDesc.Direction = sceneUniform.sunDirection.xyz;
+	rayDesc.TMin = RAYGEN_T_MIN;
+	rayDesc.TMax = RAYGEN_T_MAX;
+
+	uint instanceInclusionMask = ~0; // Do not ignore anything
+	uint rayContributionToHitGroupIndex = 0;
+	uint multiplierForGeometryContributionToHitGroupIndex = 1;
+	uint missShaderIndex = 0;
+	TraceRay(
+		rtScene,
+		RAY_FLAG_NONE,
+		instanceInclusionMask,
+		rayContributionToHitGroupIndex,
+		multiplierForGeometryContributionToHitGroupIndex,
+		missShaderIndex,
+		rayDesc,
+		rayPayload);
+
+	if (rayPayload.objectID == OBJECT_ID_NONE)
+	{
+		return sceneUniform.sunIlluminance;
+	}
+
+	return 0;
+}
+
+
+// ---------------------------------------------------------
+// Shader stages
+
 float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 {
 	RayPayload currentRayPayload = createRayPayload();
@@ -171,12 +215,12 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 	currentRay.TMin = RAYGEN_T_MIN;
 	currentRay.TMax = RAYGEN_T_MAX;
 
-	float3 reflectanceHistory[MAX_BOUNCE + 1];
-	float3 radianceHistory[MAX_BOUNCE + 1];
-	float pdfHistory[MAX_BOUNCE + 1];
-	uint numBounces = 0;
+	float3 reflectanceHistory[MAX_PATH_LEN + 1];
+	float3 radianceHistory[MAX_PATH_LEN + 1];
+	float pdfHistory[MAX_PATH_LEN + 1];
+	uint pathLen = 0;
 
-	while (numBounces < MAX_BOUNCE)
+	while (pathLen < MAX_PATH_LEN)
 	{
 		uint instanceInclusionMask = ~0; // Do not ignore anything
 		uint rayContributionToHitGroupIndex = 0;
@@ -195,9 +239,10 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
-			radianceHistory[numBounces] = SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, currentRay.Direction, 0.0).rgb;
-			reflectanceHistory[numBounces] = 1;
-			pdfHistory[numBounces] = 1;
+			radianceHistory[pathLen] = sampleSky(currentRay.Direction);
+			reflectanceHistory[pathLen] = 1;
+			pdfHistory[pathLen] = 1;
+			pathLen += 1;
 			break;
 		}
 
@@ -208,7 +253,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
 
-		float2 randoms = getRandoms(texel, numBounces + 1);
+		float2 randoms = getRandoms(texel, pathLen + 1);
 
 #if 0
 		MicrofacetBRDFInput brdfInput;
@@ -227,7 +272,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		float scatteredPdf = brdfOutput.pdf;
 #else
 		float3 scatteredReflectance = currentRayPayload.albedo;
-		float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, numBounces + 1);
+		float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, pathLen + 1);
 		scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (surfaceNormal * scatteredDir.z);
 		float scatteredPdf = 1;
 #endif
@@ -238,9 +283,12 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			scatteredPdf = 0.0;
 		}
 
-		radianceHistory[numBounces] = currentRayPayload.emission;
-		reflectanceHistory[numBounces] = scatteredReflectance;
-		pdfHistory[numBounces] = scatteredPdf;
+		float3 E = 0;
+		//E += traceSun(surfacePosition); // #todo: Result is corrupted even if only call TraceScene and return 0? memory barrier bug?
+
+		radianceHistory[pathLen] = currentRayPayload.emission + E;
+		reflectanceHistory[pathLen] = scatteredReflectance;
+		pdfHistory[pathLen] = scatteredPdf;
 
 		if (scatteredPdf <= 0.0)
 		{
@@ -252,20 +300,14 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		//currentRay.TMin = RAYGEN_T_MIN;
 		//currentRay.TMax = RAYGEN_T_MAX;
 
-		numBounces += 1;
+		pathLen += 1;
 	}
 
 	float3 Li = 0;
-	if (numBounces < MAX_BOUNCE)
+	for (uint i = 0; i < pathLen; ++i)
 	{
-		for (uint i = 0; i <= numBounces; ++i)
-		{
-			uint j = numBounces - i;
-			if (pdfHistory[j] > 0.0)
-			{
-				Li = reflectanceHistory[j] * (Li + radianceHistory[j]) / pdfHistory[j];
-			}
-		}
+		uint j = pathLen - i - 1;
+		Li = reflectanceHistory[j] * (Li + radianceHistory[j]) / pdfHistory[j];
 	}
 
 	return Li;
