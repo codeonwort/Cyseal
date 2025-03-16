@@ -4,6 +4,11 @@
 // - [Holger Dammertz] Edge Avoiding A-Trous Wavelet Transform for fast Global Illumination Filtering
 // - [AMD FidelityFX-Denoiser] Temporal reprojection logic: https://github.com/GPUOpen-Effects/FidelityFX-Denoiser/blob/master/ffx-shadows-dnsr/ffx_denoiser_shadows_tileclassification.h
 
+// 0: final color, 1: albedo
+#define COLOR_WEIGHT_BY_SCENE_COLOR 0
+#define COLOR_WEIGHT_BY_ALBEDO      1
+#define COLOR_WEIGHT_SOURCE         COLOR_WEIGHT_BY_ALBEDO
+
 // ------------------------------------------------------------------------
 // Resource bindings
 
@@ -29,7 +34,8 @@ ConstantBuffer<PushConstants>  pushConstants;
 ConstantBuffer<SceneUniform>   sceneUniform;
 ConstantBuffer<BlurUniform>    blurUniform;
 RWTexture2D<float4>            inColorTexture;
-Texture2D<float4>              inNormalTexture;
+Texture2D<GBUFFER0_DATATYPE>   inGBuffer0Texture;
+Texture2D<GBUFFER1_DATATYPE>   inGBuffer1Texture;
 Texture2D<float>               inDepthTexture;
 RWTexture2D<float4>            outputTexture;
 
@@ -67,12 +73,16 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         return;
     }
 
+    GBUFFER0_DATATYPE gbuffer0Data = inGBuffer0Texture.Load(int3(tid.xy, 0));
+    GBUFFER1_DATATYPE gbuffer1Data = inGBuffer1Texture.Load(int3(tid.xy, 0));
+    GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
+
     float2 resolution = getScreenResolution();
     float stepWidth = float(pushConstants.stepWidth);
 
     float2 uv0 = (float2(tid.xy) + float2(0.5, 0.5)) / resolution;
     float3 color0 = inColorTexture[tid.xy].xyz;
-    float3 normal0 = inNormalTexture.Load(int3(tid.xy, 0)).xyz;
+    float3 normal0 = gbufferData.normalWS;
     float3 pos0 = getWorldPosition(tid.xy);
 
     if (blurUniform.bSkipBlur != 0)
@@ -93,11 +103,22 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 
         int2 neighborTexel = clampTexel(int2(float2(tid.xy) + offset * stepWidth));
 
+        GBUFFER0_DATATYPE neighborGBuffer0Data = inGBuffer0Texture.Load(int3(neighborTexel, 0));
+        GBUFFER1_DATATYPE neighborGBuffer1Data = inGBuffer1Texture.Load(int3(neighborTexel, 0));
+        GBufferData neighborGBufferData = decodeGBuffers(neighborGBuffer0Data, neighborGBuffer1Data);
+
         float3 color1 = inColorTexture[neighborTexel].xyz;
-        float3 normal1 = inNormalTexture.Load(int3(neighborTexel, 0)).xyz;
+        float3 normal1 = neighborGBufferData.normalWS;
         float3 pos1 = getWorldPosition(neighborTexel);
 
-        diff = color0 - color1;
+#if COLOR_WEIGHT_SOURCE == COLOR_WEIGHT_BY_SCENE_COLOR
+        float dummy = min(-FLT_MAX, gbufferData.albedo - neighborGBufferData.albedo); // Due to my stupid SPT impl.
+        diff = max(dummy, color0 - color1);
+#elif COLOR_WEIGHT_SOURCE == COLOR_WEIGHT_BY_ALBEDO
+        diff = gbufferData.albedo - neighborGBufferData.albedo; // color0 - color1;
+#else
+        #error COLOR_WEIGHT_SOURCE is invalid
+#endif
         distSq = dot(diff, diff);
         float colorWeight = min(1.0, exp(-distSq / blurUniform.cPhi));
 

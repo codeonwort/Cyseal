@@ -373,7 +373,7 @@ void MainRaygen()
 	GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
 
 	float3 albedo = gbufferData.albedo;
-	float3 normalWS = normalize(gbufferData.normalWS);
+	float3 normalWS = gbufferData.normalWS;
 	float roughness = gbufferData.roughness;
 
 	float NdotV = dot(-viewDirection, normalWS);
