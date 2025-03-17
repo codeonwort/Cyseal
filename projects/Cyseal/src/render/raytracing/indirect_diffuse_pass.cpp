@@ -2,6 +2,7 @@
 
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
+#include "render/bilateral_blur.h"
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
@@ -26,7 +27,7 @@
 #define PF_colorHistory                     EPixelFormat::R16G16B16A16_FLOAT
 #define PF_momentHistory                    EPixelFormat::R32G32B32A32_UINT
 
-static const int32 BLUR_COUNT = 5;
+static const int32 BLUR_COUNT = 3;
 static float const cPhi       = 1.0f;
 static float const nPhi       = 1.0f;
 static float const pPhi       = 1.0f;
@@ -43,19 +44,6 @@ struct IndirectDiffuseUniform
 	uint32      renderTargetHeight;
 	uint32      frameCounter;
 	uint32      mode;
-};
-
-struct BlurUniform
-{
-	float kernelAndOffset[4 * 25];
-	float cPhi;
-	float nPhi;
-	float pPhi;
-	float _pad0;
-	uint32 textureWidth;
-	uint32 textureHeight;
-	uint32 bSkipBlur;
-	uint32 _pad2;
 };
 
 // Should match with RayPayload in indirect_diffuse_reflection.hlsl.
@@ -94,7 +82,6 @@ void IndirectDiffusePass::initialize()
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
 	rayPassDescriptor.initialize(L"IndirectDiffuse_RayPass", swapchainCount, sizeof(IndirectDiffuseUniform));
-	blurPassDescriptor.initialize(L"IndirectDiffuse_BlurPass", swapchainCount, sizeof(BlurUniform));
 
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
@@ -193,19 +180,6 @@ void IndirectDiffusePass::initialize()
 		delete closestHitShader;
 		delete missShader;
 	}
-
-	// Blur pipeline
-	{
-		ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "BilateralBlurCS");
-		shader->declarePushConstants({ "pushConstants" });
-		shader->loadFromFile(L"bilateral_blur.hlsl", "mainCS");
-
-		blurPipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
-			ComputePipelineDesc{ .cs = shader, .nodeMask = 0 }
-		));
-
-		delete shader;
-	}
 }
 
 bool IndirectDiffusePass::isAvailable() const
@@ -296,7 +270,6 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		requiredVolatiles += 1; // STBN
 		requiredVolatiles += 1; // sceneDepthTexture
 		requiredVolatiles += 1; // prevSceneDepthTexture
-		requiredVolatiles += 1; // renderTarget
 		requiredVolatiles += 2; // gbuffer0, gbuffer1
 		requiredVolatiles += 1; // currentColorTexture
 		requiredVolatiles += 1; // prevColorTexture
@@ -337,7 +310,6 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
 		SPT.texture("prevColorTexture", prevColorSRV);
-		SPT.rwTexture("renderTarget", passInput.indirectDiffuseUAV);
 		SPT.rwTexture("currentColorTexture", currentColorUAV);
 		// Bindless
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
@@ -361,50 +333,9 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
-
-	// Resize volatile heaps if needed.
+	
 	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // pushConstants
-		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // blurUniform
-		requiredVolatiles += 1; // inColorTexture
-		requiredVolatiles += 2; // inGBuffer0Texture, inGBuffer1Texture
-		requiredVolatiles += 1; // inDepthTexture
-		requiredVolatiles += 1; // outputTexture
-
-		blurPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles * BLUR_COUNT);
-	}
-
-	// Update uniforms.
-	{
-		BlurUniform uboData;
-		int32 k = 0;
-		float kernel1D[3] = { 1.0f, 2.0f / 3.0f, 1.0f / 6.0f };
-		for (int32 y = -2; y <= 2; ++y)
-		{
-			for (int32 x = -2; x <= 2; ++x)
-			{
-				uboData.kernelAndOffset[k * 4 + 0] = kernel1D[std::abs(x)] * kernel1D[std::abs(y)];
-				uboData.kernelAndOffset[k * 4 + 1] = (float)x;
-				uboData.kernelAndOffset[k * 4 + 2] = (float)y;
-				uboData.kernelAndOffset[k * 4 + 3] = 0.0f;
-				++k;
-			}
-		}
-		uboData.cPhi = cPhi;
-		uboData.nPhi = nPhi;
-		uboData.pPhi = pPhi;
-		uboData.textureWidth = passInput.sceneWidth;
-		uboData.textureHeight = passInput.sceneHeight;
-		uboData.bSkipBlur = false;
-
-		auto uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
-		uniformCBV->writeToGPU(commandList, &uboData, sizeof(BlurUniform));
-	}
-
-	{
-		SCOPED_DRAW_EVENT(commandList, CopyColorToPrevColor);
+		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToPrevColor);
 
 		TextureMemoryBarrier barriersBefore[] = {
 			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, currentColorTexture },
@@ -419,43 +350,24 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
-	}
 
-	commandList->setComputePipelineState(blurPipelineState.get());
-
-	// Bind shader parameters.
-	DescriptorHeap* volatileHeap = blurPassDescriptor.getDescriptorHeap(swapchainIndex);
-	ConstantBufferView* uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
-	DescriptorIndexTracker tracker;
-	UnorderedAccessView* blurInput = prevColorUAV;
-	UnorderedAccessView* blurOutput = colorScratchUAV.get();
-
-	int32 actualBlurCount = BLUR_COUNT;
-	for (int32 phase = 0; phase < actualBlurCount; ++phase)
-	{
-		if (phase == actualBlurCount - 1) blurOutput = passInput.indirectDiffuseUAV;
-
-		ShaderParameterTable SPT{};
-		SPT.pushConstant("pushConstants", phase + 1);
-		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
-		SPT.constantBuffer("blurUniform", uniformCBV);
-		SPT.rwTexture("inColorTexture", blurInput);
-		SPT.texture("inGBuffer0Texture", passInput.gbuffer0SRV);
-		SPT.texture("inGBuffer1Texture", passInput.gbuffer1SRV);
-		SPT.texture("inDepthTexture", passInput.sceneDepthSRV);
-		SPT.rwTexture("outputTexture", blurOutput);
-
-		commandList->bindComputeShaderParameters(blurPipelineState.get(), &SPT, volatileHeap, &tracker);
-
-		uint32 groupX = (sceneWidth + 7) / 8, groupY = (sceneHeight + 7) / 8;
-		commandList->dispatchCompute(groupX, groupY, 1);
-
-		GPUResource* uavBarriers[] = { currentColorTexture, prevColorTexture, colorScratch.get(), };
-		commandList->resourceBarriers(0, nullptr, 0, nullptr, _countof(uavBarriers), uavBarriers);
-
-		auto temp = blurInput;
-		blurInput = blurOutput;
-		blurOutput = temp;
+		BilateralBlurInput blurPassInput{
+			.imageWidth      = sceneWidth,
+			.imageHeight     = sceneHeight,
+			.blurCount       = BLUR_COUNT,
+			.cPhi            = cPhi,
+			.nPhi            = nPhi,
+			.pPhi            = pPhi,
+			.sceneUniformCBV = sceneUniformBuffer,
+			.inColorTexture  = prevColorTexture,
+			.inColorUAV      = prevColorUAV,
+			.inSceneDepthSRV = passInput.sceneDepthSRV,
+			.inGBuffer0SRV   = passInput.gbuffer0SRV,
+			.inGBuffer1SRV   = passInput.gbuffer1SRV,
+			.outColorTexture = passInput.indirectDiffuseTexture,
+			.outColorUAV     = passInput.indirectDiffuseUAV,
+		};
+		passInput.bilateralBlur->renderBilateralBlur(commandList, swapchainIndex, blurPassInput);
 	}
 }
 
@@ -472,7 +384,6 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 	commandList->enqueueDeferredDealloc(momentHistory[1].release(), true);
 	commandList->enqueueDeferredDealloc(colorHistory[0].release(), true);
 	commandList->enqueueDeferredDealloc(colorHistory[1].release(), true);
-	commandList->enqueueDeferredDealloc(colorScratch.release(), true);
 
 	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
 		PF_momentHistory, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
@@ -530,17 +441,6 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}
-
-	colorScratch = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
-	colorScratch->setDebugName(L"RT_DiffuseColorScratch");
-
-	colorScratchUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorScratch.get(),
-		UnorderedAccessViewDesc{
-			.format         = colorDesc.format,
-			.viewDimension  = EUAVDimension::Texture2D,
-			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-		}
-	));
 
 	Texture* stbnTexture = gTextureManager->getSTBNVec3Cosine()->getGPUResource().get();
 	stbnSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(stbnTexture,

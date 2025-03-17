@@ -66,8 +66,7 @@ Texture2D<GBUFFER1_DATATYPE>            gbuffer1                : register(t8, s
 Texture2D                               sceneDepthTexture       : register(t9, space0);
 Texture2D                               prevSceneDepthTexture   : register(t10, space0);
 Texture2D                               prevColorTexture        : register(t11, space0);
-RWTexture2D<float4>                     renderTarget            : register(u0, space0);
-RWTexture2D<float4>                     currentColorTexture     : register(u1, space0);
+RWTexture2D<float4>                     currentColorTexture     : register(u0, space0);
 
 // Material resource binding
 #define TEMP_MAX_SRVS 1024
@@ -366,7 +365,6 @@ void MainRaygen()
 	{
 		float3 Wo = 0;
 		currentColorTexture[texel] = float4(Wo, 1.0);
-		renderTarget[texel] = float4(Wo, 1.0);
 		return;
 	}
 
@@ -428,7 +426,6 @@ void MainRaygen()
 
 	// #todo-diffuse: Should store history in moment texture
 	currentColorTexture[texel] = float4(Wo, historyCount);
-	renderTarget[texel] = float4(Wo, 1.0);
 }
 
 [shader("closesthit")]

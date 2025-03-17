@@ -26,6 +26,11 @@
 
 #define RANDOM_SEQUENCE_LENGTH                (64 * 64)
 
+static const int32 BLUR_COUNT = 3;
+static float const cPhi       = 1.0f;
+static float const nPhi       = 1.0f;
+static float const pPhi       = 1.0f;
+
 DEFINE_LOG_CATEGORY_STATIC(LogPathTracing);
 
 struct PathTracingUniform
@@ -38,19 +43,6 @@ struct PathTracingUniform
 	uint32 renderTargetHeight;
 	uint32 bInvalidateHistory;
 	uint32 bLimitHistory;
-};
-
-struct BlurUniform
-{
-	float kernelAndOffset[4 * 25];
-	float cPhi;
-	float nPhi;
-	float pPhi;
-	float _pad0;
-	uint32 textureWidth;
-	uint32 textureHeight;
-	uint32 bSkipBlur;
-	uint32 _pad2;
 };
 
 // Just to calculate size in bytes.
@@ -346,8 +338,6 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
 
-	const int32 BLUR_COUNT = 3;
-	
 	if (passInput.mode == EPathTracingMode::Offline)
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
@@ -389,9 +379,9 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 			.imageWidth      = sceneWidth,
 			.imageHeight     = sceneHeight,
 			.blurCount       = BLUR_COUNT,
-			.cPhi            = 1.0f,
-			.nPhi            = 1.0f,
-			.pPhi            = 1.0f,
+			.cPhi            = cPhi,
+			.nPhi            = nPhi,
+			.pPhi            = pPhi,
 			.sceneUniformCBV = sceneUniformBuffer,
 			.inColorTexture  = prevColorTexture,
 			.inColorUAV      = prevColorUAV,

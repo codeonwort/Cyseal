@@ -7,10 +7,8 @@
 #include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
 
-class MaterialAsset;
 class SceneProxy;
 class Camera;
-class GPUScene;
 
 struct IndirectDiffuseInput
 {
@@ -23,8 +21,10 @@ struct IndirectDiffuseInput
 	uint32                     sceneWidth;
 	uint32                     sceneHeight;
 
+	class GPUScene*            gpuScene;
+	class BilateralBlur*       bilateralBlur;
+
 	ConstantBufferView*        sceneUniformBuffer;
-	GPUScene*                  gpuScene;
 	AccelerationStructure*     raytracingScene;
 	ShaderResourceView*        skyboxSRV;
 	ShaderResourceView*        gbuffer0SRV;
@@ -57,8 +57,6 @@ private:
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	std::vector<uint32> totalHitGroupShaderRecord;
 
-	UniquePtr<ComputePipelineState> blurPipelineState;
-
 	uint32 historyWidth = 0;
 	uint32 historyHeight = 0;
 	UniquePtr<Texture> colorHistory[2];
@@ -66,12 +64,9 @@ private:
 	UniquePtr<ShaderResourceView> colorHistorySRV[2];
 	UniquePtr<Texture> momentHistory[2];
 	UniquePtr<UnorderedAccessView> momentHistoryUAV[2];
-	UniquePtr<Texture> colorScratch;
-	UniquePtr<UnorderedAccessView> colorScratchUAV;
 
 	uint32 frameCounter = 0;
 	UniquePtr<ShaderResourceView> stbnSRV;
 
 	VolatileDescriptorHelper rayPassDescriptor;
-	VolatileDescriptorHelper blurPassDescriptor;
 };
