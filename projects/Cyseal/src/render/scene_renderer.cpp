@@ -433,6 +433,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.sceneColorUAV         = pathTracingUAV.get(),
 				.sceneDepthSRV         = sceneDepthSRV.get(),
 				.prevSceneDepthSRV     = prevSceneDepthSRV.get(),
+				.gbuffer0SRV           = gbufferSRVs[0].get(),
 				.gbuffer1SRV           = gbufferSRVs[1].get(),
 				.skyboxSRV             = skyboxSRV.get(),
 			};

@@ -365,7 +365,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		requiredVolatiles += 1; // sceneUniform
 		requiredVolatiles += 1; // blurUniform
 		requiredVolatiles += 1; // inColorTexture
-		requiredVolatiles += 1; // inNormalTexture
+		requiredVolatiles += 2; // inGBuffer0Texture, inGBuffer1Texture
 		requiredVolatiles += 1; // inDepthTexture
 		requiredVolatiles += 1; // outputTexture
 
@@ -436,7 +436,8 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		SPT.constantBuffer("blurUniform", uniformCBV);
 		SPT.rwTexture("inColorTexture", blurInput);
-		SPT.texture("inNormalTexture", passInput.gbuffer1SRV);
+		SPT.texture("inGBuffer0Texture", passInput.gbuffer0SRV);
+		SPT.texture("inGBuffer1Texture", passInput.gbuffer1SRV);
 		SPT.texture("inDepthTexture", passInput.sceneDepthSRV);
 		SPT.rwTexture("outputTexture", blurOutput);
 
