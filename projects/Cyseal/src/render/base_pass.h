@@ -1,5 +1,6 @@
 #pragma once
 
+#include "scene_render_pass.h"
 #include "renderer_options.h"
 #include "core/smart_pointer.h"
 #include "rhi/pipeline_state.h"
@@ -28,7 +29,8 @@ struct BasePassInput
 	ShaderResourceView*    shadowMaskSRV;
 };
 
-class BasePass final
+// Render direct lighting + gbuffers.
+class BasePass final : public SceneRenderPass
 {
 public:
 	void initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbufferForamts[], uint32 numGBuffers);

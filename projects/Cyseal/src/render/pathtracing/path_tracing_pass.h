@@ -5,6 +5,7 @@
 #include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/texture.h"
+#include "render/scene_render_pass.h"
 #include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
 
@@ -35,7 +36,7 @@ struct PathTracingInput
 	ShaderResourceView*        skyboxSRV;
 };
 
-class PathTracingPass final
+class PathTracingPass final : public SceneRenderPass
 {
 public:
 	void initialize();

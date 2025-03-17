@@ -1,5 +1,6 @@
 #pragma once
 
+#include "scene_render_pass.h"
 #include "core/vec3.h"
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
@@ -10,7 +11,7 @@ class SceneProxy;
 class Camera;
 
 // Cull indirect draw commands using GPU scene.
-class GPUCulling final
+class GPUCulling final : public SceneRenderPass
 {
 public:
 	void initialize();

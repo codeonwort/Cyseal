@@ -4,6 +4,7 @@
 #include "core/smart_pointer.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/rhi_forward.h"
+#include "render/scene_render_pass.h"
 #include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
 
@@ -35,7 +36,7 @@ struct IndirectSpecularInput
 	UnorderedAccessView*       indirectSpecularUAV;
 };
 
-class IndirecSpecularPass final
+class IndirecSpecularPass final : public SceneRenderPass
 {
 public:
 	void initialize();

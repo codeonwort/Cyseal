@@ -1,5 +1,6 @@
 #pragma once
 
+#include "scene_render_pass.h"
 #include "core/smart_pointer.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource.h"
@@ -21,7 +22,7 @@ struct BufferVisualizationInput
 };
 
 // Visualize intermediate rendering data during frame rendering.
-class BufferVisualization final
+class BufferVisualization final : public SceneRenderPass
 {
 public:
 	void initialize();

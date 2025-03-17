@@ -1,26 +1,9 @@
 #pragma once
 
 #include "renderer.h"
+#include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_view.h"
 #include "core/smart_pointer.h"
-
-class Buffer;
-class Texture;
-class DescriptorHeap;
-class ConstantBufferView;
-
-// Render passes
-class GPUScene;
-class GPUCulling;
-class RayTracedShadowsPass;
-class BasePass;
-class SkyPass;
-class IndirectDiffusePass;
-class IndirecSpecularPass;
-class ToneMapping;
-class BufferVisualization;
-class PathTracingPass;
-class DenoiserPluginPass;
 
 // Should match with common.hlsl
 struct SceneUniform
@@ -125,15 +108,17 @@ private:
 
 	// ------------------------------------------------------------------------
 	// Render passes
-	GPUScene*             gpuScene              = nullptr;
-	GPUCulling*           gpuCulling            = nullptr;
-	RayTracedShadowsPass* rayTracedShadowsPass  = nullptr;
-	BasePass*             basePass              = nullptr;
-	SkyPass*              skyPass               = nullptr;
-	IndirectDiffusePass*  indirectDiffusePass   = nullptr;
-	IndirecSpecularPass*  indirectSpecularPass  = nullptr;
-	ToneMapping*          toneMapping           = nullptr;
-	BufferVisualization*  bufferVisualization   = nullptr;
-	PathTracingPass*      pathTracingPass       = nullptr;
-	DenoiserPluginPass*   denoiserPluginPass    = nullptr;
+	class GPUScene*             gpuScene              = nullptr;
+	class GPUCulling*           gpuCulling            = nullptr;
+	class RayTracedShadowsPass* rayTracedShadowsPass  = nullptr;
+	class BasePass*             basePass              = nullptr;
+	class SkyPass*              skyPass               = nullptr;
+	class IndirectDiffusePass*  indirectDiffusePass   = nullptr;
+	class IndirecSpecularPass*  indirectSpecularPass  = nullptr;
+	class ToneMapping*          toneMapping           = nullptr;
+	class BufferVisualization*  bufferVisualization   = nullptr;
+	class PathTracingPass*      pathTracingPass       = nullptr;
+	class DenoiserPluginPass*   denoiserPluginPass    = nullptr;
+
+	std::vector<class SceneRenderPass*> sceneRenderPasses;
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "scene_render_pass.h"
 #include "core/vec3.h"
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
@@ -16,7 +17,7 @@ struct GPUSceneInput
 	bool                bRenderAnyRaytracingPass;
 };
 
-class GPUScene final
+class GPUScene final : public SceneRenderPass
 {
 public:
 	struct MaterialDescriptorsDesc

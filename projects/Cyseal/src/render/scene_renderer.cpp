@@ -102,37 +102,28 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 	// Render passes
 	{
-		gpuScene = new GPUScene;
+		sceneRenderPasses.push_back(gpuScene = new GPUScene);
+		sceneRenderPasses.push_back(gpuCulling = new GPUCulling);
+		sceneRenderPasses.push_back(rayTracedShadowsPass = new RayTracedShadowsPass);
+		sceneRenderPasses.push_back(basePass = new BasePass);
+		sceneRenderPasses.push_back(skyPass = new SkyPass);
+		sceneRenderPasses.push_back(indirectDiffusePass = new IndirectDiffusePass);
+		sceneRenderPasses.push_back(indirectSpecularPass = new IndirecSpecularPass);
+		sceneRenderPasses.push_back(toneMapping = new ToneMapping);
+		sceneRenderPasses.push_back(bufferVisualization = new BufferVisualization);
+		sceneRenderPasses.push_back(pathTracingPass = new PathTracingPass);
+		sceneRenderPasses.push_back(denoiserPluginPass = new DenoiserPluginPass);
+
 		gpuScene->initialize();
-
-		gpuCulling = new GPUCulling;
 		gpuCulling->initialize();
-
-		rayTracedShadowsPass = new RayTracedShadowsPass;
 		rayTracedShadowsPass->initialize();
-
-		basePass = new BasePass;
 		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS);
-
-		skyPass = new SkyPass;
 		skyPass->initialize(PF_sceneColor);
-
-		indirectDiffusePass = new IndirectDiffusePass;
 		indirectDiffusePass->initialize();
-
-		indirectSpecularPass = new IndirecSpecularPass;
 		indirectSpecularPass->initialize();
-
-		toneMapping = new ToneMapping;
 		toneMapping->initialize();
-
-		bufferVisualization = new BufferVisualization;
 		bufferVisualization->initialize();
-
-		pathTracingPass = new PathTracingPass;
 		pathTracingPass->initialize();
-
-		denoiserPluginPass = new DenoiserPluginPass;
 		denoiserPluginPass->initialize();
 	}
 }
@@ -150,17 +141,8 @@ void SceneRenderer::destroy()
 
 	accelStructure.reset();
 
-	delete gpuScene;
-	delete gpuCulling;
-	delete rayTracedShadowsPass;
-	delete basePass;
-	delete skyPass;
-	delete indirectDiffusePass;
-	delete indirectSpecularPass;
-	delete toneMapping;
-	delete bufferVisualization;
-	delete pathTracingPass;
-	delete denoiserPluginPass;
+	for (auto pass : sceneRenderPasses) delete pass;
+	sceneRenderPasses.clear();
 }
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)

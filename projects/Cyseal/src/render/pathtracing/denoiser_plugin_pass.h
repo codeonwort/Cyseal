@@ -3,6 +3,7 @@
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
 #include "rhi/texture.h"
+#include "render/scene_render_pass.h"
 #include "render/util/volatile_descriptor.h"
 
 struct DenoiserPluginInput
@@ -14,7 +15,7 @@ struct DenoiserPluginInput
 	ShaderResourceView*    gbuffer1SRV;
 };
 
-class DenoiserPluginPass final
+class DenoiserPluginPass final : public SceneRenderPass
 {
 public:
 	void initialize();

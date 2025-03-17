@@ -3,6 +3,7 @@
 #include "core/int_types.h"
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
+#include "render/scene_render_pass.h"
 #include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
 
@@ -35,7 +36,7 @@ struct IndirectDiffuseInput
 	UnorderedAccessView*       indirectDiffuseUAV;
 };
 
-class IndirectDiffusePass final
+class IndirectDiffusePass final : public SceneRenderPass
 {
 public:
 	void initialize();

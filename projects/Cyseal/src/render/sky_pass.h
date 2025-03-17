@@ -1,5 +1,6 @@
 #pragma once
 
+#include "scene_render_pass.h"
 #include "renderer_options.h"
 #include "core/smart_pointer.h"
 #include "rhi/pipeline_state.h"
@@ -18,7 +19,7 @@ struct SkyPassInput
 	ShaderResourceView*    skyboxSRV;
 };
 
-class SkyPass final
+class SkyPass final : public SceneRenderPass
 {
 public:
 	void initialize(EPixelFormat sceneColorFormat);

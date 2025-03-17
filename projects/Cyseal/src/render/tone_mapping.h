@@ -1,5 +1,6 @@
 #pragma once
 
+#include "scene_render_pass.h"
 #include "core/smart_pointer.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"
@@ -19,7 +20,7 @@ struct ToneMappingInput
 	ShaderResourceView* indirectSpecularSRV;
 };
 
-class ToneMapping final
+class ToneMapping final : public SceneRenderPass
 {
 public:
 	void initialize();
