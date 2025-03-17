@@ -30,6 +30,8 @@ struct IndirectDiffuseInput
 	ShaderResourceView*        gbuffer1SRV;
 	ShaderResourceView*        sceneDepthSRV;
 	ShaderResourceView*        prevSceneDepthSRV;
+
+	Texture*                   indirectDiffuseTexture;
 	UnorderedAccessView*       indirectDiffuseUAV;
 };
 

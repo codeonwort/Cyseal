@@ -351,7 +351,11 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		.height            = sceneHeight,
 		.depth             = 1,
 	};
+	// #todo: First frame is too yellow in bedroom model? Not a barrier problem?
 	commandList->dispatchRays(dispatchDesc);
+
+	GPUResource* uavBarriers[] = { passInput.indirectDiffuseTexture, currentColorTexture };
+	commandList->resourceBarriers(0, nullptr, 0, nullptr, _countof(uavBarriers), uavBarriers);
 
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
@@ -444,6 +448,9 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		uint32 groupX = (sceneWidth + 7) / 8, groupY = (sceneHeight + 7) / 8;
 		commandList->dispatchCompute(groupX, groupY, 1);
 
+		GPUResource* uavBarriers[] = { currentColorTexture, prevColorTexture, colorScratch.get(), };
+		commandList->resourceBarriers(0, nullptr, 0, nullptr, _countof(uavBarriers), uavBarriers);
+
 		auto temp = blurInput;
 		blurInput = blurOutput;
 		blurOutput = temp;
@@ -467,6 +474,7 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 
 	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
 		EPixelFormat::R16G16B16A16_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
+
 	for (uint32 i = 0; i < 2; ++i)
 	{
 		std::wstring debugName = L"RT_DiffuseMomentHistory" + std::to_wstring(i);

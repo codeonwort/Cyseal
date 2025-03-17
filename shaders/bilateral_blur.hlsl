@@ -7,7 +7,7 @@
 // 0: final color, 1: albedo
 #define COLOR_WEIGHT_BY_SCENE_COLOR 0
 #define COLOR_WEIGHT_BY_ALBEDO      1
-#define COLOR_WEIGHT_SOURCE         COLOR_WEIGHT_BY_ALBEDO
+#define COLOR_WEIGHT_SOURCE         COLOR_WEIGHT_BY_SCENE_COLOR
 
 // ------------------------------------------------------------------------
 // Resource bindings
