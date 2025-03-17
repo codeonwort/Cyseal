@@ -17,6 +17,7 @@
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
 #include "render/gpu_culling.h"
+#include "render/bilateral_blur.h"
 #include "render/base_pass.h"
 #include "render/sky_pass.h"
 #include "render/tone_mapping.h"
@@ -104,6 +105,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 	{
 		sceneRenderPasses.push_back(gpuScene = new GPUScene);
 		sceneRenderPasses.push_back(gpuCulling = new GPUCulling);
+		sceneRenderPasses.push_back(bilateralBlur = new BilateralBlur);
 		sceneRenderPasses.push_back(rayTracedShadowsPass = new RayTracedShadowsPass);
 		sceneRenderPasses.push_back(basePass = new BasePass);
 		sceneRenderPasses.push_back(skyPass = new SkyPass);
@@ -116,6 +118,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 		gpuScene->initialize();
 		gpuCulling->initialize();
+		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
 		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS);
 		skyPass->initialize(PF_sceneColor);
@@ -410,8 +413,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.sceneWidth            = sceneWidth,
 				.sceneHeight           = sceneHeight,
 				.gpuScene              = gpuScene,
+				.bilateralBlur         = bilateralBlur,
 				.raytracingScene       = accelStructure.get(),
 				.sceneUniformBuffer    = sceneUniformCBV,
+				.sceneColorTexture     = RT_pathTracing.get(),
 				.sceneColorUAV         = pathTracingUAV.get(),
 				.sceneDepthSRV         = sceneDepthSRV.get(),
 				.prevSceneDepthSRV     = prevSceneDepthSRV.get(),

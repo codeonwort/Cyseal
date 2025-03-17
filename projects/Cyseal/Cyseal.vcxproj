@@ -207,6 +207,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\render\base_pass.cpp" />
+    <ClCompile Include="src\render\bilateral_blur.cpp" />
     <ClCompile Include="src\render\buffer_visualization.cpp" />
     <ClCompile Include="src\render\gpu_culling.cpp" />
     <ClCompile Include="src\render\pathtracing\denoiser_plugin_pass.cpp" />

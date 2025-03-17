@@ -11,7 +11,6 @@
 
 class SceneProxy;
 class Camera;
-class GPUScene;
 
 struct PathTracingInput
 {
@@ -25,9 +24,12 @@ struct PathTracingInput
 	uint32                     sceneWidth;
 	uint32                     sceneHeight;
 
-	GPUScene*                  gpuScene;
+	class GPUScene*            gpuScene;
+	class BilateralBlur*       bilateralBlur;
+
 	AccelerationStructure*     raytracingScene;
 	ConstantBufferView*        sceneUniformBuffer;
+	Texture*                   sceneColorTexture;
 	UnorderedAccessView*       sceneColorUAV;
 	ShaderResourceView*        sceneDepthSRV;
 	ShaderResourceView*        prevSceneDepthSRV;
@@ -56,20 +58,13 @@ private:
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	std::vector<uint32> totalHitGroupShaderRecord;
 
-	UniquePtr<ComputePipelineState> blurPipelineState;
-
 	uint32 historyWidth = 0;
 	uint32 historyHeight = 0;
 	UniquePtr<Texture> momentHistory[2];
 	UniquePtr<UnorderedAccessView> momentHistoryUAV[2];
-
 	UniquePtr<Texture> colorHistory[2];
 	UniquePtr<UnorderedAccessView> colorHistoryUAV[2];
 	UniquePtr<ShaderResourceView> colorHistorySRV[2];
 
-	UniquePtr<Texture> colorScratch;
-	UniquePtr<UnorderedAccessView> colorScratchUAV;
-
 	VolatileDescriptorHelper rayPassDescriptor;
-	VolatileDescriptorHelper blurPassDescriptor;
 };

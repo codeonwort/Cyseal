@@ -1,6 +1,7 @@
 #include "path_tracing_pass.h"
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
+#include "render/bilateral_blur.h"
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
@@ -92,7 +93,6 @@ void PathTracingPass::initialize()
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
 	rayPassDescriptor.initialize(L"PathTracing_RayPass", swapchainCount, sizeof(PathTracingUniform));
-	blurPassDescriptor.initialize(L"PathTracing_BlurPass", swapchainCount, sizeof(BlurUniform));
 
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
@@ -191,19 +191,6 @@ void PathTracingPass::initialize()
 		delete raygenShader;
 		delete closestHitShader;
 		delete missShader;
-	}
-
-	// Blur pipeline
-	{
-		ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "BilateralBlurCS");
-		shader->declarePushConstants({ "pushConstants" });
-		shader->loadFromFile(L"bilateral_blur.hlsl", "mainCS");
-
-		blurPipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
-			ComputePipelineDesc{ .cs = shader, .nodeMask = 0 }
-		));
-
-		delete shader;
 	}
 }
 
@@ -353,54 +340,36 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	};
 	commandList->dispatchRays(dispatchDesc);
 
+	GPUResource* uavBarriers[] = { currentColorTexture, momentHistory[0].get(), momentHistory[1].get() };
+	commandList->resourceBarriers(0, nullptr, 0, nullptr, _countof(uavBarriers), uavBarriers);
+
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
 
 	const int32 BLUR_COUNT = 3;
 	
-	// Resize volatile heaps if needed.
+	if (passInput.mode == EPathTracingMode::Offline)
 	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // pushConstants
-		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // blurUniform
-		requiredVolatiles += 1; // inColorTexture
-		requiredVolatiles += 2; // inGBuffer0Texture, inGBuffer1Texture
-		requiredVolatiles += 1; // inDepthTexture
-		requiredVolatiles += 1; // outputTexture
+		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
-		blurPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles * BLUR_COUNT);
+		TextureMemoryBarrier barriersBefore[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, currentColorTexture },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_DEST, passInput.sceneColorTexture },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+		commandList->copyTexture2D(currentColorTexture, passInput.sceneColorTexture);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::UNORDERED_ACCESS, currentColorTexture },
+			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, passInput.sceneColorTexture },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
-
-	// Update uniforms.
+	else
 	{
-		BlurUniform uboData;
-		int32 k = 0;
-		float kernel1D[3] = { 1.0f, 2.0f / 3.0f, 1.0f / 6.0f };
-		for (int32 y = -2; y <= 2; ++y)
-		{
-			for (int32 x = -2; x <= 2; ++x)
-			{
-				uboData.kernelAndOffset[k * 4 + 0] = kernel1D[std::abs(x)] * kernel1D[std::abs(y)];
-				uboData.kernelAndOffset[k * 4 + 1] = (float)x;
-				uboData.kernelAndOffset[k * 4 + 2] = (float)y;
-				uboData.kernelAndOffset[k * 4 + 3] = 0.0f;
-				++k;
-			}
-		}
-		uboData.cPhi = 0.2f;
-		uboData.nPhi = 1.0f;
-		uboData.pPhi = 0.5f;
-		uboData.textureWidth = passInput.sceneWidth;
-		uboData.textureHeight = passInput.sceneHeight;
-		uboData.bSkipBlur = (passInput.mode == EPathTracingMode::Offline) ? 1 : 0;
-
-		auto uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
-		uniformCBV->writeToGPU(commandList, &uboData, sizeof(BlurUniform));
-	}
-
-	{
-		SCOPED_DRAW_EVENT(commandList, CopyColorToPrevColor);
+		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToPrevColor);
 
 		TextureMemoryBarrier barriersBefore[] = {
 			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, currentColorTexture },
@@ -415,40 +384,24 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
-	}
 
-	commandList->setComputePipelineState(blurPipelineState.get());
-
-	// Bind shader parameters.
-	DescriptorHeap* volatileHeap = blurPassDescriptor.getDescriptorHeap(swapchainIndex);
-	ConstantBufferView* uniformCBV = blurPassDescriptor.getUniformCBV(swapchainIndex);
-	DescriptorIndexTracker tracker;
-	UnorderedAccessView* blurInput = prevColorUAV;
-	UnorderedAccessView* blurOutput = colorScratchUAV.get();
-	
-	int32 actualBlurCount = (passInput.mode == EPathTracingMode::Offline) ? 1 : BLUR_COUNT;
-	for (int32 phase = 0; phase < actualBlurCount; ++phase)
-	{
-		if (phase == actualBlurCount - 1) blurOutput = sceneColorUAV;
-
-		ShaderParameterTable SPT{};
-		SPT.pushConstant("pushConstants", phase + 1);
-		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
-		SPT.constantBuffer("blurUniform", uniformCBV);
-		SPT.rwTexture("inColorTexture", blurInput);
-		SPT.texture("inGBuffer0Texture", passInput.gbuffer0SRV);
-		SPT.texture("inGBuffer1Texture", passInput.gbuffer1SRV);
-		SPT.texture("inDepthTexture", passInput.sceneDepthSRV);
-		SPT.rwTexture("outputTexture", blurOutput);
-
-		commandList->bindComputeShaderParameters(blurPipelineState.get(), &SPT, volatileHeap, &tracker);
-
-		uint32 groupX = (sceneWidth + 7) / 8, groupY = (sceneHeight + 7) / 8;
-		commandList->dispatchCompute(groupX, groupY, 1);
-
-		auto temp = blurInput;
-		blurInput = blurOutput;
-		blurOutput = temp;
+		BilateralBlurInput blurPassInput{
+			.imageWidth      = sceneWidth,
+			.imageHeight     = sceneHeight,
+			.blurCount       = BLUR_COUNT,
+			.cPhi            = 1.0f,
+			.nPhi            = 1.0f,
+			.pPhi            = 1.0f,
+			.sceneUniformCBV = sceneUniformBuffer,
+			.inColorTexture  = prevColorTexture,
+			.inColorUAV      = prevColorUAV,
+			.inSceneDepthSRV = passInput.sceneDepthSRV,
+			.inGBuffer0SRV   = passInput.gbuffer0SRV,
+			.inGBuffer1SRV   = passInput.gbuffer1SRV,
+			.outColorTexture = passInput.sceneColorTexture,
+			.outColorUAV     = passInput.sceneColorUAV,
+		};
+		passInput.bilateralBlur->renderBilateralBlur(commandList, swapchainIndex, blurPassInput);
 	}
 }
 
@@ -465,7 +418,6 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 	commandList->enqueueDeferredDealloc(momentHistory[1].release(), true);
 	commandList->enqueueDeferredDealloc(colorHistory[0].release(), true);
 	commandList->enqueueDeferredDealloc(colorHistory[1].release(), true);
-	commandList->enqueueDeferredDealloc(colorScratch.release(), true);
 
 	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
 		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
@@ -528,20 +480,6 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}
-
-	colorScratch = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
-	colorScratch->setDebugName(L"RT_PathTracingColorScratch");
-
-	colorScratchUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorScratch.get(),
-		UnorderedAccessViewDesc{
-			.format         = colorDesc.format,
-			.viewDimension  = EUAVDimension::Texture2D,
-			.texture2D      = Texture2DUAVDesc{
-				.mipSlice   = 0,
-				.planeSlice = 0,
-			},
-		}
-	));
 }
 
 void PathTracingPass::resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene)

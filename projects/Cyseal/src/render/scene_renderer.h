@@ -110,6 +110,7 @@ private:
 	// Render passes
 	class GPUScene*             gpuScene              = nullptr;
 	class GPUCulling*           gpuCulling            = nullptr;
+	class BilateralBlur*        bilateralBlur         = nullptr;
 	class RayTracedShadowsPass* rayTracedShadowsPass  = nullptr;
 	class BasePass*             basePass              = nullptr;
 	class SkyPass*              skyPass               = nullptr;
