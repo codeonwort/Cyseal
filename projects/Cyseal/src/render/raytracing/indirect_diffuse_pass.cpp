@@ -21,8 +21,10 @@
 #define INDIRECT_DIFFUSE_MAX_RECURSION      1
 #define INDIRECT_DIFFUSE_HIT_GROUP_NAME     L"IndirectDiffuse_HitGroup"
 
-// #todo-indirect-diffuse: NVidia STBN
 #define RANDOM_SEQUENCE_LENGTH              (64 * 64)
+
+#define PF_colorHistory                     EPixelFormat::R16G16B16A16_FLOAT
+#define PF_momentHistory                    EPixelFormat::R32G32B32A32_UINT
 
 static const int32 BLUR_COUNT = 5;
 static float const cPhi       = 1.0f;
@@ -351,7 +353,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		.height            = sceneHeight,
 		.depth             = 1,
 	};
-	// #todo: First frame is too yellow in bedroom model? Not a barrier problem?
+	// #todo-indirect-diffuse: First frame is too yellow in bedroom model? Not a barrier problem?
 	commandList->dispatchRays(dispatchDesc);
 
 	GPUResource* uavBarriers[] = { passInput.indirectDiffuseTexture, currentColorTexture };
@@ -473,7 +475,7 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 	commandList->enqueueDeferredDealloc(colorScratch.release(), true);
 
 	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
-		EPixelFormat::R16G16B16A16_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
+		PF_momentHistory, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
 
 	for (uint32 i = 0; i < 2; ++i)
 	{
@@ -491,7 +493,7 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 	}
 
 	TextureCreateParams colorDesc = TextureCreateParams::texture2D(
-		EPixelFormat::R16G16B16A16_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
+		PF_colorHistory, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
 
 	for (uint32 i = 0; i < 2; ++i)
 	{

@@ -4,11 +4,6 @@
 // - [Holger Dammertz] Edge Avoiding A-Trous Wavelet Transform for fast Global Illumination Filtering
 // - [AMD FidelityFX-Denoiser] Temporal reprojection logic: https://github.com/GPUOpen-Effects/FidelityFX-Denoiser/blob/master/ffx-shadows-dnsr/ffx_denoiser_shadows_tileclassification.h
 
-// 0: final color, 1: albedo
-#define COLOR_WEIGHT_BY_SCENE_COLOR 0
-#define COLOR_WEIGHT_BY_ALBEDO      1
-#define COLOR_WEIGHT_SOURCE         COLOR_WEIGHT_BY_SCENE_COLOR
-
 // ------------------------------------------------------------------------
 // Resource bindings
 
@@ -82,6 +77,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 
     float2 uv0 = (float2(tid.xy) + float2(0.5, 0.5)) / resolution;
     float3 color0 = inColorTexture[tid.xy].xyz;
+    float3 albedo0 = gbufferData.albedo;
     float3 normal0 = gbufferData.normalWS;
     float3 pos0 = getWorldPosition(tid.xy);
 
@@ -108,19 +104,17 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         GBufferData neighborGBufferData = decodeGBuffers(neighborGBuffer0Data, neighborGBuffer1Data);
 
         float3 color1 = inColorTexture[neighborTexel].xyz;
+        float3 albedo1 = neighborGBufferData.albedo;
         float3 normal1 = neighborGBufferData.normalWS;
         float3 pos1 = getWorldPosition(neighborTexel);
 
-#if COLOR_WEIGHT_SOURCE == COLOR_WEIGHT_BY_SCENE_COLOR
-        float dummy = min(-FLT_MAX, gbufferData.albedo - neighborGBufferData.albedo); // Due to my stupid SPT impl.
-        diff = max(dummy, color0 - color1);
-#elif COLOR_WEIGHT_SOURCE == COLOR_WEIGHT_BY_ALBEDO
-        diff = gbufferData.albedo - neighborGBufferData.albedo; // color0 - color1;
-#else
-        #error COLOR_WEIGHT_SOURCE is invalid
-#endif
+        diff = color0 - color1;
         distSq = dot(diff, diff);
         float colorWeight = min(1.0, exp(-distSq / blurUniform.cPhi));
+
+        diff = albedo0 - albedo1;
+        distSq = max(0.0, dot(diff, diff));
+        float albedoWeight = min(1.0, exp(-distSq / blurUniform.cPhi));
 
         diff = normal0 - normal1;
         distSq = max(0.0, dot(diff, diff) / (stepWidth * stepWidth));
@@ -130,7 +124,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         distSq = dot(diff, diff);
         float posWeight = min(1.0, exp(-distSq / blurUniform.pPhi));
 
-        float weight = colorWeight * normalWeight * posWeight;
+        float weight = colorWeight * albedoWeight * normalWeight * posWeight;
         sum += color1 * weight * kernel;
         weightSum += weight * kernel;
     }

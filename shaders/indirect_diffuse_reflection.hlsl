@@ -250,6 +250,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		float3 surfaceNormal = currentRayPayload.surfaceNormal;
 		float3 surfaceTangent, surfaceBitangent;
 		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
+		float3x3 localToWorld = float3x3(surfaceTangent, surfaceBitangent, surfaceNormal);
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
 
@@ -273,7 +274,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 #else
 		float3 scatteredReflectance = currentRayPayload.albedo;
 		float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, pathLen + 1);
-		scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (surfaceNormal * scatteredDir.z);
+		scatteredDir = rotateVector(scatteredDir, localToWorld);
 		float scatteredPdf = 1;
 #endif
 		
@@ -284,7 +285,8 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		}
 
 		float3 E = 0;
-		//E += traceSun(surfacePosition); // #todo: Result is corrupted even if only call TraceScene and return 0? memory barrier bug?
+		// #todo-indirect-diffuse: Result is corrupted even if only call TraceScene and return 0?
+		//E += traceSun(surfacePosition);
 
 		radianceHistory[pathLen] = currentRayPayload.emission + E;
 		reflectanceHistory[pathLen] = scatteredReflectance;
