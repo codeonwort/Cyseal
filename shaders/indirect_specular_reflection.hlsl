@@ -309,13 +309,13 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			break;
 		}
 
+		// Construct next ray.
 		currentRay.Origin = surfacePosition + nextRayOffset;
 		currentRay.Direction = brdfOutput.outRayDir;
 		//currentRay.TMin = RAYGEN_T_MIN;
 		//currentRay.TMax = RAYGEN_T_MAX;
-
-		pathLen += 1;
 		prevIoR = currentRayPayload.indexOfRefraction;
+		pathLen += 1;
 	}
 
 	float3 Li = 0;
@@ -411,34 +411,42 @@ void MainRaygen()
 
 	float2 randoms = getRandoms(texel, 0);
 
+	// Consider only specular part for first indirect bounce, but consider both for further bounces.
+	// Therefore it's L(D|S)SE path.
 	float3 Wo = 0;
-	float3 scatteredReflectance, scatteredDir; float scatteredPdf;
+	MicrofacetBRDFOutput brdfOutput;
 	if (gbufferData.materialID == MATERIAL_ID_DEFAULT_LIT)
 	{
 		if (indirectSpecularUniform.traceMode == TRACE_BRDF)
 		{
-			// Consider only specular part for first indirect bounce, but consider both for further bounces.
-			// Therefore it's L(D|S)SE path.
-			float3 dummy;
-			splitMicrofacetBRDF(viewDirection, normalWS, albedo, roughness, metalMask, randoms.x, randoms.y,
-				dummy, scatteredReflectance, scatteredDir, scatteredPdf);
+			MicrofacetBRDFInput brdfInput;
+			brdfInput.inRayDir = viewDirection;
+			brdfInput.surfaceNormal = normalWS;
+			brdfInput.baseColor = albedo;
+			brdfInput.roughness = roughness;
+			brdfInput.metallic = metalMask;
+			brdfInput.rand0 = randoms.x;
+			brdfInput.rand1 = randoms.y;
 
-			// #todo: It happens :(
-			if (any(isnan(scatteredReflectance)) || any(isnan(scatteredDir)))
+			brdfOutput = microfacetBRDF(brdfInput);
+
+			// #todo: Sometimes surfaceNormal is NaN so brdfOutput is also NaN.
+			if (microfacetBRDFOutputHasNaN(brdfOutput))
 			{
-				scatteredPdf = 0.0;
+				brdfOutput.pdf = 0.0;
 			}
 		}
 		else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
 		{
-			scatteredReflectance = 1.0;
-			scatteredDir = reflect(viewDirection, normalWS);
-			scatteredPdf = 1.0;
+			brdfOutput.diffuseReflectance = 0.0;
+			brdfOutput.specularReflectance = 1.0;
+			brdfOutput.outRayDir = reflect(viewDirection, normalWS);
+			brdfOutput.pdf = 1.0;
 		}
 		float3 relaxedPositionWS = normalWS * GBUFFER_NORMAL_OFFSET + positionWS;
-		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, scatteredDir);
+		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, brdfOutput.outRayDir);
 		
-		Wo = (scatteredReflectance / scatteredPdf) * Li;
+		Wo = (brdfOutput.specularReflectance / brdfOutput.pdf) * Li;
 	}
 	else if (gbufferData.materialID == MATERIAL_ID_TRANSPARENT)
 	{
@@ -446,14 +454,15 @@ void MainRaygen()
 		float3 N = normalWS;
 		float ior = IOR_AIR / gbufferData.indexOfRefraction; // #todo-refraction: Assume primary ray is always in air.
 
-		scatteredReflectance = 1.0;
-		scatteredDir = getRefractedDirection(V, N, ior);
-		scatteredPdf = 1.0;
+		brdfOutput.diffuseReflectance = 0.0;
+		brdfOutput.specularReflectance = 1.0;
+		brdfOutput.outRayDir = getRefractedDirection(V, N, ior);
+		brdfOutput.pdf = 1.0;
 
-		float3 relaxedPositionWS = positionWS + (scatteredDir * REFRACTION_START_OFFSET);
-		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, scatteredDir);
+		float3 relaxedPositionWS = positionWS + (brdfOutput.outRayDir * REFRACTION_START_OFFSET);
+		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, brdfOutput.outRayDir);
 
-		Wo = (scatteredReflectance / scatteredPdf) * Li;
+		Wo = (brdfOutput.specularReflectance / brdfOutput.pdf) * Li;
 	}
 	else
 	{
@@ -469,7 +478,7 @@ void MainRaygen()
 		prevWo = prevFrame.color;
 	}
 
-	if (scatteredPdf == 0.0)
+	if (brdfOutput.pdf == 0.0)
 	{
 		Wo = prevWo;
 	}

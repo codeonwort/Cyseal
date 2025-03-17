@@ -3,6 +3,9 @@
 
 #include "common.hlsl"
 
+// ---------------------------------------------------------
+// Definitions
+
 struct MicrofacetBRDFInput
 {
 	float3 inRayDir;
@@ -19,6 +22,30 @@ struct MicrofacetBRDFOutput
 	float3 outRayDir;
 	float pdf;
 };
+
+// ---------------------------------------------------------
+// Utils
+
+// This is always confusing, M = (T B N) and it is column-major by default.
+// So mul(vector, matrix) in that order.
+float3 rotateVector(float3 v, float3x3 M)
+{
+	return mul(v, M);
+}
+
+// V   : Incoming direction
+// N   : Surface normal
+// ior : Index of Refraction (= ior_in_prev_matter / ior_in_next_matter)
+float3 getRefractedDirection(float3 V, float3 N, float ior)
+{
+	float inCosTheta = dot(-V, N);
+	float outSinThetaSq = ior * ior * (1 - inCosTheta * inCosTheta);
+
+	return ior * V + (ior * inCosTheta - sqrt(1 - outSinThetaSq)) * N;
+}
+
+// ---------------------------------------------------------
+// BSDF
 
 // cosTheta = dot(incident_or_exitant_light, half_vector)
 float3 fresnelSchlick(float cosTheta, float3 F0)
@@ -95,13 +122,6 @@ float3 sampleGGXVNDF(float3 V_, float alpha_x, float alpha_y, float U1, float U2
 	return N;
 }
 
-// This is always confusing, M = (T B N) and it is column-major by default.
-// So mul(vector, matrix) in that order.
-float3 rotateVector(float3 v, float3x3 M)
-{
-	return mul(v, M);
-}
-
 bool microfacetBRDFOutputHasNaN(MicrofacetBRDFOutput output)
 {
 	bool b1 = any(isnan(output.diffuseReflectance));
@@ -175,74 +195,6 @@ MicrofacetBRDFOutput microfacetBRDF(MicrofacetBRDFInput input)
 	output.outRayDir = rotateVector(Wi, localToWorld);
 	output.pdf = 1.0 / (0.001 + 4.0 * dot(Wh, Wo));
 	return output;
-}
-
-// For indirect specular pass
-// Same as microfacetBRDF(), but output diffuse and specular separately.
-void splitMicrofacetBRDF(
-	float3 inRayDir, float3 surfaceNormal,
-	float3 baseColor, float roughness, float metallic,
-	float rand0, float rand1,
-	out float3 outDiffuseReflectance, out float3 outSpecularReflectance, out float3 outScatteredDir, out float outPdf)
-{
-	// Incoming ray can hit any side of the surface, so if hit backface, then rather flip the surfaceNormal.
-	if (dot(surfaceNormal, inRayDir) > 0.0)
-	{
-		surfaceNormal *= -1;
-	}
-
-	// Do all BRDF calculations in local space where macrosurface normal is z-axis (0, 0, 1).
-	// Pick random tangent and bitangent in xy-plane.
-	float3 worldT, worldB;
-	computeTangentFrame(surfaceNormal, worldT, worldB);
-	float3x3 localToWorld = float3x3(worldT, worldB, surfaceNormal);
-	float3x3 worldToLocal = transpose(localToWorld);
-
-	// Wh = normalized half-vector
-	float3 N = float3(0, 0, 1); // #todo-pathtracing: No bump mapping yet
-	float3 Wo = rotateVector(-inRayDir, worldToLocal);
-	float3 Wh = sampleGGXVNDF(Wo, roughness, roughness, rand0, rand1);
-	float3 Wi = reflect(-Wo, Wh);
-
-	// As I'm sampling Wh and deriving Wi from Wo and Wh, Wi actually can go other side of the surface.
-	// In that case, invalidate current sample by setting pdf = 0.
-	// The integrator will reject a sample with zero probability.
-	bool bInvalidWi = Wi.z <= 0.0;
-	if (bInvalidWi)
-	{
-		outDiffuseReflectance = 0;
-		outSpecularReflectance = 0;
-		outScatteredDir = rotateVector(Wi, localToWorld);
-		outPdf = 0;
-		return;
-	}
-
-	float NdotWo = dot(N, Wo);
-	float NdotWi = dot(N, Wi);
-
-	float3 F0 = lerp(float3(0.04, 0.04, 0.04), baseColor, metallic);
-
-	float3 F = fresnelSchlick(dot(Wh, Wi), F0);
-	float G = geometrySmithGGX(Wh, Wo, Wi, roughness);
-	float NDF = distributionGGX(N, Wh, roughness);
-
-	float3 kS = F;
-	float3 kD = 1.0 - kS;
-	float3 diffuse = baseColor * (1.0 - metallic);
-	float3 specular = (F * G * NDF) / (4.0 * NdotWi * NdotWo + 0.001);
-
-	outDiffuseReflectance = kD * diffuse * NdotWi;
-	outSpecularReflectance = kS * specular * NdotWi;
-	outScatteredDir = rotateVector(Wi, localToWorld);
-	outPdf = 1.0 / (0.001 + 4.0 * dot(Wh, Wo));
-}
-
-float3 getRefractedDirection(float3 V, float3 N, float ior)
-{
-	float inCosTheta = dot(-V, N);
-	float outSinThetaSq = ior * ior * (1 - inCosTheta * inCosTheta);
-
-	return ior * V + (ior * inCosTheta - sqrt(1 - outSinThetaSq)) * N;
 }
 
 #endif // _BSDF_H
