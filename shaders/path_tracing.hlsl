@@ -301,13 +301,13 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
 
-#if TRACE_MODE == TRACE_FULL_GI
-		float2 randoms = getRandoms(targetTexel, pathLen);
-
 		float3 nextRayOffset = 0;
 		MicrofacetBRDFOutput brdfOutput;
+#if TRACE_MODE == TRACE_FULL_GI
 		if (materialID == MATERIAL_ID_DEFAULT_LIT)
 		{
+			float2 randoms = getRandoms(targetTexel, pathLen);
+
 			MicrofacetBRDFInput brdfInput;
 			brdfInput.inRayDir = currentRay.Direction;
 			brdfInput.surfaceNormal = surfaceNormal;
@@ -351,6 +351,8 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		brdfOutput.specularReflectance = 0.0;
 		brdfOutput.outRayDir = scatteredDir;
 		brdfOutput.pdf = 1;
+
+		nextRayOffset = SURFACE_NORMAL_OFFSET * surfaceNormal;
 #endif
 
 		float3 E = 0;
@@ -412,9 +414,7 @@ float traceAmbientOcclusion(uint2 targetTexel, float3 cameraRayOrigin, float3 ca
 	// Current pixel is the sky.
 	if (cameraRayPayload.objectID == OBJECT_ID_NONE)
 	{
-		// Due to my stupid implementation of shader parameter binding :p
-		// Assertion fails if trying to bind an unused shader parameter.
-		return clamp(sampleSky(cameraRayDir).x, 1.0, 1.0);
+		return 1.0;
 	}
 
 	RayPayload currentRayPayload = cameraRayPayload;

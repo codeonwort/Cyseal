@@ -14,6 +14,14 @@
 #endif
 #include <pix3.h>
 
+DEFINE_LOG_CATEGORY_STATIC(LogD3DCommandList);
+
+static void reportUndeclaredShaderParameter(const char* name)
+{
+	// #todo-log: How to stop error spam? Track same errors and report only once?
+	//CYLOG(LogD3DCommandList, Error, L"Undeclared parameter: %S", name);
+}
+
 //////////////////////////////////////////////////////////////////////////
 // D3DRenderCommandQueue
 
@@ -328,6 +336,11 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 		for (const auto& inParam : parameters)
 		{
 			const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+			if (param == nullptr)
+			{
+				reportUndeclaredShaderParameter(inParam.name.c_str());
+				continue;
+			}
 			device->copyDescriptors(inParam.count, descriptorHeap, *inoutDescriptorIx, inParam.sourceHeap, inParam.startIndex);
 			cmdList->SetGraphicsRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(*inoutDescriptorIx));
 			*inoutDescriptorIx += inParam.count;
@@ -341,6 +354,11 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 	for (const auto& inParam : inParameters->pushConstants)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+		if (param == nullptr)
+		{
+			reportUndeclaredShaderParameter(inParam.name.c_str());
+			continue;
+		}
 		commandList->SetGraphicsRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
 	}
 	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
@@ -360,6 +378,11 @@ void D3DRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineSt
 	for (const auto& inParam : inParameters->pushConstants)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+		if (param == nullptr)
+		{
+			reportUndeclaredShaderParameter(inParam.name.c_str());
+			continue;
+		}
 		commandList->SetGraphicsRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
 	}
 }
@@ -391,6 +414,11 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 		for (const auto& inParam : parameters)
 		{
 			const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+			if (param == nullptr)
+			{
+				reportUndeclaredShaderParameter(inParam.name.c_str());
+				continue;
+			}
 			device->copyDescriptors(inParam.count, descriptorHeap, *inoutDescriptorIx, inParam.sourceHeap, inParam.startIndex);
 			cmdList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(*inoutDescriptorIx));
 			*inoutDescriptorIx += inParam.count;
@@ -404,6 +432,11 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	for (const auto& inParam : inParameters->pushConstants)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+		if (param == nullptr)
+		{
+			reportUndeclaredShaderParameter(inParam.name.c_str());
+			continue;
+		}
 		commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
 	}
 	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
@@ -557,6 +590,11 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 		for (const auto& inParam : parameters)
 		{
 			const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
+			if (param == nullptr)
+			{
+				reportUndeclaredShaderParameter(inParam.name.c_str());
+				continue;
+			}
 			device->copyDescriptors(inParam.count, descriptorHeap, *inoutDescriptorIx, inParam.sourceHeap, inParam.startIndex);
 			cmdList->SetComputeRootDescriptorTable(param->rootParameterIndex, calcDescriptorHandle(*inoutDescriptorIx));
 			*inoutDescriptorIx += inParam.count;
@@ -571,6 +609,11 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 	for (const auto& inParam : inParameters->pushConstants)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
+		if (param == nullptr)
+		{
+			reportUndeclaredShaderParameter(inParam.name.c_str());
+			continue;
+		}
 		commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
 	}
 	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
@@ -586,6 +629,11 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 		D3D12_GPU_VIRTUAL_ADDRESS gpuAddr = d3dSRV->getGPUVirtualAddress();
 
 		const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
+		if (param == nullptr)
+		{
+			reportUndeclaredShaderParameter(inParam.name.c_str());
+			continue;
+		}
 		commandList->SetComputeRootShaderResourceView(param->rootParameterIndex, gpuAddr);
 	}
 }
