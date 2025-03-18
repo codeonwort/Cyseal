@@ -283,18 +283,17 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			scatteredPdf = 0.0;
 		}
 
-		float3 E = 0;
-		// #todo-indirect-diffuse: Result is corrupted even if only call TraceScene and return 0?
-		//E += traceSun(surfacePosition);
-
-		radianceHistory[pathLen] = currentRayPayload.emission + E;
-		reflectanceHistory[pathLen] = scatteredReflectance;
-		pdfHistory[pathLen] = scatteredPdf;
-
 		if (scatteredPdf <= 0.0)
 		{
 			break;
 		}
+
+		float3 E = 0;
+		E += traceSun(surfacePosition);
+
+		radianceHistory[pathLen] = currentRayPayload.emission + E;
+		reflectanceHistory[pathLen] = scatteredReflectance;
+		pdfHistory[pathLen] = scatteredPdf;
 
 		currentRay.Origin = surfacePosition + SURFACE_NORMAL_OFFSET * surfaceNormal;
 		currentRay.Direction = scatteredDir;
@@ -410,15 +409,21 @@ void MainRaygen()
 	}
 
 	//prevColor was already acquired by getPrevFrame()
-	float historyCount = bTemporalReprojection ? prevFrame.historyCount : 0;
+	float historyCount = 0;
+	float3 prevWo = 0;
+	if (bTemporalReprojection)
+	{
+		historyCount = prevFrame.historyCount;
+		prevWo = prevFrame.color;
+	}
 
 	if (scatteredPdf == 0.0)
 	{
-		Wo = prevFrame.color;
+		Wo = prevWo;
 	}
 	else
 	{
-		Wo = lerp(prevFrame.color, Wo, 1.0 / (1.0 + historyCount));
+		Wo = lerp(prevWo, Wo, 1.0 / (1.0 + historyCount));
 		historyCount += 1;
 	}
 
@@ -426,6 +431,15 @@ void MainRaygen()
 
 	// #todo-diffuse: Should store history in moment texture
 	currentColorTexture[texel] = float4(Wo, historyCount);
+}
+
+float2 applyBarycentrics(float3 bary, float2 v0, float2 v1, float2 v2)
+{
+	return bary.x * v0 + bary.y * v1 + bary.z * v2;
+}
+float3 applyBarycentrics(float3 bary, float3 v0, float3 v1, float3 v2)
+{
+	return bary.x * v0 + bary.y * v1 + bary.z * v2;
 }
 
 [shader("closesthit")]
@@ -452,9 +466,8 @@ void MainClosestHit(inout RayPayload payload, in MyAttributes attr)
 
 	float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
 	
-	float2 texcoord = barycentrics.x * v0.texcoord + barycentrics.y * v1.texcoord + barycentrics.z * v2.texcoord;
-
-	float3 surfaceNormal = barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal;
+	float2 texcoord = applyBarycentrics(barycentrics, v0.texcoord, v1.texcoord, v2.texcoord);
+	float3 surfaceNormal = applyBarycentrics(barycentrics, v0.normal, v1.normal, v2.normal);
 	surfaceNormal = normalize(transformDirection(surfaceNormal, sceneItem.modelMatrix));
 
 	Material material = materials[objectID];

@@ -12,7 +12,7 @@
 
 #include "imgui_impl_dx12.h"
 
-// #todo-crossapi: Dynamic loading
+// #todo-crossapi: Dynamic loading (dll in %WINDIR%\System32)
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxcompiler.lib")
