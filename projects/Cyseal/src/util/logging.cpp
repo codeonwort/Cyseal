@@ -7,8 +7,15 @@
 
 #define LOG_BUFFER_SIZE 10240
 
+const LogLevel IGNORE_LOG_LESS_THAN = LogLevel::Log;
+
 void Logger::log(const char* inCategory, LogLevel inLevel, const wchar_t* inMessage...)
 {
+	if ((int)inLevel < (int)IGNORE_LOG_LESS_THAN)
+	{
+		return;
+	}
+
 	wchar_t fmtBuffer[LOG_BUFFER_SIZE];
 	va_list argptr;
 	va_start(argptr, inMessage);
