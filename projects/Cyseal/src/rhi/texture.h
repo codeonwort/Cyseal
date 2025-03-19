@@ -41,15 +41,27 @@ struct TextureCreateParams
     uint32 sampleQuality;
     uint32 numLayers = 1; // #todo-texture: For tex2Darray or texCube
 
-    float optimalClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    TextureCreateParams& setOptimalClearColor(float r, float g, float b, float a)
-    {
-        optimalClearColor[0] = r;
-        optimalClearColor[1] = g;
-        optimalClearColor[2] = b;
-        optimalClearColor[3] = a;
-        return *this;
-    }
+	float optimalClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	float optimalClearDepth = 0.0f;
+	uint8 optimalClearStencil = 0;
+	TextureCreateParams& setOptimalClearColor(float r, float g, float b, float a)
+	{
+		optimalClearColor[0] = r;
+		optimalClearColor[1] = g;
+		optimalClearColor[2] = b;
+		optimalClearColor[3] = a;
+		return *this;
+	}
+	TextureCreateParams& setOptimalClearDepth(float depth)
+	{
+		optimalClearDepth = depth;
+		return *this;
+	}
+	TextureCreateParams& setOptimalClearStencil(uint8 stencil)
+	{
+		optimalClearStencil = stencil;
+		return *this;
+	}
 
     static TextureCreateParams texture2D(
         EPixelFormat inFormat,

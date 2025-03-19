@@ -723,7 +723,8 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 
 	cleanup(RT_sceneDepth.release());
 	sceneDepthDesc = TextureCreateParams::texture2D(
-		DEPTH_TEXTURE_FORMAT, ETextureAccessFlags::DSV, sceneWidth, sceneHeight, 1, 1, 0);
+		DEPTH_TEXTURE_FORMAT, ETextureAccessFlags::DSV, sceneWidth, sceneHeight,
+		1, 1, 0).setOptimalClearDepth(getDeviceFarDepth());
 	RT_sceneDepth = UniquePtr<Texture>(device->createTexture(sceneDepthDesc));
 	RT_sceneDepth->setDebugName(L"RT_SceneDepth");
 

@@ -165,7 +165,6 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		}
 	}
 
-	// #todo-dx12: Texture clear value
 	bool bNeedsClearValue = false;
 	D3D12_CLEAR_VALUE optClearValue;
 
@@ -184,8 +183,8 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	else if (isDepthTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
 	{
 		bNeedsClearValue = true;
-		optClearValue.DepthStencil.Depth = getDeviceFarDepth();
-		optClearValue.DepthStencil.Stencil = 0;
+		optClearValue.DepthStencil.Depth = params.optimalClearDepth;
+		optClearValue.DepthStencil.Stencil = params.optimalClearStencil;
 	}
 
 	D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
