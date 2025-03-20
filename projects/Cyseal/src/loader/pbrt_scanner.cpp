@@ -1,4 +1,3 @@
-#if 0
 #include "pbrt_scanner.h"
 #include <sstream>
 
@@ -23,38 +22,96 @@
 #define TOKEN_TRANSFORM              "Transform"
 #define TOKEN_AREA_LIGHT_SOURCE      "AreaLightSource"
 
-void PBRT4Scanner::scanTokens(std::istream& stream)
+namespace pbrt
 {
-	std::vector<std::string> sourceLines;
+	void PBRT4Scanner::scanTokens(std::istream& stream)
 	{
-		std::string line;
-		while (std::getline(stream, line))
+		sourceLines.clear();
 		{
-			sourceLines.emplace_back(line);
+			std::string line;
+			while (std::getline(stream, line))
+			{
+				sourceLines.emplace_back(line);
+			}
+		}
+
+		currentLine = 0;
+		startPos = currentPos = 0;
+		for (const std::string& line : sourceLines)
+		{
+			scanLine(line);
+			++currentLine;
 		}
 	}
 
-	int32 currentLine = 0;
-	for (const std::string& line : sourceLines)
+	void PBRT4Scanner::scanLine(const std::string& line)
 	{
-		std::stringstream ss(line);
-		while (!ss.eof())
+		std::stringstream stream(line);
+		
+		for (;;)
 		{
-			std::string tok;
-			ss >> tok;
-			if (tok.size() == 0) break;
-			scanToken(tok);
+			skipWhitespace(stream);
+			if (stream.eof()) break;
+
+			std::streampos startPos = stream.tellg();
+			char ch;
+			stream >> ch;
+
+			if (std::isdigit(ch))
+			{
+				stream.putback(ch);
+				double num;
+				stream >> num;
+				makeToken(stream, line, startPos, TokenType::Number);
+			}
+			else if (std::isalpha(ch))
+			{
+				stream.putback(ch);
+				std::string word;
+				stream >> word;
+				makeToken(stream, line, startPos, TokenType::String);
+			}
+			else
+			{
+				switch (ch)
+				{
+					case '[': makeToken(stream, line, startPos, TokenType::LeftBracket); break;
+					case ']': makeToken(stream, line, startPos, TokenType::RightBracket); break;
+					case '\"':
+					{
+						startPos = stream.tellg();
+						while (!stream.eof())
+						{
+							char temp;
+							stream >> temp;
+							if (temp == '\"')
+							{
+								break;
+							}
+						}
+						stream.seekg(stream.tellg() + std::streamoff(-1));
+						makeToken(stream, line, startPos, TokenType::QuoteString);
+						stream.seekg(stream.tellg() + std::streamoff(1));
+						break;
+					}
+				}
+			}
 		}
-
-		++currentLine;
 	}
-}
 
-void PBRT4Scanner::scanToken(const std::string& tok)
-{
-	if (tok[0] == '\"')
+	void PBRT4Scanner::skipWhitespace(std::istream& stream)
 	{
-		//
+		char ch;
+		stream >> ch;
+		if (!stream.eof()) stream.putback(ch);
+	}
+
+	void pbrt::PBRT4Scanner::makeToken(std::istream& stream, const std::string& line, std::streampos startPos, pbrt::TokenType tokenType)
+	{
+		Token tok;
+		tok.line = currentLine;
+		tok.type = tokenType;
+		tok.value = std::string_view{ line.begin() + startPos, line.begin() + stream.tellg() };
+		tokens.emplace_back(tok);
 	}
 }
-#endif
