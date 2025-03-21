@@ -57,7 +57,11 @@ namespace pbrt
 			char ch;
 			stream >> ch;
 
-			if (std::isdigit(ch))
+			if (ch == '#')
+			{
+				break;
+			}
+			else if (std::isdigit(ch))
 			{
 				stream.putback(ch);
 				double num;

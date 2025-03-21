@@ -3,6 +3,7 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "loader/pbrt_scanner.h"
+#include "loader/pbrt_parser.h"
 #include <vector>
 #include <string>
 #include <numeric>
@@ -14,13 +15,18 @@ namespace UnitTest
 	public:
 		TEST_METHOD(TestScanner)
 		{
-			std::vector<std::string> sourceLines = {
-				"Integrator \"path\"",
+			const std::vector<std::string> sourceLines = {
+				"Integrator \"path\" # some comment",
 				"\"integer maxdepth\" [ 65 ]",
+				"#qwer wee        ",
 				"Transform [ 0.999914 0.000835626 0.013058 -0 -0 0.997959 -0.063863 -0 0.0130847 -0.0638576 -0.997873 -0 0.460159 -2.13584 9.87771 1  ]",
 			};
-			std::string source = std::accumulate(sourceLines.begin(), sourceLines.end(), std::string(""));
-			std::stringstream sourceStream(source);
+
+			std::stringstream sourceStream;
+			for (const auto& line : sourceLines)
+			{
+				sourceStream << line << std::endl;
+			}
 
 			pbrt::PBRT4Scanner scanner;
 			scanner.scanTokens(sourceStream);
