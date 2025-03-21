@@ -6,13 +6,14 @@
 #include <string>
 #include <string_view>
 
-// #todo-pbrt: Parse PBRT file using scanner
+// #todo-pbrt-parser: Parse PBRT file using scanner
 namespace pbrt
 {
 	enum class TokenType
 	{
 		String, QuoteString, Number,
 		LeftBracket, RightBracket,
+		EoF, // Having an EOF token is more convenient than dealing with std iterator end
 	};
 
 	struct Token

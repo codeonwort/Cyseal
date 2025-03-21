@@ -199,6 +199,7 @@
     <ClCompile Include="src\geometry\transform.cpp" />
     <ClCompile Include="src\loader\image_loader.cpp" />
     <ClCompile Include="src\loader\pbrt_loader.cpp" />
+    <ClCompile Include="src\loader\pbrt_parser.cpp" />
     <ClCompile Include="src\loader\pbrt_scanner.cpp" />
     <ClCompile Include="src\loader\ply_loader.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />

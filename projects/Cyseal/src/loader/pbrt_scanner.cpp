@@ -42,6 +42,10 @@ namespace pbrt
 			scanLine(line);
 			++currentLine;
 		}
+		
+		Token eofTok;
+		eofTok.type = TokenType::EoF;
+		tokens.emplace_back(eofTok);
 	}
 
 	void PBRT4Scanner::scanLine(const std::string& line)

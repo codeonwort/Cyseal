@@ -8,6 +8,13 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include <string>
 #include <numeric>
 
+const std::vector<std::string> sourceLines = {
+	"Integrator \"path\" # some comment",
+	"\"integer maxdepth\" [ 65 ]",
+	"#qwer wee        ",
+	"Transform [ 0.999914 0.000835626 0.013058 -0 -0 0.997959 -0.063863 -0 0.0130847 -0.0638576 -0.997873 -0 0.460159 -2.13584 9.87771 1  ]",
+};
+
 namespace UnitTest
 {
 	TEST_CLASS(TestPBRTParser)
@@ -15,13 +22,6 @@ namespace UnitTest
 	public:
 		TEST_METHOD(TestScanner)
 		{
-			const std::vector<std::string> sourceLines = {
-				"Integrator \"path\" # some comment",
-				"\"integer maxdepth\" [ 65 ]",
-				"#qwer wee        ",
-				"Transform [ 0.999914 0.000835626 0.013058 -0 -0 0.997959 -0.063863 -0 0.0130847 -0.0638576 -0.997873 -0 0.460159 -2.13584 9.87771 1  ]",
-			};
-
 			std::stringstream sourceStream;
 			for (const auto& line : sourceLines)
 			{
@@ -64,6 +64,25 @@ namespace UnitTest
 
 			Assert::IsTrue(pbrt::TokenType::RightBracket == tokens[matrixStart + 16].type);
 			Assert::IsTrue("]" == tokens[matrixStart + 16].value);
+
+			pbrt::PBRT4ParserEx parser;
+			parser.parse(&scanner);
+		}
+
+		TEST_METHOD(TestParser)
+		{
+			std::stringstream sourceStream;
+			for (const auto& line : sourceLines)
+			{
+				sourceStream << line << std::endl;
+			}
+
+			pbrt::PBRT4Scanner scanner;
+			scanner.scanTokens(sourceStream);
+			const auto& tokens = scanner.getTokens();
+
+			pbrt::PBRT4ParserEx parser;
+			parser.parse(&scanner);
 		}
 	};
 }
