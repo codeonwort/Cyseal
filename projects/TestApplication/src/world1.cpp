@@ -124,9 +124,9 @@ void World1::createTestMeshes()
 		{
 			for (int32 x = 0; x < 256; ++x)
 			{
-				imageBlob->buffer[p] = x ^ y;
-				imageBlob->buffer[p+1] = x ^ y;
-				imageBlob->buffer[p+2] = x ^ y;
+				imageBlob->buffer[p] = (uint8)(x ^ y);
+				imageBlob->buffer[p+1] = (uint8)(x ^ y);
+				imageBlob->buffer[p+2] = (uint8)(x ^ y);
 				imageBlob->buffer[p+3] = 0xff;
 				p += 4;
 			}

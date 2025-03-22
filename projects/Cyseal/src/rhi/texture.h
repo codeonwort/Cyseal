@@ -52,9 +52,9 @@ struct TextureCreateParams
 		optimalClearColor[3] = a;
 		return *this;
 	}
-	TextureCreateParams& setOptimalClearDepth(float depth)
+	TextureCreateParams& setOptimalClearDepth(float clearDepth)
 	{
-		optimalClearDepth = depth;
+		optimalClearDepth = clearDepth;
 		return *this;
 	}
 	TextureCreateParams& setOptimalClearStencil(uint8 stencil)

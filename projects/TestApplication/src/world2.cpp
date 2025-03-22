@@ -73,7 +73,7 @@ void World2::onInitialize()
 	}
 	{
 		const uint32 TOTAL_BALLS = BALL_ROWS * BALL_COLS;
-		const uint32 TOTAL_MESHES = BALL_NUM_LOD * TOTAL_BALLS;
+		//const uint32 TOTAL_MESHES = BALL_NUM_LOD * TOTAL_BALLS;
 		
 		SharedPtr<TextureAsset> baseTextures[] = {
 			gTextureManager->getSystemTextureWhite2D(),

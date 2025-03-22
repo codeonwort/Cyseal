@@ -10,7 +10,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define STBN_WIDTH          128
 #define STBN_HEIGHT         128
 #define STBN_SLICES         64
-std::wstring STBN_FILEPATH(size_t ix)
+static std::wstring STBN_FILEPATH(size_t ix)
 {
 	wchar_t buf[256];
 	swprintf_s(buf, L"%s%s%d.png", STBN_DIR, L"stbn_unitvec3_cosine_2Dx1D_128x128x64_", (int32)ix);
@@ -22,7 +22,7 @@ namespace UnitTest
 	TEST_CLASS(TestSTBN)
 	{
 	public:
-		TEST_METHOD(STBNUnitVector)
+		TEST_METHOD(STBNResourcesAreValid)
 		{
 			ResourceFinder::get().addBaseDirectory(L"../");
 			ResourceFinder::get().addBaseDirectory(L"../../");

@@ -5,13 +5,6 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "core/vec3.h"
 #include "world/camera.h"
 
-static std::wstring ToString(const vec3& v)
-{
-	wchar_t buf[256];
-	swprintf_s(buf, L"(%.3f, %.3f, .%3f)", v.x, v.y, v.z);
-	return std::wstring(buf);
-}
-
 namespace UnitTest
 {
 	TEST_CLASS(TestCamera)

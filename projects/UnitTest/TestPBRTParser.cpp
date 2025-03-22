@@ -79,7 +79,6 @@ namespace UnitTest
 
 			pbrt::PBRT4Scanner scanner;
 			scanner.scanTokens(sourceStream);
-			const auto& tokens = scanner.getTokens();
 
 			pbrt::PBRT4ParserEx parser;
 			parser.parse(&scanner);

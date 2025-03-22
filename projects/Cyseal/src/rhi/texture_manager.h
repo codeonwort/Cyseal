@@ -16,15 +16,15 @@ public:
 	void initialize();
 	void destroy();
 
-	SharedPtr<TextureAsset> getSystemTextureGrey2D()    const { return systemTexture_grey2D;    }
-	SharedPtr<TextureAsset> getSystemTextureWhite2D()   const { return systemTexture_white2D;   }
-	SharedPtr<TextureAsset> getSystemTextureBlack2D()   const { return systemTexture_black2D;   }
-	SharedPtr<TextureAsset> getSystemTextureRed2D()     const { return systemTexture_red2D;     }
-	SharedPtr<TextureAsset> getSystemTextureGreen2D()   const { return systemTexture_green2D;   }
-	SharedPtr<TextureAsset> getSystemTextureBlue2D()    const { return systemTexture_blue2D;    }
-	SharedPtr<TextureAsset> getSystemTextureBlackCube() const { return systemTexture_blackCube; }
+	inline SharedPtr<TextureAsset> getSystemTextureGrey2D()    const { return systemTexture_grey2D;    }
+	inline SharedPtr<TextureAsset> getSystemTextureWhite2D()   const { return systemTexture_white2D;   }
+	inline SharedPtr<TextureAsset> getSystemTextureBlack2D()   const { return systemTexture_black2D;   }
+	inline SharedPtr<TextureAsset> getSystemTextureRed2D()     const { return systemTexture_red2D;     }
+	inline SharedPtr<TextureAsset> getSystemTextureGreen2D()   const { return systemTexture_green2D;   }
+	inline SharedPtr<TextureAsset> getSystemTextureBlue2D()    const { return systemTexture_blue2D;    }
+	inline SharedPtr<TextureAsset> getSystemTextureBlackCube() const { return systemTexture_blackCube; }
 
-	SharedPtr<TextureAsset> getSTBNVec3Cosine()         const { return blueNoise_vec3cosine;    }
+	inline SharedPtr<TextureAsset> getSTBNVec3Cosine()         const { return blueNoise_vec3cosine;    }
 
 private:
 	void createSystemTextures();
