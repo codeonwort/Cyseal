@@ -26,10 +26,14 @@ public:
 
 	void internal_updateWindowSize(uint32 inWidth, uint32 inHeight) { width = inWidth; height = inHeight; }
 
+	inline void terminateApplication() { bShouldTerminate = true; }
+
 protected:
 	virtual bool onInitialize() = 0;
 	virtual void onTick(float deltaSeconds) = 0;
 	virtual void onTerminate() = 0;
+
+	inline bool shouldTerminate() const { return bShouldTerminate; }
 
 	inline HWND getHWND() const { return hWnd; }
 	inline uint32 getWindowWidth() const { return width; }
@@ -39,6 +43,7 @@ protected:
 private:
 	HWND hWnd = NULL;
 	ATOM winClass = NULL;
+	bool bShouldTerminate = false;
 
 	// GUI properties
 	std::wstring title;

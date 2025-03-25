@@ -115,7 +115,7 @@ EApplicationReturnCode WindowsApplication::launch(const ApplicationCreateParams&
 			time_prev = time_curr;
 		}
 
-		bool bShouldQuit = false;
+		bool bShouldQuit = shouldTerminate();
 
 		while (::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
