@@ -19,10 +19,14 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define WINDOW_WIDTH         400
 #define WINDOW_HEIGHT        300
 
-static CysealEngine cysealEngine;
-
 class TestApplication : public WindowsApplication
 {
+public:
+	TestApplication(CysealEngine* engine)
+		: cysealEngine(engine)
+	{
+	}
+
 protected:
 	virtual bool onInitialize() override
 	{
@@ -36,7 +40,7 @@ protected:
 		engineInit.renderDevice.bDoubleBuffering = true;
 		engineInit.rendererType = ERendererType::Standard;
 
-		cysealEngine.startup(engineInit);
+		cysealEngine->startup(engineInit);
 
 		// May overwritten by world.
 		camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
@@ -57,10 +61,12 @@ protected:
 
 	virtual void onTerminate() override
 	{
-		cysealEngine.shutdown();
+		cysealEngine->shutdown();
 	}
 
 private:
+	CysealEngine* cysealEngine = nullptr;
+
 	Scene scene;
 	Camera camera;
 	uint32 exitCounter = 0;
@@ -76,7 +82,9 @@ namespace UnitTest
 		{
 			HWND nativeWindowHandle = NULL;
 
-			WindowsApplication* app = new TestApplication;
+			CysealEngine cysealEngine;
+
+			WindowsApplication* app = new TestApplication(&cysealEngine);
 			app->setWindowTitle(L"Hello world");
 			app->setWindowPosition(WINDOW_X, WINDOW_Y);
 			app->setWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);

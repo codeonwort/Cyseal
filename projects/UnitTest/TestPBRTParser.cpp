@@ -4,8 +4,11 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "loader/pbrt_scanner.h"
 #include "loader/pbrt_parser.h"
+#include "util/resource_finder.h"
+
 #include <vector>
 #include <string>
+#include <fstream>
 #include <numeric>
 
 const std::vector<std::string> sourceLines = {
@@ -14,6 +17,8 @@ const std::vector<std::string> sourceLines = {
 	"#qwer wee        ",
 	"Transform [ 0.999914 0.000835626 0.013058 -0 -0 0.997959 -0.063863 -0 0.0130847 -0.0638576 -0.997873 -0 0.460159 -2.13584 9.87771 1  ]",
 };
+
+#define PBRT_FILEPATH L"external/pbrt4_dining_room/dining-room/scene-v4.pbrt"
 
 namespace UnitTest
 {
@@ -79,6 +84,25 @@ namespace UnitTest
 
 			pbrt::PBRT4Scanner scanner;
 			scanner.scanTokens(sourceStream);
+
+			pbrt::PBRT4ParserEx parser;
+			parser.parse(&scanner);
+		}
+
+		TEST_METHOD(TestParserWithFile)
+		{
+			ResourceFinder::get().addBaseDirectory(L"../");
+			ResourceFinder::get().addBaseDirectory(L"../../");
+			ResourceFinder::get().addBaseDirectory(L"../../external/");
+
+			std::wstring wFilepath = ResourceFinder::get().find(PBRT_FILEPATH);
+			Assert::IsTrue(wFilepath.size() != 0, L"Can't find the file");
+
+			std::fstream fs(wFilepath);
+			Assert::IsTrue(!!fs, L"Can't open a file stream");
+
+			pbrt::PBRT4Scanner scanner;
+			scanner.scanTokens(fs);
 
 			pbrt::PBRT4ParserEx parser;
 			parser.parse(&scanner);

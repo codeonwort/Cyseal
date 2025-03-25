@@ -154,11 +154,48 @@ namespace pbrt
 				++it;
 				PARSER_CHECK(it->type == TokenType::Number);
 				int32 value = std::stoi(it->value.data());
+				// #todo-pbrt-parser: Emit parsed integer parameter
 				++it;
 				PARSER_CHECK(it->type == TokenType::RightBracket);
 				++it;
 			}
-			// #todo-pbrt-parser: Other parameter types
+			else if (ptype == "float")
+			{
+				PARSER_CHECK(it->type == TokenType::LeftBracket);
+				++it;
+				PARSER_CHECK(it->type == TokenType::Number);
+				float value = std::stof(it->value.data());
+				// #todo-pbrt-parser: Emit parsed float parameter
+				++it;
+				PARSER_CHECK(it->type == TokenType::RightBracket);
+				++it;
+			}
+			else if (ptype == "rgb")
+			{
+				PARSER_CHECK(it->type == TokenType::LeftBracket);
+
+				// #todo-pbrt-parser: Emit parsed rgb parameter
+				++it;
+				PARSER_CHECK(it->type == TokenType::Number);
+				float R = std::stof(it->value.data());
+				
+				++it;
+				PARSER_CHECK(it->type == TokenType::Number);
+				float G = std::stof(it->value.data());
+
+				++it;
+				PARSER_CHECK(it->type == TokenType::Number);
+				float B = std::stof(it->value.data());
+
+				++it;
+				PARSER_CHECK(it->type == TokenType::RightBracket);
+				++it;
+			}
+			else
+			{
+				// #todo-pbrt-parser: Other parameter types
+				CHECK_NO_ENTRY();
+			}
 		}
 	}
 
@@ -166,14 +203,19 @@ namespace pbrt
 	{
 		PARSER_CHECK(it->type == TokenType::LeftBracket);
 		++it;
+
+		Matrix mat;
 		for (size_t i = 0; i < 16; ++i)
 		{
 			PARSER_CHECK(it->type == TokenType::Number);
 			float value = std::stof(it->value.data());
+			mat.m[i / 4][i % 4] = value;
 			++it;
 		}
 		PARSER_CHECK(it->type == TokenType::RightBracket);
 		++it;
+
+		// #todo-pbrt-parser: Emit parsed transform
 	}
 
 }
