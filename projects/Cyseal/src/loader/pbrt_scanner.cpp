@@ -119,7 +119,14 @@ namespace pbrt
 		Token tok;
 		tok.line = currentLine;
 		tok.type = tokenType;
-		tok.value = std::string_view{ line.begin() + startPos, line.begin() + stream.tellg() };
+		if (stream.eof())
+		{
+			tok.value = std::string_view{ line.begin() + startPos, line.end() };
+		}
+		else
+		{
+			tok.value = std::string_view{ line.begin() + startPos, line.begin() + stream.tellg() };
+		}
 		tokens.emplace_back(tok);
 	}
 }
