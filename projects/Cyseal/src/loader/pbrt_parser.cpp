@@ -35,6 +35,18 @@
 
 namespace pbrt
 {
+
+	PBRT4ParserEx::PBRT4ParserEx()
+	{
+		directiveTable = {
+			{DIRECTIVE_INTEGRATOR, std::bind(&PBRT4ParserEx::integrator, this, std::placeholders::_1)},
+			{DIRECTIVE_TRANSFORM, std::bind(&PBRT4ParserEx::transform, this, std::placeholders::_1)},
+			{DIRECTIVE_SAMPLER, std::bind(&PBRT4ParserEx::sampler, this, std::placeholders::_1)},
+			{DIRECTIVE_PIXEL_FILTER, std::bind(&PBRT4ParserEx::pixelFilter, this, std::placeholders::_1)},
+			{DIRECTIVE_FILM, std::bind(&PBRT4ParserEx::film, this, std::placeholders::_1)},
+		};
+	}
+
 	void PBRT4ParserEx::parse(PBRT4Scanner* scanner)
 	{
 		parsePhase = PBRT4ParsePhase::RenderingOptions;
@@ -58,15 +70,18 @@ namespace pbrt
 				parsePhase = PBRT4ParsePhase::SceneElements;
 				++it;
 			}
-			else if (it->value == DIRECTIVE_INTEGRATOR)
+			else
 			{
-				++it;
-				integrator(it);
-			}
-			else if (it->value == DIRECTIVE_TRANSFORM)
-			{
-				++it;
-				transform(it);
+				auto callbackIt = directiveTable.find(std::string(it->value));
+				if (callbackIt != directiveTable.end())
+				{
+					++it;
+					callbackIt->second(it);
+				}
+				else
+				{
+					PARSER_CHECK_NO_ENTRY();
+				}
 			}
 		}
 		else
@@ -125,7 +140,8 @@ namespace pbrt
 			{
 				integratorDesc.name = *nameIt;
 				++it;
-				parameters(it);
+
+				auto params = parameters(it);
 			}
 			else
 			{
@@ -138,8 +154,10 @@ namespace pbrt
 		}
 	}
 
-	void PBRT4ParserEx::parameters(TokenIter& it)
+	std::vector<PBRT4ParameterEx> PBRT4ParserEx::parameters(TokenIter& it)
 	{
+		std::vector<PBRT4ParameterEx> params;
+
 		while (it->type == TokenType::QuoteString)
 		{
 			std::stringstream ss(it->value.data());
@@ -154,7 +172,13 @@ namespace pbrt
 				++it;
 				PARSER_CHECK(it->type == TokenType::Number);
 				int32 value = std::stoi(it->value.data());
-				// #todo-pbrt-parser: Emit parsed integer parameter
+
+				PBRT4ParameterEx param{};
+				param.datatype = PBRT4ParameterTypeEx::Int;
+				param.name = pname;
+				param.asInt = value;
+				params.emplace_back(param);
+
 				++it;
 				PARSER_CHECK(it->type == TokenType::RightBracket);
 				++it;
@@ -165,7 +189,13 @@ namespace pbrt
 				++it;
 				PARSER_CHECK(it->type == TokenType::Number);
 				float value = std::stof(it->value.data());
-				// #todo-pbrt-parser: Emit parsed float parameter
+
+				PBRT4ParameterEx param{};
+				param.datatype = PBRT4ParameterTypeEx::Int;
+				param.name = pname;
+				param.asFloat = value;
+				params.emplace_back(param);
+
 				++it;
 				PARSER_CHECK(it->type == TokenType::RightBracket);
 				++it;
@@ -174,7 +204,6 @@ namespace pbrt
 			{
 				PARSER_CHECK(it->type == TokenType::LeftBracket);
 
-				// #todo-pbrt-parser: Emit parsed rgb parameter
 				++it;
 				PARSER_CHECK(it->type == TokenType::Number);
 				float R = std::stof(it->value.data());
@@ -187,6 +216,32 @@ namespace pbrt
 				PARSER_CHECK(it->type == TokenType::Number);
 				float B = std::stof(it->value.data());
 
+				PBRT4ParameterEx param{};
+				param.datatype = PBRT4ParameterTypeEx::Int;
+				param.name = pname;
+				param.asFloat3[0] = R;
+				param.asFloat3[1] = G;
+				param.asFloat3[2] = B;
+				params.emplace_back(param);
+
+				++it;
+				PARSER_CHECK(it->type == TokenType::RightBracket);
+				++it;
+			}
+			else if (ptype == "string")
+			{
+				PARSER_CHECK(it->type == TokenType::LeftBracket);
+
+				++it;
+				PARSER_CHECK(it->type == TokenType::QuoteString);
+				std::string strValue(it->value);
+
+				PBRT4ParameterEx param{};
+				param.datatype = PBRT4ParameterTypeEx::String;
+				param.name = pname;
+				param.asString = std::move(strValue);
+				params.emplace_back(param);
+
 				++it;
 				PARSER_CHECK(it->type == TokenType::RightBracket);
 				++it;
@@ -197,6 +252,8 @@ namespace pbrt
 				CHECK_NO_ENTRY();
 			}
 		}
+
+		return params;
 	}
 
 	void PBRT4ParserEx::transform(TokenIter& it)
@@ -216,6 +273,39 @@ namespace pbrt
 		++it;
 
 		// #todo-pbrt-parser: Emit parsed transform
+	}
+
+	void PBRT4ParserEx::sampler(TokenIter& it)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		const std::string samplerName(it->value);
+		
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed sampler
+	}
+
+	void PBRT4ParserEx::pixelFilter(TokenIter& it)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		const std::string pixelFilterName(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed pixelFilter
+	}
+
+	void PBRT4ParserEx::film(TokenIter& it)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		const std::string filmName(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed film
 	}
 
 }
