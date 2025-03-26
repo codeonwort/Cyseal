@@ -44,6 +44,8 @@ namespace pbrt
 			{DIRECTIVE_SAMPLER, std::bind(&PBRT4ParserEx::sampler, this, std::placeholders::_1)},
 			{DIRECTIVE_PIXEL_FILTER, std::bind(&PBRT4ParserEx::pixelFilter, this, std::placeholders::_1)},
 			{DIRECTIVE_FILM, std::bind(&PBRT4ParserEx::film, this, std::placeholders::_1)},
+			{DIRECTIVE_CAMERA, std::bind(&PBRT4ParserEx::camera, this, std::placeholders::_1)},
+			{DIRECTIVE_TEXTURE, std::bind(&PBRT4ParserEx::texture, this, std::placeholders::_1)},
 		};
 	}
 
@@ -165,11 +167,13 @@ namespace pbrt
 			ss >> ptype >> pname;
 			PARSER_CHECK(ptype.size() != 0 && pname.size() > 1);
 			pname = pname.substr(0, pname.size() - 1);
+
 			++it;
+			bool hasBrackets = it->type == TokenType::LeftBracket;
+			if (hasBrackets) ++it;
+
 			if (ptype == "integer")
 			{
-				PARSER_CHECK(it->type == TokenType::LeftBracket);
-				++it;
 				PARSER_CHECK(it->type == TokenType::Number);
 				int32 value = std::stoi(it->value.data());
 
@@ -178,15 +182,9 @@ namespace pbrt
 				param.name = pname;
 				param.asInt = value;
 				params.emplace_back(param);
-
-				++it;
-				PARSER_CHECK(it->type == TokenType::RightBracket);
-				++it;
 			}
 			else if (ptype == "float")
 			{
-				PARSER_CHECK(it->type == TokenType::LeftBracket);
-				++it;
 				PARSER_CHECK(it->type == TokenType::Number);
 				float value = std::stof(it->value.data());
 
@@ -195,16 +193,11 @@ namespace pbrt
 				param.name = pname;
 				param.asFloat = value;
 				params.emplace_back(param);
-
-				++it;
-				PARSER_CHECK(it->type == TokenType::RightBracket);
-				++it;
 			}
 			else if (ptype == "rgb")
 			{
-				PARSER_CHECK(it->type == TokenType::LeftBracket);
+				PARSER_CHECK(hasBrackets); // Only single value parameters can omit brackets.
 
-				++it;
 				PARSER_CHECK(it->type == TokenType::Number);
 				float R = std::stof(it->value.data());
 				
@@ -223,16 +216,9 @@ namespace pbrt
 				param.asFloat3[1] = G;
 				param.asFloat3[2] = B;
 				params.emplace_back(param);
-
-				++it;
-				PARSER_CHECK(it->type == TokenType::RightBracket);
-				++it;
 			}
 			else if (ptype == "string")
 			{
-				PARSER_CHECK(it->type == TokenType::LeftBracket);
-
-				++it;
 				PARSER_CHECK(it->type == TokenType::QuoteString);
 				std::string strValue(it->value);
 
@@ -241,16 +227,19 @@ namespace pbrt
 				param.name = pname;
 				param.asString = std::move(strValue);
 				params.emplace_back(param);
-
-				++it;
-				PARSER_CHECK(it->type == TokenType::RightBracket);
-				++it;
 			}
 			else
 			{
 				// #todo-pbrt-parser: Other parameter types
 				CHECK_NO_ENTRY();
 			}
+
+			if (hasBrackets)
+			{
+				++it;
+				PARSER_CHECK(it->type == TokenType::RightBracket);
+			}
+			++it;
 		}
 
 		return params;
@@ -306,6 +295,36 @@ namespace pbrt
 		++it;
 		auto params = parameters(it);
 		// #todo-pbrt-parser: Emit parsed film
+	}
+
+	void PBRT4ParserEx::camera(TokenIter& it)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		// "orthographic", "perspective", "realistic", "spherical"
+		const std::string cameraType(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed camera
+	}
+
+	void PBRT4ParserEx::texture(TokenIter& it)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string textureName(it->value);
+
+		++it;
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string textureType(it->value);
+
+		++it;
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string textureClass(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed texture
 	}
 
 }

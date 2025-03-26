@@ -45,6 +45,8 @@ namespace pbrt
 		void sampler(TokenIter& it);
 		void pixelFilter(TokenIter& it);
 		void film(TokenIter& it);
+		void camera(TokenIter& it);
+		void texture(TokenIter& it);
 
 		std::vector<PBRT4ParameterEx> parameters(TokenIter& it);
 
