@@ -46,12 +46,17 @@ namespace pbrt
 			{DIRECTIVE_FILM, std::bind(&PBRT4ParserEx::film, this, std::placeholders::_1)},
 			{DIRECTIVE_CAMERA, std::bind(&PBRT4ParserEx::camera, this, std::placeholders::_1)},
 			{DIRECTIVE_TEXTURE, std::bind(&PBRT4ParserEx::texture, this, std::placeholders::_1)},
+			{DIRECTIVE_MAKE_NAMED_MATERIAL, std::bind(&PBRT4ParserEx::makeNamedMaterial, this, std::placeholders::_1)},
+			{DIRECTIVE_SHAPE, std::bind(&PBRT4ParserEx::shape, this, std::placeholders::_1)},
+			{DIRECTIVE_NAMED_MATERIAL, std::bind(&PBRT4ParserEx::namedMaterial, this, std::placeholders::_1)},
 		};
 	}
 
 	void PBRT4ParserEx::parse(PBRT4Scanner* scanner)
 	{
 		parsePhase = PBRT4ParsePhase::RenderingOptions;
+		currentTransform.identity();
+		bCurrentTransformIsIdentity = true;
 
 		const std::vector<Token>& tokens = scanner->getTokens();
 		auto it = tokens.begin();
@@ -70,6 +75,20 @@ namespace pbrt
 			{
 				PARSER_CHECK(parsePhase == PBRT4ParsePhase::RenderingOptions);
 				parsePhase = PBRT4ParsePhase::SceneElements;
+				++it;
+			}
+			else if (it->value == DIRECTIVE_TRANSFORM_BEGIN)
+			{
+				PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
+				parsePhase = PBRT4ParsePhase::InsideAttribute;
+				++it;
+			}
+			else if (it->value == DIRECTIVE_TRANSFORM_END)
+			{
+				PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements || parsePhase == PBRT4ParsePhase::InsideAttribute);
+				parsePhase = PBRT4ParsePhase::SceneElements;
+				currentTransform.identity();
+				bCurrentTransformIsIdentity = true;
 				++it;
 			}
 			else
@@ -228,6 +247,29 @@ namespace pbrt
 				param.asString = std::move(strValue);
 				params.emplace_back(param);
 			}
+			else if (ptype == "bool")
+			{
+				PARSER_CHECK(it->type == TokenType::String);
+				std::string str(it->value);
+				PARSER_CHECK(str == "true" || str == "false");
+
+				PBRT4ParameterEx param{};
+				param.datatype = PBRT4ParameterTypeEx::Bool;
+				param.name = pname;
+				param.asBool = (str == "true");
+				params.emplace_back(param);
+			}
+			else if (ptype == "texture")
+			{
+				PARSER_CHECK(it->type == TokenType::QuoteString);
+				std::string textureName(it->value);
+
+				PBRT4ParameterEx param{};
+				param.datatype = PBRT4ParameterTypeEx::Bool;
+				param.name = pname;
+				param.asTexture = textureName;
+				params.emplace_back(param);
+			}
 			else
 			{
 				// #todo-pbrt-parser: Other parameter types
@@ -261,7 +303,15 @@ namespace pbrt
 		PARSER_CHECK(it->type == TokenType::RightBracket);
 		++it;
 
-		// #todo-pbrt-parser: Emit parsed transform
+		if (parsePhase == PBRT4ParsePhase::RenderingOptions)
+		{
+			// #todo-pbrt-parser: Emit parsed Transform as the scene transform
+		}
+		else if (parsePhase == PBRT4ParsePhase::InsideAttribute)
+		{
+			// #todo-pbrt-parser: Emit parsed Transform
+			currentTransform = mat;
+		}
 	}
 
 	void PBRT4ParserEx::sampler(TokenIter& it)
@@ -325,6 +375,37 @@ namespace pbrt
 		++it;
 		auto params = parameters(it);
 		// #todo-pbrt-parser: Emit parsed texture
+	}
+
+	void PBRT4ParserEx::makeNamedMaterial(TokenIter& it)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string materialName(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed MakeNamedMaterial
+	}
+
+	void PBRT4ParserEx::shape(TokenIter& it)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string shapeName(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed Shape
+	}
+
+	void PBRT4ParserEx::namedMaterial(TokenIter& it)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string materialName(it->value);
+
+		currentNamedMaterial = materialName;
+
+		++it;
+		// #todo-pbrt-parser: Emit parsed NamedMaterial
 	}
 
 }
