@@ -18,19 +18,26 @@ namespace pbrt
 		InsideAttribute  = 2,
 	};
 
-	enum class PBRT4ParameterTypeEx { String, Float3, Float, Int, Bool, Texture };
+	enum class PBRT4ParameterTypeEx
+	{
+		String, Texture, Bool,
+		Float3, Float, Float2Array, Float3Array,
+		Int, IntArray,
+	};
 	struct PBRT4ParameterEx
 	{
 		PBRT4ParameterTypeEx datatype = PBRT4ParameterTypeEx::String;
 		std::string name;
 
 		// #todo-pbrt-parser: union
-		std::string asString;
-		float asFloat3[3] = { 0.0f, 0.0f, 0.0f };
-		float asFloat = 0.0f;
-		int32 asInt = 0;
-		bool asBool = false;
-		std::string asTexture;
+		std::string asString; // String
+		std::string asTexture; // Texture
+		bool asBool = false; // Bool
+		float asFloat = 0.0f; // Float
+		float asFloat3[3] = { 0.0f, 0.0f, 0.0f }; // Float3
+		std::vector<float> asFloatArray; // Float2Array, Float3Array
+		int32 asInt; // Int
+		std::vector<int32> asIntArray; // IntArray
 	};
 
 	class PBRT4ParserEx

@@ -193,14 +193,37 @@ namespace pbrt
 
 			if (ptype == "integer")
 			{
-				PARSER_CHECK(it->type == TokenType::Number);
-				int32 value = std::stoi(it->value.data());
+				std::vector<int32> values;
+				while (it->type == TokenType::Number)
+				{
+					int32 value = std::stoi(it->value.data());
+					values.emplace_back(value);
+					++it;
+				}
+				PARSER_CHECK(values.size() > 0);
+				PARSER_CHECK(values.size() == 1 || hasBrackets);
 
-				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Int;
-				param.name = pname;
-				param.asInt = value;
-				params.emplace_back(param);
+				if (values.size() == 1)
+				{
+					if (hasBrackets) --it;
+
+					PBRT4ParameterEx param{};
+					param.datatype = PBRT4ParameterTypeEx::Int;
+					param.name = pname;
+					param.asInt = values[0];
+					params.emplace_back(param);
+				}
+				else
+				{
+					--it;
+
+					PBRT4ParameterEx param{};
+					param.datatype = PBRT4ParameterTypeEx::IntArray;
+					param.name = pname;
+					param.asIntArray = std::move(values);
+					params.emplace_back(param);
+				}
+			
 			}
 			else if (ptype == "float")
 			{
@@ -268,6 +291,49 @@ namespace pbrt
 				param.datatype = PBRT4ParameterTypeEx::Bool;
 				param.name = pname;
 				param.asTexture = textureName;
+				params.emplace_back(param);
+			}
+			else if (ptype == "point2" || ptype == "vector2")
+			{
+				PARSER_CHECK(hasBrackets); // Only single value parameters can omit brackets.
+
+				std::vector<float> float2Array;
+
+				while (it->type == TokenType::Number)
+				{
+					float num = std::stof(it->value.data());
+					float2Array.emplace_back(num);
+					++it;
+				}
+				--it;
+				PARSER_CHECK(float2Array.size() % 2 == 0);
+
+				PBRT4ParameterEx param{};
+				param.datatype = PBRT4ParameterTypeEx::Float2Array;
+				param.name = pname;
+				param.asFloatArray = std::move(float2Array);
+				params.emplace_back(param);
+			}
+			// #todo-pbrt-parser: File format spec says "normal3" but actual files use "normal"?
+			else if (ptype == "normal" || ptype == "point3" || ptype == "vector3")
+			{
+				PARSER_CHECK(hasBrackets); // Only single value parameters can omit brackets.
+
+				std::vector<float> float3Array;
+
+				while (it->type == TokenType::Number)
+				{
+					float num = std::stof(it->value.data());
+					float3Array.emplace_back(num);
+					++it;
+				}
+				--it;
+				PARSER_CHECK(float3Array.size() % 3 == 0);
+
+				PBRT4ParameterEx param{};
+				param.datatype = PBRT4ParameterTypeEx::Float3Array;
+				param.name = pname;
+				param.asFloatArray = std::move(float3Array);
 				params.emplace_back(param);
 			}
 			else
