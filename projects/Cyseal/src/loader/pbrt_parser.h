@@ -61,12 +61,16 @@ namespace pbrt
 		void makeNamedMaterial(TokenIter& it);
 		void shape(TokenIter& it);
 		void namedMaterial(TokenIter& it);
+		void lightSource(TokenIter& it);
+		void rotate(TokenIter& it);
+		void concatTransform(TokenIter& it);
 
 		std::vector<PBRT4ParameterEx> parameters(TokenIter& it);
 
 		// States
 		PBRT4ParsePhase parsePhase = PBRT4ParsePhase::RenderingOptions;
 		Matrix currentTransform;
+		Matrix currentTransformBackup;
 		bool bCurrentTransformIsIdentity = true;
 		std::string currentNamedMaterial;
 

@@ -22,7 +22,9 @@
 #define DIRECTIVE_SHAPE                  "Shape"
 #define DIRECTIVE_TEXTURE                "Texture"
 #define DIRECTIVE_TRANSLATE              "Translate"
+#define DIRECTIVE_ROTATE                 "Rotate"
 #define DIRECTIVE_TRANSFORM              "Transform"
+#define DIRECTIVE_CONCAT_TRANSFORM       "ConcatTransform"
 #define DIRECTIVE_AREA_LIGHT_SOURCE      "AreaLightSource"
 
 // Legacy tokens (pbrt-v3)
@@ -49,6 +51,9 @@ namespace pbrt
 			{DIRECTIVE_MAKE_NAMED_MATERIAL, std::bind(&PBRT4ParserEx::makeNamedMaterial, this, std::placeholders::_1)},
 			{DIRECTIVE_SHAPE, std::bind(&PBRT4ParserEx::shape, this, std::placeholders::_1)},
 			{DIRECTIVE_NAMED_MATERIAL, std::bind(&PBRT4ParserEx::namedMaterial, this, std::placeholders::_1)},
+			{DIRECTIVE_LIGHT_SOURCE, std::bind(&PBRT4ParserEx::lightSource, this, std::placeholders::_1)},
+			{DIRECTIVE_ROTATE, std::bind(&PBRT4ParserEx::rotate, this, std::placeholders::_1)},
+			{DIRECTIVE_CONCAT_TRANSFORM, std::bind(&PBRT4ParserEx::concatTransform, this, std::placeholders::_1)},
 		};
 	}
 
@@ -75,6 +80,8 @@ namespace pbrt
 			{
 				PARSER_CHECK(parsePhase == PBRT4ParsePhase::RenderingOptions);
 				parsePhase = PBRT4ParsePhase::SceneElements;
+				currentTransform.identity();
+				currentTransformBackup.identity();
 				++it;
 			}
 			else if (it->value == DIRECTIVE_TRANSFORM_BEGIN)
@@ -85,9 +92,24 @@ namespace pbrt
 			}
 			else if (it->value == DIRECTIVE_TRANSFORM_END)
 			{
-				PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements || parsePhase == PBRT4ParsePhase::InsideAttribute);
+				PARSER_CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
 				parsePhase = PBRT4ParsePhase::SceneElements;
 				currentTransform.identity();
+				bCurrentTransformIsIdentity = true;
+				++it;
+			}
+			else if (it->value == DIRECTIVE_ATTRIBUTE_BEGIN)
+			{
+				PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
+				parsePhase = PBRT4ParsePhase::InsideAttribute;
+				currentTransformBackup = currentTransform;
+				++it;
+			}
+			else if (it->value == DIRECTIVE_ATTRIBUTE_END)
+			{
+				PARSER_CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
+				parsePhase = PBRT4ParsePhase::SceneElements;
+				currentTransform = currentTransformBackup;
 				bCurrentTransformIsIdentity = true;
 				++it;
 			}
@@ -472,6 +494,60 @@ namespace pbrt
 
 		++it;
 		// #todo-pbrt-parser: Emit parsed NamedMaterial
+	}
+
+	void PBRT4ParserEx::lightSource(TokenIter& it)
+	{
+		// "distant", "goniometric", "infinite", "point", "projection", "spot"
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string lightName(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed LightSource
+	}
+
+	void PBRT4ParserEx::rotate(TokenIter& it)
+	{
+		// Rotate angle x y z
+		// where angle is in degrees and (x, y, z) = axis
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float angle = std::stof(it->value.data());
+		++it;
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float x = std::stof(it->value.data());
+		++it;
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float y = std::stof(it->value.data());
+		++it;
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float z = std::stof(it->value.data());
+		++it;
+
+		// #todo-pbrt-parser: Concat with current transform
+	}
+
+	void PBRT4ParserEx::concatTransform(TokenIter& it)
+	{
+		PARSER_CHECK(it->type == TokenType::LeftBracket);
+		++it;
+
+		Matrix mat;
+		for (size_t i = 0; i < 16; ++i)
+		{
+			PARSER_CHECK(it->type == TokenType::Number);
+			float value = std::stof(it->value.data());
+			mat.m[i / 4][i % 4] = value;
+			++it;
+		}
+		PARSER_CHECK(it->type == TokenType::RightBracket);
+		++it;
+
+		// #todo-pbrt-parser: Concat with current transform
 	}
 
 }
