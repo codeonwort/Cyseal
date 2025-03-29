@@ -40,14 +40,22 @@ namespace pbrt
 		std::vector<int32> asIntArray; // IntArray
 	};
 
+	struct PBRT4ParserResult
+	{
+		//
+	};
+
 	class PBRT4ParserEx
 	{
 	public:
 		PBRT4ParserEx();
-		void parse(PBRT4Scanner* scanner);
+		PBRT4ParserResult parse(PBRT4Scanner* scanner);
 
 	private:
 		using TokenIter = std::vector<Token>::const_iterator;
+
+		using DirectiveTable = std::map<std::string, std::function<void(TokenIter& it)>>;
+		DirectiveTable directiveTable;
 
 		void directive(TokenIter& it);
 		
@@ -67,14 +75,15 @@ namespace pbrt
 
 		std::vector<PBRT4ParameterEx> parameters(TokenIter& it);
 
+	private:
 		// States
 		PBRT4ParsePhase parsePhase = PBRT4ParsePhase::RenderingOptions;
-		Matrix currentTransform;
-		Matrix currentTransformBackup;
-		bool bCurrentTransformIsIdentity = true;
-		std::string currentNamedMaterial;
+		Matrix          currentTransform;
+		Matrix          currentTransformBackup;
+		bool            bCurrentTransformIsIdentity = true;
+		std::string     currentNamedMaterial;
 
-		using DirectiveTable = std::map<std::string, std::function<void(TokenIter& it)>>;
-		DirectiveTable directiveTable;
+		// Parsed result
+		//
 	};
 }

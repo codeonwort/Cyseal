@@ -37,27 +37,26 @@
 
 namespace pbrt
 {
-
 	PBRT4ParserEx::PBRT4ParserEx()
 	{
 		directiveTable = {
-			{DIRECTIVE_INTEGRATOR, std::bind(&PBRT4ParserEx::integrator, this, std::placeholders::_1)},
-			{DIRECTIVE_TRANSFORM, std::bind(&PBRT4ParserEx::transform, this, std::placeholders::_1)},
-			{DIRECTIVE_SAMPLER, std::bind(&PBRT4ParserEx::sampler, this, std::placeholders::_1)},
-			{DIRECTIVE_PIXEL_FILTER, std::bind(&PBRT4ParserEx::pixelFilter, this, std::placeholders::_1)},
-			{DIRECTIVE_FILM, std::bind(&PBRT4ParserEx::film, this, std::placeholders::_1)},
-			{DIRECTIVE_CAMERA, std::bind(&PBRT4ParserEx::camera, this, std::placeholders::_1)},
-			{DIRECTIVE_TEXTURE, std::bind(&PBRT4ParserEx::texture, this, std::placeholders::_1)},
+			{DIRECTIVE_INTEGRATOR,          std::bind(&PBRT4ParserEx::integrator,        this, std::placeholders::_1)},
+			{DIRECTIVE_TRANSFORM,           std::bind(&PBRT4ParserEx::transform,         this, std::placeholders::_1)},
+			{DIRECTIVE_SAMPLER,             std::bind(&PBRT4ParserEx::sampler,           this, std::placeholders::_1)},
+			{DIRECTIVE_PIXEL_FILTER,        std::bind(&PBRT4ParserEx::pixelFilter,       this, std::placeholders::_1)},
+			{DIRECTIVE_FILM,                std::bind(&PBRT4ParserEx::film,              this, std::placeholders::_1)},
+			{DIRECTIVE_CAMERA,              std::bind(&PBRT4ParserEx::camera,            this, std::placeholders::_1)},
+			{DIRECTIVE_TEXTURE,             std::bind(&PBRT4ParserEx::texture,           this, std::placeholders::_1)},
 			{DIRECTIVE_MAKE_NAMED_MATERIAL, std::bind(&PBRT4ParserEx::makeNamedMaterial, this, std::placeholders::_1)},
-			{DIRECTIVE_SHAPE, std::bind(&PBRT4ParserEx::shape, this, std::placeholders::_1)},
-			{DIRECTIVE_NAMED_MATERIAL, std::bind(&PBRT4ParserEx::namedMaterial, this, std::placeholders::_1)},
-			{DIRECTIVE_LIGHT_SOURCE, std::bind(&PBRT4ParserEx::lightSource, this, std::placeholders::_1)},
-			{DIRECTIVE_ROTATE, std::bind(&PBRT4ParserEx::rotate, this, std::placeholders::_1)},
-			{DIRECTIVE_CONCAT_TRANSFORM, std::bind(&PBRT4ParserEx::concatTransform, this, std::placeholders::_1)},
+			{DIRECTIVE_SHAPE,               std::bind(&PBRT4ParserEx::shape,             this, std::placeholders::_1)},
+			{DIRECTIVE_NAMED_MATERIAL,      std::bind(&PBRT4ParserEx::namedMaterial,     this, std::placeholders::_1)},
+			{DIRECTIVE_LIGHT_SOURCE,        std::bind(&PBRT4ParserEx::lightSource,       this, std::placeholders::_1)},
+			{DIRECTIVE_ROTATE,              std::bind(&PBRT4ParserEx::rotate,            this, std::placeholders::_1)},
+			{DIRECTIVE_CONCAT_TRANSFORM,    std::bind(&PBRT4ParserEx::concatTransform,   this, std::placeholders::_1)},
 		};
 	}
 
-	void PBRT4ParserEx::parse(PBRT4Scanner* scanner)
+	PBRT4ParserResult PBRT4ParserEx::parse(PBRT4Scanner* scanner)
 	{
 		parsePhase = PBRT4ParsePhase::RenderingOptions;
 		currentTransform.identity();
@@ -69,6 +68,9 @@ namespace pbrt
 		{
 			directive(it);
 		}
+
+		PBRT4ParserResult ret{};
+		return ret;
 	}
 
 	void PBRT4ParserEx::directive(TokenIter& it)
@@ -477,6 +479,10 @@ namespace pbrt
 
 	void PBRT4ParserEx::shape(TokenIter& it)
 	{
+		PARSER_CHECK(parsePhase != PBRT4ParsePhase::RenderingOptions);
+
+		// "bilinearmesh", "curve", "cylinder", "disk", "sphere", "trianglemesh",
+		// "loopsubdiv", "plymesh"
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 		const std::string shapeName(it->value);
 
