@@ -105,7 +105,7 @@ namespace UnitTest
 			scanner.scanTokens(fs);
 
 			pbrt::PBRT4ParserEx parser;
-			pbrt::PBRT4ParserResult parserResult = parser.parse(&scanner);
+			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
 		}
 	};
 }

@@ -40,40 +40,41 @@ namespace pbrt
 	PBRT4ParserEx::PBRT4ParserEx()
 	{
 		directiveTable = {
-			{DIRECTIVE_INTEGRATOR,          std::bind(&PBRT4ParserEx::integrator,        this, std::placeholders::_1)},
-			{DIRECTIVE_TRANSFORM,           std::bind(&PBRT4ParserEx::transform,         this, std::placeholders::_1)},
-			{DIRECTIVE_SAMPLER,             std::bind(&PBRT4ParserEx::sampler,           this, std::placeholders::_1)},
-			{DIRECTIVE_PIXEL_FILTER,        std::bind(&PBRT4ParserEx::pixelFilter,       this, std::placeholders::_1)},
-			{DIRECTIVE_FILM,                std::bind(&PBRT4ParserEx::film,              this, std::placeholders::_1)},
-			{DIRECTIVE_CAMERA,              std::bind(&PBRT4ParserEx::camera,            this, std::placeholders::_1)},
-			{DIRECTIVE_TEXTURE,             std::bind(&PBRT4ParserEx::texture,           this, std::placeholders::_1)},
-			{DIRECTIVE_MAKE_NAMED_MATERIAL, std::bind(&PBRT4ParserEx::makeNamedMaterial, this, std::placeholders::_1)},
-			{DIRECTIVE_SHAPE,               std::bind(&PBRT4ParserEx::shape,             this, std::placeholders::_1)},
-			{DIRECTIVE_NAMED_MATERIAL,      std::bind(&PBRT4ParserEx::namedMaterial,     this, std::placeholders::_1)},
-			{DIRECTIVE_LIGHT_SOURCE,        std::bind(&PBRT4ParserEx::lightSource,       this, std::placeholders::_1)},
-			{DIRECTIVE_ROTATE,              std::bind(&PBRT4ParserEx::rotate,            this, std::placeholders::_1)},
-			{DIRECTIVE_CONCAT_TRANSFORM,    std::bind(&PBRT4ParserEx::concatTransform,   this, std::placeholders::_1)},
+			{DIRECTIVE_INTEGRATOR,          std::bind(&PBRT4ParserEx::integrator,        this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_TRANSFORM,           std::bind(&PBRT4ParserEx::transform,         this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_SAMPLER,             std::bind(&PBRT4ParserEx::sampler,           this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_PIXEL_FILTER,        std::bind(&PBRT4ParserEx::pixelFilter,       this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_FILM,                std::bind(&PBRT4ParserEx::film,              this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_CAMERA,              std::bind(&PBRT4ParserEx::camera,            this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_TEXTURE,             std::bind(&PBRT4ParserEx::texture,           this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_MAKE_NAMED_MATERIAL, std::bind(&PBRT4ParserEx::makeNamedMaterial, this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_SHAPE,               std::bind(&PBRT4ParserEx::shape,             this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_NAMED_MATERIAL,      std::bind(&PBRT4ParserEx::namedMaterial,     this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_LIGHT_SOURCE,        std::bind(&PBRT4ParserEx::lightSource,       this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_ROTATE,              std::bind(&PBRT4ParserEx::rotate,            this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_CONCAT_TRANSFORM,    std::bind(&PBRT4ParserEx::concatTransform,   this, std::placeholders::_1, std::placeholders::_2)},
 		};
 	}
 
-	PBRT4ParserResult PBRT4ParserEx::parse(PBRT4Scanner* scanner)
+	PBRT4ParserOutput PBRT4ParserEx::parse(PBRT4Scanner* scanner)
 	{
 		parsePhase = PBRT4ParsePhase::RenderingOptions;
 		currentTransform.identity();
 		bCurrentTransformIsIdentity = true;
 
+		PBRT4ParserOutput output{};
+
 		const std::vector<Token>& tokens = scanner->getTokens();
 		auto it = tokens.begin();
 		while (it->type != TokenType::EoF)
 		{
-			directive(it);
+			directive(it, output);
 		}
 
-		PBRT4ParserResult ret{};
-		return ret;
+		return output;
 	}
 
-	void PBRT4ParserEx::directive(TokenIter& it)
+	void PBRT4ParserEx::directive(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		if (it->type == TokenType::String)
 		{
@@ -121,7 +122,7 @@ namespace pbrt
 				if (callbackIt != directiveTable.end())
 				{
 					++it;
-					callbackIt->second(it);
+					callbackIt->second(it, output);
 				}
 				else
 				{
@@ -135,7 +136,7 @@ namespace pbrt
 		}
 	}
 
-	void PBRT4ParserEx::integrator(TokenIter& it)
+	void PBRT4ParserEx::integrator(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		struct Integrator
 		{
@@ -377,7 +378,7 @@ namespace pbrt
 		return params;
 	}
 
-	void PBRT4ParserEx::transform(TokenIter& it)
+	void PBRT4ParserEx::transform(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::LeftBracket);
 		++it;
@@ -404,7 +405,7 @@ namespace pbrt
 		}
 	}
 
-	void PBRT4ParserEx::sampler(TokenIter& it)
+	void PBRT4ParserEx::sampler(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 
@@ -415,7 +416,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed sampler
 	}
 
-	void PBRT4ParserEx::pixelFilter(TokenIter& it)
+	void PBRT4ParserEx::pixelFilter(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 
@@ -426,7 +427,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed pixelFilter
 	}
 
-	void PBRT4ParserEx::film(TokenIter& it)
+	void PBRT4ParserEx::film(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 
@@ -437,7 +438,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed film
 	}
 
-	void PBRT4ParserEx::camera(TokenIter& it)
+	void PBRT4ParserEx::camera(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 
@@ -449,7 +450,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed camera
 	}
 
-	void PBRT4ParserEx::texture(TokenIter& it)
+	void PBRT4ParserEx::texture(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 		const std::string textureName(it->value);
@@ -467,7 +468,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed texture
 	}
 
-	void PBRT4ParserEx::makeNamedMaterial(TokenIter& it)
+	void PBRT4ParserEx::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 		const std::string materialName(it->value);
@@ -477,21 +478,34 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed MakeNamedMaterial
 	}
 
-	void PBRT4ParserEx::shape(TokenIter& it)
+	void PBRT4ParserEx::shape(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(parsePhase != PBRT4ParsePhase::RenderingOptions);
 
 		// "bilinearmesh", "curve", "cylinder", "disk", "sphere", "trianglemesh",
 		// "loopsubdiv", "plymesh"
 		PARSER_CHECK(it->type == TokenType::QuoteString);
-		const std::string shapeName(it->value);
+		std::string shapeName(it->value);
 
+		// #todo-pbrt-parser: When to parse params further?
+		// 1. Parser (here)
+		// 2. New intermediate phase (parser -> converter -> loader)
+		// 3. Loader
+		// This file format is not super complex, so let's keep it simple.
 		++it;
 		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed Shape
+
+		PBRT4ParserOutput::Shape shapeDesc{
+			.name               = std::move(shapeName),
+			.namedMaterial      = currentNamedMaterial,
+			.transform          = currentTransform,
+			.bIdentityTransform = bCurrentTransformIsIdentity,
+			.parameters         = std::move(params),
+		};
+		output.shapes.emplace_back(shapeDesc);
 	}
 
-	void PBRT4ParserEx::namedMaterial(TokenIter& it)
+	void PBRT4ParserEx::namedMaterial(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 		const std::string materialName(it->value);
@@ -502,7 +516,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed NamedMaterial
 	}
 
-	void PBRT4ParserEx::lightSource(TokenIter& it)
+	void PBRT4ParserEx::lightSource(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// "distant", "goniometric", "infinite", "point", "projection", "spot"
 		PARSER_CHECK(it->type == TokenType::QuoteString);
@@ -513,7 +527,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed LightSource
 	}
 
-	void PBRT4ParserEx::rotate(TokenIter& it)
+	void PBRT4ParserEx::rotate(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// Rotate angle x y z
 		// where angle is in degrees and (x, y, z) = axis
@@ -537,7 +551,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Concat with current transform
 	}
 
-	void PBRT4ParserEx::concatTransform(TokenIter& it)
+	void PBRT4ParserEx::concatTransform(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::LeftBracket);
 		++it;

@@ -40,50 +40,57 @@ namespace pbrt
 		std::vector<int32> asIntArray; // IntArray
 	};
 
-	struct PBRT4ParserResult
+	struct PBRT4ParserOutput
 	{
-		//
+		using ParameterList = std::vector<PBRT4ParameterEx>;
+		struct Shape
+		{
+			std::string   name;
+			std::string   namedMaterial;
+			Matrix        transform;
+			bool          bIdentityTransform;
+			ParameterList parameters;
+		};
+
+		std::vector<Shape> shapes;
 	};
 
 	class PBRT4ParserEx
 	{
 	public:
 		PBRT4ParserEx();
-		PBRT4ParserResult parse(PBRT4Scanner* scanner);
+		PBRT4ParserOutput parse(PBRT4Scanner* scanner);
 
 	private:
 		using TokenIter = std::vector<Token>::const_iterator;
 
-		using DirectiveTable = std::map<std::string, std::function<void(TokenIter& it)>>;
+		using DirectiveTable = std::map<std::string, std::function<void(TokenIter& it, PBRT4ParserOutput& output)>>;
 		DirectiveTable directiveTable;
 
-		void directive(TokenIter& it);
+		void directive(TokenIter& it, PBRT4ParserOutput& output);
 		
-		void integrator(TokenIter& it);
-		void transform(TokenIter& it);
-		void sampler(TokenIter& it);
-		void pixelFilter(TokenIter& it);
-		void film(TokenIter& it);
-		void camera(TokenIter& it);
-		void texture(TokenIter& it);
-		void makeNamedMaterial(TokenIter& it);
-		void shape(TokenIter& it);
-		void namedMaterial(TokenIter& it);
-		void lightSource(TokenIter& it);
-		void rotate(TokenIter& it);
-		void concatTransform(TokenIter& it);
+		void integrator(TokenIter& it, PBRT4ParserOutput& output);
+		void transform(TokenIter& it, PBRT4ParserOutput& output);
+		void sampler(TokenIter& it, PBRT4ParserOutput& output);
+		void pixelFilter(TokenIter& it, PBRT4ParserOutput& output);
+		void film(TokenIter& it, PBRT4ParserOutput& output);
+		void camera(TokenIter& it, PBRT4ParserOutput& output);
+		void texture(TokenIter& it, PBRT4ParserOutput& output);
+		void makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output);
+		void shape(TokenIter& it, PBRT4ParserOutput& output);
+		void namedMaterial(TokenIter& it, PBRT4ParserOutput& output);
+		void lightSource(TokenIter& it, PBRT4ParserOutput& output);
+		void rotate(TokenIter& it, PBRT4ParserOutput& output);
+		void concatTransform(TokenIter& it, PBRT4ParserOutput& output);
 
 		std::vector<PBRT4ParameterEx> parameters(TokenIter& it);
 
 	private:
 		// States
-		PBRT4ParsePhase parsePhase = PBRT4ParsePhase::RenderingOptions;
-		Matrix          currentTransform;
-		Matrix          currentTransformBackup;
-		bool            bCurrentTransformIsIdentity = true;
-		std::string     currentNamedMaterial;
-
-		// Parsed result
-		//
+		PBRT4ParsePhase    parsePhase = PBRT4ParsePhase::RenderingOptions;
+		Matrix             currentTransform;
+		Matrix             currentTransformBackup;
+		bool               bCurrentTransformIsIdentity = true;
+		std::string        currentNamedMaterial;
 	};
 }
