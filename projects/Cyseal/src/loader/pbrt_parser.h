@@ -20,7 +20,7 @@ namespace pbrt
 
 	enum class PBRT4ParameterTypeEx
 	{
-		String, Texture, Bool,
+		String, Texture, Spectrum, Bool,
 		Float3, Float, Float2Array, Float3Array,
 		Int, IntArray,
 	};
@@ -30,14 +30,13 @@ namespace pbrt
 		std::string name;
 
 		// #todo-pbrt-parser: union
-		std::string asString; // String
-		std::string asTexture; // Texture
-		bool asBool = false; // Bool
-		float asFloat = 0.0f; // Float
-		float asFloat3[3] = { 0.0f, 0.0f, 0.0f }; // Float3
-		std::vector<float> asFloatArray; // Float2Array, Float3Array
-		int32 asInt; // Int
-		std::vector<int32> asIntArray; // IntArray
+		std::string        asString;                           // String, Texture, Spectrum
+		bool               asBool = false;                     // Bool
+		float              asFloat = 0.0f;                     // Float
+		float              asFloat3[3] = { 0.0f, 0.0f, 0.0f }; // Float3
+		std::vector<float> asFloatArray;                       // Float2Array, Float3Array
+		int32              asInt;                              // Int
+		std::vector<int32> asIntArray;                         // IntArray
 	};
 
 	struct PBRT4ParserOutput
@@ -51,10 +50,23 @@ namespace pbrt
 			bool          bIdentityTransform;
 			ParameterList parameters;
 		};
+		struct Material
+		{
+			std::string   name;
+			ParameterList parameters;
+		};
 
-		std::vector<Shape> shapes;
+	public:
+		// Camera
+		vec3                  eyePosition;
+		vec3                  lookAtPosition;
+		vec3                  upVector;
+
+		std::vector<Shape>    shapes;
+		std::vector<Material> materials;
 	};
 
+	// Parse tokens.
 	class PBRT4ParserEx
 	{
 	public:
@@ -82,6 +94,8 @@ namespace pbrt
 		void lightSource(TokenIter& it, PBRT4ParserOutput& output);
 		void rotate(TokenIter& it, PBRT4ParserOutput& output);
 		void concatTransform(TokenIter& it, PBRT4ParserOutput& output);
+		void areaLightSource(TokenIter& it, PBRT4ParserOutput& output);
+		void material(TokenIter& it, PBRT4ParserOutput& output);
 
 		std::vector<PBRT4ParameterEx> parameters(TokenIter& it);
 

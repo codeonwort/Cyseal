@@ -53,6 +53,8 @@ namespace pbrt
 			{DIRECTIVE_LIGHT_SOURCE,        std::bind(&PBRT4ParserEx::lightSource,       this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_ROTATE,              std::bind(&PBRT4ParserEx::rotate,            this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_CONCAT_TRANSFORM,    std::bind(&PBRT4ParserEx::concatTransform,   this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_AREA_LIGHT_SOURCE,   std::bind(&PBRT4ParserEx::areaLightSource,   this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_MATERIAL,            std::bind(&PBRT4ParserEx::material,          this, std::placeholders::_1, std::placeholders::_2)},
 		};
 	}
 
@@ -313,9 +315,9 @@ namespace pbrt
 				std::string textureName(it->value);
 
 				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Bool;
+				param.datatype = PBRT4ParameterTypeEx::Texture;
 				param.name = pname;
-				param.asTexture = textureName;
+				param.asString = textureName;
 				params.emplace_back(param);
 			}
 			else if (ptype == "point2" || ptype == "vector2")
@@ -361,6 +363,17 @@ namespace pbrt
 				param.asFloatArray = std::move(float3Array);
 				params.emplace_back(param);
 			}
+			else if (ptype == "spectrum")
+			{
+				PARSER_CHECK(it->type == TokenType::QuoteString);
+				std::string spectrumName(it->value);
+
+				PBRT4ParameterEx param{};
+				param.datatype = PBRT4ParameterTypeEx::Spectrum;
+				param.name = pname;
+				param.asString = spectrumName;
+				params.emplace_back(param);
+				}
 			else
 			{
 				// #todo-pbrt-parser: Other parameter types
@@ -471,11 +484,16 @@ namespace pbrt
 	void PBRT4ParserEx::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
-		const std::string materialName(it->value);
+		std::string materialName(it->value);
 
 		++it;
 		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed MakeNamedMaterial
+
+		PBRT4ParserOutput::Material materialDesc{
+			.name       = std::move(materialName),
+			.parameters = std::move(params),
+		};
+		output.materials.emplace_back(materialDesc);
 	}
 
 	void PBRT4ParserEx::shape(TokenIter& it, PBRT4ParserOutput& output)
@@ -508,18 +526,18 @@ namespace pbrt
 	void PBRT4ParserEx::namedMaterial(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
+
 		const std::string materialName(it->value);
+		++it;
 
 		currentNamedMaterial = materialName;
-
-		++it;
-		// #todo-pbrt-parser: Emit parsed NamedMaterial
 	}
 
 	void PBRT4ParserEx::lightSource(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// "distant", "goniometric", "infinite", "point", "projection", "spot"
 		PARSER_CHECK(it->type == TokenType::QuoteString);
+
 		const std::string lightName(it->value);
 
 		++it;
@@ -568,6 +586,29 @@ namespace pbrt
 		++it;
 
 		// #todo-pbrt-parser: Concat with current transform
+	}
+
+	void PBRT4ParserEx::areaLightSource(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		// "diffuse"
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string lightType(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed AreaLightSource
+	}
+
+	void PBRT4ParserEx::material(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		// "coateddiffuse", "coatedconductor", "conductor", "dielectric", "diffuse", "diffusetransmission",
+		// "hair", "interface", "measured", "mix", "subsurface", "thindieletric"
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string materialType(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed Material
 	}
 
 }
