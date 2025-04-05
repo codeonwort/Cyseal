@@ -66,7 +66,6 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 
 	PBRT4Scene* pbrtScene = new PBRT4Scene;
 
-	//std::map<std::string, ImageLoadData*> imageDatabase;
 	std::map<std::string, SharedPtr<TextureAsset>> textureAssetDatabase;
 	std::map<std::string, SharedPtr<MaterialAsset>> materialDatabase;
 

@@ -97,19 +97,16 @@ namespace pbrt
 		std::vector<PLYShapeDesc>      plyShapeDescs;
 	};
 
-	// Parse tokens.
-	// Wanna separate parser and compiler but the file format is kinda state machine.
+	// Parses tokens and produces model data suitable for renderer.
 	class PBRT4Parser
 	{
 	public:
 		PBRT4Parser();
 		PBRT4ParserOutput parse(PBRT4Scanner* scanner);
 
+	// Parser part.
 	private:
 		using TokenIter = std::vector<Token>::const_iterator;
-
-		using DirectiveTable = std::map<std::string, std::function<void(TokenIter& it, PBRT4ParserOutput& output)>>;
-		DirectiveTable directiveTable;
 
 		void initStates();
 
@@ -133,6 +130,19 @@ namespace pbrt
 
 		std::vector<PBRT4Parameter> parameters(TokenIter& it);
 
+	private:
+		using DirectiveTable = std::map<std::string, std::function<void(TokenIter& it, PBRT4ParserOutput& output)>>;
+		DirectiveTable directiveTable;
+
+		// States
+		PBRT4ParsePhase    parsePhase = PBRT4ParsePhase::RenderingOptions;
+		Matrix             currentTransform;
+		Matrix             currentTransformBackup;
+		bool               bCurrentTransformIsIdentity = true;
+		std::string        currentNamedMaterial;
+		vec3               currentEmission;
+
+	// Compiler part. Wanna separate parser and compiler but the file format is kinda state machine.
 	private:
 		using ParameterList = std::vector<PBRT4Parameter>;
 		struct ShapeDesc
@@ -160,14 +170,5 @@ namespace pbrt
 		void compileShape(ShapeDesc& inDesc, PBRT4ParserOutput& output);
 		void compileMaterial(MaterialDesc& inDesc, PBRT4ParserOutput& output);
 		void compileTexture(TextureDesc& inDesc, PBRT4ParserOutput& output);
-
-	private:
-		// States
-		PBRT4ParsePhase    parsePhase = PBRT4ParsePhase::RenderingOptions;
-		Matrix             currentTransform;
-		Matrix             currentTransformBackup;
-		bool               bCurrentTransformIsIdentity = true;
-		std::string        currentNamedMaterial;
-		vec3               currentEmission;
 	};
 }

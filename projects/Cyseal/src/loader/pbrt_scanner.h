@@ -6,7 +6,6 @@
 #include <string>
 #include <string_view>
 
-// #todo-pbrt-parser: Parse PBRT file using scanner
 namespace pbrt
 {
 	enum class TokenType
@@ -23,6 +22,7 @@ namespace pbrt
 		int32 line;
 	};
 
+	// Reads pbrt4 file and generates tokens which can be recognized by PBRT4Parser.
 	class PBRT4Scanner final
 	{
 	public:

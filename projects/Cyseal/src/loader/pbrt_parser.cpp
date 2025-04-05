@@ -134,7 +134,7 @@ namespace pbrt
 	{
 		if (it->type == TokenType::String)
 		{
-			// #todo-pbrt-parser: Replace if-else chain with function pointer table?
+			// Process some meta directives here, but use function table for others.
 			if (it->value == DIRECTIVE_WORLD_BEGIN)
 			{
 				PARSER_CHECK(parsePhase == PBRT4ParsePhase::RenderingOptions);
@@ -381,11 +381,6 @@ namespace pbrt
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 		std::string shapeName(it->value);
 
-		// #todo-pbrt-parser: When to parse params further?
-		// 1. Parser (here)
-		// 2. New intermediate phase (parser -> converter -> loader)
-		// 3. Loader
-		// This file format is not super complex, so let's keep it simple.
 		++it;
 		auto params = parameters(it);
 
