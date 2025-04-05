@@ -3,25 +3,13 @@
 // PBRT v4 file loader
 // https://www.pbrt.org/fileformat-v4
 
-#include "core/vec3.h"
-#include "core/vec2.h"
+#include "pbrt_parser.h"
 #include "core/smart_pointer.h"
 #include "render/material.h"
-#include "pbrt_parser.h"
 
 #include <string>
 #include <vector>
 #include <map>
-
-struct PBRT4TriangleMesh
-{
-	std::vector<vec3> positionBuffer;
-	std::vector<vec3> normalBuffer;
-	std::vector<vec2> texcoordBuffer;
-	std::vector<uint32> indexBuffer;
-
-	SharedPtr<MaterialAsset> material;
-};
 
 struct PBRT4Scene
 {

@@ -72,7 +72,7 @@ namespace UnitTest
 			Assert::IsTrue(pbrt::TokenType::RightBracket == tokens[matrixStart + 16].type);
 			Assert::IsTrue("]" == tokens[matrixStart + 16].value);
 
-			pbrt::PBRT4ParserEx parser;
+			pbrt::PBRT4Parser parser;
 			parser.parse(&scanner);
 		}
 
@@ -87,7 +87,7 @@ namespace UnitTest
 			pbrt::PBRT4Scanner scanner;
 			scanner.scanTokens(sourceStream);
 
-			pbrt::PBRT4ParserEx parser;
+			pbrt::PBRT4Parser parser;
 			parser.parse(&scanner);
 		}
 
@@ -106,7 +106,7 @@ namespace UnitTest
 			pbrt::PBRT4Scanner scanner;
 			scanner.scanTokens(fs);
 
-			pbrt::PBRT4ParserEx parser;
+			pbrt::PBRT4Parser parser;
 			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
 		}
 	};

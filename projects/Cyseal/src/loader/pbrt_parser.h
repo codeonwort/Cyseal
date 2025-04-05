@@ -22,16 +22,16 @@ namespace pbrt
 		InsideAttribute  = 2,
 	};
 
-	enum class PBRT4ParameterTypeEx
+	enum class PBRT4ParameterType
 	{
 		String, Texture, Spectrum, Bool,
 		Float3, Float, Float2Array, Float3Array,
 		Int, IntArray,
 	};
 
-	struct PBRT4ParameterEx
+	struct PBRT4Parameter
 	{
-		PBRT4ParameterTypeEx datatype = PBRT4ParameterTypeEx::String;
+		PBRT4ParameterType datatype = PBRT4ParameterType::String;
 		std::string name;
 
 		// #todo-pbrt-parser: union
@@ -87,13 +87,10 @@ namespace pbrt
 		};
 
 	public:
-		// Camera
-		vec3                  eyePosition;
-		vec3                  lookAtPosition;
-		vec3                  upVector;
-
-		Matrix                sceneTransform;
-
+		vec3                           eyePosition;
+		vec3                           lookAtPosition;
+		vec3                           upVector;
+		Matrix                         sceneTransform;
 		std::vector<TextureFileDesc>   textureFileDescs;
 		std::vector<NamedMaterialDesc> namedMaterialDescs;
 		std::vector<TriangleMeshDesc>  triangleShapeDescs;
@@ -102,10 +99,10 @@ namespace pbrt
 
 	// Parse tokens.
 	// Wanna separate parser and compiler but the file format is kinda state machine.
-	class PBRT4ParserEx
+	class PBRT4Parser
 	{
 	public:
-		PBRT4ParserEx();
+		PBRT4Parser();
 		PBRT4ParserOutput parse(PBRT4Scanner* scanner);
 
 	private:
@@ -134,10 +131,10 @@ namespace pbrt
 		void areaLightSource(TokenIter& it, PBRT4ParserOutput& output);
 		void material(TokenIter& it, PBRT4ParserOutput& output);
 
-		std::vector<PBRT4ParameterEx> parameters(TokenIter& it);
+		std::vector<PBRT4Parameter> parameters(TokenIter& it);
 
 	private:
-		using ParameterList = std::vector<PBRT4ParameterEx>;
+		using ParameterList = std::vector<PBRT4Parameter>;
 		struct ShapeDesc
 		{
 			std::string   name;
@@ -159,7 +156,7 @@ namespace pbrt
 			ParameterList parameters;
 		};
 
-		PBRT4ParameterEx* findParameter(ParameterList& params, const char* pname) const;
+		PBRT4Parameter* findParameter(ParameterList& params, const char* pname) const;
 		void compileShape(ShapeDesc& inDesc, PBRT4ParserOutput& output);
 		void compileMaterial(MaterialDesc& inDesc, PBRT4ParserOutput& output);
 		void compileTexture(TextureDesc& inDesc, PBRT4ParserOutput& output);

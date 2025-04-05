@@ -83,28 +83,28 @@ namespace pbrt
 
 namespace pbrt
 {
-	PBRT4ParserEx::PBRT4ParserEx()
+	PBRT4Parser::PBRT4Parser()
 	{
 		directiveTable = {
-			{DIRECTIVE_INTEGRATOR,          std::bind(&PBRT4ParserEx::integrator,        this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_TRANSFORM,           std::bind(&PBRT4ParserEx::transform,         this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_SAMPLER,             std::bind(&PBRT4ParserEx::sampler,           this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_PIXEL_FILTER,        std::bind(&PBRT4ParserEx::pixelFilter,       this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_FILM,                std::bind(&PBRT4ParserEx::film,              this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_CAMERA,              std::bind(&PBRT4ParserEx::camera,            this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_TEXTURE,             std::bind(&PBRT4ParserEx::texture,           this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_MAKE_NAMED_MATERIAL, std::bind(&PBRT4ParserEx::makeNamedMaterial, this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_SHAPE,               std::bind(&PBRT4ParserEx::shape,             this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_NAMED_MATERIAL,      std::bind(&PBRT4ParserEx::namedMaterial,     this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_LIGHT_SOURCE,        std::bind(&PBRT4ParserEx::lightSource,       this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_ROTATE,              std::bind(&PBRT4ParserEx::rotate,            this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_CONCAT_TRANSFORM,    std::bind(&PBRT4ParserEx::concatTransform,   this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_AREA_LIGHT_SOURCE,   std::bind(&PBRT4ParserEx::areaLightSource,   this, std::placeholders::_1, std::placeholders::_2)},
-			{DIRECTIVE_MATERIAL,            std::bind(&PBRT4ParserEx::material,          this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_INTEGRATOR,          std::bind(&PBRT4Parser::integrator,        this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_TRANSFORM,           std::bind(&PBRT4Parser::transform,         this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_SAMPLER,             std::bind(&PBRT4Parser::sampler,           this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_PIXEL_FILTER,        std::bind(&PBRT4Parser::pixelFilter,       this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_FILM,                std::bind(&PBRT4Parser::film,              this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_CAMERA,              std::bind(&PBRT4Parser::camera,            this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_TEXTURE,             std::bind(&PBRT4Parser::texture,           this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_MAKE_NAMED_MATERIAL, std::bind(&PBRT4Parser::makeNamedMaterial, this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_SHAPE,               std::bind(&PBRT4Parser::shape,             this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_NAMED_MATERIAL,      std::bind(&PBRT4Parser::namedMaterial,     this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_LIGHT_SOURCE,        std::bind(&PBRT4Parser::lightSource,       this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_ROTATE,              std::bind(&PBRT4Parser::rotate,            this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_CONCAT_TRANSFORM,    std::bind(&PBRT4Parser::concatTransform,   this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_AREA_LIGHT_SOURCE,   std::bind(&PBRT4Parser::areaLightSource,   this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_MATERIAL,            std::bind(&PBRT4Parser::material,          this, std::placeholders::_1, std::placeholders::_2)},
 		};
 	}
 
-	PBRT4ParserOutput PBRT4ParserEx::parse(PBRT4Scanner* scanner)
+	PBRT4ParserOutput PBRT4Parser::parse(PBRT4Scanner* scanner)
 	{
 		initStates();
 
@@ -120,7 +120,7 @@ namespace pbrt
 		return output;
 	}
 
-	void PBRT4ParserEx::initStates()
+	void PBRT4Parser::initStates()
 	{
 		parsePhase = PBRT4ParsePhase::RenderingOptions;
 		currentTransform.identity();
@@ -130,7 +130,7 @@ namespace pbrt
 		currentEmission = vec3(0.0f);
 	}
 
-	void PBRT4ParserEx::directive(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::directive(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		if (it->type == TokenType::String)
 		{
@@ -192,7 +192,7 @@ namespace pbrt
 		}
 	}
 
-	void PBRT4ParserEx::integrator(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::integrator(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		struct Integrator
 		{
@@ -256,7 +256,7 @@ namespace pbrt
 		}
 	}
 
-	void PBRT4ParserEx::transform(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::transform(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::LeftBracket);
 		++it;
@@ -287,7 +287,7 @@ namespace pbrt
 		}
 	}
 
-	void PBRT4ParserEx::sampler(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::sampler(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 
@@ -298,7 +298,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed sampler
 	}
 
-	void PBRT4ParserEx::pixelFilter(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::pixelFilter(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 
@@ -309,7 +309,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed pixelFilter
 	}
 
-	void PBRT4ParserEx::film(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::film(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 
@@ -320,7 +320,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed film
 	}
 
-	void PBRT4ParserEx::camera(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::camera(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 
@@ -332,7 +332,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed camera
 	}
 
-	void PBRT4ParserEx::texture(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::texture(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 		std::string textureName(it->value);
@@ -357,7 +357,7 @@ namespace pbrt
 		compileTexture(desc, output);
 	}
 
-	void PBRT4ParserEx::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 		std::string materialName(it->value);
@@ -372,7 +372,7 @@ namespace pbrt
 		compileMaterial(materialDesc, output);
 	}
 
-	void PBRT4ParserEx::shape(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::shape(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(parsePhase != PBRT4ParsePhase::RenderingOptions);
 
@@ -399,7 +399,7 @@ namespace pbrt
 		compileShape(shapeDesc, output);
 	}
 
-	void PBRT4ParserEx::namedMaterial(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::namedMaterial(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 
@@ -409,7 +409,7 @@ namespace pbrt
 		currentNamedMaterial = materialName;
 	}
 
-	void PBRT4ParserEx::lightSource(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::lightSource(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// "distant", "goniometric", "infinite", "point", "projection", "spot"
 		PARSER_CHECK(it->type == TokenType::QuoteString);
@@ -421,7 +421,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed LightSource
 	}
 
-	void PBRT4ParserEx::rotate(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::rotate(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// Rotate angle x y z
 		// where angle is in degrees and (x, y, z) = axis
@@ -445,7 +445,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Concat with current transform
 	}
 
-	void PBRT4ParserEx::concatTransform(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::concatTransform(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::LeftBracket);
 		++it;
@@ -464,7 +464,7 @@ namespace pbrt
 		// #todo-pbrt-parser: Concat with current transform
 	}
 
-	void PBRT4ParserEx::areaLightSource(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::areaLightSource(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// "diffuse"
 		PARSER_CHECK(it->type == TokenType::QuoteString);
@@ -476,7 +476,7 @@ namespace pbrt
 		if (lightType == "diffuse")
 		{
 			auto pL = findParameter(params, "L");
-			COMPILER_CHECK_PARAMETER(pL, PBRT4ParameterTypeEx::Float3);
+			COMPILER_CHECK_PARAMETER(pL, PBRT4ParameterType::Float3);
 
 			currentEmission = pL->asFloat3;
 		}
@@ -486,7 +486,7 @@ namespace pbrt
 		}
 	}
 
-	void PBRT4ParserEx::material(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::material(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// "coateddiffuse", "coatedconductor", "conductor", "dielectric", "diffuse", "diffusetransmission",
 		// "hair", "interface", "measured", "mix", "subsurface", "thindieletric"
@@ -498,9 +498,9 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed Material
 	}
 
-	std::vector<PBRT4ParameterEx> PBRT4ParserEx::parameters(TokenIter& it)
+	std::vector<PBRT4Parameter> PBRT4Parser::parameters(TokenIter& it)
 	{
-		std::vector<PBRT4ParameterEx> params;
+		std::vector<PBRT4Parameter> params;
 
 		while (it->type == TokenType::QuoteString)
 		{
@@ -530,8 +530,8 @@ namespace pbrt
 				{
 					if (hasBrackets) --it;
 
-					PBRT4ParameterEx param{};
-					param.datatype = PBRT4ParameterTypeEx::Int;
+					PBRT4Parameter param{};
+					param.datatype = PBRT4ParameterType::Int;
 					param.name = pname;
 					param.asInt = values[0];
 					params.emplace_back(param);
@@ -540,8 +540,8 @@ namespace pbrt
 				{
 					--it;
 
-					PBRT4ParameterEx param{};
-					param.datatype = PBRT4ParameterTypeEx::IntArray;
+					PBRT4Parameter param{};
+					param.datatype = PBRT4ParameterType::IntArray;
 					param.name = pname;
 					param.asIntArray = std::move(values);
 					params.emplace_back(param);
@@ -553,8 +553,8 @@ namespace pbrt
 				PARSER_CHECK(it->type == TokenType::Number);
 				float value = std::stof(it->value.data());
 
-				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Float;
+				PBRT4Parameter param{};
+				param.datatype = PBRT4ParameterType::Float;
 				param.name = pname;
 				param.asFloat = value;
 				params.emplace_back(param);
@@ -574,8 +574,8 @@ namespace pbrt
 				PARSER_CHECK(it->type == TokenType::Number);
 				float B = std::stof(it->value.data());
 
-				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Float3;
+				PBRT4Parameter param{};
+				param.datatype = PBRT4ParameterType::Float3;
 				param.name = pname;
 				param.asFloat3 = vec3(R, G, B);
 				params.emplace_back(param);
@@ -585,8 +585,8 @@ namespace pbrt
 				PARSER_CHECK(it->type == TokenType::QuoteString);
 				std::string strValue(it->value);
 
-				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::String;
+				PBRT4Parameter param{};
+				param.datatype = PBRT4ParameterType::String;
 				param.name = pname;
 				param.asString = std::move(strValue);
 				params.emplace_back(param);
@@ -597,8 +597,8 @@ namespace pbrt
 				std::string str(it->value);
 				PARSER_CHECK(str == "true" || str == "false");
 
-				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Bool;
+				PBRT4Parameter param{};
+				param.datatype = PBRT4ParameterType::Bool;
 				param.name = pname;
 				param.asBool = (str == "true");
 				params.emplace_back(param);
@@ -608,8 +608,8 @@ namespace pbrt
 				PARSER_CHECK(it->type == TokenType::QuoteString);
 				std::string textureName(it->value);
 
-				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Texture;
+				PBRT4Parameter param{};
+				param.datatype = PBRT4ParameterType::Texture;
 				param.name = pname;
 				param.asString = textureName;
 				params.emplace_back(param);
@@ -629,8 +629,8 @@ namespace pbrt
 				--it;
 				PARSER_CHECK(float2Array.size() % 2 == 0);
 
-				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Float2Array;
+				PBRT4Parameter param{};
+				param.datatype = PBRT4ParameterType::Float2Array;
 				param.name = pname;
 				param.asFloatArray = std::move(float2Array);
 				params.emplace_back(param);
@@ -651,8 +651,8 @@ namespace pbrt
 				--it;
 				PARSER_CHECK(float3Array.size() % 3 == 0);
 
-				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Float3Array;
+				PBRT4Parameter param{};
+				param.datatype = PBRT4ParameterType::Float3Array;
 				param.name = pname;
 				param.asFloatArray = std::move(float3Array);
 				params.emplace_back(param);
@@ -662,8 +662,8 @@ namespace pbrt
 				PARSER_CHECK(it->type == TokenType::QuoteString);
 				std::string spectrumName(it->value);
 
-				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Spectrum;
+				PBRT4Parameter param{};
+				param.datatype = PBRT4ParameterType::Spectrum;
 				param.name = pname;
 				param.asString = spectrumName;
 				params.emplace_back(param);
@@ -685,7 +685,7 @@ namespace pbrt
 		return params;
 	}
 
-	pbrt::PBRT4ParameterEx* PBRT4ParserEx::findParameter(ParameterList& params, const char* pname) const
+	pbrt::PBRT4Parameter* PBRT4Parser::findParameter(ParameterList& params, const char* pname) const
 	{
 		for (auto& param : params)
 		{
@@ -694,12 +694,12 @@ namespace pbrt
 		return nullptr;
 	}
 
-	void PBRT4ParserEx::compileShape(ShapeDesc& inDesc, PBRT4ParserOutput& output)
+	void PBRT4Parser::compileShape(ShapeDesc& inDesc, PBRT4ParserOutput& output)
 	{
 		if (inDesc.name == "plymesh")
 		{
 			const auto pFilename = findParameter(inDesc.parameters, "filename");
-			COMPILER_CHECK_PARAMETER(pFilename, PBRT4ParameterTypeEx::String);
+			COMPILER_CHECK_PARAMETER(pFilename, PBRT4ParameterType::String);
 
 			std::string plyFilename = pFilename->asString;
 			std::wstring wPlyFilename;
@@ -719,10 +719,10 @@ namespace pbrt
 			auto pNormals   = findParameter(inDesc.parameters, "N");
 			auto pPositions = findParameter(inDesc.parameters, "P");
 			auto pIndices   = findParameter(inDesc.parameters, "indices");
-			COMPILER_CHECK_PARAMETER(pTexcoords, PBRT4ParameterTypeEx::Float2Array);
-			COMPILER_CHECK_PARAMETER(pNormals, PBRT4ParameterTypeEx::Float3Array);
-			COMPILER_CHECK_PARAMETER(pPositions, PBRT4ParameterTypeEx::Float3Array);
-			COMPILER_CHECK_PARAMETER(pIndices, PBRT4ParameterTypeEx::IntArray);
+			COMPILER_CHECK_PARAMETER(pTexcoords, PBRT4ParameterType::Float2Array);
+			COMPILER_CHECK_PARAMETER(pNormals, PBRT4ParameterType::Float3Array);
+			COMPILER_CHECK_PARAMETER(pPositions, PBRT4ParameterType::Float3Array);
+			COMPILER_CHECK_PARAMETER(pIndices, PBRT4ParameterType::IntArray);
 
 			SharedPtr<MaterialAsset> material = makeShared<MaterialAsset>();
 			material->emission = currentEmission;
@@ -738,7 +738,7 @@ namespace pbrt
 		}
 	}
 
-	void PBRT4ParserEx::compileMaterial(MaterialDesc& inDesc, PBRT4ParserOutput& output)
+	void PBRT4Parser::compileMaterial(MaterialDesc& inDesc, PBRT4ParserOutput& output)
 	{
 		auto pType           = findParameter(inDesc.parameters, "type");
 		auto pReflectrance   = findParameter(inDesc.parameters, "reflectance");
@@ -748,18 +748,18 @@ namespace pbrt
 		auto pURoughness     = findParameter(inDesc.parameters, "uroughness");
 		auto pEta            = findParameter(inDesc.parameters, "eta");
 		auto pK              = findParameter(inDesc.parameters, "k");
-		COMPILER_CHECK_PARAMETER(pType, PBRT4ParameterTypeEx::String);
-		COMPILER_OPTIONAL_PARAMETER2(pReflectrance, PBRT4ParameterTypeEx::Texture, PBRT4ParameterTypeEx::Float3);
-		COMPILER_OPTIONAL_PARAMETER(pRemaproughness, PBRT4ParameterTypeEx::Bool);
-		COMPILER_OPTIONAL_PARAMETER(pRoughness, PBRT4ParameterTypeEx::Float);
-		COMPILER_OPTIONAL_PARAMETER(pVRoughness, PBRT4ParameterTypeEx::Float);
-		COMPILER_OPTIONAL_PARAMETER(pURoughness, PBRT4ParameterTypeEx::Float);
-		COMPILER_OPTIONAL_PARAMETER3(pEta, PBRT4ParameterTypeEx::Spectrum, PBRT4ParameterTypeEx::Float, PBRT4ParameterTypeEx::Float3);
-		COMPILER_OPTIONAL_PARAMETER2(pK, PBRT4ParameterTypeEx::Spectrum, PBRT4ParameterTypeEx::Float3);
+		COMPILER_CHECK_PARAMETER(pType, PBRT4ParameterType::String);
+		COMPILER_OPTIONAL_PARAMETER2(pReflectrance, PBRT4ParameterType::Texture, PBRT4ParameterType::Float3);
+		COMPILER_OPTIONAL_PARAMETER(pRemaproughness, PBRT4ParameterType::Bool);
+		COMPILER_OPTIONAL_PARAMETER(pRoughness, PBRT4ParameterType::Float);
+		COMPILER_OPTIONAL_PARAMETER(pVRoughness, PBRT4ParameterType::Float);
+		COMPILER_OPTIONAL_PARAMETER(pURoughness, PBRT4ParameterType::Float);
+		COMPILER_OPTIONAL_PARAMETER3(pEta, PBRT4ParameterType::Spectrum, PBRT4ParameterType::Float, PBRT4ParameterType::Float3);
+		COMPILER_OPTIONAL_PARAMETER2(pK, PBRT4ParameterType::Spectrum, PBRT4ParameterType::Float3);
 
-		bool bUseRgbReflectance = pReflectrance != nullptr && pReflectrance->datatype == PBRT4ParameterTypeEx::Float3;
+		bool bUseRgbReflectance = pReflectrance != nullptr && pReflectrance->datatype == PBRT4ParameterType::Float3;
 		bool bUseAnisotrophicRoughness = pVRoughness != nullptr && pURoughness != nullptr;
-		bool bUseRgbEtaAndK = pEta != nullptr && pK != nullptr && pEta->datatype != PBRT4ParameterTypeEx::Spectrum && pK->datatype != PBRT4ParameterTypeEx::Spectrum;
+		bool bUseRgbEtaAndK = pEta != nullptr && pK != nullptr && pEta->datatype != PBRT4ParameterType::Spectrum && pK->datatype != PBRT4ParameterType::Spectrum;
 
 		vec3 rgbReflectance(1.0f); std::string textureReflectance;
 		if (pReflectrance != nullptr)
@@ -782,8 +782,8 @@ namespace pbrt
 		vec3 rgbEta(0.0f), rgbK(0.0f);
 		if (bUseRgbEtaAndK && pEta != nullptr && pK != nullptr)
 		{
-			rgbEta = (pEta->datatype == PBRT4ParameterTypeEx::Float) ? vec3(pEta->asFloat) : pEta->asFloat3;
-			rgbK = (pK->datatype == PBRT4ParameterTypeEx::Float) ? vec3(pK->asFloat) : pK->asFloat3;
+			rgbEta = (pEta->datatype == PBRT4ParameterType::Float) ? vec3(pEta->asFloat) : pEta->asFloat3;
+			rgbK = (pK->datatype == PBRT4ParameterType::Float) ? vec3(pK->asFloat) : pK->asFloat3;
 		}
 
 		PBRT4ParserOutput::NamedMaterialDesc outDesc{
@@ -806,14 +806,14 @@ namespace pbrt
 		output.namedMaterialDescs.emplace_back(outDesc);
 	}
 
-	void PBRT4ParserEx::compileTexture(TextureDesc& inDesc, PBRT4ParserOutput& output)
+	void PBRT4Parser::compileTexture(TextureDesc& inDesc, PBRT4ParserOutput& output)
 	{
 		if (inDesc.textureType == "spectrum" && inDesc.textureClass == "imagemap")
 		{
 			auto pFilter   = findParameter(inDesc.parameters, "filter");
 			auto pFilename = findParameter(inDesc.parameters, "filename");
-			COMPILER_CHECK_PARAMETER(pFilter, PBRT4ParameterTypeEx::String);
-			COMPILER_CHECK_PARAMETER(pFilename, PBRT4ParameterTypeEx::String);
+			COMPILER_CHECK_PARAMETER(pFilter, PBRT4ParameterType::String);
+			COMPILER_CHECK_PARAMETER(pFilename, PBRT4ParameterType::String);
 
 			std::wstring wTextureFilename;
 			str_to_wstr(pFilename->asString, wTextureFilename);
