@@ -27,6 +27,12 @@ public:
 		memcpy_s(m, sizeof(m), I, sizeof(I));
 	}
 
+	inline void scale(float x, float y, float z)
+	{
+		static float S[4][4] = { {x,0,0,0},{0,y,0,0},{0,0,z,0},{0,0,0,1} };
+		memcpy_s(m, sizeof(m), S, sizeof(S));
+	}
+
 	Matrix inverse() const;
 
 	Matrix transpose() const;

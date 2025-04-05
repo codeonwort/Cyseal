@@ -124,6 +124,7 @@ namespace pbrt
 		void namedMaterial(TokenIter& it, PBRT4ParserOutput& output);
 		void lightSource(TokenIter& it, PBRT4ParserOutput& output);
 		void rotate(TokenIter& it, PBRT4ParserOutput& output);
+		void scale(TokenIter& it, PBRT4ParserOutput& output);
 		void concatTransform(TokenIter& it, PBRT4ParserOutput& output);
 		void areaLightSource(TokenIter& it, PBRT4ParserOutput& output);
 		void material(TokenIter& it, PBRT4ParserOutput& output);

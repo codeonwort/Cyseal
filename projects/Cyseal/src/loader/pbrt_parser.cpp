@@ -26,6 +26,7 @@
 #define DIRECTIVE_TEXTURE                "Texture"
 #define DIRECTIVE_TRANSLATE              "Translate"
 #define DIRECTIVE_ROTATE                 "Rotate"
+#define DIRECTIVE_SCALE                  "Scale"
 #define DIRECTIVE_TRANSFORM              "Transform"
 #define DIRECTIVE_CONCAT_TRANSFORM       "ConcatTransform"
 #define DIRECTIVE_AREA_LIGHT_SOURCE      "AreaLightSource"
@@ -98,6 +99,7 @@ namespace pbrt
 			{DIRECTIVE_NAMED_MATERIAL,      std::bind(&PBRT4Parser::namedMaterial,     this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_LIGHT_SOURCE,        std::bind(&PBRT4Parser::lightSource,       this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_ROTATE,              std::bind(&PBRT4Parser::rotate,            this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_SCALE,               std::bind(&PBRT4Parser::scale,             this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_CONCAT_TRANSFORM,    std::bind(&PBRT4Parser::concatTransform,   this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_AREA_LIGHT_SOURCE,   std::bind(&PBRT4Parser::areaLightSource,   this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_MATERIAL,            std::bind(&PBRT4Parser::material,          this, std::placeholders::_1, std::placeholders::_2)},
@@ -139,6 +141,9 @@ namespace pbrt
 			{
 				PARSER_CHECK(parsePhase == PBRT4ParsePhase::RenderingOptions);
 				parsePhase = PBRT4ParsePhase::SceneElements;
+
+				output.sceneTransform = currentTransform;
+
 				currentTransform.identity();
 				currentTransformBackup.identity();
 				++it;
@@ -272,19 +277,9 @@ namespace pbrt
 		PARSER_CHECK(it->type == TokenType::RightBracket);
 		++it;
 
-		if (parsePhase == PBRT4ParsePhase::RenderingOptions)
-		{
-			output.sceneTransform = mat;
-		}
-		else if (parsePhase == PBRT4ParsePhase::InsideAttribute)
-		{
-			currentTransform = mat;
-			bCurrentTransformIsIdentity = false;
-		}
-		else
-		{
-			PARSER_CHECK_NO_ENTRY();
-		}
+		PARSER_CHECK(parsePhase != PBRT4ParsePhase::SceneElements);
+		currentTransform = mat;
+		bCurrentTransformIsIdentity = false;
 	}
 
 	void PBRT4Parser::sampler(TokenIter& it, PBRT4ParserOutput& output)
@@ -440,23 +435,45 @@ namespace pbrt
 		// #todo-pbrt-parser: Concat with current transform
 	}
 
+	void PBRT4Parser::scale(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		// Scale x y z
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float x = std::stof(it->value.data());
+		++it;
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float y = std::stof(it->value.data());
+		++it;
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float z = std::stof(it->value.data());
+		++it;
+
+		Matrix S;
+		S.scale(x, y, z);
+
+		currentTransform = S * currentTransform;
+	}
+
 	void PBRT4Parser::concatTransform(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::LeftBracket);
 		++it;
 
-		Matrix mat;
+		Matrix M;
 		for (size_t i = 0; i < 16; ++i)
 		{
 			PARSER_CHECK(it->type == TokenType::Number);
 			float value = std::stof(it->value.data());
-			mat.m[i / 4][i % 4] = value;
+			M.m[i / 4][i % 4] = value;
 			++it;
 		}
 		PARSER_CHECK(it->type == TokenType::RightBracket);
 		++it;
 
-		// #todo-pbrt-parser: Concat with current transform
+		currentTransform = M * currentTransform;
 	}
 
 	void PBRT4Parser::areaLightSource(TokenIter& it, PBRT4ParserOutput& output)
