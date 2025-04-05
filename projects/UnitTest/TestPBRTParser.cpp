@@ -18,7 +18,9 @@ const std::vector<std::string> sourceLines = {
 	"Transform [ 0.999914 0.000835626 0.013058 -0 -0 0.997959 -0.063863 -0 0.0130847 -0.0638576 -0.997873 -0 0.460159 -2.13584 9.87771 1  ]",
 };
 
-#define PBRT_FILEPATH L"external/pbrt4_dining_room/dining-room/scene-v4.pbrt"
+//#define PBRT_FILEPATH L"external/pbrt4_dining_room/dining-room/scene-v4.pbrt"
+#define PBRT_FILEPATH L"external/pbrt4_bedroom/bedroom/scene-v4.pbrt"
+//#define PBRT_FILEPATH L"external/pbrt4_house/house/scene-v4.pbrt"
 
 namespace UnitTest
 {

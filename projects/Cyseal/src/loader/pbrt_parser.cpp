@@ -1,5 +1,8 @@
 #include "pbrt_parser.h"
 #include "core/assertion.h"
+#include "render/material.h"
+#include "util/string_conversion.h"
+
 #include <sstream>
 
 // https://pbrt.org/fileformat-v4
@@ -35,6 +38,49 @@
 #define PARSER_CHECK CHECK
 #define PARSER_CHECK_NO_ENTRY CHECK_NO_ENTRY
 
+// #todo-pbrt-parser: Replace with proper error handling
+#define COMPILER_CHECK CHECK
+#define COMPILER_CHECK_NO_ENTRY CHECK_NO_ENTRY
+#define COMPILER_CHECK_PARAMETER(param, type) COMPILER_CHECK(param != nullptr && param->datatype == type)
+#define COMPILER_OPTIONAL_PARAMETER(param, type) COMPILER_CHECK(param == nullptr || param->datatype == type)
+#define COMPILER_CHECK_PARAMETER2(param, type1, type2) COMPILER_CHECK(param != nullptr && (param->datatype == type1 || param->datatype == type2))
+#define COMPILER_OPTIONAL_PARAMETER2(param, type1, type2) COMPILER_CHECK(param == nullptr || (param->datatype == type1 || param->datatype == type2))
+#define COMPILER_OPTIONAL_PARAMETER3(param, type1, type2, type3) COMPILER_CHECK(param == nullptr || (param->datatype == type1 || param->datatype == type2 || param->datatype == type3))
+
+namespace pbrt
+{
+	std::vector<vec3> toFloat3Array(const std::vector<float>&& inArray)
+	{
+		std::vector<vec3> outArray;
+		outArray.reserve(inArray.size() / 3);
+		for (size_t i = 0; i < inArray.size(); i += 3)
+		{
+			outArray.emplace_back(vec3(inArray[i], inArray[i + 1], inArray[i + 2]));
+		}
+		return outArray;
+	}
+	std::vector<vec2> toFloat2Array(const std::vector<float>&& inArray)
+	{
+		std::vector<vec2> outArray;
+		outArray.reserve(inArray.size() / 2);
+		for (size_t i = 0; i < inArray.size(); i += 2)
+		{
+			outArray.emplace_back(vec2(inArray[i], inArray[i + 1]));
+		}
+		return outArray;
+	}
+	std::vector<uint32> toUIntArray(const std::vector<int32>&& inArray)
+	{
+		std::vector<uint32> outArray;
+		outArray.reserve(inArray.size());
+		for (size_t i = 0; i < inArray.size(); ++i)
+		{
+			outArray.emplace_back((uint32)inArray[i]);
+		}
+		return outArray;
+	}
+}
+
 namespace pbrt
 {
 	PBRT4ParserEx::PBRT4ParserEx()
@@ -60,9 +106,7 @@ namespace pbrt
 
 	PBRT4ParserOutput PBRT4ParserEx::parse(PBRT4Scanner* scanner)
 	{
-		parsePhase = PBRT4ParsePhase::RenderingOptions;
-		currentTransform.identity();
-		bCurrentTransformIsIdentity = true;
+		initStates();
 
 		PBRT4ParserOutput output{};
 
@@ -74,6 +118,16 @@ namespace pbrt
 		}
 
 		return output;
+	}
+
+	void PBRT4ParserEx::initStates()
+	{
+		parsePhase = PBRT4ParsePhase::RenderingOptions;
+		currentTransform.identity();
+		currentTransformBackup.identity();
+		bCurrentTransformIsIdentity = true;
+		currentNamedMaterial = "";
+		currentEmission = vec3(0.0f);
 	}
 
 	void PBRT4ParserEx::directive(TokenIter& it, PBRT4ParserOutput& output)
@@ -93,14 +147,14 @@ namespace pbrt
 			{
 				PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
 				parsePhase = PBRT4ParsePhase::InsideAttribute;
+				currentTransformBackup = currentTransform;
 				++it;
 			}
 			else if (it->value == DIRECTIVE_TRANSFORM_END)
 			{
 				PARSER_CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
 				parsePhase = PBRT4ParsePhase::SceneElements;
-				currentTransform.identity();
-				bCurrentTransformIsIdentity = true;
+				currentTransform = currentTransformBackup;
 				++it;
 			}
 			else if (it->value == DIRECTIVE_ATTRIBUTE_BEGIN)
@@ -115,7 +169,7 @@ namespace pbrt
 				PARSER_CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
 				parsePhase = PBRT4ParsePhase::SceneElements;
 				currentTransform = currentTransformBackup;
-				bCurrentTransformIsIdentity = true;
+				currentEmission = vec3(0.0f);
 				++it;
 			}
 			else
@@ -202,6 +256,248 @@ namespace pbrt
 		}
 	}
 
+	void PBRT4ParserEx::transform(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::LeftBracket);
+		++it;
+
+		Matrix mat;
+		for (size_t i = 0; i < 16; ++i)
+		{
+			PARSER_CHECK(it->type == TokenType::Number);
+			float value = std::stof(it->value.data());
+			mat.m[i / 4][i % 4] = value;
+			++it;
+		}
+		PARSER_CHECK(it->type == TokenType::RightBracket);
+		++it;
+
+		if (parsePhase == PBRT4ParsePhase::RenderingOptions)
+		{
+			output.sceneTransform = mat;
+		}
+		else if (parsePhase == PBRT4ParsePhase::InsideAttribute)
+		{
+			currentTransform = mat;
+			bCurrentTransformIsIdentity = false;
+		}
+		else
+		{
+			PARSER_CHECK_NO_ENTRY();
+		}
+	}
+
+	void PBRT4ParserEx::sampler(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		const std::string samplerName(it->value);
+		
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed sampler
+	}
+
+	void PBRT4ParserEx::pixelFilter(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		const std::string pixelFilterName(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed pixelFilter
+	}
+
+	void PBRT4ParserEx::film(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		const std::string filmName(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed film
+	}
+
+	void PBRT4ParserEx::camera(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		// "orthographic", "perspective", "realistic", "spherical"
+		const std::string cameraType(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed camera
+	}
+
+	void PBRT4ParserEx::texture(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		std::string textureName(it->value);
+
+		++it;
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		std::string textureType(it->value);
+
+		++it;
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		std::string textureClass(it->value);
+
+		++it;
+		auto params = parameters(it);
+
+		TextureDesc desc{
+			.name         = std::move(textureName),
+			.textureType  = std::move(textureType),
+			.textureClass = std::move(textureClass),
+			.parameters   = std::move(params),
+		};
+		compileTexture(desc, output);
+	}
+
+	void PBRT4ParserEx::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		std::string materialName(it->value);
+
+		++it;
+		auto params = parameters(it);
+
+		MaterialDesc materialDesc{
+			.name       = std::move(materialName),
+			.parameters = std::move(params),
+		};
+		compileMaterial(materialDesc, output);
+	}
+
+	void PBRT4ParserEx::shape(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(parsePhase != PBRT4ParsePhase::RenderingOptions);
+
+		// "bilinearmesh", "curve", "cylinder", "disk", "sphere", "trianglemesh",
+		// "loopsubdiv", "plymesh"
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		std::string shapeName(it->value);
+
+		// #todo-pbrt-parser: When to parse params further?
+		// 1. Parser (here)
+		// 2. New intermediate phase (parser -> converter -> loader)
+		// 3. Loader
+		// This file format is not super complex, so let's keep it simple.
+		++it;
+		auto params = parameters(it);
+
+		ShapeDesc shapeDesc{
+			.name               = std::move(shapeName),
+			.namedMaterial      = currentNamedMaterial,
+			.transform          = currentTransform,
+			.bIdentityTransform = bCurrentTransformIsIdentity,
+			.parameters         = std::move(params),
+		};
+		compileShape(shapeDesc, output);
+	}
+
+	void PBRT4ParserEx::namedMaterial(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		const std::string materialName(it->value);
+		++it;
+
+		currentNamedMaterial = materialName;
+	}
+
+	void PBRT4ParserEx::lightSource(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		// "distant", "goniometric", "infinite", "point", "projection", "spot"
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		const std::string lightName(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed LightSource
+	}
+
+	void PBRT4ParserEx::rotate(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		// Rotate angle x y z
+		// where angle is in degrees and (x, y, z) = axis
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float angle = std::stof(it->value.data());
+		++it;
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float x = std::stof(it->value.data());
+		++it;
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float y = std::stof(it->value.data());
+		++it;
+
+		PARSER_CHECK(it->type == TokenType::Number);
+		float z = std::stof(it->value.data());
+		++it;
+
+		// #todo-pbrt-parser: Concat with current transform
+	}
+
+	void PBRT4ParserEx::concatTransform(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::LeftBracket);
+		++it;
+
+		Matrix mat;
+		for (size_t i = 0; i < 16; ++i)
+		{
+			PARSER_CHECK(it->type == TokenType::Number);
+			float value = std::stof(it->value.data());
+			mat.m[i / 4][i % 4] = value;
+			++it;
+		}
+		PARSER_CHECK(it->type == TokenType::RightBracket);
+		++it;
+
+		// #todo-pbrt-parser: Concat with current transform
+	}
+
+	void PBRT4ParserEx::areaLightSource(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		// "diffuse"
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string lightType(it->value);
+
+		++it;
+		auto params = parameters(it);
+		
+		if (lightType == "diffuse")
+		{
+			auto pL = findParameter(params, "L");
+			COMPILER_CHECK_PARAMETER(pL, PBRT4ParameterTypeEx::Float3);
+
+			currentEmission = pL->asFloat3;
+		}
+		else
+		{
+			COMPILER_CHECK_NO_ENTRY();
+		}
+	}
+
+	void PBRT4ParserEx::material(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		// "coateddiffuse", "coatedconductor", "conductor", "dielectric", "diffuse", "diffusetransmission",
+		// "hair", "interface", "measured", "mix", "subsurface", "thindieletric"
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string materialType(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed Material
+	}
+
 	std::vector<PBRT4ParameterEx> PBRT4ParserEx::parameters(TokenIter& it)
 	{
 		std::vector<PBRT4ParameterEx> params;
@@ -250,7 +546,7 @@ namespace pbrt
 					param.asIntArray = std::move(values);
 					params.emplace_back(param);
 				}
-			
+
 			}
 			else if (ptype == "float")
 			{
@@ -258,7 +554,7 @@ namespace pbrt
 				float value = std::stof(it->value.data());
 
 				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Int;
+				param.datatype = PBRT4ParameterTypeEx::Float;
 				param.name = pname;
 				param.asFloat = value;
 				params.emplace_back(param);
@@ -269,7 +565,7 @@ namespace pbrt
 
 				PARSER_CHECK(it->type == TokenType::Number);
 				float R = std::stof(it->value.data());
-				
+
 				++it;
 				PARSER_CHECK(it->type == TokenType::Number);
 				float G = std::stof(it->value.data());
@@ -279,11 +575,9 @@ namespace pbrt
 				float B = std::stof(it->value.data());
 
 				PBRT4ParameterEx param{};
-				param.datatype = PBRT4ParameterTypeEx::Int;
+				param.datatype = PBRT4ParameterTypeEx::Float3;
 				param.name = pname;
-				param.asFloat3[0] = R;
-				param.asFloat3[1] = G;
-				param.asFloat3[2] = B;
+				param.asFloat3 = vec3(R, G, B);
 				params.emplace_back(param);
 			}
 			else if (ptype == "string")
@@ -373,7 +667,7 @@ namespace pbrt
 				param.name = pname;
 				param.asString = spectrumName;
 				params.emplace_back(param);
-				}
+			}
 			else
 			{
 				// #todo-pbrt-parser: Other parameter types
@@ -391,224 +685,150 @@ namespace pbrt
 		return params;
 	}
 
-	void PBRT4ParserEx::transform(TokenIter& it, PBRT4ParserOutput& output)
+	pbrt::PBRT4ParameterEx* PBRT4ParserEx::findParameter(ParameterList& params, const char* pname) const
 	{
-		PARSER_CHECK(it->type == TokenType::LeftBracket);
-		++it;
-
-		Matrix mat;
-		for (size_t i = 0; i < 16; ++i)
+		for (auto& param : params)
 		{
-			PARSER_CHECK(it->type == TokenType::Number);
-			float value = std::stof(it->value.data());
-			mat.m[i / 4][i % 4] = value;
-			++it;
+			if (param.name == pname) return &param;
 		}
-		PARSER_CHECK(it->type == TokenType::RightBracket);
-		++it;
+		return nullptr;
+	}
 
-		if (parsePhase == PBRT4ParsePhase::RenderingOptions)
+	void PBRT4ParserEx::compileShape(ShapeDesc& inDesc, PBRT4ParserOutput& output)
+	{
+		if (inDesc.name == "plymesh")
 		{
-			// #todo-pbrt-parser: Emit parsed Transform as the scene transform
+			const auto pFilename = findParameter(inDesc.parameters, "filename");
+			COMPILER_CHECK_PARAMETER(pFilename, PBRT4ParameterTypeEx::String);
+
+			std::string plyFilename = pFilename->asString;
+			std::wstring wPlyFilename;
+			str_to_wstr(plyFilename, wPlyFilename);
+
+			PBRT4ParserOutput::PLYShapeDesc outDesc{
+				.filename           = wPlyFilename,
+				.namedMaterial      = inDesc.namedMaterial,
+				.transform          = inDesc.transform,
+				.bIdentityTransform = inDesc.bIdentityTransform,
+			};
+			output.plyShapeDescs.emplace_back(outDesc);
 		}
-		else if (parsePhase == PBRT4ParsePhase::InsideAttribute)
+		else if (inDesc.name == "trianglemesh")
 		{
-			// #todo-pbrt-parser: Emit parsed Transform
-			currentTransform = mat;
+			auto pTexcoords = findParameter(inDesc.parameters, "uv");
+			auto pNormals   = findParameter(inDesc.parameters, "N");
+			auto pPositions = findParameter(inDesc.parameters, "P");
+			auto pIndices   = findParameter(inDesc.parameters, "indices");
+			COMPILER_CHECK_PARAMETER(pTexcoords, PBRT4ParameterTypeEx::Float2Array);
+			COMPILER_CHECK_PARAMETER(pNormals, PBRT4ParameterTypeEx::Float3Array);
+			COMPILER_CHECK_PARAMETER(pPositions, PBRT4ParameterTypeEx::Float3Array);
+			COMPILER_CHECK_PARAMETER(pIndices, PBRT4ParameterTypeEx::IntArray);
+
+			SharedPtr<MaterialAsset> material = makeShared<MaterialAsset>();
+			material->emission = currentEmission;
+
+			PBRT4ParserOutput::TriangleMeshDesc outDesc{
+				.positionBuffer = toFloat3Array(std::move(pPositions->asFloatArray)),
+				.normalBuffer   = toFloat3Array(std::move(pNormals->asFloatArray)),
+				.texcoordBuffer = toFloat2Array(std::move(pTexcoords->asFloatArray)),
+				.indexBuffer    = toUIntArray(std::move(pIndices->asIntArray)),
+				.material       = material,
+			};
+			output.triangleShapeDescs.emplace_back(outDesc);
 		}
 	}
 
-	void PBRT4ParserEx::sampler(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4ParserEx::compileMaterial(MaterialDesc& inDesc, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		auto pType           = findParameter(inDesc.parameters, "type");
+		auto pReflectrance   = findParameter(inDesc.parameters, "reflectance");
+		auto pRemaproughness = findParameter(inDesc.parameters, "remaproughness");
+		auto pRoughness      = findParameter(inDesc.parameters, "roughness");
+		auto pVRoughness     = findParameter(inDesc.parameters, "vroughness");
+		auto pURoughness     = findParameter(inDesc.parameters, "uroughness");
+		auto pEta            = findParameter(inDesc.parameters, "eta");
+		auto pK              = findParameter(inDesc.parameters, "k");
+		COMPILER_CHECK_PARAMETER(pType, PBRT4ParameterTypeEx::String);
+		COMPILER_OPTIONAL_PARAMETER2(pReflectrance, PBRT4ParameterTypeEx::Texture, PBRT4ParameterTypeEx::Float3);
+		COMPILER_OPTIONAL_PARAMETER(pRemaproughness, PBRT4ParameterTypeEx::Bool);
+		COMPILER_OPTIONAL_PARAMETER(pRoughness, PBRT4ParameterTypeEx::Float);
+		COMPILER_OPTIONAL_PARAMETER(pVRoughness, PBRT4ParameterTypeEx::Float);
+		COMPILER_OPTIONAL_PARAMETER(pURoughness, PBRT4ParameterTypeEx::Float);
+		COMPILER_OPTIONAL_PARAMETER3(pEta, PBRT4ParameterTypeEx::Spectrum, PBRT4ParameterTypeEx::Float, PBRT4ParameterTypeEx::Float3);
+		COMPILER_OPTIONAL_PARAMETER2(pK, PBRT4ParameterTypeEx::Spectrum, PBRT4ParameterTypeEx::Float3);
 
-		const std::string samplerName(it->value);
-		
-		++it;
-		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed sampler
-	}
+		bool bUseRgbReflectance = pReflectrance != nullptr && pReflectrance->datatype == PBRT4ParameterTypeEx::Float3;
+		bool bUseAnisotrophicRoughness = pVRoughness != nullptr && pURoughness != nullptr;
+		bool bUseRgbEtaAndK = pEta != nullptr && pK != nullptr && pEta->datatype != PBRT4ParameterTypeEx::Spectrum && pK->datatype != PBRT4ParameterTypeEx::Spectrum;
 
-	void PBRT4ParserEx::pixelFilter(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		vec3 rgbReflectance(1.0f); std::string textureReflectance;
+		if (pReflectrance != nullptr)
+		{
+			if (bUseRgbReflectance) rgbReflectance = pReflectrance->asFloat3;
+			else textureReflectance = pReflectrance->asString;
+		}
 
-		const std::string pixelFilterName(it->value);
+		float roughness = 1.0f, vroughness = 1.0f, uroughness = 1.0f;
+		if (bUseAnisotrophicRoughness)
+		{
+			vroughness = pVRoughness->asFloat;
+			uroughness = pURoughness->asFloat;
+		}
+		else
+		{
+			roughness = pRoughness != nullptr ? pRoughness->asFloat : 1.0f;
+		}
 
-		++it;
-		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed pixelFilter
-	}
+		vec3 rgbEta(0.0f), rgbK(0.0f);
+		if (bUseRgbEtaAndK && pEta != nullptr && pK != nullptr)
+		{
+			rgbEta = (pEta->datatype == PBRT4ParameterTypeEx::Float) ? vec3(pEta->asFloat) : pEta->asFloat3;
+			rgbK = (pK->datatype == PBRT4ParameterTypeEx::Float) ? vec3(pK->asFloat) : pK->asFloat3;
+		}
 
-	void PBRT4ParserEx::film(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-
-		const std::string filmName(it->value);
-
-		++it;
-		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed film
-	}
-
-	void PBRT4ParserEx::camera(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-
-		// "orthographic", "perspective", "realistic", "spherical"
-		const std::string cameraType(it->value);
-
-		++it;
-		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed camera
-	}
-
-	void PBRT4ParserEx::texture(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		const std::string textureName(it->value);
-
-		++it;
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		const std::string textureType(it->value);
-
-		++it;
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		const std::string textureClass(it->value);
-
-		++it;
-		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed texture
-	}
-
-	void PBRT4ParserEx::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		std::string materialName(it->value);
-
-		++it;
-		auto params = parameters(it);
-
-		PBRT4ParserOutput::Material materialDesc{
-			.name       = std::move(materialName),
-			.parameters = std::move(params),
+		PBRT4ParserOutput::NamedMaterialDesc outDesc{
+			.materialName             = std::move(inDesc.name),
+			.materialType             = std::move(pType->asString),
+			.bUseRgbReflectance       = bUseRgbReflectance,
+			.rgbReflectance           = rgbReflectance,
+			.textureReflectance       = textureReflectance,
+			.bUseAnisotropicRoughness = bUseAnisotrophicRoughness,
+			.bRemapRoughness          = (pRemaproughness != nullptr) ? pRemaproughness->asBool : false,
+			.roughness                = roughness,
+			.vroughness               = vroughness,
+			.uroughness               = uroughness,
+			.bUseRgbEtaAndK           = bUseRgbEtaAndK,
+			.rgbEta                   = rgbEta,
+			.rgbK                     = rgbK,
+			.spectrumEta              = (bUseRgbEtaAndK || pEta == nullptr) ? "" : std::move(pEta->asString),
+			.spectrumK                = (bUseRgbEtaAndK || pK == nullptr) ? "" : std::move(pK->asString),
 		};
-		output.materials.emplace_back(materialDesc);
+		output.namedMaterialDescs.emplace_back(outDesc);
 	}
 
-	void PBRT4ParserEx::shape(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4ParserEx::compileTexture(TextureDesc& inDesc, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(parsePhase != PBRT4ParsePhase::RenderingOptions);
-
-		// "bilinearmesh", "curve", "cylinder", "disk", "sphere", "trianglemesh",
-		// "loopsubdiv", "plymesh"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		std::string shapeName(it->value);
-
-		// #todo-pbrt-parser: When to parse params further?
-		// 1. Parser (here)
-		// 2. New intermediate phase (parser -> converter -> loader)
-		// 3. Loader
-		// This file format is not super complex, so let's keep it simple.
-		++it;
-		auto params = parameters(it);
-
-		PBRT4ParserOutput::Shape shapeDesc{
-			.name               = std::move(shapeName),
-			.namedMaterial      = currentNamedMaterial,
-			.transform          = currentTransform,
-			.bIdentityTransform = bCurrentTransformIsIdentity,
-			.parameters         = std::move(params),
-		};
-		output.shapes.emplace_back(shapeDesc);
-	}
-
-	void PBRT4ParserEx::namedMaterial(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-
-		const std::string materialName(it->value);
-		++it;
-
-		currentNamedMaterial = materialName;
-	}
-
-	void PBRT4ParserEx::lightSource(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		// "distant", "goniometric", "infinite", "point", "projection", "spot"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-
-		const std::string lightName(it->value);
-
-		++it;
-		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed LightSource
-	}
-
-	void PBRT4ParserEx::rotate(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		// Rotate angle x y z
-		// where angle is in degrees and (x, y, z) = axis
-
-		PARSER_CHECK(it->type == TokenType::Number);
-		float angle = std::stof(it->value.data());
-		++it;
-
-		PARSER_CHECK(it->type == TokenType::Number);
-		float x = std::stof(it->value.data());
-		++it;
-
-		PARSER_CHECK(it->type == TokenType::Number);
-		float y = std::stof(it->value.data());
-		++it;
-
-		PARSER_CHECK(it->type == TokenType::Number);
-		float z = std::stof(it->value.data());
-		++it;
-
-		// #todo-pbrt-parser: Concat with current transform
-	}
-
-	void PBRT4ParserEx::concatTransform(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(it->type == TokenType::LeftBracket);
-		++it;
-
-		Matrix mat;
-		for (size_t i = 0; i < 16; ++i)
+		if (inDesc.textureType == "spectrum" && inDesc.textureClass == "imagemap")
 		{
-			PARSER_CHECK(it->type == TokenType::Number);
-			float value = std::stof(it->value.data());
-			mat.m[i / 4][i % 4] = value;
-			++it;
+			auto pFilter   = findParameter(inDesc.parameters, "filter");
+			auto pFilename = findParameter(inDesc.parameters, "filename");
+			COMPILER_CHECK_PARAMETER(pFilter, PBRT4ParameterTypeEx::String);
+			COMPILER_CHECK_PARAMETER(pFilename, PBRT4ParameterTypeEx::String);
+
+			std::wstring wTextureFilename;
+			str_to_wstr(pFilename->asString, wTextureFilename);
+
+			PBRT4ParserOutput::TextureFileDesc outDesc{
+				.textureName   = std::move(inDesc.name),
+				.textureFilter = std::move(pFilename->asString),
+				.filename      = std::move(wTextureFilename),
+			};
+			output.textureFileDescs.emplace_back(outDesc);
 		}
-		PARSER_CHECK(it->type == TokenType::RightBracket);
-		++it;
-
-		// #todo-pbrt-parser: Concat with current transform
-	}
-
-	void PBRT4ParserEx::areaLightSource(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		// "diffuse"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		const std::string lightType(it->value);
-
-		++it;
-		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed AreaLightSource
-	}
-
-	void PBRT4ParserEx::material(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		// "coateddiffuse", "coatedconductor", "conductor", "dielectric", "diffuse", "diffusetransmission",
-		// "hair", "interface", "measured", "mix", "subsurface", "thindieletric"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		const std::string materialType(it->value);
-
-		++it;
-		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed Material
+		else
+		{
+			COMPILER_CHECK_NO_ENTRY();
+		}
 	}
 
 }

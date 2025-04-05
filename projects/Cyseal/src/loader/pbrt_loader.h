@@ -7,6 +7,7 @@
 #include "core/vec2.h"
 #include "core/smart_pointer.h"
 #include "render/material.h"
+#include "pbrt_parser.h"
 
 #include <string>
 #include <vector>
@@ -29,7 +30,7 @@ struct PBRT4Scene
 	vec3 lookAtPosition;
 	vec3 upVector;
 
-	std::vector<PBRT4TriangleMesh> triangleMeshes;
+	std::vector<pbrt::PBRT4ParserOutput::TriangleMeshDesc> triangleMeshes;
 	std::vector<class PLYMesh*> plyMeshes;
 
 public:

@@ -65,6 +65,19 @@ namespace pbrt
 			{
 				break;
 			}
+			else if (ch == '-' || ch == '+' || ch == '.')
+			{
+				char ch2;
+				stream >> ch2;
+				if (std::isdigit(ch2))
+				{
+					stream.putback(ch2);
+					stream.putback(ch);
+					double num;
+					stream >> num;
+					makeToken(stream, line, startPos, TokenType::Number);
+				}
+			}
 			else if (std::isdigit(ch))
 			{
 				stream.putback(ch);

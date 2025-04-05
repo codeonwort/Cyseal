@@ -1,4 +1,5 @@
 #include "pbrt_loader.h"
+#include "pbrt_parser.h"
 #include "ply_loader.h"
 #include "image_loader.h"
 
@@ -43,6 +44,8 @@
 #define TOKEN_TRANSFORM_BEGIN        "TransformBegin"
 #define TOKEN_TRANSFORM_END          "TransformEnd"
 
+#define NEW_PARSER 1
+
 DEFINE_LOG_CATEGORY_STATIC(LogPBRT);
 
 // PBRT4Parser utils
@@ -57,37 +60,36 @@ namespace
 
 	struct TextureFileDesc
 	{
-		std::string textureName;
-		std::string textureFilter; // #todo-pbrt: textureFilter
-		std::wstring filename;
+		std::string    textureName;
+		std::string    textureFilter; // #todo-pbrt: textureFilter
+		std::wstring   filename;
 	};
 
 	struct NamedMaterialDesc
 	{
-		std::string materialName;
-		std::string materialType;
-
-		bool bUseRgbReflectance = false;
-		vec3 rgbReflectance = vec3(1.0f);
-		std::string textureReflectance;
-
-		bool bUseAnisotropicRoughness = false;
-		bool bRemapRoughness = false;
-		float roughness = 1.0f;
-		float vroughness = 1.0f;
-		float uroughness = 1.0f;
-
-		bool bUseRgbEtaAndK = false;
-		vec3 rgbEta, rgbK;
-		std::string spectrumEta, spectrumK;
+		std::string    materialName;
+		std::string    materialType;
+		bool           bUseRgbReflectance       = false;
+		vec3           rgbReflectance           = vec3(1.0f);
+		std::string    textureReflectance;
+		bool           bUseAnisotropicRoughness = false;
+		bool           bRemapRoughness          = false;
+		float          roughness                = 1.0f;
+		float          vroughness               = 1.0f;
+		float          uroughness               = 1.0f;
+		bool           bUseRgbEtaAndK           = false;
+		vec3           rgbEta;
+		vec3           rgbK;
+		std::string    spectrumEta;
+		std::string    spectrumK;
 	};
 
 	struct PLYShapeDesc
 	{
-		std::wstring filename;
-		std::string  namedMaterial;
-		Matrix transform;
-		bool bIdentityTransform;
+		std::wstring   filename;
+		std::string    namedMaterial;
+		Matrix         transform;
+		bool           bIdentityTransform;
 	};
 
 	std::istream& operator>>(std::istream& stream, vec3& v)
@@ -882,6 +884,14 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	}
 
 	PBRT4Scene* pbrtScene = new PBRT4Scene;
+
+#if NEW_PARSER
+	pbrt::PBRT4Scanner scanner;
+	scanner.scanTokens(fs);
+
+	pbrt::PBRT4ParserEx pbrtParser;
+	pbrt::PBRT4ParserOutput parserOutput = pbrtParser.parse(&scanner);
+#else
 	PBRT4Parser pbrtParser;
 	bool bParserValid = pbrtParser.parse(fs, pbrtScene);
 
@@ -891,13 +901,14 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 		delete pbrtScene;
 		return nullptr;
 	}
+#endif
 
 	//std::map<std::string, ImageLoadData*> imageDatabase;
 	std::map<std::string, SharedPtr<TextureAsset>> textureAssetDatabase;
 	std::map<std::string, SharedPtr<MaterialAsset>> materialDatabase;
 
 	ImageLoader imageLoader;
-	for (const TextureFileDesc& desc : pbrtParser.textureFileDescs)
+	for (const auto& desc : parserOutput.textureFileDescs)
 	{
 		ImageLoadData* imageBlob = nullptr;
 
@@ -946,7 +957,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 		textureAssetDatabase.insert(std::make_pair(desc.textureName, textureAsset));
 	}
 
-	for (const NamedMaterialDesc& desc : pbrtParser.namedMaterialDescs)
+	for (const auto& desc : parserOutput.namedMaterialDescs)
 	{
 		auto material = makeShared<MaterialAsset>();
 
@@ -988,10 +999,10 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 		materialDatabase.insert(std::make_pair(desc.materialName, material));
 	}
 
-	pbrtScene->triangleMeshes = std::move(pbrtParser.triangleShapeDescs);
+	pbrtScene->triangleMeshes = std::move(parserOutput.triangleShapeDescs);
 
 	PLYLoader plyLoader;
-	for (const PLYShapeDesc& desc : pbrtParser.plyShapeDescs)
+	for (const auto& desc : parserOutput.plyShapeDescs)
 	{
 		std::wstring plyFilepath = baseDir + desc.filename;
 		std::wstring plyFullpath = ResourceFinder::get().find(plyFilepath);

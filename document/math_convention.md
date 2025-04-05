@@ -15,3 +15,10 @@ Sun light is defined by **illuminance** and its unit is **lux**. [(Reference)](h
 ## Winding order
 
 Meshes are assumed to be **backface culled** and **front face is counterclockwise**.
+
+## Matrix multiplication order
+
+C++  : M2 * M1 * v
+HLSL : mul(mul(v, M1), M2)
+
+-> vector v is multiplied by matrix M1 and then M2.

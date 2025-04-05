@@ -333,7 +333,7 @@ void World1::createPbrtResources()
 
 			if (i < numTriangleMeshes)
 			{
-				PBRT4TriangleMesh& triMesh = pbrtScene->triangleMeshes[i];
+				auto& triMesh = pbrtScene->triangleMeshes[i];
 
 				pbrtGeometry->positions = std::move(triMesh.positionBuffer);
 				pbrtGeometry->normals = std::move(triMesh.normalBuffer);
