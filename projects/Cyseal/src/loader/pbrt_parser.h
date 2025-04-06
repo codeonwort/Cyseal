@@ -64,6 +64,8 @@ namespace pbrt
 			float          roughness                = 1.0f;
 			float          vroughness               = 1.0f;
 			float          uroughness               = 1.0f;
+			bool           bTransmissive            = false;
+			vec3           transmittance            = vec3(0.0f);
 			bool           bUseRgbEtaAndK           = false;
 			vec3           rgbEta;
 			vec3           rgbK;

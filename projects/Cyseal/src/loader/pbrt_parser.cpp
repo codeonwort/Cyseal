@@ -810,6 +810,7 @@ namespace pbrt
 		auto pRoughness      = findParameter(inDesc.parameters, "roughness");
 		auto pVRoughness     = findParameter(inDesc.parameters, "vroughness");
 		auto pURoughness     = findParameter(inDesc.parameters, "uroughness");
+		auto pTransmittance  = findParameter(inDesc.parameters, "transmittance");
 		auto pEta            = findParameter(inDesc.parameters, "eta");
 		auto pK              = findParameter(inDesc.parameters, "k");
 		COMPILER_CHECK_PARAMETER(pType, PBRT4ParameterType::String);
@@ -818,11 +819,13 @@ namespace pbrt
 		COMPILER_OPTIONAL_PARAMETER(pRoughness, PBRT4ParameterType::Float);
 		COMPILER_OPTIONAL_PARAMETER(pVRoughness, PBRT4ParameterType::Float);
 		COMPILER_OPTIONAL_PARAMETER(pURoughness, PBRT4ParameterType::Float);
+		COMPILER_OPTIONAL_PARAMETER(pTransmittance, PBRT4ParameterType::Float3);
 		COMPILER_OPTIONAL_PARAMETER3(pEta, PBRT4ParameterType::Spectrum, PBRT4ParameterType::Float, PBRT4ParameterType::Float3);
 		COMPILER_OPTIONAL_PARAMETER2(pK, PBRT4ParameterType::Spectrum, PBRT4ParameterType::Float3);
 
 		bool bUseRgbReflectance = pReflectrance != nullptr && pReflectrance->datatype == PBRT4ParameterType::Float3;
 		bool bUseAnisotrophicRoughness = pVRoughness != nullptr && pURoughness != nullptr;
+		bool bTransmissive = pTransmittance != nullptr && allLessThan(pTransmittance->asFloat3, vec3(1.0f));
 		bool bUseRgbEtaAndK = pEta != nullptr && pK != nullptr && pEta->datatype != PBRT4ParameterType::Spectrum && pK->datatype != PBRT4ParameterType::Spectrum;
 
 		vec3 rgbReflectance(1.0f); std::string textureReflectance;
@@ -843,6 +846,12 @@ namespace pbrt
 			roughness = pRoughness != nullptr ? pRoughness->asFloat : 1.0f;
 		}
 
+		vec3 transmittance(0.0f);
+		if (bTransmissive)
+		{
+			transmittance = pTransmittance->asFloat3;
+		}
+
 		vec3 rgbEta(0.0f), rgbK(0.0f);
 		if (bUseRgbEtaAndK && pEta != nullptr && pK != nullptr)
 		{
@@ -861,6 +870,8 @@ namespace pbrt
 			.roughness                = roughness,
 			.vroughness               = vroughness,
 			.uroughness               = uroughness,
+			.bTransmissive            = bTransmissive,
+			.transmittance            = transmittance,
 			.bUseRgbEtaAndK           = bUseRgbEtaAndK,
 			.rgbEta                   = rgbEta,
 			.rgbK                     = rgbK,

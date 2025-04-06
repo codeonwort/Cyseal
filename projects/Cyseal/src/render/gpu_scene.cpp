@@ -199,12 +199,13 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 				MaterialConstants constants;
 				if (material != nullptr)
 				{
-					constants.albedoMultiplier = material->albedoMultiplier;
-					constants.roughness = material->roughness;
-					constants.emission = material->emission;
-					constants.metalMask = material->metalMask;
-					constants.materialID = (uint32)material->materialID;
+					constants.albedoMultiplier  = material->albedoMultiplier;
+					constants.roughness         = material->roughness;
+					constants.emission          = material->emission;
+					constants.metalMask         = material->metalMask;
+					constants.materialID        = (uint32)material->materialID;
 					constants.indexOfRefraction = material->indexOfRefraction;
+					constants.transmittance     = material->transmittance;
 				}
 				constants.albedoTextureIndex = currentMaterialSRVCount;
 

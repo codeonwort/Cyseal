@@ -55,6 +55,8 @@ struct RayPayload
 	uint32 materialID;
 	float  indexOfRefraction;
 	uint32 _pad0;
+	float  transmittance[3];
+	uint32 _pad1;
 };
 // Just to calculate size in bytes.
 // Should match with MyAttributes in indirect_specular_reflection.hlsl.

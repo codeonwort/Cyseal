@@ -6,7 +6,7 @@ enum class EMaterialId : uint32
 {
 	None        = 0,
 	DefaultLit  = 1,
-	Transparent = 2, // #todo-material: Implement transmission.
+	Transparent = 2,
 };
 
 // Eugene Hecht, "Optics" 5th ed.
@@ -56,6 +56,7 @@ public:
 	vec3                    emission          = vec3(0.0f);
 	float                   metalMask         = 0.0f;
 	float                   indexOfRefraction = IoR::Air;
+	vec3                    transmittance     = vec3(0.0f);
 };
 
 // Should match with Material in material.hlsl.
@@ -71,4 +72,7 @@ struct MaterialConstants
 	uint32 materialID         = (uint32)EMaterialId::DefaultLit;
 	float  indexOfRefraction  = 1.0f;
 	uint32 _pad0;
+
+	vec3   transmittance       = vec3(0.0f);
+	uint32 _pad1;
 };

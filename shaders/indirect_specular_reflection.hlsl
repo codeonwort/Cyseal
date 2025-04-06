@@ -117,6 +117,9 @@ struct RayPayload
 	uint   materialID;
 	float  indexOfRefraction;
 	uint   _pad0;
+
+	float3 transmittance;
+	uint   _pad1;
 };
 
 RayPayload createRayPayload()
@@ -131,6 +134,7 @@ RayPayload createRayPayload()
 	payload.metalMask         = 0.0f;
 	payload.materialID        = MATERIAL_ID_NONE;
 	payload.indexOfRefraction = IOR_AIR;
+	payload.transmittance     = float3(0, 0, 0);
 	return payload;
 }
 
@@ -284,7 +288,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			float ior = prevIoR / currentRayPayload.indexOfRefraction;
 
 			brdfOutput.diffuseReflectance = 0.0;
-			brdfOutput.specularReflectance = 1.0;
+			brdfOutput.specularReflectance = currentRayPayload.transmittance;
 			brdfOutput.outRayDir = getRefractedDirection(V, N, ior);
 			brdfOutput.pdf = 1.0;
 
@@ -455,7 +459,7 @@ void MainRaygen()
 		float ior = IOR_AIR / gbufferData.indexOfRefraction; // #todo-refraction: Assume primary ray is always in air.
 
 		brdfOutput.diffuseReflectance = 0.0;
-		brdfOutput.specularReflectance = 1.0;
+		brdfOutput.specularReflectance = 1.0; // #todo-refraction: Read transmittance from gbuffer
 		brdfOutput.outRayDir = getRefractedDirection(V, N, ior);
 		brdfOutput.pdf = 1.0;
 
@@ -543,6 +547,7 @@ void MainClosestHit(inout RayPayload payload, in MyAttributes attr)
 	payload.metalMask         = material.metalMask;
 	payload.materialID        = material.materialID;
 	payload.indexOfRefraction = material.indexOfRefraction;
+	payload.transmittance     = material.transmittance;
 }
 
 [shader("miss")]

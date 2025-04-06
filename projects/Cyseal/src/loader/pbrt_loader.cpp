@@ -37,10 +37,6 @@ void PBRT4Scene::deallocate()
 	plyMeshes.clear();
 }
 
-// #todo-pbrt: Parser impl roadmap
-// 1. Parse geometries and render something.
-// 2. Parse light sources and lit the geometries.
-// 3. Parse materials and apply to geometries.
 PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 {
 	std::wstring wFilepath = ResourceFinder::get().find(filepath);
@@ -69,6 +65,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	std::map<std::string, SharedPtr<TextureAsset>> textureAssetDatabase;
 	std::map<std::string, SharedPtr<MaterialAsset>> materialDatabase;
 
+	// Load texture files
 	ImageLoader imageLoader;
 	for (const auto& desc : parserOutput.textureFileDescs)
 	{
@@ -119,6 +116,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 		textureAssetDatabase.insert(std::make_pair(desc.textureName, textureAsset));
 	}
 
+	// Create material assets
 	for (const auto& desc : parserOutput.namedMaterialDescs)
 	{
 		auto material = makeShared<MaterialAsset>();
@@ -154,7 +152,12 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			material->roughness = desc.roughness;
 		}
 
-		// #todo-material: Parse metallic
+		// #todo-pbrt: diffusetransmission material needs different materialID
+		//if (desc.bTransmissive)
+		//{
+		//	material->materialID = EMaterialId::Transparent;
+		//	material->transmittance = desc.transmittance;
+		//}
 
 		// #todo-pbrt: Other NamedMaterialDesc properties
 

@@ -168,6 +168,11 @@ inline bool anyIsNaN(const vec3& v)
 	return isnan(v.x) || isnan(v.y) || isnan(v.z);
 }
 
+inline bool allLessThan(const vec3& v1, const vec3& v2)
+{
+	return v1.x < v2.x && v1.y < v2.y && v1.z < v2.z;
+}
+
 inline vec3& vec3::operator+=(const vec3& v)
 {
 	x += v.x;
