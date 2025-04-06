@@ -100,6 +100,7 @@ namespace pbrt
 			{DIRECTIVE_LIGHT_SOURCE,        std::bind(&PBRT4Parser::lightSource,       this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_ROTATE,              std::bind(&PBRT4Parser::rotate,            this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_SCALE,               std::bind(&PBRT4Parser::scale,             this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_LOOKAT,              std::bind(&PBRT4Parser::lookAt,            this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_CONCAT_TRANSFORM,    std::bind(&PBRT4Parser::concatTransform,   this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_AREA_LIGHT_SOURCE,   std::bind(&PBRT4Parser::areaLightSource,   this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_MATERIAL,            std::bind(&PBRT4Parser::material,          this, std::placeholders::_1, std::placeholders::_2)},
@@ -457,6 +458,36 @@ namespace pbrt
 		currentTransform = S * currentTransform;
 	}
 
+	void PBRT4Parser::lookAt(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		// LookAt eye_x eye_y eye_z look_x look_y look_z up_x up_y up_z
+
+		auto readFloat = [&it]() {
+			PARSER_CHECK(it->type == TokenType::Number);
+			float x = std::stof(it->value.data());
+			++it;
+			return x;
+		};
+
+		vec3 origin(readFloat(), readFloat(), readFloat());
+		vec3 target(readFloat(), readFloat(), readFloat());
+		vec3 up(readFloat(), readFloat(), readFloat());
+
+		//~ Burrowed from Camera::lookAt()
+		vec3 Z = normalize(target - origin); // forward
+		vec3 X = normalize(cross(Z, up));    // right
+		vec3 Y = cross(X, Z);                // up
+		float M[16] = {
+			X.x,             Y.x,            -Z.x,             0.0f,
+			X.y,             Y.y,            -Z.y,             0.0f,
+			X.z,             Y.z,            -Z.z,             0.0f,
+			-dot(X, origin), -dot(Y, origin), dot(Z, origin),  1.0f
+		};
+		//~
+
+		currentTransform.copyFrom(M);
+	}
+
 	void PBRT4Parser::concatTransform(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::LeftBracket);
@@ -558,18 +589,39 @@ namespace pbrt
 					param.asIntArray = std::move(values);
 					params.emplace_back(param);
 				}
-
 			}
 			else if (ptype == "float")
 			{
-				PARSER_CHECK(it->type == TokenType::Number);
-				float value = std::stof(it->value.data());
+				std::vector<float> values;
+				while (it->type == TokenType::Number)
+				{
+					float value = std::stof(it->value.data());
+					values.emplace_back(value);
+					++it;
+				}
+				PARSER_CHECK(values.size() > 0);
+				PARSER_CHECK(values.size() == 1 || hasBrackets);
 
-				PBRT4Parameter param{};
-				param.datatype = PBRT4ParameterType::Float;
-				param.name = pname;
-				param.asFloat = value;
-				params.emplace_back(param);
+				if (values.size() == 1)
+				{
+					if (hasBrackets) --it;
+
+					PBRT4Parameter param{};
+					param.datatype = PBRT4ParameterType::Float;
+					param.name = pname;
+					param.asFloat = values[0];
+					params.emplace_back(param);
+				}
+				else
+				{
+					--it;
+
+					PBRT4Parameter param{};
+					param.datatype = PBRT4ParameterType::FloatArray;
+					param.name = pname;
+					param.asFloatArray = std::move(values);
+					params.emplace_back(param);
+				}
 			}
 			else if (ptype == "rgb")
 			{

@@ -25,7 +25,7 @@ namespace pbrt
 	enum class PBRT4ParameterType
 	{
 		String, Texture, Spectrum, Bool,
-		Float3, Float, Float2Array, Float3Array,
+		Float3, Float, FloatArray, Float2Array, Float3Array,
 		Int, IntArray,
 	};
 
@@ -39,7 +39,7 @@ namespace pbrt
 		bool               asBool = false;           // Bool
 		float              asFloat = 0.0f;           // Float
 		vec3               asFloat3 = vec3(0.0f);    // Float3
-		std::vector<float> asFloatArray;             // Float2Array, Float3Array
+		std::vector<float> asFloatArray;             // FloatArray, Float2Array, Float3Array
 		int32              asInt;                    // Int
 		std::vector<int32> asIntArray;               // IntArray
 	};
@@ -87,9 +87,6 @@ namespace pbrt
 		};
 
 	public:
-		vec3                           eyePosition;
-		vec3                           lookAtPosition;
-		vec3                           upVector;
 		Matrix                         sceneTransform;
 		std::vector<TextureFileDesc>   textureFileDescs;
 		std::vector<NamedMaterialDesc> namedMaterialDescs;
@@ -125,6 +122,7 @@ namespace pbrt
 		void lightSource(TokenIter& it, PBRT4ParserOutput& output);
 		void rotate(TokenIter& it, PBRT4ParserOutput& output);
 		void scale(TokenIter& it, PBRT4ParserOutput& output);
+		void lookAt(TokenIter& it, PBRT4ParserOutput& output);
 		void concatTransform(TokenIter& it, PBRT4ParserOutput& output);
 		void areaLightSource(TokenIter& it, PBRT4ParserOutput& output);
 		void material(TokenIter& it, PBRT4ParserOutput& output);
