@@ -16,5 +16,6 @@
     <FxCompile Include="..\..\shaders\indirect_diffuse_reflection.hlsl" />
     <FxCompile Include="..\..\shaders\material.hlsl" />
     <FxCompile Include="..\..\shaders\blit_denoiser_input.hlsl" />
+    <FxCompile Include="..\..\shaders\raytracing_common.hlsl" />
   </ItemGroup>
 </Project>

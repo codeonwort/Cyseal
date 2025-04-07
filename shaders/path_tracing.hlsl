@@ -1,4 +1,5 @@
 #include "common.hlsl"
+#include "raytracing_common.hlsl"
 #include "bsdf.hlsl"
 
 //#ifndef SHADER_STAGE
@@ -48,12 +49,6 @@ struct PathTracingUniform
 	uint        bLimitHistory;
 };
 
-struct VertexAttributes
-{
-	float3 normal;
-	float2 texcoord;
-};
-
 struct ClosestHitPushConstants
 {
 	uint objectID;
@@ -93,7 +88,9 @@ ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
 
 // ---------------------------------------------------------
 
+// #todo: For triangle primitives only. Need to support user-defined attrib for procedural primitives.
 typedef BuiltInTriangleIntersectionAttributes IntersectionAttributes;
+
 // Should match with path_tracing_pass.cpp
 struct RayPayload
 {
@@ -569,35 +566,17 @@ void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 {
 	uint objectID = g_closestHitCB.objectID;
 	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
-	
-	uint triangleIndexStride = 3 * 4; // A triangle has 3 indices, 4 = sizeof(uint32)
-	// Byte offset of first index in gIndexBuffer
-	uint firstIndexOffset = PrimitiveIndex() * triangleIndexStride + sceneItem.indexBufferOffset;
-	uint3 indices = gIndexBuffer.Load<uint3>(firstIndexOffset);
 
-	// position = float3 = 12 bytes
-	float3 p0 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.x);
-	float3 p1 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.y);
-	float3 p2 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.z);
-	// (normal, texcoord) = (float3, float2) = total 20 bytes
-	VertexAttributes v0 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.x);
-	VertexAttributes v1 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.y);
-	VertexAttributes v2 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.z);
-
-	float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-	
-	float2 texcoord = barycentrics.x * v0.texcoord + barycentrics.y * v1.texcoord + barycentrics.z * v2.texcoord;
-
-	float3 surfaceNormal = normalize(barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal);
-	surfaceNormal = normalize(transformDirection(surfaceNormal, sceneItem.modelMatrix));
+	hwrt::PrimitiveHitResult hitResult = hwrt::onPrimitiveHit(
+		PrimitiveIndex(), attr.barycentrics, sceneItem, gVertexBuffer, gIndexBuffer);
 
 	Material material = materials[objectID];
 	Texture2D albedoTex = albedoTextures[NonUniformResourceIndex(material.albedoTextureIndex)];
-	float3 albedo = albedoTex.SampleLevel(albedoSampler, texcoord, 0.0).rgb * material.albedoMultiplier.rgb;
+	float3 albedo = albedoTex.SampleLevel(albedoSampler, hitResult.texcoord, 0.0).rgb * material.albedoMultiplier.rgb;
 	
 	// Output payload
 
-	payload.surfaceNormal     = surfaceNormal;
+	payload.surfaceNormal     = hitResult.surfaceNormal;
 	payload.roughness         = material.roughness;
 	payload.albedo            = albedo;
 	payload.hitTime           = RayTCurrent();

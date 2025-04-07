@@ -58,7 +58,7 @@ struct RayPayload
 	float  metalMask;
 	uint32 _pad[3];
 };
-// Should match with MyAttributes in indirect_diffuse_reflection.hlsl.
+// Should match with IntersectionAttributes in indirect_diffuse_reflection.hlsl.
 struct TriangleIntersectionAttributes
 {
 	float texcoord[2];

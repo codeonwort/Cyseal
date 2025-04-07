@@ -59,7 +59,7 @@ struct RayPayload
 	uint32 _pad1;
 };
 // Just to calculate size in bytes.
-// Should match with MyAttributes in indirect_specular_reflection.hlsl.
+// Should match with IntersectionAttributes in indirect_specular_reflection.hlsl.
 struct TriangleIntersectionAttributes
 {
 	float texcoord[2];
