@@ -257,27 +257,10 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 
 		float2 randoms = getRandoms(texel, pathLen + 1);
 
-#if 0
-		MicrofacetBRDFInput brdfInput;
-		brdfInput.inRayDir = currentRay.Direction;
-		brdfInput.surfaceNormal = surfaceNormal;
-		brdfInput.baseColor = currentRayPayload.albedo;
-		brdfInput.roughness = currentRayPayload.roughness;
-		brdfInput.metallic = currentRayPayload.metalMask;
-		brdfInput.rand0 = randoms.x;
-		brdfInput.rand1 = randoms.y;
-
-		MicrofacetBRDFOutput brdfOutput = microfacetBRDF(brdfInput);
-
-		float3 scatteredReflectance = brdfOutput.diffuseReflectance + brdfOutput.specularReflectance;
-		float3 scatteredDir = brdfOutput.outRayDir;
-		float scatteredPdf = brdfOutput.pdf;
-#else
 		float3 scatteredReflectance = currentRayPayload.albedo;
 		float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, pathLen + 1);
 		scatteredDir = rotateVector(scatteredDir, localToWorld);
 		float scatteredPdf = 1;
-#endif
 		
 		// #todo: Sometimes surfaceNormal is NaN
 		if (any(isnan(surfaceNormal)) || any(isnan(scatteredDir)))

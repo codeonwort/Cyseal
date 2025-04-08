@@ -2,6 +2,8 @@
 #define _RAYTRACING_COMMON_H
 
 #include "common.hlsl"
+#include "material.hlsl"
+#include "bsdf.hlsl"
 
 namespace hwrt
 {
@@ -64,6 +66,48 @@ namespace hwrt
 		ret.texcoord = texcoord;
 		ret.surfaceNormal = surfaceNormal;
 		return ret;
+	}
+
+	MicrofacetBRDFOutput evaluateDefaultLit(float3 inRayDir, float3 surfaceNormal,
+		float3 albedo, float roughness, float metalMask, float2 randoms)
+	{
+		MicrofacetBRDFInput brdfInput;
+		brdfInput.inRayDir      = inRayDir;
+		brdfInput.surfaceNormal = surfaceNormal;
+		brdfInput.baseColor     = albedo;
+		brdfInput.roughness     = roughness;
+		brdfInput.metallic      = metalMask;
+		brdfInput.rand0         = randoms.x;
+		brdfInput.rand1         = randoms.y;
+
+		return microfacetBRDF(brdfInput);
+	}
+
+	MicrofacetBRDFOutput evaluateMirror(float3 inRayDir, float3 surfaceNormal)
+	{
+		MicrofacetBRDFOutput brdfOutput;
+		brdfOutput.diffuseReflectance  = 0.0;
+		brdfOutput.specularReflectance = 1.0;
+		brdfOutput.outRayDir           = reflect(inRayDir, surfaceNormal);
+		brdfOutput.pdf                 = 1.0;
+
+		return brdfOutput;
+	}
+
+	MicrofacetBRDFOutput evaluateTransparent(float3 inRayDir, float3 surfaceNormal,
+		float prevIoR, float IoR, float3 transmittance)
+	{
+		float3 V = inRayDir;
+		float3 N = dot(surfaceNormal, V) <= 0 ? surfaceNormal : -surfaceNormal;
+		float ior = prevIoR / IoR;
+
+		MicrofacetBRDFOutput brdfOutput;
+		brdfOutput.diffuseReflectance  = 1.0 - transmittance;
+		brdfOutput.specularReflectance = transmittance;
+		brdfOutput.outRayDir           = getRefractedDirection(V, N, ior);
+		brdfOutput.pdf                 = 1.0;
+
+		return brdfOutput;
 	}
 }
 

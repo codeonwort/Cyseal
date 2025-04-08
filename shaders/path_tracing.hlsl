@@ -305,29 +305,15 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		{
 			float2 randoms = getRandoms(targetTexel, pathLen);
 
-			MicrofacetBRDFInput brdfInput;
-			brdfInput.inRayDir = currentRay.Direction;
-			brdfInput.surfaceNormal = surfaceNormal;
-			brdfInput.baseColor = currentRayPayload.albedo;
-			brdfInput.roughness = currentRayPayload.roughness;
-			brdfInput.metallic = currentRayPayload.metalMask;
-			brdfInput.rand0 = randoms.x;
-			brdfInput.rand1 = randoms.y;
-
-			brdfOutput = microfacetBRDF(brdfInput);
+			brdfOutput = hwrt::evaluateDefaultLit(currentRay.Direction, surfaceNormal,
+				currentRayPayload.albedo, currentRayPayload.roughness,
+				currentRayPayload.metalMask, randoms);
 
 			nextRayOffset = SURFACE_NORMAL_OFFSET * surfaceNormal;
 		}
 		else if (materialID == MATERIAL_ID_TRANSPARENT)
 		{
-			float3 V = currentRay.Direction;
-			float3 N = dot(surfaceNormal, V) <= 0 ? surfaceNormal : -surfaceNormal;
-			float ior = prevIoR / currentRayPayload.indexOfRefraction;
-
-			brdfOutput.diffuseReflectance = 0.0;
-			brdfOutput.specularReflectance = 1.0;
-			brdfOutput.outRayDir = getRefractedDirection(V, N, ior);
-			brdfOutput.pdf = 1.0;
+			brdfOutput = hwrt::evaluateMirror(currentRay.Direction, surfaceNormal);
 
 			nextRayOffset = REFRACTION_START_OFFSET * brdfOutput.outRayDir;
 		}
@@ -575,7 +561,6 @@ void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 	float3 albedo = albedoTex.SampleLevel(albedoSampler, hitResult.texcoord, 0.0).rgb * material.albedoMultiplier.rgb;
 	
 	// Output payload
-
 	payload.surfaceNormal     = hitResult.surfaceNormal;
 	payload.roughness         = material.roughness;
 	payload.albedo            = albedo;
