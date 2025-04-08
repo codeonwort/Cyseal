@@ -1,9 +1,9 @@
 #ifndef _MATERIAL_H
 #define _MATERIAL_H
 
-#define MATERIAL_ID_NONE        0
-#define MATERIAL_ID_DEFAULT_LIT 1
-#define MATERIAL_ID_TRANSPARENT 2
+#define MATERIAL_ID_NONE           0
+#define MATERIAL_ID_DEFAULT_LIT    1
+#define MATERIAL_ID_GLASS          2
 
 // See material.h.
 #define IOR_AIR                 1.00029

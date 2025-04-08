@@ -107,6 +107,9 @@ struct RayPayload
 	uint   materialID;
 	float  indexOfRefraction;
 	uint   _pad0;
+
+	float3 transmittance;
+	uint   _pad1;
 };
 
 RayPayload createRayPayload()
@@ -121,6 +124,7 @@ RayPayload createRayPayload()
 	payload.metalMask         = 0.0f;
 	payload.materialID        = MATERIAL_ID_NONE;
 	payload.indexOfRefraction = IOR_AIR;
+	payload.transmittance     = float3(0, 0, 0);
 	return payload;
 }
 
@@ -311,9 +315,10 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 
 			nextRayOffset = SURFACE_NORMAL_OFFSET * surfaceNormal;
 		}
-		else if (materialID == MATERIAL_ID_TRANSPARENT)
+		else if (materialID == MATERIAL_ID_GLASS)
 		{
-			brdfOutput = hwrt::evaluateMirror(currentRay.Direction, surfaceNormal);
+			brdfOutput = hwrt::evaluateGlass(currentRay.Direction, surfaceNormal,
+				prevIoR, currentRayPayload.indexOfRefraction, currentRayPayload.transmittance);
 
 			nextRayOffset = REFRACTION_START_OFFSET * brdfOutput.outRayDir;
 		}
@@ -570,6 +575,7 @@ void MainClosestHit(inout RayPayload payload, in IntersectionAttributes attr)
 	payload.metalMask         = material.metalMask;
 	payload.materialID        = material.materialID;
 	payload.indexOfRefraction = material.indexOfRefraction;
+	payload.transmittance     = material.transmittance;
 }
 
 [shader("miss")]

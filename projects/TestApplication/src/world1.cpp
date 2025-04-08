@@ -238,7 +238,7 @@ void World1::createTestMeshes()
 		AABB localBounds = geometry->localBounds;
 
 		auto material = makeShared<MaterialAsset>();
-		material->materialID = EMaterialId::Transparent;
+		material->materialID = EMaterialId::Glass;
 		material->albedoMultiplier = vec3(0.0f);
 		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
 		material->roughness = 0.1f;

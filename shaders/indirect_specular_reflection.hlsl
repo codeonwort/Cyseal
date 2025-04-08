@@ -267,9 +267,9 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			}
 			nextRayOffset = SURFACE_NORMAL_OFFSET * surfaceNormal;
 		}
-		else if (materialID == MATERIAL_ID_TRANSPARENT)
+		else if (materialID == MATERIAL_ID_GLASS)
 		{
-			brdfOutput = hwrt::evaluateTransparent(currentRay.Direction, surfaceNormal,
+			brdfOutput = hwrt::evaluateGlass(currentRay.Direction, surfaceNormal,
 				prevIoR, currentRayPayload.indexOfRefraction, currentRayPayload.transmittance);
 			nextRayOffset = REFRACTION_START_OFFSET * brdfOutput.outRayDir;
 		}
@@ -416,11 +416,11 @@ void MainRaygen()
 		
 		Wo = (brdfOutput.specularReflectance / brdfOutput.pdf) * Li;
 	}
-	else if (gbufferData.materialID == MATERIAL_ID_TRANSPARENT)
+	else if (gbufferData.materialID == MATERIAL_ID_GLASS)
 	{
 		float ior = gbufferData.indexOfRefraction;
 		float3 transmittance = 1; // #todo-refraction: Read transmittance from gbuffer
-		brdfOutput = hwrt::evaluateTransparent(viewDirection, normalWS, IOR_AIR, ior, transmittance);
+		brdfOutput = hwrt::evaluateGlass(viewDirection, normalWS, IOR_AIR, ior, transmittance);
 
 		float3 relaxedPositionWS = positionWS + (brdfOutput.outRayDir * REFRACTION_START_OFFSET);
 		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, brdfOutput.outRayDir);

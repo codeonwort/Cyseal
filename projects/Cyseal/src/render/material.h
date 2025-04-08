@@ -5,8 +5,8 @@
 enum class EMaterialId : uint32
 {
 	None        = 0,
-	DefaultLit  = 1,
-	Transparent = 2,
+	DefaultLit  = 1, // Microfacet BRDF, no transmission
+	Glass       = 2, // Only transmission
 };
 
 // Eugene Hecht, "Optics" 5th ed.

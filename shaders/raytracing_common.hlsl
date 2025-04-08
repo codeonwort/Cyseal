@@ -94,7 +94,7 @@ namespace hwrt
 		return brdfOutput;
 	}
 
-	MicrofacetBRDFOutput evaluateTransparent(float3 inRayDir, float3 surfaceNormal,
+	MicrofacetBRDFOutput evaluateGlass(float3 inRayDir, float3 surfaceNormal,
 		float prevIoR, float IoR, float3 transmittance)
 	{
 		float3 V = inRayDir;
