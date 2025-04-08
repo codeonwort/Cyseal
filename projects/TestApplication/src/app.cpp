@@ -106,7 +106,7 @@ void TestApplication::onTick(float deltaSeconds)
 		}
 		appState.rendererOptions.bCameraHasMoved = bCameraHasMoved;
 
-		const uint32 PATH_TRACING_MAX_FRAMES = 64;
+		const uint32 PATH_TRACING_MAX_FRAMES = (uint32)appState.pathTracingMaxFrames;
 
 		if (appState.rendererOptions.pathTracing == EPathTracingMode::Disabled)
 		{
@@ -175,24 +175,53 @@ void TestApplication::onTick(float deltaSeconds)
 			}
 
 			ImGui::SeparatorText("Debug Visualization");
-			ImGui::Combo("Debug Mode", &appState.selectedBufferVisualizationMode, getBufferVisualizationModeNames(), (int32)EBufferVisualizationMode::Count);
+			if (ImGui::BeginTable("##Debug Visualization", 2))
+			{
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn(); ImGui::Text("Mode");
+				ImGui::TableNextColumn(); ImGui::Combo("##Debug Visualization Mode", &appState.selectedBufferVisualizationMode, getBufferVisualizationModeNames(), (int32)EBufferVisualizationMode::Count);
+				ImGui::EndTable();
+			}
 			appState.rendererOptions.bufferVisualization = (EBufferVisualizationMode)appState.selectedBufferVisualizationMode;
 
 			ImGui::SeparatorText("Ray Tracing");
-			ImGui::Combo("Ray Traced Shadows", &appState.selectedRayTracedShadowsMode, getRayTracedShadowsModeNames(), (int32)ERayTracedShadowsMode::Count);
-			ImGui::Combo("Indirect Diffuse Reflection", &appState.selectedIndirectDiffuseMode, getIndirectDiffuseModeNames(), (int32)EIndirectDiffuseMode::Count);
-			ImGui::Combo("Indirect Specular Reflection", &appState.selectedIndirectSpecularMode, getIndirectSpecularModeNames(), (int32)EIndirectSpecularMode::Count);
+			if (ImGui::BeginTable("##Ray Tracing", 2))
+			{
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn(); ImGui::Text("Ray Traced Shadows");
+				ImGui::TableNextColumn(); ImGui::Combo("##Ray Traced Shadows", &appState.selectedRayTracedShadowsMode, getRayTracedShadowsModeNames(), (int32)ERayTracedShadowsMode::Count);
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn(); ImGui::Text("Indirect Diffuse Reflection");
+				ImGui::TableNextColumn(); ImGui::Combo("##Indirect Diffuse Reflection", &appState.selectedIndirectDiffuseMode, getIndirectDiffuseModeNames(), (int32)EIndirectDiffuseMode::Count);
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn(); ImGui::Text("Indirect Specular Reflection");
+				ImGui::TableNextColumn(); ImGui::Combo("##Indirect Specular Reflection", &appState.selectedIndirectSpecularMode, getIndirectSpecularModeNames(), (int32)EIndirectSpecularMode::Count);
+				ImGui::EndTable();
+			}
 			appState.rendererOptions.rayTracedShadows = (ERayTracedShadowsMode)appState.selectedRayTracedShadowsMode;
 			appState.rendererOptions.indirectDiffuse = (EIndirectDiffuseMode)appState.selectedIndirectDiffuseMode;
 			appState.rendererOptions.indirectSpecular = (EIndirectSpecularMode)appState.selectedIndirectSpecularMode;
 
+			const int32 pathTracingModeOld = appState.selectedPathTracingMode;
+			const int32 pathTracingMaxFramesOld = appState.pathTracingMaxFrames;
 			ImGui::SeparatorText("Path Tracing");
-			auto prevPathTracingMode = appState.selectedPathTracingMode;
-			ImGui::Combo("Path Tracing Mode", &appState.selectedPathTracingMode, getPathTracingModeNames(), (int32)EPathTracingMode::Count);
+			if (ImGui::BeginTable("##Path Tracing", 2))
+			{
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn(); ImGui::Text("Mode");
+				ImGui::TableNextColumn(); ImGui::Combo("##Path Tracing Mode", &appState.selectedPathTracingMode, getPathTracingModeNames(), (int32)EPathTracingMode::Count);
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn(); ImGui::Text("Max Frames");
+				ImGui::TableNextColumn(); ImGui::InputInt("##Path Tracing Max Frames", &appState.pathTracingMaxFrames);
+				ImGui::EndTable();
+			}
 			appState.rendererOptions.pathTracing = (EPathTracingMode)appState.selectedPathTracingMode;
-			if (appState.selectedPathTracingMode != prevPathTracingMode)
+			appState.pathTracingMaxFrames = (std::max)(appState.pathTracingMaxFrames, 1);
+			if (pathTracingModeOld != appState.selectedPathTracingMode || pathTracingMaxFramesOld != appState.pathTracingMaxFrames)
 			{
 				appState.pathTracingNumFrames = 0;
+				appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
+				appState.rendererOptions.bCameraHasMoved = true;
 			}
 			ImGui::Text("Frames: %u", appState.pathTracingNumFrames);
 

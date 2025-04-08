@@ -14,6 +14,7 @@ struct AppState
 	int32 selectedIndirectSpecularMode = 0;
 	int32 selectedPathTracingMode = 0;
 	uint32 pathTracingNumFrames = 0;
+	int32 pathTracingMaxFrames = 64;
 };
 
 class TestApplication : public WindowsApplication
