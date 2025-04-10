@@ -20,20 +20,6 @@ struct Logger
 	static void log(const char* inCategory, LogLevel inLevel, const wchar_t* inMessage...);
 };
 
-//struct LogStructBase
-//{
-//	LogStructBase(const char* inCategory, LogLevel inLevel, const wchar_t* inMessage)
-//	{
-//		wchar_t buffer[1024];
-//		swprintf_s(buffer, L"[%S][%S]%s\n", inCategory, LogLevelStrings[inLevel], inMessage);
-//
-//		// #todo-log: Output to somewhere not stdout (log file, separate GUI, etc...)
-//		// #todo-log: Create a separate logging thread
-//		wprintf_s(buffer);
-//		OutputDebugStringW(buffer);
-//	}
-//};
-
 struct LogStructBase
 {
 	LogStructBase(const char* inCategory)
