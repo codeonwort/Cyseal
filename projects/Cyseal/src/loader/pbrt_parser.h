@@ -110,24 +110,35 @@ namespace pbrt
 		void initStates();
 
 		void directive(TokenIter& it, PBRT4ParserOutput& output);
+
+		void worldBegin(TokenIter& it, PBRT4ParserOutput& output);
+		void transformBegin(TokenIter& it, PBRT4ParserOutput& output);
+		void transformEnd(TokenIter& it, PBRT4ParserOutput& output);
+		void attributeBegin(TokenIter& it, PBRT4ParserOutput& output);
+		void attributeEnd(TokenIter& it, PBRT4ParserOutput& output);
 		
 		void integrator(TokenIter& it, PBRT4ParserOutput& output);
-		void transform(TokenIter& it, PBRT4ParserOutput& output);
 		void sampler(TokenIter& it, PBRT4ParserOutput& output);
 		void pixelFilter(TokenIter& it, PBRT4ParserOutput& output);
 		void film(TokenIter& it, PBRT4ParserOutput& output);
 		void camera(TokenIter& it, PBRT4ParserOutput& output);
-		void texture(TokenIter& it, PBRT4ParserOutput& output);
-		void makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output);
-		void shape(TokenIter& it, PBRT4ParserOutput& output);
-		void namedMaterial(TokenIter& it, PBRT4ParserOutput& output);
-		void lightSource(TokenIter& it, PBRT4ParserOutput& output);
+
+		void transform(TokenIter& it, PBRT4ParserOutput& output);
 		void rotate(TokenIter& it, PBRT4ParserOutput& output);
 		void scale(TokenIter& it, PBRT4ParserOutput& output);
 		void lookAt(TokenIter& it, PBRT4ParserOutput& output);
 		void concatTransform(TokenIter& it, PBRT4ParserOutput& output);
-		void areaLightSource(TokenIter& it, PBRT4ParserOutput& output);
+
+		void texture(TokenIter& it, PBRT4ParserOutput& output);
+
 		void material(TokenIter& it, PBRT4ParserOutput& output);
+		void namedMaterial(TokenIter& it, PBRT4ParserOutput& output);
+		void makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output);
+
+		void shape(TokenIter& it, PBRT4ParserOutput& output);
+
+		void lightSource(TokenIter& it, PBRT4ParserOutput& output);
+		void areaLightSource(TokenIter& it, PBRT4ParserOutput& output);
 
 		std::vector<PBRT4Parameter> parameters(TokenIter& it);
 

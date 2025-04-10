@@ -87,6 +87,11 @@ namespace pbrt
 	PBRT4Parser::PBRT4Parser()
 	{
 		directiveTable = {
+			{DIRECTIVE_WORLD_BEGIN,         std::bind(&PBRT4Parser::worldBegin,        this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_TRANSFORM_BEGIN,     std::bind(&PBRT4Parser::transformBegin,    this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_TRANSFORM_END,       std::bind(&PBRT4Parser::transformEnd,      this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_ATTRIBUTE_BEGIN,     std::bind(&PBRT4Parser::attributeBegin,    this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_ATTRIBUTE_END,       std::bind(&PBRT4Parser::attributeEnd,      this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_INTEGRATOR,          std::bind(&PBRT4Parser::integrator,        this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_TRANSFORM,           std::bind(&PBRT4Parser::transform,         this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_SAMPLER,             std::bind(&PBRT4Parser::sampler,           this, std::placeholders::_1, std::placeholders::_2)},
@@ -137,65 +142,61 @@ namespace pbrt
 	{
 		if (it->type == TokenType::String)
 		{
-			// Process some meta directives here, but use function table for others.
-			if (it->value == DIRECTIVE_WORLD_BEGIN)
+			auto callbackIt = directiveTable.find(std::string(it->value));
+			if (callbackIt != directiveTable.end())
 			{
-				PARSER_CHECK(parsePhase == PBRT4ParsePhase::RenderingOptions);
-				parsePhase = PBRT4ParsePhase::SceneElements;
-
-				output.sceneTransform = currentTransform;
-
-				currentTransform.identity();
-				currentTransformBackup.identity();
 				++it;
-			}
-			else if (it->value == DIRECTIVE_TRANSFORM_BEGIN)
-			{
-				PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
-				parsePhase = PBRT4ParsePhase::InsideAttribute;
-				currentTransformBackup = currentTransform;
-				++it;
-			}
-			else if (it->value == DIRECTIVE_TRANSFORM_END)
-			{
-				PARSER_CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
-				parsePhase = PBRT4ParsePhase::SceneElements;
-				currentTransform = currentTransformBackup;
-				++it;
-			}
-			else if (it->value == DIRECTIVE_ATTRIBUTE_BEGIN)
-			{
-				PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
-				parsePhase = PBRT4ParsePhase::InsideAttribute;
-				currentTransformBackup = currentTransform;
-				++it;
-			}
-			else if (it->value == DIRECTIVE_ATTRIBUTE_END)
-			{
-				PARSER_CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
-				parsePhase = PBRT4ParsePhase::SceneElements;
-				currentTransform = currentTransformBackup;
-				currentEmission = vec3(0.0f);
-				++it;
+				callbackIt->second(it, output);
 			}
 			else
 			{
-				auto callbackIt = directiveTable.find(std::string(it->value));
-				if (callbackIt != directiveTable.end())
-				{
-					++it;
-					callbackIt->second(it, output);
-				}
-				else
-				{
-					PARSER_CHECK_NO_ENTRY();
-				}
+				PARSER_CHECK_NO_ENTRY();
 			}
 		}
 		else
 		{
 			PARSER_CHECK_NO_ENTRY();
 		}
+	}
+
+	void PBRT4Parser::worldBegin(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(parsePhase == PBRT4ParsePhase::RenderingOptions);
+		parsePhase = PBRT4ParsePhase::SceneElements;
+
+		output.sceneTransform = currentTransform;
+
+		currentTransform.identity();
+		currentTransformBackup.identity();
+	}
+
+	void PBRT4Parser::transformBegin(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
+		parsePhase = PBRT4ParsePhase::InsideAttribute;
+		currentTransformBackup = currentTransform;
+	}
+
+	void PBRT4Parser::transformEnd(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
+		parsePhase = PBRT4ParsePhase::SceneElements;
+		currentTransform = currentTransformBackup;
+	}
+
+	void PBRT4Parser::attributeBegin(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
+		parsePhase = PBRT4ParsePhase::InsideAttribute;
+		currentTransformBackup = currentTransform;
+	}
+
+	void PBRT4Parser::attributeEnd(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
+		parsePhase = PBRT4ParsePhase::SceneElements;
+		currentTransform = currentTransformBackup;
+		currentEmission = vec3(0.0f);
 	}
 
 	void PBRT4Parser::integrator(TokenIter& it, PBRT4ParserOutput& output)
@@ -262,33 +263,12 @@ namespace pbrt
 		}
 	}
 
-	void PBRT4Parser::transform(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(it->type == TokenType::LeftBracket);
-		++it;
-
-		Matrix mat;
-		for (size_t i = 0; i < 16; ++i)
-		{
-			PARSER_CHECK(it->type == TokenType::Number);
-			float value = std::stof(it->value.data());
-			mat.m[i / 4][i % 4] = value;
-			++it;
-		}
-		PARSER_CHECK(it->type == TokenType::RightBracket);
-		++it;
-
-		PARSER_CHECK(parsePhase != PBRT4ParsePhase::SceneElements);
-		currentTransform = mat;
-		bCurrentTransformIsIdentity = false;
-	}
-
 	void PBRT4Parser::sampler(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		PARSER_CHECK(it->type == TokenType::QuoteString);
 
 		const std::string samplerName(it->value);
-		
+
 		++it;
 		auto params = parameters(it);
 		// #todo-pbrt-parser: Emit parsed sampler
@@ -328,88 +308,25 @@ namespace pbrt
 		// #todo-pbrt-parser: Emit parsed camera
 	}
 
-	void PBRT4Parser::texture(TokenIter& it, PBRT4ParserOutput& output)
+	void PBRT4Parser::transform(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		std::string textureName(it->value);
-
-		++it;
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		std::string textureType(it->value);
-
-		++it;
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		std::string textureClass(it->value);
-
-		++it;
-		auto params = parameters(it);
-
-		TextureDesc desc{
-			.name         = std::move(textureName),
-			.textureType  = std::move(textureType),
-			.textureClass = std::move(textureClass),
-			.parameters   = std::move(params),
-		};
-		compileTexture(desc, output);
-	}
-
-	void PBRT4Parser::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		std::string materialName(it->value);
-
-		++it;
-		auto params = parameters(it);
-
-		MaterialDesc materialDesc{
-			.name       = std::move(materialName),
-			.parameters = std::move(params),
-		};
-		compileMaterial(materialDesc, output);
-	}
-
-	void PBRT4Parser::shape(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(parsePhase != PBRT4ParsePhase::RenderingOptions);
-
-		// "bilinearmesh", "curve", "cylinder", "disk", "sphere", "trianglemesh",
-		// "loopsubdiv", "plymesh"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		std::string shapeName(it->value);
-
-		++it;
-		auto params = parameters(it);
-
-		ShapeDesc shapeDesc{
-			.name               = std::move(shapeName),
-			.namedMaterial      = currentNamedMaterial,
-			.transform          = currentTransform,
-			.bIdentityTransform = bCurrentTransformIsIdentity,
-			.parameters         = std::move(params),
-		};
-		compileShape(shapeDesc, output);
-	}
-
-	void PBRT4Parser::namedMaterial(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-
-		const std::string materialName(it->value);
+		PARSER_CHECK(it->type == TokenType::LeftBracket);
 		++it;
 
-		currentNamedMaterial = materialName;
-	}
-
-	void PBRT4Parser::lightSource(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		// "distant", "goniometric", "infinite", "point", "projection", "spot"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-
-		const std::string lightName(it->value);
-
+		Matrix mat;
+		for (size_t i = 0; i < 16; ++i)
+		{
+			PARSER_CHECK(it->type == TokenType::Number);
+			float value = std::stof(it->value.data());
+			mat.m[i / 4][i % 4] = value;
+			++it;
+		}
+		PARSER_CHECK(it->type == TokenType::RightBracket);
 		++it;
-		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed LightSource
+
+		PARSER_CHECK(parsePhase != PBRT4ParsePhase::SceneElements);
+		currentTransform = mat;
+		bCurrentTransformIsIdentity = false;
 	}
 
 	void PBRT4Parser::rotate(TokenIter& it, PBRT4ParserOutput& output)
@@ -467,7 +384,7 @@ namespace pbrt
 			float x = std::stof(it->value.data());
 			++it;
 			return x;
-		};
+			};
 
 		vec3 origin(readFloat(), readFloat(), readFloat());
 		vec3 target(readFloat(), readFloat(), readFloat());
@@ -507,6 +424,102 @@ namespace pbrt
 		currentTransform = M * currentTransform;
 	}
 
+	void PBRT4Parser::texture(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		std::string textureName(it->value);
+
+		++it;
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		std::string textureType(it->value);
+
+		++it;
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		std::string textureClass(it->value);
+
+		++it;
+		auto params = parameters(it);
+
+		TextureDesc desc{
+			.name         = std::move(textureName),
+			.textureType  = std::move(textureType),
+			.textureClass = std::move(textureClass),
+			.parameters   = std::move(params),
+		};
+		compileTexture(desc, output);
+	}
+
+	void PBRT4Parser::material(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		// "coateddiffuse", "coatedconductor", "conductor", "dielectric", "diffuse", "diffusetransmission",
+		// "hair", "interface", "measured", "mix", "subsurface", "thindieletric"
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		const std::string materialType(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed Material
+	}
+
+	void PBRT4Parser::namedMaterial(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		const std::string materialName(it->value);
+		++it;
+
+		currentNamedMaterial = materialName;
+	}
+
+	void PBRT4Parser::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		std::string materialName(it->value);
+
+		++it;
+		auto params = parameters(it);
+
+		MaterialDesc materialDesc{
+			.name       = std::move(materialName),
+			.parameters = std::move(params),
+		};
+		compileMaterial(materialDesc, output);
+	}
+
+	void PBRT4Parser::shape(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		PARSER_CHECK(parsePhase != PBRT4ParsePhase::RenderingOptions);
+
+		// "bilinearmesh", "curve", "cylinder", "disk", "sphere", "trianglemesh",
+		// "loopsubdiv", "plymesh"
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+		std::string shapeName(it->value);
+
+		++it;
+		auto params = parameters(it);
+
+		ShapeDesc shapeDesc{
+			.name               = std::move(shapeName),
+			.namedMaterial      = currentNamedMaterial,
+			.transform          = currentTransform,
+			.bIdentityTransform = bCurrentTransformIsIdentity,
+			.parameters         = std::move(params),
+		};
+		compileShape(shapeDesc, output);
+	}
+
+	void PBRT4Parser::lightSource(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		// "distant", "goniometric", "infinite", "point", "projection", "spot"
+		PARSER_CHECK(it->type == TokenType::QuoteString);
+
+		const std::string lightName(it->value);
+
+		++it;
+		auto params = parameters(it);
+		// #todo-pbrt-parser: Emit parsed LightSource
+	}
+
 	void PBRT4Parser::areaLightSource(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// "diffuse"
@@ -527,18 +540,6 @@ namespace pbrt
 		{
 			COMPILER_CHECK_NO_ENTRY();
 		}
-	}
-
-	void PBRT4Parser::material(TokenIter& it, PBRT4ParserOutput& output)
-	{
-		// "coateddiffuse", "coatedconductor", "conductor", "dielectric", "diffuse", "diffusetransmission",
-		// "hair", "interface", "measured", "mix", "subsurface", "thindieletric"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
-		const std::string materialType(it->value);
-
-		++it;
-		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed Material
 	}
 
 	std::vector<PBRT4Parameter> PBRT4Parser::parameters(TokenIter& it)
