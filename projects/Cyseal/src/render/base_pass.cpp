@@ -17,8 +17,48 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
-void BasePass::initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbufferFormats[], uint32 numGBuffers)
+static GraphicsPipelineKey assemblePipelineKey(const GraphicsPipelineKeyDesc& desc)
 {
+	GraphicsPipelineKey key = 0;
+	key |= (uint32)(desc.cullMode) - 1;
+	return key;
+}
+
+static const GraphicsPipelineKeyDesc kDefaultPipelineKeyDesc{ ECullMode::Back };
+
+GraphicsPipelineStatePermutation::~GraphicsPipelineStatePermutation()
+{
+	for (auto& it : permutations)
+	{
+		GraphicsPipelineState* pso = it.second;
+		delete pso;
+	}
+}
+
+GraphicsPipelineState* GraphicsPipelineStatePermutation::find(GraphicsPipelineKey key) const
+{
+	auto it = permutations.find(key);
+	CHECK(it != permutations.end());
+	return it->second;
+}
+
+void GraphicsPipelineStatePermutation::insert(GraphicsPipelineKey key, GraphicsPipelineState* pipeline)
+{
+	CHECK(false == permutations.contains(key));
+	permutations.insert(std::make_pair(key, pipeline));
+}
+
+BasePass::~BasePass()
+{
+	delete shaderVS;
+	delete shaderPS;
+}
+
+void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat inGbufferFormats[], uint32 numGBuffers)
+{
+	sceneColorFormat = inSceneColorFormat;
+	gbufferFormats.assign(inGbufferFormats, inGbufferFormats + numGBuffers);
+
 	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
@@ -33,66 +73,15 @@ void BasePass::initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbuf
 	totalVolatileDescriptor.resize(swapchainCount, 0);
 	volatileViewHeap.initialize(swapchainCount);
 
-	// Input layout
-	// #todo: Should be variant per vertex factory
-	VertexInputLayout inputLayout = {
-			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
-			{"NORMAL", 0, EPixelFormat::R32G32B32_FLOAT, 1, 0, EVertexInputClassification::PerVertex, 0},
-			{"TEXCOORD", 0, EPixelFormat::R32G32_FLOAT, 1, sizeof(float) * 3, EVertexInputClassification::PerVertex, 0}
-	};
-
 	// Shader stages
-	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BasePassVS");
-	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BasePassPS");
+	shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BasePassVS");
+	shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BasePassPS");
 	shaderVS->declarePushConstants({ "pushConstants" });
 	shaderPS->declarePushConstants({ "pushConstants" });
 	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS");
 	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
 
-	// PSO
-	std::vector<StaticSamplerDesc> staticSamplers = {
-		StaticSamplerDesc{
-			.name             = "albedoSampler",
-			.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
-			.addressU         = ETextureAddressMode::Wrap,
-			.addressV         = ETextureAddressMode::Wrap,
-			.addressW         = ETextureAddressMode::Wrap,
-			.mipLODBias       = 0.0f,
-			.maxAnisotropy    = 0,
-			.comparisonFunc   = EComparisonFunc::Always,
-			.borderColor      = EStaticBorderColor::TransparentBlack,
-			.minLOD           = 0.0f,
-			.maxLOD           = FLT_MAX,
-			.shaderVisibility = EShaderVisibility::All,
-		},
-	};
-	GraphicsPipelineDesc pipelineDesc{
-		.vs                     = shaderVS,
-		.ps                     = shaderPS,
-		.blendDesc              = BlendDesc(),
-		.sampleMask             = 0xffffffff,
-		.rasterizerDesc         = RasterizerDesc(),
-		.depthstencilDesc       = getReverseZPolicy() == EReverseZPolicy::Reverse ? DepthstencilDesc::ReverseZSceneDepth() : DepthstencilDesc::StandardSceneDepth(),
-		.inputLayout            = inputLayout,
-		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
-		.numRenderTargets       = 1 + numGBuffers,
-		.rtvFormats             = { EPixelFormat::UNKNOWN, }, // Fill later
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
-		.sampleDesc = SampleDesc{
-			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
-			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
-		},
-		.staticSamplers         = std::move(staticSamplers),
-	};
-	pipelineDesc.rtvFormats[0] = sceneColorFormat;
-	for (uint32 i = 0; i < numGBuffers; ++i) pipelineDesc.rtvFormats[i + 1] = gbufferFormats[i];
-	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
-
-	// Cleanup
-	{
-		delete shaderVS;
-		delete shaderPS;
-	}
+	auto pipelineState = createPipeline(kDefaultPipelineKeyDesc);
 
 	// Indirect draw
 	{
@@ -129,7 +118,7 @@ void BasePass::initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbuf
 			.nodeMask = 0,
 		};
 		commandSignature = UniquePtr<CommandSignature>(
-			device->createCommandSignature(commandSignatureDesc, pipelineState.get()));
+			device->createCommandSignature(commandSignatureDesc, pipelineState));
 
 		argumentBufferGenerator = UniquePtr<IndirectCommandGenerator>(
 			device->createIndirectCommandGenerator(commandSignatureDesc, 256));
@@ -308,8 +297,10 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		}
 	}
 
-	
-	commandList->setGraphicsPipelineState(pipelineState.get());
+	const GraphicsPipelineKey pipelineKey = assemblePipelineKey(kDefaultPipelineKeyDesc);
+	GraphicsPipelineState* pipelineState = pipelinePermutation.find(pipelineKey);
+
+	commandList->setGraphicsPipelineState(pipelineState);
 	commandList->iaSetPrimitiveTopology(primitiveTopology);
 
 	// Bind shader parameters except for root constants.
@@ -321,7 +312,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		SPT.texture("shadowMask", shadowMaskSRV);
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
-		commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
+		commandList->bindGraphicsShaderParameters(pipelineState, &SPT, volatileViewHeap.at(swapchainIndex));
 	}
 	
 	if (bIndirectDraw)
@@ -348,7 +339,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 			{
 				ShaderParameterTable SPT{};
 				SPT.pushConstant("pushConstants", payloadID);
-				commandList->updateGraphicsRootConstants(pipelineState.get(), &SPT);
+				commandList->updateGraphicsRootConstants(pipelineState, &SPT);
 
 				VertexBuffer* vertexBuffers[] = {
 					section.positionBuffer->getGPUResource().get(),
@@ -364,6 +355,70 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 			}
 		}
 	}
+}
+
+GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc)
+{
+	SwapChain* swapchain = gRenderDevice->getSwapChain();
+	const uint32 swapchainCount = swapchain->getBufferCount();
+
+	RasterizerDesc rasterizerDesc = RasterizerDesc();
+	rasterizerDesc.cullMode = pipelineKeyDesc.cullMode;
+
+	// Input layout
+	// #todo: Should be variant per vertex factory
+	VertexInputLayout inputLayout = {
+			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
+			{"NORMAL", 0, EPixelFormat::R32G32B32_FLOAT, 1, 0, EVertexInputClassification::PerVertex, 0},
+			{"TEXCOORD", 0, EPixelFormat::R32G32_FLOAT, 1, sizeof(float) * 3, EVertexInputClassification::PerVertex, 0}
+	};
+
+	std::vector<StaticSamplerDesc> staticSamplers = {
+		StaticSamplerDesc{
+			.name             = "albedoSampler",
+			.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
+			.addressU         = ETextureAddressMode::Wrap,
+			.addressV         = ETextureAddressMode::Wrap,
+			.addressW         = ETextureAddressMode::Wrap,
+			.mipLODBias       = 0.0f,
+			.maxAnisotropy    = 0,
+			.comparisonFunc   = EComparisonFunc::Always,
+			.borderColor      = EStaticBorderColor::TransparentBlack,
+			.minLOD           = 0.0f,
+			.maxLOD           = FLT_MAX,
+			.shaderVisibility = EShaderVisibility::All,
+		},
+	};
+
+	GraphicsPipelineDesc pipelineDesc{
+		.vs                     = shaderVS,
+		.ps                     = shaderPS,
+		.blendDesc              = BlendDesc(),
+		.sampleMask             = 0xffffffff,
+		.rasterizerDesc         = std::move(rasterizerDesc),
+		.depthstencilDesc       = getReverseZPolicy() == EReverseZPolicy::Reverse ? DepthstencilDesc::ReverseZSceneDepth() : DepthstencilDesc::StandardSceneDepth(),
+		.inputLayout            = inputLayout,
+		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
+		.numRenderTargets       = (uint32)(1 + gbufferFormats.size()),
+		.rtvFormats             = { EPixelFormat::UNKNOWN, }, // Fill later
+		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.sampleDesc = SampleDesc{
+			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
+			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
+		},
+		.staticSamplers         = std::move(staticSamplers),
+	};
+	pipelineDesc.rtvFormats[0] = sceneColorFormat;
+	for (size_t i = 0; i < gbufferFormats.size(); ++i)
+	{
+		pipelineDesc.rtvFormats[i + 1] = gbufferFormats[i];
+	}
+
+	GraphicsPipelineKey pipelineKey = assemblePipelineKey(pipelineKeyDesc);
+	GraphicsPipelineState* pipelineState = gRenderDevice->createGraphicsPipelineState(pipelineDesc);
+
+	pipelinePermutation.insert(pipelineKey, pipelineState);
+	return pipelineState;
 }
 
 void BasePass::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)
