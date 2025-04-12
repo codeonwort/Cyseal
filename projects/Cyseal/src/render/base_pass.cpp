@@ -17,6 +17,8 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
+#define kMaxIndirectDrawCommandCount 256
+
 static GraphicsPipelineKey assemblePipelineKey(const GraphicsPipelineKeyDesc& desc)
 {
 	GraphicsPipelineKey key = 0;
@@ -28,24 +30,25 @@ static const GraphicsPipelineKeyDesc kDefaultPipelineKeyDesc{ ECullMode::Back };
 
 GraphicsPipelineStatePermutation::~GraphicsPipelineStatePermutation()
 {
-	for (auto& it : permutations)
+	for (auto& it : pipelines)
 	{
-		GraphicsPipelineState* pso = it.second;
-		delete pso;
+		GraphicsPipelineItem item = it.second;
+		delete item.pipelineState;
+		delete item.indirectDrawHelper;
 	}
 }
 
-GraphicsPipelineState* GraphicsPipelineStatePermutation::find(GraphicsPipelineKey key) const
+GraphicsPipelineItem GraphicsPipelineStatePermutation::findPipeline(GraphicsPipelineKey key) const
 {
-	auto it = permutations.find(key);
-	CHECK(it != permutations.end());
+	auto it = pipelines.find(key);
+	CHECK(it != pipelines.end());
 	return it->second;
 }
 
-void GraphicsPipelineStatePermutation::insert(GraphicsPipelineKey key, GraphicsPipelineState* pipeline)
+void GraphicsPipelineStatePermutation::insertPipeline(GraphicsPipelineKey key, GraphicsPipelineItem item)
 {
-	CHECK(false == permutations.contains(key));
-	permutations.insert(std::make_pair(key, pipeline));
+	CHECK(false == pipelines.contains(key));
+	pipelines.insert(std::make_pair(key, item));
 }
 
 BasePass::~BasePass()
@@ -63,13 +66,6 @@ void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat in
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
-	argumentBuffer.initialize(swapchainCount);
-	argumentBufferSRV.initialize(swapchainCount);
-	culledArgumentBuffer.initialize(swapchainCount);
-	culledArgumentBufferUAV.initialize(swapchainCount);
-	drawCounterBuffer.initialize(swapchainCount);
-	drawCounterBufferUAV.initialize(swapchainCount);
-
 	totalVolatileDescriptor.resize(swapchainCount, 0);
 	volatileViewHeap.initialize(swapchainCount);
 
@@ -81,76 +77,10 @@ void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat in
 	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS");
 	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
 
+	auto pipelineKey = assemblePipelineKey(kDefaultPipelineKeyDesc);
 	auto pipelineState = createPipeline(kDefaultPipelineKeyDesc);
-
-	// Indirect draw
-	{
-		// Hmm... C++20 designated initializers looks ugly in this case :(
-		CommandSignatureDesc commandSignatureDesc{
-			.argumentDescs = {
-				IndirectArgumentDesc{
-					.type = EIndirectArgumentType::CONSTANT,
-					.name = "pushConstants",
-					.constant = {
-						.destOffsetIn32BitValues = 0,
-						.num32BitValuesToSet = 1,
-					},
-				},
-				IndirectArgumentDesc{
-					.type = EIndirectArgumentType::VERTEX_BUFFER_VIEW,
-					.vertexBuffer = {
-						.slot = 0, // position buffer slot
-					},
-				},
-				IndirectArgumentDesc{
-					.type = EIndirectArgumentType::VERTEX_BUFFER_VIEW,
-					.vertexBuffer = {
-						.slot = 1, // non-position buffer slot
-					},
-				},
-				IndirectArgumentDesc{
-					.type = EIndirectArgumentType::INDEX_BUFFER_VIEW,
-				},
-				IndirectArgumentDesc{
-					.type = EIndirectArgumentType::DRAW_INDEXED,
-				},
-			},
-			.nodeMask = 0,
-		};
-		commandSignature = UniquePtr<CommandSignature>(
-			device->createCommandSignature(commandSignatureDesc, pipelineState));
-
-		argumentBufferGenerator = UniquePtr<IndirectCommandGenerator>(
-			device->createIndirectCommandGenerator(commandSignatureDesc, 256));
-
-		// Fixed size. Create here.
-		for (uint32 i = 0; i < swapchainCount; ++i)
-		{
-			drawCounterBuffer[i] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
-				BufferCreateParams{
-					.sizeInBytes = sizeof(uint32),
-					.alignment   = 0,
-					.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
-				}
-			));
-
-			wchar_t debugName[256];
-			swprintf_s(debugName, L"Buffer_IndirectDrawCounterBuffer_%u", i);
-			drawCounterBuffer[i]->setDebugName(debugName);
-
-			UnorderedAccessViewDesc uavDesc{};
-			uavDesc.format                      = EPixelFormat::UNKNOWN;
-			uavDesc.viewDimension               = EUAVDimension::Buffer;
-			uavDesc.buffer.firstElement         = 0;
-			uavDesc.buffer.numElements          = 1;
-			uavDesc.buffer.structureByteStride  = sizeof(uint32);
-			uavDesc.buffer.counterOffsetInBytes = 0;
-			uavDesc.buffer.flags                = EBufferUAVFlags::None;
-
-			drawCounterBufferUAV[i] = UniquePtr<UnorderedAccessView>(
-				gRenderDevice->createUAV(drawCounterBuffer[i].get(), uavDesc));
-		}
-	}
+	auto indirectDrawHelper = createIndirectDrawHelper(pipelineState, pipelineKey);
+	pipelinePermutation.insertPipeline(pipelineKey, GraphicsPipelineItem{ pipelineState, indirectDrawHelper });
 }
 
 void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput)
@@ -189,6 +119,12 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		}
 	}
 
+	const GraphicsPipelineKey pipelineKey = assemblePipelineKey(kDefaultPipelineKeyDesc);
+	auto pipelineItem = pipelinePermutation.findPipeline(pipelineKey);
+	GraphicsPipelineState* pipelineState = pipelineItem.pipelineState;
+	IndirectDrawHelper* indirectDrawHelper = pipelineItem.indirectDrawHelper;
+	auto argumentBufferGenerator = indirectDrawHelper->argumentBufferGenerator.get();
+
 	// Resize indirect argument buffers and their generator.
 	{
 		const uint32 maxElements = gpuScene->getGPUSceneItemMaxCount();
@@ -199,12 +135,12 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		}
 
 		uint32 requiredCapacity = argumentBufferGenerator->getCommandByteStride() * maxElements;
-		Buffer* argBuffer = argumentBuffer.at(swapchainIndex);
-		Buffer* culledArgBuffer = culledArgumentBuffer.at(swapchainIndex);
+		Buffer* argBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
+		Buffer* culledArgBuffer = indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex);
 
 		if (argBuffer == nullptr || argBuffer->getCreateParams().sizeInBytes < requiredCapacity)
 		{
-			argumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+			indirectDrawHelper->argumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
 				BufferCreateParams{
 					.sizeInBytes = requiredCapacity,
 					.alignment   = 0,
@@ -214,7 +150,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 
 			wchar_t debugName[256];
 			swprintf_s(debugName, L"Buffer_IndirectDrawBuffer_%u", swapchainIndex);
-			argumentBuffer[swapchainIndex]->setDebugName(debugName);
+			indirectDrawHelper->argumentBuffer[swapchainIndex]->setDebugName(debugName);
 
 			ShaderResourceViewDesc srvDesc{};
 			srvDesc.format                     = EPixelFormat::UNKNOWN;
@@ -224,12 +160,12 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 			srvDesc.buffer.structureByteStride = argumentBufferGenerator->getCommandByteStride();
 			srvDesc.buffer.flags               = EBufferSRVFlags::None;
 
-			argumentBufferSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(
-				gRenderDevice->createSRV(argumentBuffer.at(swapchainIndex), srvDesc));
+			indirectDrawHelper->argumentBufferSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(
+				gRenderDevice->createSRV(indirectDrawHelper->argumentBuffer.at(swapchainIndex), srvDesc));
 		}
 		if (culledArgBuffer == nullptr || culledArgBuffer->getCreateParams().sizeInBytes < requiredCapacity)
 		{
-			culledArgumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+			indirectDrawHelper->culledArgumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
 				BufferCreateParams{
 					.sizeInBytes = requiredCapacity,
 					.alignment   = 0,
@@ -239,7 +175,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 
 			wchar_t debugName[256];
 			swprintf_s(debugName, L"Buffer_CulledIndirectDrawBuffer_%u", swapchainIndex);
-			culledArgumentBuffer[swapchainIndex]->setDebugName(debugName);
+			indirectDrawHelper->culledArgumentBuffer[swapchainIndex]->setDebugName(debugName);
 
 			UnorderedAccessViewDesc uavDesc{};
 			uavDesc.format                      = EPixelFormat::UNKNOWN;
@@ -250,8 +186,8 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 			uavDesc.buffer.counterOffsetInBytes = 0;
 			uavDesc.buffer.flags                = EBufferUAVFlags::None;
 
-			culledArgumentBufferUAV[swapchainIndex] = UniquePtr<UnorderedAccessView>(
-				gRenderDevice->createUAV(culledArgumentBuffer.at(swapchainIndex), uavDesc));
+			indirectDrawHelper->culledArgumentBufferUAV[swapchainIndex] = UniquePtr<UnorderedAccessView>(
+				gRenderDevice->createUAV(indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex), uavDesc));
 		}
 	}
 
@@ -284,21 +220,18 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		}
 
 		maxIndirectDraws = indirectCommandID;
-		Buffer* currentArgumentBuffer = argumentBuffer.at(swapchainIndex);
+		Buffer* currentArgumentBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
 		argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, currentArgumentBuffer, 0);
 
 		if (bGPUCulling)
 		{
 			gpuCulling->cullDrawCommands(
 				commandList, swapchainIndex, sceneUniformBuffer, camera, gpuScene,
-				maxIndirectDraws, currentArgumentBuffer, argumentBufferSRV.at(swapchainIndex),
-				culledArgumentBuffer.at(swapchainIndex), culledArgumentBufferUAV.at(swapchainIndex),
-				drawCounterBuffer.at(swapchainIndex), drawCounterBufferUAV.at(swapchainIndex));
+				maxIndirectDraws, currentArgumentBuffer, indirectDrawHelper->argumentBufferSRV.at(swapchainIndex),
+				indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex), indirectDrawHelper->culledArgumentBufferUAV.at(swapchainIndex),
+				indirectDrawHelper->drawCounterBuffer.at(swapchainIndex), indirectDrawHelper->drawCounterBufferUAV.at(swapchainIndex));
 		}
 	}
-
-	const GraphicsPipelineKey pipelineKey = assemblePipelineKey(kDefaultPipelineKeyDesc);
-	GraphicsPipelineState* pipelineState = pipelinePermutation.find(pipelineKey);
 
 	commandList->setGraphicsPipelineState(pipelineState);
 	commandList->iaSetPrimitiveTopology(primitiveTopology);
@@ -319,14 +252,14 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	{
 		if (bGPUCulling)
 		{
-			Buffer* argBuffer = culledArgumentBuffer.at(swapchainIndex);
-			Buffer* counterBuffer = drawCounterBuffer.at(swapchainIndex);
-			commandList->executeIndirect(commandSignature.get(), maxIndirectDraws, argBuffer, 0, counterBuffer, 0);
+			Buffer* argBuffer = indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex);
+			Buffer* counterBuffer = indirectDrawHelper->drawCounterBuffer.at(swapchainIndex);
+			commandList->executeIndirect(indirectDrawHelper->commandSignature.get(), maxIndirectDraws, argBuffer, 0, counterBuffer, 0);
 		}
 		else
 		{
-			Buffer* argBuffer = argumentBuffer.at(swapchainIndex);
-			commandList->executeIndirect(commandSignature.get(), maxIndirectDraws, argBuffer, 0, nullptr, 0);
+			Buffer* argBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
+			commandList->executeIndirect(indirectDrawHelper->commandSignature.get(), maxIndirectDraws, argBuffer, 0, nullptr, 0);
 		}
 	}
 	else
@@ -417,8 +350,91 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 	GraphicsPipelineKey pipelineKey = assemblePipelineKey(pipelineKeyDesc);
 	GraphicsPipelineState* pipelineState = gRenderDevice->createGraphicsPipelineState(pipelineDesc);
 
-	pipelinePermutation.insert(pipelineKey, pipelineState);
 	return pipelineState;
+}
+
+IndirectDrawHelper* BasePass::createIndirectDrawHelper(GraphicsPipelineState* pipelineState, GraphicsPipelineKey pipelineKey)
+{
+	RenderDevice* device = gRenderDevice;
+	SwapChain* swapchain = device->getSwapChain();
+	const uint32 swapchainCount = swapchain->getBufferCount();
+
+	IndirectDrawHelper* helper = new IndirectDrawHelper;
+
+	helper->argumentBuffer.initialize(swapchainCount);
+	helper->argumentBufferSRV.initialize(swapchainCount);
+	helper->culledArgumentBuffer.initialize(swapchainCount);
+	helper->culledArgumentBufferUAV.initialize(swapchainCount);
+	helper->drawCounterBuffer.initialize(swapchainCount);
+	helper->drawCounterBufferUAV.initialize(swapchainCount);
+
+	// Hmm... C++20 designated initializers looks ugly in this case :(
+	CommandSignatureDesc commandSignatureDesc{
+		.argumentDescs = {
+			IndirectArgumentDesc{
+				.type = EIndirectArgumentType::CONSTANT,
+				.name = "pushConstants",
+				.constant = {
+					.destOffsetIn32BitValues = 0,
+					.num32BitValuesToSet = 1,
+				},
+			},
+			IndirectArgumentDesc{
+				.type = EIndirectArgumentType::VERTEX_BUFFER_VIEW,
+				.vertexBuffer = {
+					.slot = 0, // position buffer slot
+				},
+			},
+			IndirectArgumentDesc{
+				.type = EIndirectArgumentType::VERTEX_BUFFER_VIEW,
+				.vertexBuffer = {
+					.slot = 1, // non-position buffer slot
+				},
+			},
+			IndirectArgumentDesc{
+				.type = EIndirectArgumentType::INDEX_BUFFER_VIEW,
+			},
+			IndirectArgumentDesc{
+				.type = EIndirectArgumentType::DRAW_INDEXED,
+			},
+		},
+		.nodeMask = 0,
+	};
+	helper->commandSignature = UniquePtr<CommandSignature>(
+		device->createCommandSignature(commandSignatureDesc, pipelineState));
+
+	helper->argumentBufferGenerator = UniquePtr<IndirectCommandGenerator>(
+		device->createIndirectCommandGenerator(commandSignatureDesc, kMaxIndirectDrawCommandCount));
+
+	// Fixed size. Create here.
+	for (uint32 i = 0; i < swapchainCount; ++i)
+	{
+		helper->drawCounterBuffer[i] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = sizeof(uint32),
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
+			}
+		));
+
+		wchar_t debugName[256];
+		swprintf_s(debugName, L"Buffer_IndirectDrawCounterBuffer_%u_%u", pipelineKey, i);
+		helper->drawCounterBuffer[i]->setDebugName(debugName);
+
+		UnorderedAccessViewDesc uavDesc{};
+		uavDesc.format                      = EPixelFormat::UNKNOWN;
+		uavDesc.viewDimension               = EUAVDimension::Buffer;
+		uavDesc.buffer.firstElement         = 0;
+		uavDesc.buffer.numElements          = 1;
+		uavDesc.buffer.structureByteStride  = sizeof(uint32);
+		uavDesc.buffer.counterOffsetInBytes = 0;
+		uavDesc.buffer.flags                = EBufferUAVFlags::None;
+
+		helper->drawCounterBufferUAV[i] = UniquePtr<UnorderedAccessView>(
+			gRenderDevice->createUAV(helper->drawCounterBuffer[i].get(), uavDesc));
+	}
+
+	return helper;
 }
 
 void BasePass::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)

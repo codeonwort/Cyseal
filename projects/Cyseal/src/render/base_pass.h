@@ -17,25 +17,52 @@ class Camera;
 class GPUScene;
 class GPUCulling;
 
+// -----------------------------------------
+// PSO permutation
+
 using GraphicsPipelineKey = uint32;
+
+struct IndirectDrawHelper
+{
+	UniquePtr<CommandSignature> commandSignature;
+	UniquePtr<IndirectCommandGenerator> argumentBufferGenerator;
+
+	BufferedUniquePtr<Buffer> argumentBuffer;
+	BufferedUniquePtr<Buffer> culledArgumentBuffer;
+	BufferedUniquePtr<Buffer> drawCounterBuffer;
+
+	BufferedUniquePtr<ShaderResourceView> argumentBufferSRV;
+	BufferedUniquePtr<UnorderedAccessView> culledArgumentBufferUAV;
+	BufferedUniquePtr<UnorderedAccessView> drawCounterBufferUAV;
+};
+
+// Can't think of better name
+struct GraphicsPipelineItem
+{
+	GraphicsPipelineState* pipelineState;
+	IndirectDrawHelper* indirectDrawHelper;
+};
 
 class GraphicsPipelineStatePermutation
 {
 public:
 	~GraphicsPipelineStatePermutation();
 
-	GraphicsPipelineState* find(GraphicsPipelineKey key) const;
+	GraphicsPipelineItem findPipeline(GraphicsPipelineKey key) const;
 
-	void insert(GraphicsPipelineKey key, GraphicsPipelineState* pipeline);
+	void insertPipeline(GraphicsPipelineKey key, GraphicsPipelineItem item);
 
 private:
-	std::map<GraphicsPipelineKey, GraphicsPipelineState*> permutations;
+	std::map<GraphicsPipelineKey, GraphicsPipelineItem> pipelines;
 };
 
 struct GraphicsPipelineKeyDesc
 {
 	ECullMode cullMode;
 };
+
+// -----------------------------------------
+// BasePass
 
 struct BasePassInput
 {
@@ -62,6 +89,7 @@ public:
 
 private:
 	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc);
+	IndirectDrawHelper* createIndirectDrawHelper(GraphicsPipelineState* pipelineState, GraphicsPipelineKey pipelineKey);
 	void resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors);
 
 private:
@@ -70,16 +98,6 @@ private:
 	std::vector<EPixelFormat> gbufferFormats;
 	ShaderStage* shaderVS = nullptr;
 	ShaderStage* shaderPS = nullptr;
-
-	UniquePtr<CommandSignature> commandSignature;
-	UniquePtr<IndirectCommandGenerator> argumentBufferGenerator;
-
-	BufferedUniquePtr<Buffer> argumentBuffer;
-	BufferedUniquePtr<ShaderResourceView> argumentBufferSRV;
-	BufferedUniquePtr<Buffer> culledArgumentBuffer;
-	BufferedUniquePtr<UnorderedAccessView> culledArgumentBufferUAV;
-	BufferedUniquePtr<Buffer> drawCounterBuffer;
-	BufferedUniquePtr<UnorderedAccessView> drawCounterBufferUAV;
 
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
