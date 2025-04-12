@@ -32,6 +32,71 @@ static const GraphicsPipelineKeyDesc kPipelineKeyDescs[] = {
 	kDefaultPipelineKeyDesc, kNoCullPipelineKeyDesc,
 };
 
+void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCount)
+{
+	if (argumentBufferGenerator->getMaxCommandCount() < maxDrawCount)
+	{
+		argumentBufferGenerator->resizeMaxCommandCount(maxDrawCount);
+	}
+
+	uint32 requiredCapacity = argumentBufferGenerator->getCommandByteStride() * maxDrawCount;
+	Buffer* argBuffer = argumentBuffer.at(swapchainIndex);
+	Buffer* culledArgBuffer = culledArgumentBuffer.at(swapchainIndex);
+
+	if (argBuffer == nullptr || argBuffer->getCreateParams().sizeInBytes < requiredCapacity)
+	{
+		argumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = requiredCapacity,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
+			}
+		));
+
+		wchar_t debugName[256];
+		swprintf_s(debugName, L"Buffer_IndirectDrawBuffer_%u", swapchainIndex);
+		argumentBuffer[swapchainIndex]->setDebugName(debugName);
+
+		ShaderResourceViewDesc srvDesc{};
+		srvDesc.format                     = EPixelFormat::UNKNOWN;
+		srvDesc.viewDimension              = ESRVDimension::Buffer;
+		srvDesc.buffer.firstElement        = 0;
+		srvDesc.buffer.numElements         = maxDrawCount;
+		srvDesc.buffer.structureByteStride = argumentBufferGenerator->getCommandByteStride();
+		srvDesc.buffer.flags               = EBufferSRVFlags::None;
+
+		argumentBufferSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(
+			gRenderDevice->createSRV(argumentBuffer.at(swapchainIndex), srvDesc));
+	}
+	if (culledArgBuffer == nullptr || culledArgBuffer->getCreateParams().sizeInBytes < requiredCapacity)
+	{
+		culledArgumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = requiredCapacity,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::UAV
+			}
+		));
+
+		wchar_t debugName[256];
+		swprintf_s(debugName, L"Buffer_CulledIndirectDrawBuffer_%u", swapchainIndex);
+		culledArgumentBuffer[swapchainIndex]->setDebugName(debugName);
+
+		UnorderedAccessViewDesc uavDesc{};
+		uavDesc.format                      = EPixelFormat::UNKNOWN;
+		uavDesc.viewDimension               = EUAVDimension::Buffer;
+		uavDesc.buffer.firstElement         = 0;
+		uavDesc.buffer.numElements          = maxDrawCount;
+		uavDesc.buffer.structureByteStride  = argumentBufferGenerator->getCommandByteStride();
+		uavDesc.buffer.counterOffsetInBytes = 0;
+		uavDesc.buffer.flags                = EBufferUAVFlags::None;
+
+		culledArgumentBufferUAV[swapchainIndex] = UniquePtr<UnorderedAccessView>(
+			gRenderDevice->createUAV(culledArgumentBuffer.at(swapchainIndex), uavDesc));
+	}
+}
+
+
 GraphicsPipelineStatePermutation::~GraphicsPipelineStatePermutation()
 {
 	for (auto& it : pipelines)
@@ -70,7 +135,6 @@ void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat in
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
-	// #todo-basepass: Looks like they also need to be permuted.
 	totalVolatileDescriptor.resize(swapchainCount, 0);
 	volatileViewHeap.initialize(swapchainCount);
 
@@ -133,74 +197,9 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	auto pipelineItem = pipelinePermutation.findPipeline(pipelineKey);
 	GraphicsPipelineState* pipelineState = pipelineItem.pipelineState;
 	IndirectDrawHelper* indirectDrawHelper = pipelineItem.indirectDrawHelper;
+
+	indirectDrawHelper->resizeResources(swapchainIndex, gpuScene->getGPUSceneItemMaxCount());
 	auto argumentBufferGenerator = indirectDrawHelper->argumentBufferGenerator.get();
-
-	// #todo-basepass: Move to IndirectDrawHelper method.
-	// Resize indirect argument buffers and their generator.
-	{
-		const uint32 maxElements = gpuScene->getGPUSceneItemMaxCount();
-
-		if (argumentBufferGenerator->getMaxCommandCount() < maxElements)
-		{
-			argumentBufferGenerator->resizeMaxCommandCount(maxElements);
-		}
-
-		uint32 requiredCapacity = argumentBufferGenerator->getCommandByteStride() * maxElements;
-		Buffer* argBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
-		Buffer* culledArgBuffer = indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex);
-
-		if (argBuffer == nullptr || argBuffer->getCreateParams().sizeInBytes < requiredCapacity)
-		{
-			indirectDrawHelper->argumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
-				BufferCreateParams{
-					.sizeInBytes = requiredCapacity,
-					.alignment   = 0,
-					.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
-				}
-			));
-
-			wchar_t debugName[256];
-			swprintf_s(debugName, L"Buffer_IndirectDrawBuffer_%u", swapchainIndex);
-			indirectDrawHelper->argumentBuffer[swapchainIndex]->setDebugName(debugName);
-
-			ShaderResourceViewDesc srvDesc{};
-			srvDesc.format                     = EPixelFormat::UNKNOWN;
-			srvDesc.viewDimension              = ESRVDimension::Buffer;
-			srvDesc.buffer.firstElement        = 0;
-			srvDesc.buffer.numElements         = maxElements;
-			srvDesc.buffer.structureByteStride = argumentBufferGenerator->getCommandByteStride();
-			srvDesc.buffer.flags               = EBufferSRVFlags::None;
-
-			indirectDrawHelper->argumentBufferSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(
-				gRenderDevice->createSRV(indirectDrawHelper->argumentBuffer.at(swapchainIndex), srvDesc));
-		}
-		if (culledArgBuffer == nullptr || culledArgBuffer->getCreateParams().sizeInBytes < requiredCapacity)
-		{
-			indirectDrawHelper->culledArgumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
-				BufferCreateParams{
-					.sizeInBytes = requiredCapacity,
-					.alignment   = 0,
-					.accessFlags = EBufferAccessFlags::UAV
-				}
-			));
-
-			wchar_t debugName[256];
-			swprintf_s(debugName, L"Buffer_CulledIndirectDrawBuffer_%u", swapchainIndex);
-			indirectDrawHelper->culledArgumentBuffer[swapchainIndex]->setDebugName(debugName);
-
-			UnorderedAccessViewDesc uavDesc{};
-			uavDesc.format                      = EPixelFormat::UNKNOWN;
-			uavDesc.viewDimension               = EUAVDimension::Buffer;
-			uavDesc.buffer.firstElement         = 0;
-			uavDesc.buffer.numElements          = maxElements;
-			uavDesc.buffer.structureByteStride  = argumentBufferGenerator->getCommandByteStride();
-			uavDesc.buffer.counterOffsetInBytes = 0;
-			uavDesc.buffer.flags                = EBufferUAVFlags::None;
-
-			indirectDrawHelper->culledArgumentBufferUAV[swapchainIndex] = UniquePtr<UnorderedAccessView>(
-				gRenderDevice->createUAV(indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex), uavDesc));
-		}
-	}
 
 	// #todo-basepass: Sort by pipeline key.
 	// Fill the indirect draw buffer and perform GPU culling.
