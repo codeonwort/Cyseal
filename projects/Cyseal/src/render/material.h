@@ -57,6 +57,8 @@ public:
 	float                   metalMask         = 0.0f;
 	float                   indexOfRefraction = IoR::Air;
 	vec3                    transmittance     = vec3(0.0f);
+
+	bool                    bDoubleSided      = false;
 };
 
 // Should match with Material in material.hlsl.

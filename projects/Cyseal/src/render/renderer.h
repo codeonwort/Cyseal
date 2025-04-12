@@ -3,7 +3,7 @@
 #include "renderer_options.h"
 #include "rhi/render_device.h"
 #include "world/camera.h"
-#include "world/scene.h"
+#include "world/scene_proxy.h"
 
 class Renderer
 {

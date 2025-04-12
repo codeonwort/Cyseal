@@ -1,4 +1,5 @@
 #include "scene.h"
+#include "scene_proxy.h"
 #include "render/static_mesh.h"
 
 SceneProxy* Scene::createProxy()

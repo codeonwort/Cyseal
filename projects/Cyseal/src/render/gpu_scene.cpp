@@ -8,7 +8,7 @@
 #include "rhi/swap_chain.h"
 #include "rhi/texture_manager.h"
 #include "core/matrix.h"
-#include "world/scene.h"
+#include "world/scene_proxy.h"
 #include "world/gpu_resource_asset.h"
 #include "util/logging.h"
 
