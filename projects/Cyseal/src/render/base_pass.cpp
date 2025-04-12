@@ -27,6 +27,10 @@ static GraphicsPipelineKey assemblePipelineKey(const GraphicsPipelineKeyDesc& de
 }
 
 static const GraphicsPipelineKeyDesc kDefaultPipelineKeyDesc{ ECullMode::Back };
+static const GraphicsPipelineKeyDesc kNoCullPipelineKeyDesc{ ECullMode::None };
+static const GraphicsPipelineKeyDesc kPipelineKeyDescs[] = {
+	kDefaultPipelineKeyDesc, kNoCullPipelineKeyDesc,
+};
 
 GraphicsPipelineStatePermutation::~GraphicsPipelineStatePermutation()
 {
@@ -66,6 +70,7 @@ void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat in
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
+	// #todo-basepass: Looks like they also need to be permuted.
 	totalVolatileDescriptor.resize(swapchainCount, 0);
 	volatileViewHeap.initialize(swapchainCount);
 
@@ -77,10 +82,13 @@ void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat in
 	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS");
 	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
 
-	auto pipelineKey = assemblePipelineKey(kDefaultPipelineKeyDesc);
-	auto pipelineState = createPipeline(kDefaultPipelineKeyDesc);
-	auto indirectDrawHelper = createIndirectDrawHelper(pipelineState, pipelineKey);
-	pipelinePermutation.insertPipeline(pipelineKey, GraphicsPipelineItem{ pipelineState, indirectDrawHelper });
+	for (size_t i = 0; i < _countof(kPipelineKeyDescs); ++i)
+	{
+		auto pipelineKey = assemblePipelineKey(kPipelineKeyDescs[i]);
+		auto pipelineState = createPipeline(kPipelineKeyDescs[i]);
+		auto indirectDrawHelper = createIndirectDrawHelper(pipelineState, pipelineKey);
+		pipelinePermutation.insertPipeline(pipelineKey, GraphicsPipelineItem{ pipelineState, indirectDrawHelper });
+	}
 }
 
 void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput)
@@ -119,12 +127,15 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		}
 	}
 
+	// #todo-basepass: Find proper pipeline key.
 	const GraphicsPipelineKey pipelineKey = assemblePipelineKey(kDefaultPipelineKeyDesc);
+
 	auto pipelineItem = pipelinePermutation.findPipeline(pipelineKey);
 	GraphicsPipelineState* pipelineState = pipelineItem.pipelineState;
 	IndirectDrawHelper* indirectDrawHelper = pipelineItem.indirectDrawHelper;
 	auto argumentBufferGenerator = indirectDrawHelper->argumentBufferGenerator.get();
 
+	// #todo-basepass: Move to IndirectDrawHelper method.
 	// Resize indirect argument buffers and their generator.
 	{
 		const uint32 maxElements = gpuScene->getGPUSceneItemMaxCount();
@@ -191,6 +202,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		}
 	}
 
+	// #todo-basepass: Sort by pipeline key.
 	// Fill the indirect draw buffer and perform GPU culling.
 	uint32 maxIndirectDraws = 0;
 	if (bIndirectDraw)
