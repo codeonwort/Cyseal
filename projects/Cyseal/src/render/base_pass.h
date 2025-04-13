@@ -24,7 +24,14 @@ using GraphicsPipelineKey = uint32;
 
 struct IndirectDrawHelper
 {
+	IndirectDrawHelper(GraphicsPipelineKey inPipelineKey)
+		: pipelineKey(inPipelineKey)
+	{
+	}
+
 	void resizeResources(uint32 swapchainIndex, uint32 maxDrawCount);
+
+	GraphicsPipelineKey pipelineKey;
 
 	UniquePtr<CommandSignature> commandSignature;
 	UniquePtr<IndirectCommandGenerator> argumentBufferGenerator;

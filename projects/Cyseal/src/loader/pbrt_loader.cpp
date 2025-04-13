@@ -62,8 +62,8 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 
 	PBRT4Scene* pbrtScene = new PBRT4Scene;
 
-	std::map<std::string, SharedPtr<TextureAsset>> textureAssetDatabase;
-	std::map<std::string, SharedPtr<MaterialAsset>> materialDatabase;
+	textureAssetDatabase.clear();
+	materialDatabase.clear();
 
 	// Load texture files
 	ImageLoader imageLoader;
@@ -199,4 +199,10 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	}
 	
 	return pbrtScene;
+}
+
+MaterialAsset* PBRT4Loader::findLoadedMaterial(const char* name) const
+{
+	auto it = materialDatabase.find(name);
+	return it == materialDatabase.end() ? nullptr : it->second.get();
 }

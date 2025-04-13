@@ -317,6 +317,13 @@ void World1::createPbrtResources()
 	// It's highly suspicious that mesh index, gpu scene item index, and material index are out of sync.
 	PBRT4Loader pbrtLoader;
 	PBRT4Scene* pbrtScene = pbrtLoader.loadFromFile(PBRT_FILEPATH);
+	
+	MaterialAsset* M_curtains = pbrtLoader.findLoadedMaterial("Curtains");
+	if (M_curtains != nullptr)
+	{
+		M_curtains->bDoubleSided = true;
+	}
+
 	if (pbrtScene != nullptr)
 	{
 		const size_t numTriangleMeshes = pbrtScene->triangleMeshes.size();

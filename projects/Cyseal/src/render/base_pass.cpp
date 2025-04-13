@@ -54,7 +54,7 @@ void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCo
 		));
 
 		wchar_t debugName[256];
-		swprintf_s(debugName, L"Buffer_IndirectDrawBuffer_%u", swapchainIndex);
+		swprintf_s(debugName, L"Buffer_IndirectDrawBuffer_%u_%u", pipelineKey, swapchainIndex);
 		argumentBuffer[swapchainIndex]->setDebugName(debugName);
 
 		ShaderResourceViewDesc srvDesc{};
@@ -79,7 +79,7 @@ void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCo
 		));
 
 		wchar_t debugName[256];
-		swprintf_s(debugName, L"Buffer_CulledIndirectDrawBuffer_%u", swapchainIndex);
+		swprintf_s(debugName, L"Buffer_CulledIndirectDrawBuffer_%u_%u", pipelineKey, swapchainIndex);
 		culledArgumentBuffer[swapchainIndex]->setDebugName(debugName);
 
 		UnorderedAccessViewDesc uavDesc{};
@@ -188,6 +188,30 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		if (requiredVolatiles > totalVolatileDescriptor[swapchainIndex])
 		{
 			resizeVolatileHeaps(swapchainIndex, requiredVolatiles);
+		}
+	}
+
+	// #todo-basepass: Separate drawcalls by pipeline permutation.
+	std::vector<const StaticMeshSection*> drawsForDefaultPipelines;
+	std::vector<const StaticMeshSection*> drawsForNoCullPipelines;
+	drawsForDefaultPipelines.reserve(scene->totalMeshSectionsLOD0);
+	drawsForNoCullPipelines.reserve(scene->totalMeshSectionsLOD0);
+	{
+		for (const StaticMesh* mesh : scene->staticMeshes)
+		{
+			uint32 lod = mesh->getActiveLOD();
+			for (const StaticMeshSection& section : mesh->getSections(lod))
+			{
+				bool bDoubleSided = section.material->bDoubleSided;
+				if (bDoubleSided)
+				{
+					drawsForNoCullPipelines.push_back(&section);
+				}
+				else
+				{
+					drawsForDefaultPipelines.push_back(&section);
+				}
+			}
 		}
 	}
 
@@ -370,7 +394,7 @@ IndirectDrawHelper* BasePass::createIndirectDrawHelper(GraphicsPipelineState* pi
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
-	IndirectDrawHelper* helper = new IndirectDrawHelper;
+	IndirectDrawHelper* helper = new IndirectDrawHelper(pipelineKey);
 
 	helper->argumentBuffer.initialize(swapchainCount);
 	helper->argumentBufferSRV.initialize(swapchainCount);
