@@ -217,6 +217,21 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		passInput.gpuCulling->resetCullingResources();
 	}
 
+	// Bind shader parameters except for root constants.
+	{
+		// #todo-basepass: Assumes all permutation share the same root signature.
+		auto defaultPipeline = pipelinePermutation.findPipeline(assemblePipelineKey(kDefaultPipelineKeyDesc)).pipelineState;
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
+		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
+		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
+		SPT.texture("shadowMask", passInput.shadowMaskSRV);
+		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
+
+		commandList->bindGraphicsShaderParameters(defaultPipeline, &SPT, volatileViewHeap.at(swapchainIndex));
+	}
+
 	const GraphicsPipelineKey defaultPipelineKey = assemblePipelineKey(kDefaultPipelineKeyDesc);
 	const GraphicsPipelineKey noCullPipelineKey = assemblePipelineKey(kNoCullPipelineKeyDesc);
 	renderForPipeline(commandList, swapchainIndex, passInput, defaultPipelineKey, drawsForDefaultPipelines);
@@ -294,20 +309,6 @@ void BasePass::renderForPipeline(RenderCommandList* commandList, uint32 swapchai
 
 	commandList->setGraphicsPipelineState(pipelineState);
 	commandList->iaSetPrimitiveTopology(kPrimitiveTopology);
-
-	// #todo-basepass: Can be shared between pipelines, but my bindGraphicsShaderParameters() is prohibiting it
-	//                 because it takes a PipelineState as argument :(
-	// Bind shader parameters except for root constants.
-	{
-		ShaderParameterTable SPT{};
-		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
-		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
-		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
-		SPT.texture("shadowMask", shadowMaskSRV);
-		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
-
-		commandList->bindGraphicsShaderParameters(pipelineState, &SPT, volatileViewHeap.at(swapchainIndex));
-	}
 	
 	if (bIndirectDraw)
 	{
