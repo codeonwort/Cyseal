@@ -117,7 +117,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(denoiserPluginPass = new DenoiserPluginPass);
 
 		gpuScene->initialize();
-		gpuCulling->initialize();
+		gpuCulling->initialize(kMaxBasePassPermutation);
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
 		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS);

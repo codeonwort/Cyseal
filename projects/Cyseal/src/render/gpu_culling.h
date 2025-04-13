@@ -5,6 +5,7 @@
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_view.h"
+#include "rhi/descriptor_heap.h"
 
 class GPUScene;
 class SceneProxy;
@@ -14,7 +15,9 @@ class Camera;
 class GPUCulling final : public SceneRenderPass
 {
 public:
-	void initialize();
+	void initialize(uint32 inMaxBasePassPermutation);
+
+	void resetCullingResources();
 
 	void cullDrawCommands(
 		RenderCommandList* commandList,
@@ -38,4 +41,6 @@ private:
 
 	std::vector<uint32> totalVolatileDescriptor;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
+	DescriptorIndexTracker descriptorIndexTracker;
+	uint32 maxBasePassPermutation = 1;
 };

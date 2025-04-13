@@ -8,8 +8,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUCulling);
 
-void GPUCulling::initialize()
+void GPUCulling::initialize(uint32 inMaxBasePassPermutation)
 {
+	maxBasePassPermutation = inMaxBasePassPermutation;
+
 	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
 
 	totalVolatileDescriptor.resize(swapchainCount, 0);
@@ -28,6 +30,11 @@ void GPUCulling::initialize()
 	));
 
 	delete gpuCullingShader; // No use after PSO creation.
+}
+
+void GPUCulling::resetCullingResources()
+{
+	descriptorIndexTracker.lastIndex = 0;
 }
 
 void GPUCulling::cullDrawCommands(
@@ -64,21 +71,9 @@ void GPUCulling::cullDrawCommands(
 	drawCounterBuffer->singleWriteToGPU(commandList, &zeroValue, sizeof(zeroValue), 0);
 
 	BufferMemoryBarrier barriersBefore[] = {
-		{
-			EBufferMemoryLayout::COMMON,
-			EBufferMemoryLayout::PIXEL_SHADER_RESOURCE,
-			indirectDrawBuffer,
-		},
-		{
-			EBufferMemoryLayout::COMMON,
-			EBufferMemoryLayout::UNORDERED_ACCESS,
-			culledIndirectDrawBuffer,
-		},
-		{
-			EBufferMemoryLayout::COMMON,
-			EBufferMemoryLayout::UNORDERED_ACCESS,
-			drawCounterBuffer,
-		},
+		{ EBufferMemoryLayout::COMMON, EBufferMemoryLayout::PIXEL_SHADER_RESOURCE, indirectDrawBuffer },
+		{ EBufferMemoryLayout::COMMON, EBufferMemoryLayout::UNORDERED_ACCESS, culledIndirectDrawBuffer },
+		{ EBufferMemoryLayout::COMMON, EBufferMemoryLayout::UNORDERED_ACCESS, drawCounterBuffer },
 	};
 	commandList->resourceBarriers(_countof(barriersBefore), barriersBefore, 0, nullptr);
 
@@ -91,25 +86,13 @@ void GPUCulling::cullDrawCommands(
 	SPT.rwBuffer("drawCounterBuffer", drawCounterBufferUAV);
 
 	commandList->setComputePipelineState(pipelineState.get());
-	commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
+	commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex), &descriptorIndexTracker);
 	commandList->dispatchCompute(maxDrawCommands, 1, 1);
 
 	BufferMemoryBarrier barriersAfter[] = {
-		{
-			EBufferMemoryLayout::PIXEL_SHADER_RESOURCE,
-			EBufferMemoryLayout::INDIRECT_ARGUMENT,
-			indirectDrawBuffer,
-		},
-		{
-			EBufferMemoryLayout::UNORDERED_ACCESS,
-			EBufferMemoryLayout::INDIRECT_ARGUMENT,
-			culledIndirectDrawBuffer,
-		},
-		{
-			EBufferMemoryLayout::UNORDERED_ACCESS,
-			EBufferMemoryLayout::INDIRECT_ARGUMENT,
-			drawCounterBuffer,
-		},
+		{ EBufferMemoryLayout::PIXEL_SHADER_RESOURCE, EBufferMemoryLayout::INDIRECT_ARGUMENT, indirectDrawBuffer },
+		{ EBufferMemoryLayout::UNORDERED_ACCESS, EBufferMemoryLayout::INDIRECT_ARGUMENT, culledIndirectDrawBuffer },
+		{ EBufferMemoryLayout::UNORDERED_ACCESS, EBufferMemoryLayout::INDIRECT_ARGUMENT, drawCounterBuffer },
 	};
 	commandList->resourceBarriers(_countof(barriersAfter), barriersAfter, 0, nullptr);
 }
@@ -121,7 +104,7 @@ void GPUCulling::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors
 	volatileViewHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
 		DescriptorHeapDesc{
 			.type           = EDescriptorHeapType::CBV_SRV_UAV,
-			.numDescriptors = maxDescriptors,
+			.numDescriptors = maxDescriptors * maxBasePassPermutation,
 			.flags          = EDescriptorHeapFlags::ShaderVisible,
 			.nodeMask       = 0,
 		}

@@ -11,11 +11,15 @@
 
 #include <map>
 
+// #todo-basepass: kMaxBasePassPermutation
+#define kMaxBasePassPermutation 2
+
 class MaterialAsset;
 class SceneProxy;
 class Camera;
 class GPUScene;
 class GPUCulling;
+struct StaticMeshSection;
 
 // -----------------------------------------
 // PSO permutation
@@ -86,6 +90,19 @@ struct BasePassInput
 	ShaderResourceView*    shadowMaskSRV;
 };
 
+// #todo-basepass: Temp struct for pipeline permutation support
+struct BasePassDrawList
+{
+	std::vector<const StaticMeshSection*> meshes;
+	std::vector<uint32> objectIDs;
+
+	void reserve(size_t n)
+	{
+		meshes.reserve(n);
+		objectIDs.reserve(n);
+	}
+};
+
 // Render direct lighting + gbuffers.
 class BasePass final : public SceneRenderPass
 {
@@ -97,6 +114,8 @@ public:
 	void renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput);
 
 private:
+	void renderForPipeline(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput, GraphicsPipelineKey pipelineKey, const BasePassDrawList& drawList);
+
 	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc);
 	IndirectDrawHelper* createIndirectDrawHelper(GraphicsPipelineState* pipelineState, GraphicsPipelineKey pipelineKey);
 	void resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors);

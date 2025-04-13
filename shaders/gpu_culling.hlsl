@@ -141,12 +141,7 @@ bool hitTest_AABB_frustumNoFarPlane(AABB box, Frustum3D frustum)
 [numthreads(1, 1, 1)]
 void mainCS(uint3 tid : SV_DispatchThreadID)
 {
-    uint objectID = tid.x;
-    if (objectID >= pushConstants.numDrawCommands)
-    {
-        return;
-    }
-
+    uint objectID = drawCommandBuffer[tid.x].sceneItemIndex;
     GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
 
     AABB worldBounds = calculateWorldBounds(
@@ -161,6 +156,6 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         uint nextItemIndex;
         InterlockedAdd(drawCounterBuffer[0], 1, nextItemIndex);
 
-        culledDrawCommandBuffer[nextItemIndex] = drawCommandBuffer[objectID];
+        culledDrawCommandBuffer[nextItemIndex] = drawCommandBuffer[tid.x];
     }
 }

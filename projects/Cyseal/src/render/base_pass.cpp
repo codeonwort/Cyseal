@@ -18,6 +18,8 @@
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
 #define kMaxIndirectDrawCommandCount 256
+// #todo-renderer: Support other topologies
+#define kPrimitiveTopology           EPrimitiveTopology::TRIANGLELIST
 
 static GraphicsPipelineKey assemblePipelineKey(const GraphicsPipelineKeyDesc& desc)
 {
@@ -158,13 +160,7 @@ void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat in
 void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput)
 {
 	auto scene              = passInput.scene;
-	auto camera             = passInput.camera;
-	auto bIndirectDraw      = passInput.bIndirectDraw;
-	auto bGPUCulling        = passInput.bGPUCulling;
-	auto sceneUniformBuffer = passInput.sceneUniformBuffer;
 	auto gpuScene           = passInput.gpuScene;
-	auto gpuCulling         = passInput.gpuCulling;
-	auto shadowMaskSRV      = passInput.shadowMaskSRV;
 
 	if (gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
@@ -172,9 +168,6 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		return;
 	}
 	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
-
-	// #todo-renderer: Support other topologies
-	const EPrimitiveTopology primitiveTopology = EPrimitiveTopology::TRIANGLELIST;
 
 	// Resize volatile heaps if needed.
 	{
@@ -191,12 +184,13 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		}
 	}
 
-	// #todo-basepass: Separate drawcalls by pipeline permutation.
-	std::vector<const StaticMeshSection*> drawsForDefaultPipelines;
-	std::vector<const StaticMeshSection*> drawsForNoCullPipelines;
+	// #todo-basepass: Need smarter way to generate drawlists per pipeline if permutation blows up.
+	BasePassDrawList drawsForDefaultPipelines;
+	BasePassDrawList drawsForNoCullPipelines;
 	drawsForDefaultPipelines.reserve(scene->totalMeshSectionsLOD0);
 	drawsForNoCullPipelines.reserve(scene->totalMeshSectionsLOD0);
 	{
+		uint32 objectID = 0;
 		for (const StaticMesh* mesh : scene->staticMeshes)
 		{
 			uint32 lod = mesh->getActiveLOD();
@@ -205,18 +199,42 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 				bool bDoubleSided = section.material->bDoubleSided;
 				if (bDoubleSided)
 				{
-					drawsForNoCullPipelines.push_back(&section);
+					drawsForNoCullPipelines.meshes.push_back(&section);
+					drawsForNoCullPipelines.objectIDs.push_back(objectID);
 				}
 				else
 				{
-					drawsForDefaultPipelines.push_back(&section);
+					drawsForDefaultPipelines.meshes.push_back(&section);
+					drawsForDefaultPipelines.objectIDs.push_back(objectID);
 				}
+				++objectID;
 			}
 		}
 	}
 
-	// #todo-basepass: Find proper pipeline key.
-	const GraphicsPipelineKey pipelineKey = assemblePipelineKey(kDefaultPipelineKeyDesc);
+	if (passInput.bGPUCulling)
+	{
+		passInput.gpuCulling->resetCullingResources();
+	}
+
+	const GraphicsPipelineKey defaultPipelineKey = assemblePipelineKey(kDefaultPipelineKeyDesc);
+	const GraphicsPipelineKey noCullPipelineKey = assemblePipelineKey(kNoCullPipelineKeyDesc);
+	renderForPipeline(commandList, swapchainIndex, passInput, defaultPipelineKey, drawsForDefaultPipelines);
+	renderForPipeline(commandList, swapchainIndex, passInput, noCullPipelineKey, drawsForNoCullPipelines);
+}
+
+void BasePass::renderForPipeline(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput, GraphicsPipelineKey pipelineKey, const BasePassDrawList& drawList)
+{
+	auto scene              = passInput.scene;
+	auto camera             = passInput.camera;
+	auto bIndirectDraw      = passInput.bIndirectDraw;
+	auto bGPUCulling        = passInput.bGPUCulling;
+	auto sceneUniformBuffer = passInput.sceneUniformBuffer;
+	auto gpuScene           = passInput.gpuScene;
+	auto gpuCulling         = passInput.gpuCulling;
+	auto shadowMaskSRV      = passInput.shadowMaskSRV;
+
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 	auto pipelineItem = pipelinePermutation.findPipeline(pipelineKey);
 	GraphicsPipelineState* pipelineState = pipelineItem.pipelineState;
@@ -225,33 +243,31 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	indirectDrawHelper->resizeResources(swapchainIndex, gpuScene->getGPUSceneItemMaxCount());
 	auto argumentBufferGenerator = indirectDrawHelper->argumentBufferGenerator.get();
 
-	// #todo-basepass: Sort by pipeline key.
 	// Fill the indirect draw buffer and perform GPU culling.
 	uint32 maxIndirectDraws = 0;
 	if (bIndirectDraw)
 	{
 		uint32 indirectCommandID = 0;
-		for (const StaticMesh* mesh : scene->staticMeshes)
+		for (size_t i = 0; i < drawList.meshes.size(); ++i)
 		{
-			uint32 lod = mesh->getActiveLOD();
-			for (const StaticMeshSection& section : mesh->getSections(lod))
-			{
-				VertexBuffer* positionBuffer = section.positionBuffer->getGPUResource().get();
-				VertexBuffer* nonPositionBuffer = section.nonPositionBuffer->getGPUResource().get();
-				IndexBuffer* indexBuffer = section.indexBuffer->getGPUResource().get();
+			const StaticMeshSection* section = drawList.meshes[i];
+			const uint32 objectID = drawList.objectIDs[i];
 
-				argumentBufferGenerator->beginCommand(indirectCommandID);
+			VertexBuffer* positionBuffer = section->positionBuffer->getGPUResource().get();
+			VertexBuffer* nonPositionBuffer = section->nonPositionBuffer->getGPUResource().get();
+			IndexBuffer* indexBuffer = section->indexBuffer->getGPUResource().get();
 
-				argumentBufferGenerator->writeConstant32(indirectCommandID);
-				argumentBufferGenerator->writeVertexBufferView(positionBuffer);
-				argumentBufferGenerator->writeVertexBufferView(nonPositionBuffer);
-				argumentBufferGenerator->writeIndexBufferView(indexBuffer);
-				argumentBufferGenerator->writeDrawIndexedArguments(indexBuffer->getIndexCount(), 1, 0, 0, 0);
+			argumentBufferGenerator->beginCommand(indirectCommandID);
 
-				argumentBufferGenerator->endCommand();
+			argumentBufferGenerator->writeConstant32(objectID);
+			argumentBufferGenerator->writeVertexBufferView(positionBuffer);
+			argumentBufferGenerator->writeVertexBufferView(nonPositionBuffer);
+			argumentBufferGenerator->writeIndexBufferView(indexBuffer);
+			argumentBufferGenerator->writeDrawIndexedArguments(indexBuffer->getIndexCount(), 1, 0, 0, 0);
 
-				++indirectCommandID;
-			}
+			argumentBufferGenerator->endCommand();
+
+			++indirectCommandID;
 		}
 
 		maxIndirectDraws = indirectCommandID;
@@ -269,8 +285,10 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	}
 
 	commandList->setGraphicsPipelineState(pipelineState);
-	commandList->iaSetPrimitiveTopology(primitiveTopology);
+	commandList->iaSetPrimitiveTopology(kPrimitiveTopology);
 
+	// #todo-basepass: Can be shared between pipelines, but my bindGraphicsShaderParameters() is prohibiting it
+	//                 because it takes a PipelineState as argument :(
 	// Bind shader parameters except for root constants.
 	{
 		ShaderParameterTable SPT{};
@@ -299,28 +317,24 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	}
 	else
 	{
-		uint32 payloadID = 0;
-		for (const StaticMesh* mesh : scene->staticMeshes)
+		for (size_t i = 0; i < drawList.meshes.size(); ++i)
 		{
-			uint32 lod = mesh->getActiveLOD();
-			for (const StaticMeshSection& section : mesh->getSections(lod))
-			{
-				ShaderParameterTable SPT{};
-				SPT.pushConstant("pushConstants", payloadID);
-				commandList->updateGraphicsRootConstants(pipelineState, &SPT);
+			const StaticMeshSection* section = drawList.meshes[i];
+			const uint32 objectID = drawList.objectIDs[i];
 
-				VertexBuffer* vertexBuffers[] = {
-					section.positionBuffer->getGPUResource().get(),
-					section.nonPositionBuffer->getGPUResource().get()
-				};
-				auto indexBuffer = section.indexBuffer->getGPUResource().get();
+			ShaderParameterTable SPT{};
+			SPT.pushConstant("pushConstants", objectID);
+			commandList->updateGraphicsRootConstants(pipelineState, &SPT);
 
-				commandList->iaSetVertexBuffers(0, 2, vertexBuffers);
-				commandList->iaSetIndexBuffer(indexBuffer);
-				commandList->drawIndexedInstanced(indexBuffer->getIndexCount(), 1, 0, 0, 0);
+			VertexBuffer* vertexBuffers[] = {
+				section->positionBuffer->getGPUResource().get(),
+				section->nonPositionBuffer->getGPUResource().get()
+			};
+			auto indexBuffer = section->indexBuffer->getGPUResource().get();
 
-				++payloadID;
-			}
+			commandList->iaSetVertexBuffers(0, _countof(vertexBuffers), vertexBuffers);
+			commandList->iaSetIndexBuffer(indexBuffer);
+			commandList->drawIndexedInstanced(indexBuffer->getIndexCount(), 1, 0, 0, 0);
 		}
 	}
 }
@@ -334,7 +348,7 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 	rasterizerDesc.cullMode = pipelineKeyDesc.cullMode;
 
 	// Input layout
-	// #todo: Should be variant per vertex factory
+	// #todo-basepass: Should be variant per vertex factory
 	VertexInputLayout inputLayout = {
 			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
 			{"NORMAL", 0, EPixelFormat::R32G32B32_FLOAT, 1, 0, EVertexInputClassification::PerVertex, 0},
@@ -395,7 +409,6 @@ IndirectDrawHelper* BasePass::createIndirectDrawHelper(GraphicsPipelineState* pi
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
 	IndirectDrawHelper* helper = new IndirectDrawHelper(pipelineKey);
-
 	helper->argumentBuffer.initialize(swapchainCount);
 	helper->argumentBufferSRV.initialize(swapchainCount);
 	helper->culledArgumentBuffer.initialize(swapchainCount);
