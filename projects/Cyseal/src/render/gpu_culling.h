@@ -11,6 +11,20 @@ class GPUScene;
 class SceneProxy;
 class Camera;
 
+struct GPUCullingInput
+{
+	const Camera*           camera;
+	ConstantBufferView*     sceneUniform;
+	GPUScene*               gpuScene;
+	uint32                  maxDrawCommands;
+	Buffer*                 indirectDrawBuffer;
+	Buffer*                 culledIndirectDrawBuffer;
+	Buffer*                 drawCounterBuffer;
+	ShaderResourceView*     indirectDrawBufferSRV;
+	UnorderedAccessView*    culledIndirectDrawBufferUAV;
+	UnorderedAccessView*    drawCounterBufferUAV;
+};
+
 // Cull indirect draw commands using GPU scene.
 class GPUCulling final : public SceneRenderPass
 {
@@ -19,19 +33,7 @@ public:
 
 	void resetCullingResources();
 
-	void cullDrawCommands(
-		RenderCommandList* commandList,
-		uint32 swapchainIndex,
-		ConstantBufferView* sceneUniform,
-		const Camera* camera,
-		GPUScene* gpuScene,
-		uint32 maxDrawCommands,
-		Buffer* indirectDrawBuffer,
-		ShaderResourceView* indirectDrawBufferSRV,
-		Buffer* culledIndirectDrawBuffer,
-		UnorderedAccessView* culledIndirectDrawBufferUAV,
-		Buffer* drawCounterBuffer,
-		UnorderedAccessView* drawCounterBufferUAV);
+	void cullDrawCommands(RenderCommandList* commandList, uint32 swapchainIndex, const GPUCullingInput& passInput);
 
 private:
 	void resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors);

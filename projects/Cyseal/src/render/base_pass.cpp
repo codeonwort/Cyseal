@@ -159,8 +159,8 @@ void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat in
 
 void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput)
 {
-	auto scene              = passInput.scene;
-	auto gpuScene           = passInput.gpuScene;
+	auto scene    = passInput.scene;
+	auto gpuScene = passInput.gpuScene;
 
 	if (gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
@@ -276,11 +276,19 @@ void BasePass::renderForPipeline(RenderCommandList* commandList, uint32 swapchai
 
 		if (bGPUCulling)
 		{
-			gpuCulling->cullDrawCommands(
-				commandList, swapchainIndex, sceneUniformBuffer, camera, gpuScene,
-				maxIndirectDraws, currentArgumentBuffer, indirectDrawHelper->argumentBufferSRV.at(swapchainIndex),
-				indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex), indirectDrawHelper->culledArgumentBufferUAV.at(swapchainIndex),
-				indirectDrawHelper->drawCounterBuffer.at(swapchainIndex), indirectDrawHelper->drawCounterBufferUAV.at(swapchainIndex));
+			GPUCullingInput cullingPassInput{
+				.camera                      = camera,
+				.sceneUniform                = sceneUniformBuffer,
+				.gpuScene                    = gpuScene,
+				.maxDrawCommands             = maxIndirectDraws,
+				.indirectDrawBuffer          = currentArgumentBuffer,
+				.culledIndirectDrawBuffer    = indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex),
+				.drawCounterBuffer           = indirectDrawHelper->drawCounterBuffer.at(swapchainIndex),
+				.indirectDrawBufferSRV       = indirectDrawHelper->argumentBufferSRV.at(swapchainIndex),
+				.culledIndirectDrawBufferUAV = indirectDrawHelper->culledArgumentBufferUAV.at(swapchainIndex),
+				.drawCounterBufferUAV        = indirectDrawHelper->drawCounterBufferUAV.at(swapchainIndex),
+			};
+			gpuCulling->cullDrawCommands(commandList, swapchainIndex, cullingPassInput);
 		}
 	}
 

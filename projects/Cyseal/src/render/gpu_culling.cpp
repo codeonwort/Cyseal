@@ -37,21 +37,20 @@ void GPUCulling::resetCullingResources()
 	descriptorIndexTracker.lastIndex = 0;
 }
 
-void GPUCulling::cullDrawCommands(
-	RenderCommandList* commandList,
-	uint32 swapchainIndex,
-	ConstantBufferView* sceneUniform,
-	const Camera* camera,
-	GPUScene* gpuScene,
-	uint32 maxDrawCommands,
-	Buffer* indirectDrawBuffer,
-	ShaderResourceView* indirectDrawBufferSRV,
-	Buffer* culledIndirectDrawBuffer,
-	UnorderedAccessView* culledIndirectDrawBufferUAV,
-	Buffer* drawCounterBuffer,
-	UnorderedAccessView* drawCounterBufferUAV)
+void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapchainIndex, const GPUCullingInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, GPUCulling);
+
+	auto sceneUniform                = passInput.sceneUniform;
+	auto camera                      = passInput.camera;
+	auto gpuScene                    = passInput.gpuScene;
+	uint32 maxDrawCommands           = passInput.maxDrawCommands;
+	Buffer* indirectDrawBuffer       = passInput.indirectDrawBuffer;
+	Buffer* culledIndirectDrawBuffer = passInput.culledIndirectDrawBuffer;
+	Buffer* drawCounterBuffer        = passInput.drawCounterBuffer;
+	auto indirectDrawBufferSRV       = passInput.indirectDrawBufferSRV;
+	auto culledIndirectDrawBufferUAV = passInput.culledIndirectDrawBufferUAV;
+	auto drawCounterBufferUAV        = passInput.drawCounterBufferUAV;
 
 	// Resize volatile heap if needed.
 	{
