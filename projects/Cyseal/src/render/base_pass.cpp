@@ -218,8 +218,8 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	}
 
 	// Bind shader parameters except for root constants.
+	// #note: Assumes all permutation share the same root signature.
 	{
-		// #todo-basepass: Assumes all permutation share the same root signature.
 		auto defaultPipeline = pipelinePermutation.findPipeline(assemblePipelineKey(kDefaultPipelineKeyDesc)).pipelineState;
 
 		ShaderParameterTable SPT{};
