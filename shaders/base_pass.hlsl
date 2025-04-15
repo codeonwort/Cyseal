@@ -93,6 +93,14 @@ PixelOutput mainPS(Interpolants interpolants)
     // Variables
     float3 N = normalize(interpolants.normalWS);
 
+    // #todo-basepass: Flip N for double-sided materials.
+    // Currently not doing so is better because indirect diffuse pass will construct a ray that 'penetrates' the surface.
+    // To do this correctly:
+    //   1. Permutate not only pipeline states but also base pass shaders so that only double-sided materials pay for this.
+    //   2. Let reflection/refraction deal with back-facing normals correctly.
+    //float3 viewDir = normalize(interpolants.positionWS - sceneUniform.cameraPosition);
+    //if (dot(viewDir, N) > 0) N *= -1;
+
     // Material properties
     Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
     float3 albedo = albedoTex.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;

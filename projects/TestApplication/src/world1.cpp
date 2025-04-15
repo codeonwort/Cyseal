@@ -190,6 +190,7 @@ void World1::createTestMeshes()
 		material->albedoMultiplier = vec3(0.1f);
 		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
 		material->roughness = 0.05f;
+		material->bDoubleSided = true;
 
 		ground = new StaticMesh;
 		ground->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
@@ -222,6 +223,7 @@ void World1::createTestMeshes()
 		material->albedoMultiplier = vec3(0.1f);
 		material->albedoTexture = albedoTexture;
 		material->roughness = 0.1f;
+		material->bDoubleSided = true;
 
 		wallA = new StaticMesh;
 		wallA->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
