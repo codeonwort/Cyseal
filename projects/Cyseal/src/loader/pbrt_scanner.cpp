@@ -24,6 +24,21 @@
 
 namespace pbrt
 {
+	std::wstring getTokenTypeWString(TokenType tok)
+	{
+		switch (tok)
+		{
+			case TokenType::String       : return L"String";
+			case TokenType::QuoteString  : return L"QuoteString";
+			case TokenType::Number       : return L"Number";
+			case TokenType::LeftBracket  : return L"LeftBracket";
+			case TokenType::RightBracket : return L"RightBracket";
+			case TokenType::EoF          : return L"EoF";
+			default                      : CHECK_NO_ENTRY();
+		}
+		return L"";
+	}
+
 	void PBRT4Scanner::scanTokens(std::istream& stream)
 	{
 		sourceLines.clear();
@@ -35,7 +50,7 @@ namespace pbrt
 			}
 		}
 
-		currentLine = 0;
+		currentLine = 1;
 		startPos = currentPos = 0;
 		for (const std::string& line : sourceLines)
 		{
@@ -142,4 +157,5 @@ namespace pbrt
 		}
 		tokens.emplace_back(tok);
 	}
+
 }

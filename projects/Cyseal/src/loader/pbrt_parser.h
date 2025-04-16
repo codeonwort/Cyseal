@@ -89,6 +89,9 @@ namespace pbrt
 		};
 
 	public:
+		bool                           bValid = true;
+		std::vector<std::wstring>      errorMessages;
+
 		Matrix                         sceneTransform;
 		std::vector<TextureFileDesc>   textureFileDescs;
 		std::vector<NamedMaterialDesc> namedMaterialDescs;
@@ -108,6 +111,7 @@ namespace pbrt
 		using TokenIter = std::vector<Token>::const_iterator;
 
 		void initStates();
+		void parserError(TokenIter& it, const wchar_t* msg, ...);
 
 		void directive(TokenIter& it, PBRT4ParserOutput& output);
 
@@ -145,14 +149,17 @@ namespace pbrt
 	private:
 		using DirectiveTable = std::map<std::string, std::function<void(TokenIter& it, PBRT4ParserOutput& output)>>;
 		DirectiveTable directiveTable;
+		TokenIter      eofTokenIt;
 
 		// States
-		PBRT4ParsePhase    parsePhase = PBRT4ParsePhase::RenderingOptions;
-		Matrix             currentTransform;
-		Matrix             currentTransformBackup;
-		bool               bCurrentTransformIsIdentity = true;
-		std::string        currentNamedMaterial;
-		vec3               currentEmission;
+		bool                      bValid = true;
+		std::vector<std::wstring> errorMessages;
+		PBRT4ParsePhase           parsePhase = PBRT4ParsePhase::RenderingOptions;
+		Matrix                    currentTransform;
+		Matrix                    currentTransformBackup;
+		bool                      bCurrentTransformIsIdentity = true;
+		std::string               currentNamedMaterial;
+		vec3                      currentEmission;
 
 	// Compiler part. Wanna separate parser and compiler but the file format is kinda state machine.
 	private:

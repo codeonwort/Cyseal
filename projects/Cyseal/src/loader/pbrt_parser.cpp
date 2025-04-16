@@ -119,10 +119,19 @@ namespace pbrt
 		PBRT4ParserOutput output{};
 
 		const std::vector<Token>& tokens = scanner->getTokens();
-		auto it = tokens.begin();
-		while (it->type != TokenType::EoF)
+		if (tokens.size() > 0)
 		{
-			directive(it, output);
+			eofTokenIt = tokens.end() - 1;
+			CHECK(eofTokenIt->type == TokenType::EoF);
+
+			auto it = tokens.begin();
+			while (it->type != TokenType::EoF)
+			{
+				directive(it, output);
+			}
+
+			output.bValid = bValid;
+			output.errorMessages = std::move(errorMessages);
 		}
 
 		return output;
@@ -130,12 +139,29 @@ namespace pbrt
 
 	void PBRT4Parser::initStates()
 	{
+		bValid = true;
+		errorMessages.clear();
 		parsePhase = PBRT4ParsePhase::RenderingOptions;
 		currentTransform.identity();
 		currentTransformBackup.identity();
 		bCurrentTransformIsIdentity = true;
 		currentNamedMaterial = "";
 		currentEmission = vec3(0.0f);
+	}
+
+	void PBRT4Parser::parserError(TokenIter& it, const wchar_t* msg, ...)
+	{
+		wchar_t fmtBuffer[4096];
+		va_list argptr;
+		va_start(argptr, msg);
+		std::vswprintf(fmtBuffer, 4096, msg, argptr);
+		va_end(argptr);
+
+		errorMessages.emplace_back(fmtBuffer);
+
+		// #todo-pbrt-parser: Stop immediately or synchronize to next directive?
+		it = eofTokenIt;
+		bValid = false;
 	}
 
 	void PBRT4Parser::directive(TokenIter& it, PBRT4ParserOutput& output)
@@ -150,12 +176,15 @@ namespace pbrt
 			}
 			else
 			{
-				PARSER_CHECK_NO_ENTRY();
+				std::string dirName{ it->value };
+				parserError(it, L"Unsupported directive: %S", dirName.data());
 			}
 		}
 		else
 		{
-			PARSER_CHECK_NO_ENTRY();
+			std::string dirName{ it->value };
+			std::wstring tokType = getTokenTypeWString(it->type);
+			parserError(it, L"Expected a String for directive but %S has type %s", dirName.data(), tokType.data());
 		}
 	}
 

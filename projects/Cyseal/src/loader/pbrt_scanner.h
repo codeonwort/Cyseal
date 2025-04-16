@@ -15,6 +15,8 @@ namespace pbrt
 		EoF, // Having an EOF token is more convenient than dealing with std iterator end
 	};
 
+	std::wstring getTokenTypeWString(TokenType tok);
+
 	struct Token
 	{
 		TokenType type;

@@ -18,6 +18,19 @@ const std::vector<std::string> sourceLines = {
 	"Transform [ 0.999914 0.000835626 0.013058 -0 -0 0.997959 -0.063863 -0 0.0130847 -0.0638576 -0.997873 -0 0.460159 -2.13584 9.87771 1  ]",
 };
 
+const std::vector<std::string> sourceLines_wrongDirectiveFormat = {
+	"[Integrator] \"path\" # some comment",
+	"\"integer maxdepth\" [ 65 ]",
+	"#qwer wee        ",
+	"Transform [ 0.999914 0.000835626 0.013058 -0 -0 0.997959 -0.063863 -0 0.0130847 -0.0638576 -0.997873 -0 0.460159 -2.13584 9.87771 1  ]",
+};
+const std::vector<std::string> sourceLines_wrongDirectiveName = {
+	"Integrator \"path\" # some comment",
+	"\"integer maxdepth\" [ 65 ]",
+	"#qwer wee        ",
+	"Transform123 [ 0.999914 0.000835626 0.013058 -0 -0 0.997959 -0.063863 -0 0.0130847 -0.0638576 -0.997873 -0 0.460159 -2.13584 9.87771 1  ]",
+};
+
 //#define PBRT_FILEPATH L"external/pbrt4_dining_room/dining-room/scene-v4.pbrt"
 #define PBRT_FILEPATH L"external/pbrt4_bedroom/bedroom/scene-v4.pbrt"
 //#define PBRT_FILEPATH L"external/pbrt4_house/house/scene-v4.pbrt"
@@ -73,7 +86,8 @@ namespace UnitTest
 			Assert::IsTrue("]" == tokens[matrixStart + 16].value);
 
 			pbrt::PBRT4Parser parser;
-			parser.parse(&scanner);
+			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
+			Assert::IsTrue(parserOutput.bValid, L"Parser reported errors");
 		}
 
 		TEST_METHOD(TestParser)
@@ -88,7 +102,40 @@ namespace UnitTest
 			scanner.scanTokens(sourceStream);
 
 			pbrt::PBRT4Parser parser;
-			parser.parse(&scanner);
+			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
+			Assert::IsTrue(parserOutput.bValid, L"Parser reported errors");
+		}
+
+		TEST_METHOD(TestParserFailure1)
+		{
+			std::stringstream sourceStream;
+			for (const auto& line : sourceLines_wrongDirectiveFormat)
+			{
+				sourceStream << line << std::endl;
+			}
+
+			pbrt::PBRT4Scanner scanner;
+			scanner.scanTokens(sourceStream);
+
+			pbrt::PBRT4Parser parser;
+			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
+			Assert::IsFalse(parserOutput.bValid, L"Parser didn't report errors for invalid input");
+		}
+
+		TEST_METHOD(TestParserFailure2)
+		{
+			std::stringstream sourceStream;
+			for (const auto& line : sourceLines_wrongDirectiveName)
+			{
+				sourceStream << line << std::endl;
+			}
+
+			pbrt::PBRT4Scanner scanner;
+			scanner.scanTokens(sourceStream);
+
+			pbrt::PBRT4Parser parser;
+			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
+			Assert::IsFalse(parserOutput.bValid, L"Parser didn't report errors for invalid input");
 		}
 
 		TEST_METHOD(TestParserWithFile)
@@ -108,6 +155,7 @@ namespace UnitTest
 
 			pbrt::PBRT4Parser parser;
 			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
+			Assert::IsTrue(parserOutput.bValid, L"Parser reported errors");
 		}
 	};
 }

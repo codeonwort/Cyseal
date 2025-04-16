@@ -59,6 +59,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 
 	pbrt::PBRT4Parser pbrtParser;
 	pbrt::PBRT4ParserOutput parserOutput = pbrtParser.parse(&scanner);
+	CHECK(parserOutput.bValid);
 
 	PBRT4Scene* pbrtScene = new PBRT4Scene;
 
