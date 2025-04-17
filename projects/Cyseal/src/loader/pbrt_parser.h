@@ -112,6 +112,7 @@ namespace pbrt
 
 		void initStates();
 		void parserError(TokenIter& it, const wchar_t* msg, ...);
+		bool parserWrongToken(TokenIter& it, TokenType tokType);
 
 		void directive(TokenIter& it, PBRT4ParserOutput& output);
 

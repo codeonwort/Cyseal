@@ -37,7 +37,6 @@
 
 // #todo-pbrt-parser: Replace with proper error handling
 #define PARSER_CHECK CHECK
-#define PARSER_CHECK_NO_ENTRY CHECK_NO_ENTRY
 
 // #todo-pbrt-parser: Replace with proper error handling
 #define COMPILER_CHECK CHECK
@@ -164,33 +163,44 @@ namespace pbrt
 		bValid = false;
 	}
 
+	bool PBRT4Parser::parserWrongToken(TokenIter& it, TokenType tokType)
+	{
+		if (it->type != tokType)
+		{
+			std::wstring type1 = getTokenTypeWString(tokType);
+			std::wstring type2 = getTokenTypeWString(tokType);
+			parserError(it, L"Expected: %s, actual: %s", type1.data(), type2.data());
+			return true;
+		}
+		return false;
+	}
+
 	void PBRT4Parser::directive(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		if (it->type == TokenType::String)
+		if (parserWrongToken(it, TokenType::String)) return;
+
+		auto callbackIt = directiveTable.find(std::string(it->value));
+		if (callbackIt != directiveTable.end())
 		{
-			auto callbackIt = directiveTable.find(std::string(it->value));
-			if (callbackIt != directiveTable.end())
-			{
-				++it;
-				callbackIt->second(it, output);
-			}
-			else
-			{
-				std::string dirName{ it->value };
-				parserError(it, L"Unsupported directive: %S", dirName.data());
-			}
+			++it;
+			callbackIt->second(it, output);
 		}
 		else
 		{
 			std::string dirName{ it->value };
-			std::wstring tokType = getTokenTypeWString(it->type);
-			parserError(it, L"Expected a String for directive but %S has type %s", dirName.data(), tokType.data());
+			parserError(it, L"Unsupported directive: %S", dirName.data());
+			return;
 		}
 	}
 
 	void PBRT4Parser::worldBegin(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(parsePhase == PBRT4ParsePhase::RenderingOptions);
+		if (parsePhase != PBRT4ParsePhase::RenderingOptions)
+		{
+			parserError(it, L"WorldBegin directive in wrong place");
+			return;
+		}
+
 		parsePhase = PBRT4ParsePhase::SceneElements;
 
 		output.sceneTransform = currentTransform;
@@ -201,28 +211,48 @@ namespace pbrt
 
 	void PBRT4Parser::transformBegin(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
+		if (parsePhase != PBRT4ParsePhase::SceneElements)
+		{
+			parserError(it, L"TransformBegin directive in wrong place");
+			return;
+		}
+
 		parsePhase = PBRT4ParsePhase::InsideAttribute;
 		currentTransformBackup = currentTransform;
 	}
 
 	void PBRT4Parser::transformEnd(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
+		if (parsePhase != PBRT4ParsePhase::InsideAttribute)
+		{
+			parserError(it, L"TransformEnd directive in wrong place");
+			return;
+		}
+
 		parsePhase = PBRT4ParsePhase::SceneElements;
 		currentTransform = currentTransformBackup;
 	}
 
 	void PBRT4Parser::attributeBegin(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(parsePhase == PBRT4ParsePhase::SceneElements);
+		if (parsePhase != PBRT4ParsePhase::SceneElements)
+		{
+			parserError(it, L"AttributeBegin directive in wrong place");
+			return;
+		}
+
 		parsePhase = PBRT4ParsePhase::InsideAttribute;
 		currentTransformBackup = currentTransform;
 	}
 
 	void PBRT4Parser::attributeEnd(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(parsePhase == PBRT4ParsePhase::InsideAttribute);
+		if (parsePhase != PBRT4ParsePhase::InsideAttribute)
+		{
+			parserError(it, L"AttributeEnd directive in wrong place");
+			return;
+		}
+
 		parsePhase = PBRT4ParsePhase::SceneElements;
 		currentTransform = currentTransformBackup;
 		currentEmission = vec3(0.0f);
@@ -268,33 +298,30 @@ namespace pbrt
 			"simplepath", "simplevolpath", "sppm", "volpath"
 		};
 
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
+
 		Integrator integratorDesc{};
 
-		if (it->type == TokenType::QuoteString)
+		std::string_view integratorName = it->value;
+		auto nameIt = std::find(validNames.begin(), validNames.end(), integratorName);
+		if (nameIt != validNames.end())
 		{
-			std::string_view integratorName = it->value;
-			auto nameIt = std::find(validNames.begin(), validNames.end(), integratorName);
-			if (nameIt != validNames.end())
-			{
-				integratorDesc.name = *nameIt;
-				++it;
+			integratorDesc.name = *nameIt;
+			++it;
 
-				auto params = parameters(it);
-			}
-			else
-			{
-				PARSER_CHECK_NO_ENTRY();
-			}
+			auto params = parameters(it);
 		}
 		else
 		{
-			PARSER_CHECK_NO_ENTRY();
+			std::string invalidName{ it->value };
+			parserError(it, L"Invalid integrator name: %S", invalidName.data());
+			return;
 		}
 	}
 
 	void PBRT4Parser::sampler(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 
 		const std::string samplerName(it->value);
 
@@ -305,7 +332,7 @@ namespace pbrt
 
 	void PBRT4Parser::pixelFilter(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 
 		const std::string pixelFilterName(it->value);
 
@@ -316,7 +343,7 @@ namespace pbrt
 
 	void PBRT4Parser::film(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 
 		const std::string filmName(it->value);
 
@@ -327,7 +354,7 @@ namespace pbrt
 
 	void PBRT4Parser::camera(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 
 		// "orthographic", "perspective", "realistic", "spherical"
 		const std::string cameraType(it->value);
@@ -339,21 +366,27 @@ namespace pbrt
 
 	void PBRT4Parser::transform(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::LeftBracket);
+		if (parserWrongToken(it, TokenType::LeftBracket)) return;
 		++it;
 
 		Matrix mat;
 		for (size_t i = 0; i < 16; ++i)
 		{
-			PARSER_CHECK(it->type == TokenType::Number);
+			if (parserWrongToken(it, TokenType::Number)) return;
+
 			float value = std::stof(it->value.data());
 			mat.m[i / 4][i % 4] = value;
 			++it;
 		}
-		PARSER_CHECK(it->type == TokenType::RightBracket);
+
+		if (parserWrongToken(it, TokenType::RightBracket)) return;
 		++it;
 
-		PARSER_CHECK(parsePhase != PBRT4ParsePhase::SceneElements);
+		if (parsePhase == PBRT4ParsePhase::SceneElements)
+		{
+			parserError(it, L"Transform directive in wrong place");
+			return;
+		}
 		currentTransform = mat;
 		bCurrentTransformIsIdentity = false;
 	}
@@ -363,19 +396,19 @@ namespace pbrt
 		// Rotate angle x y z
 		// where angle is in degrees and (x, y, z) = axis
 
-		PARSER_CHECK(it->type == TokenType::Number);
+		if (parserWrongToken(it, TokenType::Number)) return;
 		float angle = std::stof(it->value.data());
 		++it;
 
-		PARSER_CHECK(it->type == TokenType::Number);
+		if (parserWrongToken(it, TokenType::Number)) return;
 		float x = std::stof(it->value.data());
 		++it;
 
-		PARSER_CHECK(it->type == TokenType::Number);
+		if (parserWrongToken(it, TokenType::Number)) return;
 		float y = std::stof(it->value.data());
 		++it;
 
-		PARSER_CHECK(it->type == TokenType::Number);
+		if (parserWrongToken(it, TokenType::Number)) return;
 		float z = std::stof(it->value.data());
 		++it;
 
@@ -386,15 +419,15 @@ namespace pbrt
 	{
 		// Scale x y z
 
-		PARSER_CHECK(it->type == TokenType::Number);
+		if (parserWrongToken(it, TokenType::Number)) return;
 		float x = std::stof(it->value.data());
 		++it;
 
-		PARSER_CHECK(it->type == TokenType::Number);
+		if (parserWrongToken(it, TokenType::Number)) return;
 		float y = std::stof(it->value.data());
 		++it;
 
-		PARSER_CHECK(it->type == TokenType::Number);
+		if (parserWrongToken(it, TokenType::Number)) return;
 		float z = std::stof(it->value.data());
 		++it;
 
@@ -408,16 +441,23 @@ namespace pbrt
 	{
 		// LookAt eye_x eye_y eye_z look_x look_y look_z up_x up_y up_z
 
-		auto readFloat = [&it]() {
-			PARSER_CHECK(it->type == TokenType::Number);
-			float x = std::stof(it->value.data());
+		auto readFloat = [&it, this](float& outValue) {
+			if (parserWrongToken(it, TokenType::Number)) return true;
+			outValue = std::stof(it->value.data());
 			++it;
-			return x;
-			};
+			return false;
+		};
 
-		vec3 origin(readFloat(), readFloat(), readFloat());
-		vec3 target(readFloat(), readFloat(), readFloat());
-		vec3 up(readFloat(), readFloat(), readFloat());
+		vec3 origin, target, up;
+		if (readFloat(origin.x)) return;
+		if (readFloat(origin.y)) return;
+		if (readFloat(origin.z)) return;
+		if (readFloat(target.x)) return;
+		if (readFloat(target.y)) return;
+		if (readFloat(target.z)) return;
+		if (readFloat(up.x)) return;
+		if (readFloat(up.y)) return;
+		if (readFloat(up.z)) return;
 
 		//~ Burrowed from Camera::lookAt()
 		vec3 Z = normalize(target - origin); // forward
@@ -436,18 +476,18 @@ namespace pbrt
 
 	void PBRT4Parser::concatTransform(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::LeftBracket);
+		if (parserWrongToken(it, TokenType::LeftBracket)) return;
 		++it;
 
 		Matrix M;
 		for (size_t i = 0; i < 16; ++i)
 		{
-			PARSER_CHECK(it->type == TokenType::Number);
+			if (parserWrongToken(it, TokenType::Number)) return;
 			float value = std::stof(it->value.data());
 			M.m[i / 4][i % 4] = value;
 			++it;
 		}
-		PARSER_CHECK(it->type == TokenType::RightBracket);
+		if (parserWrongToken(it, TokenType::RightBracket)) return;
 		++it;
 
 		currentTransform = M * currentTransform;
@@ -455,15 +495,15 @@ namespace pbrt
 
 	void PBRT4Parser::texture(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 		std::string textureName(it->value);
 
 		++it;
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 		std::string textureType(it->value);
 
 		++it;
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 		std::string textureClass(it->value);
 
 		++it;
@@ -482,7 +522,7 @@ namespace pbrt
 	{
 		// "coateddiffuse", "coatedconductor", "conductor", "dielectric", "diffuse", "diffusetransmission",
 		// "hair", "interface", "measured", "mix", "subsurface", "thindieletric"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 		const std::string materialType(it->value);
 
 		++it;
@@ -492,7 +532,7 @@ namespace pbrt
 
 	void PBRT4Parser::namedMaterial(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 
 		const std::string materialName(it->value);
 		++it;
@@ -502,7 +542,7 @@ namespace pbrt
 
 	void PBRT4Parser::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 		std::string materialName(it->value);
 
 		++it;
@@ -517,11 +557,15 @@ namespace pbrt
 
 	void PBRT4Parser::shape(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		PARSER_CHECK(parsePhase != PBRT4ParsePhase::RenderingOptions);
+		if (parsePhase == PBRT4ParsePhase::RenderingOptions)
+		{
+			parserError(it, L"Shape directive in wrong place");
+			return;
+		}
 
 		// "bilinearmesh", "curve", "cylinder", "disk", "sphere", "trianglemesh",
 		// "loopsubdiv", "plymesh"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 		std::string shapeName(it->value);
 
 		++it;
@@ -540,7 +584,7 @@ namespace pbrt
 	void PBRT4Parser::lightSource(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// "distant", "goniometric", "infinite", "point", "projection", "spot"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 
 		const std::string lightName(it->value);
 
@@ -552,7 +596,7 @@ namespace pbrt
 	void PBRT4Parser::areaLightSource(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// "diffuse"
-		PARSER_CHECK(it->type == TokenType::QuoteString);
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
 		const std::string lightType(it->value);
 
 		++it;
