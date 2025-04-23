@@ -95,6 +95,7 @@ namespace UnitTest
 
 			// Enters the main loop.
 			EApplicationReturnCode ret = app->launch(createParams);
+			static_cast<void>(ret);
 
 			CHECK(ret == EApplicationReturnCode::Ok);
 		}
