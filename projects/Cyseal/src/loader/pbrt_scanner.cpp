@@ -1,5 +1,9 @@
 #include "pbrt_scanner.h"
+#include "util/resource_finder.h"
+
+#include <fstream>
 #include <sstream>
+#include <filesystem>
 
 #define TOKEN_WORLD_BEGIN            "WorldBegin"
 #define TOKEN_ATTRIBUTE_BEGIN        "AttributeBegin"
@@ -37,6 +41,44 @@ namespace pbrt
 			default                      : CHECK_NO_ENTRY();
 		}
 		return L"";
+	}
+
+	static bool readFileRecursiveSub(const wchar_t* filepath, const std::filesystem::path& baseDir, std::vector<std::string>& outLines)
+	{
+		std::fstream stream(filepath);
+		if (stream.is_open() == false) return false;
+
+		std::string line;
+		while (std::getline(stream, line))
+		{
+			if (line.starts_with("Include"))
+			{
+				size_t x = line.find_first_of('"');
+				size_t y = line.find_last_of('"');
+				std::string childFilename = line.substr(x + 1, y - x - 1);
+
+				std::filesystem::path childPath = baseDir / childFilename;
+				bool bChildValid = readFileRecursiveSub(childPath.c_str(), baseDir, outLines);
+				if (!bChildValid) return false;
+			}
+			else
+			{
+				outLines.push_back(line);
+			}
+		}
+
+		return true;
+	}
+	bool readFileRecursive(const wchar_t* filepath, std::vector<std::string>& outSourceLines)
+	{
+		std::wstring entryFile = ResourceFinder::get().find(filepath);
+		std::filesystem::path baseDir(entryFile);
+		baseDir = baseDir.parent_path();
+
+		outSourceLines.clear();
+		bool bAllOpen = readFileRecursiveSub(entryFile.c_str(), baseDir, outSourceLines);
+
+		return bAllOpen;
 	}
 
 	void PBRT4Scanner::scanTokens(std::istream& stream)

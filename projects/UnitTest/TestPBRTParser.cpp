@@ -35,6 +35,9 @@ const std::vector<std::string> sourceLines_wrongDirectiveName = {
 #define PBRT_FILEPATH L"external/pbrt4_bedroom/bedroom/scene-v4.pbrt"
 //#define PBRT_FILEPATH L"external/pbrt4_house/house/scene-v4.pbrt"
 
+// For recursive include test
+#define PBRT_FILEPATH_SANMIGUEL L"external/pbrt4_sanmiguel/sanmiguel-entry.pbrt"
+
 namespace UnitTest
 {
 	TEST_CLASS(TestPBRTParser)
@@ -156,6 +159,17 @@ namespace UnitTest
 			pbrt::PBRT4Parser parser;
 			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
 			Assert::IsTrue(parserOutput.bValid, L"Parser reported errors");
+		}
+
+		TEST_METHOD(TestRecursiveInclude)
+		{
+			ResourceFinder::get().addBaseDirectory(L"../");
+			ResourceFinder::get().addBaseDirectory(L"../../");
+			ResourceFinder::get().addBaseDirectory(L"../../external/");
+
+			std::vector<std::string> lines;
+			bool bSuccess = pbrt::readFileRecursive(PBRT_FILEPATH_SANMIGUEL, lines);
+			Assert::IsTrue(bSuccess, L"Couldn't open all files");
 		}
 	};
 }

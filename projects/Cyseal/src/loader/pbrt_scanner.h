@@ -3,6 +3,7 @@
 #include "core/int_types.h"
 
 #include <istream>
+#include <vector>
 #include <string>
 #include <string_view>
 
@@ -23,6 +24,14 @@ namespace pbrt
 		std::string_view value;
 		int32 line;
 	};
+
+	/// <summary>
+	/// Reads pbrt4 files recursively, processing Include directives.
+	/// </summary>
+	/// <param name="filepath">Full filepath to open</param>
+	/// <param name="outSourceLines">All file contents combined</param>
+	/// <returns>true if all files were open successfully. Does not check if the content has valid pbrt4 format.</returns>
+	bool readFileRecursive(const wchar_t* filepath, std::vector<std::string>& outSourceLines);
 
 	// Reads pbrt4 file and generates tokens which can be recognized by PBRT4Parser.
 	class PBRT4Scanner final
