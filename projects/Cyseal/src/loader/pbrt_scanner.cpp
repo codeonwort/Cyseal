@@ -91,7 +91,17 @@ namespace pbrt
 				sourceLines.emplace_back(line);
 			}
 		}
+		scanTokensSub();
+	}
 
+	void PBRT4Scanner::scanTokens(const std::vector<std::string>& lines)
+	{
+		sourceLines = lines;
+		scanTokensSub();
+	}
+
+	void PBRT4Scanner::scanTokensSub()
+	{
 		currentLine = 1;
 		startPos = currentPos = 0;
 		for (const std::string& line : sourceLines)
@@ -99,7 +109,7 @@ namespace pbrt
 			scanLine(line);
 			++currentLine;
 		}
-		
+
 		Token eofTok;
 		eofTok.type = TokenType::EoF;
 		tokens.emplace_back(eofTok);

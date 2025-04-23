@@ -38,10 +38,12 @@ namespace pbrt
 	{
 	public:
 		void scanTokens(std::istream& stream);
+		void scanTokens(const std::vector<std::string>& lines);
 
 		inline const std::vector<pbrt::Token>& getTokens() const { return tokens; }
 
 	private:
+		void scanTokensSub();
 		void scanLine(const std::string& line);
 		void makeToken(std::istream& stream, const std::string& line, std::streampos startPos, pbrt::TokenType tokenType);
 		void skipWhitespace(std::istream& stream);

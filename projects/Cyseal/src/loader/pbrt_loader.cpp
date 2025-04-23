@@ -47,6 +47,8 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	}
 	std::filesystem::path baseDirPath = filepath;
 	std::wstring baseDir = baseDirPath.parent_path().wstring() + L"/";
+
+#if 0
 	std::fstream fs(wFilepath);
 	if (!fs)
 	{
@@ -56,6 +58,17 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 
 	pbrt::PBRT4Scanner scanner;
 	scanner.scanTokens(fs);
+#else
+	std::vector<std::string> fileContents;
+	bool bFilesValid = pbrt::readFileRecursive(wFilepath.c_str(), fileContents);
+	if (!bFilesValid)
+	{
+		CYLOG(LogPBRT, Error, L"Can't open file (or its includes): %s", filepath.c_str());
+		return nullptr;
+	}
+	pbrt::PBRT4Scanner scanner;
+	scanner.scanTokens(fileContents);
+#endif
 
 	pbrt::PBRT4Parser pbrtParser;
 	pbrt::PBRT4ParserOutput parserOutput = pbrtParser.parse(&scanner);
