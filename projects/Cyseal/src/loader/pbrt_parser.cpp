@@ -890,7 +890,7 @@ namespace pbrt
 		COMPILER_CHECK_PARAMETER(pType, PBRT4ParameterType::String);
 		COMPILER_OPTIONAL_PARAMETER2(pReflectrance, PBRT4ParameterType::Texture, PBRT4ParameterType::Float3);
 		COMPILER_OPTIONAL_PARAMETER(pRemaproughness, PBRT4ParameterType::Bool);
-		COMPILER_OPTIONAL_PARAMETER(pRoughness, PBRT4ParameterType::Float);
+		COMPILER_OPTIONAL_PARAMETER2(pRoughness, PBRT4ParameterType::Float, PBRT4ParameterType::Texture);
 		COMPILER_OPTIONAL_PARAMETER(pVRoughness, PBRT4ParameterType::Float);
 		COMPILER_OPTIONAL_PARAMETER(pURoughness, PBRT4ParameterType::Float);
 		COMPILER_OPTIONAL_PARAMETER(pTransmittance, PBRT4ParameterType::Float3);
@@ -917,7 +917,8 @@ namespace pbrt
 		}
 		else
 		{
-			roughness = pRoughness != nullptr ? pRoughness->asFloat : 1.0f;
+			// #todo-pbrt-parser: Support roughness texture
+			roughness = (pRoughness != nullptr && pRoughness->datatype == PBRT4ParameterType::Float) ? pRoughness->asFloat : 1.0f;
 		}
 
 		vec3 transmittance(0.0f);
@@ -957,22 +958,32 @@ namespace pbrt
 
 	void PBRT4Parser::compileTexture(TextureDesc& inDesc, PBRT4ParserOutput& output)
 	{
-		if (inDesc.textureType == "spectrum" && inDesc.textureClass == "imagemap")
+		const bool bRGB = inDesc.textureType == "spectrum";
+		const bool bGrey = inDesc.textureType == "float";
+
+		if ((bRGB || bGrey) && inDesc.textureClass == "imagemap")
 		{
 			auto pFilter   = findParameter(inDesc.parameters, "filter");
 			auto pFilename = findParameter(inDesc.parameters, "filename");
-			COMPILER_CHECK_PARAMETER(pFilter, PBRT4ParameterType::String);
+			COMPILER_OPTIONAL_PARAMETER(pFilter, PBRT4ParameterType::String);
 			COMPILER_CHECK_PARAMETER(pFilename, PBRT4ParameterType::String);
+
+			std::string filter = (pFilter != nullptr) ? pFilter->asString : "bilinear";
 
 			std::wstring wTextureFilename;
 			str_to_wstr(pFilename->asString, wTextureFilename);
 
 			PBRT4ParserOutput::TextureFileDesc outDesc{
 				.textureName   = std::move(inDesc.name),
-				.textureFilter = std::move(pFilename->asString),
+				.textureFilter = std::move(filter),
 				.filename      = std::move(wTextureFilename),
+				.numChannels   = bRGB ? 3 : 1, // #todo-pbrt: Actually use it? But ImageLoader will handle file loading anyway...
 			};
 			output.textureFileDescs.emplace_back(outDesc);
+		}
+		else if ((bRGB || bGrey) && inDesc.textureClass == "scale")
+		{
+			// #todo-pbrt-parser: Compile scale texture
 		}
 		else
 		{

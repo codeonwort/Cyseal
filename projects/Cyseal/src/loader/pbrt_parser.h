@@ -51,6 +51,7 @@ namespace pbrt
 			std::string    textureName;
 			std::string    textureFilter;
 			std::wstring   filename;
+			int32          numChannels; // 1 or 3
 		};
 		struct NamedMaterialDesc
 		{

@@ -171,5 +171,23 @@ namespace UnitTest
 			bool bSuccess = pbrt::readFileRecursive(PBRT_FILEPATH_SANMIGUEL, lines);
 			Assert::IsTrue(bSuccess, L"Couldn't open all files");
 		}
+
+		TEST_METHOD(TestParserWithRecursiveFiles)
+		{
+			ResourceFinder::get().addBaseDirectory(L"../");
+			ResourceFinder::get().addBaseDirectory(L"../../");
+			ResourceFinder::get().addBaseDirectory(L"../../external/");
+
+			std::vector<std::string> lines;
+			bool bSuccess = pbrt::readFileRecursive(PBRT_FILEPATH_SANMIGUEL, lines);
+			Assert::IsTrue(bSuccess, L"Couldn't open all files");
+
+			pbrt::PBRT4Scanner scanner;
+			scanner.scanTokens(lines);
+
+			pbrt::PBRT4Parser parser;
+			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
+			Assert::IsTrue(parserOutput.bValid, L"Parser reported errors");
+		}
 	};
 }
