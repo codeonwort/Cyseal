@@ -191,7 +191,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	drawsForNoCullPipelines.reserve(scene->totalMeshSectionsLOD0);
 	{
 		uint32 objectID = 0;
-		for (const StaticMesh* mesh : scene->staticMeshes)
+		for (const StaticMeshProxy* mesh : scene->staticMeshes)
 		{
 			uint32 lod = mesh->getActiveLOD();
 			for (const StaticMeshSection& section : mesh->getSections(lod))

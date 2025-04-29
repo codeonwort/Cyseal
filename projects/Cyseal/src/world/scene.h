@@ -1,8 +1,10 @@
 #pragma once
 
 #include "light.h"
+#include "camera.h"
 #include "gpu_resource_asset.h"
 #include "core/smart_pointer.h"
+#include "render/renderer_options.h"
 #include <vector>
 
 class StaticMesh;
@@ -12,6 +14,8 @@ class SceneProxy;
 class Scene
 {
 public:
+	void updateMeshLODs(const Camera& camera, const RendererOptions& rendererOptions);
+
 	SceneProxy* createProxy();
 
 	void addStaticMesh(StaticMesh* staticMesh);

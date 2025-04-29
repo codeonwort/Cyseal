@@ -258,7 +258,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		updateDescs.reserve(scene->staticMeshes.size());
 		for (size_t i = 0; i < scene->staticMeshes.size(); ++i)
 		{
-			StaticMesh* staticMesh = scene->staticMeshes[i];
+			StaticMeshProxy* staticMesh = scene->staticMeshes[i];
 			Float4x4 modelMatrix = staticMesh->getTransformMatrix(); // row-major
 
 			if (staticMesh->isTransformDirty() == false)
@@ -671,11 +671,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		device->flushCommandQueue();
 	}
 
+	// #wip
 	// Deallocate memory, a bit messy
 	commandList->executeDeferredDealloc();
 	for (auto& cand : deferredCleanupList) delete cand.resource;
 	deferredCleanupList.clear();
-	const_cast<SceneProxy*>(scene)->tempCleanupOriginalScene();
 }
 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
@@ -1047,7 +1047,7 @@ void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList,
 	std::vector<BLASInstanceInitDesc> blasDescArray(numStaticMeshes);
 	for (uint32 staticMeshIndex = 0; staticMeshIndex < numStaticMeshes; ++staticMeshIndex)
 	{
-		StaticMesh* staticMesh = scene->staticMeshes[staticMeshIndex];
+		StaticMeshProxy* staticMesh = scene->staticMeshes[staticMeshIndex];
 		BLASInstanceInitDesc& blasDesc = blasDescArray[staticMeshIndex];
 
 		Float4x4 modelMatrix = staticMesh->getTransformMatrix(); // row-major

@@ -259,6 +259,7 @@
     <ClCompile Include="src\util\unit_test.cpp" />
     <ClCompile Include="src\world\camera.cpp" />
     <ClCompile Include="src\world\scene.cpp" />
+    <ClCompile Include="src\world\scene_proxy.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -80,6 +80,8 @@ bool TestApplication::onInitialize()
 
 void TestApplication::onTick(float deltaSeconds)
 {
+	// #wip: Execute render command lists here if double buffering (but flush after world tick)
+
 	{
 		SCOPED_CPU_EVENT(WorldLogic);
 
@@ -242,6 +244,8 @@ void TestApplication::onTick(float deltaSeconds)
 			ImGui::End();
 		}
 		cysealEngine.renderImgui();
+
+		scene.updateMeshLODs(camera, appState.rendererOptions);
 
 		SceneProxy* sceneProxy = scene.createProxy();
 

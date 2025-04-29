@@ -21,9 +21,32 @@ struct StaticMeshLOD
 	std::vector<StaticMeshSection> sections;
 };
 
+// #wip: StaticMeshProxy
+struct StaticMeshProxy
+{
+	std::vector<StaticMeshLOD> LODs;
+	uint32                     activeLOD;
+	Transform                  transform;
+	bool                       bTransformDirty;
+	bool                       bLodDirty;
+
+	inline const std::vector<StaticMeshSection>& getSections(uint32 lod) const
+	{
+		CHECK(lod < LODs.size());
+		return LODs[lod].sections;
+	}
+	inline size_t getNumLODs() const { return LODs.size(); }
+	inline uint32 getActiveLOD() const { return activeLOD; }
+	inline const Matrix& getTransformMatrix() const { return transform.getMatrix(); }
+	inline bool isTransformDirty() const { return bTransformDirty; }
+	inline bool isLodDirty() const { return bLodDirty; }
+};
+
 class StaticMesh
 {
 public:
+	StaticMeshProxy* createStaticMeshProxy() const;
+
 	void addSection(
 		uint32 lod,
 		SharedPtr<VertexBufferAsset> positionBuffer,

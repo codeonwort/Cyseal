@@ -42,19 +42,7 @@ struct GPUSceneCommand
 	GPUSceneItem sceneItem;
 };
 
-static uint32 calculateLOD(const StaticMesh* mesh, const Camera* camera)
-{
-	const size_t numLODs = mesh->getNumLODs();
-	float distance = (camera->getPosition() - mesh->getPosition()).length();
-	// #todo-lod: Temp criteria
-	uint32 lod = 0;
-	if (distance >= 90.0f) lod = 3;
-	else if (distance >= 60.0f) lod = 2;
-	else if (distance >= 30.0f) lod = 1;
-	// Clamp LOD
-	if (lod >= numLODs) lod = (uint32)(numLODs - 1);
-	return lod;
-}
+
 
 void GPUScene::initialize()
 {
@@ -106,11 +94,8 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
-		StaticMesh* sm = scene->staticMeshes[i];
-		// #todo-lod: Mesh LOD is currently incompatible with raytracing passes.
-		uint32 lod = bRenderAnyRaytracingPass ? 0 : calculateLOD(sm, camera);
-		sm->setActiveLOD(lod);
-		uint32 currentSections = (uint32)(sm->getSections(lod).size());
+		StaticMeshProxy* sm = scene->staticMeshes[i];
+		uint32 currentSections = (uint32)(sm->getSections(sm->getActiveLOD()).size());
 		numMeshSections += currentSections;
 		if (sm->isTransformDirty() || sm->isLodDirty())
 		{
@@ -169,7 +154,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 
 		for (uint32 i = 0; i < numStaticMeshes; ++i)
 		{
-			StaticMesh* staticMesh = scene->staticMeshes[i];
+			StaticMeshProxy* staticMesh = scene->staticMeshes[i];
 			uint32 lod = staticMesh->getActiveLOD();
 			for (const StaticMeshSection& section : staticMesh->getSections(lod))
 			{
@@ -231,7 +216,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	uint32 sceneCommandIx = 0;
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
-		StaticMesh* sm = scene->staticMeshes[i];
+		StaticMeshProxy* sm = scene->staticMeshes[i];
 		uint32 lod = sm->getActiveLOD();
 		const uint32 smSections = (uint32)(sm->getSections(lod).size());
 

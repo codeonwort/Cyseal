@@ -1,6 +1,18 @@
 #include "static_mesh.h"
 #include "rhi/gpu_resource.h"
 
+StaticMeshProxy* StaticMesh::createStaticMeshProxy() const
+{
+	StaticMeshProxy* proxy = new StaticMeshProxy{
+		.LODs            = LODs,
+		.activeLOD       = activeLOD,
+		.transform       = transform,
+		.bTransformDirty = bTransformDirty,
+		.bLodDirty       = bLodDirty,
+	};
+	return proxy;
+}
+
 void StaticMesh::addSection(
 	uint32 lod,
 	SharedPtr<VertexBufferAsset> positionBuffer,
