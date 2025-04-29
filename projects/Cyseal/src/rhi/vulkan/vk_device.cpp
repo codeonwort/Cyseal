@@ -331,12 +331,10 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 		for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
 		{
-			RenderCommandAllocator* allocator = new VulkanRenderCommandAllocator;
-			allocator->initialize(this);
+			RenderCommandAllocator* allocator = createRenderCommandAllocator();
 			commandAllocators.push_back(allocator);
 
-			RenderCommandList* commandList = new VulkanRenderCommandList;
-			commandList->initialize(this);
+			RenderCommandList* commandList = createRenderCommandList();
 			commandLists.push_back(commandList);
 		}
 	}
@@ -447,6 +445,20 @@ void VulkanDevice::shutdownDearImgui()
 {
 	RenderDevice::shutdownDearImgui();
 	ImGui_ImplVulkan_Shutdown();
+}
+
+RenderCommandList* VulkanDevice::createRenderCommandList()
+{
+	RenderCommandList* commandList = new VulkanRenderCommandList;
+	commandList->initialize(this);
+	return commandList;
+}
+
+RenderCommandAllocator* VulkanDevice::createRenderCommandAllocator()
+{
+	RenderCommandAllocator* allocator = new VulkanRenderCommandAllocator;
+	allocator->initialize(this);
+	return allocator;
 }
 
 VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, EBufferAccessFlags usageFlags, const wchar_t* inDebugName)

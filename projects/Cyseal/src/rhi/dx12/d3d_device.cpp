@@ -222,12 +222,10 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	// 6. Create command allocators and command list.
 	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
 	{
-		RenderCommandAllocator* allocator = new D3DRenderCommandAllocator;
-		allocator->initialize(this);
+		RenderCommandAllocator* allocator = createRenderCommandAllocator();
 		commandAllocators.push_back(allocator);
 
-		RenderCommandList* commandList = new D3DRenderCommandList;
-		commandList->initialize(this);
+		RenderCommandList* commandList = createRenderCommandList();
 		commandLists.push_back(commandList);
 	}
 
@@ -295,6 +293,20 @@ void D3DDevice::shutdownDearImgui()
 	ImGui_ImplDX12_Shutdown();
 }
 
+RenderCommandList* D3DDevice::createRenderCommandList()
+{
+	RenderCommandList* commandList = new D3DRenderCommandList;
+	commandList->initialize(this);
+	return commandList;
+}
+
+RenderCommandAllocator* D3DDevice::createRenderCommandAllocator()
+{
+	RenderCommandAllocator* allocator = new D3DRenderCommandAllocator;
+	allocator->initialize(this);
+	return allocator;
+}
+
 void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)
 {
 	swapChain->resize(width, height);
@@ -309,8 +321,7 @@ void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32
 
 	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
 	{
-		RenderCommandList* commandList = new D3DRenderCommandList;
-		commandList->initialize(this);
+		RenderCommandList* commandList = createRenderCommandList();
 		commandLists.push_back(commandList);
 	}
 }

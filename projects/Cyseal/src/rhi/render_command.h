@@ -5,6 +5,7 @@
 #include "pipeline_state.h"
 #include "gpu_resource_binding.h"
 #include "gpu_resource_barrier.h"
+#include "core/smart_pointer.h"
 
 #include <functional>
 
@@ -187,6 +188,32 @@ public:
 private:
 	std::vector<CustomCommandType> customCommands;
 	std::vector<std::function<void()>> deferredDeallocs; // Free'd after all GPU works for this command list is done.
+};
+
+/// Container for command lists, as multiple command lists might be needed to render a single frame.
+class RenderCommandListBucket
+{
+public:
+	RenderCommandListBucket(RenderDevice* renderDevice);
+	~RenderCommandListBucket();
+
+	/// Reset requests and allow calling requestFirstCommandList().
+	void reset();
+
+	/// Get the first command list. Calling twice without reset() is not allowed.
+	RenderCommandList* requestFirst();
+
+	/// Mark that current command list should be flushed and get the next one.
+	RenderCommandList* flushAndRequestNext();
+
+	/// Actually execute command lists.
+	void executeCommandLists(RenderCommandQueue* queue);
+
+private:
+	RenderDevice* device = nullptr;
+	std::vector<UniquePtr<RenderCommandAllocator>> allocators;
+	std::vector<UniquePtr<RenderCommandList>> commandLists;
+	uint32 numRequested = 0;
 };
 
 // #todo-rendercommand: Currently every custom commands are executed prior to whole internal rendering pipeline.

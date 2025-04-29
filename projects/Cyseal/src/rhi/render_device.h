@@ -87,6 +87,9 @@ public:
 	// ------------------------------------------------------------------------
 	// Create
 
+	virtual RenderCommandList* createRenderCommandList() = 0;
+	virtual RenderCommandAllocator* createRenderCommandAllocator() = 0;
+
 	// #todo-renderdevice: Remove createVertexBuffer and createIndexBuffer?
 	// #todo-renderdevice: uint64 for sizeInBytes
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, EBufferAccessFlags usageFlags, const wchar_t* inDebugName = nullptr) = 0;

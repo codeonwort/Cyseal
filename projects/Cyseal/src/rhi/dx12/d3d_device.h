@@ -34,6 +34,9 @@ public:
 	// ------------------------------------------------------------------------
 	// Create
 
+	virtual RenderCommandList* createRenderCommandList() override;
+	virtual RenderCommandAllocator* createRenderCommandAllocator() override;
+
 	virtual VertexBuffer* createVertexBuffer(uint32 sizeInBytes, EBufferAccessFlags usageFlags, const wchar_t* inDebugName) override;
 	virtual VertexBuffer* createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
 
