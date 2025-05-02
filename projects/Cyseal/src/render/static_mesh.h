@@ -23,19 +23,12 @@ struct StaticMeshLOD
 
 struct StaticMeshProxy
 {
-	std::vector<StaticMeshLOD> LODs;
-	uint32                     activeLOD;
+	StaticMeshLOD              lod;
 	Transform                  transform;
 	bool                       bTransformDirty;
 	bool                       bLodDirty;
 
-	inline const std::vector<StaticMeshSection>& getSections(uint32 lod) const
-	{
-		CHECK(lod < LODs.size());
-		return LODs[lod].sections;
-	}
-	inline size_t getNumLODs() const { return LODs.size(); }
-	inline uint32 getActiveLOD() const { return activeLOD; }
+	inline const std::vector<StaticMeshSection>& getSections() const { return lod.sections; }
 	inline const Matrix& getTransformMatrix() const { return transform.getMatrix(); }
 	inline bool isTransformDirty() const { return bTransformDirty; }
 	inline bool isLodDirty() const { return bLodDirty; }

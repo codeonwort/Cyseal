@@ -492,7 +492,7 @@ void PathTracingPass::resizeHitGroupShaderTable(uint32 swapchainIndex, const Sce
 	uint32 recordIx = 0;
 	for (uint32 meshIx = 0; meshIx < numStaticMeshes; ++meshIx)
 	{
-		const uint32 numSections = (uint32)scene->staticMeshes[meshIx]->getSections(0).size();
+		const uint32 numSections = (uint32)scene->staticMeshes[meshIx]->getSections().size();
 		for (uint32 sectionIx = 0; sectionIx < numSections; ++sectionIx)
 		{
 			RootArguments rootArguments{

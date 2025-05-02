@@ -193,8 +193,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		uint32 objectID = 0;
 		for (const StaticMeshProxy* mesh : scene->staticMeshes)
 		{
-			uint32 lod = mesh->getActiveLOD();
-			for (const StaticMeshSection& section : mesh->getSections(lod))
+			for (const StaticMeshSection& section : mesh->getSections())
 			{
 				bool bDoubleSided = section.material->bDoubleSided;
 				if (bDoubleSided)

@@ -1053,7 +1053,6 @@ void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList,
 	// - Each BLAS contains all sections of each StaticMesh.
 
 	const uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
-	const uint32 LOD = 0; // #todo-lod: LOD for BLAS geometries?
 
 	// Prepare BLAS instances.
 	std::vector<BLASInstanceInitDesc> blasDescArray(numStaticMeshes);
@@ -1067,7 +1066,7 @@ void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList,
 		memcpy(blasDesc.instanceTransform[1], modelMatrix.m[1], sizeof(float) * 4);
 		memcpy(blasDesc.instanceTransform[2], modelMatrix.m[2], sizeof(float) * 4);
 
-		for (const StaticMeshSection& section : staticMesh->getSections(LOD))
+		for (const StaticMeshSection& section : staticMesh->getSections())
 		{
 			VertexBuffer* vertexBuffer = section.positionBuffer->getGPUResource().get();
 			IndexBuffer* indexBuffer = section.indexBuffer->getGPUResource().get();

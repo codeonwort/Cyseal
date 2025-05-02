@@ -4,8 +4,7 @@
 StaticMeshProxy* StaticMesh::createStaticMeshProxy() const
 {
 	StaticMeshProxy* proxy = new StaticMeshProxy{
-		.LODs            = LODs,
-		.activeLOD       = activeLOD,
+		.lod             = LODs[activeLOD],
 		.transform       = transform,
 		.bTransformDirty = bTransformDirty,
 		.bLodDirty       = bLodDirty,

@@ -95,7 +95,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
 		StaticMeshProxy* sm = scene->staticMeshes[i];
-		uint32 currentSections = (uint32)(sm->getSections(sm->getActiveLOD()).size());
+		uint32 currentSections = (uint32)(sm->getSections().size());
 		numMeshSections += currentSections;
 		if (sm->isTransformDirty() || sm->isLodDirty())
 		{
@@ -155,8 +155,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		for (uint32 i = 0; i < numStaticMeshes; ++i)
 		{
 			StaticMeshProxy* staticMesh = scene->staticMeshes[i];
-			uint32 lod = staticMesh->getActiveLOD();
-			for (const StaticMeshSection& section : staticMesh->getSections(lod))
+			for (const StaticMeshSection& section : staticMesh->getSections())
 			{
 				MaterialAsset* const material = section.material.get();
 
@@ -217,8 +216,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
 		StaticMeshProxy* sm = scene->staticMeshes[i];
-		uint32 lod = sm->getActiveLOD();
-		const uint32 smSections = (uint32)(sm->getSections(lod).size());
+		const uint32 smSections = (uint32)(sm->getSections().size());
 
 		if (bRebuildGPUScene == false && sm->isTransformDirty() == false && sm->isLodDirty() == false)
 		{
@@ -230,7 +228,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		
 		for (uint32 j = 0; j < smSections; ++j)
 		{
-			const StaticMeshSection& section = sm->getSections(lod)[j];
+			const StaticMeshSection& section = sm->getSections()[j];
 			sceneCommands[sceneCommandIx].commandType                       = (uint32)EGPUSceneCommandType::Update;
 			sceneCommands[sceneCommandIx].sceneItemIndex                    = sceneItemIx;
 			sceneCommands[sceneCommandIx].sceneItem.modelTransform          = localToWorld;
