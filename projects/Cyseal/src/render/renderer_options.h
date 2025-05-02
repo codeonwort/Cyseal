@@ -50,9 +50,10 @@ enum class EIndirectSpecularMode : uint32
 
 enum class EPathTracingMode : uint32
 {
-	Disabled         = 0,
-	Offline          = 1,
-	Realtime         = 2,
+	Disabled          = 0,
+	Offline           = 1,
+	Realtime          = 2,
+	RealtimeDenoising = 3,
 
 	Count
 };
@@ -121,6 +122,7 @@ inline const char** getPathTracingModeNames()
 		"Disabled",
 		"Offline",
 		"Realtime",
+		"RealtimeDenoising",
 	};
 	return strings;
 }

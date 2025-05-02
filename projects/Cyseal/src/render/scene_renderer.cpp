@@ -209,20 +209,22 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	// #todo-renderer: In future each render pass might write to RTs of different dimensions.
 	// Currently all passes work at full resolution.
-	commandList->rsSetViewport(Viewport{
+	const Viewport fullscreenViewport{
 		.topLeftX = 0,
 		.topLeftY = 0,
 		.width    = static_cast<float>(sceneWidth),
 		.height   = static_cast<float>(sceneHeight),
 		.minDepth = 0.0f,
 		.maxDepth = 1.0f,
-	});
-	commandList->rsSetScissorRect(ScissorRect{
+	};
+	const ScissorRect fullscreenScissorRect{
 		.left   = 0,
 		.top    = 0,
 		.right  = sceneWidth,
 		.bottom = sceneHeight,
-	});
+	};
+	commandList->rsSetViewport(fullscreenViewport);
+	commandList->rsSetScissorRect(fullscreenScissorRect);
 
 	updateSceneUniform(commandList, swapchainIndex, scene, camera);
 	auto sceneUniformCBV = sceneUniformCBVs.at(swapchainIndex);
@@ -433,37 +435,46 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		if (bRenderPathTracing && runDenoiserNow)
 		{
-			SCOPED_DRAW_EVENT(commandList, BlitDenoiserInput);
+			{
+				SCOPED_DRAW_EVENT(commandList, BlitDenoiserInput);
 
-			TextureMemoryBarrier barriers1[] = {
-				{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_pathTracing.get(), }
-			};
-			commandList->resourceBarriers(0, nullptr, _countof(barriers1), barriers1);
+				TextureMemoryBarrier barriers1[] = {
+					{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_pathTracing.get(), }
+				};
+				commandList->resourceBarriers(0, nullptr, _countof(barriers1), barriers1);
 
-			DenoiserPluginInput passInput{
-				.imageWidth    = sceneWidth,
-				.imageHeight   = sceneHeight,
-				.sceneColorSRV = pathTracingSRV.get(),
-				.gbuffer0SRV   = gbufferSRVs[0].get(),
-				.gbuffer1SRV   = gbufferSRVs[1].get()
-			};
-			denoiserPluginPass->blitTextures(commandList, swapchainIndex, passInput);
+				DenoiserPluginInput passInput{
+					.imageWidth = sceneWidth,
+					.imageHeight = sceneHeight,
+					.sceneColorSRV = pathTracingSRV.get(),
+					.gbuffer0SRV = gbufferSRVs[0].get(),
+					.gbuffer1SRV = gbufferSRVs[1].get()
+				};
+				denoiserPluginPass->blitTextures(commandList, swapchainIndex, passInput);
+			}
+			{
+				SCOPED_DRAW_EVENT(commandList, FlushCommandQueue);
 
-			// Flush GPU to readback input textures.
-			immediateFlushCommandQueue(commandQueue, commandAllocator, commandList);
-			resetCommandList(commandAllocator, commandList);
+				// #todo-oidn: Don't flush command queue
+				// Flush GPU to readback input textures.
+				immediateFlushCommandQueue(commandQueue, commandAllocator, commandList);
+				resetCommandList(commandAllocator, commandList);
+			}
+			{
+				SCOPED_DRAW_EVENT(commandList, ExecuteDenoiser);
 
-			TextureMemoryBarrier barriers2[] = {
-				{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::COPY_DEST, RT_pathTracing.get(), }
-			};
-			commandList->resourceBarriers(0, nullptr, _countof(barriers2), barriers2);
+				TextureMemoryBarrier barriers2[] = {
+					{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::COPY_DEST, RT_pathTracing.get(), }
+				};
+				commandList->resourceBarriers(0, nullptr, _countof(barriers2), barriers2);
 
-			denoiserPluginPass->executeDenoiser(commandList, RT_pathTracing.get());
+				denoiserPluginPass->executeDenoiser(commandList, RT_pathTracing.get());
 
-			TextureMemoryBarrier barriers3[] = {
-				{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, RT_pathTracing.get(), }
-			};
-			commandList->resourceBarriers(0, nullptr, _countof(barriers3), barriers3);
+				TextureMemoryBarrier barriers3[] = {
+					{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, RT_pathTracing.get(), }
+				};
+				commandList->resourceBarriers(0, nullptr, _countof(barriers3), barriers3);
+			}
 		}
 	}
 
@@ -588,6 +599,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
 		ToneMappingInput passInput{
+			.viewport            = fullscreenViewport,
+			.scissorRect         = fullscreenScissorRect,
 			.sceneUniformCBV     = sceneUniformCBV,
 			.sceneColorSRV       = alternateSceneColorSRV,
 			.sceneDepthSRV       = sceneDepthSRV.get(),
@@ -671,7 +684,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		device->flushCommandQueue();
 	}
 
-	// #wip
 	// Deallocate memory, a bit messy
 	commandList->executeDeferredDealloc();
 	for (auto& cand : deferredCleanupList) delete cand.resource;

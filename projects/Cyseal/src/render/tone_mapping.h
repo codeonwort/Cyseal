@@ -11,6 +11,8 @@ class ShaderResourceView;
 
 struct ToneMappingInput
 {
+	Viewport            viewport;
+	ScissorRect         scissorRect;
 	ConstantBufferView* sceneUniformCBV;
 	ShaderResourceView* sceneColorSRV;
 	ShaderResourceView* sceneDepthSRV;

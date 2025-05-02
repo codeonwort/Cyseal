@@ -27,7 +27,7 @@
 #endif
 #define WINDOW_TYPE          EWindowType::WINDOWED
 
-#define DOUBLE_BUFFERING     true
+#define DOUBLE_BUFFERING     false
 #define RAYTRACING_TIER      ERaytracingTier::MaxTier
 
 // Camera position and direction can be overriden by world.
@@ -80,7 +80,7 @@ bool TestApplication::onInitialize()
 
 void TestApplication::onTick(float deltaSeconds)
 {
-	// #wip: Execute render command lists here if double buffering (but flush after world tick)
+	// #todo-renderthread: Start to render using prev frame's scene proxy.
 
 	{
 		SCOPED_CPU_EVENT(WorldLogic);
@@ -135,14 +135,19 @@ void TestApplication::onTick(float deltaSeconds)
 				}
 			}
 		}
+		else if (appState.rendererOptions.pathTracing == EPathTracingMode::Realtime)
+		{
+			appState.pathTracingNumFrames = (std::min)(appState.pathTracingNumFrames + 1, PATH_TRACING_MAX_FRAMES);
+			appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
+		}
+		else if (appState.rendererOptions.pathTracing == EPathTracingMode::RealtimeDenoising)
+		{
+			appState.pathTracingNumFrames = (std::min)(appState.pathTracingNumFrames + 1, PATH_TRACING_MAX_FRAMES);
+			appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::DenoiseNow;
+		}
 		else
 		{
-			appState.pathTracingNumFrames += 1;
-			if (appState.pathTracingNumFrames > PATH_TRACING_MAX_FRAMES)
-			{
-				appState.pathTracingNumFrames = PATH_TRACING_MAX_FRAMES;
-			}
-			appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
+			CHECK_NO_ENTRY();
 		}
 
 		world->onTick(deltaSeconds);

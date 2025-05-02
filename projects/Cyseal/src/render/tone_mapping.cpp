@@ -84,6 +84,9 @@ void ToneMapping::renderToneMapping(RenderCommandList* commandList, uint32 swapc
 	SPT.texture("indirectDiffuse", passInput.indirectDiffuseSRV);
 	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
 
+	commandList->rsSetViewport(passInput.viewport);
+	commandList->rsSetScissorRect(passInput.scissorRect);
+
 	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);

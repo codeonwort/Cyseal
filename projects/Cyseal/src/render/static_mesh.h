@@ -21,7 +21,6 @@ struct StaticMeshLOD
 	std::vector<StaticMeshSection> sections;
 };
 
-// #wip: StaticMeshProxy
 struct StaticMeshProxy
 {
 	std::vector<StaticMeshLOD> LODs;

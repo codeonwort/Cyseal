@@ -40,9 +40,6 @@ SceneProxy* Scene::createProxy()
 		totalMeshSectionsLOD0 += (uint32)(sm->getSections(0).size());
 	}
 
-	// #wip: Create proxy data as I did in my OpenGL project
-	// but it's really time-consuming and not a high priority in this project.
-	// For now just pretend these original data as proxies.
 	proxy->sun                     = sun;
 	proxy->skyboxTexture           = skyboxTexture ? skyboxTexture->getGPUResource() : nullptr;
 	proxy->staticMeshes            = std::move(staticMeshProxyList);

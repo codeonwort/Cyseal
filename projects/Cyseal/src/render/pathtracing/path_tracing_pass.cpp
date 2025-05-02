@@ -340,7 +340,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
 
-	if (passInput.mode == EPathTracingMode::Offline)
+	if (passInput.mode == EPathTracingMode::Offline || passInput.mode == EPathTracingMode::RealtimeDenoising)
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
