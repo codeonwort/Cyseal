@@ -115,9 +115,11 @@ float getLinearDepth(float2 screenUV, float sceneDepth, float4x4 projInv)
 // ---------------------------------------------------------
 // GPUScene
 
+// Should match with GPUSceneItem in gpu_scene.cpp
 struct GPUSceneItem
 {
-    float4x4 modelMatrix; // local to world
+    float4x4 localToWorld;
+    float4x4 prevLocalToWorld;
     float3   localMinBounds;
     uint     positionBufferOffset;
     float3   localMaxBounds;

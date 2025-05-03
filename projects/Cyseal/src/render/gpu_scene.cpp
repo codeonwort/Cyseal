@@ -14,10 +14,11 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
 
-// See GPUSceneItem in common.hlsl
+// Should match with GPUSceneItem in common.hlsl
 struct GPUSceneItem
 {
-	Float4x4 modelTransform; // localToWorld
+	Float4x4 localToWorld;
+	Float4x4 prevLocalToWorld;
 
 	vec3     localMinBounds;
 	uint32   positionBufferOffset;
@@ -224,14 +225,16 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 			continue;
 		}
 
-		const Float4x4 localToWorld = sm->getTransformMatrix();
+		const Float4x4 localToWorld = sm->getLocalToWorld();
+		const Float4x4 prevLocalToWorld = sm->getPrevLocalToWorld();
 		
 		for (uint32 j = 0; j < smSections; ++j)
 		{
 			const StaticMeshSection& section = sm->getSections()[j];
 			sceneCommands[sceneCommandIx].commandType                       = (uint32)EGPUSceneCommandType::Update;
 			sceneCommands[sceneCommandIx].sceneItemIndex                    = sceneItemIx;
-			sceneCommands[sceneCommandIx].sceneItem.modelTransform          = localToWorld;
+			sceneCommands[sceneCommandIx].sceneItem.localToWorld            = localToWorld;
+			sceneCommands[sceneCommandIx].sceneItem.prevLocalToWorld        = prevLocalToWorld;
 			sceneCommands[sceneCommandIx].sceneItem.localMinBounds          = section.localBounds.minBounds;
 			// #todo-gpuscene: uint64 offset
 			sceneCommands[sceneCommandIx].sceneItem.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes();

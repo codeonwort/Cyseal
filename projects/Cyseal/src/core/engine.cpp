@@ -92,8 +92,6 @@ void CysealEngine::shutdown()
 
 	CYLOG(LogEngine, Log, TEXT("Start engine termination."));
 
-	renderDevice->flushCommandQueue();
-
 	renderDevice->shutdownDearImgui();
 #if PLATFORM_WINDOWS
 	ImGui_ImplWin32_Shutdown();
@@ -101,6 +99,8 @@ void CysealEngine::shutdown()
 	#error "Not implemented yet"
 #endif
 	ImGui::DestroyContext();
+
+	renderDevice->flushCommandQueue();
 
 	// Subsystems (pre)
 	{

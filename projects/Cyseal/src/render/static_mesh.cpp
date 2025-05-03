@@ -4,10 +4,11 @@
 StaticMeshProxy* StaticMesh::createStaticMeshProxy() const
 {
 	StaticMeshProxy* proxy = new StaticMeshProxy{
-		.lod             = LODs[activeLOD],
-		.transform       = transform,
-		.bTransformDirty = bTransformDirty,
-		.bLodDirty       = bLodDirty,
+		.lod              = LODs[activeLOD],
+		.localToWorld     = transform.getMatrix(),
+		.prevLocalToWorld = prevModelMatrix,
+		.bTransformDirty  = bTransformDirty,
+		.bLodDirty        = bLodDirty,
 	};
 	return proxy;
 }

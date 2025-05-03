@@ -53,6 +53,7 @@ SceneProxy* Scene::createProxy()
 	for (StaticMesh* sm : staticMeshes)
 	{
 		sm->clearDirtyFlags();
+		sm->savePrevTransform();
 	}
 
 	return proxy;

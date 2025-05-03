@@ -262,7 +262,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		for (size_t i = 0; i < scene->staticMeshes.size(); ++i)
 		{
 			StaticMeshProxy* staticMesh = scene->staticMeshes[i];
-			Float4x4 modelMatrix = staticMesh->getTransformMatrix(); // row-major
+			Float4x4 modelMatrix = staticMesh->getLocalToWorld(); // row-major
 
 			if (staticMesh->isTransformDirty() == false)
 			{
@@ -1093,7 +1093,7 @@ void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList,
 		StaticMeshProxy* staticMesh = scene->staticMeshes[staticMeshIndex];
 		BLASInstanceInitDesc& blasDesc = blasDescArray[staticMeshIndex];
 
-		Float4x4 modelMatrix = staticMesh->getTransformMatrix(); // row-major
+		Float4x4 modelMatrix = staticMesh->getLocalToWorld(); // row-major
 		memcpy(blasDesc.instanceTransform[0], modelMatrix.m[0], sizeof(float) * 4);
 		memcpy(blasDesc.instanceTransform[1], modelMatrix.m[1], sizeof(float) * 4);
 		memcpy(blasDesc.instanceTransform[2], modelMatrix.m[2], sizeof(float) * 4);

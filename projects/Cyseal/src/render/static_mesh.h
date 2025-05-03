@@ -23,13 +23,15 @@ struct StaticMeshLOD
 
 struct StaticMeshProxy
 {
-	StaticMeshLOD              lod;
-	Transform                  transform;
-	bool                       bTransformDirty;
-	bool                       bLodDirty;
+	StaticMeshLOD lod;
+	Matrix        localToWorld;
+	Matrix        prevLocalToWorld;
+	bool          bTransformDirty;
+	bool          bLodDirty;
 
 	inline const std::vector<StaticMeshSection>& getSections() const { return lod.sections; }
-	inline const Matrix& getTransformMatrix() const { return transform.getMatrix(); }
+	inline const Matrix& getLocalToWorld() const { return localToWorld; }
+	inline const Matrix& getPrevLocalToWorld() const { return prevLocalToWorld; }
 	inline bool isTransformDirty() const { return bTransformDirty; }
 	inline bool isLodDirty() const { return bLodDirty; }
 };
@@ -92,12 +94,14 @@ public:
 	inline bool isLodDirty() const { return bLodDirty; }
 
 	inline void clearDirtyFlags() { bTransformDirty = bLodDirty = false; }
+	inline void savePrevTransform() { prevModelMatrix = transform.getMatrix(); }
 
 private:
 	std::vector<StaticMeshLOD> LODs;
 	uint32 activeLOD = 0;
 
 	Transform transform;
+	Matrix prevModelMatrix;
 	bool bTransformDirty = false;
 	bool bLodDirty = false;
 };

@@ -48,7 +48,8 @@ struct Interpolants
 {
     float4 svPosition : SV_POSITION;
 
-    float3 positionWS : POSITION;   // in world space
+    float3 positionLS : POSITION0;  // in local space
+    //float3 positionWS : POSITION1;  // in world space
     float3 normalWS   : NORMAL;     // in world space
     float2 texcoord   : TEXCOORD0;
 };
@@ -58,17 +59,18 @@ Interpolants mainVS(VertexInput input)
     Interpolants output;
 
     GPUSceneItem sceneItem = getGPUSceneItem();
-    float4x4 modelMatrix = sceneItem.modelMatrix;
+    float4x4 localToWorld = sceneItem.localToWorld;
 
-    float4x4 MVP = mul(modelMatrix, sceneUniform.viewProjMatrix);
+    float4x4 MVP = mul(localToWorld, sceneUniform.viewProjMatrix);
     output.svPosition = mul(float4(input.position, 1.0), MVP);
 
-    output.positionWS = mul(float4(input.position, 1.0), modelMatrix).xyz;
+    output.positionLS = input.position;
+    //output.positionWS = mul(float4(input.position, 1.0), localToWorld).xyz;
 
     // #todo-shader: Should renormalize if model matrix has non-uniform scaling
     // I can't find float4x4 -> float3x3 conversion in MSDN??? what???
-    // Should be normalize(mul(input.normal, transpose(inverse(modelMatrix3x3))));
-    output.normalWS = normalize(mul(float4(input.normal, 0.0), modelMatrix).xyz);
+    // Should be normalize(mul(input.normal, transpose(inverse(localToWorld3x3))));
+    output.normalWS = normalize(mul(float4(input.normal, 0.0), localToWorld).xyz);
 
     output.texcoord = input.texcoord;
 
@@ -92,8 +94,10 @@ PixelOutput mainPS(Interpolants interpolants)
     Material material = getMaterial();
 
     // Variables
+    float3 P = mul(sceneItem.localToWorld, float4(interpolants.positionLS, 1.0)).xyz;
+    float3 prevP = mul(sceneItem.prevLocalToWorld, float4(interpolants.positionLS, 1.0)).xyz;
     float3 N = normalize(interpolants.normalWS);
-
+    
     // #todo-basepass: Flip N for double-sided materials.
     // Currently not doing so is better because indirect diffuse pass will construct a ray that 'penetrates' the surface.
     // To do this correctly:
