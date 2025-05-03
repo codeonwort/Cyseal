@@ -38,8 +38,6 @@ struct IndirectDiffuseUniform
 {
 	float       randFloats0[RANDOM_SEQUENCE_LENGTH];
 	float       randFloats1[RANDOM_SEQUENCE_LENGTH];
-	Float4x4    prevViewProjInv;
-	Float4x4    prevViewProj;
 	uint32      renderTargetWidth;
 	uint32      renderTargetHeight;
 	uint32      frameCounter;
@@ -129,6 +127,20 @@ void IndirectDiffusePass::initialize()
 		StaticSamplerDesc{
 			.name             = "linearSampler",
 			.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+			.addressU         = ETextureAddressMode::Clamp,
+			.addressV         = ETextureAddressMode::Clamp,
+			.addressW         = ETextureAddressMode::Clamp,
+			.mipLODBias       = 0.0f,
+			.maxAnisotropy    = 0,
+			.comparisonFunc   = EComparisonFunc::Always,
+			.borderColor      = EStaticBorderColor::TransparentBlack,
+			.minLOD           = 0.0f,
+			.maxLOD           = FLT_MAX,
+			.shaderVisibility = EShaderVisibility::All,
+		},
+		StaticSamplerDesc{
+			.name             = "pointSampler",
+			.filter           = ETextureFilter::MIN_MAG_MIP_POINT,
 			.addressU         = ETextureAddressMode::Clamp,
 			.addressV         = ETextureAddressMode::Clamp,
 			.addressW         = ETextureAddressMode::Clamp,
@@ -238,8 +250,6 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 			uboData->randFloats0[i] = Cymath::randFloat();
 			uboData->randFloats1[i] = Cymath::randFloat();
 		}
-		uboData->prevViewProjInv = passInput.prevViewProjInvMatrix;
-		uboData->prevViewProj = passInput.prevViewProjMatrix;
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;
 		uboData->frameCounter = frameCounter;
@@ -273,6 +283,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		requiredVolatiles += 2; // gbuffer0, gbuffer1
 		requiredVolatiles += 1; // currentColorTexture
 		requiredVolatiles += 1; // prevColorTexture
+		requiredVolatiles += 1; // velocityMap
 		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
 
 		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
@@ -310,6 +321,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
 		SPT.texture("prevColorTexture", prevColorSRV);
+		SPT.texture("velocityMap", passInput.velocityMapSRV);
 		SPT.rwTexture("currentColorTexture", currentColorUAV);
 		// Bindless
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);

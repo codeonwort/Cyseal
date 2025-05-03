@@ -514,8 +514,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.scene                  = scene,
 			.camera                 = camera,
 			.mode                   = renderOptions.indirectDiffuse,
-			.prevViewProjInvMatrix  = prevSceneUniformData.viewProjInvMatrix,
-			.prevViewProjMatrix     = prevSceneUniformData.viewProjMatrix,
 			.sceneWidth             = sceneWidth,
 			.sceneHeight            = sceneHeight,
 			.gpuScene               = gpuScene,
@@ -527,6 +525,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gbuffer1SRV            = gbufferSRVs[1].get(),
 			.sceneDepthSRV          = sceneDepthSRV.get(),
 			.prevSceneDepthSRV      = prevSceneDepthSRV.get(),
+			.velocityMapSRV         = velocityMapSRV.get(),
 			.indirectDiffuseTexture = RT_indirectDiffuse.get(),
 			.indirectDiffuseUAV     = indirectDiffuseUAV.get(),
 		};

@@ -64,6 +64,11 @@ float getNdcZ(float sceneDepth)
     return sceneDepth; // clipZ is always [0,1] in DirectX
 }
 
+float4 textureUVToClipSpace(float2 uv)
+{
+    return float4((uv - float2(0.5, 0.5)) * float2(2, -2), 0, 1);
+}
+
 // positionCS = (x, y, z, 1)
 float2 clipSpaceToTextureUV(float4 positionCS)
 {

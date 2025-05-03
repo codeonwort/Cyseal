@@ -16,8 +16,6 @@ struct IndirectDiffuseInput
 	const Camera*              camera;
 	EIndirectDiffuseMode       mode;
 
-	Float4x4                   prevViewProjInvMatrix;
-	Float4x4                   prevViewProjMatrix;
 	uint32                     sceneWidth;
 	uint32                     sceneHeight;
 
@@ -31,6 +29,7 @@ struct IndirectDiffuseInput
 	ShaderResourceView*        gbuffer1SRV;
 	ShaderResourceView*        sceneDepthSRV;
 	ShaderResourceView*        prevSceneDepthSRV;
+	ShaderResourceView*        velocityMapSRV;
 
 	Texture*                   indirectDiffuseTexture;
 	UnorderedAccessView*       indirectDiffuseUAV;
