@@ -33,6 +33,7 @@
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 
 static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
+static const EPixelFormat PF_velocityMap = EPixelFormat::R16G16_FLOAT;
 static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
 	EPixelFormat::R32G32B32A32_UINT, //EPixelFormat::R16G16B16A16_FLOAT,
 	EPixelFormat::R16G16B16A16_FLOAT,
@@ -776,6 +777,34 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 				.planeSlice      = 0,
 				.minLODClamp     = 0.0f,
 			},
+		}
+	));
+
+	cleanup(RT_velocityMap.release());
+	RT_velocityMap = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_velocityMap,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
+			sceneWidth, sceneHeight, 1, 1, 0)));
+	RT_velocityMap->setDebugName(L"RT_VelocityMap");
+
+	velocityMapSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_velocityMap.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_velocityMap->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_velocityMap->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	velocityMapRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_velocityMap.get(),
+		RenderTargetViewDesc{
+			.format            = RT_velocityMap->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
 
