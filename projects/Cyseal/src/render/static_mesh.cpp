@@ -7,7 +7,7 @@ StaticMeshProxy* StaticMesh::createStaticMeshProxy() const
 		.lod              = LODs[activeLOD],
 		.localToWorld     = transform.getMatrix(),
 		.prevLocalToWorld = prevModelMatrix,
-		.bTransformDirty  = bTransformDirty,
+		.bTransformDirty  = isTransformDirty(),
 		.bLodDirty        = bLodDirty,
 	};
 	return proxy;
@@ -34,4 +34,9 @@ void StaticMesh::addSection(
 			.localBounds       = localBounds,
 		}
 	);
+}
+
+bool StaticMesh::isTransformDirty() const
+{
+	return (transformDirtyCounter > 0) || (prevModelMatrix != transform.getMatrix());
 }

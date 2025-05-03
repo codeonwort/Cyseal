@@ -38,6 +38,8 @@ SceneProxy* Scene::createProxy()
 	{
 		staticMeshProxyList.push_back(sm->createStaticMeshProxy());
 		totalMeshSectionsLOD0 += (uint32)(sm->getSections(0).size());
+
+		sm->savePrevTransform();
 	}
 
 	proxy->sun                     = sun;
@@ -53,7 +55,6 @@ SceneProxy* Scene::createProxy()
 	for (StaticMesh* sm : staticMeshes)
 	{
 		sm->clearDirtyFlags();
-		sm->savePrevTransform();
 	}
 
 	return proxy;

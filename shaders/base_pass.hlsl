@@ -94,8 +94,8 @@ PixelOutput mainPS(Interpolants interpolants)
     Material material = getMaterial();
 
     // Variables
-    float3 P = mul(sceneItem.localToWorld, float4(interpolants.positionLS, 1.0)).xyz;
-    float3 prevP = mul(sceneItem.prevLocalToWorld, float4(interpolants.positionLS, 1.0)).xyz;
+    float3 P = mul(float4(interpolants.positionLS, 1.0), sceneItem.localToWorld).xyz;
+    float3 prevP = mul(float4(interpolants.positionLS, 1.0), sceneItem.prevLocalToWorld).xyz;
     float3 N = normalize(interpolants.normalWS);
     
     // #todo-basepass: Flip N for double-sided materials.
@@ -135,9 +135,16 @@ PixelOutput mainPS(Interpolants interpolants)
     gbufferData.materialID        = material.materialID;
     gbufferData.indexOfRefraction = material.indexOfRefraction;
     
+    float4 clipPos = mul(float4(P, 1.0), sceneUniform.viewProjMatrix);
+    float4 prevClipPos = mul(float4(prevP, 1.0), sceneUniform.prevViewProjMatrix);
+    clipPos /= clipPos.w;
+    prevClipPos /= prevClipPos.w;
+    float2 uv0 = clipSpaceToTextureUV(clipPos);
+    float2 uv1 = clipSpaceToTextureUV(prevClipPos);
+    
     PixelOutput output;
     output.sceneColor = float4(luminance, 1.0);
     encodeGBuffers(gbufferData, output.gbuffer0, output.gbuffer1);
-    output.velocityMap = interpolants.svPosition.xy * sceneUniform.screenResolution.zw;
+    output.velocityMap = uv0 - uv1;
     return output;
 }

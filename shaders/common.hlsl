@@ -137,6 +137,9 @@ struct SceneUniform
     float4x4  viewInvMatrix;
     float4x4  projInvMatrix;
     float4x4  viewProjInvMatrix;
+    
+    float4x4  prevViewProjMatrix;
+    float4x4  prevViewProjInvMatrix;
 
     float4    screenResolution;
     Frustum3D cameraFrustum;

@@ -70,12 +70,12 @@ public:
 	inline void setPosition(const vec3& newPosition)
 	{
 		transform.setPosition(newPosition);
-		bTransformDirty = true;
+		transformDirtyCounter = 2;
 	}
 	inline void setRotation(const vec3& axis, float angle)
 	{
 		transform.setRotation(axis, angle);
-		bTransformDirty = true;
+		transformDirtyCounter = 2;
 	}
 	inline void setScale(float newScale)
 	{
@@ -84,17 +84,21 @@ public:
 	inline void setScale(const vec3& newScale)
 	{
 		transform.setScale(newScale);
-		bTransformDirty = true;
+		transformDirtyCounter = 2;
 	}
 
-	inline Matrix getTransformMatrix() { return transform.getMatrix(); }
 	inline const Matrix& getTransformMatrix() const { return transform.getMatrix(); }
-	inline bool isTransformDirty() const { return bTransformDirty; }
+	bool isTransformDirty() const;
 
 	inline bool isLodDirty() const { return bLodDirty; }
 
-	inline void clearDirtyFlags() { bTransformDirty = bLodDirty = false; }
 	inline void savePrevTransform() { prevModelMatrix = transform.getMatrix(); }
+	inline void clearDirtyFlags()
+	{
+		transformDirtyCounter -= 1;
+		if (transformDirtyCounter < 0) transformDirtyCounter = 0;
+		bLodDirty = false;
+	}
 
 private:
 	std::vector<StaticMeshLOD> LODs;
@@ -102,6 +106,6 @@ private:
 
 	Transform transform;
 	Matrix prevModelMatrix;
-	bool bTransformDirty = false;
+	int32 transformDirtyCounter = 0; // Was a boolean, but modified to update prev model matrix.
 	bool bLodDirty = false;
 };

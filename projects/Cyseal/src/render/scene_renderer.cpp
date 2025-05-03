@@ -630,6 +630,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.shadowMaskSRV       = shadowMaskSRV.get(),
 			.indirectDiffuseSRV  = bRenderIndirectDiffuse ? indirectDiffuseSRV.get() : grey2DSRV.get(),
 			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
+			.velocityMapSRV      = velocityMapSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
@@ -1032,26 +1033,29 @@ void SceneRenderer::updateSceneUniform(
 	const float sceneWidth = (float)gRenderDevice->getSwapChain()->getBackbufferWidth();
 	const float sceneHeight = (float)gRenderDevice->getSwapChain()->getBackbufferHeight();
 
-	memcpy_s(&prevSceneUniformData, sizeof(SceneUniform), &sceneUniformData, sizeof(SceneUniform));
+	sceneUniformData.viewMatrix            = camera->getViewMatrix();
+	sceneUniformData.projMatrix            = camera->getProjMatrix();
+	sceneUniformData.viewProjMatrix        = camera->getViewProjMatrix();
 
-	sceneUniformData.viewMatrix          = camera->getViewMatrix();
-	sceneUniformData.projMatrix          = camera->getProjMatrix();
-	sceneUniformData.viewProjMatrix      = camera->getViewProjMatrix();
+	sceneUniformData.viewInvMatrix         = camera->getViewInvMatrix();
+	sceneUniformData.projInvMatrix         = camera->getProjInvMatrix();
+	sceneUniformData.viewProjInvMatrix     = camera->getViewProjInvMatrix();
 
-	sceneUniformData.viewInvMatrix       = camera->getViewInvMatrix();
-	sceneUniformData.projInvMatrix       = camera->getProjInvMatrix();
-	sceneUniformData.viewProjInvMatrix   = camera->getViewProjInvMatrix();
+	sceneUniformData.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix;
+	sceneUniformData.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix;
 
-	sceneUniformData.screenResolution[0] = sceneWidth;
-	sceneUniformData.screenResolution[1] = sceneHeight;
-	sceneUniformData.screenResolution[2] = 1.0f / sceneWidth;
-	sceneUniformData.screenResolution[3] = 1.0f / sceneHeight;
-	sceneUniformData.cameraFrustum       = camera->getFrustum();
-	sceneUniformData.cameraPosition      = camera->getPosition();
-	sceneUniformData.sunDirection        = scene->sun.direction;
-	sceneUniformData.sunIlluminance      = scene->sun.illuminance;
+	sceneUniformData.screenResolution[0]   = sceneWidth;
+	sceneUniformData.screenResolution[1]   = sceneHeight;
+	sceneUniformData.screenResolution[2]   = 1.0f / sceneWidth;
+	sceneUniformData.screenResolution[3]   = 1.0f / sceneHeight;
+	sceneUniformData.cameraFrustum         = camera->getFrustum();
+	sceneUniformData.cameraPosition        = camera->getPosition();
+	sceneUniformData.sunDirection          = scene->sun.direction;
+	sceneUniformData.sunIlluminance        = scene->sun.illuminance;
 	
 	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &sceneUniformData, sizeof(sceneUniformData));
+
+	memcpy_s(&prevSceneUniformData, sizeof(SceneUniform), &sceneUniformData, sizeof(SceneUniform));
 }
 
 void SceneRenderer::rebuildFrameResources(RenderCommandList* commandList, const SceneProxy* scene)

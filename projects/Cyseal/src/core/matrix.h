@@ -63,11 +63,28 @@ public:
 		return vec3(x, y, z);
 	}
 
+	inline bool operator==(const Matrix& other) const;
+	inline bool operator!=(const Matrix& other) const;
 	inline Matrix& operator+=(const Matrix& other);
 	inline Matrix& operator-=(const Matrix& other);
 	inline Matrix& operator*=(const Matrix& other);
-
 };
+
+bool Matrix::operator==(const Matrix& other) const
+{
+	auto p = &(m[0][0]);
+	auto q = &(other.m[0][0]);
+	for (uint32 i = 0; i < 16; ++i)
+	{
+		if (*p++ != *q++) return false;
+	}
+	return true;
+}
+
+bool Matrix::operator!=(const Matrix& other) const
+{
+	return !(*this == other);
+}
 
 inline Matrix operator+(const Matrix& A, const Matrix& B)
 {
