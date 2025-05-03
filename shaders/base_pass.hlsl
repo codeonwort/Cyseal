@@ -80,9 +80,10 @@ Interpolants mainVS(VertexInput input)
 
 struct PixelOutput
 {
-    float4            sceneColor : SV_TARGET0;
-    GBUFFER0_DATATYPE gbuffer0   : SV_TARGET1;
-    GBUFFER1_DATATYPE gbuffer1   : SV_TARGET2;
+    float4            sceneColor  : SV_TARGET0;
+    GBUFFER0_DATATYPE gbuffer0    : SV_TARGET1;
+    GBUFFER1_DATATYPE gbuffer1    : SV_TARGET2;
+    float2            velocityMap : SV_TARGET3;
 };
 
 PixelOutput mainPS(Interpolants interpolants)
@@ -129,9 +130,10 @@ PixelOutput mainPS(Interpolants interpolants)
     gbufferData.metalMask         = material.metalMask;
     gbufferData.materialID        = material.materialID;
     gbufferData.indexOfRefraction = material.indexOfRefraction;
-
+    
     PixelOutput output;
     output.sceneColor = float4(luminance, 1.0);
     encodeGBuffers(gbufferData, output.gbuffer0, output.gbuffer1);
+    output.velocityMap = interpolants.svPosition.xy * sceneUniform.screenResolution.zw;
     return output;
 }

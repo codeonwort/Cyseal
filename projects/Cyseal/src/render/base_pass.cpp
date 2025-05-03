@@ -21,6 +21,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 // #todo-renderer: Support other topologies
 #define kPrimitiveTopology           EPrimitiveTopology::TRIANGLELIST
 
+// -----------------------------------------
+// PSO permutation
+
 static GraphicsPipelineKey assemblePipelineKey(const GraphicsPipelineKeyDesc& desc)
 {
 	GraphicsPipelineKey key = 0;
@@ -98,7 +101,6 @@ void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCo
 	}
 }
 
-
 GraphicsPipelineStatePermutation::~GraphicsPipelineStatePermutation()
 {
 	for (auto& it : pipelines)
@@ -122,16 +124,20 @@ void GraphicsPipelineStatePermutation::insertPipeline(GraphicsPipelineKey key, G
 	pipelines.insert(std::make_pair(key, item));
 }
 
+// -----------------------------------------
+// BasePass
+
 BasePass::~BasePass()
 {
 	delete shaderVS;
 	delete shaderPS;
 }
 
-void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat inGbufferFormats[], uint32 numGBuffers)
+void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat inGbufferFormats[], uint32 numGBuffers, EPixelFormat inVelocityMapFormat)
 {
 	sceneColorFormat = inSceneColorFormat;
 	gbufferFormats.assign(inGbufferFormats, inGbufferFormats + numGBuffers);
+	velocityMapFormat = inVelocityMapFormat;
 
 	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
@@ -380,6 +386,7 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 		},
 	};
 
+	const uint32 numRTVs = (uint32)(1 + gbufferFormats.size() + 1); // sceneColor + gbuffers + velocityMap
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = shaderVS,
 		.ps                     = shaderPS,
@@ -389,7 +396,7 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 		.depthstencilDesc       = getReverseZPolicy() == EReverseZPolicy::Reverse ? DepthstencilDesc::ReverseZSceneDepth() : DepthstencilDesc::StandardSceneDepth(),
 		.inputLayout            = inputLayout,
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
-		.numRenderTargets       = (uint32)(1 + gbufferFormats.size()),
+		.numRenderTargets       = numRTVs,
 		.rtvFormats             = { EPixelFormat::UNKNOWN, }, // Fill later
 		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
 		.sampleDesc = SampleDesc{
@@ -398,11 +405,14 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 		},
 		.staticSamplers         = std::move(staticSamplers),
 	};
-	pipelineDesc.rtvFormats[0] = sceneColorFormat;
+	uint32 rtvIndex = 0;
+	pipelineDesc.rtvFormats[rtvIndex++] = sceneColorFormat;
 	for (size_t i = 0; i < gbufferFormats.size(); ++i)
 	{
-		pipelineDesc.rtvFormats[i + 1] = gbufferFormats[i];
+		pipelineDesc.rtvFormats[rtvIndex++] = gbufferFormats[i];
 	}
+	pipelineDesc.rtvFormats[rtvIndex++] = velocityMapFormat;
+	CHECK(rtvIndex == numRTVs);
 
 	GraphicsPipelineKey pipelineKey = assemblePipelineKey(pipelineKeyDesc);
 	GraphicsPipelineState* pipelineState = gRenderDevice->createGraphicsPipelineState(pipelineDesc);

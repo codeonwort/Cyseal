@@ -109,7 +109,7 @@ class BasePass final : public SceneRenderPass
 public:
 	~BasePass();
 
-	void initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbufferForamts[], uint32 numGBuffers);
+	void initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbufferForamts[], uint32 numGBuffers, EPixelFormat velocityMapFormat);
 
 	void renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput);
 
@@ -124,6 +124,7 @@ private:
 	GraphicsPipelineStatePermutation pipelinePermutation;
 	EPixelFormat sceneColorFormat;
 	std::vector<EPixelFormat> gbufferFormats;
+	EPixelFormat velocityMapFormat;
 	ShaderStage* shaderVS = nullptr;
 	ShaderStage* shaderPS = nullptr;
 

@@ -121,7 +121,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		gpuCulling->initialize(kMaxBasePassPermutation);
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
-		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS);
+		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
 		skyPass->initialize(PF_sceneColor);
 		indirectDiffusePass->initialize();
 		indirectSpecularPass->initialize();
@@ -347,10 +347,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_sceneColor.get() },
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[0].get() },
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[1].get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_velocityMap.get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
-		RenderTargetView* RTVs[] = { sceneColorRTV.get(), gbufferRTVs[0].get(), gbufferRTVs[1].get() };
+		RenderTargetView* RTVs[] = { sceneColorRTV.get(), gbufferRTVs[0].get(), gbufferRTVs[1].get(), velocityMapRTV.get() };
 		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
 
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -359,6 +360,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		{
 			commandList->clearRenderTargetView(gbufferRTVs[i].get(), clearColor);
 		}
+		commandList->clearRenderTargetView(velocityMapRTV.get(), clearColor);
 		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
 
 		BasePassInput passInput{
@@ -376,6 +378,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		TextureMemoryBarrier barriersAfter[] = {
 			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[0].get() },
 			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[1].get() },
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_velocityMap.get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
