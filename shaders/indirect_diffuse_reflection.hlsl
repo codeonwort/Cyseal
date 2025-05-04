@@ -365,8 +365,12 @@ void MainRaygen()
 	{
 		float zAlignment = pow(1.0 - NdotV, 8);
 		float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;
+		#if 0
 		float depthTolerance = lerp(1e-2f, 1e-1f, zAlignment);
 		bool bClose = prevFrame.bValid && depthDiff < depthTolerance;
+		#else
+		bool bClose = prevFrame.bValid && depthDiff <= 0.03;
+		#endif
 
 		bTemporalReprojection = bClose;
 	}
