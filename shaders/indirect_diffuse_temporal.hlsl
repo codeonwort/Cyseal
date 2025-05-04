@@ -11,39 +11,36 @@ struct PassUniform
 };
 
 // ---------------------------------------------------------
-// Global root signature
+// Shader parameters
 
-ConstantBuffer<SceneUniform> sceneUniform          : register(b0, space0);
-ConstantBuffer<PassUniform>  passUniform           : register(b1, space0);
-Texture2D                    sceneDepthTexture     : register(t0, space0);
-Texture2D                    raytracingTexture     : register(t1, space0);
-Texture2D                    prevSceneDepthTexture : register(t2, space0);
-Texture2D                    prevColorTexture      : register(t3, space0);
-Texture2D                    velocityMapTexture    : register(t4, space0);
-RWTexture2D<float4>          currentColorTexture   : register(u0, space0);
+ConstantBuffer<SceneUniform> sceneUniform;
+ConstantBuffer<PassUniform>  passUniform;
+Texture2D                    sceneDepthTexture;
+Texture2D                    raytracingTexture;
+Texture2D                    prevSceneDepthTexture;
+Texture2D                    prevColorTexture;
+Texture2D                    velocityMapTexture;
+RWTexture2D<float4>          currentColorTexture;
 
-// Samplers
-SamplerState linearSampler : register(s2, space0);
-SamplerState pointSampler  : register(s3, space0);
+SamplerState linearSampler : register(s0, space0);
+SamplerState pointSampler  : register(s1, space0);
 
 // ---------------------------------------------------------
+// Shader
+
+struct PrevFrameInfo
+{
+	bool   bValid;
+	float3 positionWS;
+	float  linearDepth;
+	float3 color;
+	float  historyCount;
+};
 
 float2 getScreenUV(uint2 texel)
 {
 	return (float2(texel) + float2(0.5, 0.5)) * passUniform.invScreenSize;
 }
-
-// ---------------------------------------------------------
-// Shader stages
-
-struct PrevFrameInfo
-{
-	bool bValid;
-	float3 positionWS;
-	float linearDepth;
-	float3 color;
-	float historyCount;
-};
 
 PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
 {

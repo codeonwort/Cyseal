@@ -478,7 +478,6 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
-
 	}
 
 	BilateralBlurInput blurPassInput{
