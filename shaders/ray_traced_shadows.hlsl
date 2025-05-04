@@ -1,6 +1,7 @@
 // https://learn.microsoft.com/en-us/windows/win32/direct3d12/direct3d-12-raytracing-hlsl-reference
 
 #include "common.hlsl"
+#include "raytracing_common.hlsl"
 
 //#ifndef SHADER_STAGE
 //    #error Definition of SHADER_STAGE must be provided
@@ -117,7 +118,13 @@ float traceShadowing(uint2 texel, float3 rayOrigin, float3 rayDir)
 	{
 		return 1.0;
 	}
-
+	
+	// Or gather from neighbor pixels?
+	if (any(isnan(currentRayPayload.surfaceNormal)))
+	{
+		return 0.0;
+	}
+	
 	// Shoot ray from surface to Sun.
 	float3 surfaceNormal = currentRayPayload.surfaceNormal;
 	float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
@@ -169,31 +176,11 @@ void MainClosestHit(inout RayPayload payload, in MyAttributes attr)
 	uint objectID = g_closestHitCB.objectID;
 	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
 	
-	// #todo: Make raytracing_common.hlsl for raytracing passes
-	
-	uint triangleIndexStride = 3 * 4; // A triangle has 3 indices, 4 = sizeof(uint32)
-	// Byte offset of first index in gIndexBuffer
-	uint firstIndexOffset = PrimitiveIndex() * triangleIndexStride + sceneItem.indexBufferOffset;
-	uint3 indices = gIndexBuffer.Load<uint3>(firstIndexOffset);
-
-	// position = float3 = 12 bytes
-	float3 p0 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.x);
-	float3 p1 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.y);
-	float3 p2 = gVertexBuffer.Load<float3>(sceneItem.positionBufferOffset + 12 * indices.z);
-	// (normal, texcoord) = (float3, float2) = total 20 bytes
-	VertexAttributes v0 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.x);
-	VertexAttributes v1 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.y);
-	VertexAttributes v2 = gVertexBuffer.Load<VertexAttributes>(sceneItem.nonPositionBufferOffset + 20 * indices.z);
-
-	float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-	
-	float2 texcoord = barycentrics.x * v0.texcoord + barycentrics.y * v1.texcoord + barycentrics.z * v2.texcoord;
-
-	float3 surfaceNormal = barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal;
-	surfaceNormal = normalize(transformDirection(surfaceNormal, sceneItem.localToWorld));
+	hwrt::PrimitiveHitResult hitResult = hwrt::onPrimitiveHit(
+		PrimitiveIndex(), attr.barycentrics, sceneItem, gVertexBuffer, gIndexBuffer);
 
 	// Output payload
-	payload.surfaceNormal = surfaceNormal;
+	payload.surfaceNormal = hitResult.surfaceNormal;
 	payload.hitTime       = RayTCurrent();
 	payload.objectID      = objectID;
 }
