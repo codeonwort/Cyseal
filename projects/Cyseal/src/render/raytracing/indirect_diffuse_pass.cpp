@@ -18,7 +18,7 @@
 #include "util/logging.h"
 
 // I don't call TraceRays() recursively, so this constant actually doesn't matter.
-// Rather see MAX_BOUNCE in indirect_diffuse_reflection.hlsl.
+// Rather see MAX_BOUNCE in indirect_diffuse_raytracing.hlsl.
 #define INDIRECT_DIFFUSE_MAX_RECURSION      1
 #define INDIRECT_DIFFUSE_HIT_GROUP_NAME     L"IndirectDiffuse_HitGroup"
 
@@ -36,15 +36,20 @@ DEFINE_LOG_CATEGORY_STATIC(LogIndirectDiffuse);
 
 struct IndirectDiffuseUniform
 {
-	float       randFloats0[RANDOM_SEQUENCE_LENGTH];
-	float       randFloats1[RANDOM_SEQUENCE_LENGTH];
-	uint32      renderTargetWidth;
-	uint32      renderTargetHeight;
-	uint32      frameCounter;
-	uint32      mode;
+	float     randFloats0[RANDOM_SEQUENCE_LENGTH];
+	float     randFloats1[RANDOM_SEQUENCE_LENGTH];
+	uint32    renderTargetWidth;
+	uint32    renderTargetHeight;
+	uint32    frameCounter;
+	uint32    mode;
+};
+struct TemporalPassUniform
+{
+	uint32    screenSize[2];
+	float     invScreenSize[2];
 };
 
-// Should match with RayPayload in indirect_diffuse_reflection.hlsl.
+// Should match with RayPayload in indirect_diffuse_raytracing.hlsl.
 struct RayPayload
 {
 	float  surfaceNormal[3];
@@ -56,7 +61,7 @@ struct RayPayload
 	float  metalMask;
 	uint32 _pad[3];
 };
-// Should match with IntersectionAttributes in indirect_diffuse_reflection.hlsl.
+// Should match with IntersectionAttributes in indirect_diffuse_raytracing.hlsl.
 struct TriangleIntersectionAttributes
 {
 	float texcoord[2];
@@ -76,6 +81,12 @@ void IndirectDiffusePass::initialize()
 		return;
 	}
 
+	initializeRaytracingPipeline();
+	initializeTemporalPipeline();
+}
+
+void IndirectDiffusePass::initializeRaytracingPipeline()
+{
 	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
@@ -93,9 +104,9 @@ void IndirectDiffusePass::initialize()
 	raygenShader->declarePushConstants();
 	closestHitShader->declarePushConstants({ "g_closestHitCB" });
 	missShader->declarePushConstants();
-	raygenShader->loadFromFile(L"indirect_diffuse_reflection.hlsl", "MainRaygen");
-	closestHitShader->loadFromFile(L"indirect_diffuse_reflection.hlsl", "MainClosestHit");
-	missShader->loadFromFile(L"indirect_diffuse_reflection.hlsl", "MainMiss");
+	raygenShader->loadFromFile(L"indirect_diffuse_raytracing.hlsl", "MainRaygen");
+	closestHitShader->loadFromFile(L"indirect_diffuse_raytracing.hlsl", "MainClosestHit");
+	missShader->loadFromFile(L"indirect_diffuse_raytracing.hlsl", "MainMiss");
 
 	// RTPSO
 	std::vector<StaticSamplerDesc> staticSamplers = {
@@ -195,6 +206,27 @@ void IndirectDiffusePass::initialize()
 		delete closestHitShader;
 		delete missShader;
 	}
+}
+
+void IndirectDiffusePass::initializeTemporalPipeline()
+{
+	RenderDevice* device = gRenderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	temporalPassDescriptor.initialize(L"IndirectDiffuse_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
+
+	ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "IndirectDiffuseTemporalCS");
+	shader->declarePushConstants();
+	shader->loadFromFile(L"indirect_diffuse_temporal.hlsl", "mainCS");
+
+	temporalPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+		ComputePipelineDesc{
+			.cs       = shader,
+			.nodeMask = 0
+		}
+	));
+
+	delete shader;
 }
 
 bool IndirectDiffusePass::isAvailable() const

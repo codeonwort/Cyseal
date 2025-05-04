@@ -46,24 +46,30 @@ public:
 	void renderIndirectDiffuse(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectDiffuseInput& passInput);
 
 private:
+	void initializeRaytracingPipeline();
+	void initializeTemporalPipeline();
+
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
 
 private:
+	// Raytracing pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
-
-	UniquePtr<RaytracingShaderTable> raygenShaderTable;
-	UniquePtr<RaytracingShaderTable> missShaderTable;
+	UniquePtr<RaytracingShaderTable>         raygenShaderTable;
+	UniquePtr<RaytracingShaderTable>         missShaderTable;
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
-	std::vector<uint32> totalHitGroupShaderRecord;
+	std::vector<uint32>                      totalHitGroupShaderRecord;
+	VolatileDescriptorHelper                 rayPassDescriptor;
 
-	uint32 historyWidth = 0;
-	uint32 historyHeight = 0;
-	TextureSequence colorHistory;
-	TextureSequence momentHistory;
+	// Temporal reprojection pass
+	UniquePtr<ComputePipelineState>          temporalPipeline;
+	VolatileDescriptorHelper                 temporalPassDescriptor;
 
-	uint32 frameCounter = 0;
-	UniquePtr<ShaderResourceView> stbnSRV;
-
-	VolatileDescriptorHelper rayPassDescriptor;
+	// Resources
+	uint32                                   historyWidth = 0;
+	uint32                                   historyHeight = 0;
+	TextureSequence                          colorHistory;
+	TextureSequence                          momentHistory;
+	uint32                                   frameCounter = 0;
+	UniquePtr<ShaderResourceView>            stbnSRV;
 };
