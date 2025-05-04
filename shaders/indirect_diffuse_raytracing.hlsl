@@ -35,7 +35,7 @@
 #define MODE_RANDOM_SAMPLED       1
 #define MODE_STBN_SAMPLED         2
 
-struct IndirectDiffuseUniform
+struct PassUniform
 {
 	float4      randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
 	float4      randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
@@ -50,22 +50,19 @@ struct ClosestHitPushConstants { uint objectID; };
 // ---------------------------------------------------------
 // Global root signature
 
-ConstantBuffer<SceneUniform>            sceneUniform            : register(b0, space0);
-ConstantBuffer<IndirectDiffuseUniform>  indirectDiffuseUniform  : register(b1, space0);
-ByteAddressBuffer                       gIndexBuffer            : register(t0, space0);
-ByteAddressBuffer                       gVertexBuffer           : register(t1, space0);
-StructuredBuffer<GPUSceneItem>          gpuSceneBuffer          : register(t2, space0);
-StructuredBuffer<Material>              materials               : register(t3, space0);
-RaytracingAccelerationStructure         rtScene                 : register(t4, space0);
-TextureCube                             skybox                  : register(t5, space0);
-Texture3D                               stbnTexture             : register(t6, space0);
-Texture2D<GBUFFER0_DATATYPE>            gbuffer0                : register(t7, space0);
-Texture2D<GBUFFER1_DATATYPE>            gbuffer1                : register(t8, space0);
-Texture2D                               sceneDepthTexture       : register(t9, space0);
-Texture2D                               prevSceneDepthTexture   : register(t10, space0);
-Texture2D                               prevColorTexture        : register(t11, space0);
-Texture2D                               velocityMap             : register(t12, space0);
-RWTexture2D<float4>                     currentColorTexture     : register(u0, space0);
+ConstantBuffer<SceneUniform>            sceneUniform      : register(b0, space0);
+ConstantBuffer<PassUniform>             passUniform       : register(b1, space0);
+ByteAddressBuffer                       gIndexBuffer      : register(t0, space0);
+ByteAddressBuffer                       gVertexBuffer     : register(t1, space0);
+StructuredBuffer<GPUSceneItem>          gpuSceneBuffer    : register(t2, space0);
+StructuredBuffer<Material>              materials         : register(t3, space0);
+RaytracingAccelerationStructure         rtScene           : register(t4, space0);
+TextureCube                             skybox            : register(t5, space0);
+Texture3D                               stbnTexture       : register(t6, space0);
+Texture2D<GBUFFER0_DATATYPE>            gbuffer0          : register(t7, space0);
+Texture2D<GBUFFER1_DATATYPE>            gbuffer1          : register(t8, space0);
+Texture2D                               sceneDepthTexture : register(t9, space0);
+RWTexture2D<float4>                     raytracingTexture : register(u0, space0);
 
 // Material resource binding
 #define TEMP_MAX_SRVS 1024
@@ -116,7 +113,7 @@ RayPayload createRayPayload()
 
 float2 getScreenResolution()
 {
-	return float2(indirectDiffuseUniform.renderTargetWidth, indirectDiffuseUniform.renderTargetHeight);
+	return float2(passUniform.renderTargetWidth, passUniform.renderTargetHeight);
 }
 
 float2 getScreenUV(uint2 texel)
@@ -126,11 +123,11 @@ float2 getScreenUV(uint2 texel)
 
 float2 getRandoms(uint2 texel, uint bounce)
 {
-	uint first = texel.x + indirectDiffuseUniform.renderTargetWidth * texel.y;
+	uint first = texel.x + passUniform.renderTargetWidth * texel.y;
 	uint seq0 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
 	uint seq1 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
-	float rand0 = indirectDiffuseUniform.randFloats0[seq0 / 4][seq0 % 4];
-	float rand1 = indirectDiffuseUniform.randFloats1[seq1 / 4][seq1 % 4];
+	float rand0 = passUniform.randFloats0[seq0 / 4][seq0 % 4];
+	float rand1 = passUniform.randFloats1[seq1 / 4][seq1 % 4];
 	return float2(rand0, rand1);
 }
 
@@ -144,13 +141,13 @@ float3 cosineWeightedHemisphereSample(float u0, float u1)
 
 float3 sampleRandomDirectionCosineWeighted(uint2 texel, uint bounce)
 {
-	bool bUseSTBN = indirectDiffuseUniform.mode == MODE_STBN_SAMPLED;
+	bool bUseSTBN = passUniform.mode == MODE_STBN_SAMPLED;
 
 	if (bUseSTBN)
 	{
 		int x = int(texel.x & 127);
 		int y = int(texel.y & 127);
-		int z = (indirectDiffuseUniform.frameCounter + bounce) & 63;
+		int z = (passUniform.frameCounter + bounce) & 63;
 		float3 stbn = stbnTexture.Load(int4(x, y, z, 0)).rgb;
 		stbn = 2.0 * stbn - 1.0;
 		return normalize(stbn);
@@ -298,39 +295,6 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 	return Li;
 }
 
-struct PrevFrameInfo
-{
-	bool bValid;
-	float3 positionWS;
-	float linearDepth;
-	float3 color;
-	float historyCount;
-};
-
-PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
-{
-    float2 velocity = velocityMap.SampleLevel(pointSampler, currentScreenUV, 0).rg;
-    float2 screenUV = currentScreenUV - velocity;
-    float4 positionCS = textureUVToClipSpace(screenUV);
-	
-	PrevFrameInfo info;
-	if (uvOutOfBounds(screenUV))
-	{
-		info.bValid = false;
-		return info;
-	}
-
-    float sceneDepth = prevSceneDepthTexture.SampleLevel(pointSampler, screenUV, 0).r;
-	float4 colorAndHistory = prevColorTexture.SampleLevel(linearSampler, screenUV, 0);
-
-	info.bValid = true;
-    info.positionWS = clipSpaceToWorldSpace(positionCS, sceneUniform.prevViewProjInvMatrix);
-	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
-	info.color = colorAndHistory.rgb;
-    info.historyCount = colorAndHistory.a; // #todo-diffuse: history is bilinear sampled...
-	return info;
-}
-
 [shader("raygeneration")]
 void MainRaygen()
 {
@@ -342,81 +306,38 @@ void MainRaygen()
 	float3 viewDirection = normalize(positionWS - sceneUniform.cameraPosition.xyz);
 	float linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix);
 
-	if (sceneDepth == DEVICE_Z_FAR)
+	float3 Wo = 0;
+	if (sceneDepth != DEVICE_Z_FAR)
 	{
-		float3 Wo = 0;
-		currentColorTexture[texel] = float4(Wo, 1.0);
-		return;
-	}
+		GBUFFER0_DATATYPE gbuffer0Data = gbuffer0.Load(int3(texel, 0));
+		GBUFFER1_DATATYPE gbuffer1Data = gbuffer1.Load(int3(texel, 0));
+		GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
 
-	GBUFFER0_DATATYPE gbuffer0Data = gbuffer0.Load(int3(texel, 0));
-	GBUFFER1_DATATYPE gbuffer1Data = gbuffer1.Load(int3(texel, 0));
-	GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
+		float3 albedo = gbufferData.albedo;
+		float3 normalWS = gbufferData.normalWS;
+		float roughness = gbufferData.roughness;
 
-	float3 albedo = gbufferData.albedo;
-	float3 normalWS = gbufferData.normalWS;
-	float roughness = gbufferData.roughness;
+		float3 surfaceTangent, surfaceBitangent;
+		computeTangentFrame(normalWS, surfaceTangent, surfaceBitangent);
 
-	float NdotV = dot(-viewDirection, normalWS);
-
-	// Temporal reprojection
-	PrevFrameInfo prevFrame = getReprojectedInfo(screenUV);
-	bool bTemporalReprojection = false;
-	{
-		float zAlignment = pow(1.0 - NdotV, 8);
-		float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;
-		#if 0
-		float depthTolerance = lerp(1e-2f, 1e-1f, zAlignment);
-		bool bClose = prevFrame.bValid && depthDiff < depthTolerance;
-		#else
-		bool bClose = prevFrame.bValid && depthDiff <= 0.03;
-		#endif
-
-		bTemporalReprojection = bClose;
-	}
-
-	float3 surfaceTangent, surfaceBitangent;
-	computeTangentFrame(normalWS, surfaceTangent, surfaceBitangent);
-
-	float3 scatteredReflectance = albedo;
-	float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, 0);
-	scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (normalWS * scatteredDir.z);
-	float scatteredPdf = 1;
+		float3 scatteredReflectance = albedo;
+		float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, 0);
+		scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (normalWS * scatteredDir.z);
+		float scatteredPdf = 1;
 	
-	float3 relaxedPositionWS = normalWS * GBUFFER_NORMAL_OFFSET + positionWS;
-	float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, scatteredDir);
-	float3 Wo = (scatteredReflectance / scatteredPdf) * Li;
+		float3 relaxedPositionWS = normalWS * GBUFFER_NORMAL_OFFSET + positionWS;
+		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, scatteredDir);
+		Wo = (scatteredReflectance / scatteredPdf) * Li;
 
-	// #todo: It happens :(
-	if (any(isnan(normalWS)) || any(isnan(scatteredDir)))
-	{
-		scatteredPdf = 0.0;
-		Wo = 0;
+		// #todo: It happens :(
+		if (any(isnan(normalWS)) || any(isnan(scatteredDir)))
+		{
+			scatteredPdf = 0.0;
+			Wo = 0;
+		}
 	}
-
-	//prevColor was already acquired by getPrevFrame()
-	float historyCount = 0;
-	float3 prevWo = 0;
-	if (bTemporalReprojection)
-	{
-		historyCount = prevFrame.historyCount;
-		prevWo = prevFrame.color;
-	}
-
-	if (scatteredPdf == 0.0)
-	{
-		Wo = prevWo;
-	}
-	else
-	{
-		Wo = lerp(prevWo, Wo, 1.0 / (1.0 + historyCount));
-		historyCount += 1;
-	}
-
-	historyCount = min(historyCount, MAX_HISTORY);
-
-	// #todo-diffuse: Should store history in moment texture
-	currentColorTexture[texel] = float4(Wo, historyCount);
+	
+	raytracingTexture[texel] = float4(Wo, 1);
 }
 
 [shader("closesthit")]

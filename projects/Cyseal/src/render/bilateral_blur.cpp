@@ -38,6 +38,8 @@ void BilateralBlur::initialize()
 
 void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, uint32 swapchainIndex, const BilateralBlurInput& passInput)
 {
+	SCOPED_DRAW_EVENT(commandList, BilateralBlur);
+
 	CHECK(passInput.blurCount > 0);
 	const bool bInOutColorsAreSame = passInput.inColorTexture == passInput.outColorTexture;
 

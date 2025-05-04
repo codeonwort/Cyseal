@@ -34,7 +34,7 @@ static float const pPhi       = 1.0f;
 
 DEFINE_LOG_CATEGORY_STATIC(LogIndirectDiffuse);
 
-struct IndirectDiffuseUniform
+struct RayPassUniform
 {
 	float     randFloats0[RANDOM_SEQUENCE_LENGTH];
 	float     randFloats1[RANDOM_SEQUENCE_LENGTH];
@@ -73,6 +73,41 @@ struct ClosestHitPushConstants
 };
 static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
 
+static StaticSamplerDesc getLinearSamplerDesc()
+{
+	return StaticSamplerDesc{
+		.name             = "linearSampler",
+		.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+		.addressU         = ETextureAddressMode::Clamp,
+		.addressV         = ETextureAddressMode::Clamp,
+		.addressW         = ETextureAddressMode::Clamp,
+		.mipLODBias       = 0.0f,
+		.maxAnisotropy    = 0,
+		.comparisonFunc   = EComparisonFunc::Always,
+		.borderColor      = EStaticBorderColor::TransparentBlack,
+		.minLOD           = 0.0f,
+		.maxLOD           = FLT_MAX,
+		.shaderVisibility = EShaderVisibility::All,
+	};
+}
+static StaticSamplerDesc getPointSamplerDesc()
+{
+	return StaticSamplerDesc{
+		.name             = "pointSampler",
+		.filter           = ETextureFilter::MIN_MAG_MIP_POINT,
+		.addressU         = ETextureAddressMode::Clamp,
+		.addressV         = ETextureAddressMode::Clamp,
+		.addressW         = ETextureAddressMode::Clamp,
+		.mipLODBias       = 0.0f,
+		.maxAnisotropy    = 0,
+		.comparisonFunc   = EComparisonFunc::Always,
+		.borderColor      = EStaticBorderColor::TransparentBlack,
+		.minLOD           = 0.0f,
+		.maxLOD           = FLT_MAX,
+		.shaderVisibility = EShaderVisibility::All,
+	};
+}
+
 void IndirectDiffusePass::initialize()
 {
 	if (isAvailable() == false)
@@ -90,7 +125,7 @@ void IndirectDiffusePass::initializeRaytracingPipeline()
 	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
-	rayPassDescriptor.initialize(L"IndirectDiffuse_RayPass", swapchainCount, sizeof(IndirectDiffuseUniform));
+	rayPassDescriptor.initialize(L"IndirectDiffuse_RayPass", swapchainCount, sizeof(RayPassUniform));
 
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
@@ -138,34 +173,8 @@ void IndirectDiffusePass::initializeRaytracingPipeline()
 			.maxLOD           = 0.0f,
 			.shaderVisibility = EShaderVisibility::All,
 		},
-		StaticSamplerDesc{
-			.name             = "linearSampler",
-			.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
-			.addressU         = ETextureAddressMode::Clamp,
-			.addressV         = ETextureAddressMode::Clamp,
-			.addressW         = ETextureAddressMode::Clamp,
-			.mipLODBias       = 0.0f,
-			.maxAnisotropy    = 0,
-			.comparisonFunc   = EComparisonFunc::Always,
-			.borderColor      = EStaticBorderColor::TransparentBlack,
-			.minLOD           = 0.0f,
-			.maxLOD           = FLT_MAX,
-			.shaderVisibility = EShaderVisibility::All,
-		},
-		StaticSamplerDesc{
-			.name             = "pointSampler",
-			.filter           = ETextureFilter::MIN_MAG_MIP_POINT,
-			.addressU         = ETextureAddressMode::Clamp,
-			.addressV         = ETextureAddressMode::Clamp,
-			.addressW         = ETextureAddressMode::Clamp,
-			.mipLODBias       = 0.0f,
-			.maxAnisotropy    = 0,
-			.comparisonFunc   = EComparisonFunc::Always,
-			.borderColor      = EStaticBorderColor::TransparentBlack,
-			.minLOD           = 0.0f,
-			.maxLOD           = FLT_MAX,
-			.shaderVisibility = EShaderVisibility::All,
-		},
+		getLinearSamplerDesc(),
+		getPointSamplerDesc(),
 	};
 	RaytracingPipelineStateObjectDesc pipelineDesc{
 		.hitGroupName                 = INDIRECT_DIFFUSE_HIT_GROUP_NAME,
@@ -219,10 +228,15 @@ void IndirectDiffusePass::initializeTemporalPipeline()
 	shader->declarePushConstants();
 	shader->loadFromFile(L"indirect_diffuse_temporal.hlsl", "mainCS");
 
+	std::vector<StaticSamplerDesc> staticSamplers = {
+		getLinearSamplerDesc(),
+		getPointSamplerDesc(),
+	};
 	temporalPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
 		ComputePipelineDesc{
-			.cs       = shader,
-			.nodeMask = 0
+			.cs             = shader,
+			.nodeMask       = 0,
+			.staticSamplers = std::move(staticSamplers),
 		}
 	));
 
@@ -276,9 +290,12 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}
 
+	// -------------------------------------------------------------------
+	// Phase: Raytracing
+
 	// Update uniforms.
 	{
-		IndirectDiffuseUniform* uboData = new IndirectDiffuseUniform;
+		RayPassUniform* uboData = new RayPassUniform;
 
 		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
 		{
@@ -291,21 +308,18 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		uboData->mode = (uint32)passInput.mode;
 
 		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
-		uniformCBV->writeToGPU(commandList, uboData, sizeof(IndirectDiffuseUniform));
+		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
 
 		frameCounter = (frameCounter + 1) & 63;
 
 		delete uboData;
 	}
 
-	// -------------------------------------------------------------------
-	// Phase: Raytracing + Temporal Reconstruction
-
 	// Resize volatile heaps if needed.
 	{
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // indirectDiffuseUniform
+		requiredVolatiles += 1; // passUniform
 		requiredVolatiles += 1; // gIndexBuffer
 		requiredVolatiles += 1; // gVertexBuffer
 		requiredVolatiles += 1; // gpuSceneBuffer
@@ -314,11 +328,8 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		requiredVolatiles += 1; // skybox
 		requiredVolatiles += 1; // STBN
 		requiredVolatiles += 1; // sceneDepthTexture
-		requiredVolatiles += 1; // prevSceneDepthTexture
 		requiredVolatiles += 2; // gbuffer0, gbuffer1
-		requiredVolatiles += 1; // currentColorTexture
-		requiredVolatiles += 1; // prevColorTexture
-		requiredVolatiles += 1; // velocityMap
+		requiredVolatiles += 1; // raytracingTexture
 		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
 
 		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
@@ -343,7 +354,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
-		SPT.constantBuffer("indirectDiffuseUniform", uniformCBV);
+		SPT.constantBuffer("passUniform", uniformCBV);
 		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
 		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
@@ -354,29 +365,99 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		SPT.texture("gbuffer0", passInput.gbuffer0SRV);
 		SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
-		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
-		SPT.texture("prevColorTexture", prevColorSRV);
-		SPT.texture("velocityMap", passInput.velocityMapSRV);
-		SPT.rwTexture("currentColorTexture", currentColorUAV);
+		SPT.rwTexture("raytracingTexture", raytracingUAV.get());
 		// Bindless
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
 	}
 	
-	DispatchRaysDesc dispatchDesc{
-		.raygenShaderTable = raygenShaderTable.get(),
-		.missShaderTable   = missShaderTable.get(),
-		.hitGroupTable     = hitGroupShaderTable.at(swapchainIndex),
-		.width             = sceneWidth,
-		.height            = sceneHeight,
-		.depth             = 1,
-	};
-	// #todo-indirect-diffuse: First frame is too yellow in bedroom model? Not a barrier problem?
-	commandList->dispatchRays(dispatchDesc);
+	// Dispatch rays and issue barriers.
+	{
+		SCOPED_DRAW_EVENT(commandList, DiffuseRaytracing);
 
-	GPUResource* uavBarriers[] = { passInput.indirectDiffuseTexture, currentColorTexture };
-	commandList->resourceBarriers(0, nullptr, 0, nullptr, _countof(uavBarriers), uavBarriers);
+		DispatchRaysDesc dispatchDesc{
+			.raygenShaderTable = raygenShaderTable.get(),
+			.missShaderTable   = missShaderTable.get(),
+			.hitGroupTable     = hitGroupShaderTable.at(swapchainIndex),
+			.width             = sceneWidth,
+			.height            = sceneHeight,
+			.depth             = 1,
+		};
+		// #todo-indirect-diffuse: First frame is too yellow in bedroom model? Not a barrier problem?
+		commandList->dispatchRays(dispatchDesc);
+
+		TextureMemoryBarrier textureBarriers[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, raytracingTexture.get() },
+		};
+		GPUResource* uavBarriers[] = { passInput.indirectDiffuseTexture, raytracingTexture.get() };
+		commandList->resourceBarriers(0, nullptr, _countof(textureBarriers), textureBarriers, _countof(uavBarriers), uavBarriers);
+	}
+
+	// -------------------------------------------------------------------
+	// Phase: Temporal Reconstruction
+
+	// Update uniforms.
+	{
+		TemporalPassUniform uboData;
+
+		uboData.screenSize[0] = historyWidth;
+		uboData.screenSize[1] = historyHeight;
+		uboData.invScreenSize[0] = 1.0f / (float)historyWidth;
+		uboData.invScreenSize[1] = 1.0f / (float)historyHeight;
+
+		auto uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
+	}
+
+	// Resize volatile heaps if needed.
+	{
+		uint32 requiredVolatiles = 0;
+		requiredVolatiles += 1; // sceneUniform
+		requiredVolatiles += 1; // passUniform
+		requiredVolatiles += 1; // sceneDepthTexture
+		requiredVolatiles += 1; // raytracingTexture
+		requiredVolatiles += 1; // prevSceneDepthTexture
+		requiredVolatiles += 1; // prevColorTexture
+		requiredVolatiles += 1; // velocityMapTexture
+		requiredVolatiles += 1; // currentColorTexture
+
+		temporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	}
+
+	// Bind global shader parameters.
+	{
+		DescriptorHeap* volatileHeap = temporalPassDescriptor.getDescriptorHeap(swapchainIndex);
+		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
+		SPT.constantBuffer("passUniform", uniformCBV);
+		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+		SPT.texture("raytracingTexture", raytracingSRV.get());
+		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
+		SPT.texture("prevColorTexture", prevColorSRV);
+		SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
+		SPT.rwTexture("currentColorTexture", currentColorUAV);
+
+		commandList->setComputePipelineState(temporalPipeline.get());
+		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
+	}
+
+	// Dispatch compute and issue memory barriers.
+	{
+		SCOPED_DRAW_EVENT(commandList, DiffuseTemporalReprojection);
+
+		uint32 dispatchX = (historyWidth + 7) / 8;
+		uint32 dispatchY = (historyHeight + 7) / 8;
+		commandList->dispatchCompute(dispatchX, dispatchY, 1);
+
+		TextureMemoryBarrier textureBarriers[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
+		};
+		GPUResource* uavBarriers[] = { currentColorTexture };
+		commandList->resourceBarriers(0, nullptr, _countof(textureBarriers), textureBarriers, _countof(uavBarriers), uavBarriers);
+	}
 
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
@@ -398,24 +479,25 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 
-		BilateralBlurInput blurPassInput{
-			.imageWidth      = sceneWidth,
-			.imageHeight     = sceneHeight,
-			.blurCount       = BLUR_COUNT,
-			.cPhi            = cPhi,
-			.nPhi            = nPhi,
-			.pPhi            = pPhi,
-			.sceneUniformCBV = sceneUniformBuffer,
-			.inColorTexture  = prevColorTexture,
-			.inColorUAV      = prevColorUAV,
-			.inSceneDepthSRV = passInput.sceneDepthSRV,
-			.inGBuffer0SRV   = passInput.gbuffer0SRV,
-			.inGBuffer1SRV   = passInput.gbuffer1SRV,
-			.outColorTexture = passInput.indirectDiffuseTexture,
-			.outColorUAV     = passInput.indirectDiffuseUAV,
-		};
-		passInput.bilateralBlur->renderBilateralBlur(commandList, swapchainIndex, blurPassInput);
 	}
+
+	BilateralBlurInput blurPassInput{
+		.imageWidth      = sceneWidth,
+		.imageHeight     = sceneHeight,
+		.blurCount       = BLUR_COUNT,
+		.cPhi            = cPhi,
+		.nPhi            = nPhi,
+		.pPhi            = pPhi,
+		.sceneUniformCBV = sceneUniformBuffer,
+		.inColorTexture  = prevColorTexture,
+		.inColorUAV      = prevColorUAV,
+		.inSceneDepthSRV = passInput.sceneDepthSRV,
+		.inGBuffer0SRV   = passInput.gbuffer0SRV,
+		.inGBuffer1SRV   = passInput.gbuffer1SRV,
+		.outColorTexture = passInput.indirectDiffuseTexture,
+		.outColorUAV     = passInput.indirectDiffuseUAV,
+	};
+	passInput.bilateralBlur->renderBilateralBlur(commandList, swapchainIndex, blurPassInput);
 }
 
 void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
@@ -427,13 +509,39 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 	historyWidth = newWidth;
 	historyHeight = newHeight;
 
+	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
+		PF_colorHistory, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
+	raytracingTexture = UniquePtr<Texture>(gRenderDevice->createTexture(rayTexDesc));
+	raytracingTexture->setDebugName(L"RT_DiffuseRaytracingTexture");
+
+	raytracingSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(raytracingTexture.get(),
+		ShaderResourceViewDesc{
+			.format              = rayTexDesc.format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = rayTexDesc.mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	raytracingUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(raytracingTexture.get(),
+		UnorderedAccessViewDesc{
+			.format         = rayTexDesc.format,
+			.viewDimension  = EUAVDimension::Texture2D,
+			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+
 	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
 	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
 	{
-		SCOPED_DRAW_EVENT(commandList, ColorHistoryBarrier);
+		SCOPED_DRAW_EVENT(commandList, ColorTextureBarrier);
 
 		TextureMemoryBarrier barriers[] = {
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(0) },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(1) },
 		};

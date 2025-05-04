@@ -68,6 +68,9 @@ private:
 	// Resources
 	uint32                                   historyWidth = 0;
 	uint32                                   historyHeight = 0;
+	UniquePtr<Texture>                       raytracingTexture;
+	UniquePtr<ShaderResourceView>            raytracingSRV;
+	UniquePtr<UnorderedAccessView>           raytracingUAV;
 	TextureSequence                          colorHistory;
 	TextureSequence                          momentHistory;
 	uint32                                   frameCounter = 0;
