@@ -84,6 +84,9 @@ void IndirectDiffusePass::initialize()
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
 
+	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_DiffuseColorHistory");
+	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV, L"RT_DiffuseMomentHistory");
+
 	ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "Diffuse_Raygen");
 	ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "Diffuse_ClosestHit");
 	ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "Diffuse_Miss");
@@ -225,12 +228,12 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 
 	resizeTextures(commandList, sceneWidth, sceneHeight);
 
-	Texture* currentColorTexture = colorHistory[swapchainIndex % 2].get();
-	Texture* prevColorTexture = colorHistory[(swapchainIndex + 1) % 2].get();
+	Texture* currentColorTexture = colorHistory.getTexture(swapchainIndex % 2);
+	Texture* prevColorTexture = colorHistory.getTexture((swapchainIndex + 1) % 2);
 
-	auto currentColorUAV = colorHistoryUAV[swapchainIndex % 2].get();
-	auto prevColorUAV = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
-	auto prevColorSRV = colorHistorySRV[(swapchainIndex + 1) % 2].get();
+	auto currentColorUAV = colorHistory.getUAV(swapchainIndex % 2);
+	auto prevColorUAV = colorHistory.getUAV((swapchainIndex + 1) % 2);
+	auto prevColorSRV = colorHistory.getSRV((swapchainIndex + 1) % 2);
 
 	{
 		SCOPED_DRAW_EVENT(commandList, PrevColorBarrier);
@@ -392,64 +395,15 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 	historyWidth = newWidth;
 	historyHeight = newHeight;
 
-	commandList->enqueueDeferredDealloc(momentHistory[0].release(), true);
-	commandList->enqueueDeferredDealloc(momentHistory[1].release(), true);
-	commandList->enqueueDeferredDealloc(colorHistory[0].release(), true);
-	commandList->enqueueDeferredDealloc(colorHistory[1].release(), true);
+	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
+	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
-	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
-		PF_momentHistory, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
-
-	for (uint32 i = 0; i < 2; ++i)
-	{
-		std::wstring debugName = L"RT_DiffuseMomentHistory" + std::to_wstring(i);
-		momentHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(momentDesc));
-		momentHistory[i]->setDebugName(debugName.c_str());
-
-		momentHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(momentHistory[i].get(),
-			UnorderedAccessViewDesc{
-				.format         = momentDesc.format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-			}
-		));
-	}
-
-	TextureCreateParams colorDesc = TextureCreateParams::texture2D(
-		PF_colorHistory, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
-
-	for (uint32 i = 0; i < 2; ++i)
-	{
-		std::wstring debugName = L"RT_DiffuseColorHistory" + std::to_wstring(i);
-		colorHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
-		colorHistory[i]->setDebugName(debugName.c_str());
-
-		colorHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorHistory[i].get(),
-			UnorderedAccessViewDesc{
-				.format         = colorDesc.format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-			}
-		));
-		colorHistorySRV[i] = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(colorHistory[i].get(),
-			ShaderResourceViewDesc{
-				.format              = colorDesc.format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = colorHistory[i]->getCreateParams().mipLevels,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
-	}
 	{
 		SCOPED_DRAW_EVENT(commandList, ColorHistoryBarrier);
 
 		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[0].get() },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[1].get() },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(0) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(1) },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}

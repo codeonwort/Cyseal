@@ -6,6 +6,7 @@
 #include "render/scene_render_pass.h"
 #include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
+#include "render/util/texture_sequence.h"
 
 class SceneProxy;
 class Camera;
@@ -58,11 +59,8 @@ private:
 
 	uint32 historyWidth = 0;
 	uint32 historyHeight = 0;
-	UniquePtr<Texture> colorHistory[2];
-	UniquePtr<UnorderedAccessView> colorHistoryUAV[2];
-	UniquePtr<ShaderResourceView> colorHistorySRV[2];
-	UniquePtr<Texture> momentHistory[2];
-	UniquePtr<UnorderedAccessView> momentHistoryUAV[2];
+	TextureSequence colorHistory;
+	TextureSequence momentHistory;
 
 	uint32 frameCounter = 0;
 	UniquePtr<ShaderResourceView> stbnSRV;

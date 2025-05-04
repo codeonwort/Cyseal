@@ -327,6 +327,9 @@
     <ClInclude Include="src\world\scene_proxy.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\util\texture_sequence.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -528,6 +531,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="src\world\scene_proxy.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\util\texture_sequence.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
