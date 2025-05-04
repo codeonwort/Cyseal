@@ -64,6 +64,11 @@ float getNdcZ(float sceneDepth)
     return sceneDepth; // clipZ is always [0,1] in DirectX
 }
 
+float4 textureUVToClipSpace(float2 uv)
+{
+    return float4((uv - float2(0.5, 0.5)) * float2(2, -2), 0, 1);
+}
+
 // positionCS = (x, y, z, 1)
 float2 clipSpaceToTextureUV(float4 positionCS)
 {
@@ -115,9 +120,11 @@ float getLinearDepth(float2 screenUV, float sceneDepth, float4x4 projInv)
 // ---------------------------------------------------------
 // GPUScene
 
+// Should match with GPUSceneItem in gpu_scene.cpp
 struct GPUSceneItem
 {
-    float4x4 modelMatrix; // local to world
+    float4x4 localToWorld;
+    float4x4 prevLocalToWorld;
     float3   localMinBounds;
     uint     positionBufferOffset;
     float3   localMaxBounds;
@@ -135,6 +142,9 @@ struct SceneUniform
     float4x4  viewInvMatrix;
     float4x4  projInvMatrix;
     float4x4  viewProjInvMatrix;
+    
+    float4x4  prevViewProjMatrix;
+    float4x4  prevViewProjInvMatrix;
 
     float4    screenResolution;
     Frustum3D cameraFrustum;

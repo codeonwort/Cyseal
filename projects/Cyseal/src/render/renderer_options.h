@@ -18,6 +18,7 @@ enum class EBufferVisualizationMode : uint32
 	RayTracedShadows = 7,
 	IndirectDiffuse  = 8,
 	IndirectSpecular = 9,
+	VelocityMap      = 10,
 
 	Count,
 };
@@ -79,6 +80,7 @@ inline const char** getBufferVisualizationModeNames()
 		"RayTracedShadows",
 		"IndirectDiffuse",
 		"IndirectSpecular",
+		"VelocityMap",
 	};
 	return strings;
 }

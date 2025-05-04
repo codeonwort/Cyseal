@@ -190,7 +190,7 @@ void MainClosestHit(inout RayPayload payload, in MyAttributes attr)
 	float2 texcoord = barycentrics.x * v0.texcoord + barycentrics.y * v1.texcoord + barycentrics.z * v2.texcoord;
 
 	float3 surfaceNormal = barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal;
-	surfaceNormal = normalize(transformDirection(surfaceNormal, sceneItem.modelMatrix));
+	surfaceNormal = normalize(transformDirection(surfaceNormal, sceneItem.localToWorld));
 
 	// Output payload
 	payload.surfaceNormal = surfaceNormal;

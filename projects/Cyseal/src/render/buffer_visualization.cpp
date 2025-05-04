@@ -18,6 +18,7 @@ void BufferVisualization::initialize()
 	requiredVolatileDescriptors += 1; // shadowMask
 	requiredVolatileDescriptors += 1; // indirectDiffuse
 	requiredVolatileDescriptors += 1; // indirectSpecular
+	requiredVolatileDescriptors += 1; // velocityMap
 
 	// Create volatile heap.
 	volatileViewHeap.initialize(swapchainCount);
@@ -87,6 +88,7 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 	SPT.texture("shadowMask", passInput.shadowMaskSRV);
 	SPT.texture("indirectDiffuse", passInput.indirectDiffuseSRV);
 	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
+	SPT.texture("velocityMap", passInput.velocityMapSRV);
 
 	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));

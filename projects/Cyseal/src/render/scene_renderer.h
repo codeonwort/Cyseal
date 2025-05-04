@@ -16,6 +16,9 @@ struct SceneUniform
 	Float4x4      projInvMatrix;
 	Float4x4      viewProjInvMatrix;
 
+	Float4x4      prevViewProjMatrix;
+	Float4x4      prevViewProjInvMatrix;
+
 	float         screenResolution[4]; // (w, h, 1/w, 1/h)
 	CameraFrustum cameraFrustum;
 	vec3          cameraPosition; float _pad0;
@@ -70,6 +73,10 @@ private:
 
 	UniquePtr<Texture> RT_prevSceneDepth;
 	UniquePtr<ShaderResourceView> prevSceneDepthSRV;
+
+	UniquePtr<Texture> RT_velocityMap;
+	UniquePtr<ShaderResourceView> velocityMapSRV;
+	UniquePtr<RenderTargetView> velocityMapRTV;
 
 	// Render gbuffers for hybrid raytracing.
 	UniquePtr<Texture> RT_gbuffers[NUM_GBUFFERS];

@@ -147,7 +147,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
     AABB worldBounds = calculateWorldBounds(
         sceneItem.localMinBounds,
         sceneItem.localMaxBounds,
-        sceneItem.modelMatrix);
+        sceneItem.localToWorld);
     
     bool bInFrustum = hitTest_AABB_frustum(worldBounds, sceneUniform.cameraFrustum);
 

@@ -11,6 +11,7 @@
 #define MODE_RAY_TRACED_SHADOWS 7
 #define MODE_INDIRECT_DIFFUSE   8
 #define MODE_INDIRECT_SPECULAR  9
+#define MODE_VELOCITY_MAP       10
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -27,6 +28,7 @@ Texture2D sceneColor                        : register(t2, space0);
 Texture2D shadowMask                        : register(t3, space0);
 Texture2D indirectDiffuse                   : register(t4, space0);
 Texture2D indirectSpecular                  : register(t5, space0);
+Texture2D velocityMap                       : register(t6, space0);
 SamplerState textureSampler                 : register(s0, space0);
 
 // ------------------------------------------------------------------------
@@ -103,6 +105,11 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     else if (modeEnum == MODE_INDIRECT_SPECULAR)
     {
         color.rgb = indirectSpecular.SampleLevel(textureSampler, screenUV, 0.0).rgb;
+    }
+    else if (modeEnum == MODE_VELOCITY_MAP)
+    {
+        float2 vel = velocityMap.SampleLevel(textureSampler, screenUV, 0.0).rg;
+        color.rg = 50.0 * abs(vel);
     }
 
     // Gamma correction

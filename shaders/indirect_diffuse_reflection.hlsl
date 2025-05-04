@@ -39,8 +39,6 @@ struct IndirectDiffuseUniform
 {
 	float4      randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
 	float4      randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
-	float4x4    prevViewProjInvMatrix;
-	float4x4    prevViewProjMatrix;
 	uint        renderTargetWidth;
 	uint        renderTargetHeight;
 	uint        frameCounter;
@@ -66,6 +64,7 @@ Texture2D<GBUFFER1_DATATYPE>            gbuffer1                : register(t8, s
 Texture2D                               sceneDepthTexture       : register(t9, space0);
 Texture2D                               prevSceneDepthTexture   : register(t10, space0);
 Texture2D                               prevColorTexture        : register(t11, space0);
+Texture2D                               velocityMap             : register(t12, space0);
 RWTexture2D<float4>                     currentColorTexture     : register(u0, space0);
 
 // Material resource binding
@@ -76,6 +75,7 @@ Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless 
 SamplerState albedoSampler : register(s0, space0);
 SamplerState skyboxSampler : register(s1, space0);
 SamplerState linearSampler : register(s2, space0);
+SamplerState pointSampler  : register(s3, space0);
 
 // ---------------------------------------------------------
 // Local root signature (closest hit)
@@ -307,11 +307,12 @@ struct PrevFrameInfo
 	float historyCount;
 };
 
-PrevFrameInfo getReprojectedInfo(float3 currPositionWS)
+PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
 {
-	float4 positionCS = worldSpaceToClipSpace(currPositionWS, indirectDiffuseUniform.prevViewProjMatrix);
-	float2 screenUV = clipSpaceToTextureUV(positionCS);
-
+    float2 velocity = velocityMap.SampleLevel(pointSampler, currentScreenUV, 0).rg;
+    float2 screenUV = currentScreenUV - velocity;
+    float4 positionCS = textureUVToClipSpace(screenUV);
+	
 	PrevFrameInfo info;
 	if (uvOutOfBounds(screenUV))
 	{
@@ -319,18 +320,14 @@ PrevFrameInfo getReprojectedInfo(float3 currPositionWS)
 		return info;
 	}
 
-	float2 resolution = getScreenResolution();
-	int2 targetTexel = int2(screenUV * resolution);
-	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
-	positionCS = getPositionCS(screenUV, sceneDepth);
-
+    float sceneDepth = prevSceneDepthTexture.SampleLevel(pointSampler, screenUV, 0).r;
 	float4 colorAndHistory = prevColorTexture.SampleLevel(linearSampler, screenUV, 0);
 
 	info.bValid = true;
-	info.positionWS = clipSpaceToWorldSpace(positionCS, indirectDiffuseUniform.prevViewProjInvMatrix);
+    info.positionWS = clipSpaceToWorldSpace(positionCS, sceneUniform.prevViewProjInvMatrix);
 	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
 	info.color = colorAndHistory.rgb;
-	info.historyCount = colorAndHistory.a; // #todo-diffuse: history is bilinear sampled...
+    info.historyCount = colorAndHistory.a; // #todo-diffuse: history is bilinear sampled...
 	return info;
 }
 
@@ -363,13 +360,17 @@ void MainRaygen()
 	float NdotV = dot(-viewDirection, normalWS);
 
 	// Temporal reprojection
-	PrevFrameInfo prevFrame = getReprojectedInfo(positionWS);
+	PrevFrameInfo prevFrame = getReprojectedInfo(screenUV);
 	bool bTemporalReprojection = false;
 	{
 		float zAlignment = pow(1.0 - NdotV, 8);
 		float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;
+		#if 0
 		float depthTolerance = lerp(1e-2f, 1e-1f, zAlignment);
 		bool bClose = prevFrame.bValid && depthDiff < depthTolerance;
+		#else
+		bool bClose = prevFrame.bValid && depthDiff <= 0.03;
+		#endif
 
 		bTemporalReprojection = bClose;
 	}

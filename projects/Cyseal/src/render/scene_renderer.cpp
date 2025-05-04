@@ -33,6 +33,7 @@
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 
 static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
+static const EPixelFormat PF_velocityMap = EPixelFormat::R16G16_FLOAT;
 static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
 	EPixelFormat::R32G32B32A32_UINT, //EPixelFormat::R16G16B16A16_FLOAT,
 	EPixelFormat::R16G16B16A16_FLOAT,
@@ -120,7 +121,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		gpuCulling->initialize(kMaxBasePassPermutation);
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
-		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS);
+		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
 		skyPass->initialize(PF_sceneColor);
 		indirectDiffusePass->initialize();
 		indirectSpecularPass->initialize();
@@ -261,7 +262,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		for (size_t i = 0; i < scene->staticMeshes.size(); ++i)
 		{
 			StaticMeshProxy* staticMesh = scene->staticMeshes[i];
-			Float4x4 modelMatrix = staticMesh->getTransformMatrix(); // row-major
+			Float4x4 modelMatrix = staticMesh->getLocalToWorld(); // row-major
 
 			if (staticMesh->isTransformDirty() == false)
 			{
@@ -346,10 +347,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_sceneColor.get() },
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[0].get() },
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[1].get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_velocityMap.get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 
-		RenderTargetView* RTVs[] = { sceneColorRTV.get(), gbufferRTVs[0].get(), gbufferRTVs[1].get() };
+		RenderTargetView* RTVs[] = { sceneColorRTV.get(), gbufferRTVs[0].get(), gbufferRTVs[1].get(), velocityMapRTV.get() };
 		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
 
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -358,6 +360,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		{
 			commandList->clearRenderTargetView(gbufferRTVs[i].get(), clearColor);
 		}
+		commandList->clearRenderTargetView(velocityMapRTV.get(), clearColor);
 		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
 
 		BasePassInput passInput{
@@ -375,6 +378,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		TextureMemoryBarrier barriersAfter[] = {
 			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[0].get() },
 			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[1].get() },
+			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_velocityMap.get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
@@ -510,8 +514,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.scene                  = scene,
 			.camera                 = camera,
 			.mode                   = renderOptions.indirectDiffuse,
-			.prevViewProjInvMatrix  = prevSceneUniformData.viewProjInvMatrix,
-			.prevViewProjMatrix     = prevSceneUniformData.viewProjMatrix,
 			.sceneWidth             = sceneWidth,
 			.sceneHeight            = sceneHeight,
 			.gpuScene               = gpuScene,
@@ -523,6 +525,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gbuffer1SRV            = gbufferSRVs[1].get(),
 			.sceneDepthSRV          = sceneDepthSRV.get(),
 			.prevSceneDepthSRV      = prevSceneDepthSRV.get(),
+			.velocityMapSRV         = velocityMapSRV.get(),
 			.indirectDiffuseTexture = RT_indirectDiffuse.get(),
 			.indirectDiffuseUAV     = indirectDiffuseUAV.get(),
 		};
@@ -626,6 +629,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.shadowMaskSRV       = shadowMaskSRV.get(),
 			.indirectDiffuseSRV  = bRenderIndirectDiffuse ? indirectDiffuseSRV.get() : grey2DSRV.get(),
 			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
+			.velocityMapSRV      = velocityMapSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
@@ -776,6 +780,34 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 				.planeSlice      = 0,
 				.minLODClamp     = 0.0f,
 			},
+		}
+	));
+
+	cleanup(RT_velocityMap.release());
+	RT_velocityMap = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_velocityMap,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
+			sceneWidth, sceneHeight, 1, 1, 0)));
+	RT_velocityMap->setDebugName(L"RT_VelocityMap");
+
+	velocityMapSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_velocityMap.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_velocityMap->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_velocityMap->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	velocityMapRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_velocityMap.get(),
+		RenderTargetViewDesc{
+			.format            = RT_velocityMap->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
 
@@ -1000,26 +1032,29 @@ void SceneRenderer::updateSceneUniform(
 	const float sceneWidth = (float)gRenderDevice->getSwapChain()->getBackbufferWidth();
 	const float sceneHeight = (float)gRenderDevice->getSwapChain()->getBackbufferHeight();
 
-	memcpy_s(&prevSceneUniformData, sizeof(SceneUniform), &sceneUniformData, sizeof(SceneUniform));
+	sceneUniformData.viewMatrix            = camera->getViewMatrix();
+	sceneUniformData.projMatrix            = camera->getProjMatrix();
+	sceneUniformData.viewProjMatrix        = camera->getViewProjMatrix();
 
-	sceneUniformData.viewMatrix          = camera->getViewMatrix();
-	sceneUniformData.projMatrix          = camera->getProjMatrix();
-	sceneUniformData.viewProjMatrix      = camera->getViewProjMatrix();
+	sceneUniformData.viewInvMatrix         = camera->getViewInvMatrix();
+	sceneUniformData.projInvMatrix         = camera->getProjInvMatrix();
+	sceneUniformData.viewProjInvMatrix     = camera->getViewProjInvMatrix();
 
-	sceneUniformData.viewInvMatrix       = camera->getViewInvMatrix();
-	sceneUniformData.projInvMatrix       = camera->getProjInvMatrix();
-	sceneUniformData.viewProjInvMatrix   = camera->getViewProjInvMatrix();
+	sceneUniformData.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix;
+	sceneUniformData.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix;
 
-	sceneUniformData.screenResolution[0] = sceneWidth;
-	sceneUniformData.screenResolution[1] = sceneHeight;
-	sceneUniformData.screenResolution[2] = 1.0f / sceneWidth;
-	sceneUniformData.screenResolution[3] = 1.0f / sceneHeight;
-	sceneUniformData.cameraFrustum       = camera->getFrustum();
-	sceneUniformData.cameraPosition      = camera->getPosition();
-	sceneUniformData.sunDirection        = scene->sun.direction;
-	sceneUniformData.sunIlluminance      = scene->sun.illuminance;
+	sceneUniformData.screenResolution[0]   = sceneWidth;
+	sceneUniformData.screenResolution[1]   = sceneHeight;
+	sceneUniformData.screenResolution[2]   = 1.0f / sceneWidth;
+	sceneUniformData.screenResolution[3]   = 1.0f / sceneHeight;
+	sceneUniformData.cameraFrustum         = camera->getFrustum();
+	sceneUniformData.cameraPosition        = camera->getPosition();
+	sceneUniformData.sunDirection          = scene->sun.direction;
+	sceneUniformData.sunIlluminance        = scene->sun.illuminance;
 	
 	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &sceneUniformData, sizeof(sceneUniformData));
+
+	memcpy_s(&prevSceneUniformData, sizeof(SceneUniform), &sceneUniformData, sizeof(SceneUniform));
 }
 
 void SceneRenderer::rebuildFrameResources(RenderCommandList* commandList, const SceneProxy* scene)
@@ -1061,7 +1096,7 @@ void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList,
 		StaticMeshProxy* staticMesh = scene->staticMeshes[staticMeshIndex];
 		BLASInstanceInitDesc& blasDesc = blasDescArray[staticMeshIndex];
 
-		Float4x4 modelMatrix = staticMesh->getTransformMatrix(); // row-major
+		Float4x4 modelMatrix = staticMesh->getLocalToWorld(); // row-major
 		memcpy(blasDesc.instanceTransform[0], modelMatrix.m[0], sizeof(float) * 4);
 		memcpy(blasDesc.instanceTransform[1], modelMatrix.m[1], sizeof(float) * 4);
 		memcpy(blasDesc.instanceTransform[2], modelMatrix.m[2], sizeof(float) * 4);

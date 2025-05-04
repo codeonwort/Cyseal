@@ -220,6 +220,7 @@ namespace into_vk
 			case EPixelFormat::R32G32B32_FLOAT          : return VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
 			case EPixelFormat::R32G32B32A32_FLOAT       : return VkFormat::VK_FORMAT_R32G32B32A32_SFLOAT;
 			case EPixelFormat::R16G16B16A16_FLOAT       : return VkFormat::VK_FORMAT_R16G16B16A16_SFLOAT;
+			case EPixelFormat::R16G16_FLOAT             : return VkFormat::VK_FORMAT_R16G16_SFLOAT;
 			case EPixelFormat::R32_UINT                 : return VkFormat::VK_FORMAT_R32_UINT;
 			case EPixelFormat::R16_UINT                 : return VkFormat::VK_FORMAT_R16_UINT;
 			case EPixelFormat::R16G16B16A16_UINT        : return VkFormat::VK_FORMAT_R32G32B32A32_UINT;

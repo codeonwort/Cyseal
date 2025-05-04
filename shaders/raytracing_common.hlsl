@@ -60,7 +60,7 @@ namespace hwrt
 		float2 texcoord = applyBarycentrics(bary, v0.texcoord, v1.texcoord, v2.texcoord);
 
 		float3 surfaceNormal = applyBarycentrics(bary, v0.normal, v1.normal, v2.normal);
-		surfaceNormal = normalize(transformDirection(surfaceNormal, sceneItem.modelMatrix));
+		surfaceNormal = normalize(transformDirection(surfaceNormal, sceneItem.localToWorld));
 
 		PrimitiveHitResult ret;
 		ret.texcoord = texcoord;

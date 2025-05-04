@@ -23,13 +23,15 @@ struct StaticMeshLOD
 
 struct StaticMeshProxy
 {
-	StaticMeshLOD              lod;
-	Transform                  transform;
-	bool                       bTransformDirty;
-	bool                       bLodDirty;
+	StaticMeshLOD lod;
+	Matrix        localToWorld;
+	Matrix        prevLocalToWorld;
+	bool          bTransformDirty;
+	bool          bLodDirty;
 
 	inline const std::vector<StaticMeshSection>& getSections() const { return lod.sections; }
-	inline const Matrix& getTransformMatrix() const { return transform.getMatrix(); }
+	inline const Matrix& getLocalToWorld() const { return localToWorld; }
+	inline const Matrix& getPrevLocalToWorld() const { return prevLocalToWorld; }
 	inline bool isTransformDirty() const { return bTransformDirty; }
 	inline bool isLodDirty() const { return bLodDirty; }
 };
@@ -68,12 +70,12 @@ public:
 	inline void setPosition(const vec3& newPosition)
 	{
 		transform.setPosition(newPosition);
-		bTransformDirty = true;
+		transformDirtyCounter = 2;
 	}
 	inline void setRotation(const vec3& axis, float angle)
 	{
 		transform.setRotation(axis, angle);
-		bTransformDirty = true;
+		transformDirtyCounter = 2;
 	}
 	inline void setScale(float newScale)
 	{
@@ -82,22 +84,28 @@ public:
 	inline void setScale(const vec3& newScale)
 	{
 		transform.setScale(newScale);
-		bTransformDirty = true;
+		transformDirtyCounter = 2;
 	}
 
-	inline Matrix getTransformMatrix() { return transform.getMatrix(); }
 	inline const Matrix& getTransformMatrix() const { return transform.getMatrix(); }
-	inline bool isTransformDirty() const { return bTransformDirty; }
+	bool isTransformDirty() const;
 
 	inline bool isLodDirty() const { return bLodDirty; }
 
-	inline void clearDirtyFlags() { bTransformDirty = bLodDirty = false; }
+	inline void savePrevTransform() { prevModelMatrix = transform.getMatrix(); }
+	inline void clearDirtyFlags()
+	{
+		transformDirtyCounter -= 1;
+		if (transformDirtyCounter < 0) transformDirtyCounter = 0;
+		bLodDirty = false;
+	}
 
 private:
 	std::vector<StaticMeshLOD> LODs;
 	uint32 activeLOD = 0;
 
 	Transform transform;
-	bool bTransformDirty = false;
+	Matrix prevModelMatrix;
+	int32 transformDirtyCounter = 0; // Was a boolean, but modified to update prev model matrix.
 	bool bLodDirty = false;
 };
