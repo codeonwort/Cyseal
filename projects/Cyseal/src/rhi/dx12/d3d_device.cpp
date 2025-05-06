@@ -331,10 +331,18 @@ void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAd
 	WRL::ComPtr<IDXGIAdapter1> adapter;
 	*outAdapter = nullptr;
 
+	std::vector<DXGI_ADAPTER_DESC1> adapterDescs;
 	for (UINT i = 0; DXGI_ERROR_NOT_FOUND != factory->EnumAdapters1(i, &adapter); ++i)
 	{
 		DXGI_ADAPTER_DESC1 desc;
 		adapter->GetDesc1(&desc);
+		adapterDescs.push_back(desc);
+	}
+
+	for (size_t i = 0; i < adapterDescs.size(); ++i)
+	{
+		const DXGI_ADAPTER_DESC1& desc = adapterDescs[i];
+		factory->EnumAdapters1((UINT)i, &adapter);
 
 		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
 		{
@@ -342,12 +350,10 @@ void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAd
 		}
 
 		if (SUCCEEDED(D3D12CreateDevice(
-			adapter.Get(),
-			D3D_FEATURE_LEVEL_11_0,
-			//D3D_FEATURE_LEVEL_12_2,
-			__uuidof(ID3D12Device),
-			nullptr)))
+			adapter.Get(), D3D_FEATURE_LEVEL_11_0, //D3D_FEATURE_LEVEL_12_2,
+			__uuidof(ID3D12Device), nullptr)))
 		{
+			CYLOG(LogDirectX, Log, L"GPU Driver: %s", desc.Description);
 			break;
 		}
 	}
