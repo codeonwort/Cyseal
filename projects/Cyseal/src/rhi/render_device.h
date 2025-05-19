@@ -29,6 +29,7 @@ enum class EWindowType
 struct RenderDeviceCreateParams
 {
 	void*                    nativeWindowHandle  = nullptr;
+	bool                     bHeadless           = false; // Don't create swap chain.
 	ERenderDeviceRawAPI      rawAPI;
 
 	// Required capability tiers

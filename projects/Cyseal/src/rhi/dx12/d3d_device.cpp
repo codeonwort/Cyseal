@@ -50,7 +50,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogDirectX);
 // 8. Create a depth/stencil buffer
 // 9. Set viewport and scissor rect
 
-void reportD3DLiveObjects()
+static void reportD3DLiveObjects()
 {
 #if _DEBUG
 	CYLOG(LogDirectX, Log, L"Checking live objects...");
@@ -62,6 +62,15 @@ void reportD3DLiveObjects()
 		dxgiDebug->Release();
 	}
 #endif
+}
+
+static uint32 computeNumFramesInFlight(D3DDevice* device)
+{
+	if (device->getCreateParams().bHeadless)
+	{
+		return 1;
+	}
+	return device->getSwapChain()->getBufferCount();
 }
 
 D3DDevice::D3DDevice()
@@ -212,15 +221,17 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	rawCommandQueue = static_cast<D3DRenderCommandQueue*>(commandQueue)->getRaw();
 
 	// 5. Create swap chain.
-	swapChain = (d3dSwapChain = new D3DSwapChain);
-	swapChain->initialize(
-		this,
-		createParams.nativeWindowHandle,
-		createParams.windowWidth,
-		createParams.windowHeight);
-
+	if (createParams.bHeadless == false)
+	{
+		swapChain = (d3dSwapChain = new D3DSwapChain);
+		swapChain->initialize(
+			this,
+			createParams.nativeWindowHandle,
+			createParams.windowWidth,
+			createParams.windowHeight);
+	}
 	// 6. Create command allocators and command list.
-	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
+	for (uint32 ix = 0; ix < computeNumFramesInFlight(this); ++ix)
 	{
 		RenderCommandAllocator* allocator = createRenderCommandAllocator();
 		commandAllocators.push_back(allocator);
@@ -247,7 +258,11 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 void D3DDevice::onDestroy()
 {
-	delete swapChain;
+	if (createParams.bHeadless == false)
+	{
+		delete swapChain;
+	}
+
 	for (size_t i = 0; i < commandAllocators.size(); ++i)
 	{
 		delete commandAllocators[i];
@@ -264,11 +279,11 @@ void D3DDevice::initializeDearImgui()
 	RenderDevice::initializeDearImgui();
 
 	ID3D12DescriptorHeap* d3dHeap = static_cast<D3DDescriptorHeap*>(getDearImguiSRVHeap())->getRaw();
-	auto backbufferFormat = into_d3d::pixelFormat(swapChain->getBackbufferFormat());
+	auto backbufferFormat = into_d3d::pixelFormat(getBackbufferFormat());
 
 	ImGui_ImplDX12_Init(
 		device.Get(),
-		swapChain->getBufferCount(),
+		computeNumFramesInFlight(this),
 		backbufferFormat,
 		d3dHeap,
 		d3dHeap->GetCPUDescriptorHandleForHeapStart(),

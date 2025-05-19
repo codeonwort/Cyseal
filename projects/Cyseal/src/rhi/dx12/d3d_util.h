@@ -9,7 +9,7 @@
 // that it relies on typedefs within the latest d3d12.h.
 // 
 // Or should I use Agility SDK? (https://devblogs.microsoft.com/directx/gettingstarted-dx12agility/)
-#include <d3dx12.h>
+#include "d3dx12.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>

@@ -43,11 +43,13 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\ApplicationBuild.props" />
     <Import Project="..\DisableWarning.props" />
+    <Import Project="EngineThirdParty.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\ApplicationBuild.props" />
     <Import Project="..\DisableWarning.props" />
+    <Import Project="EngineThirdParty.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
@@ -131,6 +133,7 @@
     <ClCompile Include="TestImageLoader.cpp" />
     <ClCompile Include="TestPBRTParser.cpp" />
     <ClCompile Include="TestProcessCrash.cpp" />
+    <ClCompile Include="TestRenderDevice.cpp" />
     <ClCompile Include="TestSTBN.cpp" />
     <ClCompile Include="TestSTL.cpp" />
     <ClCompile Include="TestVector.cpp" />

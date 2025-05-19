@@ -42,5 +42,21 @@ namespace UnitTest
 			Assert::AreEqual(n8, 4u);
 #endif
 		}
+
+		TEST_METHOD(OutOfStock)
+		{
+			const uint32 N = 1024;
+			FreeNumberList fn(N);
+			for (uint32 i = 0; i < N; ++i)
+			{
+				uint32 n = fn.allocate();
+				Assert::IsTrue(n != 0);
+			}
+			for (uint32 i = 0; i < 10; ++i)
+			{
+				uint32 n = fn.allocate();
+				Assert::IsTrue(n == 0);
+			}
+		}
 	};
 }
