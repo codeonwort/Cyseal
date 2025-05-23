@@ -37,8 +37,6 @@
 // Limit history count for realtime mode.
 #define MAX_REALTIME_HISTORY      64
 
-#define STACKLESS                 1
-
 struct PathTracingUniform
 {
 	float4      randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
@@ -265,14 +263,8 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 	currentRay.TMin = RAYGEN_T_MIN;
 	currentRay.TMax = RAYGEN_T_MAX;
 
-#if STACKLESS
 	float3 Li = 0;
 	float3 modulation = 1; // Accumulation of (brdf * cosine_term), better name?
-#else
-	float3 reflectanceHistory[MAX_PATH_LEN + 1];
-	float3 radianceHistory[MAX_PATH_LEN + 1];
-	float pdfHistory[MAX_PATH_LEN + 1];
-#endif
 	uint pathLen = 0;
 
 	while (pathLen < MAX_PATH_LEN)
@@ -296,13 +288,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
-#if STACKLESS
 			Li += modulation * sampleSky(currentRay.Direction);
-#else
-			radianceHistory[pathLen] = sampleSky(currentRay.Direction);
-			reflectanceHistory[pathLen] = 1;
-			pdfHistory[pathLen] = 1;
-#endif
 			pathLen += 1;
 			break;
 		}
@@ -357,18 +343,11 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		float3 E = 0;
 		E += traceSun(surfacePosition, surfaceNormal);
 
-#if !STACKLESS
-		radianceHistory[pathLen] = currentRayPayload.emission + E;
-		reflectanceHistory[pathLen] = brdfOutput.diffuseReflectance + brdfOutput.specularReflectance;
-		pdfHistory[pathLen] = brdfOutput.pdf;
-#endif
-
 		if (brdfOutput.pdf <= 0.0)
 		{
 			break;
 		}
 		
-#if STACKLESS
 		/*
 		L = Le0 + brdf0 * dot0 * Lr0
 		  = Le0 + brdf0 * dot0 * (Le1 + brdf1 * dot1 * Lr1)
@@ -381,7 +360,6 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		*/
 		modulation *= (brdfOutput.diffuseReflectance + brdfOutput.specularReflectance) / brdfOutput.pdf; // cosine-weighted sampling, so no cosine term
 		Li += modulation * (currentRayPayload.emission + E);
-#endif
 
 		currentRay.Origin = surfacePosition + nextRayOffset;
 		currentRay.Direction = brdfOutput.outRayDir;
@@ -391,15 +369,6 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		pathLen += 1;
 		prevIoR = currentRayPayload.indexOfRefraction;
 	}
-
-#if !STACKLESS
-	float3 Li = 0;
-	for (uint i = 0; i < pathLen; ++i)
-	{
-		uint j = pathLen - i - 1;
-		Li = reflectanceHistory[j] * (Li + radianceHistory[j]) / pdfHistory[j];
-	}
-#endif
 
 	return Li;
 }
