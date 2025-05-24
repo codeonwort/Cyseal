@@ -70,6 +70,8 @@ public:
 	// @return true if successful, false otherwise.
 	bool deallocate(uint32 number)
 	{
+		if (number > maxNumber) return false; // early exit
+
 		Range* candPrev = nullptr;
 		Range* cand = head;
 		while (cand != nullptr)

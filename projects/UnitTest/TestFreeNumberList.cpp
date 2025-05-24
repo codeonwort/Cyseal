@@ -58,5 +58,39 @@ namespace UnitTest
 				Assert::IsTrue(n == 0);
 			}
 		}
+
+		TEST_METHOD(DeallocationOutOfBounds)
+		{
+			FreeNumberList fn(1024);
+			fn.allocate();
+			fn.allocate();
+			fn.allocate();
+			fn.allocate();
+			fn.deallocate(2);
+			bool bResult = fn.deallocate(2048);
+			Assert::IsFalse(bResult);
+		}
+
+		TEST_METHOD(NoRandomCrash)
+		{
+			const uint32 count = 1024;
+			const uint32 iter = 50000;
+
+			FreeNumberList fn(count);
+
+			std::srand((unsigned int)std::time(0));
+			for (auto i = 0u; i < iter; ++i)
+			{
+				if ((std::rand() & 1) == 0)
+				{
+					fn.allocate();
+				}
+				else
+				{
+					uint32 n = std::rand() % 1025;
+					fn.deallocate(n);
+				}
+			}
+		}
 	};
 }
