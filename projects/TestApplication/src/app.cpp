@@ -10,23 +10,23 @@
 /* -------------------------------------------------------
 					CONFIGURATION
 --------------------------------------------------------*/
-// 0: DX12 + Standard renderer
-// 1: Vulkan + Null renderer
-// 2: Vulkan + Standard renderer (WIP)
 #define RENDERER_PRESET      0
 
 #if RENDERER_PRESET == 0
 	#define RAW_API          ERenderDeviceRawAPI::DirectX12
 	#define RENDERER_TYPE    ERendererType::Standard
 #elif RENDERER_PRESET == 1
-	#define RAW_API          ERenderDeviceRawAPI::Vulkan
+	#define RAW_API          ERenderDeviceRawAPI::DirectX12
 	#define RENDERER_TYPE    ERendererType::Null
 #elif RENDERER_PRESET == 2
 	#define RAW_API          ERenderDeviceRawAPI::Vulkan
 	#define RENDERER_TYPE    ERendererType::Standard
+#elif RENDERER_PRESET == 3
+	#define RAW_API          ERenderDeviceRawAPI::Vulkan
+	#define RENDERER_TYPE    ERendererType::Null
 #endif
-#define WINDOW_TYPE          EWindowType::WINDOWED
 
+#define WINDOW_TYPE          EWindowType::WINDOWED
 #define DOUBLE_BUFFERING     false
 #define RAYTRACING_TIER      ERaytracingTier::MaxTier
 

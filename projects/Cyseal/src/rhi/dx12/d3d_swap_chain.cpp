@@ -147,5 +147,14 @@ void D3DSwapChain::present()
 {
 	UINT SyncInterval = 0;
 	UINT Flags = 0;
-	HR( rawSwapChain->Present(SyncInterval, Flags) );
+	HRESULT hResult = rawSwapChain->Present(SyncInterval, Flags);
+
+	// #todo-dx12: Report DRED log
+	// https://microsoft.github.io/DirectX-Specs/d3d/DeviceRemovedExtendedData.html
+	if (hResult == DXGI_ERROR_DEVICE_REMOVED)
+	{
+		//
+	}
+
+	HR(hResult);
 }

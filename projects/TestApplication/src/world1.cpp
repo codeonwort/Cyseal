@@ -90,7 +90,10 @@ void World1::onTerminate()
 		delete wallA;
 		delete glassBox;
 	}
-	if (LOAD_PBRT_FILE && pbrtMesh != nullptr) delete pbrtMesh;
+
+#if LOAD_PBRT_FILE
+	if (pbrtMesh != nullptr) delete pbrtMesh;
+#endif
 
 	scene->skyboxTexture.reset();
 }

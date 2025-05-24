@@ -18,7 +18,12 @@
 #pragma comment(lib, "dxcompiler.lib")
 #pragma comment(lib, "dxguid.lib")
 
+#define ENABLE_DRED 0
 #if _DEBUG
+#define ENABLE_DEBUG_LAYER 1
+#endif
+
+#if ENABLE_DEBUG_LAYER
 #include <dxgidebug.h>
 #endif
 
@@ -52,7 +57,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogDirectX);
 
 static void reportD3DLiveObjects()
 {
-#if _DEBUG
+#if ENABLE_DEBUG_LAYER
 	CYLOG(LogDirectX, Log, L"Checking live objects...");
 	IDXGIDebug1* dxgiDebug = NULL;
 	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
@@ -83,8 +88,16 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 {
 	UINT dxgiFactoryFlags = 0;
 
+#if ENABLE_DRED
+	WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings> pDredSettings;
+	HR( D3D12GetDebugInterface(IID_PPV_ARGS(&pDredSettings)) );
+
+	pDredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+	pDredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+#endif
+
 	// 1. Create a device.
-#if _DEBUG
+#if ENABLE_DEBUG_LAYER
 	WRL::ComPtr<ID3D12Debug> debugController;
 	HR( D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)) );
 	debugController->EnableDebugLayer();
