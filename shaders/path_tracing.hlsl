@@ -249,6 +249,16 @@ float3 traceSun(float3 rayOrigin, float3 surfaceNormal)
 	return 0;
 }
 
+float3 traceLightSources(float3 rayOrigin, float3 surfaceNormal)
+{
+	float3 E = 0;
+	
+	// #todo: Pick one light source
+	E += traceSun(rayOrigin, surfaceNormal);
+	
+	return E;
+}
+
 // ---------------------------------------------------------
 // Shader stages
 
@@ -340,8 +350,8 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 
 		nextRayOffset = SURFACE_NORMAL_OFFSET * surfaceNormal;
 #endif
-		float3 E = 0;
-		E += traceSun(surfacePosition, surfaceNormal);
+		
+		float3 E = traceLightSources(surfacePosition, surfaceNormal);
 
 		if (brdfOutput.pdf <= 0.0)
 		{
@@ -356,7 +366,10 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 			+ (brdf0 * dot0 * Le1)
 			+ (brdf0 * dot0 * brdf1 * dot1) * Le2
 			+ (brdf0 * dot0 * brdf1 * dot1 * brdf2 * dot2) * Lr2
-		#todo: Is this right? I think Li += ... should run first but then the result looks weird.
+		#todo: Is this right? I think it should be like this, but then the result looks weird:
+			1. Li += currentRayPayload.emission;
+			2. modulation *= ...;
+			3. Li += modulation * E;
 		*/
 		modulation *= (brdfOutput.diffuseReflectance + brdfOutput.specularReflectance) / brdfOutput.pdf; // cosine-weighted sampling, so no cosine term
 		Li += modulation * (currentRayPayload.emission + E);
