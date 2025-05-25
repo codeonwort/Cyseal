@@ -75,8 +75,6 @@ private:
 	UniquePtr<Texture>                       raytracingTexture;
 	UniquePtr<ShaderResourceView>            raytracingSRV;
 	UniquePtr<UnorderedAccessView>           raytracingUAV;
+	TextureSequence                          colorHistory;
 	TextureSequence                          momentHistory;
-	UniquePtr<Texture>                       colorHistory[2];
-	UniquePtr<UnorderedAccessView>           colorHistoryUAV[2];
-	UniquePtr<ShaderResourceView>            colorHistorySRV[2];
 };

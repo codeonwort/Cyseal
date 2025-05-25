@@ -26,7 +26,9 @@
 
 #define RANDOM_SEQUENCE_LENGTH                (64 * 64)
 
-#define PF_colorHistory                       EPixelFormat::R16G16B16A16_FLOAT
+#define PF_raytracing                         EPixelFormat::R16G16B16A16_FLOAT
+// #todo-pathtracing: rgba32f due to CopyTextureRegion. Need to blit instead of copy if wanna make it rgba16f.
+#define PF_colorHistory                       EPixelFormat::R32G32B32A32_FLOAT
 #define PF_momentHistory                      EPixelFormat::R16G16B16A16_FLOAT
 
 static const int32 BLUR_COUNT = 3;
@@ -165,18 +167,18 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 	resizeTextures(commandList, sceneWidth, sceneHeight);
 
-	Texture* currentColorTexture  = colorHistory[swapchainIndex % 2].get();
-	Texture* prevColorTexture     = colorHistory[(swapchainIndex + 1) % 2].get();
+	const uint32 currFrame = swapchainIndex % 2;
+	const uint32 prevFrame = (swapchainIndex + 1) % 2;
 
-	Texture* currentMomentTexture = momentHistory.getTexture(swapchainIndex % 2);
-	Texture* prevMomentTexture    = momentHistory.getTexture((swapchainIndex + 1) % 2);
-
-	auto currentColorUAV  = colorHistoryUAV[swapchainIndex % 2].get();
-	auto prevColorUAV     = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
-	auto prevColorSRV     = colorHistorySRV[(swapchainIndex + 1) % 2].get();
-
-	auto currentMomentUAV = momentHistory.getUAV(swapchainIndex % 2);
-	auto prevMomentSRV    = momentHistory.getSRV((swapchainIndex + 1) % 2);
+	auto currentColorTexture  = colorHistory.getTexture(currFrame);
+	auto prevColorTexture     = colorHistory.getTexture(prevFrame);
+	auto currentMomentTexture = momentHistory.getTexture(currFrame);
+	auto prevMomentTexture    = momentHistory.getTexture(prevFrame);
+	auto currentColorUAV      = colorHistory.getUAV(currFrame);
+	auto prevColorUAV         = colorHistory.getUAV(prevFrame);
+	auto prevColorSRV         = colorHistory.getSRV(prevFrame);
+	auto currentMomentUAV     = momentHistory.getUAV(swapchainIndex % 2);
+	auto prevMomentSRV        = momentHistory.getSRV((swapchainIndex + 1) % 2);
 
 	// -------------------------------------------------------------------
 	// Phase: Raytracing
@@ -415,6 +417,7 @@ void PathTracingPass::initializeRaytracingPipeline()
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
 
+	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_PathTracingColorHistory");
 	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_PathTracingMomentHistory");
 
 	// Raytracing pipeline
@@ -536,13 +539,11 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 	historyWidth = newWidth;
 	historyHeight = newHeight;
 
+	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
 	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
-	commandList->enqueueDeferredDealloc(colorHistory[0].release(), true);
-	commandList->enqueueDeferredDealloc(colorHistory[1].release(), true);
-
 	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
-		PF_colorHistory, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
+		PF_raytracing, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
 	raytracingTexture = UniquePtr<Texture>(gRenderDevice->createTexture(rayTexDesc));
 	raytracingTexture->setDebugName(L"RT_PathTracingRaysTexture");
 
@@ -566,46 +567,13 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 		}
 	));
 
-	TextureCreateParams colorDesc = TextureCreateParams::texture2D(
-		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
-
-	for (uint32 i = 0; i < 2; ++i)
-	{
-		std::wstring debugName = L"RT_PathTracingColorHistory" + std::to_wstring(i);
-		colorHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
-		colorHistory[i]->setDebugName(debugName.c_str());
-
-		colorHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorHistory[i].get(),
-			UnorderedAccessViewDesc{
-				.format         = colorDesc.format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{
-					.mipSlice   = 0,
-					.planeSlice = 0,
-				},
-			}
-		));
-		colorHistorySRV[i] = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(colorHistory[i].get(),
-			ShaderResourceViewDesc{
-				.format              = colorDesc.format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = colorHistory[i]->getCreateParams().mipLevels,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
-	}
-
 	{
 		SCOPED_DRAW_EVENT(commandList, ColorHistoryBarrier);
 
 		TextureMemoryBarrier barriers[] = {
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[0].get() },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[1].get() },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(0) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(1) },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(0) },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(1) },
 		};
