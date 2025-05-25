@@ -224,9 +224,16 @@ void TestApplication::onTick(float deltaSeconds)
 				ImGui::TableNextRow();
 				ImGui::TableNextColumn(); ImGui::Text("Max Frames");
 				ImGui::TableNextColumn(); ImGui::InputInt("##Path Tracing Max Frames", &appState.pathTracingMaxFrames);
+				// #todo-pathtracing: Implement Wavefront Path Tracing.
+				#if 0
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn(); ImGui::Text("Path Tracing Kernel");
+				ImGui::TableNextColumn(); ImGui::Combo("##Path Tracing Kernel", &appState.selectedPathTracingKernel, getPathTracingKernelNames(), (int32)EPathTracingKernel::Count);
+				#endif
 				ImGui::EndTable();
 			}
 			appState.rendererOptions.pathTracing = (EPathTracingMode)appState.selectedPathTracingMode;
+			appState.rendererOptions.pathTracingKernel = (EPathTracingKernel)appState.selectedPathTracingKernel;
 			appState.pathTracingMaxFrames = (std::max)(appState.pathTracingMaxFrames, 1);
 			if (pathTracingModeOld != appState.selectedPathTracingMode || pathTracingMaxFramesOld != appState.pathTracingMaxFrames)
 			{

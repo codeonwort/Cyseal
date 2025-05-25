@@ -59,6 +59,14 @@ enum class EPathTracingMode : uint32
 	Count
 };
 
+enum class EPathTracingKernel : uint32
+{
+	MegaKernel = 0,
+	Wavefront  = 1,
+
+	Count
+};
+
 enum class EPathTracingDenoiserState
 {
 	WaitForFrameAccumulation,
@@ -82,6 +90,7 @@ inline const char** getBufferVisualizationModeNames()
 		"IndirectSpecular",
 		"VelocityMap",
 	};
+	static_assert(_countof(strings) == (int)EBufferVisualizationMode::Count);
 	return strings;
 }
 
@@ -92,6 +101,7 @@ inline const char** getRayTracedShadowsModeNames()
 		"Disabled",
 		"HardShadows",
 	};
+	static_assert(_countof(strings) == (int)ERayTracedShadowsMode::Count);
 	return strings;
 }
 
@@ -103,6 +113,7 @@ inline const char** getIndirectDiffuseModeNames()
 		"RandomSampled",
 		"STBNSampled",
 	};
+	static_assert(_countof(strings) == (int)EIndirectDiffuseMode::Count);
 	return strings;
 }
 
@@ -114,6 +125,7 @@ inline const char** getIndirectSpecularModeNames()
 		"ForceMirror",
 		"BRDF",
 	};
+	static_assert(_countof(strings) == (int)EIndirectSpecularMode::Count);
 	return strings;
 }
 
@@ -126,6 +138,18 @@ inline const char** getPathTracingModeNames()
 		"Realtime",
 		"RealtimeDenoising",
 	};
+	static_assert(_countof(strings) == (int)EPathTracingMode::Count);
+	return strings;
+}
+
+inline const char** getPathTracingKernelNames()
+{
+	static const char* strings[] =
+	{
+		"MegaKernel",
+		"Wavefront",
+	};
+	static_assert(_countof(strings) == (int)EPathTracingKernel::Count);
 	return strings;
 }
 
@@ -143,6 +167,7 @@ struct RendererOptions
 	EPathTracingMode pathTracing = EPathTracingMode::Disabled;
 	bool bCameraHasMoved = false;
 	EPathTracingDenoiserState pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
+	EPathTracingKernel pathTracingKernel = EPathTracingKernel::MegaKernel;
 
 	bool anyRayTracingEnabled() const
 	{
