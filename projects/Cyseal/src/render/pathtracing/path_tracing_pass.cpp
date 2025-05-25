@@ -139,17 +139,9 @@ bool PathTracingPass::isAvailable() const
 
 void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 swapchainIndex, const PathTracingInput& passInput)
 {
-	auto scene              = passInput.scene;
-	auto camera             = passInput.camera;
-
-	auto bCameraHasMoved    = passInput.bCameraHasMoved;
 	auto sceneWidth         = passInput.sceneWidth;
 	auto sceneHeight        = passInput.sceneHeight;
 	auto gpuScene           = passInput.gpuScene;
-	auto raytracingScene    = passInput.raytracingScene;
-	auto sceneUniformBuffer = passInput.sceneUniformBuffer;
-	auto sceneColorUAV      = passInput.sceneColorUAV;
-	auto skyboxSRV          = passInput.skyboxSRV;
 
 	if (isAvailable() == false)
 	{
@@ -160,7 +152,6 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		// #todo-zero-size: Release resources if any.
 		return;
 	}
-	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 	// -------------------------------------------------------------------
 	// Phase: Setup
@@ -177,102 +168,19 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	auto currentColorUAV      = colorHistory.getUAV(currFrame);
 	auto prevColorUAV         = colorHistory.getUAV(prevFrame);
 	auto prevColorSRV         = colorHistory.getSRV(prevFrame);
-	auto currentMomentUAV     = momentHistory.getUAV(swapchainIndex % 2);
-	auto prevMomentSRV        = momentHistory.getSRV((swapchainIndex + 1) % 2);
+	auto currentMomentUAV     = momentHistory.getUAV(currFrame);
+	auto prevMomentSRV        = momentHistory.getSRV(prevFrame);
 
 	// -------------------------------------------------------------------
 	// Phase: Raytracing
 
-	// Update uniforms.
+	if (passInput.kernel == EPathTracingKernel::MegaKernel)
 	{
-		RayPassUniform* uboData = new RayPassUniform;
-
-		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
-		{
-			uboData->randFloats0[i] = Cymath::randFloat();
-			uboData->randFloats1[i] = Cymath::randFloat();
-		}
-		uboData->renderTargetWidth = sceneWidth;
-		uboData->renderTargetHeight = sceneHeight;
-
-		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
-		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
-
-		delete uboData;
+		executeMegaKernel(commandList, swapchainIndex, passInput);
 	}
-
-	// Resize volatile heaps if needed.
+	else
 	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // passUniform
-		requiredVolatiles += 1; // rtScene
-		requiredVolatiles += 1; // gIndexBuffer
-		requiredVolatiles += 1; // gVertexBuffer
-		requiredVolatiles += 1; // gpuSceneBuffer
-		requiredVolatiles += 1; // skybox
-		requiredVolatiles += 1; // sceneDepthTexture
-		requiredVolatiles += 1; // raytracingTexture
-		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
-		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
-
-		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	}
-
-	// Resize hit group shader table if needed.
-	if (scene->bRebuildGPUScene || hitGroupShaderTable[swapchainIndex] == nullptr)
-	{
-		resizeHitGroupShaderTable(swapchainIndex, scene);
-	}
-
-	commandList->setRaytracingPipelineState(RTPSO.get());
-
-	// Bind global shader parameters.
-	{
-		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
-		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
-
-		ShaderParameterTable SPT{};
-		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
-		SPT.constantBuffer("passUniform", uniformCBV);
-		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
-		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
-		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
-		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
-		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
-		SPT.texture("skybox", skyboxSRV);
-		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
-		SPT.rwTexture("raytracingTexture", raytracingUAV.get());
-		// Bindless
-		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
-
-		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
-	}
-	
-	DispatchRaysDesc dispatchDesc{
-		.raygenShaderTable = raygenShaderTable.get(),
-		.missShaderTable   = missShaderTable.get(),
-		.hitGroupTable     = hitGroupShaderTable.at(swapchainIndex),
-		.width             = sceneWidth,
-		.height            = sceneHeight,
-		.depth             = 1,
-	};
-	commandList->dispatchRays(dispatchDesc);
-
-	{
-		SCOPED_DRAW_EVENT(commandList, BarriersAfterRaytracing);
-
-		TextureMemoryBarrier textureBarriers[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevMomentTexture },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, raytracingTexture.get() },
-		};
-		GPUResource* uavBarriers[] = { raytracingTexture.get() };
-
-		commandList->resourceBarriers(
-			0, nullptr,
-			_countof(textureBarriers), textureBarriers,
-			_countof(uavBarriers), uavBarriers);
+		// #todo-pathtracing: Implement wavefront kernel.
 	}
 
 	// -------------------------------------------------------------------
@@ -286,7 +194,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		uboData.screenSize[1] = historyHeight;
 		uboData.invScreenSize[0] = 1.0f / (float)historyWidth;
 		uboData.invScreenSize[1] = 1.0f / (float)historyHeight;
-		uboData.bInvalidateHistory = bCameraHasMoved && passInput.mode == EPathTracingMode::Offline;
+		uboData.bInvalidateHistory = passInput.bCameraHasMoved && passInput.mode == EPathTracingMode::Offline;
 		uboData.bLimitHistory = passInput.mode == EPathTracingMode::Realtime;
 
 		auto uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
@@ -316,7 +224,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
 
 		ShaderParameterTable SPT{};
-		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
+		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
 		SPT.constantBuffer("passUniform", uniformCBV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.texture("raytracingTexture", raytracingSRV.get());
@@ -394,7 +302,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 			.cPhi            = cPhi,
 			.nPhi            = nPhi,
 			.pPhi            = pPhi,
-			.sceneUniformCBV = sceneUniformBuffer,
+			.sceneUniformCBV = passInput.sceneUniformBuffer,
 			.inColorTexture  = prevColorTexture,
 			.inColorUAV      = prevColorUAV,
 			.inSceneDepthSRV = passInput.sceneDepthSRV,
@@ -528,6 +436,111 @@ void PathTracingPass::initializeTemporalPipeline()
 	));
 
 	delete shader;
+}
+
+void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, uint32 swapchainIndex, const PathTracingInput& passInput)
+{
+	auto scene              = passInput.scene;
+	auto sceneWidth         = passInput.sceneWidth;
+	auto sceneHeight        = passInput.sceneHeight;
+	auto gpuSceneDesc       = passInput.gpuScene->queryMaterialDescriptors(swapchainIndex);
+
+	const uint32 currFrame  = swapchainIndex % 2;
+	const uint32 prevFrame  = (swapchainIndex + 1) % 2;
+	auto prevColorTexture   = colorHistory.getTexture(prevFrame);
+	auto prevMomentTexture  = momentHistory.getTexture(prevFrame);
+
+	// Update uniforms.
+	{
+		RayPassUniform* uboData = new RayPassUniform;
+
+		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
+		{
+			uboData->randFloats0[i] = Cymath::randFloat();
+			uboData->randFloats1[i] = Cymath::randFloat();
+		}
+		uboData->renderTargetWidth = sceneWidth;
+		uboData->renderTargetHeight = sceneHeight;
+
+		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
+		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
+
+		delete uboData;
+	}
+
+	// Resize volatile heaps if needed.
+	{
+		uint32 requiredVolatiles = 0;
+		requiredVolatiles += 1; // sceneUniform
+		requiredVolatiles += 1; // passUniform
+		requiredVolatiles += 1; // rtScene
+		requiredVolatiles += 1; // gIndexBuffer
+		requiredVolatiles += 1; // gVertexBuffer
+		requiredVolatiles += 1; // gpuSceneBuffer
+		requiredVolatiles += 1; // skybox
+		requiredVolatiles += 1; // sceneDepthTexture
+		requiredVolatiles += 1; // raytracingTexture
+		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
+		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
+
+		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	}
+
+	// Resize hit group shader table if needed.
+	if (scene->bRebuildGPUScene || hitGroupShaderTable[swapchainIndex] == nullptr)
+	{
+		resizeHitGroupShaderTable(swapchainIndex, scene);
+	}
+
+	commandList->setRaytracingPipelineState(RTPSO.get());
+
+	// Bind global shader parameters.
+	{
+		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
+		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
+		SPT.constantBuffer("passUniform", uniformCBV);
+		SPT.accelerationStructure("rtScene", passInput.raytracingScene->getSRV());
+		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
+		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
+		SPT.structuredBuffer("gpuSceneBuffer", passInput.gpuScene->getGPUSceneBufferSRV());
+		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
+		SPT.texture("skybox", passInput.skyboxSRV);
+		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+		SPT.rwTexture("raytracingTexture", raytracingUAV.get());
+		// Bindless
+		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
+
+		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
+	}
+	
+	DispatchRaysDesc dispatchDesc{
+		.raygenShaderTable = raygenShaderTable.get(),
+		.missShaderTable   = missShaderTable.get(),
+		.hitGroupTable     = hitGroupShaderTable.at(swapchainIndex),
+		.width             = sceneWidth,
+		.height            = sceneHeight,
+		.depth             = 1,
+	};
+	commandList->dispatchRays(dispatchDesc);
+
+	{
+		SCOPED_DRAW_EVENT(commandList, BarriersAfterRaytracing);
+
+		TextureMemoryBarrier textureBarriers[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevMomentTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, raytracingTexture.get() },
+		};
+		GPUResource* uavBarriers[] = { raytracingTexture.get() };
+
+		commandList->resourceBarriers(
+			0, nullptr,
+			_countof(textureBarriers), textureBarriers,
+			_countof(uavBarriers), uavBarriers);
+	}
 }
 
 void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)

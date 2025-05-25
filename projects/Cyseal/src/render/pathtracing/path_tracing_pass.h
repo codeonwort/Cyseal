@@ -54,6 +54,8 @@ private:
 	void initializeRaytracingPipeline();
 	void initializeTemporalPipeline();
 
+	void executeMegaKernel(RenderCommandList* commandList, uint32 swapchainIndex, const PathTracingInput& passInput);
+
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene);
 

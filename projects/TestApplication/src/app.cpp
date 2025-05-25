@@ -224,7 +224,7 @@ void TestApplication::onTick(float deltaSeconds)
 				ImGui::TableNextRow();
 				ImGui::TableNextColumn(); ImGui::Text("Max Frames");
 				ImGui::TableNextColumn(); ImGui::InputInt("##Path Tracing Max Frames", &appState.pathTracingMaxFrames);
-				// #todo-pathtracing: Implement Wavefront Path Tracing.
+				// #todo-pathtracing: UI for Wavefront Path Tracing.
 				#if 0
 				ImGui::TableNextRow();
 				ImGui::TableNextColumn(); ImGui::Text("Path Tracing Kernel");
