@@ -34,6 +34,7 @@ struct PathTracingInput
 	UnorderedAccessView*       sceneColorUAV;
 	ShaderResourceView*        sceneDepthSRV;
 	ShaderResourceView*        prevSceneDepthSRV;
+	ShaderResourceView*        velocityMapSRV;
 	ShaderResourceView*        gbuffer0SRV;
 	ShaderResourceView*        gbuffer1SRV;
 	ShaderResourceView*        skyboxSRV;
@@ -70,6 +71,9 @@ private:
 
 	uint32                                   historyWidth = 0;
 	uint32                                   historyHeight = 0;
+	UniquePtr<Texture>                       raytracingTexture;
+	UniquePtr<ShaderResourceView>            raytracingSRV;
+	UniquePtr<UnorderedAccessView>           raytracingUAV;
 	UniquePtr<Texture>                       momentHistory[2];
 	UniquePtr<UnorderedAccessView>           momentHistoryUAV[2];
 	UniquePtr<Texture>                       colorHistory[2];

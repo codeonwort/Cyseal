@@ -8,6 +8,10 @@ struct PassUniform
 {
 	uint2  screenSize;
 	float2 invScreenSize;
+	uint   bInvalidateHistory;
+	uint   bLimitHistory;
+	uint   _pad0;
+	uint   _pad1;
 };
 
 // ---------------------------------------------------------
@@ -40,6 +44,11 @@ struct PrevFrameInfo
 float2 getScreenUV(uint2 texel)
 {
 	return (float2(texel) + float2(0.5, 0.5)) * passUniform.invScreenSize;
+}
+
+float getLuminance(float3 color)
+{
+	return dot(color, float3(0.2126, 0.7152, 0.0722));
 }
 
 PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
@@ -90,6 +99,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		// Temporal reprojection
 		PrevFrameInfo prevFrame = getReprojectedInfo(screenUV);
 		bool bTemporalReprojection = false;
+		if (passUniform.bInvalidateHistory == 0)
 		{
 			float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;
 			bTemporalReprojection = prevFrame.bValid && depthDiff <= 0.03;
@@ -103,9 +113,22 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		}
 		
 		Wo = lerp(prevWo, Wo, 1.0 / (1.0 + historyCount));
-		historyCount = min(historyCount + 1, MAX_HISTORY);
+		historyCount += 1;
+		if (passUniform.bLimitHistory != 0)
+		{
+			historyCount = min(historyCount, MAX_HISTORY);
+		}
 	}
 	
 	// #todo-pathtracing: Should store history in moment texture
 	currentColorTexture[texel] = float4(Wo, historyCount);
+	
+	/*
+	float2 moments;
+	moments.x = getLuminance(Li);
+	moments.y = moments.x * moments.x;
+	moments = lerp(prevMoments, moments, 1.0 / (1.0 + historyCount));
+
+	variance = max(0.0, moments.y - moments.x * moments.x);
+	*/
 }
