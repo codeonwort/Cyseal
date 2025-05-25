@@ -27,7 +27,7 @@
 #define RANDOM_SEQUENCE_LENGTH                (64 * 64)
 
 #define PF_colorHistory                       EPixelFormat::R16G16B16A16_FLOAT
-#define PF_momentHistory                      EPixelFormat::R32G32B32A32_UINT
+#define PF_momentHistory                      EPixelFormat::R16G16B16A16_FLOAT
 
 static const int32 BLUR_COUNT = 3;
 static float const cPhi       = 1.0f;
@@ -165,12 +165,18 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 	resizeTextures(commandList, sceneWidth, sceneHeight);
 
-	Texture* currentColorTexture = colorHistory[swapchainIndex % 2].get();
-	Texture* prevColorTexture = colorHistory[(swapchainIndex + 1) % 2].get();
+	Texture* currentColorTexture  = colorHistory[swapchainIndex % 2].get();
+	Texture* prevColorTexture     = colorHistory[(swapchainIndex + 1) % 2].get();
 
-	auto currentColorUAV = colorHistoryUAV[swapchainIndex % 2].get();
-	auto prevColorUAV = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
-	auto prevColorSRV = colorHistorySRV[(swapchainIndex + 1) % 2].get();
+	Texture* currentMomentTexture = momentHistory.getTexture(swapchainIndex % 2);
+	Texture* prevMomentTexture    = momentHistory.getTexture((swapchainIndex + 1) % 2);
+
+	auto currentColorUAV  = colorHistoryUAV[swapchainIndex % 2].get();
+	auto prevColorUAV     = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
+	auto prevColorSRV     = colorHistorySRV[(swapchainIndex + 1) % 2].get();
+
+	auto currentMomentUAV = momentHistory.getUAV(swapchainIndex % 2);
+	auto prevMomentSRV    = momentHistory.getSRV((swapchainIndex + 1) % 2);
 
 	// -------------------------------------------------------------------
 	// Phase: Raytracing
@@ -223,8 +229,6 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	{
 		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
 		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
-		auto currentMomentUAV = momentHistoryUAV[swapchainIndex % 2].get();
-		auto prevMomentUAV = momentHistoryUAV[(swapchainIndex + 1) % 2].get();
 
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
@@ -258,6 +262,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 		TextureMemoryBarrier textureBarriers[] = {
 			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevMomentTexture },
 			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, raytracingTexture.get() },
 		};
 		GPUResource* uavBarriers[] = { raytracingTexture.get() };
@@ -293,10 +298,12 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		requiredVolatiles += 1; // passUniform
 		requiredVolatiles += 1; // sceneDepthTexture
 		requiredVolatiles += 1; // raytracingTexture
+		requiredVolatiles += 1; // velocityMapTexture
 		requiredVolatiles += 1; // prevSceneDepthTexture
 		requiredVolatiles += 1; // prevColorTexture
-		requiredVolatiles += 1; // velocityMapTexture
+		requiredVolatiles += 1; // prevMomentTexture
 		requiredVolatiles += 1; // currentColorTexture
+		requiredVolatiles += 1; // currentMomentTexture
 
 		temporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	}
@@ -313,8 +320,10 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.texture("raytracingTexture", raytracingSRV.get());
 		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
 		SPT.texture("prevColorTexture", prevColorSRV);
+		SPT.texture("prevMomentTexture", prevMomentSRV);
 		SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
 		SPT.rwTexture("currentColorTexture", currentColorUAV);
+		SPT.rwTexture("currentMomentTexture", currentMomentUAV);
 
 		commandList->setComputePipelineState(temporalPipeline.get());
 		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
@@ -330,8 +339,9 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 		TextureMemoryBarrier textureBarriers[] = {
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevMomentTexture },
 		};
-		GPUResource* uavBarriers[] = { currentColorTexture };
+		GPUResource* uavBarriers[] = { currentColorTexture, currentMomentTexture };
 		commandList->resourceBarriers(0, nullptr, _countof(textureBarriers), textureBarriers, _countof(uavBarriers), uavBarriers);
 	}
 
@@ -404,6 +414,8 @@ void PathTracingPass::initializeRaytracingPipeline()
 
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
+
+	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_PathTracingMomentHistory");
 
 	// Raytracing pipeline
 	{
@@ -524,8 +536,8 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 	historyWidth = newWidth;
 	historyHeight = newHeight;
 
-	commandList->enqueueDeferredDealloc(momentHistory[0].release(), true);
-	commandList->enqueueDeferredDealloc(momentHistory[1].release(), true);
+	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
+
 	commandList->enqueueDeferredDealloc(colorHistory[0].release(), true);
 	commandList->enqueueDeferredDealloc(colorHistory[1].release(), true);
 
@@ -553,26 +565,6 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
-
-	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
-		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
-	for (uint32 i = 0; i < 2; ++i)
-	{
-		std::wstring debugName = L"RT_PathTracingMomentHistory" + std::to_wstring(i);
-		momentHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(momentDesc));
-		momentHistory[i]->setDebugName(debugName.c_str());
-
-		momentHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(momentHistory[i].get(),
-			UnorderedAccessViewDesc{
-				.format         = momentDesc.format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{
-					.mipSlice   = 0,
-					.planeSlice = 0,
-				},
-			}
-		));
-	}
 
 	TextureCreateParams colorDesc = TextureCreateParams::texture2D(
 		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
@@ -614,6 +606,8 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[0].get() },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[1].get() },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(0) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(1) },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}

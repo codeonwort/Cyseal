@@ -21,10 +21,12 @@ ConstantBuffer<SceneUniform> sceneUniform;
 ConstantBuffer<PassUniform>  passUniform;
 Texture2D                    sceneDepthTexture;
 Texture2D                    raytracingTexture;
+Texture2D                    velocityMapTexture;
 Texture2D                    prevSceneDepthTexture;
 Texture2D                    prevColorTexture;
-Texture2D                    velocityMapTexture;
+Texture2D                    prevMomentTexture;
 RWTexture2D<float4>          currentColorTexture;
+RWTexture2D<float4>          currentMomentTexture;
 
 SamplerState linearSampler : register(s0, space0);
 SamplerState pointSampler  : register(s1, space0);
@@ -39,6 +41,7 @@ struct PrevFrameInfo
 	float  linearDepth;
 	float3 color;
 	float  historyCount;
+	float2 moments;
 };
 
 float2 getScreenUV(uint2 texel)
@@ -53,7 +56,7 @@ float getLuminance(float3 color)
 
 PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
 {
-	float2 velocity = velocityMapTexture.SampleLevel(pointSampler, currentScreenUV, 0).rg;
+	float2 velocity = velocityMapTexture.SampleLevel(pointSampler, currentScreenUV, 0).xy;
 	float2 screenUV = currentScreenUV - velocity;
 	float4 positionCS = textureUVToClipSpace(screenUV);
 	
@@ -64,14 +67,17 @@ PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
 		return info;
 	}
 
-	float sceneDepth = prevSceneDepthTexture.SampleLevel(pointSampler, screenUV, 0).r;
-	float4 colorAndHistory = prevColorTexture.SampleLevel(linearSampler, screenUV, 0);
+	float sceneDepth = prevSceneDepthTexture.SampleLevel(pointSampler, screenUV, 0).x;
+	float3 color = prevColorTexture.SampleLevel(linearSampler, screenUV, 0).xyz;
+	float4 moments = prevMomentTexture.SampleLevel(pointSampler, screenUV, 0);
 
 	info.bValid = true;
 	info.positionWS = clipSpaceToWorldSpace(positionCS, sceneUniform.prevViewProjInvMatrix);
 	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
-	info.color = colorAndHistory.rgb;
-	info.historyCount = colorAndHistory.a; // #todo-pathtracing: history is bilinear sampled...
+	info.color = color;
+	info.historyCount = moments.z;
+	info.moments = moments.xy;
+	
 	return info;
 }
 
@@ -92,9 +98,12 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 
 	float3 Wo = 0;
 	float historyCount = 0;
+	float2 moments = 0;
 	if (sceneDepth != DEVICE_Z_FAR)
 	{
 		Wo = raytracingTexture.Load(int3(texel, 0)).xyz;
+		moments.x = getLuminance(Wo);
+		moments.y = moments.x * moments.x;
 		
 		// Temporal reprojection
 		PrevFrameInfo prevFrame = getReprojectedInfo(screenUV);
@@ -106,29 +115,26 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		}
 		
 		float3 prevWo = 0;
+		float2 prevMoments = 0;
 		if (bTemporalReprojection)
 		{
 			historyCount = prevFrame.historyCount;
 			prevWo = prevFrame.color;
+			prevMoments = prevFrame.moments;
 		}
 		
 		Wo = lerp(prevWo, Wo, 1.0 / (1.0 + historyCount));
+		moments = lerp(prevMoments, moments, 1.0 / (1.0 + historyCount));
+		
 		historyCount += 1;
 		if (passUniform.bLimitHistory != 0)
 		{
 			historyCount = min(historyCount, MAX_HISTORY);
 		}
 	}
-	
-	// #todo-pathtracing: Should store history in moment texture
-	currentColorTexture[texel] = float4(Wo, historyCount);
-	
-	/*
-	float2 moments;
-	moments.x = getLuminance(Li);
-	moments.y = moments.x * moments.x;
-	moments = lerp(prevMoments, moments, 1.0 / (1.0 + historyCount));
 
-	variance = max(0.0, moments.y - moments.x * moments.x);
-	*/
+	//variance = max(0.0, moments.y - moments.x * moments.x);
+	
+	currentColorTexture[texel] = float4(Wo, 1);
+	currentMomentTexture[texel] = float4(moments, historyCount, 1);
 }

@@ -8,6 +8,7 @@
 #include "render/scene_render_pass.h"
 #include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
+#include "render/util/texture_sequence.h"
 
 class SceneProxy;
 class Camera;
@@ -74,8 +75,7 @@ private:
 	UniquePtr<Texture>                       raytracingTexture;
 	UniquePtr<ShaderResourceView>            raytracingSRV;
 	UniquePtr<UnorderedAccessView>           raytracingUAV;
-	UniquePtr<Texture>                       momentHistory[2];
-	UniquePtr<UnorderedAccessView>           momentHistoryUAV[2];
+	TextureSequence                          momentHistory;
 	UniquePtr<Texture>                       colorHistory[2];
 	UniquePtr<UnorderedAccessView>           colorHistoryUAV[2];
 	UniquePtr<ShaderResourceView>            colorHistorySRV[2];
