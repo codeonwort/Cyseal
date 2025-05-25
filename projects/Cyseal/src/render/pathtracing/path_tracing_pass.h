@@ -8,6 +8,7 @@
 #include "render/scene_render_pass.h"
 #include "render/renderer_options.h"
 #include "render/util/volatile_descriptor.h"
+#include "render/util/texture_sequence.h"
 
 class SceneProxy;
 class Camera;
@@ -34,6 +35,7 @@ struct PathTracingInput
 	UnorderedAccessView*       sceneColorUAV;
 	ShaderResourceView*        sceneDepthSRV;
 	ShaderResourceView*        prevSceneDepthSRV;
+	ShaderResourceView*        velocityMapSRV;
 	ShaderResourceView*        gbuffer0SRV;
 	ShaderResourceView*        gbuffer1SRV;
 	ShaderResourceView*        skyboxSRV;
@@ -49,23 +51,30 @@ public:
 	void renderPathTracing(RenderCommandList* commandList, uint32 swapchainIndex, const PathTracingInput& passInput);
 
 private:
+	void initializeRaytracingPipeline();
+	void initializeTemporalPipeline();
+
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene);
 
 private:
+	// Ray pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
-	UniquePtr<RaytracingShaderTable> raygenShaderTable;
-	UniquePtr<RaytracingShaderTable> missShaderTable;
+	UniquePtr<RaytracingShaderTable>         raygenShaderTable;
+	UniquePtr<RaytracingShaderTable>         missShaderTable;
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
-	std::vector<uint32> totalHitGroupShaderRecord;
+	std::vector<uint32>                      totalHitGroupShaderRecord;
+	VolatileDescriptorHelper                 rayPassDescriptor;
 
-	uint32 historyWidth = 0;
-	uint32 historyHeight = 0;
-	UniquePtr<Texture> momentHistory[2];
-	UniquePtr<UnorderedAccessView> momentHistoryUAV[2];
-	UniquePtr<Texture> colorHistory[2];
-	UniquePtr<UnorderedAccessView> colorHistoryUAV[2];
-	UniquePtr<ShaderResourceView> colorHistorySRV[2];
+	// Temporal pass
+	UniquePtr<ComputePipelineState>          temporalPipeline;
+	VolatileDescriptorHelper                 temporalPassDescriptor;
 
-	VolatileDescriptorHelper rayPassDescriptor;
+	uint32                                   historyWidth = 0;
+	uint32                                   historyHeight = 0;
+	UniquePtr<Texture>                       raytracingTexture;
+	UniquePtr<ShaderResourceView>            raytracingSRV;
+	UniquePtr<UnorderedAccessView>           raytracingUAV;
+	TextureSequence                          colorHistory;
+	TextureSequence                          momentHistory;
 };

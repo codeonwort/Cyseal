@@ -26,6 +26,11 @@
 
 #define RANDOM_SEQUENCE_LENGTH                (64 * 64)
 
+#define PF_raytracing                         EPixelFormat::R16G16B16A16_FLOAT
+// #todo-pathtracing: rgba32f due to CopyTextureRegion. Need to blit instead of copy if wanna make it rgba16f.
+#define PF_colorHistory                       EPixelFormat::R32G32B32A32_FLOAT
+#define PF_momentHistory                      EPixelFormat::R16G16B16A16_FLOAT
+
 static const int32 BLUR_COUNT = 3;
 static float const cPhi       = 1.0f;
 static float const nPhi       = 1.0f;
@@ -33,16 +38,21 @@ static float const pPhi       = 1.0f;
 
 DEFINE_LOG_CATEGORY_STATIC(LogPathTracing);
 
-struct PathTracingUniform
+struct RayPassUniform
 {
-	float randFloats0[RANDOM_SEQUENCE_LENGTH];
-	float randFloats1[RANDOM_SEQUENCE_LENGTH];
-	Float4x4 prevViewProjInv;
-	Float4x4 prevViewProj;
-	uint32 renderTargetWidth;
-	uint32 renderTargetHeight;
-	uint32 bInvalidateHistory;
-	uint32 bLimitHistory;
+	float    randFloats0[RANDOM_SEQUENCE_LENGTH];
+	float    randFloats1[RANDOM_SEQUENCE_LENGTH];
+	uint32   renderTargetWidth;
+	uint32   renderTargetHeight;
+};
+struct TemporalPassUniform
+{
+	uint32   screenSize[2];
+	float    invScreenSize[2];
+	uint32   bInvalidateHistory;
+	uint32   bLimitHistory;
+	uint32   _pad0;
+	uint32   _pad1;
 };
 
 // Just to calculate size in bytes.
@@ -75,6 +85,41 @@ struct ClosestHitPushConstants
 };
 static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
 
+static StaticSamplerDesc getLinearSamplerDesc()
+{
+	return StaticSamplerDesc{
+		.name             = "linearSampler",
+		.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+		.addressU         = ETextureAddressMode::Clamp,
+		.addressV         = ETextureAddressMode::Clamp,
+		.addressW         = ETextureAddressMode::Clamp,
+		.mipLODBias       = 0.0f,
+		.maxAnisotropy    = 0,
+		.comparisonFunc   = EComparisonFunc::Always,
+		.borderColor      = EStaticBorderColor::TransparentBlack,
+		.minLOD           = 0.0f,
+		.maxLOD           = FLT_MAX,
+		.shaderVisibility = EShaderVisibility::All,
+	};
+}
+static StaticSamplerDesc getPointSamplerDesc()
+{
+	return StaticSamplerDesc{
+		.name             = "pointSampler",
+		.filter           = ETextureFilter::MIN_MAG_MIP_POINT,
+		.addressU         = ETextureAddressMode::Clamp,
+		.addressV         = ETextureAddressMode::Clamp,
+		.addressW         = ETextureAddressMode::Clamp,
+		.mipLODBias       = 0.0f,
+		.maxAnisotropy    = 0,
+		.comparisonFunc   = EComparisonFunc::Always,
+		.borderColor      = EStaticBorderColor::TransparentBlack,
+		.minLOD           = 0.0f,
+		.maxLOD           = FLT_MAX,
+		.shaderVisibility = EShaderVisibility::All,
+	};
+}
+
 void PathTracingPass::initialize()
 {
 	if (isAvailable() == false)
@@ -83,109 +128,8 @@ void PathTracingPass::initialize()
 		return;
 	}
 
-	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
-
-	rayPassDescriptor.initialize(L"PathTracing_RayPass", swapchainCount, sizeof(PathTracingUniform));
-
-	totalHitGroupShaderRecord.resize(swapchainCount, 0);
-	hitGroupShaderTable.initialize(swapchainCount);
-
-	// Raytracing pipeline
-	{
-		// Shaders
-		ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "PathTracing_Raygen");
-		ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "PathTracing_ClosestHit");
-		ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "PathTracing_Miss");
-		raygenShader->declarePushConstants();
-		closestHitShader->declarePushConstants({ "g_closestHitCB" });
-		missShader->declarePushConstants();
-		raygenShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_RAYGEN);
-		closestHitShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_CLOSEST_HIT);
-		missShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_MISS);
-
-		// RTPSO
-		std::vector<StaticSamplerDesc> staticSamplers = {
-			StaticSamplerDesc{
-				.name             = "albedoSampler",
-				.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
-				.addressU         = ETextureAddressMode::Wrap,
-				.addressV         = ETextureAddressMode::Wrap,
-				.addressW         = ETextureAddressMode::Wrap,
-				.mipLODBias       = 0.0f,
-				.maxAnisotropy    = 0,
-				.comparisonFunc   = EComparisonFunc::Always,
-				.borderColor      = EStaticBorderColor::TransparentBlack,
-				.minLOD           = 0.0f,
-				.maxLOD           = FLT_MAX,
-				.shaderVisibility = EShaderVisibility::All,
-			},
-			StaticSamplerDesc{
-				.name             = "skyboxSampler",
-				.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
-				.addressU         = ETextureAddressMode::Wrap,
-				.addressV         = ETextureAddressMode::Wrap,
-				.addressW         = ETextureAddressMode::Wrap,
-				.mipLODBias       = 0.0f,
-				.maxAnisotropy    = 0,
-				.comparisonFunc   = EComparisonFunc::Always,
-				.borderColor      = EStaticBorderColor::TransparentBlack,
-				.minLOD           = 0.0f,
-				.maxLOD           = 0.0f,
-				.shaderVisibility = EShaderVisibility::All,
-			},
-			StaticSamplerDesc{
-				.name             = "linearSampler",
-				.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
-				.addressU         = ETextureAddressMode::Clamp,
-				.addressV         = ETextureAddressMode::Clamp,
-				.addressW         = ETextureAddressMode::Clamp,
-				.mipLODBias       = 0.0f,
-				.maxAnisotropy    = 0,
-				.comparisonFunc   = EComparisonFunc::Always,
-				.borderColor      = EStaticBorderColor::TransparentBlack,
-				.minLOD           = 0.0f,
-				.maxLOD           = FLT_MAX,
-				.shaderVisibility = EShaderVisibility::All,
-			},
-		};
-		RaytracingPipelineStateObjectDesc pipelineDesc{
-			.hitGroupName                 = PATH_TRACING_HIT_GROUP_NAME,
-			.hitGroupType                 = ERaytracingHitGroupType::Triangles,
-			.raygenShader                 = raygenShader,
-			.closestHitShader             = closestHitShader,
-			.missShader                   = missShader,
-			.raygenLocalParameters        = {},
-			.closestHitLocalParameters    = { "g_closestHitCB" },
-			.missLocalParameters          = {},
-			.maxPayloadSizeInBytes        = sizeof(RayPayload),
-			.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
-			.maxTraceRecursionDepth       = PATH_TRACING_MAX_RECURSION,
-		};
-		RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
-
-		// Raygen shader table
-		{
-			uint32 numShaderRecords = 1;
-			raygenShaderTable = UniquePtr<RaytracingShaderTable>(
-				device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"RayGenShaderTable"));
-			raygenShaderTable->uploadRecord(0, raygenShader, nullptr, 0);
-		}
-		// Miss shader table
-		{
-			uint32 numShaderRecords = 1;
-			missShaderTable = UniquePtr<RaytracingShaderTable>(
-				device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
-			missShaderTable->uploadRecord(0, missShader, nullptr, 0);
-		}
-		// Hit group shader table is created in resizeHitGroupShaderTable().
-		// ...
-
-		// Cleanup
-		delete raygenShader;
-		delete closestHitShader;
-		delete missShader;
-	}
+	initializeRaytracingPipeline();
+	initializeTemporalPipeline();
 }
 
 bool PathTracingPass::isAvailable() const
@@ -223,64 +167,52 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 	resizeTextures(commandList, sceneWidth, sceneHeight);
 
-	Texture* currentColorTexture = colorHistory[swapchainIndex % 2].get();
-	Texture* prevColorTexture = colorHistory[(swapchainIndex + 1) % 2].get();
+	const uint32 currFrame = swapchainIndex % 2;
+	const uint32 prevFrame = (swapchainIndex + 1) % 2;
 
-	auto currentColorUAV = colorHistoryUAV[swapchainIndex % 2].get();
-	auto prevColorUAV = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
-	auto prevColorSRV = colorHistorySRV[(swapchainIndex + 1) % 2].get();
+	auto currentColorTexture  = colorHistory.getTexture(currFrame);
+	auto prevColorTexture     = colorHistory.getTexture(prevFrame);
+	auto currentMomentTexture = momentHistory.getTexture(currFrame);
+	auto prevMomentTexture    = momentHistory.getTexture(prevFrame);
+	auto currentColorUAV      = colorHistory.getUAV(currFrame);
+	auto prevColorUAV         = colorHistory.getUAV(prevFrame);
+	auto prevColorSRV         = colorHistory.getSRV(prevFrame);
+	auto currentMomentUAV     = momentHistory.getUAV(swapchainIndex % 2);
+	auto prevMomentSRV        = momentHistory.getSRV((swapchainIndex + 1) % 2);
 
-	{
-		SCOPED_DRAW_EVENT(commandList, PrevColorBarrier);
-
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
-	}
+	// -------------------------------------------------------------------
+	// Phase: Raytracing
 
 	// Update uniforms.
 	{
-		PathTracingUniform* uboData = new PathTracingUniform;
+		RayPassUniform* uboData = new RayPassUniform;
 
 		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
 		{
 			uboData->randFloats0[i] = Cymath::randFloat();
 			uboData->randFloats1[i] = Cymath::randFloat();
 		}
-		uboData->prevViewProjInv = passInput.prevViewProjInvMatrix;
-		uboData->prevViewProj = passInput.prevViewProjMatrix;
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;
-		uboData->bInvalidateHistory = bCameraHasMoved && passInput.mode == EPathTracingMode::Offline;
-		uboData->bLimitHistory = passInput.mode == EPathTracingMode::Realtime;
 
 		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
-		uniformCBV->writeToGPU(commandList, uboData, sizeof(PathTracingUniform));
+		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
 
 		delete uboData;
 	}
 
-	// -------------------------------------------------------------------
-	// Phase: Raytracing + Temporal Reconstruction
-
 	// Resize volatile heaps if needed.
 	{
 		uint32 requiredVolatiles = 0;
+		requiredVolatiles += 1; // sceneUniform
+		requiredVolatiles += 1; // passUniform
 		requiredVolatiles += 1; // rtScene
 		requiredVolatiles += 1; // gIndexBuffer
 		requiredVolatiles += 1; // gVertexBuffer
 		requiredVolatiles += 1; // gpuSceneBuffer
 		requiredVolatiles += 1; // skybox
 		requiredVolatiles += 1; // sceneDepthTexture
-		requiredVolatiles += 1; // prevSceneDepthTexture
-		requiredVolatiles += 1; // sceneNormalTexture
-		requiredVolatiles += 1; // currentColorTexture
-		requiredVolatiles += 1; // prevColorTexture
-		requiredVolatiles += 1; // currentMoment
-		requiredVolatiles += 1; // prevMoment
-		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // pathTracingUniform
+		requiredVolatiles += 1; // raytracingTexture
 		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
 		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
 
@@ -299,10 +231,10 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	{
 		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
 		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
-		auto currentMomentUAV = momentHistoryUAV[swapchainIndex % 2].get();
-		auto prevMomentUAV = momentHistoryUAV[(swapchainIndex + 1) % 2].get();
 
 		ShaderParameterTable SPT{};
+		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
+		SPT.constantBuffer("passUniform", uniformCBV);
 		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
 		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
@@ -310,14 +242,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
 		SPT.texture("skybox", skyboxSRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
-		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
-		SPT.texture("sceneNormalTexture", passInput.gbuffer1SRV);
-		SPT.texture("prevColorTexture", prevColorSRV);
-		SPT.rwTexture("currentColorTexture", currentColorUAV);
-		SPT.rwTexture("currentMoment", currentMomentUAV);
-		SPT.rwTexture("prevMoment", prevMomentUAV);
-		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
-		SPT.constantBuffer("pathTracingUniform", uniformCBV);
+		SPT.rwTexture("raytracingTexture", raytracingUAV.get());
 		// Bindless
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
@@ -334,8 +259,93 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	};
 	commandList->dispatchRays(dispatchDesc);
 
-	GPUResource* uavBarriers[] = { currentColorTexture, momentHistory[0].get(), momentHistory[1].get() };
-	commandList->resourceBarriers(0, nullptr, 0, nullptr, _countof(uavBarriers), uavBarriers);
+	{
+		SCOPED_DRAW_EVENT(commandList, BarriersAfterRaytracing);
+
+		TextureMemoryBarrier textureBarriers[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevMomentTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, raytracingTexture.get() },
+		};
+		GPUResource* uavBarriers[] = { raytracingTexture.get() };
+
+		commandList->resourceBarriers(
+			0, nullptr,
+			_countof(textureBarriers), textureBarriers,
+			_countof(uavBarriers), uavBarriers);
+	}
+
+	// -------------------------------------------------------------------
+	// Phase: Temporal Reconstruction
+
+	// Update uniforms.
+	{
+		TemporalPassUniform uboData;
+
+		uboData.screenSize[0] = historyWidth;
+		uboData.screenSize[1] = historyHeight;
+		uboData.invScreenSize[0] = 1.0f / (float)historyWidth;
+		uboData.invScreenSize[1] = 1.0f / (float)historyHeight;
+		uboData.bInvalidateHistory = bCameraHasMoved && passInput.mode == EPathTracingMode::Offline;
+		uboData.bLimitHistory = passInput.mode == EPathTracingMode::Realtime;
+
+		auto uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
+	}
+
+	// Resize volatile heaps if needed.
+	{
+		uint32 requiredVolatiles = 0;
+		requiredVolatiles += 1; // sceneUniform
+		requiredVolatiles += 1; // passUniform
+		requiredVolatiles += 1; // sceneDepthTexture
+		requiredVolatiles += 1; // raytracingTexture
+		requiredVolatiles += 1; // velocityMapTexture
+		requiredVolatiles += 1; // prevSceneDepthTexture
+		requiredVolatiles += 1; // prevColorTexture
+		requiredVolatiles += 1; // prevMomentTexture
+		requiredVolatiles += 1; // currentColorTexture
+		requiredVolatiles += 1; // currentMomentTexture
+
+		temporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	}
+
+	// Bind global shader parameters.
+	{
+		DescriptorHeap* volatileHeap = temporalPassDescriptor.getDescriptorHeap(swapchainIndex);
+		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
+		SPT.constantBuffer("passUniform", uniformCBV);
+		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+		SPT.texture("raytracingTexture", raytracingSRV.get());
+		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
+		SPT.texture("prevColorTexture", prevColorSRV);
+		SPT.texture("prevMomentTexture", prevMomentSRV);
+		SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
+		SPT.rwTexture("currentColorTexture", currentColorUAV);
+		SPT.rwTexture("currentMomentTexture", currentMomentUAV);
+
+		commandList->setComputePipelineState(temporalPipeline.get());
+		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
+	}
+
+	// Dispatch compute and issue memory barriers.
+	{
+		SCOPED_DRAW_EVENT(commandList, TemporalReprojection);
+
+		uint32 dispatchX = (historyWidth + 7) / 8;
+		uint32 dispatchY = (historyHeight + 7) / 8;
+		commandList->dispatchCompute(dispatchX, dispatchY, 1);
+
+		TextureMemoryBarrier textureBarriers[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevMomentTexture },
+		};
+		GPUResource* uavBarriers[] = { currentColorTexture, currentMomentTexture };
+		commandList->resourceBarriers(0, nullptr, _countof(textureBarriers), textureBarriers, _countof(uavBarriers), uavBarriers);
+	}
 
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
@@ -397,6 +407,129 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	}
 }
 
+void PathTracingPass::initializeRaytracingPipeline()
+{
+	RenderDevice* device = gRenderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	rayPassDescriptor.initialize(L"PathTracing_RayPass", swapchainCount, sizeof(RayPassUniform));
+
+	totalHitGroupShaderRecord.resize(swapchainCount, 0);
+	hitGroupShaderTable.initialize(swapchainCount);
+
+	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_PathTracingColorHistory");
+	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_PathTracingMomentHistory");
+
+	// Raytracing pipeline
+	{
+		// Shaders
+		ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "PathTracing_Raygen");
+		ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "PathTracing_ClosestHit");
+		ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "PathTracing_Miss");
+		raygenShader->declarePushConstants();
+		closestHitShader->declarePushConstants({ "g_closestHitCB" });
+		missShader->declarePushConstants();
+		raygenShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_RAYGEN);
+		closestHitShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_CLOSEST_HIT);
+		missShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_MISS);
+
+		// RTPSO
+		std::vector<StaticSamplerDesc> staticSamplers = {
+			StaticSamplerDesc{
+				.name             = "albedoSampler",
+				.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
+				.addressU         = ETextureAddressMode::Wrap,
+				.addressV         = ETextureAddressMode::Wrap,
+				.addressW         = ETextureAddressMode::Wrap,
+				.mipLODBias       = 0.0f,
+				.maxAnisotropy    = 0,
+				.comparisonFunc   = EComparisonFunc::Always,
+				.borderColor      = EStaticBorderColor::TransparentBlack,
+				.minLOD           = 0.0f,
+				.maxLOD           = FLT_MAX,
+				.shaderVisibility = EShaderVisibility::All,
+			},
+			StaticSamplerDesc{
+				.name             = "skyboxSampler",
+				.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+				.addressU         = ETextureAddressMode::Wrap,
+				.addressV         = ETextureAddressMode::Wrap,
+				.addressW         = ETextureAddressMode::Wrap,
+				.mipLODBias       = 0.0f,
+				.maxAnisotropy    = 0,
+				.comparisonFunc   = EComparisonFunc::Always,
+				.borderColor      = EStaticBorderColor::TransparentBlack,
+				.minLOD           = 0.0f,
+				.maxLOD           = 0.0f,
+				.shaderVisibility = EShaderVisibility::All,
+			},
+			getLinearSamplerDesc(),
+		};
+		RaytracingPipelineStateObjectDesc pipelineDesc{
+			.hitGroupName                 = PATH_TRACING_HIT_GROUP_NAME,
+			.hitGroupType                 = ERaytracingHitGroupType::Triangles,
+			.raygenShader                 = raygenShader,
+			.closestHitShader             = closestHitShader,
+			.missShader                   = missShader,
+			.raygenLocalParameters        = {},
+			.closestHitLocalParameters    = { "g_closestHitCB" },
+			.missLocalParameters          = {},
+			.maxPayloadSizeInBytes        = sizeof(RayPayload),
+			.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
+			.maxTraceRecursionDepth       = PATH_TRACING_MAX_RECURSION,
+		};
+		RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
+
+		// Raygen shader table
+		{
+			uint32 numShaderRecords = 1;
+			raygenShaderTable = UniquePtr<RaytracingShaderTable>(
+				device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"RayGenShaderTable"));
+			raygenShaderTable->uploadRecord(0, raygenShader, nullptr, 0);
+		}
+		// Miss shader table
+		{
+			uint32 numShaderRecords = 1;
+			missShaderTable = UniquePtr<RaytracingShaderTable>(
+				device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
+			missShaderTable->uploadRecord(0, missShader, nullptr, 0);
+		}
+		// Hit group shader table is created in resizeHitGroupShaderTable().
+		// ...
+
+		// Cleanup
+		delete raygenShader;
+		delete closestHitShader;
+		delete missShader;
+	}
+}
+
+void PathTracingPass::initializeTemporalPipeline()
+{
+	RenderDevice* device = gRenderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	temporalPassDescriptor.initialize(L"PathTracing_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
+
+	ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "PathTracingTemporalCS");
+	shader->declarePushConstants();
+	shader->loadFromFile(L"path_tracing_temporal.hlsl", "mainCS");
+
+	std::vector<StaticSamplerDesc> staticSamplers = {
+		getLinearSamplerDesc(),
+		getPointSamplerDesc(),
+	};
+	temporalPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+		ComputePipelineDesc{
+			.cs             = shader,
+			.nodeMask       = 0,
+			.staticSamplers = std::move(staticSamplers),
+		}
+	));
+
+	delete shader;
+}
+
 void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
 {
 	if (historyWidth == newWidth && historyHeight == newHeight)
@@ -406,69 +539,43 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 	historyWidth = newWidth;
 	historyHeight = newHeight;
 
-	commandList->enqueueDeferredDealloc(momentHistory[0].release(), true);
-	commandList->enqueueDeferredDealloc(momentHistory[1].release(), true);
-	commandList->enqueueDeferredDealloc(colorHistory[0].release(), true);
-	commandList->enqueueDeferredDealloc(colorHistory[1].release(), true);
+	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
+	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
-	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
-		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
-	for (uint32 i = 0; i < 2; ++i)
-	{
-		std::wstring debugName = L"RT_PathTracingMomentHistory" + std::to_wstring(i);
-		momentHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(momentDesc));
-		momentHistory[i]->setDebugName(debugName.c_str());
+	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
+		PF_raytracing, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
+	raytracingTexture = UniquePtr<Texture>(gRenderDevice->createTexture(rayTexDesc));
+	raytracingTexture->setDebugName(L"RT_PathTracingRaysTexture");
 
-		momentHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(momentHistory[i].get(),
-			UnorderedAccessViewDesc{
-				.format         = momentDesc.format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{
-					.mipSlice   = 0,
-					.planeSlice = 0,
-				},
-			}
-		));
-	}
+	raytracingSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(raytracingTexture.get(),
+		ShaderResourceViewDesc{
+			.format              = rayTexDesc.format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = rayTexDesc.mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	raytracingUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(raytracingTexture.get(),
+		UnorderedAccessViewDesc{
+			.format         = rayTexDesc.format,
+			.viewDimension  = EUAVDimension::Texture2D,
+			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
 
-	TextureCreateParams colorDesc = TextureCreateParams::texture2D(
-		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
-
-	for (uint32 i = 0; i < 2; ++i)
-	{
-		std::wstring debugName = L"RT_PathTracingColorHistory" + std::to_wstring(i);
-		colorHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
-		colorHistory[i]->setDebugName(debugName.c_str());
-
-		colorHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorHistory[i].get(),
-			UnorderedAccessViewDesc{
-				.format         = colorDesc.format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{
-					.mipSlice   = 0,
-					.planeSlice = 0,
-				},
-			}
-		));
-		colorHistorySRV[i] = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(colorHistory[i].get(),
-			ShaderResourceViewDesc{
-				.format              = colorDesc.format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = colorHistory[i]->getCreateParams().mipLevels,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
-	}
 	{
 		SCOPED_DRAW_EVENT(commandList, ColorHistoryBarrier);
 
 		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[0].get() },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[1].get() },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(0) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(1) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(0) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(1) },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}
