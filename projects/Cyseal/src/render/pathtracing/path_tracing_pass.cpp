@@ -35,14 +35,20 @@ DEFINE_LOG_CATEGORY_STATIC(LogPathTracing);
 
 struct PathTracingUniform
 {
-	float randFloats0[RANDOM_SEQUENCE_LENGTH];
-	float randFloats1[RANDOM_SEQUENCE_LENGTH];
+	float    randFloats0[RANDOM_SEQUENCE_LENGTH];
+	float    randFloats1[RANDOM_SEQUENCE_LENGTH];
+	// #wip: Use motion vector
 	Float4x4 prevViewProjInv;
 	Float4x4 prevViewProj;
-	uint32 renderTargetWidth;
-	uint32 renderTargetHeight;
-	uint32 bInvalidateHistory;
-	uint32 bLimitHistory;
+	uint32   renderTargetWidth;
+	uint32   renderTargetHeight;
+	uint32   bInvalidateHistory;
+	uint32   bLimitHistory;
+};
+struct TemporalPassUniform
+{
+	uint32   screenSize[2];
+	float    invScreenSize[2];
 };
 
 // Just to calculate size in bytes.
@@ -75,6 +81,41 @@ struct ClosestHitPushConstants
 };
 static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
 
+static StaticSamplerDesc getLinearSamplerDesc()
+{
+	return StaticSamplerDesc{
+		.name             = "linearSampler",
+		.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+		.addressU         = ETextureAddressMode::Clamp,
+		.addressV         = ETextureAddressMode::Clamp,
+		.addressW         = ETextureAddressMode::Clamp,
+		.mipLODBias       = 0.0f,
+		.maxAnisotropy    = 0,
+		.comparisonFunc   = EComparisonFunc::Always,
+		.borderColor      = EStaticBorderColor::TransparentBlack,
+		.minLOD           = 0.0f,
+		.maxLOD           = FLT_MAX,
+		.shaderVisibility = EShaderVisibility::All,
+	};
+}
+static StaticSamplerDesc getPointSamplerDesc()
+{
+	return StaticSamplerDesc{
+		.name             = "pointSampler",
+		.filter           = ETextureFilter::MIN_MAG_MIP_POINT,
+		.addressU         = ETextureAddressMode::Clamp,
+		.addressV         = ETextureAddressMode::Clamp,
+		.addressW         = ETextureAddressMode::Clamp,
+		.mipLODBias       = 0.0f,
+		.maxAnisotropy    = 0,
+		.comparisonFunc   = EComparisonFunc::Always,
+		.borderColor      = EStaticBorderColor::TransparentBlack,
+		.minLOD           = 0.0f,
+		.maxLOD           = FLT_MAX,
+		.shaderVisibility = EShaderVisibility::All,
+	};
+}
+
 void PathTracingPass::initialize()
 {
 	if (isAvailable() == false)
@@ -83,109 +124,8 @@ void PathTracingPass::initialize()
 		return;
 	}
 
-	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
-
-	rayPassDescriptor.initialize(L"PathTracing_RayPass", swapchainCount, sizeof(PathTracingUniform));
-
-	totalHitGroupShaderRecord.resize(swapchainCount, 0);
-	hitGroupShaderTable.initialize(swapchainCount);
-
-	// Raytracing pipeline
-	{
-		// Shaders
-		ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "PathTracing_Raygen");
-		ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "PathTracing_ClosestHit");
-		ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "PathTracing_Miss");
-		raygenShader->declarePushConstants();
-		closestHitShader->declarePushConstants({ "g_closestHitCB" });
-		missShader->declarePushConstants();
-		raygenShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_RAYGEN);
-		closestHitShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_CLOSEST_HIT);
-		missShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_MISS);
-
-		// RTPSO
-		std::vector<StaticSamplerDesc> staticSamplers = {
-			StaticSamplerDesc{
-				.name             = "albedoSampler",
-				.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
-				.addressU         = ETextureAddressMode::Wrap,
-				.addressV         = ETextureAddressMode::Wrap,
-				.addressW         = ETextureAddressMode::Wrap,
-				.mipLODBias       = 0.0f,
-				.maxAnisotropy    = 0,
-				.comparisonFunc   = EComparisonFunc::Always,
-				.borderColor      = EStaticBorderColor::TransparentBlack,
-				.minLOD           = 0.0f,
-				.maxLOD           = FLT_MAX,
-				.shaderVisibility = EShaderVisibility::All,
-			},
-			StaticSamplerDesc{
-				.name             = "skyboxSampler",
-				.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
-				.addressU         = ETextureAddressMode::Wrap,
-				.addressV         = ETextureAddressMode::Wrap,
-				.addressW         = ETextureAddressMode::Wrap,
-				.mipLODBias       = 0.0f,
-				.maxAnisotropy    = 0,
-				.comparisonFunc   = EComparisonFunc::Always,
-				.borderColor      = EStaticBorderColor::TransparentBlack,
-				.minLOD           = 0.0f,
-				.maxLOD           = 0.0f,
-				.shaderVisibility = EShaderVisibility::All,
-			},
-			StaticSamplerDesc{
-				.name             = "linearSampler",
-				.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
-				.addressU         = ETextureAddressMode::Clamp,
-				.addressV         = ETextureAddressMode::Clamp,
-				.addressW         = ETextureAddressMode::Clamp,
-				.mipLODBias       = 0.0f,
-				.maxAnisotropy    = 0,
-				.comparisonFunc   = EComparisonFunc::Always,
-				.borderColor      = EStaticBorderColor::TransparentBlack,
-				.minLOD           = 0.0f,
-				.maxLOD           = FLT_MAX,
-				.shaderVisibility = EShaderVisibility::All,
-			},
-		};
-		RaytracingPipelineStateObjectDesc pipelineDesc{
-			.hitGroupName                 = PATH_TRACING_HIT_GROUP_NAME,
-			.hitGroupType                 = ERaytracingHitGroupType::Triangles,
-			.raygenShader                 = raygenShader,
-			.closestHitShader             = closestHitShader,
-			.missShader                   = missShader,
-			.raygenLocalParameters        = {},
-			.closestHitLocalParameters    = { "g_closestHitCB" },
-			.missLocalParameters          = {},
-			.maxPayloadSizeInBytes        = sizeof(RayPayload),
-			.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
-			.maxTraceRecursionDepth       = PATH_TRACING_MAX_RECURSION,
-		};
-		RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
-
-		// Raygen shader table
-		{
-			uint32 numShaderRecords = 1;
-			raygenShaderTable = UniquePtr<RaytracingShaderTable>(
-				device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"RayGenShaderTable"));
-			raygenShaderTable->uploadRecord(0, raygenShader, nullptr, 0);
-		}
-		// Miss shader table
-		{
-			uint32 numShaderRecords = 1;
-			missShaderTable = UniquePtr<RaytracingShaderTable>(
-				device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
-			missShaderTable->uploadRecord(0, missShader, nullptr, 0);
-		}
-		// Hit group shader table is created in resizeHitGroupShaderTable().
-		// ...
-
-		// Cleanup
-		delete raygenShader;
-		delete closestHitShader;
-		delete missShader;
-	}
+	initializeRaytracingPipeline();
+	initializeTemporalPipeline();
 }
 
 bool PathTracingPass::isAvailable() const
@@ -395,6 +335,126 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		};
 		passInput.bilateralBlur->renderBilateralBlur(commandList, swapchainIndex, blurPassInput);
 	}
+}
+
+void PathTracingPass::initializeRaytracingPipeline()
+{
+	RenderDevice* device = gRenderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	rayPassDescriptor.initialize(L"PathTracing_RayPass", swapchainCount, sizeof(PathTracingUniform));
+
+	totalHitGroupShaderRecord.resize(swapchainCount, 0);
+	hitGroupShaderTable.initialize(swapchainCount);
+
+	// Raytracing pipeline
+	{
+		// Shaders
+		ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "PathTracing_Raygen");
+		ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "PathTracing_ClosestHit");
+		ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "PathTracing_Miss");
+		raygenShader->declarePushConstants();
+		closestHitShader->declarePushConstants({ "g_closestHitCB" });
+		missShader->declarePushConstants();
+		raygenShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_RAYGEN);
+		closestHitShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_CLOSEST_HIT);
+		missShader->loadFromFile(SHADER_SOURCE_FILE, MAIN_MISS);
+
+		// RTPSO
+		std::vector<StaticSamplerDesc> staticSamplers = {
+			StaticSamplerDesc{
+				.name             = "albedoSampler",
+				.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
+				.addressU         = ETextureAddressMode::Wrap,
+				.addressV         = ETextureAddressMode::Wrap,
+				.addressW         = ETextureAddressMode::Wrap,
+				.mipLODBias       = 0.0f,
+				.maxAnisotropy    = 0,
+				.comparisonFunc   = EComparisonFunc::Always,
+				.borderColor      = EStaticBorderColor::TransparentBlack,
+				.minLOD           = 0.0f,
+				.maxLOD           = FLT_MAX,
+				.shaderVisibility = EShaderVisibility::All,
+			},
+			StaticSamplerDesc{
+				.name             = "skyboxSampler",
+				.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+				.addressU         = ETextureAddressMode::Wrap,
+				.addressV         = ETextureAddressMode::Wrap,
+				.addressW         = ETextureAddressMode::Wrap,
+				.mipLODBias       = 0.0f,
+				.maxAnisotropy    = 0,
+				.comparisonFunc   = EComparisonFunc::Always,
+				.borderColor      = EStaticBorderColor::TransparentBlack,
+				.minLOD           = 0.0f,
+				.maxLOD           = 0.0f,
+				.shaderVisibility = EShaderVisibility::All,
+			},
+			getLinearSamplerDesc(),
+		};
+		RaytracingPipelineStateObjectDesc pipelineDesc{
+			.hitGroupName                 = PATH_TRACING_HIT_GROUP_NAME,
+			.hitGroupType                 = ERaytracingHitGroupType::Triangles,
+			.raygenShader                 = raygenShader,
+			.closestHitShader             = closestHitShader,
+			.missShader                   = missShader,
+			.raygenLocalParameters        = {},
+			.closestHitLocalParameters    = { "g_closestHitCB" },
+			.missLocalParameters          = {},
+			.maxPayloadSizeInBytes        = sizeof(RayPayload),
+			.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
+			.maxTraceRecursionDepth       = PATH_TRACING_MAX_RECURSION,
+		};
+		RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
+
+		// Raygen shader table
+		{
+			uint32 numShaderRecords = 1;
+			raygenShaderTable = UniquePtr<RaytracingShaderTable>(
+				device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"RayGenShaderTable"));
+			raygenShaderTable->uploadRecord(0, raygenShader, nullptr, 0);
+		}
+		// Miss shader table
+		{
+			uint32 numShaderRecords = 1;
+			missShaderTable = UniquePtr<RaytracingShaderTable>(
+				device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
+			missShaderTable->uploadRecord(0, missShader, nullptr, 0);
+		}
+		// Hit group shader table is created in resizeHitGroupShaderTable().
+		// ...
+
+		// Cleanup
+		delete raygenShader;
+		delete closestHitShader;
+		delete missShader;
+	}
+}
+
+void PathTracingPass::initializeTemporalPipeline()
+{
+	RenderDevice* device = gRenderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	temporalPassDescriptor.initialize(L"PathTracing_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
+
+	ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "PathTracingTemporalCS");
+	shader->declarePushConstants();
+	shader->loadFromFile(L"path_tracing_temporal.hlsl", "mainCS");
+
+	std::vector<StaticSamplerDesc> staticSamplers = {
+		getLinearSamplerDesc(),
+		getPointSamplerDesc(),
+	};
+	temporalPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+		ComputePipelineDesc{
+			.cs             = shader,
+			.nodeMask       = 0,
+			.staticSamplers = std::move(staticSamplers),
+		}
+	));
+
+	delete shader;
 }
 
 void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)

@@ -18,5 +18,6 @@
     <FxCompile Include="..\..\shaders\raytracing_common.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_raytracing.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_temporal.hlsl" />
+    <FxCompile Include="..\..\shaders\path_tracing_temporal.hlsl" />
   </ItemGroup>
 </Project>
