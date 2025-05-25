@@ -413,6 +413,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.scene                 = scene,
 				.camera                = camera,
 				.mode                  = renderOptions.pathTracing,
+				.kernel                = renderOptions.pathTracingKernel,
 				.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix,
 				.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix,
 				.bCameraHasMoved       = renderOptions.bCameraHasMoved,
@@ -459,7 +460,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			{
 				SCOPED_DRAW_EVENT(commandList, FlushCommandQueue);
 
-				// #todo-oidn: Don't flush command queue
 				// Flush GPU to readback input textures.
 				immediateFlushCommandQueue(commandQueue, commandAllocator, commandList);
 				resetCommandList(commandAllocator, commandList);

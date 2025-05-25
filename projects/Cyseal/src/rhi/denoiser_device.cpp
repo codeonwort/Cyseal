@@ -3,8 +3,11 @@
 #include "core/platform.h"
 #include "util/logging.h"
 
-// #todo-oidn: GPU version need to know which OS and graphics API are used.
-// DenoiserDevice will need to be subclassed for each RHI backend.
+// #todo-oidn: Note about GPU version
+// - To create shared buffers between RHI and OIDN, we need to know which OS and graphics API are used.
+//   DenoiserDevice will need to be subclassed for each RHI backend.
+// - GPU version will still require command lists to be flushed, so I see no benefit here.
+//   Maybe I'll need to read the source code of OIDN and convert the denoising kernel to compute shader.
 
 #if PLATFORM_WINDOWS
 	// #todo-oidn: oidn is not Windows-only but I'm downloading Windows pre-built binaries.
@@ -45,13 +48,6 @@ void DenoiserDevice::create()
 
 		CYLOG(LogDenoiserDevice, Log, TEXT("Intel OpenImageDenoise type=%s ver=%d.%d.%d"),
 			deviceTypeStr.c_str(), majorVer, minorVer, patchVer);
-
-		// #todo-oidn: GPU version
-		// externalMemoryTypes
-		//OIDNExternalMemoryTypeFlag externalMemoryTypes = (OIDNExternalMemoryTypeFlag)oidnGetDeviceInt(oidnDevice, "externalMemoryTypes");
-		//bool bSupportsGpuMemory =
-		//	ENUM_HAS_FLAG(externalMemoryTypes, OIDN_EXTERNAL_MEMORY_TYPE_FLAG_D3D12_RESOURCE) &&
-		//	ENUM_HAS_FLAG(externalMemoryTypes, OIDN_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32);
 
 		// OIDNFilter
 		oidnFilter = oidnNewFilter(oidnDevice, "RT");
@@ -96,7 +92,6 @@ void DenoiserDevice::recreateResources(uint32 imageWidth, uint32 imageHeight)
 	oidnBufferPixelByteStride = 4 * sizeof(float);
 	oidnBufferSize = width * height * oidnBufferPixelByteStride;
 
-	//oidnNewSharedBufferFromWin32Handle(oidnDevice, OIDN_EXTERNAL_MEMORY_TYPE_FLAG_D3D12_RESOURCE, 
 	oidnColorBuffer = oidnNewBufferWithStorage(oidnDevice, oidnBufferSize, OIDN_STORAGE_DEVICE);
 	oidnAlbedoBuffer = oidnNewBufferWithStorage(oidnDevice, oidnBufferSize, OIDN_STORAGE_DEVICE);
 	oidnNormalBuffer = oidnNewBufferWithStorage(oidnDevice, oidnBufferSize, OIDN_STORAGE_DEVICE);

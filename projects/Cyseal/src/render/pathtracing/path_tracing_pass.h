@@ -17,6 +17,7 @@ struct PathTracingInput
 	const SceneProxy*          scene;
 	const Camera*              camera;
 	EPathTracingMode           mode;
+	EPathTracingKernel         kernel;
 
 	Float4x4                   prevViewProjInvMatrix;
 	Float4x4                   prevViewProjMatrix;
