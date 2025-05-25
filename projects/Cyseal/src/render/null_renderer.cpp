@@ -19,7 +19,6 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 {
 #if VERIFY_EMPTY_LOOP
 	SwapChain* swapChain      = device->getSwapChain();
-	swapChain->swapBackbuffer();
 
 	uint32 swapchainIndex     = swapChain->getCurrentBackbufferIndex();
 	auto swapchainBuffer      = swapChain->getSwapchainBuffer(swapchainIndex);
@@ -69,6 +68,7 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	commandQueue->executeCommandList(commandList);
 
 	swapChain->present();
+	swapChain->swapBackbuffer();
 
 	device->flushCommandQueue();
 #endif

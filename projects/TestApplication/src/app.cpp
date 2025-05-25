@@ -157,6 +157,10 @@ void TestApplication::onTick(float deltaSeconds)
 	{
 		SCOPED_CPU_EVENT(ExecuteRenderer);
 
+		scene.updateMeshLODs(camera, appState.rendererOptions);
+
+		SceneProxy* sceneProxy = scene.createProxy();
+
 		if (bViewportNeedsResize)
 		{
 			cysealEngine.setRenderResolution(newViewportWidth, newViewportHeight);
@@ -249,10 +253,6 @@ void TestApplication::onTick(float deltaSeconds)
 			ImGui::End();
 		}
 		cysealEngine.renderImgui();
-
-		scene.updateMeshLODs(camera, appState.rendererOptions);
-
-		SceneProxy* sceneProxy = scene.createProxy();
 
 		cysealEngine.renderScene(sceneProxy, &camera, appState.rendererOptions);
 
