@@ -26,6 +26,11 @@
 
 #define RANDOM_SEQUENCE_LENGTH              (64 * 64)
 
+#define PF_raytracing                         EPixelFormat::R16G16B16A16_FLOAT
+// #todo-specular: rgba32f due to CopyTextureRegion. Need to blit instead of copy if wanna make it rgba16f.
+#define PF_colorHistory                       EPixelFormat::R32G32B32A32_FLOAT
+#define PF_momentHistory                      EPixelFormat::R16G16B16A16_FLOAT
+
 DEFINE_LOG_CATEGORY_STATIC(LogIndirectSpecular);
 
 struct IndirectSpecularUniform
@@ -83,6 +88,9 @@ void IndirecSpecularPass::initialize()
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
 	rayPassDescriptor.initialize(L"IndirectSpecular_RayPass", swapchainCount, sizeof(IndirectSpecularUniform));
+
+	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularColorHistory");
+	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularMomentHistory");
 
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
@@ -217,12 +225,15 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 	resizeTextures(commandList, sceneWidth, sceneHeight);
 
-	Texture* currentColorTexture = colorHistory[swapchainIndex % 2].get();
-	Texture* prevColorTexture = colorHistory[(swapchainIndex + 1) % 2].get();
+	const uint32 currFrame = swapchainIndex % 2;
+	const uint32 prevFrame = (swapchainIndex + 1) % 2;
 
-	auto currentColorUAV = colorHistoryUAV[swapchainIndex % 2].get();
-	auto prevColorUAV = colorHistoryUAV[(swapchainIndex + 1) % 2].get();
-	auto prevColorSRV = colorHistorySRV[(swapchainIndex + 1) % 2].get();
+	Texture* currentColorTexture = colorHistory.getTexture(currFrame);
+	Texture* prevColorTexture = colorHistory.getTexture(prevFrame);
+
+	auto currentColorUAV = colorHistory.getUAV(currFrame);
+	auto prevColorUAV = colorHistory.getUAV(prevFrame);
+	auto prevColorSRV = colorHistory.getSRV(prevFrame);
 
 	{
 		SCOPED_DRAW_EVENT(commandList, PrevColorBarrier);
@@ -349,70 +360,22 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	historyWidth = newWidth;
 	historyHeight = newHeight;
 
-	commandList->enqueueDeferredDealloc(momentHistory[0].release(), true);
-	commandList->enqueueDeferredDealloc(momentHistory[1].release(), true);
-	commandList->enqueueDeferredDealloc(colorHistory[0].release(), true);
-	commandList->enqueueDeferredDealloc(colorHistory[1].release(), true);
+	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
+	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
+
 	commandList->enqueueDeferredDealloc(colorScratch.release(), true);
-
-	TextureCreateParams momentDesc = TextureCreateParams::texture2D(
-		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
-	for (uint32 i = 0; i < 2; ++i)
-	{
-		std::wstring debugName = L"RT_SpecularMomentHistory" + std::to_wstring(i);
-		momentHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(momentDesc));
-		momentHistory[i]->setDebugName(debugName.c_str());
-
-		momentHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(momentHistory[i].get(),
-			UnorderedAccessViewDesc{
-				.format         = momentDesc.format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{
-					.mipSlice   = 0,
-					.planeSlice = 0,
-				},
-			}
-		));
-	}
 
 	TextureCreateParams colorDesc = TextureCreateParams::texture2D(
 		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
 
-	for (uint32 i = 0; i < 2; ++i)
-	{
-		std::wstring debugName = L"RT_SpecularColorHistory" + std::to_wstring(i);
-		colorHistory[i] = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
-		colorHistory[i]->setDebugName(debugName.c_str());
-
-		colorHistoryUAV[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorHistory[i].get(),
-			UnorderedAccessViewDesc{
-				.format         = colorDesc.format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{
-					.mipSlice   = 0,
-					.planeSlice = 0,
-				},
-			}
-		));
-		colorHistorySRV[i] = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(colorHistory[i].get(),
-			ShaderResourceViewDesc{
-				.format              = colorDesc.format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = colorHistory[i]->getCreateParams().mipLevels,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
-	}
 	{
 		SCOPED_DRAW_EVENT(commandList, ColorHistoryBarrier);
 
 		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[0].get() },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory[1].get() },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(0) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(1) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(0) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(1) },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}
@@ -424,10 +387,7 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 		UnorderedAccessViewDesc{
 			.format         = colorDesc.format,
 			.viewDimension  = EUAVDimension::Texture2D,
-			.texture2D      = Texture2DUAVDesc{
-				.mipSlice   = 0,
-				.planeSlice = 0,
-			},
+			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
 }
