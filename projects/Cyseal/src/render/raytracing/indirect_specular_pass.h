@@ -47,16 +47,24 @@ public:
 	void renderIndirectSpecular(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 
 private:
+	void initializeRaytracingPipeline();
+	void initializeTemporalPipeline();
+
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
 
 private:
+	// Ray pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
 	UniquePtr<RaytracingShaderTable>         raygenShaderTable;
 	UniquePtr<RaytracingShaderTable>         missShaderTable;
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	std::vector<uint32>                      totalHitGroupShaderRecord;
 	VolatileDescriptorHelper                 rayPassDescriptor;
+
+	// Temporal pass
+	UniquePtr<ComputePipelineState>          temporalPipeline;
+	VolatileDescriptorHelper                 temporalPassDescriptor;
 
 	uint32                                   historyWidth = 0;
 	uint32                                   historyHeight = 0;

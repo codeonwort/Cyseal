@@ -33,7 +33,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogIndirectSpecular);
 
-struct IndirectSpecularUniform
+struct RayPassUniform
 {
 	float       randFloats0[RANDOM_SEQUENCE_LENGTH];
 	float       randFloats1[RANDOM_SEQUENCE_LENGTH];
@@ -44,6 +44,15 @@ struct IndirectSpecularUniform
 	uint32      bInvalidateHistory;
 	uint32      bLimitHistory;
 	uint32      traceMode;
+};
+struct TemporalPassUniform
+{
+	uint32   screenSize[2];
+	float    invScreenSize[2];
+	uint32   bInvalidateHistory;
+	uint32   bLimitHistory;
+	uint32   _pad0;
+	uint32   _pad1;
 };
 
 // Just to calculate size in bytes.
@@ -76,6 +85,41 @@ struct ClosestHitPushConstants
 };
 static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
 
+static StaticSamplerDesc getLinearSamplerDesc()
+{
+	return StaticSamplerDesc{
+		.name             = "linearSampler",
+		.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+		.addressU         = ETextureAddressMode::Clamp,
+		.addressV         = ETextureAddressMode::Clamp,
+		.addressW         = ETextureAddressMode::Clamp,
+		.mipLODBias       = 0.0f,
+		.maxAnisotropy    = 0,
+		.comparisonFunc   = EComparisonFunc::Always,
+		.borderColor      = EStaticBorderColor::TransparentBlack,
+		.minLOD           = 0.0f,
+		.maxLOD           = FLT_MAX,
+		.shaderVisibility = EShaderVisibility::All,
+	};
+}
+static StaticSamplerDesc getPointSamplerDesc()
+{
+	return StaticSamplerDesc{
+		.name             = "pointSampler",
+		.filter           = ETextureFilter::MIN_MAG_MIP_POINT,
+		.addressU         = ETextureAddressMode::Clamp,
+		.addressV         = ETextureAddressMode::Clamp,
+		.addressW         = ETextureAddressMode::Clamp,
+		.mipLODBias       = 0.0f,
+		.maxAnisotropy    = 0,
+		.comparisonFunc   = EComparisonFunc::Always,
+		.borderColor      = EStaticBorderColor::TransparentBlack,
+		.minLOD           = 0.0f,
+		.maxLOD           = FLT_MAX,
+		.shaderVisibility = EShaderVisibility::All,
+	};
+}
+
 void IndirecSpecularPass::initialize()
 {
 	if (isAvailable() == false)
@@ -84,114 +128,8 @@ void IndirecSpecularPass::initialize()
 		return;
 	}
 
-	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
-
-	rayPassDescriptor.initialize(L"IndirectSpecular_RayPass", swapchainCount, sizeof(IndirectSpecularUniform));
-
-	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularColorHistory");
-	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularMomentHistory");
-
-	totalHitGroupShaderRecord.resize(swapchainCount, 0);
-	hitGroupShaderTable.initialize(swapchainCount);
-
-	ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen");
-	ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit");
-	ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "RTR_Miss");
-	raygenShader->declarePushConstants();
-	closestHitShader->declarePushConstants({ "g_closestHitCB" });
-	missShader->declarePushConstants();
-	raygenShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainRaygen");
-	closestHitShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainClosestHit");
-	missShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainMiss");
-
-	// RTPSO
-	std::vector<StaticSamplerDesc> staticSamplers = {
-		StaticSamplerDesc{
-			.name             = "albedoSampler",
-			.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
-			.addressU         = ETextureAddressMode::Wrap,
-			.addressV         = ETextureAddressMode::Wrap,
-			.addressW         = ETextureAddressMode::Wrap,
-			.mipLODBias       = 0.0f,
-			.maxAnisotropy    = 0,
-			.comparisonFunc   = EComparisonFunc::Always,
-			.borderColor      = EStaticBorderColor::TransparentBlack,
-			.minLOD           = 0.0f,
-			.maxLOD           = FLT_MAX,
-			.shaderVisibility = EShaderVisibility::All,
-		},
-		StaticSamplerDesc{
-			.name             = "skyboxSampler",
-			.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
-			.addressU         = ETextureAddressMode::Wrap,
-			.addressV         = ETextureAddressMode::Wrap,
-			.addressW         = ETextureAddressMode::Wrap,
-			.mipLODBias       = 0.0f,
-			.maxAnisotropy    = 0,
-			.comparisonFunc   = EComparisonFunc::Always,
-			.borderColor      = EStaticBorderColor::TransparentBlack,
-			.minLOD           = 0.0f,
-			.maxLOD           = 0.0f,
-			.shaderVisibility = EShaderVisibility::All,
-		},
-		StaticSamplerDesc{
-			.name             = "linearSampler",
-			.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
-			.addressU         = ETextureAddressMode::Clamp,
-			.addressV         = ETextureAddressMode::Clamp,
-			.addressW         = ETextureAddressMode::Clamp,
-			.mipLODBias       = 0.0f,
-			.maxAnisotropy    = 0,
-			.comparisonFunc   = EComparisonFunc::Always,
-			.borderColor      = EStaticBorderColor::TransparentBlack,
-			.minLOD           = 0.0f,
-			.maxLOD           = FLT_MAX,
-			.shaderVisibility = EShaderVisibility::All,
-		},
-	};
-	RaytracingPipelineStateObjectDesc pipelineDesc{
-		.hitGroupName                 = INDIRECT_SPECULAR_HIT_GROUP_NAME,
-		.hitGroupType                 = ERaytracingHitGroupType::Triangles,
-		.raygenShader                 = raygenShader,
-		.closestHitShader             = closestHitShader,
-		.missShader                   = missShader,
-		.raygenLocalParameters        = {},
-		.closestHitLocalParameters    = { "g_closestHitCB" },
-		.missLocalParameters          = {},
-		.maxPayloadSizeInBytes        = sizeof(RayPayload),
-		.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
-		.maxTraceRecursionDepth       = INDIRECT_SPECULAR_MAX_RECURSION,
-		.staticSamplers               = std::move(staticSamplers),
-	};
-	RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
-
-	// Acceleration Structure is built by SceneRenderer.
-	// ...
-
-	// Raygen shader table
-	{
-		uint32 numShaderRecords = 1;
-		raygenShaderTable = UniquePtr<RaytracingShaderTable>(
-			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"RayGenShaderTable"));
-		raygenShaderTable->uploadRecord(0, raygenShader, nullptr, 0);
-	}
-	// Miss shader table
-	{
-		uint32 numShaderRecords = 1;
-		missShaderTable = UniquePtr<RaytracingShaderTable>(
-			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
-		missShaderTable->uploadRecord(0, missShader, nullptr, 0);
-	}
-	// Hit group shader table is created in resizeHitGroupShaderTable().
-	// ...
-
-	// Cleanup
-	{
-		delete raygenShader;
-		delete closestHitShader;
-		delete missShader;
-	}
+	initializeRaytracingPipeline();
+	initializeTemporalPipeline();
 }
 
 bool IndirecSpecularPass::isAvailable() const
@@ -246,7 +184,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 	// Update uniforms.
 	{
-		IndirectSpecularUniform* uboData = new IndirectSpecularUniform;
+		RayPassUniform* uboData = new RayPassUniform;
 
 		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
 		{
@@ -262,7 +200,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		uboData->traceMode = (uint32)passInput.mode;
 
 		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
-		uniformCBV->writeToGPU(commandList, uboData, sizeof(IndirectSpecularUniform));
+		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
 
 		delete uboData;
 	}
@@ -349,6 +287,122 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}
+}
+
+void IndirecSpecularPass::initializeRaytracingPipeline()
+{
+	RenderDevice* const device = gRenderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	rayPassDescriptor.initialize(L"IndirectSpecular_RayPass", swapchainCount, sizeof(RayPassUniform));
+
+	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularColorHistory");
+	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularMomentHistory");
+
+	totalHitGroupShaderRecord.resize(swapchainCount, 0);
+	hitGroupShaderTable.initialize(swapchainCount);
+
+	ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen");
+	ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit");
+	ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "RTR_Miss");
+	raygenShader->declarePushConstants();
+	closestHitShader->declarePushConstants({ "g_closestHitCB" });
+	missShader->declarePushConstants();
+	raygenShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainRaygen");
+	closestHitShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainClosestHit");
+	missShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainMiss");
+
+	// RTPSO
+	std::vector<StaticSamplerDesc> staticSamplers = {
+		StaticSamplerDesc{
+			.name             = "albedoSampler",
+			.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
+			.addressU         = ETextureAddressMode::Wrap,
+			.addressV         = ETextureAddressMode::Wrap,
+			.addressW         = ETextureAddressMode::Wrap,
+			.mipLODBias       = 0.0f,
+			.maxAnisotropy    = 0,
+			.comparisonFunc   = EComparisonFunc::Always,
+			.borderColor      = EStaticBorderColor::TransparentBlack,
+			.minLOD           = 0.0f,
+			.maxLOD           = FLT_MAX,
+			.shaderVisibility = EShaderVisibility::All,
+		},
+		StaticSamplerDesc{
+			.name             = "skyboxSampler",
+			.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+			.addressU         = ETextureAddressMode::Wrap,
+			.addressV         = ETextureAddressMode::Wrap,
+			.addressW         = ETextureAddressMode::Wrap,
+			.mipLODBias       = 0.0f,
+			.maxAnisotropy    = 0,
+			.comparisonFunc   = EComparisonFunc::Always,
+			.borderColor      = EStaticBorderColor::TransparentBlack,
+			.minLOD           = 0.0f,
+			.maxLOD           = 0.0f,
+			.shaderVisibility = EShaderVisibility::All,
+		},
+		getLinearSamplerDesc(),
+	};
+	RaytracingPipelineStateObjectDesc pipelineDesc{
+		.hitGroupName                 = INDIRECT_SPECULAR_HIT_GROUP_NAME,
+		.hitGroupType                 = ERaytracingHitGroupType::Triangles,
+		.raygenShader                 = raygenShader,
+		.closestHitShader             = closestHitShader,
+		.missShader                   = missShader,
+		.raygenLocalParameters        = {},
+		.closestHitLocalParameters    = { "g_closestHitCB" },
+		.missLocalParameters          = {},
+		.maxPayloadSizeInBytes        = sizeof(RayPayload),
+		.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
+		.maxTraceRecursionDepth       = INDIRECT_SPECULAR_MAX_RECURSION,
+		.staticSamplers               = std::move(staticSamplers),
+	};
+	RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
+
+	// Raygen shader table
+	{
+		uint32 numShaderRecords = 1;
+		raygenShaderTable = UniquePtr<RaytracingShaderTable>(
+			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"RayGenShaderTable"));
+		raygenShaderTable->uploadRecord(0, raygenShader, nullptr, 0);
+	}
+	// Miss shader table
+	{
+		uint32 numShaderRecords = 1;
+		missShaderTable = UniquePtr<RaytracingShaderTable>(
+			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
+		missShaderTable->uploadRecord(0, missShader, nullptr, 0);
+	}
+	// Hit group shader table is created in resizeHitGroupShaderTable().
+	// ...
+
+	// Cleanup
+	delete raygenShader;
+	delete closestHitShader;
+	delete missShader;
+}
+
+void IndirecSpecularPass::initializeTemporalPipeline()
+{
+	RenderDevice* device = gRenderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	temporalPassDescriptor.initialize(L"IndirectSpecular_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
+
+	ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "IndirectSpecularTemporalCS");
+	shader->declarePushConstants();
+	shader->loadFromFile(L"indirect_specular_temporal.hlsl", "mainCS");
+
+	temporalPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+		ComputePipelineDesc{
+			.cs             = shader,
+			.nodeMask       = 0,
+			.staticSamplers = { getLinearSamplerDesc(), getPointSamplerDesc() },
+		}
+	));
+
+	delete shader;
 }
 
 void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
