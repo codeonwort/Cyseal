@@ -43,17 +43,14 @@
 #define TRACE_FORCE_MIRROR        1
 #define TRACE_BRDF                2
 
-struct IndirectSpecularUniform
+struct PassUniform
 {
 	float4      randFloats0[RANDOM_SEQUENCE_LENGTH / 4];
 	float4      randFloats1[RANDOM_SEQUENCE_LENGTH / 4];
-	float4x4    prevViewProjInvMatrix;
-	float4x4    prevViewProjMatrix;
 	uint        renderTargetWidth;
 	uint        renderTargetHeight;
-	uint        bInvalidateHistory; // If nonzero, force invalidate the whole history.
-	uint        bLimitHistory;
 	uint        traceMode;
+	uint        _pad0;
 };
 
 struct ClosestHitPushConstants
@@ -64,21 +61,18 @@ struct ClosestHitPushConstants
 // ---------------------------------------------------------
 // Global root signature
 
-ConstantBuffer<SceneUniform>            sceneUniform            : register(b0, space0);
-ConstantBuffer<IndirectSpecularUniform> indirectSpecularUniform : register(b1, space0);
-ByteAddressBuffer                       gIndexBuffer            : register(t0, space0);
-ByteAddressBuffer                       gVertexBuffer           : register(t1, space0);
-StructuredBuffer<GPUSceneItem>          gpuSceneBuffer          : register(t2, space0);
-StructuredBuffer<Material>              materials               : register(t3, space0);
-RaytracingAccelerationStructure         rtScene                 : register(t4, space0);
-TextureCube                             skybox                  : register(t5, space0);
-Texture2D<GBUFFER0_DATATYPE>            gbuffer0                : register(t6, space0);
-Texture2D<GBUFFER1_DATATYPE>            gbuffer1                : register(t7, space0);
-Texture2D                               sceneDepthTexture       : register(t8, space0);
-Texture2D                               prevSceneDepthTexture   : register(t9, space0);
-Texture2D                               prevColorTexture        : register(t10, space0);
-RWTexture2D<float4>                     renderTarget            : register(u0, space0);
-RWTexture2D<float4>                     currentColorTexture     : register(u1, space0);
+ConstantBuffer<SceneUniform>            sceneUniform          : register(b0, space0);
+ConstantBuffer<PassUniform>             passUniform           : register(b1, space0);
+ByteAddressBuffer                       gIndexBuffer          : register(t0, space0);
+ByteAddressBuffer                       gVertexBuffer         : register(t1, space0);
+StructuredBuffer<GPUSceneItem>          gpuSceneBuffer        : register(t2, space0);
+StructuredBuffer<Material>              materials             : register(t3, space0);
+RaytracingAccelerationStructure         rtScene               : register(t4, space0);
+TextureCube                             skybox                : register(t5, space0);
+Texture2D<GBUFFER0_DATATYPE>            gbuffer0              : register(t6, space0);
+Texture2D<GBUFFER1_DATATYPE>            gbuffer1              : register(t7, space0);
+Texture2D                               sceneDepthTexture     : register(t8, space0);
+RWTexture2D<float4>                     raytracingTexture     : register(u0, space0);
 
 // Material resource binding
 #define TEMP_MAX_SRVS 1024
@@ -137,7 +131,7 @@ RayPayload createRayPayload()
 
 float2 getScreenResolution()
 {
-	return float2(indirectSpecularUniform.renderTargetWidth, indirectSpecularUniform.renderTargetHeight);
+	return float2(passUniform.renderTargetWidth, passUniform.renderTargetHeight);
 }
 
 float2 getScreenUV(uint2 texel)
@@ -147,11 +141,11 @@ float2 getScreenUV(uint2 texel)
 
 float2 getRandoms(uint2 texel, uint bounce)
 {
-	uint first = texel.x + indirectSpecularUniform.renderTargetWidth * texel.y;
+	uint first = texel.x + passUniform.renderTargetWidth * texel.y;
 	uint seq0 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
 	uint seq1 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
-	float rand0 = indirectSpecularUniform.randFloats0[seq0 / 4][seq0 % 4];
-	float rand1 = indirectSpecularUniform.randFloats1[seq1 / 4][seq1 % 4];
+	float rand0 = passUniform.randFloats0[seq0 / 4][seq0 % 4];
+	float rand1 = passUniform.randFloats1[seq1 / 4][seq1 % 4];
 	return float2(rand0, rand1);
 }
 
@@ -163,7 +157,7 @@ float3 sampleSky(float3 dir)
 	return SKYBOX_BOOST * skybox.SampleLevel(skyboxSampler, dir, 0.0).rgb;
 }
 
-float3 traceSun(float3 rayOrigin)
+float3 traceSun(float3 rayOrigin, float3 surfaceNormal)
 {
 	RayPayload rayPayload = createRayPayload();
 
@@ -189,10 +183,21 @@ float3 traceSun(float3 rayOrigin)
 
 	if (rayPayload.objectID == OBJECT_ID_NONE)
 	{
-		return sceneUniform.sunIlluminance;
+		float NdotW = dot(sceneUniform.sunDirection.xyz, -surfaceNormal);
+		return NdotW * sceneUniform.sunIlluminance;
 	}
 
 	return 0;
+}
+
+float3 traceLightSources(float3 rayOrigin, float3 surfaceNormal)
+{
+	float3 E = 0;
+	
+	// #todo: Pick one light source
+	E += traceSun(rayOrigin, surfaceNormal);
+	
+	return E;
 }
 
 // ---------------------------------------------------------
@@ -209,9 +214,8 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 	currentRay.TMin = RAYGEN_T_MIN;
 	currentRay.TMax = RAYGEN_T_MAX;
 
-	float3 reflectanceHistory[MAX_PATH_LEN + 1];
-	float3 radianceHistory[MAX_PATH_LEN + 1];
-	float pdfHistory[MAX_PATH_LEN + 1];
+	float3 Li = 0;
+	float3 modulation = 1; // Accumulation of (brdf * cosine_term), better name?
 	uint pathLen = 0;
 
 	while (pathLen < MAX_PATH_LEN)
@@ -235,9 +239,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
-			radianceHistory[pathLen] = sampleSky(currentRay.Direction);
-			reflectanceHistory[pathLen] = 1;
-			pdfHistory[pathLen] = 1;
+			Li += modulation * sampleSky(currentRay.Direction);
 			pathLen += 1;
 			break;
 		}
@@ -255,13 +257,13 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		MicrofacetBRDFOutput brdfOutput;
 		if (materialID == MATERIAL_ID_DEFAULT_LIT)
 		{
-			if (indirectSpecularUniform.traceMode == TRACE_BRDF)
+			if (passUniform.traceMode == TRACE_BRDF)
 			{
 				brdfOutput = hwrt::evaluateDefaultLit(currentRay.Direction, surfaceNormal,
 					currentRayPayload.albedo, currentRayPayload.roughness,
 					currentRayPayload.metalMask, randoms);
 			}
-			else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
+			else if (passUniform.traceMode == TRACE_FORCE_MIRROR)
 			{
 				brdfOutput = hwrt::evaluateMirror(currentRay.Direction, surfaceNormal);
 			}
@@ -280,17 +282,15 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			brdfOutput.pdf = 0.0;
 		}
 
-		float3 E = 0;
-		E += traceSun(surfacePosition);
-
-		radianceHistory[pathLen] = currentRayPayload.emission + E;
-		reflectanceHistory[pathLen] = brdfOutput.diffuseReflectance + brdfOutput.specularReflectance;
-		pdfHistory[pathLen] = brdfOutput.pdf;
+		float3 E = traceLightSources(surfacePosition, surfaceNormal);
 
 		if (brdfOutput.pdf <= 0.0)
 		{
 			break;
 		}
+		
+		modulation *= (brdfOutput.diffuseReflectance + brdfOutput.specularReflectance) / brdfOutput.pdf;
+		Li += modulation * (currentRayPayload.emission + E);
 
 		// Construct next ray.
 		currentRay.Origin = surfacePosition + nextRayOffset;
@@ -301,51 +301,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		pathLen += 1;
 	}
 
-	float3 Li = 0;
-	for (uint i = 0; i < pathLen; ++i)
-	{
-		uint j = pathLen - i - 1;
-		Li = reflectanceHistory[j] * (Li + radianceHistory[j]) / pdfHistory[j];
-	}
-
 	return Li;
-}
-
-struct PrevFrameInfo
-{
-	bool bValid;
-	float3 positionWS;
-	float linearDepth;
-	float3 color;
-	float historyCount;
-};
-
-PrevFrameInfo getReprojectedInfo(float3 currPositionWS)
-{
-	float4 positionCS = worldSpaceToClipSpace(currPositionWS, indirectSpecularUniform.prevViewProjMatrix);
-	float2 screenUV = clipSpaceToTextureUV(positionCS);
-
-	PrevFrameInfo info;
-	if (uvOutOfBounds(screenUV))
-	{
-		info.bValid = false;
-		return info;
-	}
-
-	float2 resolution = getScreenResolution();
-	int2 targetTexel = int2(screenUV * resolution);
-	float sceneDepth = prevSceneDepthTexture.Load(int3(targetTexel, 0)).r;
-	positionCS = getPositionCS(screenUV, sceneDepth);
-
-	// #todo-specular: Super ghosting. Reject by color diff also.
-	float4 colorAndHistory = prevColorTexture.SampleLevel(linearSampler, screenUV, 0);
-
-	info.bValid = true;
-	info.positionWS = clipSpaceToWorldSpace(positionCS, indirectSpecularUniform.prevViewProjInvMatrix);
-	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
-	info.color = colorAndHistory.rgb;
-	info.historyCount = colorAndHistory.a; // #todo-specular: history is bilinear sampled...
-	return info;
 }
 
 [shader("raygeneration")]
@@ -366,8 +322,7 @@ void MainRaygen()
 #else
 		float3 Wo = 0;
 #endif
-		currentColorTexture[texel] = float4(Wo, 1.0);
-		renderTarget[texel] = float4(Wo, 1.0);
+		raytracingTexture[texel] = float4(Wo, 1.0);
 		return;
 	}
 
@@ -380,18 +335,6 @@ void MainRaygen()
 	float roughness = gbufferData.roughness;
 	float metalMask = gbufferData.metalMask;
 
-	// Temporal reprojection
-	PrevFrameInfo prevFrame = getReprojectedInfo(positionWS);
-	bool bTemporalReprojection = false;
-	{
-		float zAlignment = pow(1.0 - dot(-viewDirection, normalWS), 8);
-		float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;
-		float depthTolerance = lerp(1e-2f, 1e-1f, zAlignment);
-		bool bClose = prevFrame.bValid && depthDiff < depthTolerance;
-
-		bTemporalReprojection = (indirectSpecularUniform.bInvalidateHistory == 0) && bClose;
-	}
-
 	float2 randoms = getRandoms(texel, 0);
 
 	// Consider only specular part for first indirect bounce, but consider both for further bounces.
@@ -400,14 +343,14 @@ void MainRaygen()
 	MicrofacetBRDFOutput brdfOutput;
 	if (gbufferData.materialID == MATERIAL_ID_DEFAULT_LIT)
 	{
-		if (indirectSpecularUniform.traceMode == TRACE_BRDF)
+		if (passUniform.traceMode == TRACE_BRDF)
 		{
 			brdfOutput = hwrt::evaluateDefaultLit(viewDirection, normalWS, albedo, roughness, metalMask, randoms);
 
 			// #todo: Sometimes surfaceNormal is NaN so brdfOutput is also NaN.
 			if (microfacetBRDFOutputHasNaN(brdfOutput)) brdfOutput.pdf = 0.0;
 		}
-		else if (indirectSpecularUniform.traceMode == TRACE_FORCE_MIRROR)
+		else if (passUniform.traceMode == TRACE_FORCE_MIRROR)
 		{
 			brdfOutput = hwrt::evaluateMirror(viewDirection, normalWS);
 		}
@@ -427,34 +370,10 @@ void MainRaygen()
 
 		Wo = (brdfOutput.specularReflectance / brdfOutput.pdf) * Li;
 	}
+	
+	if (any(isnan(Wo))) Wo = 0;
 
-	//prevColor was already acquired by getPrevFrame()
-	float historyCount = 0;
-	float3 prevWo = 0;
-	if (bTemporalReprojection)
-	{
-		historyCount = prevFrame.historyCount;
-		prevWo = prevFrame.color;
-	}
-
-	if (brdfOutput.pdf == 0.0)
-	{
-		Wo = prevWo;
-	}
-	else
-	{
-		Wo = lerp(prevWo, Wo, 1.0 / (1.0 + historyCount));
-		historyCount += 1;
-	}
-
-	if (indirectSpecularUniform.bLimitHistory != 0)
-	{
-		historyCount = min(historyCount, MAX_GLOSSY_HISTORY);
-	}
-
-	// #todo-specular: Should store history in moment texture
-	currentColorTexture[texel] = float4(Wo, historyCount);
-	renderTarget[texel] = float4(Wo, 1.0);
+	raytracingTexture[texel] = float4(Wo, 1);
 }
 
 [shader("closesthit")]

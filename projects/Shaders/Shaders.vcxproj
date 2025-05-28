@@ -90,6 +90,7 @@
     <FxCompile Include="..\..\shaders\gpu_scene.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_raytracing.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_temporal.hlsl" />
+    <FxCompile Include="..\..\shaders\indirect_specular_temporal.hlsl" />
     <FxCompile Include="..\..\shaders\material.hlsl" />
     <FxCompile Include="..\..\shaders\path_tracing.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_reflection.hlsl" />

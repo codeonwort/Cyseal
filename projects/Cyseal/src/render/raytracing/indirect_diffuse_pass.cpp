@@ -25,7 +25,7 @@
 #define RANDOM_SEQUENCE_LENGTH              (64 * 64)
 
 #define PF_colorHistory                     EPixelFormat::R16G16B16A16_FLOAT
-#define PF_momentHistory                    EPixelFormat::R32G32B32A32_UINT
+#define PF_momentHistory                    EPixelFormat::R16G16B16A16_FLOAT
 
 static const int32 BLUR_COUNT = 3;
 static float const cPhi       = 1.0f;
@@ -131,7 +131,7 @@ void IndirectDiffusePass::initializeRaytracingPipeline()
 	hitGroupShaderTable.initialize(swapchainCount);
 
 	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_DiffuseColorHistory");
-	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV, L"RT_DiffuseMomentHistory");
+	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_DiffuseMomentHistory");
 
 	ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "Diffuse_Raygen");
 	ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "Diffuse_ClosestHit");
@@ -251,7 +251,6 @@ bool IndirectDiffusePass::isAvailable() const
 void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectDiffuseInput& passInput)
 {
 	auto scene               = passInput.scene;
-	auto camera              = passInput.camera;
 	auto sceneWidth          = passInput.sceneWidth;
 	auto sceneHeight         = passInput.sceneHeight;
 	auto gpuScene            = passInput.gpuScene;
@@ -274,21 +273,19 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 
 	resizeTextures(commandList, sceneWidth, sceneHeight);
 
-	Texture* currentColorTexture = colorHistory.getTexture(swapchainIndex % 2);
-	Texture* prevColorTexture = colorHistory.getTexture((swapchainIndex + 1) % 2);
+	const uint32 currFrame = swapchainIndex % 2;
+	const uint32 prevFrame = (swapchainIndex + 1) % 2;
 
-	auto currentColorUAV = colorHistory.getUAV(swapchainIndex % 2);
-	auto prevColorUAV = colorHistory.getUAV((swapchainIndex + 1) % 2);
-	auto prevColorSRV = colorHistory.getSRV((swapchainIndex + 1) % 2);
+	auto currColorTexture = colorHistory.getTexture(currFrame);
+	auto prevColorTexture = colorHistory.getTexture(prevFrame);
+	auto currColorUAV     = colorHistory.getUAV(currFrame);
+	auto prevColorUAV     = colorHistory.getUAV(prevFrame);
+	auto prevColorSRV     = colorHistory.getSRV(prevFrame);
 
-	{
-		SCOPED_DRAW_EVENT(commandList, PrevColorBarrier);
-
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
-	}
+	auto currMomentTexture = momentHistory.getTexture(currFrame);
+	auto prevMomentTexture = momentHistory.getTexture(prevFrame);
+	auto currMomentUAV     = momentHistory.getUAV(currFrame);
+	auto prevMomentSRV     = momentHistory.getSRV(prevFrame);
 
 	// -------------------------------------------------------------------
 	// Phase: Raytracing
@@ -388,6 +385,8 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		commandList->dispatchRays(dispatchDesc);
 
 		TextureMemoryBarrier textureBarriers[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevMomentTexture },
 			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, raytracingTexture.get() },
 		};
 		GPUResource* uavBarriers[] = { passInput.indirectDiffuseTexture, raytracingTexture.get() };
@@ -419,8 +418,10 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		requiredVolatiles += 1; // raytracingTexture
 		requiredVolatiles += 1; // prevSceneDepthTexture
 		requiredVolatiles += 1; // prevColorTexture
+		requiredVolatiles += 1; // prevMomentTexture
 		requiredVolatiles += 1; // velocityMapTexture
 		requiredVolatiles += 1; // currentColorTexture
+		requiredVolatiles += 1; // currentMomentTexture
 
 		temporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	}
@@ -437,8 +438,10 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		SPT.texture("raytracingTexture", raytracingSRV.get());
 		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
 		SPT.texture("prevColorTexture", prevColorSRV);
+		SPT.texture("prevMomentTexture", prevMomentSRV);
 		SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
-		SPT.rwTexture("currentColorTexture", currentColorUAV);
+		SPT.rwTexture("currentColorTexture", currColorUAV);
+		SPT.rwTexture("currentMomentTexture", currMomentUAV);
 
 		commandList->setComputePipelineState(temporalPipeline.get());
 		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
@@ -454,8 +457,9 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 
 		TextureMemoryBarrier textureBarriers[] = {
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevMomentTexture },
 		};
-		GPUResource* uavBarriers[] = { currentColorTexture };
+		GPUResource* uavBarriers[] = { currColorTexture };
 		commandList->resourceBarriers(0, nullptr, _countof(textureBarriers), textureBarriers, _countof(uavBarriers), uavBarriers);
 	}
 
@@ -466,15 +470,15 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToPrevColor);
 
 		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, currentColorTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, currColorTexture },
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::COPY_DEST, prevColorTexture },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
 
-		commandList->copyTexture2D(currentColorTexture, prevColorTexture);
+		commandList->copyTexture2D(currColorTexture, prevColorTexture);
 
 		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::UNORDERED_ACCESS, currentColorTexture },
+			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::UNORDERED_ACCESS, currColorTexture },
 			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
@@ -507,6 +511,8 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 	}
 	historyWidth = newWidth;
 	historyHeight = newHeight;
+
+	commandList->enqueueDeferredDealloc(raytracingTexture.release(), true);
 
 	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
 		PF_colorHistory, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
@@ -543,6 +549,8 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(0) },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(1) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(0) },
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(1) },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}

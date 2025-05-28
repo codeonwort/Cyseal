@@ -414,8 +414,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.camera                = camera,
 				.mode                  = renderOptions.pathTracing,
 				.kernel                = renderOptions.pathTracingKernel,
-				.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix,
-				.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix,
 				.bCameraHasMoved       = renderOptions.bCameraHasMoved,
 				.sceneWidth            = sceneWidth,
 				.sceneHeight           = sceneHeight,
@@ -513,7 +511,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		
 		IndirectDiffuseInput passInput{
 			.scene                  = scene,
-			.camera                 = camera,
 			.mode                   = renderOptions.indirectDiffuse,
 			.sceneWidth             = sceneWidth,
 			.sceneHeight            = sceneHeight,
@@ -562,23 +559,20 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 		
 		IndirectSpecularInput passInput{
-			.scene                 = scene,
-			.camera                = camera,
-			.mode                  = renderOptions.indirectSpecular,
-			.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix,
-			.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix,
-			.bCameraHasMoved       = renderOptions.bCameraHasMoved,
-			.sceneWidth            = sceneWidth,
-			.sceneHeight           = sceneHeight,
-			.sceneUniformBuffer    = sceneUniformCBV,
-			.gpuScene              = gpuScene,
-			.raytracingScene       = accelStructure.get(),
-			.skyboxSRV             = skyboxSRV.get(),
-			.gbuffer0SRV           = gbufferSRVs[0].get(),
-			.gbuffer1SRV           = gbufferSRVs[1].get(),
-			.sceneDepthSRV         = sceneDepthSRV.get(),
-			.prevSceneDepthSRV     = prevSceneDepthSRV.get(),
-			.indirectSpecularUAV   = indirectSpecularUAV.get(),
+			.scene                   = scene,
+			.mode                    = renderOptions.indirectSpecular,
+			.sceneWidth              = sceneWidth,
+			.sceneHeight             = sceneHeight,
+			.sceneUniformBuffer      = sceneUniformCBV,
+			.gpuScene                = gpuScene,
+			.raytracingScene         = accelStructure.get(),
+			.skyboxSRV               = skyboxSRV.get(),
+			.gbuffer0SRV             = gbufferSRVs[0].get(),
+			.gbuffer1SRV             = gbufferSRVs[1].get(),
+			.sceneDepthSRV           = sceneDepthSRV.get(),
+			.prevSceneDepthSRV       = prevSceneDepthSRV.get(),
+			.velocityMapSRV          = velocityMapSRV.get(),
+			.indirectSpecularTexture = RT_indirectSpecular.get(),
 		};
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
 	}

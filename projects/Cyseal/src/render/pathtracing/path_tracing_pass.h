@@ -20,8 +20,6 @@ struct PathTracingInput
 	EPathTracingMode           mode;
 	EPathTracingKernel         kernel;
 
-	Float4x4                   prevViewProjInvMatrix;
-	Float4x4                   prevViewProjMatrix;
 	bool                       bCameraHasMoved;
 	uint32                     sceneWidth;
 	uint32                     sceneHeight;
