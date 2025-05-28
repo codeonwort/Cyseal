@@ -26,10 +26,9 @@
 
 #define RANDOM_SEQUENCE_LENGTH              (64 * 64)
 
-#define PF_raytracing                         EPixelFormat::R16G16B16A16_FLOAT
-// #todo-specular: rgba32f due to CopyTextureRegion. Need to blit instead of copy if wanna make it rgba16f.
-#define PF_colorHistory                       EPixelFormat::R32G32B32A32_FLOAT
-#define PF_momentHistory                      EPixelFormat::R16G16B16A16_FLOAT
+#define PF_raytracing                       EPixelFormat::R16G16B16A16_FLOAT
+#define PF_colorHistory                     EPixelFormat::R16G16B16A16_FLOAT
+#define PF_momentHistory                    EPixelFormat::R16G16B16A16_FLOAT
 
 DEFINE_LOG_CATEGORY_STATIC(LogIndirectSpecular);
 
@@ -37,13 +36,10 @@ struct RayPassUniform
 {
 	float       randFloats0[RANDOM_SEQUENCE_LENGTH];
 	float       randFloats1[RANDOM_SEQUENCE_LENGTH];
-	Float4x4    prevViewProjInv;
-	Float4x4    prevViewProj;
 	uint32      renderTargetWidth;
 	uint32      renderTargetHeight;
-	uint32      bInvalidateHistory;
-	uint32      bLimitHistory;
 	uint32      traceMode;
+	uint32      _pad0;
 };
 struct TemporalPassUniform
 {
@@ -140,23 +136,19 @@ bool IndirecSpecularPass::isAvailable() const
 void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
 {
 	auto scene               = passInput.scene;
-	auto camera              = passInput.camera;
 	auto sceneWidth          = passInput.sceneWidth;
 	auto sceneHeight         = passInput.sceneHeight;
-	auto gpuScene            = passInput.gpuScene;
-	auto raytracingScene     = passInput.raytracingScene;
-	auto sceneUniformBuffer  = passInput.sceneUniformBuffer;
 
 	if (isAvailable() == false)
 	{
 		return;
 	}
-	if (gpuScene->getGPUSceneItemMaxCount() == 0)
+	if (passInput.gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
 		// #todo-zero-size: Release resources if any.
 		return;
 	}
-	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = passInput.gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 	// -------------------------------------------------------------------
 	// Phase: Setup
@@ -166,21 +158,15 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	const uint32 currFrame = swapchainIndex % 2;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
 
-	Texture* currentColorTexture = colorHistory.getTexture(currFrame);
-	Texture* prevColorTexture = colorHistory.getTexture(prevFrame);
+	auto currColorTexture  = colorHistory.getTexture(currFrame);
+	auto prevColorTexture  = colorHistory.getTexture(prevFrame);
+	auto currColorUAV      = colorHistory.getUAV(currFrame);
+	auto prevColorSRV      = colorHistory.getSRV(prevFrame);
 
-	auto currentColorUAV = colorHistory.getUAV(currFrame);
-	auto prevColorUAV = colorHistory.getUAV(prevFrame);
-	auto prevColorSRV = colorHistory.getSRV(prevFrame);
-
-	{
-		SCOPED_DRAW_EVENT(commandList, PrevColorBarrier);
-
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
-	}
+	auto currMomentTexture = momentHistory.getTexture(currFrame);
+	auto prevMomentTexture = momentHistory.getTexture(prevFrame);
+	auto currMomentUAV     = momentHistory.getUAV(currFrame);
+	auto prevMomentSRV     = momentHistory.getSRV(prevFrame);
 
 	// Update uniforms.
 	{
@@ -191,12 +177,8 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 			uboData->randFloats0[i] = Cymath::randFloat();
 			uboData->randFloats1[i] = Cymath::randFloat();
 		}
-		uboData->prevViewProjInv = passInput.prevViewProjInvMatrix;
-		uboData->prevViewProj = passInput.prevViewProjMatrix;
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;
-		uboData->bInvalidateHistory = (passInput.mode == EIndirectSpecularMode::ForceMirror);
-		uboData->bLimitHistory = (passInput.mode == EIndirectSpecularMode::BRDF);
 		uboData->traceMode = (uint32)passInput.mode;
 
 		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
@@ -206,25 +188,22 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	}
 
 	// -------------------------------------------------------------------
-	// Phase: Raytracing + Temporal Reconstruction
+	// Phase: Raytracing
 
 	// Resize volatile heaps if needed.
 	{
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // indirectSpecularUniform
+		requiredVolatiles += 1; // passUniform
+		requiredVolatiles += 1; // rtScene
 		requiredVolatiles += 1; // gIndexBuffer
 		requiredVolatiles += 1; // gVertexBuffer
 		requiredVolatiles += 1; // gpuSceneBuffer
-		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
-		requiredVolatiles += 1; // rtScene
 		requiredVolatiles += 1; // skybox
 		requiredVolatiles += 1; // sceneDepthTexture
-		requiredVolatiles += 1; // prevSceneDepthTexture
-		requiredVolatiles += 1; // renderTarget
 		requiredVolatiles += 2; // gbuffer0, gbuffer1
-		requiredVolatiles += 1; // currentColorTexture
-		requiredVolatiles += 1; // prevColorTexture
+		requiredVolatiles += 1; // raytracingTexture
+		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
 		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
 
 		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
@@ -248,21 +227,18 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
 
 		ShaderParameterTable SPT{};
-		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
+		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
+		SPT.constantBuffer("passUniform", uniformCBV);
+		SPT.accelerationStructure("rtScene", passInput.raytracingScene->getSRV());
 		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
-		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
+		SPT.structuredBuffer("gpuSceneBuffer", passInput.gpuScene->getGPUSceneBufferSRV());
 		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
 		SPT.texture("skybox", passInput.skyboxSRV);
 		SPT.texture("gbuffer0", passInput.gbuffer0SRV);
 		SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
-		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
-		SPT.texture("prevColorTexture", prevColorSRV);
-		SPT.rwTexture("renderTarget", passInput.indirectSpecularUAV);
-		SPT.rwTexture("currentColorTexture", currentColorUAV);
-		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
-		SPT.constantBuffer("indirectSpecularUniform", uniformCBV);
+		SPT.rwTexture("raytracingTexture", raytracingUAV.get());
 		// Bindless
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
@@ -280,12 +256,113 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	commandList->dispatchRays(dispatchDesc);
 
 	{
-		SCOPED_DRAW_EVENT(commandList, PrevColorBarrier);
+		SCOPED_DRAW_EVENT(commandList, BarriersAfterRaytracing);
 
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
+		TextureMemoryBarrier textureBarriers[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevMomentTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, raytracingTexture.get() },
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
+		GPUResource* uavBarriers[] = { raytracingTexture.get() };
+		commandList->resourceBarriers(
+			0, nullptr,
+			_countof(textureBarriers), textureBarriers,
+			_countof(uavBarriers), uavBarriers);
+	}
+
+	// -------------------------------------------------------------------
+	// Phase: Temporal Reconstruction
+
+	// Update uniforms.
+	{
+		TemporalPassUniform uboData;
+
+		uboData.screenSize[0] = historyWidth;
+		uboData.screenSize[1] = historyHeight;
+		uboData.invScreenSize[0] = 1.0f / (float)historyWidth;
+		uboData.invScreenSize[1] = 1.0f / (float)historyHeight;
+		uboData.bInvalidateHistory = (passInput.mode == EIndirectSpecularMode::ForceMirror);
+		uboData.bLimitHistory = (passInput.mode == EIndirectSpecularMode::BRDF);
+
+		auto uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
+	}
+
+	// Resize volatile heaps if needed.
+	{
+		uint32 requiredVolatiles = 0;
+		requiredVolatiles += 1; // sceneUniform
+		requiredVolatiles += 1; // passUniform
+		requiredVolatiles += 1; // sceneDepthTexture
+		requiredVolatiles += 1; // raytracingTexture
+		requiredVolatiles += 1; // velocityMapTexture
+		requiredVolatiles += 1; // prevSceneDepthTexture
+		requiredVolatiles += 1; // prevColorTexture
+		requiredVolatiles += 1; // prevMomentTexture
+		requiredVolatiles += 1; // currentColorTexture
+		requiredVolatiles += 1; // currentMomentTexture
+
+		temporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	}
+
+	// Bind global shader parameters.
+	{
+		DescriptorHeap* volatileHeap = temporalPassDescriptor.getDescriptorHeap(swapchainIndex);
+		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
+		SPT.constantBuffer("passUniform", uniformCBV);
+		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+		SPT.texture("raytracingTexture", raytracingSRV.get());
+		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
+		SPT.texture("prevColorTexture", prevColorSRV);
+		SPT.texture("prevMomentTexture", prevMomentSRV);
+		SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
+		SPT.rwTexture("currentColorTexture", currColorUAV);
+		SPT.rwTexture("currentMomentTexture", currMomentUAV);
+
+		commandList->setComputePipelineState(temporalPipeline.get());
+		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
+	}
+
+	// Dispatch compute and issue memory barriers.
+	{
+		SCOPED_DRAW_EVENT(commandList, TemporalReprojection);
+
+		uint32 dispatchX = (historyWidth + 7) / 8;
+		uint32 dispatchY = (historyHeight + 7) / 8;
+		commandList->dispatchCompute(dispatchX, dispatchY, 1);
+
+		TextureMemoryBarrier textureBarriers[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevMomentTexture },
+		};
+		GPUResource* uavBarriers[] = { currColorTexture, currMomentTexture };
+		commandList->resourceBarriers(0, nullptr, _countof(textureBarriers), textureBarriers, _countof(uavBarriers), uavBarriers);
+	}
+
+	// -------------------------------------------------------------------
+	// Phase: Spatial Reconstruction
+
+	// #todo-specular: Spatial filter
+	{
+		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
+
+		TextureMemoryBarrier barriersBefore[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, currColorTexture },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_DEST, passInput.indirectSpecularTexture },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+		commandList->copyTexture2D(currColorTexture, passInput.indirectSpecularTexture);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::UNORDERED_ACCESS, currColorTexture },
+			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, passInput.indirectSpecularTexture },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 }
 
@@ -417,15 +494,39 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
 	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
-	commandList->enqueueDeferredDealloc(colorScratch.release(), true);
+	commandList->enqueueDeferredDealloc(raytracingTexture.release(), true);
 
-	TextureCreateParams colorDesc = TextureCreateParams::texture2D(
-		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, historyWidth, historyHeight, 1, 1, 0);
+	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
+		PF_raytracing, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
+
+	raytracingTexture = UniquePtr<Texture>(gRenderDevice->createTexture(rayTexDesc));
+	raytracingTexture->setDebugName(L"RT_SpecularRaysTexture");
+
+	raytracingSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(raytracingTexture.get(),
+		ShaderResourceViewDesc{
+			.format              = rayTexDesc.format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = rayTexDesc.mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	raytracingUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(raytracingTexture.get(),
+		UnorderedAccessViewDesc{
+			.format = rayTexDesc.format,
+			.viewDimension = EUAVDimension::Texture2D,
+			.texture2D = Texture2DUAVDesc{.mipSlice = 0, .planeSlice = 0 },
+		}
+	));
 
 	{
-		SCOPED_DRAW_EVENT(commandList, ColorHistoryBarrier);
+		SCOPED_DRAW_EVENT(commandList, SpecularTexturesInitBarrier);
 
 		TextureMemoryBarrier barriers[] = {
+			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(0) },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(1) },
 			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(0) },
@@ -433,17 +534,6 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
 	}
-
-	colorScratch = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
-	colorScratch->setDebugName(L"RT_SpecularColorScratch");
-
-	colorScratchUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorScratch.get(),
-		UnorderedAccessViewDesc{
-			.format         = colorDesc.format,
-			.viewDimension  = EUAVDimension::Texture2D,
-			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-		}
-	));
 }
 
 void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords)

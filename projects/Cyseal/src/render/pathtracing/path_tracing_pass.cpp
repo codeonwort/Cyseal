@@ -555,6 +555,8 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
 	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
+	commandList->enqueueDeferredDealloc(raytracingTexture.release(), true);
+
 	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
 		PF_raytracing, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
 	raytracingTexture = UniquePtr<Texture>(gRenderDevice->createTexture(rayTexDesc));

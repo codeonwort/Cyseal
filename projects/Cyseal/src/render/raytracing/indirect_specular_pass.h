@@ -16,25 +16,26 @@ class GPUScene;
 
 struct IndirectSpecularInput
 {
-	const SceneProxy*          scene;
-	const Camera*              camera;
-	EIndirectSpecularMode      mode;
+	const SceneProxy*      scene;
+	const Camera*          camera;
+	EIndirectSpecularMode  mode;
 
-	Float4x4                   prevViewProjInvMatrix;
-	Float4x4                   prevViewProjMatrix;
-	bool                       bCameraHasMoved;
-	uint32                     sceneWidth;
-	uint32                     sceneHeight;
+	Float4x4               prevViewProjInvMatrix;
+	Float4x4               prevViewProjMatrix;
+	bool                   bCameraHasMoved;
+	uint32                 sceneWidth;
+	uint32                 sceneHeight;
 
-	ConstantBufferView*        sceneUniformBuffer;
-	GPUScene*                  gpuScene;
-	AccelerationStructure*     raytracingScene;
-	ShaderResourceView*        skyboxSRV;
-	ShaderResourceView*        gbuffer0SRV;
-	ShaderResourceView*        gbuffer1SRV;
-	ShaderResourceView*        sceneDepthSRV;
-	ShaderResourceView*        prevSceneDepthSRV;
-	UnorderedAccessView*       indirectSpecularUAV;
+	ConstantBufferView*    sceneUniformBuffer;
+	GPUScene*              gpuScene;
+	AccelerationStructure* raytracingScene;
+	ShaderResourceView*    skyboxSRV;
+	ShaderResourceView*    gbuffer0SRV;
+	ShaderResourceView*    gbuffer1SRV;
+	ShaderResourceView*    sceneDepthSRV;
+	ShaderResourceView*    prevSceneDepthSRV;
+	ShaderResourceView*    velocityMapSRV;
+	Texture*               indirectSpecularTexture;
 };
 
 class IndirecSpecularPass final : public SceneRenderPass
@@ -70,6 +71,7 @@ private:
 	uint32                                   historyHeight = 0;
 	TextureSequence                          colorHistory;
 	TextureSequence                          momentHistory;
-	UniquePtr<Texture>                       colorScratch;
-	UniquePtr<UnorderedAccessView>           colorScratchUAV;
+	UniquePtr<Texture>                       raytracingTexture;
+	UniquePtr<ShaderResourceView>            raytracingSRV;
+	UniquePtr<UnorderedAccessView>           raytracingUAV;
 };
