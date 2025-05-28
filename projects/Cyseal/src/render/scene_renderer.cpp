@@ -511,7 +511,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		
 		IndirectDiffuseInput passInput{
 			.scene                  = scene,
-			.camera                 = camera,
 			.mode                   = renderOptions.indirectDiffuse,
 			.sceneWidth             = sceneWidth,
 			.sceneHeight            = sceneHeight,

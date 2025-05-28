@@ -14,7 +14,6 @@ class Camera;
 struct IndirectDiffuseInput
 {
 	const SceneProxy*          scene;
-	const Camera*              camera;
 	EIndirectDiffuseMode       mode;
 
 	uint32                     sceneWidth;
