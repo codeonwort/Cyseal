@@ -17,12 +17,8 @@ class GPUScene;
 struct IndirectSpecularInput
 {
 	const SceneProxy*      scene;
-	const Camera*          camera;
 	EIndirectSpecularMode  mode;
 
-	Float4x4               prevViewProjInvMatrix;
-	Float4x4               prevViewProjMatrix;
-	bool                   bCameraHasMoved;
 	uint32                 sceneWidth;
 	uint32                 sceneHeight;
 

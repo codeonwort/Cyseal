@@ -414,8 +414,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.camera                = camera,
 				.mode                  = renderOptions.pathTracing,
 				.kernel                = renderOptions.pathTracingKernel,
-				.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix,
-				.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix,
 				.bCameraHasMoved       = renderOptions.bCameraHasMoved,
 				.sceneWidth            = sceneWidth,
 				.sceneHeight           = sceneHeight,
@@ -563,11 +561,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		
 		IndirectSpecularInput passInput{
 			.scene                   = scene,
-			.camera                  = camera,
 			.mode                    = renderOptions.indirectSpecular,
-			.prevViewProjInvMatrix   = prevSceneUniformData.viewProjInvMatrix,
-			.prevViewProjMatrix      = prevSceneUniformData.viewProjMatrix,
-			.bCameraHasMoved         = renderOptions.bCameraHasMoved,
 			.sceneWidth              = sceneWidth,
 			.sceneHeight             = sceneHeight,
 			.sceneUniformBuffer      = sceneUniformCBV,
