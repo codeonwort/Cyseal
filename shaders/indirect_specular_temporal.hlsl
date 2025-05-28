@@ -96,12 +96,11 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth, sceneUniform.viewProjInvMatrix);
 	float linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix);
 
-	float3 Wo = 0;
+	float3 Wo = raytracingTexture.Load(int3(texel, 0)).xyz;
 	float historyCount = 0;
 	float2 moments = 0;
 	if (sceneDepth != DEVICE_Z_FAR)
 	{
-		Wo = raytracingTexture.Load(int3(texel, 0)).xyz;
 		moments.x = getLuminance(Wo);
 		moments.y = moments.x * moments.x;
 		

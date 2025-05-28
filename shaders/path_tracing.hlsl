@@ -324,11 +324,11 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		modulation *= (brdfOutput.diffuseReflectance + brdfOutput.specularReflectance) / brdfOutput.pdf; // cosine-weighted sampling, so no cosine term
 		Li += modulation * (currentRayPayload.emission + E);
 
+		// Construct next ray.
 		currentRay.Origin = surfacePosition + nextRayOffset;
 		currentRay.Direction = brdfOutput.outRayDir;
 		//currentRay.TMin = RAYGEN_T_MIN;
 		//currentRay.TMax = RAYGEN_T_MAX;
-
 		pathLen += 1;
 		prevIoR = currentRayPayload.indexOfRefraction;
 	}
