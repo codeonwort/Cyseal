@@ -139,7 +139,6 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 	};
 
 	WRL::ComPtr<IDxcResult> compileResult;
-	// #todo-dx12: hlsl::Exception? Anyway the application runs fine.
 	hr = compiler->Compile(
 		&sourceBuffer,
 		arguments.data(), (uint32)arguments.size(),

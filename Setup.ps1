@@ -51,9 +51,9 @@ $zip_list = @(
 		'external/pbrt4_dining_room'
 	),
 	@(
-		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.7.2207/dxc_2022_07_18.zip',
+		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505/dxc_2025_05_24.zip',
 		'external',
-		'dxc_2022_07_18.zip',
+		'dxc_2025_05_24.zip',
 		'external/dxc'
 	),
 	@(
