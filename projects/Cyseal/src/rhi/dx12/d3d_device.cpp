@@ -12,6 +12,10 @@
 
 #include "imgui_impl_dx12.h"
 
+// https://devblogs.microsoft.com/directx/directx12agility/
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 616; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = (const char*)(u8".\\D3D12\\"); }
+
 // #todo-crossapi: Dynamic loading (dll in %WINDIR%\System32)
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
@@ -113,10 +117,7 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	//          OK, seems VS-integrated Graphics Debugging is not maintained anymore and I have to use PIX :/
 	// Create a device with feature level 11.0 to verify if the graphics card supports DX12.
 	const D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0;
-	if (FAILED(D3D12CreateDevice(
-			hardwareAdapter.Get(),
-			minFeatureLevel,
-			IID_PPV_ARGS(&device))))
+	if (FAILED(D3D12CreateDevice(hardwareAdapter.Get(), minFeatureLevel, IID_PPV_ARGS(&device))))
 	{
 		CHECK(0);
 	}

@@ -9,6 +9,9 @@ class D3DDevice;
 class D3DResource;
 class D3DRenderTargetView;
 
+// #todo-dx12: Is there any way to automatically select latest IDXGISwapChainN?
+#define IDXGISwapChainLatest IDXGISwapChain4
+
 class D3DSwapChainBuffer : public GPUResource
 {
 public:
@@ -52,7 +55,7 @@ private:
 
 	D3DDevice* device = nullptr;
 
-	WRL::ComPtr<IDXGISwapChain3> rawSwapChain;
+	WRL::ComPtr<IDXGISwapChainLatest> rawSwapChain;
 	WRL::ComPtr<ID3D12Resource> rawSwapChainBuffers[SWAP_CHAIN_BUFFER_COUNT];
 	BufferedUniquePtr<D3DSwapChainBuffer> swapChainBuffers;
 

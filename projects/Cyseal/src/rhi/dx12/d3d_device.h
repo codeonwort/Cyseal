@@ -8,6 +8,7 @@
 // Currently latest version is ID3D12Device9, but I don't need newer APIs yet.
 // https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nn-d3d12-id3d12device5
 #define ID3D12DeviceLatest ID3D12Device5
+#define IDXGIFactoryLatest IDXGIFactory4
 
 class D3DDevice : public RenderDevice
 {
@@ -96,7 +97,7 @@ public:
 
 	inline uint32 getDescriptorSizeCbvSrvUav()         const { return descSizeCBV_SRV_UAV;     }
 
-	inline IDXGIFactory4*      getDXGIFactory()        const { return dxgiFactory.Get();       }
+	inline IDXGIFactoryLatest* getDXGIFactory()        const { return dxgiFactory.Get();       }
 	inline ID3D12DeviceLatest* getRawDevice()          const { return device.Get();            }
 	inline ID3D12CommandQueue* getRawCommandQueue()    const { return rawCommandQueue;         }
 
@@ -112,7 +113,7 @@ private:
 private:
 	WRL::ComPtr<ID3D12DeviceLatest>   device;
 
-	WRL::ComPtr<IDXGIFactory4>        dxgiFactory;
+	WRL::ComPtr<IDXGIFactoryLatest>   dxgiFactory;
 
 	WRL::ComPtr<ID3D12Fence>          fence;
 	UINT                              currentFence = 0;

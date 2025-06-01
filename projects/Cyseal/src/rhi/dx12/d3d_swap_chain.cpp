@@ -52,7 +52,7 @@ void D3DSwapChain::initialize(
 			nullptr, nullptr,
 			&tempSwapchain)
 	);
-	rawSwapChain.Attach(static_cast<IDXGISwapChain3*>(tempSwapchain));
+	rawSwapChain.Attach(static_cast<IDXGISwapChainLatest*>(tempSwapchain));
 
 	// CAUTION: gDescriptorHeaps is not initialized yet.
 	DescriptorHeapDesc heapDesc{
