@@ -21,6 +21,18 @@ $should_download = !($PSBoundParameters.ContainsKey('skipdownload'))
 $zip_list = @(
 	# Format: (url, zip_dir, zip_filename, unzip_dir)
 	@(
+		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505/dxc_2025_05_24.zip',
+		'external',
+		'dxc_2025_05_24.zip',
+		'external/dxc'
+	),
+	@(
+		'https://github.com/microsoft/DirectX-Headers/archive/refs/tags/v1.616.0.zip',
+		'external',
+		'dx12_v1.616.0.zip',
+		'external/dx12'
+	),
+	@(
 		'https://github.com/NVIDIA-RTX/STBN/archive/refs/tags/v1.0.0.zip',
 		'external',
 		'NVidiaSTBN.zip',
@@ -49,12 +61,6 @@ $zip_list = @(
 		'external',
 		'pbrt4_dining_room.zip',
 		'external/pbrt4_dining_room'
-	),
-	@(
-		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505/dxc_2025_05_24.zip',
-		'external',
-		'dxc_2025_05_24.zip',
-		'external/dxc'
 	),
 	@(
 		'https://github.com/ocornut/imgui/archive/refs/tags/v1.89.3.zip',

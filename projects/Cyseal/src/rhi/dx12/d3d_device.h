@@ -4,10 +4,7 @@
 #include "d3d_util.h"
 #include "d3d_swap_chain.h"
 
-// #todo-dx12: Is there any way to automatically select latest ID3D12Device?
-// Currently latest version is ID3D12Device9, but I don't need newer APIs yet.
-// https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nn-d3d12-id3d12device5
-#define ID3D12DeviceLatest ID3D12Device5
+#define ID3D12DeviceLatest ID3D12Device10
 #define IDXGIFactoryLatest IDXGIFactory4
 
 class D3DDevice : public RenderDevice
