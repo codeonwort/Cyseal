@@ -31,6 +31,7 @@ public:
 
 public:
 	D3DSwapChain();
+	~D3DSwapChain();
 
 	virtual void initialize(
 		RenderDevice* renderDevice,

@@ -244,6 +244,7 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 			createParams.windowWidth,
 			createParams.windowHeight);
 	}
+
 	// 6. Create command allocators and command list.
 	for (uint32 ix = 0; ix < computeNumFramesInFlight(this); ++ix)
 	{
@@ -355,7 +356,7 @@ void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32
 	}
 }
 
-void D3DDevice::getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter)
+void D3DDevice::getHardwareAdapter(IDXGIFactoryLatest* factory, IDXGIAdapter1** outAdapter)
 {
 	WRL::ComPtr<IDXGIAdapter1> adapter;
 	*outAdapter = nullptr;

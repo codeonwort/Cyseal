@@ -8,6 +8,19 @@ D3DSwapChain::D3DSwapChain()
 {
 }
 
+D3DSwapChain::~D3DSwapChain()
+{
+	backBufferRTVs.reset();
+	heapRTV.reset();
+
+	swapChainBuffers.reset();
+	for (auto i = 0u; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
+	{
+		rawSwapChainBuffers[i].Reset();
+	}
+	rawSwapChain.Reset();
+}
+
 void D3DSwapChain::initialize(
 	RenderDevice* renderDevice,
 	void*         nativeWindowHandle,
@@ -44,7 +57,7 @@ void D3DSwapChain::initialize(
 		.Flags       = 0,
 	};
 
-	IDXGISwapChain1* tempSwapchain = nullptr;
+	WRL::ComPtr<IDXGISwapChain1> tempSwapchain;
 	HR( dxgiFactory->CreateSwapChainForHwnd(
 			commandQueue,
 			hwnd,
@@ -52,7 +65,7 @@ void D3DSwapChain::initialize(
 			nullptr, nullptr,
 			&tempSwapchain)
 	);
-	rawSwapChain.Attach(static_cast<IDXGISwapChainLatest*>(tempSwapchain));
+	HR( tempSwapchain.As(&rawSwapChain) );
 
 	// CAUTION: gDescriptorHeaps is not initialized yet.
 	DescriptorHeapDesc heapDesc{

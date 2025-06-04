@@ -5,7 +5,7 @@
 #include "d3d_swap_chain.h"
 
 #define ID3D12DeviceLatest ID3D12Device10
-#define IDXGIFactoryLatest IDXGIFactory4
+#define IDXGIFactoryLatest IDXGIFactory7
 
 class D3DDevice : public RenderDevice
 {
@@ -104,7 +104,7 @@ public:
 	inline IDxcIncludeHandler* getDxcIncludeHandler()  const { return dxcIncludeHandler.Get(); }
 
 private:
-	void getHardwareAdapter(IDXGIFactory2* factory, IDXGIAdapter1** outAdapter);
+	void getHardwareAdapter(IDXGIFactoryLatest* factory, IDXGIAdapter1** outAdapter);
 
 // #todo-renderdevice: Move non-renderdevice members into other places
 private:
