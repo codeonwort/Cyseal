@@ -7,6 +7,9 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "world/scene.h"
 #include "world/camera.h"
 
+//#define RENDERER_TYPE        ERendererType::Standard
+#define RENDERER_TYPE        ERendererType::Null
+
 #define CAMERA_POSITION      vec3(50.0f, 0.0f, 30.0f)
 #define CAMERA_LOOKAT        vec3(50.0f, 0.0f, 0.0f)
 #define CAMERA_UP            vec3(0.0f, 1.0f, 0.0f)
@@ -38,7 +41,7 @@ protected:
 		engineInit.renderDevice.windowHeight = WINDOW_HEIGHT;
 		engineInit.renderDevice.raytracingTier = ERaytracingTier::MaxTier;
 		engineInit.renderDevice.bDoubleBuffering = true;
-		engineInit.rendererType = ERendererType::Standard;
+		engineInit.rendererType = RENDERER_TYPE;
 
 		cysealEngine->startup(engineInit);
 
@@ -53,9 +56,18 @@ protected:
 	
 	virtual void onTick(float deltaSeconds) override
 	{
-		if (exitCounter++ > 120)
+		if (exitCounter++ > 3)
 		{
 			terminateApplication();
+		}
+		else
+		{
+			SceneProxy* sceneProxy = scene.createProxy();
+			RendererOptions rendererOptions{};
+
+			cysealEngine->renderScene(sceneProxy, &camera, rendererOptions);
+
+			delete sceneProxy;
 		}
 	}
 
@@ -78,6 +90,7 @@ namespace UnitTest
 	TEST_CLASS(TestProcessCrash)
 	{
 	public:
+		// #todo-fatal: Unit test passes even if the process crashes :(
 		TEST_METHOD(EngineStartupNoCrash)
 		{
 			HWND nativeWindowHandle = NULL;
@@ -97,7 +110,7 @@ namespace UnitTest
 			EApplicationReturnCode ret = app->launch(createParams);
 			static_cast<void>(ret);
 
-			CHECK(ret == EApplicationReturnCode::Ok);
+			Assert::IsTrue(ret == EApplicationReturnCode::Ok);
 		}
 	};
 }
