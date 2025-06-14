@@ -62,5 +62,4 @@ private:
 
 	UniquePtr<DescriptorHeap> heapRTV;
 	BufferedUniquePtr<RenderTargetView> backBufferRTVs;
-
 };

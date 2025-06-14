@@ -39,8 +39,6 @@ void D3DSwapChain::initialize(
 	auto commandQueue = device->getRawCommandQueue();
 	auto rawDevice    = device->getRawDevice();
 
-	rawSwapChain.Reset();
-
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{
 		.Width       = width,
 		.Height      = height,
@@ -57,15 +55,20 @@ void D3DSwapChain::initialize(
 		.Flags       = 0,
 	};
 
-	WRL::ComPtr<IDXGISwapChain1> tempSwapchain;
+	// #todo-swapchain: Support fullscreen
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreenDesc{};
+	fullscreenDesc.Windowed = TRUE;
+
+	WRL::ComPtr<IDXGISwapChain1> dxgiSwapchain1;
 	HR( dxgiFactory->CreateSwapChainForHwnd(
 			commandQueue,
 			hwnd,
 			&swapChainDesc,
-			nullptr, nullptr,
-			&tempSwapchain)
+			&fullscreenDesc,
+			nullptr,
+			&dxgiSwapchain1)
 	);
-	HR( tempSwapchain.As(&rawSwapChain) );
+	HR( dxgiSwapchain1->QueryInterface(IID_PPV_ARGS(&rawSwapChain)) );
 
 	// CAUTION: gDescriptorHeaps is not initialized yet.
 	DescriptorHeapDesc heapDesc{
@@ -158,15 +161,15 @@ void D3DSwapChain::createSwapchainImages()
 
 void D3DSwapChain::present()
 {
-	UINT SyncInterval = 0;
-	UINT Flags = 0;
-	HRESULT hResult = rawSwapChain->Present(SyncInterval, Flags);
+	UINT syncInterval = 1;
+	UINT flags = 0;
+	HRESULT hResult = rawSwapChain->Present(syncInterval, flags);
 
 	// #todo-dx12: Report DRED log
 	// https://microsoft.github.io/DirectX-Specs/d3d/DeviceRemovedExtendedData.html
-	if (hResult == DXGI_ERROR_DEVICE_REMOVED)
+	if (hResult == DXGI_ERROR_DEVICE_REMOVED || hResult == DXGI_ERROR_DEVICE_RESET)
 	{
-		//
+		CHECK_NO_ENTRY();
 	}
 
 	HR(hResult);

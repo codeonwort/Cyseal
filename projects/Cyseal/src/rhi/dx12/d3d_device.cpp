@@ -88,6 +88,18 @@ D3DDevice::D3DDevice()
 	std::atexit(reportD3DLiveObjects);
 }
 
+D3DDevice::~D3DDevice()
+{
+	dxcIncludeHandler.Reset();
+	dxcCompiler.Reset();
+	dxcUtils.Reset();
+
+	fence.Reset();
+
+	dxgiFactory.Reset();
+	device.Reset();
+}
+
 void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 {
 	UINT dxgiFactoryFlags = 0;

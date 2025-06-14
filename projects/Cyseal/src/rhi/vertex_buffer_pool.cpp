@@ -39,11 +39,11 @@ void VertexBufferPool::initialize(uint64 totalBytes)
 
 void VertexBufferPool::destroy()
 {
+	srv.reset();
+
 	CHECK(pool != nullptr);
 	delete pool;
 	pool = nullptr;
-
-	srv.reset();
 }
 
 VertexBuffer* VertexBufferPool::suballocate(uint32 sizeInBytes)

@@ -12,6 +12,7 @@ class D3DDevice : public RenderDevice
 
 public:
 	D3DDevice();
+	~D3DDevice();
 
 	virtual void onInitialize(const RenderDeviceCreateParams& createParams) override;
 

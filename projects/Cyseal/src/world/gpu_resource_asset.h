@@ -15,6 +15,11 @@ public:
 		: rhi(inRHI)
 	{}
 
+	~GPUResourceAsset()
+	{
+		rhi.reset();
+	}
+
 	inline SharedPtr<T> getGPUResource() const { return rhi; }
 	inline void setGPUResource(SharedPtr<T> inRHI) { rhi = inRHI; }
 
