@@ -100,6 +100,11 @@
     <FxCompile Include="..\..\shaders\sky_pass.hlsl" />
     <FxCompile Include="..\..\shaders\tone_mapping.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\shaders\amd\ffx_denoiser_reflections_common.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_denoiser_reflections_config.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_denoiser_reflections_reproject.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

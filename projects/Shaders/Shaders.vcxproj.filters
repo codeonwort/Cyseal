@@ -21,4 +21,20 @@
     <FxCompile Include="..\..\shaders\path_tracing_temporal.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_temporal.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <Filter Include="amd">
+      <UniqueIdentifier>{2457741d-f34d-42be-8724-5463608f243b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\shaders\amd\ffx_denoiser_reflections_common.h">
+      <Filter>amd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\ffx_denoiser_reflections_config.h">
+      <Filter>amd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\ffx_denoiser_reflections_reproject.h">
+      <Filter>amd</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
