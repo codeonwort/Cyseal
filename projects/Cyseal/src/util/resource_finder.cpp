@@ -1,15 +1,18 @@
 #include "resource_finder.h"
+
+#include <filesystem>
 #include <assert.h>
 
-////////////////////////////////////////////////////////
-// Platform-specific
-#include <Shlwapi.h>
-#pragma comment(lib, "shlwapi.lib")
 static inline bool fileExists(const std::wstring& path)
 {
-	return PathFileExistsW(path.c_str()) == TRUE ? true : false;
+	return std::filesystem::exists(path);
 }
-////////////////////////////////////////////////////////
+
+static inline std::wstring getParentDirectory(const std::wstring& path)
+{
+	std::filesystem::path p(path);
+	return p.parent_path().wstring();
+}
 
 ResourceFinder& ResourceFinder::get()
 {
@@ -41,4 +44,18 @@ std::wstring ResourceFinder::find(const std::wstring& subpath)
 		}
 	}
 	return L"";
+}
+
+void ResourceFinder::find2(const std::wstring& subpath, std::wstring& outPath, std::wstring& outBaseDir)
+{
+	for (const auto& dir : directories)
+	{
+		auto fullpath = dir + subpath;
+		if (fileExists(fullpath))
+		{
+			outPath = fullpath;
+			outBaseDir = getParentDirectory(fullpath);
+			return;
+		}
+	}
 }

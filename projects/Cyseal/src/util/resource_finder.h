@@ -10,11 +10,14 @@ class ResourceFinder
 public:
 	static ResourceFinder& get();
 
-	// Register a directory
+	// Register a directory.
 	void addBaseDirectory(const std::wstring& directory);
 
-	// Returns empty string if not found
+	// Returns empty string if not found.
 	std::wstring find(const std::wstring& wsubpath);
+
+	// Returns empty strings if not found.
+	void find2(const std::wstring& wsubpath, std::wstring& outPath, std::wstring& outBaseDir);
 
 private:
 	ResourceFinder();

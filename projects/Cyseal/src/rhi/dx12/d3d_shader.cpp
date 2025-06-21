@@ -102,7 +102,8 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 	IDxcIncludeHandler* includeHandler = getD3DDevice()->getDxcIncludeHandler();
 	D3D_SHADER_MODEL highestSM = getD3DDevice()->getHighestShaderModel();
 
-	std::wstring fullpath = ResourceFinder::get().find(inFilename);
+	std::wstring fullpath, baseDir;
+	ResourceFinder::get().find2(inFilename, fullpath, baseDir);
 	if (fullpath.size() == 0)
 	{
 		CYLOG(LogD3DShader, Fatal, L"Failed to find shader: %s", fullpath.c_str());
@@ -118,7 +119,7 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 		CHECK_NO_ENTRY();
 	}
 
-	std::wstring includeDir = getShaderDirectory();
+	std::wstring includeDir = baseDir;// getShaderDirectory();
 	std::wstring targetProfile = getD3DShaderProfile(highestSM, stageFlag);
 	aEntryPoint = inEntryPoint;
 	str_to_wstr(inEntryPoint, wEntryPoint);
