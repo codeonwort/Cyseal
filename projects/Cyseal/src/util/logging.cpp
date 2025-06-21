@@ -5,7 +5,7 @@
 	#include <Windows.h>
 #endif
 
-#define LOG_BUFFER_SIZE 10240
+#define LOG_BUFFER_SIZE 1024
 
 const LogLevel IGNORE_LOG_LESS_THAN = LogLevel::Log;
 
@@ -16,21 +16,29 @@ void Logger::log(const char* inCategory, LogLevel inLevel, const wchar_t* inMess
 		return;
 	}
 
-	wchar_t fmtBuffer[LOG_BUFFER_SIZE];
-	va_list argptr;
-	va_start(argptr, inMessage);
-	// #todo-crossplatform: Is this a standard or MSVC-specific?
-	_vswprintf_p(fmtBuffer, LOG_BUFFER_SIZE, inMessage, argptr);
-	va_end(argptr);
+	std::vector<wchar_t> fmtBuffer(LOG_BUFFER_SIZE);
+	int fmtResult = -1;
+	while (fmtResult < 0)
+	{
+		va_list argptr;
+		va_start(argptr, inMessage);
+		fmtResult = std::vswprintf(fmtBuffer.data(), fmtBuffer.size(), inMessage, argptr);
+		va_end(argptr);
 
-	wchar_t buffer[LOG_BUFFER_SIZE];
-	swprintf_s(buffer, L"[%S][%S]%s\n", inCategory, LogLevelStrings[inLevel], fmtBuffer);
+		if (fmtResult < 0)
+		{
+			fmtBuffer.resize(fmtBuffer.size() * 2);
+		}
+	}
+
+	std::vector<wchar_t> buffer(fmtBuffer.size());
+	std::swprintf(buffer.data(), buffer.size(), L"[%S][%S]%s\n", inCategory, LogLevelStrings[inLevel], fmtBuffer.data());
 
 	// Print
-	wprintf_s(buffer);
+	std::wprintf(buffer.data());
 
 #if PLATFORM_WINDOWS
-	::OutputDebugStringW(buffer);
+	::OutputDebugStringW(buffer.data());
 #else
 	#error Not implemented yet
 #endif
