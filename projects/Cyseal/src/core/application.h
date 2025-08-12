@@ -29,9 +29,5 @@ class ApplicationBase
 public:
 	virtual ~ApplicationBase() {}
 
-	virtual void setWindowPosition(int32 x, int32 y) = 0;
-	virtual void setWindowSize(uint32 width, uint32 height) = 0;
-	virtual void setWindowTitle(const std::wstring& title) = 0;
-
 	virtual EApplicationReturnCode launch(const ApplicationCreateParams& createParams) = 0;
 };

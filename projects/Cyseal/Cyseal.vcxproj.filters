@@ -330,6 +330,9 @@
     <ClInclude Include="src\render\util\texture_sequence.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\core\console_application.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">

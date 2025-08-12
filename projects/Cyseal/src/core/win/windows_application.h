@@ -13,9 +13,9 @@ public:
 public:
 	WindowsApplication();
 
-	virtual void setWindowPosition(int32 inX, int32 inY) override;
-	virtual void setWindowSize(uint32 inWidth, uint32 inHeight) override;
-	virtual void setWindowTitle(const std::wstring& inTitle) override;
+	void setWindowPosition(int32 inX, int32 inY);
+	void setWindowSize(uint32 inWidth, uint32 inHeight);
+	void setWindowTitle(const std::wstring& inTitle);
 
 	virtual void onWindowResize(uint32 newWidth, uint32 newHeight) {}
 
