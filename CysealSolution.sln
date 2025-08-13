@@ -14,6 +14,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Shaders", "projects\Shaders
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UnitTest", "projects\UnitTest\UnitTest.vcxproj", "{0C058CF5-CA35-4A7B-B136-A3A732EBE96C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Demo_ConsoleApp", "projects\Demo_ConsoleApp\Demo_ConsoleApp.vcxproj", "{ACEE3B4D-4D9E-4BA4-8894-4A31BC984EFD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -34,6 +36,10 @@ Global
 		{0C058CF5-CA35-4A7B-B136-A3A732EBE96C}.Debug|x64.Build.0 = Debug|x64
 		{0C058CF5-CA35-4A7B-B136-A3A732EBE96C}.Release|x64.ActiveCfg = Release|x64
 		{0C058CF5-CA35-4A7B-B136-A3A732EBE96C}.Release|x64.Build.0 = Release|x64
+		{ACEE3B4D-4D9E-4BA4-8894-4A31BC984EFD}.Debug|x64.ActiveCfg = Debug|x64
+		{ACEE3B4D-4D9E-4BA4-8894-4A31BC984EFD}.Debug|x64.Build.0 = Debug|x64
+		{ACEE3B4D-4D9E-4BA4-8894-4A31BC984EFD}.Release|x64.ActiveCfg = Release|x64
+		{ACEE3B4D-4D9E-4BA4-8894-4A31BC984EFD}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
