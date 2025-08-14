@@ -80,6 +80,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <FxCompile Include="..\..\shaders\amd\ffx_denoiser_reproject_reflections_pass.hlsl" />
     <FxCompile Include="..\..\shaders\base_pass.hlsl" />
     <FxCompile Include="..\..\shaders\bilateral_blur.hlsl" />
     <FxCompile Include="..\..\shaders\blit_denoiser_input.hlsl" />
@@ -101,9 +102,16 @@
     <FxCompile Include="..\..\shaders\tone_mapping.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\shaders\amd\ffx_denoiser_reflections_common.h" />
-    <ClInclude Include="..\..\shaders\amd\ffx_denoiser_reflections_config.h" />
-    <ClInclude Include="..\..\shaders\amd\ffx_denoiser_reflections_reproject.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_callbacks_hlsl.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_common.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_config.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_reproject.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_resources.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_common_types.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_core.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_core_gpu_common.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_core_gpu_common_half.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_core_hlsl.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
