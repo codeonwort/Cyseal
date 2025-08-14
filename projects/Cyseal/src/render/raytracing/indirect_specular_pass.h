@@ -46,6 +46,7 @@ public:
 private:
 	void initializeRaytracingPipeline();
 	void initializeTemporalPipeline();
+	void initializeAMDReflectionDenoiser();
 
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
@@ -70,4 +71,8 @@ private:
 	UniquePtr<Texture>                       raytracingTexture;
 	UniquePtr<ShaderResourceView>            raytracingSRV;
 	UniquePtr<UnorderedAccessView>           raytracingUAV;
+
+private:
+	UniquePtr<ComputePipelineState>          amdReprojectPipeline;
+	VolatileDescriptorHelper                 amdReprojectPassDescriptor;
 };

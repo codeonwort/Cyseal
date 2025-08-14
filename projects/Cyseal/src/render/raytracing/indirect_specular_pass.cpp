@@ -51,6 +51,11 @@ struct TemporalPassUniform
 	uint32   _pad1;
 };
 
+struct AMDReprojectPassUniform
+{
+	uint32   _pad[4];
+};
+
 // Just to calculate size in bytes.
 // Should match with RayPayload in indirect_specular_reflection.hlsl.
 struct RayPayload
@@ -126,6 +131,9 @@ void IndirecSpecularPass::initialize()
 
 	initializeRaytracingPipeline();
 	initializeTemporalPipeline();
+
+	
+	initializeAMDReflectionDenoiser();
 }
 
 bool IndirecSpecularPass::isAvailable() const
@@ -480,6 +488,32 @@ void IndirecSpecularPass::initializeTemporalPipeline()
 	));
 
 	delete shader;
+}
+
+void IndirecSpecularPass::initializeAMDReflectionDenoiser()
+{
+	// #wip: Need to define FFX_GPU when compiling the shader.
+	// loadFromFile() needs additional parameters.
+#if 0
+	RenderDevice* device = gRenderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	amdReprojectPassDescriptor.initialize(L"IndirectSpecular_AMDReprojectPass", swapchainCount, sizeof(AMDReprojectPassUniform));
+
+	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularReprojectCS");
+	shader->declarePushConstants();
+	shader->loadFromFile(L"amd/ffx_denoiser_reproject_reflections_pass.hlsl", "CS");
+
+	amdReprojectPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
+		ComputePipelineDesc{
+			.cs             = shader,
+			.nodeMask       = 0,
+			.staticSamplers = {},
+		}
+	));
+
+	delete shader;
+#endif
 }
 
 void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
