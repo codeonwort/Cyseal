@@ -62,11 +62,10 @@ void DenoiserDevice::create()
 void DenoiserDevice::destroy()
 {
 	oidnReleaseFilter(oidnFilter);
-	oidnReleaseBuffer(oidnColorBuffer);
-	oidnReleaseBuffer(oidnAlbedoBuffer);
-	oidnReleaseBuffer(oidnNormalBuffer);
-	oidnReleaseBuffer(oidnDenoisedBuffer);
-	oidnReleaseDevice(oidnDevice);
+	if (oidnColorBuffer != nullptr) oidnReleaseBuffer(oidnColorBuffer);
+	if (oidnAlbedoBuffer != nullptr) oidnReleaseBuffer(oidnAlbedoBuffer);
+	if (oidnNormalBuffer != nullptr) oidnReleaseBuffer(oidnNormalBuffer);
+	if (oidnDenoisedBuffer != nullptr) oidnReleaseBuffer(oidnDenoisedBuffer);
 	oidnFilter = nullptr;
 	oidnColorBuffer = nullptr;
 	oidnAlbedoBuffer = nullptr;
