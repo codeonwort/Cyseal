@@ -6,6 +6,7 @@
 
 DECLARE_LOG_CATEGORY(LogVulkan);
 
+// If surfaceKHR is null, then don't care if present is supported.
 QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physDevice, VkSurfaceKHR surfaceKHR)
 {
 	QueueFamilyIndices indices;
@@ -20,11 +21,15 @@ QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physDevice, VkSurfaceKHR s
 		{
 			indices.graphicsFamily = i;
 		}
-		VkBool32 presentSupport = false;
 
 		CYLOG(LogVulkan, Log, L"Check surface present support");
 
-		vkGetPhysicalDeviceSurfaceSupportKHR(physDevice, i, surfaceKHR, &presentSupport);
+		VkBool32 presentSupport = (surfaceKHR == nullptr);
+		if (surfaceKHR != nullptr)
+		{
+			vkGetPhysicalDeviceSurfaceSupportKHR(physDevice, i, surfaceKHR, &presentSupport);
+		}
+
 		if (queueFamily.queueCount > 0 && presentSupport)
 		{
 			indices.presentFamily = i;

@@ -112,6 +112,15 @@ static bool checkVkDebugMarkerSupport(VkPhysicalDevice physDevice)
 	return false;
 }
 
+static uint32 computeNumFramesInFlight(VulkanDevice* device)
+{
+	if (device->getCreateParams().bHeadless)
+	{
+		return 1;
+	}
+	return device->getSwapChain()->getBufferCount();
+}
+
 VkDevice getVkDevice()
 {
 	return static_cast<VulkanDevice*>(gRenderDevice)->getRaw();
@@ -203,7 +212,15 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 #if PLATFORM_WINDOWS
 	CYLOG(LogVulkan, Log, TEXT("> Create KHR surface"));
-	vkSurface = ::createVkSurfaceKHR_win32(vkInstance, createParams.nativeWindowHandle);
+	if (createParams.bHeadless)
+	{
+		vkSurface = VK_NULL_HANDLE;
+		CYLOG(LogVulkan, Log, TEXT("Skip - headless device"));
+	}
+	else
+	{
+		vkSurface = ::createVkSurfaceKHR_win32(vkInstance, createParams.nativeWindowHandle);
+	}
 #else
 	#error Not implemented yet
 #endif
@@ -218,7 +235,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		vkEnumeratePhysicalDevices(vkInstance, &deviceCount, devices.data());
 		for (const VkPhysicalDevice& physDevice : devices)
 		{
-			if (isDeviceSuitable(physDevice))
+			if (isDeviceSuitable(physDevice, createParams.bHeadless))
 			{
 				vkPhysicalDevice = physDevice;
 				break;
@@ -322,14 +339,18 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	}
 
 	// Determine swapchain image count first.
-	swapChain = new VulkanSwapchain;
-	static_cast<VulkanSwapchain*>(swapChain)->preinitialize(this);
+	if (createParams.bHeadless == false)
+	{
+		swapChain = new VulkanSwapchain;
+		static_cast<VulkanSwapchain*>(swapChain)->preinitialize(this);
+	}
 
 	{
 		commandQueue = new VulkanRenderCommandQueue;
 		commandQueue->initialize(this);
 
-		for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
+		uint32 count = computeNumFramesInFlight(this);
+		for (uint32 ix = 0; ix < count; ++ix)
 		{
 			RenderCommandAllocator* allocator = createRenderCommandAllocator();
 			commandAllocators.push_back(allocator);
@@ -339,11 +360,14 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		}
 	}
 
-	swapChain->initialize(
-		this,
-		createParams.nativeWindowHandle,
-		createParams.windowWidth,
-		createParams.windowHeight);
+	if (createParams.bHeadless == false)
+	{
+		swapChain->initialize(
+			this,
+			createParams.nativeWindowHandle,
+			createParams.windowWidth,
+			createParams.windowHeight);
+	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create semaphores for rendering"));
 	{
@@ -383,6 +407,11 @@ void VulkanDevice::initializeDearImgui()
 	
 	RenderDevice::initializeDearImgui();
 
+	if (createParams.bHeadless)
+	{
+		return;
+	}
+
 	QueueFamilyIndices queueFamily = findQueueFamilies(vkPhysicalDevice, vkSurface);
 	VulkanSwapchain* vkSwapchain = static_cast<VulkanSwapchain*>(swapChain);
 	VkRenderPass renderPass = vkSwapchain->getVkRenderPass();
@@ -415,11 +444,21 @@ void VulkanDevice::initializeDearImgui()
 
 void VulkanDevice::beginDearImguiNewFrame()
 {
+	if (createParams.bHeadless)
+	{
+		return;
+	}
+
 	ImGui_ImplVulkan_NewFrame();
 }
 
 void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 {
+	if (createParams.bHeadless)
+	{
+		return;
+	}
+
 	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->currentCommandBuffer;
 	uint32 ix = swapChain->getCurrentBackbufferIndex();
 
@@ -443,6 +482,11 @@ void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 
 void VulkanDevice::shutdownDearImgui()
 {
+	if (createParams.bHeadless)
+	{
+		return;
+	}
+
 	RenderDevice::shutdownDearImgui();
 	ImGui_ImplVulkan_Shutdown();
 }
@@ -1321,7 +1365,7 @@ void VulkanDevice::getRequiredExtensions(std::vector<const char*>& extensions)
 	}
 }
 
-bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice physDevice)
+bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice physDevice, bool bSkipSwapchainSupport)
 {
 	QueueFamilyIndices indices = findQueueFamilies(physDevice, vkSurface);
 
@@ -1331,8 +1375,8 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice physDevice)
 	vkGetPhysicalDeviceFeatures(physDevice, &deviceFeatures);
 
 	bool extensionsSupported = checkDeviceExtensionSupport(physDevice);
-	bool swapChainAdequate = false;
-	if (extensionsSupported)
+	bool swapChainAdequate = bSkipSwapchainSupport;
+	if (extensionsSupported && !swapChainAdequate)
 	{
 		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physDevice);
 		swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();

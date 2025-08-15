@@ -121,7 +121,7 @@ public:
 private:
 	bool checkValidationLayerSupport();
 	void getRequiredExtensions(std::vector<const char*>& extensions);
-	bool isDeviceSuitable(VkPhysicalDevice physDevice);
+	bool isDeviceSuitable(VkPhysicalDevice physDevice, bool bSkipSwapchainSupport);
 	bool checkDeviceExtensionSupport(VkPhysicalDevice physDevice);
 	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice physDevice);
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
