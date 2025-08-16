@@ -489,7 +489,7 @@ Texture* D3DDevice::createTexture(const TextureCreateParams& createParams)
 
 ShaderStage* D3DDevice::createShader(EShaderStage shaderStage, const char* debugName)
 {
-	return new D3DShaderStage(shaderStage, debugName);
+	return new D3DShaderStage(this, shaderStage, debugName);
 }
 
 GraphicsPipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)

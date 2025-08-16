@@ -7,6 +7,11 @@
 //////////////////////////////////////////////////////////////////////////
 // D3DAccelerationStructure
 
+D3DAccelerationStructure::D3DAccelerationStructure(D3DDevice* inDevice)
+	: device(inDevice)
+{
+}
+
 D3DAccelerationStructure::~D3DAccelerationStructure()
 {
 	if (instanceDescBuffer)
@@ -22,7 +27,7 @@ ShaderResourceView* D3DAccelerationStructure::getSRV() const
 
 void D3DAccelerationStructure::initialize(uint32 numBLAS)
 {
-	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+	ID3D12DeviceLatest* rawDevice = device->getRawDevice();
 	totalBLAS = numBLAS;
 	
 	blasScratchResourceArray.resize(totalBLAS);
@@ -47,10 +52,10 @@ void D3DAccelerationStructure::buildBLAS(
 	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& bottomLevelInputs)
 {
 	CHECK(blasIndex < totalBLAS);
-	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+	ID3D12DeviceLatest* rawDevice = device->getRawDevice();
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo{};
-	device->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &prebuildInfo);
+	rawDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &prebuildInfo);
 	CHECK(prebuildInfo.ResultDataMaxSizeInBytes > 0);
 
 	wchar_t debugName[256];
@@ -105,7 +110,7 @@ void D3DAccelerationStructure::buildTLAS(
 	ID3D12GraphicsCommandList4* commandList,
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
 {
-	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+	ID3D12DeviceLatest* rawDevice = device->getRawDevice();
 	tlasBuildFlags = buildFlags;
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS topLevelInputs{};
@@ -116,7 +121,7 @@ void D3DAccelerationStructure::buildTLAS(
 	topLevelInputs.InstanceDescs = instanceDescBuffer->GetGPUVirtualAddress();
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo{};
-	device->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &prebuildInfo);
+	rawDevice->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &prebuildInfo);
 	CHECK(prebuildInfo.ResultDataMaxSizeInBytes > 0);
 
 	allocateUAVBuffer(
@@ -187,11 +192,11 @@ void D3DAccelerationStructure::allocateUAVBuffer(
 	D3D12_RESOURCE_STATES initialResourceState /*= D3D12_RESOURCE_STATE_COMMON*/,
 	const wchar_t* resourceName /*= nullptr*/)
 {
-	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+	ID3D12DeviceLatest* rawDevice = device->getRawDevice();
 
 	auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	HR(device->CreateCommittedResource(
+	HR(rawDevice->CreateCommittedResource(
 		&uploadHeapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,
@@ -210,11 +215,11 @@ void D3DAccelerationStructure::allocateUploadBuffer(
 	ID3D12Resource** ppResource,
 	const wchar_t* resourceName /*= nullptr*/)
 {
-	ID3D12DeviceLatest* device = getD3DDevice()->getRawDevice();
+	ID3D12DeviceLatest* rawDevice = device->getRawDevice();
 
 	auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(datasize);
-	HR(device->CreateCommittedResource(
+	HR(rawDevice->CreateCommittedResource(
 		&uploadHeapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,

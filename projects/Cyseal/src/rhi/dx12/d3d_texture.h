@@ -4,12 +4,7 @@
 #include "rhi/gpu_resource_barrier.h"
 #include "d3d_util.h"
 
-class RenderTargetView;
-class ShaderResourceView;
-class D3DRenderTargetView;
-class D3DShaderResourceView;
-class D3DDepthStencilView;
-class D3DUnorderedAccessView;
+class D3DDevice;
 
 class D3DTexture : public Texture
 {

@@ -5,6 +5,7 @@
 #include "util/logging.h"
 #include "util/string_conversion.h"
 #include "core/assertion.h"
+
 #include <filesystem>
 
 // References
@@ -97,10 +98,10 @@ static std::wstring getD3DShaderProfile(D3D_SHADER_MODEL shaderModel, EShaderSta
 
 void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint)
 {
-	IDxcUtils* utils = getD3DDevice()->getDxcUtils();
-	IDxcCompiler3* compiler = getD3DDevice()->getDxcCompiler();
-	IDxcIncludeHandler* includeHandler = getD3DDevice()->getDxcIncludeHandler();
-	D3D_SHADER_MODEL highestSM = getD3DDevice()->getHighestShaderModel();
+	IDxcUtils* utils = device->getDxcUtils();
+	IDxcCompiler3* compiler = device->getDxcCompiler();
+	IDxcIncludeHandler* includeHandler = device->getDxcIncludeHandler();
+	D3D_SHADER_MODEL highestSM = device->getHighestShaderModel();
 
 	std::wstring fullpath, baseDir;
 	ResourceFinder::get().find2(inFilename, fullpath, baseDir);
@@ -178,7 +179,7 @@ D3D12_SHADER_BYTECODE D3DShaderStage::getBytecode() const
 
 void D3DShaderStage::readShaderReflection(IDxcResult* compileResult)
 {
-	IDxcUtils* const utils = getD3DDevice()->getDxcUtils();
+	IDxcUtils* const utils = device->getDxcUtils();
 
 	if (!isRaytracingShader(stageFlag))
 	{

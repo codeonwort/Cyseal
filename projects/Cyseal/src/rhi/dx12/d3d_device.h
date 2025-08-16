@@ -4,6 +4,8 @@
 #include "d3d_util.h"
 #include "d3d_swap_chain.h"
 
+#include <dxcapi.h>
+
 #define ID3D12DeviceLatest ID3D12Device10
 #define IDXGIFactoryLatest IDXGIFactory7
 

@@ -2,11 +2,16 @@
 
 #include "rhi/shader.h"
 #include "d3d_util.h"
+
 #include <d3dcommon.h>
+#include <dxcapi.h>
+#include <d3d12shader.h>
 
 #include <vector>
 #include <string>
 #include <map>
+
+class D3DDevice;
 
 struct D3DShaderParameter
 {
@@ -51,8 +56,9 @@ struct D3DShaderParameterTable
 class D3DShaderStage : public ShaderStage
 {
 public:
-	D3DShaderStage(EShaderStage inStageFlag, const char* inDebugName)
+	D3DShaderStage(D3DDevice* inDevice, EShaderStage inStageFlag, const char* inDebugName)
 		: ShaderStage(inStageFlag, inDebugName)
+		, device(inDevice)
 	{}
 
 	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) override;
@@ -68,6 +74,8 @@ private:
 	void addToShaderParameterTable(const D3D12_SHADER_INPUT_BIND_DESC& inputBindDesc);
 
 private:
+	D3DDevice* device = nullptr;
+
 	bool bInitialized = false;
 	WRL::ComPtr<IDxcBlob> bytecodeBlob;
 	std::wstring wEntryPoint;

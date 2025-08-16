@@ -8,6 +8,7 @@
 #include "core/assertion.h"
 #include "d3d_util.h"
 
+class D3DDevice;
 class D3DShaderResourceView;
 class D3DUnorderedAccessView;
 
@@ -40,6 +41,7 @@ private:
 class D3DAccelerationStructure : public AccelerationStructure
 {
 public:
+	D3DAccelerationStructure(D3DDevice* inDevice);
 	virtual ~D3DAccelerationStructure();
 
 	virtual void* getRawResource() const override { return tlasResource.Get(); }
@@ -85,6 +87,8 @@ private:
 		ID3D12Resource** ppResource,
 		const wchar_t* resourceName = nullptr);
 
+private:
+	D3DDevice* device = nullptr;
 	UniquePtr<D3DShaderResourceView> srv;
 
 	uint32 totalBLAS = 0;
