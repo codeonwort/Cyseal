@@ -2,6 +2,7 @@
 
 #include "core/console_application.h"
 #include "rhi/dx12/d3d_device.h"
+#include "rhi/vulkan/vk_device.h"
 
 // Demo project to test headless app (console-only, no swapchains).
 

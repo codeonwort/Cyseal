@@ -39,6 +39,9 @@
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_win32.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_vulkan.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

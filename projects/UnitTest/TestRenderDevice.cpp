@@ -3,6 +3,22 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "rhi/dx12/d3d_device.h"
+#include "rhi/vulkan/vk_device.h"
+
+// #todo-test: Can I define a macro for parameterized test without modifying original headers?
+// ...
+
+RenderDevice* renderDeviceFactory(ERenderDeviceRawAPI graphicsAPI)
+{
+	RenderDevice* device = nullptr;
+	switch (graphicsAPI)
+	{
+		case ERenderDeviceRawAPI::DirectX12: device = new D3DDevice; break;
+		case ERenderDeviceRawAPI::Vulkan: device = new VulkanDevice; break;
+		default: CHECK_NO_ENTRY();
+	}
+	return device;
+}
 
 namespace UnitTest
 {
@@ -11,10 +27,20 @@ namespace UnitTest
 	public:
 		TEST_METHOD(CreateAndDestroyHeadlessDevice)
 		{
+			ERenderDeviceRawAPI graphicsAPIs[] = { ERenderDeviceRawAPI::DirectX12, ERenderDeviceRawAPI::Vulkan };
+			for (int i = 0; i < _countof(graphicsAPIs); ++i)
+			{
+				CreateAndDestroyHeadlessDevice_Parameterized(graphicsAPIs[i]);
+			}
+		}
+
+	private:
+		void CreateAndDestroyHeadlessDevice_Parameterized(ERenderDeviceRawAPI graphicsAPI)
+		{
 			RenderDeviceCreateParams createParams{
 				.nativeWindowHandle  = NULL,
 				.bHeadless           = true,
-				.rawAPI              = ERenderDeviceRawAPI::DirectX12,
+				.rawAPI              = graphicsAPI,
 				.raytracingTier      = ERaytracingTier::MaxTier,
 				.vrsTier             = EVariableShadingRateTier::MaxTier,
 				.meshShaderTier      = EMeshShaderTier::MaxTier,
@@ -26,7 +52,7 @@ namespace UnitTest
 				.windowHeight        = 1080,
 			};
 
-			RenderDevice* renderDevice = new D3DDevice;
+			RenderDevice* renderDevice = renderDeviceFactory(graphicsAPI);
 			renderDevice->initialize(createParams);
 
 			renderDevice->destroy();

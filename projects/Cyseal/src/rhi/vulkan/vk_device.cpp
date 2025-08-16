@@ -32,8 +32,6 @@
 	#include "vk_win32.h"
 #endif
 
-#pragma comment(lib, "volk.lib")
-
 #define VK_APPINFO_APPNAME       "CysealApplication"
 #define VK_APPINFO_APPVER        VK_MAKE_API_VERSION(0, 1, 0, 0)
 #define VK_APPINFO_ENGINENAME    "CysealEngine"

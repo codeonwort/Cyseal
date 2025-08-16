@@ -40,11 +40,13 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\ApplicationBuild.props" />
     <Import Project="..\UnitTest\EngineThirdParty.props" />
+    <Import Project="..\VulkanBuild.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\ApplicationBuild.props" />
     <Import Project="..\UnitTest\EngineThirdParty.props" />
+    <Import Project="..\VulkanBuild.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -77,6 +79,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_dx12.cpp" />
+    <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_vulkan.cpp" />
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui.cpp" />
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui_demo.cpp" />
