@@ -434,7 +434,7 @@ VertexBuffer* D3DDevice::createVertexBuffer(
 	uint32 sizeInBytes, EBufferAccessFlags usageFlags,
 	const wchar_t* inDebugName)
 {
-	D3DVertexBuffer* buffer = new D3DVertexBuffer;
+	D3DVertexBuffer* buffer = new D3DVertexBuffer(this);
 	buffer->initialize(sizeInBytes, usageFlags);
 	if (inDebugName != nullptr)
 	{
@@ -446,7 +446,7 @@ VertexBuffer* D3DDevice::createVertexBuffer(
 VertexBuffer* D3DDevice::createVertexBuffer(
 	VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
 {
-	D3DVertexBuffer* buffer = new D3DVertexBuffer;
+	D3DVertexBuffer* buffer = new D3DVertexBuffer(this);
 	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
@@ -455,7 +455,7 @@ IndexBuffer* D3DDevice::createIndexBuffer(
 	uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags,
 	const wchar_t* inDebugName)
 {
-	D3DIndexBuffer* buffer = new D3DIndexBuffer;
+	D3DIndexBuffer* buffer = new D3DIndexBuffer(this);
 	buffer->initialize(sizeInBytes, format, usageFlags);
 	if (inDebugName != nullptr)
 	{
@@ -468,14 +468,14 @@ IndexBuffer* D3DDevice::createIndexBuffer(
 	IndexBufferPool* pool, uint64 offsetInPool,
 	uint32 sizeInBytes, EPixelFormat format)
 {
-	D3DIndexBuffer* buffer = new D3DIndexBuffer;
+	D3DIndexBuffer* buffer = new D3DIndexBuffer(this);
 	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
 
 Buffer* D3DDevice::createBuffer(const BufferCreateParams& createParams)
 {
-	D3DBuffer* buffer = new D3DBuffer;
+	D3DBuffer* buffer = new D3DBuffer(this);
 	buffer->initialize(createParams);
 	return buffer;
 }

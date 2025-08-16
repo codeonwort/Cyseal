@@ -7,12 +7,13 @@
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
 
-class RenderDevice;
+class VulkanDevice;
 
 // Generic wrapper of GPU buffer.
 class VulkanBuffer : public Buffer
 {
 public:
+	VulkanBuffer(VulkanDevice* inDevice) : device(inDevice) {}
 	virtual ~VulkanBuffer();
 	virtual void initialize(const BufferCreateParams& inCreateParams) override;
 	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) override;
@@ -21,6 +22,7 @@ public:
 	virtual void setDebugName(const wchar_t* inDebugName) override;
 
 private:
+	VulkanDevice* device = nullptr;
 	VkDeviceMemory vkBufferMemory = VK_NULL_HANDLE;
 	VkBuffer vkBuffer = VK_NULL_HANDLE;
 };
@@ -29,6 +31,7 @@ private:
 class VulkanVertexBuffer : public VertexBuffer
 {
 public:
+	VulkanVertexBuffer(VulkanDevice* inDevice) : device(inDevice) {}
 	~VulkanVertexBuffer();
 
 	//~ BEGIN GPUResource interface
@@ -46,6 +49,7 @@ public:
 	VkBuffer getVkBuffer() const;
 
 private:
+	VulkanDevice* device = nullptr;
 	// internalBuffer is created only if current VulkanVertexBuffer is an independent buffer.
 	// If current VulkanVertexBuffer was suballocated from a VertexBufferPool, internalBuffer is null.
 	VulkanBuffer* internalBuffer = nullptr;
@@ -59,6 +63,9 @@ private:
 class VulkanIndexBuffer : public IndexBuffer
 {
 public:
+	VulkanIndexBuffer(VulkanDevice* inDevice) : device(inDevice) {}
+	~VulkanIndexBuffer();
+
 	//~ BEGIN GPUResource interface
 	virtual void* getRawResource() const override { return getVkBuffer(); }
 	//~ END GPUResource interface
@@ -76,6 +83,7 @@ public:
 	inline VkIndexType getVkIndexType() const { return vkIndexType; }
 
 private:
+	VulkanDevice* device = nullptr;
 	// internalBuffer is created only if current VulkanIndexBuffer is an independent buffer.
 	// If current VulkanIndexBuffer was suballocated from an IndexBufferPool, internalBuffer is null.
 	VulkanBuffer* internalBuffer = nullptr;

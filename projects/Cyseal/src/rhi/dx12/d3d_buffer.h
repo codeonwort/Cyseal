@@ -4,14 +4,15 @@
 #include "d3d_util.h"
 #include "d3d_resource_view.h"
 
-class RenderDevice;
 class D3DDevice;
 class D3DShaderResourceView;
 
 class D3DBuffer : public Buffer
 {
 public:
+	D3DBuffer(D3DDevice* inDevice) : device(inDevice) {}
 	virtual ~D3DBuffer();
+
 	virtual void initialize(const BufferCreateParams& inCreateParams) override;
 	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) override;
 
@@ -19,6 +20,8 @@ public:
 	virtual void setDebugName(const wchar_t* inDebugName) override;
 
 private:
+	D3DDevice* device = nullptr;
+
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;
 
 	// #todo-renderdevice: Always holding an upload buffer
@@ -30,6 +33,8 @@ private:
 class D3DVertexBuffer : public VertexBuffer
 {
 public:
+	D3DVertexBuffer(D3DDevice* inDevice) : device(inDevice) {}
+
 	virtual void initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags) override;
 
 	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
@@ -47,6 +52,8 @@ public:
 	virtual void* getRawResource() const override { return defaultBuffer.Get(); }
 
 private:
+	D3DDevice* device = nullptr;
+
 	// Own buffer or reference to the global buffer.
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;
 
@@ -62,6 +69,8 @@ private:
 class D3DIndexBuffer : public IndexBuffer
 {
 public:
+	D3DIndexBuffer(D3DDevice* inDevice) : device(inDevice) {}
+
 	virtual void initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags) override;
 
 	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
@@ -82,6 +91,8 @@ public:
 	virtual void* getRawResource() const override { return defaultBuffer.Get(); }
 
 private:
+	D3DDevice* device = nullptr;
+
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;
 
 	// #todo-dx12: destroy after the command list is executed and realized.

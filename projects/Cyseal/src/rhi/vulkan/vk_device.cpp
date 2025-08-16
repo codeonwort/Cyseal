@@ -513,7 +513,7 @@ RenderCommandAllocator* VulkanDevice::createRenderCommandAllocator()
 
 VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, EBufferAccessFlags usageFlags, const wchar_t* inDebugName)
 {
-	VulkanVertexBuffer* buffer = new VulkanVertexBuffer;
+	VulkanVertexBuffer* buffer = new VulkanVertexBuffer(this);
 	buffer->initialize(sizeInBytes, usageFlags);
 	if (inDebugName != nullptr)
 	{
@@ -526,14 +526,14 @@ VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, EBufferAccess
 
 VertexBuffer* VulkanDevice::createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
 {
-	VulkanVertexBuffer* buffer = new VulkanVertexBuffer;
+	VulkanVertexBuffer* buffer = new VulkanVertexBuffer(this);
 	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
 
 IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags, const wchar_t* inDebugName)
 {
-	VulkanIndexBuffer* buffer = new VulkanIndexBuffer;
+	VulkanIndexBuffer* buffer = new VulkanIndexBuffer(this);
 	buffer->initialize(sizeInBytes, format, usageFlags);
 	if (inDebugName != nullptr)
 	{
@@ -546,14 +546,14 @@ IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes, EPixelFormat fo
 
 IndexBuffer* VulkanDevice::createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes, EPixelFormat format)
 {
-	VulkanIndexBuffer* buffer = new VulkanIndexBuffer;
+	VulkanIndexBuffer* buffer = new VulkanIndexBuffer(this);
 	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
 
 Buffer* VulkanDevice::createBuffer(const BufferCreateParams& createParams)
 {
-	VulkanBuffer* buffer = new VulkanBuffer;
+	VulkanBuffer* buffer = new VulkanBuffer(this);
 	buffer->initialize(createParams);
 	return buffer;
 }

@@ -8,15 +8,15 @@
 #include "core/assertion.h"
 #include <algorithm>
 
-WRL::ComPtr<ID3D12Resource> createDefaultBuffer(UINT64 byteSize)
+WRL::ComPtr<ID3D12Resource> createDefaultBuffer(D3DDevice* device, UINT64 byteSize)
 {
-	auto device = getD3DDevice()->getRawDevice();
+	auto rawDevice = device->getRawDevice();
 
 	WRL::ComPtr<ID3D12Resource> defaultBuffer;
 
 	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
-	HR( device->CreateCommittedResource(
+	HR( rawDevice->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&bufferDesc,
@@ -28,6 +28,7 @@ WRL::ComPtr<ID3D12Resource> createDefaultBuffer(UINT64 byteSize)
 }
 
 void updateDefaultBuffer(
+	D3DDevice* device,
 	ID3D12GraphicsCommandList* commandList,
 	WRL::ComPtr<ID3D12Resource>& defaultBuffer,
 	WRL::ComPtr<ID3D12Resource>& uploadBuffer,
@@ -35,11 +36,11 @@ void updateDefaultBuffer(
 	const void* initData,
 	UINT64 byteSize)
 {
-	auto device = getD3DDevice()->getRawDevice();
+	auto rawDevice = device->getRawDevice();
 
 	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
-	HR(device->CreateCommittedResource(
+	HR(rawDevice->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,
@@ -89,7 +90,7 @@ void updateDefaultBuffer(
 
 void D3DVertexBuffer::initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags)
 {
-	defaultBuffer = createDefaultBuffer(sizeInBytes);
+	defaultBuffer = createDefaultBuffer(device, sizeInBytes);
 	offsetInDefaultBuffer = 0;
 
 	view.BufferLocation = defaultBuffer->GetGPUVirtualAddress();
@@ -114,7 +115,7 @@ void D3DVertexBuffer::updateData(RenderCommandList* commandList, void* data, uin
 {
 	auto cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
-	updateDefaultBuffer(cmdList, defaultBuffer, uploadBuffer,
+	updateDefaultBuffer(device, cmdList, defaultBuffer, uploadBuffer,
 		offsetInDefaultBuffer, data, view.SizeInBytes);
 
 	view.StrideInBytes  = strideInBytes;
@@ -134,10 +135,9 @@ void D3DVertexBuffer::setDebugName(const wchar_t* inDebugName)
 void D3DIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags)
 {
 	CHECK(format == EPixelFormat::R16_UINT || format == EPixelFormat::R32_UINT);
-	auto device = getD3DDevice()->getRawDevice();
 
 	indexFormat = format;
-	defaultBuffer = createDefaultBuffer(sizeInBytes);
+	defaultBuffer = createDefaultBuffer(device, sizeInBytes);
 
 	view.BufferLocation = defaultBuffer->GetGPUVirtualAddress();
 	view.SizeInBytes = sizeInBytes;
@@ -179,7 +179,7 @@ void D3DIndexBuffer::updateData(RenderCommandList* commandList, void* data, EPix
 
 	auto cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
-	updateDefaultBuffer(cmdList, defaultBuffer, uploadBuffer,
+	updateDefaultBuffer(device, cmdList, defaultBuffer, uploadBuffer,
 		offsetInDefaultBuffer, data, sizeInBytes);
 
 	view.Format = d3dFormat;
@@ -211,7 +211,7 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 {
 	Buffer::initialize(inCreateParams);
 
-	auto device = getD3DDevice()->getRawDevice();
+	auto rawDevice = device->getRawDevice();
 
 	// NOTE: alignment should be 0 or 65536 for buffers.
 	
@@ -220,7 +220,7 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 		D3D12_RESOURCE_FLAGS resourceFlags = into_d3d::bufferResourceFlags(createParams.accessFlags);
 		auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes, resourceFlags, createParams.alignment);
-		HR(device->CreateCommittedResource(
+		HR(rawDevice->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&bufferDesc,
@@ -233,7 +233,7 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 	{
 		auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes, D3D12_RESOURCE_FLAG_NONE, createParams.alignment);
-		HR(device->CreateCommittedResource(
+		HR(rawDevice->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&bufferDesc,

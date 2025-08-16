@@ -8,34 +8,43 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 // #todo-test: Can I define a macro for parameterized test without modifying original headers?
 // ...
 
-RenderDevice* renderDeviceFactory(ERenderDeviceRawAPI graphicsAPI)
-{
-	RenderDevice* device = nullptr;
-	switch (graphicsAPI)
-	{
-		case ERenderDeviceRawAPI::DirectX12: device = new D3DDevice; break;
-		case ERenderDeviceRawAPI::Vulkan: device = new VulkanDevice; break;
-		default: CHECK_NO_ENTRY();
-	}
-	return device;
-}
-
 namespace UnitTest
 {
-	TEST_CLASS(TestRenderDevice)
+	template<ERenderDeviceRawAPI graphicsAPI>
+	class TestRenderDeviceBase
 	{
-	public:
-		TEST_METHOD(CreateAndDestroyHeadlessDevice)
+	// Test methods
+	protected:
+		void CreateAndDestroyHeadlessDevice()
 		{
-			ERenderDeviceRawAPI graphicsAPIs[] = { ERenderDeviceRawAPI::DirectX12, ERenderDeviceRawAPI::Vulkan };
-			for (int i = 0; i < _countof(graphicsAPIs); ++i)
-			{
-				CreateAndDestroyHeadlessDevice_Parameterized(graphicsAPIs[i]);
-			}
+			RenderDevice* renderDevice = createRenderDevice();
+
+			renderDevice->destroy();
+			delete renderDevice;
 		}
 
-	private:
-		void CreateAndDestroyHeadlessDevice_Parameterized(ERenderDeviceRawAPI graphicsAPI)
+		void CreateBuffer()
+		{
+			RenderDevice* renderDevice = createRenderDevice();
+
+			BufferCreateParams bufferParams{
+				.sizeInBytes = 65536,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::CBV,
+			};
+			Buffer* buffer = renderDevice->createBuffer(bufferParams);
+			Assert::IsNotNull(buffer, L"Buffer is null");
+
+			delete buffer;
+			buffer = nullptr;
+
+			renderDevice->destroy();
+			delete renderDevice;
+		}
+
+	// Utils
+	protected:
+		RenderDevice* createRenderDevice()
 		{
 			RenderDeviceCreateParams createParams{
 				.nativeWindowHandle  = NULL,
@@ -52,11 +61,43 @@ namespace UnitTest
 				.windowHeight        = 1080,
 			};
 
-			RenderDevice* renderDevice = renderDeviceFactory(graphicsAPI);
-			renderDevice->initialize(createParams);
+			RenderDevice* device = nullptr;
+			switch (graphicsAPI)
+			{
+				case ERenderDeviceRawAPI::DirectX12: device = new D3DDevice; break;
+				case ERenderDeviceRawAPI::Vulkan: device = new VulkanDevice; break;
+				default: CHECK_NO_ENTRY();
+			}
 
-			renderDevice->destroy();
-			delete renderDevice;
+			device->initialize(createParams);
+
+			return device;
+		}
+	};
+
+	TEST_CLASS(TestRenderDeviceD3D12), TestRenderDeviceBase<ERenderDeviceRawAPI::DirectX12>
+	{
+	public:
+		TEST_METHOD(CreateAndDestroyHeadlessDevice)
+		{
+			TestRenderDeviceBase::CreateAndDestroyHeadlessDevice();
+		}
+		TEST_METHOD(CreateBuffer)
+		{
+			TestRenderDeviceBase::CreateBuffer();
+		}
+	};
+
+	TEST_CLASS(TestRenderDeviceVulkan), TestRenderDeviceBase<ERenderDeviceRawAPI::Vulkan>
+	{
+	public:
+		TEST_METHOD(CreateAndDestroyHeadlessDevice)
+		{
+			TestRenderDeviceBase::CreateAndDestroyHeadlessDevice();
+		}
+		TEST_METHOD(CreateBuffer)
+		{
+			TestRenderDeviceBase::CreateBuffer();
 		}
 	};
 }

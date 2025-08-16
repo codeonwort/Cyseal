@@ -52,12 +52,13 @@ static void createBufferUtil(
 }
 
 static void updateDefaultBuffer(
-	VkDevice vkDevice, VkPhysicalDevice vkPhysicalDevice,
+	VulkanDevice* device,
 	VkBuffer defaultBuffer, VkDeviceSize defaultBufferOffset,
 	void* srcData, VkDeviceSize dataSizeInBytes)
 {
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
-	VkCommandPool vkCommandPool = deviceWrapper->getTempCommandPool();
+	VkDevice vkDevice = device->getRaw();
+	VkPhysicalDevice vkPhysicalDevice = device->getVkPhysicalDevice();
+	VkCommandPool vkCommandPool = device->getTempCommandPool();
 
 	VkBuffer uploadBuffer = VK_NULL_HANDLE;
 	VkDeviceMemory uploadBufferMemory = VK_NULL_HANDLE;
@@ -83,7 +84,7 @@ static void updateDefaultBuffer(
 	};
 	vkCmdCopyBuffer(vkCommandBuffer, uploadBuffer, defaultBuffer, 1, &region);
 
-	endSingleTimeCommands(vkDevice, vkCommandPool, deviceWrapper->getVkGraphicsQueue(), vkCommandBuffer);
+	endSingleTimeCommands(vkDevice, vkCommandPool, device->getVkGraphicsQueue(), vkCommandBuffer);
 
 	vkDestroyBuffer(vkDevice, uploadBuffer, nullptr);
 	vkFreeMemory(vkDevice, uploadBufferMemory, nullptr);
@@ -94,18 +95,17 @@ static void updateDefaultBuffer(
 
 VulkanBuffer::~VulkanBuffer()
 {
-	VkDevice device = getVkDevice();
-	vkDestroyBuffer(device, vkBuffer, nullptr);
-	vkFreeMemory(device, vkBufferMemory, nullptr);
+	VkDevice vkDevice = device->getRaw();
+	vkDestroyBuffer(vkDevice, vkBuffer, nullptr);
+	vkFreeMemory(vkDevice, vkBufferMemory, nullptr);
 }
 
 void VulkanBuffer::initialize(const BufferCreateParams& inCreateParams)
 {
 	Buffer::initialize(inCreateParams);
 
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
-	VkDevice vkDevice = deviceWrapper->getRaw();
-	VkPhysicalDevice vkPhysicalDevice = deviceWrapper->getVkPhysicalDevice();
+	VkDevice vkDevice = device->getRaw();
+	VkPhysicalDevice vkPhysicalDevice = device->getVkPhysicalDevice();
 
 	VkBufferUsageFlags usage = 0;
 	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::COPY_SRC)) usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -138,7 +138,7 @@ void VulkanBuffer::setDebugName(const wchar_t* inDebugNameW)
 {
 	std::string debugNameA;
 	wstr_to_str(inDebugNameW, debugNameA);
-	static_cast<VulkanDevice*>(gRenderDevice)->setObjectDebugName(
+	device->setObjectDebugName(
 		VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
 		(uint64)vkBuffer,
 		debugNameA.c_str());
@@ -163,7 +163,7 @@ void VulkanVertexBuffer::initialize(uint32 sizeInBytes, EBufferAccessFlags usage
 		.alignment   = 0,
 		.accessFlags = EBufferAccessFlags::VERTEX_BUFFER | usageFlags,
 	};
-	internalBuffer = new VulkanBuffer;
+	internalBuffer = new VulkanBuffer(device);
 	internalBuffer->initialize(createParams);
 }
 
@@ -187,11 +187,7 @@ void VulkanVertexBuffer::updateData(
 	VulkanVertexBuffer* bufferOwner = (parentPool == nullptr) ? this : static_cast<VulkanVertexBuffer*>(parentPool->internal_getPoolBuffer());
 	VkBuffer vkBuffer = (VkBuffer)bufferOwner->internalBuffer->getRawResource();
 
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
-	updateDefaultBuffer(
-		deviceWrapper->getRaw(),
-		deviceWrapper->getVkPhysicalDevice(),
-		vkBuffer, offsetInParentBuffer, data, bufferSize);
+	updateDefaultBuffer(device, vkBuffer, offsetInParentBuffer, data, bufferSize);
 }
 
 VkBuffer VulkanVertexBuffer::getVkBuffer() const
@@ -203,6 +199,14 @@ VkBuffer VulkanVertexBuffer::getVkBuffer() const
 //////////////////////////////////////////////////////////////////////////
 // VulkanIndexBuffer
 
+VulkanIndexBuffer::~VulkanIndexBuffer()
+{
+	if (parentPool == nullptr && internalBuffer != nullptr)
+	{
+		delete internalBuffer;
+	}
+}
+
 void VulkanIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags)
 {
 	vkBufferSize = (VkDeviceSize)sizeInBytes;
@@ -213,7 +217,7 @@ void VulkanIndexBuffer::initialize(uint32 sizeInBytes, EPixelFormat format, EBuf
 		.alignment   = 0,
 		.accessFlags = EBufferAccessFlags::INDEX_BUFFER | usageFlags,
 	};
-	internalBuffer = new VulkanBuffer;
+	internalBuffer = new VulkanBuffer(device);
 	internalBuffer->initialize(createParams);
 }
 
@@ -247,12 +251,7 @@ void VulkanIndexBuffer::updateData(
 	}
 	CHECK(vkIndexType != VK_INDEX_TYPE_MAX_ENUM);
 
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
-	updateDefaultBuffer(
-		deviceWrapper->getRaw(),
-		deviceWrapper->getVkPhysicalDevice(),
-		getVkBuffer(), offsetInParentBuffer,
-		data, vkBufferSize);
+	updateDefaultBuffer(device, getVkBuffer(), offsetInParentBuffer, data, vkBufferSize);
 }
 
 VkBuffer VulkanIndexBuffer::getVkBuffer() const
