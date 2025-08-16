@@ -4,6 +4,8 @@
 
 #include "vk_device.h"
 #include "rhi/pipeline_state.h"
+
+#define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
 
 class VulkanGraphicsPipelineState : public GraphicsPipelineState

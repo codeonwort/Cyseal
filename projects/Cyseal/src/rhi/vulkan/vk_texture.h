@@ -5,6 +5,7 @@
 #include "vk_resource_view.h"
 #include "rhi/texture.h"
 
+#define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
 
 class VulkanTexture : public Texture

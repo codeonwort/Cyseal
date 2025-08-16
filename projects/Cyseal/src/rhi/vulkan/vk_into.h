@@ -8,7 +8,9 @@
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource_barrier.h"
 
+#define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
+
 #include <algorithm>
 
 // Convert API-agnostic structs into Vulkan structs
@@ -207,7 +209,7 @@ namespace into_vk
 		switch (inFormat)
 		{
 			case EPixelFormat::UNKNOWN                  : return VkFormat::VK_FORMAT_UNDEFINED;
-			// #todo-vulkan: TYPLESS formats in Vulkan?
+			// #todo-vulkan: TYPELESS formats in Vulkan?
 			case EPixelFormat::R32_TYPELESS             : CHECK_NO_ENTRY(); return VkFormat::VK_FORMAT_R32_SFLOAT;
 			case EPixelFormat::R24G8_TYPELESS           : CHECK_NO_ENTRY(); return VkFormat::VK_FORMAT_R32_SFLOAT;
 			case EPixelFormat::R24_UNORM_X8_TYPELESS    : CHECK_NO_ENTRY(); return VkFormat::VK_FORMAT_R32_SFLOAT;

@@ -4,11 +4,9 @@
 
 #if COMPILE_BACKEND_VULKAN
 
-#include <vulkan/vulkan_core.h>
+#include <Volk/volk.h>
 #include <Windows.h>
 
-VkSurfaceKHR createVkSurfaceKHR_win32(
-	VkInstance vkInstance,
-	void* nativeWindowHandle);
+VkSurfaceKHR createVkSurfaceKHR_win32(VkInstance vkInstance, void* nativeWindowHandle);
 
 #endif // COMPILE_BACKEND_VULKAN

@@ -32,8 +32,7 @@
 	#include "vk_win32.h"
 #endif
 
-// #todo-crossapi: Dynamic loading
-#pragma comment(lib, "vulkan-1.lib")
+#pragma comment(lib, "volk.lib")
 
 #define VK_APPINFO_APPNAME       "CysealApplication"
 #define VK_APPINFO_APPVER        VK_MAKE_API_VERSION(0, 1, 0, 0)
@@ -138,6 +137,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	CYLOG(LogVulkan, Log, TEXT("=== Initialize Vulkan ==="));
 
 	// Initialization steps
+	// 0. Volk (dynamic loading)
 	// 1. VkInstance
 	// 2. Vulkan debug callback
 	// 3. KHR surface
@@ -148,6 +148,12 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	// 8. Swapchain wrapper
 	// 9. VkCommandBuffer
 	// 10. VkSemaphore
+
+	CYLOG(LogVulkan, Log, TEXT("> Initialize Volk"));
+	{
+		VkResult result = volkInitialize();
+		CHECK(result == VK_SUCCESS);
+	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create a VkInstance"));
 	{
@@ -191,6 +197,8 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 		VkResult result = vkCreateInstance(&createInfo, nullptr, &vkInstance);
 		CHECK(result == VK_SUCCESS);
+
+		volkLoadInstance(vkInstance);
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Setup Vulkan debug callback"));

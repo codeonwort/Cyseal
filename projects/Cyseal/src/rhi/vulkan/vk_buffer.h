@@ -3,6 +3,8 @@
 #if COMPILE_BACKEND_VULKAN
 
 #include "rhi/buffer.h"
+
+#define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
 
 class RenderDevice;

@@ -3,6 +3,8 @@
 #if COMPILE_BACKEND_VULKAN
 
 #include "rhi/gpu_resource_view.h"
+
+#define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
 
 class VulkanBuffer;

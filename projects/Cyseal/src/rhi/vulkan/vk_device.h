@@ -7,7 +7,7 @@
 #include "rhi/render_device.h"
 
 #include <vector>
-#include <vulkan/vulkan_core.h>
+#include <Volk/volk.h>
 
 DECLARE_LOG_CATEGORY(LogVulkan);
 

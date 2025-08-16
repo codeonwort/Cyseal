@@ -5,6 +5,8 @@
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource_barrier.h"
 #include "vk_device.h"
+
+#define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
 
 class ShaderResourceView;

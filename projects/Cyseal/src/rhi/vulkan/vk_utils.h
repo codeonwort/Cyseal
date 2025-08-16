@@ -5,7 +5,8 @@
 #include "core/assertion.h"
 #include "core/int_types.h"
 #include <vector>
-#include <vulkan/vulkan_core.h>
+
+#include <Volk/volk.h>
 
 struct QueueFamilyIndices
 {
