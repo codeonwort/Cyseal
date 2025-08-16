@@ -14,6 +14,8 @@ class D3DUnorderedAccessView;
 class D3DTexture : public Texture
 {
 public:
+	D3DTexture(D3DDevice* inDevice) : device(inDevice) {}
+
 	void initialize(const TextureCreateParams& params);
 
 	virtual void setDebugName(const wchar_t* debugName) override;
@@ -40,6 +42,8 @@ public:
 	void saveLastMemoryLayout(ETextureMemoryLayout layout) { lastMemoryLayout = layout; }
 
 private:
+	D3DDevice* device = nullptr;
+
 	WRL::ComPtr<ID3D12Resource> rawResource;
 	TextureCreateParams createParams;
 	ETextureMemoryLayout lastMemoryLayout;

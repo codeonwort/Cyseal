@@ -8,9 +8,12 @@
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
 
+class VulkanDevice;
+
 class VulkanTexture : public Texture
 {
 public:
+	VulkanTexture(VulkanDevice* inDevice) : device(inDevice) {}
 	~VulkanTexture();
 
 	void initialize(const TextureCreateParams& params);
@@ -29,6 +32,7 @@ public:
 	virtual void setDebugName(const wchar_t* debugName) override;
 
 private:
+	VulkanDevice* device = nullptr;
 	VkImage vkImage = VK_NULL_HANDLE;
 
 	// #todo-vulkan: Implement custom large block manager or integrate VMA.

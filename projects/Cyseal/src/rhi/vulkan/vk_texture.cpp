@@ -9,8 +9,7 @@
 
 VulkanTexture::~VulkanTexture()
 {
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
-	VkDevice vkDevice = deviceWrapper->getRaw();
+	VkDevice vkDevice = device->getRaw();
 
 	vkDestroyImage(vkDevice, vkImage, nullptr);
 	vkFreeMemory(vkDevice, vkImageMemory, nullptr);
@@ -20,9 +19,8 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 {
 	createParams = inParams;
 
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
-	VkDevice vkDevice = deviceWrapper->getRaw();
-	VkPhysicalDevice vkPhysicalDevice = deviceWrapper->getVkPhysicalDevice();
+	VkDevice vkDevice = device->getRaw();
+	VkPhysicalDevice vkPhysicalDevice = device->getVkPhysicalDevice();
 
 	VkImageCreateInfo textureDesc = into_vk::textureDesc(inParams);
 
@@ -63,11 +61,7 @@ void VulkanTexture::setDebugName(const wchar_t* debugNameW)
 	std::string debugNameA;
 	wstr_to_str(debugNameW, debugNameA);
 
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
-	deviceWrapper->setObjectDebugName(
-		VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT,
-		(uint64)vkImage,
-		debugNameA.c_str());
+	device->setObjectDebugName(VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, (uint64)vkImage, debugNameA.c_str());
 }
 
 #endif // COMPILE_BACKEND_VULKAN

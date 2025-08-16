@@ -560,7 +560,7 @@ Buffer* VulkanDevice::createBuffer(const BufferCreateParams& createParams)
 
 Texture* VulkanDevice::createTexture(const TextureCreateParams& createParams)
 {
-	VulkanTexture* texture = new VulkanTexture;
+	VulkanTexture* texture = new VulkanTexture(this);
 	texture->initialize(createParams);
 	return texture;
 }

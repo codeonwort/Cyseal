@@ -482,7 +482,7 @@ Buffer* D3DDevice::createBuffer(const BufferCreateParams& createParams)
 
 Texture* D3DDevice::createTexture(const TextureCreateParams& createParams)
 {
-	D3DTexture* texture = new D3DTexture;
+	D3DTexture* texture = new D3DTexture(this);
 	texture->initialize(createParams);
 	return texture;
 }

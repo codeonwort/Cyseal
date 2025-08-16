@@ -141,7 +141,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 {
 	createParams = params;
 
-	auto device = getD3DDevice()->getRawDevice();
+	auto rawDevice = device->getRawDevice();
 	D3D12_RESOURCE_DESC textureDesc = into_d3d::textureDesc(params);
 
 	const size_t bytesPerPixel = bitsPerPixel(textureDesc.Format) / 8;
@@ -201,7 +201,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	}
 
 	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-	HR(device->CreateCommittedResource(
+	HR(rawDevice->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&textureDesc,
@@ -222,7 +222,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	{
 		auto uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 		auto uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
-		HR(device->CreateCommittedResource(
+		HR(rawDevice->CreateCommittedResource(
 			&uploadHeapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&uploadBufferDesc,
@@ -235,7 +235,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	{
 		auto readbackHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
 		auto readbackBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(readbackBufferSize);
-		HR(device->CreateCommittedResource(
+		HR(rawDevice->CreateCommittedResource(
 			&readbackHeapProperties,
 			D3D12_HEAP_FLAG_NONE,
 			&readbackBufferDesc,
