@@ -96,7 +96,7 @@ static std::wstring getD3DShaderProfile(D3D_SHADER_MODEL shaderModel, EShaderSta
 	return profile;
 }
 
-void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint)
+void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
 {
 	IDxcUtils* utils = device->getDxcUtils();
 	IDxcCompiler3* compiler = device->getDxcCompiler();
@@ -130,6 +130,11 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 		L"-E", wEntryPoint.c_str(),
 		L"-T", targetProfile.c_str(),
 	};
+	for (const std::wstring& def : defines)
+	{
+		arguments.push_back(L"-D");
+		arguments.push_back(def.c_str());
+	}
 #if SKIP_SHADER_OPTIMIZATION
 	//arguments.push_back(DXC_ARG_DEBUG);
 #endif

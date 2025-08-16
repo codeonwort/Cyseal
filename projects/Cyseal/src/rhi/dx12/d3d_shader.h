@@ -61,7 +61,7 @@ public:
 		, device(inDevice)
 	{}
 
-	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) override;
+	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint, std::initializer_list<std::wstring> defines) override;
 
 	virtual const wchar_t* getEntryPointW() override { return wEntryPoint.c_str(); }
 	virtual const char* getEntryPointA() override { return aEntryPoint.c_str(); }

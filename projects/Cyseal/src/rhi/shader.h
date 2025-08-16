@@ -85,7 +85,7 @@ public:
 
 	inline bool isPushConstantsDeclared() const { return bPushConstantsDeclared; }
 
-	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) = 0;
+	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint, std::initializer_list<std::wstring> defines = {}) = 0;
 
 	virtual const wchar_t* getEntryPointW() = 0;
 	virtual const char* getEntryPointA() = 0;

@@ -41,7 +41,7 @@ VulkanShaderStage::~VulkanShaderStage()
 	vkDestroyShaderModule(device->getRaw(), vkModule, nullptr);
 }
 
-void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint)
+void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
 {
 	aEntryPoint = inEntryPoint;
 	str_to_wstr(inEntryPoint, wEntryPoint);
