@@ -132,7 +132,6 @@ void IndirecSpecularPass::initialize()
 	initializeRaytracingPipeline();
 	initializeTemporalPipeline();
 
-	
 	initializeAMDReflectionDenoiser();
 }
 
@@ -492,9 +491,6 @@ void IndirecSpecularPass::initializeTemporalPipeline()
 
 void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 {
-	// #wip: Need to define FFX_GPU when compiling the shader.
-	// loadFromFile() needs additional parameters.
-#if 0
 	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
@@ -502,7 +498,7 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 
 	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularReprojectCS");
 	shader->declarePushConstants();
-	shader->loadFromFile(L"amd/ffx_denoiser_reproject_reflections_pass.hlsl", "CS");
+	shader->loadFromFile(L"amd/ffx_denoiser_reproject_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL" });
 
 	amdReprojectPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 		ComputePipelineDesc{
@@ -513,7 +509,6 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 	));
 
 	delete shader;
-#endif
 }
 
 void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
