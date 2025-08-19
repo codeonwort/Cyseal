@@ -438,25 +438,6 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 		delete uboData;
 	}
 
-	// Resize volatile heaps if needed.
-	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // passUniform
-		requiredVolatiles += 1; // rtScene
-		requiredVolatiles += 1; // gIndexBuffer
-		requiredVolatiles += 1; // gVertexBuffer
-		requiredVolatiles += 1; // gpuSceneBuffer
-		requiredVolatiles += 1; // skybox
-		requiredVolatiles += 1; // sceneDepthTexture
-		requiredVolatiles += 2; // gbuffer0, gbuffer1
-		requiredVolatiles += 1; // raytracingTexture
-		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
-		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
-
-		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	}
-
 	// Resize hit group shader table if needed.
 	{
 		// #todo-lod: Raytracing does not support LOD...
@@ -471,12 +452,9 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 
 	// Bind global shader parameters.
 	{
-		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
-		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
-
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
-		SPT.constantBuffer("passUniform", uniformCBV);
+		SPT.constantBuffer("passUniform", rayPassDescriptor.getUniformCBV(swapchainIndex));
 		SPT.accelerationStructure("rtScene", passInput.raytracingScene->getSRV());
 		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
@@ -490,6 +468,11 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 		// Bindless
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
+		// Resize volatile heaps if needed.
+		uint32 requiredVolatiles = SPT.totalDescriptors();
+		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+
+		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
 	}
 	
@@ -549,31 +532,11 @@ void IndirecSpecularPass::denoisingPhase(RenderCommandList* commandList, uint32 
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
 	}
 
-	// Resize volatile heaps if needed.
-	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // passUniform
-		requiredVolatiles += 1; // sceneDepthTexture
-		requiredVolatiles += 1; // raytracingTexture
-		requiredVolatiles += 1; // velocityMapTexture
-		requiredVolatiles += 1; // prevSceneDepthTexture
-		requiredVolatiles += 1; // prevColorTexture
-		requiredVolatiles += 1; // prevMomentTexture
-		requiredVolatiles += 1; // currentColorTexture
-		requiredVolatiles += 1; // currentMomentTexture
-
-		temporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	}
-
 	// Bind global shader parameters.
 	{
-		DescriptorHeap* volatileHeap = temporalPassDescriptor.getDescriptorHeap(swapchainIndex);
-		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
-
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
-		SPT.constantBuffer("passUniform", uniformCBV);
+		SPT.constantBuffer("passUniform", temporalPassDescriptor.getUniformCBV(swapchainIndex));
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.texture("raytracingTexture", raytracingSRV.get());
 		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
@@ -582,6 +545,11 @@ void IndirecSpecularPass::denoisingPhase(RenderCommandList* commandList, uint32 
 		SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
 		SPT.rwTexture("currentColorTexture", currColorUAV);
 		SPT.rwTexture("currentMomentTexture", currMomentUAV);
+
+		// Resize volatile heaps if needed.
+		uint32 requiredVolatiles = SPT.totalDescriptors();
+		temporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = temporalPassDescriptor.getDescriptorHeap(swapchainIndex);
 
 		commandList->setComputePipelineState(temporalPipeline.get());
 		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);

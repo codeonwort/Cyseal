@@ -47,12 +47,20 @@ public:
 	void texture(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { textures.emplace_back(Texture{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
 	void rwTexture(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { rwTextures.emplace_back(RWTexture{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
 
-	size_t totalParameters() const
+	// Returns the number of required descriptors.
+	uint32 totalDescriptors() const
 	{
-		return pushConstants.size() + constantBuffers.size()
-			+ structuredBuffers.size() + rwBuffers.size() + rwStructuredBuffers.size()
-			+ textures.size() + rwTextures.size()
-			+ accelerationStructures.size();
+		size_t cnt = 0;
+		cnt += pushConstants.size();
+		for (const auto& p : constantBuffers) cnt += p.count;
+		for (const auto& p : structuredBuffers) cnt += p.count;
+		for (const auto& p : rwBuffers) cnt += p.count;
+		for (const auto& p : rwStructuredBuffers) cnt += p.count;
+		for (const auto& p : byteAddressBuffers) cnt += p.count;
+		for (const auto& p : textures) cnt += p.count;
+		for (const auto& p : rwTextures) cnt += p.count;
+		cnt += accelerationStructures.size();
+		return (uint32)cnt;
 	}
 
 public:
