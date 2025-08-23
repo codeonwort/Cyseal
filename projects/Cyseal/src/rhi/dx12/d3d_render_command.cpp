@@ -351,7 +351,7 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 	// For now, always use descriptor table.
 	uint32 descriptorIx = 0;
 
-	for (const auto& inParam : inParameters->pushConstants)
+	for (const auto& inParam : inParameters->_pushConstants)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
 		if (param == nullptr)
@@ -359,7 +359,14 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 			reportUndeclaredShaderParameter(inParam.name.c_str());
 			continue;
 		}
-		commandList->SetGraphicsRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
+		if (inParam.values.size() == 1)
+		{
+			commandList->SetGraphicsRoot32BitConstant(param->rootParameterIndex, inParam.values[0], inParam.destOffsetIn32BitValues);
+		}
+		else
+		{
+			commandList->SetGraphicsRoot32BitConstants(param->rootParameterIndex, (UINT)inParam.values.size(), inParam.values.data(), inParam.destOffsetIn32BitValues);
+		}
 	}
 	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
 	setRootDescriptorTables(commandList.Get(), inParameters->structuredBuffers, &descriptorIx);
@@ -375,7 +382,7 @@ void D3DRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineSt
 {
 	D3DGraphicsPipelineState* d3dPipelineState = static_cast<D3DGraphicsPipelineState*>(pipelineState);
 
-	for (const auto& inParam : inParameters->pushConstants)
+	for (const auto& inParam : inParameters->_pushConstants)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
 		if (param == nullptr)
@@ -383,7 +390,14 @@ void D3DRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineSt
 			reportUndeclaredShaderParameter(inParam.name.c_str());
 			continue;
 		}
-		commandList->SetGraphicsRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
+		if (inParam.values.size() == 1)
+		{
+			commandList->SetGraphicsRoot32BitConstant(param->rootParameterIndex, inParam.values[0], inParam.destOffsetIn32BitValues);
+		}
+		else
+		{
+			commandList->SetGraphicsRoot32BitConstants(param->rootParameterIndex, (UINT)inParam.values.size(), inParam.values.data(), inParam.destOffsetIn32BitValues);
+		}
 	}
 }
 
@@ -429,7 +443,7 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	// For now, always use descriptor table.
 	uint32 descriptorIx = (tracker == nullptr) ? 0 : tracker->lastIndex;
 
-	for (const auto& inParam : inParameters->pushConstants)
+	for (const auto& inParam : inParameters->_pushConstants)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
 		if (param == nullptr)
@@ -437,7 +451,14 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 			reportUndeclaredShaderParameter(inParam.name.c_str());
 			continue;
 		}
-		commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
+		if (inParam.values.size() == 1)
+		{
+			commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.values[0], inParam.destOffsetIn32BitValues);
+		}
+		else
+		{
+			commandList->SetComputeRoot32BitConstants(param->rootParameterIndex, (UINT)inParam.values.size(), inParam.values.data(), inParam.destOffsetIn32BitValues);
+		}
 	}
 	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
 	setRootDescriptorTables(commandList.Get(), inParameters->structuredBuffers, &descriptorIx);
@@ -606,7 +627,7 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 	uint32 descriptorIx = 0;
 	uint32 samplerDescriptorIx = 0;
 
-	for (const auto& inParam : inParameters->pushConstants)
+	for (const auto& inParam : inParameters->_pushConstants)
 	{
 		const D3DShaderParameter* param = d3dPipelineState->findGlobalShaderParameter(inParam.name);
 		if (param == nullptr)
@@ -614,7 +635,14 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 			reportUndeclaredShaderParameter(inParam.name.c_str());
 			continue;
 		}
-		commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.value, inParam.destOffsetIn32BitValues);
+		if (inParam.values.size() == 1)
+		{
+			commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.values[0], inParam.destOffsetIn32BitValues);
+		}
+		else
+		{
+			commandList->SetComputeRoot32BitConstants(param->rootParameterIndex, (UINT)inParam.values.size(), inParam.values.data(), inParam.destOffsetIn32BitValues);
+		}
 	}
 	setRootDescriptorTables(commandList.Get(), inParameters->constantBuffers, &descriptorIx);
 	setRootDescriptorTables(commandList.Get(), inParameters->structuredBuffers, &descriptorIx);
