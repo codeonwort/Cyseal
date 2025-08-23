@@ -333,6 +333,9 @@
     <ClInclude Include="src\core\console_application.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\hiz_pass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -537,6 +540,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\render\util\texture_sequence.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\hiz_pass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

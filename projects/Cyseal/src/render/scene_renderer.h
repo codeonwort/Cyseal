@@ -120,6 +120,7 @@ private:
 	class BilateralBlur*        bilateralBlur         = nullptr;
 	class RayTracedShadowsPass* rayTracedShadowsPass  = nullptr;
 	class BasePass*             basePass              = nullptr;
+	class HiZPass*              hizPass               = nullptr;
 	class SkyPass*              skyPass               = nullptr;
 	class IndirectDiffusePass*  indirectDiffusePass   = nullptr;
 	class IndirecSpecularPass*  indirectSpecularPass  = nullptr;

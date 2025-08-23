@@ -166,6 +166,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	auto currMomentTexture = momentHistory.getTexture(currFrame);
 	auto prevMomentTexture = momentHistory.getTexture(prevFrame);
 
+	// #wip: Check FidelityFX's raytracing phase output
 	raytracingPhase(commandList, swapchainIndex, passInput);
 
 	denoisingPhase(commandList, swapchainIndex, passInput);

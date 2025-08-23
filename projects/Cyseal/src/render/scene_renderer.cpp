@@ -19,6 +19,7 @@
 #include "render/gpu_culling.h"
 #include "render/bilateral_blur.h"
 #include "render/base_pass.h"
+#include "render/hiz_pass.h"
 #include "render/sky_pass.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
@@ -109,6 +110,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(bilateralBlur = new BilateralBlur);
 		sceneRenderPasses.push_back(rayTracedShadowsPass = new RayTracedShadowsPass);
 		sceneRenderPasses.push_back(basePass = new BasePass);
+		sceneRenderPasses.push_back(hizPass = new HiZPass);
 		sceneRenderPasses.push_back(skyPass = new SkyPass);
 		sceneRenderPasses.push_back(indirectDiffusePass = new IndirectDiffusePass);
 		sceneRenderPasses.push_back(indirectSpecularPass = new IndirecSpecularPass);
@@ -122,6 +124,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
 		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
+		hizPass->initialize();
 		skyPass->initialize(PF_sceneColor);
 		indirectDiffusePass->initialize();
 		indirectSpecularPass->initialize();
