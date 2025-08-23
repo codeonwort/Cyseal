@@ -54,6 +54,11 @@ static const EPixelFormat DEPTH_DSV_FORMAT = EPixelFormat::D32_FLOAT_S8_UINT;
 static const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R32_FLOAT_X8X24_TYPELESS;
 #endif
 
+static uint32 fullMipCount(uint32 width, uint32 height)
+{
+	return static_cast<uint32>(floor(log2(max(width, height))) + 1);
+}
+
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
@@ -385,6 +390,20 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
+
+	// HiZ pass
+	{
+		SCOPED_DRAW_EVENT(commandList, HiZPass);
+
+		HiZPassInput passInput{
+			.textureWidth  = sceneWidth,
+			.textureHeight = sceneHeight,
+			.sceneDepthSRV = sceneDepthSRV.get(),
+			.hizUAVs       = hizUAVs,
+		};
+		hizPass->renderHiZ(commandList, swapchainIndex, passInput);
+	}
+
 	// Sky pass
 	{
 		SCOPED_DRAW_EVENT(commandList, SkyPass);
@@ -780,6 +799,37 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			},
 		}
 	));
+
+	cleanup(RT_hiz.release());
+	TextureCreateParams hizDesc = sceneDepthDesc;
+	hizDesc.format = EPixelFormat::R32_FLOAT,
+	hizDesc.accessFlags = ETextureAccessFlags::SRV | ETextureAccessFlags::UAV;
+	hizDesc.mipLevels = fullMipCount(hizDesc.width, hizDesc.height);
+	RT_hiz = UniquePtr<Texture>(device->createTexture(hizDesc));
+	RT_hiz->setDebugName(L"RT_HiZ");
+	hizSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_hiz.get(),
+		ShaderResourceViewDesc{
+			.format              = hizDesc.format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = hizDesc.mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	hizUAVs.initialize(hizDesc.mipLevels);
+	for (uint16 mipLevel = 0; mipLevel < hizDesc.mipLevels; ++mipLevel)
+	{
+		hizUAVs[mipLevel] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_hiz.get(),
+			UnorderedAccessViewDesc{
+				.format         = hizDesc.format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{ .mipSlice = mipLevel, .planeSlice = 0 },
+			}
+		));
+	}
 
 	cleanup(RT_velocityMap.release());
 	RT_velocityMap = UniquePtr<Texture>(device->createTexture(

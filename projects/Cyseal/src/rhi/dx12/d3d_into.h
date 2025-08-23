@@ -351,9 +351,6 @@ namespace into_d3d
 
 	inline D3D12_RESOURCE_DESC textureDesc(const TextureCreateParams& params)
 	{
-		D3D12_RESOURCE_DESC desc;
-		ZeroMemory(&desc, sizeof(desc));
-
 		if (params.dimension == ETextureDimension::TEXTURE1D
 			|| params.dimension == ETextureDimension::TEXTURE2D)
 		{
@@ -364,39 +361,39 @@ namespace into_d3d
 			CHECK(params.numLayers == 1);
 		}
 
-		desc.Dimension = textureDimension(params.dimension);
-		desc.Alignment = 0; // #todo-dx12: Always default alignment
-		desc.Width = params.width;
-		desc.Height = params.height;
+		UINT16 depthOrArraySize = params.numLayers;
 		if (params.dimension == ETextureDimension::TEXTURE3D)
 		{
-			desc.DepthOrArraySize = params.depth;
+			depthOrArraySize = params.depth;
 		}
-		else
-		{
-			desc.DepthOrArraySize = params.numLayers;
-		}
-		desc.MipLevels = params.mipLevels;
-		desc.Format = into_d3d::pixelFormat(params.format);
-		desc.SampleDesc.Count = params.sampleCount;
-		desc.SampleDesc.Quality = params.sampleQuality;
-		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN; // #todo-dx12: Always default layout
-		
+
 		// #todo-dx12: Other allow flags
-		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
 		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::RTV))
 		{
-			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+			flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 		}
 		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::UAV))
 		{
-			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+			flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		}
 		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
 		{
-			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+			flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 		}
 
+		D3D12_RESOURCE_DESC desc{
+			.Dimension        = textureDimension(params.dimension),
+			.Alignment        = 0, // #todo-dx12: Always default alignment
+			.Width            = params.width,
+			.Height           = params.height,
+			.DepthOrArraySize = depthOrArraySize,
+			.MipLevels        = params.mipLevels,
+			.Format           = into_d3d::pixelFormat(params.format),
+			.SampleDesc       = DXGI_SAMPLE_DESC{ params.sampleCount, params.sampleQuality },
+			.Layout           = D3D12_TEXTURE_LAYOUT_UNKNOWN, // #todo-dx12: Always default layout
+			.Flags            = flags,
+		};
 		return desc;
 	}
 

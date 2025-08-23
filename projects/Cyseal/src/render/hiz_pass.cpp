@@ -5,7 +5,7 @@ void HiZPass::initialize()
 	//
 }
 
-void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, const HiZInput& passInput)
+void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, const HiZPassInput& passInput)
 {
 	//
 }

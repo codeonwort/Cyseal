@@ -74,6 +74,10 @@ private:
 	UniquePtr<Texture> RT_prevSceneDepth;
 	UniquePtr<ShaderResourceView> prevSceneDepthSRV;
 
+	UniquePtr<Texture> RT_hiz;
+	UniquePtr<ShaderResourceView> hizSRV;
+	BufferedUniquePtr<UnorderedAccessView> hizUAVs;
+
 	UniquePtr<Texture> RT_velocityMap;
 	UniquePtr<ShaderResourceView> velocityMapSRV;
 	UniquePtr<RenderTargetView> velocityMapRTV;
