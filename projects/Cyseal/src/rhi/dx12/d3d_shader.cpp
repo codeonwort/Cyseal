@@ -283,11 +283,13 @@ void D3DShaderStage::addToShaderParameterTable(const D3D12_SHADER_INPUT_BIND_DES
 	};
 	
 	// #todo-dx12: Handle missing D3D_SHADER_INPUT_TYPE cases
+	int32 num32BitValues = 0;
 	switch (inputBindDesc.Type)
 	{
 		case D3D_SIT_CBUFFER: // ConstantBuffer
-			if (shouldBePushConstants(inputBindDesc.Name))
+			if (shouldBePushConstants(inputBindDesc.Name, &num32BitValues))
 			{
+				parameter.numDescriptors = num32BitValues;
 				parameterTable.rootConstants.emplace_back(parameter);
 			}
 			else

@@ -57,7 +57,7 @@ void RayTracedShadowsPass::initialize()
 	ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTShadows_ClosestHit");
 	ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "RTShadows_Miss");
 	raygenShader->declarePushConstants();
-	closestHitShader->declarePushConstants({ "g_closestHitCB" });
+	closestHitShader->declarePushConstants({ {"g_closestHitCB", 1} });
 	missShader->declarePushConstants();
 	raygenShader->loadFromFile(L"ray_traced_shadows.hlsl", "MainRaygen");
 	closestHitShader->loadFromFile(L"ray_traced_shadows.hlsl", "MainClosestHit");

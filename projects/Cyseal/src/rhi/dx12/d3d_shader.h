@@ -20,7 +20,7 @@ struct D3DShaderParameter
 	D3D_SHADER_INPUT_TYPE type;
 	uint32 registerSlot;
 	uint32 registerSpace;
-	uint32 numDescriptors;
+	uint32 numDescriptors; // Hack: This is num32BitValues for pushConstants, as specified by ShaderStage::pushConstantDecls.
 
 	// Allocated when generating root signature (except for samplers).
 	uint32 rootParameterIndex = 0xffffffff;

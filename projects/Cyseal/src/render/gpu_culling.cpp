@@ -19,7 +19,7 @@ void GPUCulling::initialize(uint32 inMaxBasePassPermutation)
 
 	// Shader
 	ShaderStage* gpuCullingShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUCullingCS");
-	gpuCullingShader->declarePushConstants({ "pushConstants" });
+	gpuCullingShader->declarePushConstants({ { "pushConstants", 1} });
 	gpuCullingShader->loadFromFile(L"gpu_culling.hlsl", "mainCS");
 
 	pipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(

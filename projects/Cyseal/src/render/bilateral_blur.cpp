@@ -23,7 +23,7 @@ void BilateralBlur::initialize()
 	// Blur pipeline
 	{
 		ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "BilateralBlurCS");
-		shader->declarePushConstants({ "pushConstants" });
+		shader->declarePushConstants({ { "pushConstants", 1} });
 		shader->loadFromFile(L"bilateral_blur.hlsl", "mainCS");
 
 		pipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(

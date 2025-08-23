@@ -149,8 +149,8 @@ void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat in
 	// Shader stages
 	shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BasePassVS");
 	shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BasePassPS");
-	shaderVS->declarePushConstants({ "pushConstants" });
-	shaderPS->declarePushConstants({ "pushConstants" });
+	shaderVS->declarePushConstants({ { "pushConstants", 1} });
+	shaderPS->declarePushConstants({ { "pushConstants", 1} });
 	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS");
 	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
 

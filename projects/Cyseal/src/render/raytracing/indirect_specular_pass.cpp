@@ -207,7 +207,7 @@ void IndirecSpecularPass::initializeRaytracingPipeline()
 	ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit");
 	ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "RTR_Miss");
 	raygenShader->declarePushConstants();
-	closestHitShader->declarePushConstants({ "g_closestHitCB" });
+	closestHitShader->declarePushConstants({ { "g_closestHitCB", 1} });
 	missShader->declarePushConstants();
 	raygenShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainRaygen");
 	closestHitShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainClosestHit");
