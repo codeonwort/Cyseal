@@ -395,6 +395,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, HiZPass);
 
+		TextureMemoryBarrier barriersBefore[] = {
+			{ ETextureMemoryLayout::DEPTH_STENCIL_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_sceneDepth.get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_hiz.get() },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
 		HiZPassInput passInput{
 			.textureWidth  = sceneWidth,
 			.textureHeight = sceneHeight,
@@ -402,6 +408,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.hizUAVs       = hizUAVs,
 		};
 		hizPass->renderHiZ(commandList, swapchainIndex, passInput);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::DEPTH_STENCIL_TARGET, RT_sceneDepth.get() },
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_hiz.get() },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 
 	// Sky pass

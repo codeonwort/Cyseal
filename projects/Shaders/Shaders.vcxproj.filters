@@ -23,6 +23,7 @@
     <FxCompile Include="..\..\shaders\amd\ffx_denoiser_reproject_reflections_pass.hlsl">
       <Filter>amd</Filter>
     </FxCompile>
+    <FxCompile Include="..\..\shaders\hiz.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">

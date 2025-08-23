@@ -4,6 +4,7 @@
 #include "core/smart_pointer.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/rhi_forward.h"
+#include "util/volatile_descriptor.h"
 
 struct HiZPassInput
 {
@@ -22,5 +23,9 @@ public:
 	void renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, const HiZPassInput& passInput);
 
 private:
-	UniquePtr<GraphicsPipelineState> pipelineState;
+	UniquePtr<ComputePipelineState> copyPipeline;
+	VolatileDescriptorHelper        copyPassDescriptor;
+
+	UniquePtr<ComputePipelineState> downsamplePipeline;
+	VolatileDescriptorHelper        downsamplePassDescriptor;
 };
