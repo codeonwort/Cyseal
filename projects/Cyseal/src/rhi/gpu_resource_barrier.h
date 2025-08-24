@@ -57,5 +57,5 @@ struct TextureMemoryBarrier
 	ETextureMemoryLayout stateBefore;
 	ETextureMemoryLayout stateAfter;
 	GPUResource* texture; // #todo-barrier: The type can't be (Texture*) due to swapchain images.
-	// #todo-barrier: Subresource
+	uint32 subresource = 0xffffffff; // Index of target subresource. Default is all subresources.
 };
