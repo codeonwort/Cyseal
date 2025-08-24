@@ -406,6 +406,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.textureHeight = sceneHeight,
 			.sceneDepthSRV = sceneDepthSRV.get(),
 			.hizTexture    = RT_hiz.get(),
+			.hizSRV        = hizSRV.get(),
 			.hizUAVs       = hizUAVs,
 		};
 		hizPass->renderHiZ(commandList, swapchainIndex, passInput);

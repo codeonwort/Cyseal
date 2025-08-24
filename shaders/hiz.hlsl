@@ -7,6 +7,7 @@ struct PushConstants
 {
 	uint packedInputSize;  // high 16-bit: width, low 16-bit: height
     uint packedOutputSize; // same as above
+	uint outputMip;
 };
 
 ConstantBuffer<PushConstants> pushConstants;
@@ -40,9 +41,9 @@ void copyMip0CS(uint3 tid: SV_DispatchThreadID)
 // ------------------------------------------------------------------------
 // Kernel: Downsample
 
-int3 clampCoord(uint x, uint y, uint2 inputSize)
+int3 clampCoord(uint x, uint y, uint2 inputSize, uint sourceMip)
 {
-	return int3(min(x, inputSize.x - 1), min(y, inputSize.y - 1), 0);
+	return int3(min(x, inputSize.x - 1), min(y, inputSize.y - 1), sourceMip);
 }
 
 [numthreads(8, 8, 1)]
@@ -50,13 +51,14 @@ void downsampleCS(uint3 tid : SV_DispatchThreadID)
 {
 	uint2 inputSize = unpackInputSize();
 	uint2 outputSize = unpackOutputSize();
+	uint sourceMip = pushConstants.outputMip - 1;
 	
 	if (tid.x < outputSize.x && tid.y < outputSize.y)
 	{
-		float d00 = inputTexture.Load(clampCoord(tid.x * 2 + 0, tid.y * 2 + 0, inputSize)).r;
-		float d10 = inputTexture.Load(clampCoord(tid.x * 2 + 1, tid.y * 2 + 0, inputSize)).r;
-		float d01 = inputTexture.Load(clampCoord(tid.x * 2 + 0, tid.y * 2 + 1, inputSize)).r;
-		float d11 = inputTexture.Load(clampCoord(tid.x * 2 + 1, tid.y * 2 + 1, inputSize)).r;
+		float d00 = inputTexture.Load(clampCoord(tid.x * 2 + 0, tid.y * 2 + 0, inputSize, sourceMip)).r;
+		float d10 = inputTexture.Load(clampCoord(tid.x * 2 + 1, tid.y * 2 + 0, inputSize, sourceMip)).r;
+		float d01 = inputTexture.Load(clampCoord(tid.x * 2 + 0, tid.y * 2 + 1, inputSize, sourceMip)).r;
+		float d11 = inputTexture.Load(clampCoord(tid.x * 2 + 1, tid.y * 2 + 1, inputSize, sourceMip)).r;
 		
 #if REVERSE_Z
 		float d = min(d00, min(d10, min(d01, d11)));
