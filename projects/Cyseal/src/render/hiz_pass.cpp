@@ -38,6 +38,9 @@ void HiZPass::initialize()
 
 void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, const HiZPassInput& passInput)
 {
+	// sceneDepth is in PIXEL_SHADER_RESOURCE state.
+	// Currently all mips of HiZ are in UNORDERED_ACCESS state.
+
 	// Copy mip0.
 	{
 		uint32 packedSize = packUint32x2(passInput.textureWidth, passInput.textureHeight);
@@ -59,5 +62,25 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 		uint32 dispatchX = (passInput.textureWidth + 7) / 8;
 		uint32 dispatchY = (passInput.textureHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
+
+		TextureMemoryBarrier texBarriers[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, passInput.hizTexture, 0 },
+		};
+		GPUResource* uavBarriers[] = { passInput.hizTexture };
+		commandList->resourceBarriers(0, nullptr, _countof(texBarriers), texBarriers, _countof(uavBarriers), uavBarriers);
 	}
+
+	uint32 mipCount = (uint32)passInput.hizUAVs.size();
+	for (uint32 currMip = 1; currMip < mipCount; ++currMip)
+	{
+		// #wip: Dispatch downsample here
+
+		TextureMemoryBarrier texBarriers[] = {
+			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, passInput.hizTexture, currMip },
+		};
+		GPUResource* uavBarriers[] = { passInput.hizTexture };
+		commandList->resourceBarriers(0, nullptr, _countof(texBarriers), texBarriers, _countof(uavBarriers), uavBarriers);
+	}
+
+	// From now on, all mips of HiZ are in PIXEL_SHADER_RESOURCE state.
 }

@@ -11,6 +11,7 @@ struct HiZPassInput
 	uint32                                  textureWidth;
 	uint32                                  textureHeight;
 	ShaderResourceView*                     sceneDepthSRV;
+	Texture*                                hizTexture;
 	BufferedUniquePtr<UnorderedAccessView>& hizUAVs;
 };
 

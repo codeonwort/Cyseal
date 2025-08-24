@@ -405,13 +405,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.textureWidth  = sceneWidth,
 			.textureHeight = sceneHeight,
 			.sceneDepthSRV = sceneDepthSRV.get(),
+			.hizTexture    = RT_hiz.get(),
 			.hizUAVs       = hizUAVs,
 		};
 		hizPass->renderHiZ(commandList, swapchainIndex, passInput);
 
 		TextureMemoryBarrier barriersAfter[] = {
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::DEPTH_STENCIL_TARGET, RT_sceneDepth.get() },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_hiz.get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
