@@ -52,7 +52,7 @@ public:
 	uint32 totalDescriptors() const
 	{
 		size_t cnt = 0;
-		for (const auto& p : _pushConstants) cnt += p.values.size();
+		cnt += _pushConstants.size();
 		for (const auto& p : constantBuffers) cnt += p.count;
 		for (const auto& p : structuredBuffers) cnt += p.count;
 		for (const auto& p : rwBuffers) cnt += p.count;
