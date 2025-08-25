@@ -92,6 +92,7 @@
     <FxCompile Include="..\..\shaders\hiz.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_raytracing.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_temporal.hlsl" />
+    <FxCompile Include="..\..\shaders\indirect_specular_classifier.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_temporal.hlsl" />
     <FxCompile Include="..\..\shaders\material.hlsl" />
     <FxCompile Include="..\..\shaders\path_tracing.hlsl" />

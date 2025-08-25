@@ -44,6 +44,7 @@ public:
 	void renderIndirectSpecular(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 
 private:
+	void initializeClassifierPipeline();
 	void initializeRaytracingPipeline();
 	void initializeTemporalPipeline();
 	void initializeAMDReflectionDenoiser();
@@ -51,10 +52,14 @@ private:
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
 
+	void classifierPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 	void raytracingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 	void denoisingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 
 private:
+	// Tile classification pass
+	UniquePtr<ComputePipelineState>          classifierPipeline;
+
 	// Ray pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
 	UniquePtr<RaytracingShaderTable>         raygenShaderTable;

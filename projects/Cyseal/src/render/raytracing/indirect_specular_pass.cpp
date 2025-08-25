@@ -34,12 +34,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogIndirectSpecular);
 
 struct RayPassUniform
 {
-	float       randFloats0[RANDOM_SEQUENCE_LENGTH];
-	float       randFloats1[RANDOM_SEQUENCE_LENGTH];
-	uint32      renderTargetWidth;
-	uint32      renderTargetHeight;
-	uint32      traceMode;
-	uint32      _pad0;
+	float    randFloats0[RANDOM_SEQUENCE_LENGTH];
+	float    randFloats1[RANDOM_SEQUENCE_LENGTH];
+	uint32   renderTargetWidth;
+	uint32   renderTargetHeight;
+	uint32   traceMode;
+	uint32   _pad0;
 };
 struct TemporalPassUniform
 {
@@ -129,6 +129,7 @@ void IndirecSpecularPass::initialize()
 		return;
 	}
 
+	initializeClassifierPipeline();
 	initializeRaytracingPipeline();
 	initializeTemporalPipeline();
 
@@ -166,6 +167,8 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	auto currMomentTexture = momentHistory.getTexture(currFrame);
 	auto prevMomentTexture = momentHistory.getTexture(prevFrame);
 
+	classifierPhase(commandList, swapchainIndex, passInput);
+
 	// #wip: Check FidelityFX's raytracing phase output
 	raytracingPhase(commandList, swapchainIndex, passInput);
 
@@ -188,6 +191,26 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
+}
+
+void IndirecSpecularPass::initializeClassifierPipeline()
+{
+	RenderDevice* const device = gRenderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "IndirectSpecularClassifierCS");
+	shader->declarePushConstants();
+	shader->loadFromFile(L"indirect_specular_classifier.hlsl", "mainCS");
+
+	classifierPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+		ComputePipelineDesc{
+			.cs             = shader,
+			.nodeMask       = 0,
+			.staticSamplers = {},
+		}
+	));
+
+	delete shader;
 }
 
 void IndirecSpecularPass::initializeRaytracingPipeline()
@@ -404,6 +427,11 @@ void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint3
 	}
 
 	CYLOG(LogIndirectSpecular, Log, L"Resize hit group shader table [%u]: %u records", swapchainIndex, maxRecords);
+}
+
+void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+{
+	//
 }
 
 void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
