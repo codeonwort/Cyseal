@@ -607,6 +607,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneDepthSRV           = sceneDepthSRV.get(),
 			.prevSceneDepthSRV       = prevSceneDepthSRV.get(),
 			.velocityMapSRV          = velocityMapSRV.get(),
+			.tileCoordBuffer         = indirectSpecularTileCoordBuffer.get(),
+			.tileCounterBuffer       = indirectSpecularTileCounterBuffer.get(),
+			.tileCoordBufferUAV      = indirectSpecularTileCoordBufferUAV.get(),
+			.tileCounterBufferUAV    = indirectSpecularTileCounterBufferUAV.get(),
 			.indirectSpecularTexture = RT_indirectSpecular.get(),
 		};
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
@@ -989,6 +993,8 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	));
 
 	cleanup(RT_indirectSpecular.release());
+	cleanup(indirectSpecularTileCoordBuffer.release());
+	cleanup(indirectSpecularTileCounterBuffer.release());
 	RT_indirectSpecular = UniquePtr<Texture>(device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R16G16B16A16_FLOAT,
@@ -1015,11 +1021,52 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			.texture2D      = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
-	indirectSpecularUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_indirectSpecular.get(),
+	indirectSpecularUAV = UniquePtr<UnorderedAccessView>(device->createUAV(RT_indirectSpecular.get(),
 		UnorderedAccessViewDesc{
 			.format         = RT_indirectSpecular->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
 			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+	uint32 tileCountX = (sceneWidth + 7) / 8, tileCountY = (sceneHeight + 7) / 8;
+	indirectSpecularTileCoordBuffer = UniquePtr<Buffer>(device->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = sizeof(uint32) * tileCountX * tileCountY,
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::UAV,
+		}
+	));
+	indirectSpecularTileCoordBufferUAV = UniquePtr<UnorderedAccessView>(device->createUAV(indirectSpecularTileCoordBuffer.get(),
+		UnorderedAccessViewDesc{
+			.format        = EPixelFormat::UNKNOWN,
+			.viewDimension = EUAVDimension::Buffer,
+			.buffer        = BufferUAVDesc{
+				.firstElement         = 0,
+				.numElements          = tileCountX * tileCountY,
+				.structureByteStride  = sizeof(uint32),
+				.counterOffsetInBytes = 0,
+				.flags                = EBufferUAVFlags::None,
+			}
+		}
+	));
+	indirectSpecularTileCounterBuffer = UniquePtr<Buffer>(device->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = sizeof(uint32),
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
+		}
+	));
+	indirectSpecularTileCounterBufferUAV = UniquePtr<UnorderedAccessView>(device->createUAV(indirectSpecularTileCounterBuffer.get(),
+		UnorderedAccessViewDesc{
+			.format        = EPixelFormat::UNKNOWN,
+			.viewDimension = EUAVDimension::Buffer,
+			.buffer        = BufferUAVDesc{
+				.firstElement         = 0,
+				.numElements          = 1,
+				.structureByteStride  = sizeof(uint32),
+				.counterOffsetInBytes = 0,
+				.flags                = EBufferUAVFlags::None,
+			}
 		}
 	));
 

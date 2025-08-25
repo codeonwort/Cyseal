@@ -198,8 +198,10 @@ void IndirecSpecularPass::initializeClassifierPipeline()
 	RenderDevice* const device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
+	classifierPassDescriptor.initialize(L"IndirectSpecular_ClassifierPass", swapchainCount, 0);
+
 	ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "IndirectSpecularClassifierCS");
-	shader->declarePushConstants();
+	shader->declarePushConstants({ {"pushConstants", 1} });
 	shader->loadFromFile(L"indirect_specular_classifier.hlsl", "mainCS");
 
 	classifierPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
@@ -431,7 +433,33 @@ void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint3
 
 void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
 {
-	//
+	SCOPED_DRAW_EVENT(commandList, TileClassification);
+
+	const uint32 packedSize = Cymath::packUint16x2(passInput.sceneWidth, passInput.sceneHeight);
+
+	uint32 zeroValue = 0;
+	passInput.tileCounterBuffer->singleWriteToGPU(commandList, &zeroValue, sizeof(zeroValue), 0);
+
+	ShaderParameterTable SPT{};
+	SPT.pushConstants("pushConstants", { packedSize }, 0);
+	SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+	SPT.rwBuffer("rwTileCoordBuffer", passInput.tileCoordBufferUAV);
+	SPT.rwBuffer("rwTileCounterBuffer", passInput.tileCounterBufferUAV);
+
+	uint32 requiredVolatiles = SPT.totalDescriptors();
+	classifierPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+
+	commandList->setComputePipelineState(classifierPipeline.get());
+
+	DescriptorHeap* volatileHeap = classifierPassDescriptor.getDescriptorHeap(swapchainIndex);
+	commandList->bindComputeShaderParameters(classifierPipeline.get(), &SPT, volatileHeap);
+
+	uint32 dispatchX = (passInput.sceneWidth + 7) / 8;
+	uint32 dispatchY = (passInput.sceneHeight + 7) / 8;
+	commandList->dispatchCompute(dispatchX, dispatchY, 1);
+
+	GPUResource* uavBarriers[] = { passInput.tileCoordBuffer, passInput.tileCounterBuffer, };
+	commandList->resourceBarriers(0, nullptr, 0, nullptr, _countof(uavBarriers), uavBarriers);
 }
 
 void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
@@ -561,7 +589,7 @@ void IndirecSpecularPass::denoisingPhase(RenderCommandList* commandList, uint32 
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
 	}
 
-	// Bind global shader parameters.
+	// Bind shader parameters.
 	{
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);

@@ -102,6 +102,10 @@ private:
 	UniquePtr<ShaderResourceView> indirectSpecularSRV;
 	UniquePtr<RenderTargetView> indirectSpecularRTV;
 	UniquePtr<UnorderedAccessView> indirectSpecularUAV;
+	UniquePtr<Buffer> indirectSpecularTileCoordBuffer;
+	UniquePtr<UnorderedAccessView> indirectSpecularTileCoordBufferUAV;
+	UniquePtr<Buffer> indirectSpecularTileCounterBuffer;
+	UniquePtr<UnorderedAccessView> indirectSpecularTileCounterBufferUAV;
 
 	UniquePtr<Texture> RT_pathTracing;
 	UniquePtr<ShaderResourceView> pathTracingSRV;

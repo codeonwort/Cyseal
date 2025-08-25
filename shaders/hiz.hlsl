@@ -5,7 +5,7 @@
 
 struct PushConstants
 {
-	uint packedInputSize;  // high 16-bit: width, low 16-bit: height
+	uint packedInputSize;  // low 16-bit: width, high 16-bit: height
     uint packedOutputSize; // same as above
 	uint outputMip;
 };
@@ -17,12 +17,12 @@ RWTexture2D<float>            outputTexture;
 uint2 unpackInputSize()
 {
 	uint xy = pushConstants.packedInputSize;
-	return uint2((xy >> 16) & 0xffff, xy & 0xffff);
+	return uint2(xy & 0xffff, (xy >> 16) & 0xffff);
 }
 uint2 unpackOutputSize()
 {
 	uint xy = pushConstants.packedOutputSize;
-	return uint2((xy >> 16) & 0xffff, xy & 0xffff);
+	return uint2(xy & 0xffff, (xy >> 16) & 0xffff);
 }
 
 // ------------------------------------------------------------------------

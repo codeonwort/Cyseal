@@ -31,6 +31,10 @@ struct IndirectSpecularInput
 	ShaderResourceView*    sceneDepthSRV;
 	ShaderResourceView*    prevSceneDepthSRV;
 	ShaderResourceView*    velocityMapSRV;
+	Buffer*                tileCoordBuffer;
+	Buffer*                tileCounterBuffer;
+	UnorderedAccessView*   tileCoordBufferUAV;
+	UnorderedAccessView*   tileCounterBufferUAV;
 	Texture*               indirectSpecularTexture;
 };
 
@@ -59,6 +63,7 @@ private:
 private:
 	// Tile classification pass
 	UniquePtr<ComputePipelineState>          classifierPipeline;
+	VolatileDescriptorHelper                 classifierPassDescriptor;
 
 	// Ray pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;

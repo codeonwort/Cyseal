@@ -2,12 +2,6 @@
 #include "rhi/render_device.h"
 #include "rhi/swap_chain.h"
 
-// Assumes width < 65536 and height < 65536.
-static uint32 packUint32x2(uint32 width, uint32 height)
-{
-	return ((width & 0xffff) << 16) | (height & 0xffff);
-}
-
 void HiZPass::initialize()
 {
 	RenderDevice* device = gRenderDevice;
@@ -43,7 +37,7 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 
 	// Copy mip0.
 	{
-		uint32 packedSize = packUint32x2(passInput.textureWidth, passInput.textureHeight);
+		uint32 packedSize = Cymath::packUint16x2(passInput.textureWidth, passInput.textureHeight);
 
 		ShaderParameterTable SPT{};
 		SPT.pushConstants("pushConstants", { packedSize, packedSize, 0 }, 0);
@@ -80,8 +74,8 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 		uint32 currWidth = max(1, prevWidth / 2);
 		uint32 currHeight = max(1, prevHeight / 2);
 
-		uint32 packedInputSize = packUint32x2(prevWidth, prevHeight);
-		uint32 packedOutputSize = packUint32x2(currWidth, currHeight);
+		uint32 packedInputSize = Cymath::packUint16x2(prevWidth, prevHeight);
+		uint32 packedOutputSize = Cymath::packUint16x2(currWidth, currHeight);
 
 		ShaderParameterTable SPT{};
 		SPT.pushConstants("pushConstants", { packedInputSize, packedOutputSize, currMip }, 0);
