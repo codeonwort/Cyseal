@@ -89,7 +89,7 @@ namespace into_d3d
 			.Flags      = D3D12_RESOURCE_BARRIER_FLAG_NONE,
 			.Transition = {
 				.pResource   = into_d3d::id3d12Resource(barrier.texture),
-				.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, // #todo-barrier: DX12 texture subresource
+				.Subresource = barrier.subresource,
 				.StateBefore = into_d3d::textureMemoryLayout(barrier.stateBefore),
 				.StateAfter  = into_d3d::textureMemoryLayout(barrier.stateAfter),
 			},

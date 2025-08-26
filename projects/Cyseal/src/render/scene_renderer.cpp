@@ -19,6 +19,7 @@
 #include "render/gpu_culling.h"
 #include "render/bilateral_blur.h"
 #include "render/base_pass.h"
+#include "render/hiz_pass.h"
 #include "render/sky_pass.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
@@ -52,6 +53,11 @@ static const EPixelFormat DEPTH_TEXTURE_FORMAT = EPixelFormat::R32G8X24_TYPELESS
 static const EPixelFormat DEPTH_DSV_FORMAT = EPixelFormat::D32_FLOAT_S8_UINT;
 static const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R32_FLOAT_X8X24_TYPELESS;
 #endif
+
+static uint32 fullMipCount(uint32 width, uint32 height)
+{
+	return static_cast<uint32>(floor(log2(max(width, height))) + 1);
+}
 
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
@@ -109,6 +115,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(bilateralBlur = new BilateralBlur);
 		sceneRenderPasses.push_back(rayTracedShadowsPass = new RayTracedShadowsPass);
 		sceneRenderPasses.push_back(basePass = new BasePass);
+		sceneRenderPasses.push_back(hizPass = new HiZPass);
 		sceneRenderPasses.push_back(skyPass = new SkyPass);
 		sceneRenderPasses.push_back(indirectDiffusePass = new IndirectDiffusePass);
 		sceneRenderPasses.push_back(indirectSpecularPass = new IndirecSpecularPass);
@@ -122,6 +129,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
 		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
+		hizPass->initialize();
 		skyPass->initialize(PF_sceneColor);
 		indirectDiffusePass->initialize();
 		indirectSpecularPass->initialize();
@@ -382,6 +390,33 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
+
+	// HiZ pass
+	{
+		SCOPED_DRAW_EVENT(commandList, HiZPass);
+
+		TextureMemoryBarrier barriersBefore[] = {
+			{ ETextureMemoryLayout::DEPTH_STENCIL_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_sceneDepth.get() },
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_hiz.get() },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+		HiZPassInput passInput{
+			.textureWidth  = sceneWidth,
+			.textureHeight = sceneHeight,
+			.sceneDepthSRV = sceneDepthSRV.get(),
+			.hizTexture    = RT_hiz.get(),
+			.hizSRV        = hizSRV.get(),
+			.hizUAVs       = hizUAVs,
+		};
+		hizPass->renderHiZ(commandList, swapchainIndex, passInput);
+
+		TextureMemoryBarrier barriersAfter[] = {
+			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::DEPTH_STENCIL_TARGET, RT_sceneDepth.get() },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
+	}
+
 	// Sky pass
 	{
 		SCOPED_DRAW_EVENT(commandList, SkyPass);
@@ -572,6 +607,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneDepthSRV           = sceneDepthSRV.get(),
 			.prevSceneDepthSRV       = prevSceneDepthSRV.get(),
 			.velocityMapSRV          = velocityMapSRV.get(),
+			.tileCoordBuffer         = indirectSpecularTileCoordBuffer.get(),
+			.tileCounterBuffer       = indirectSpecularTileCounterBuffer.get(),
+			.tileCoordBufferUAV      = indirectSpecularTileCoordBufferUAV.get(),
+			.tileCounterBufferUAV    = indirectSpecularTileCounterBufferUAV.get(),
 			.indirectSpecularTexture = RT_indirectSpecular.get(),
 		};
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
@@ -778,6 +817,37 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 		}
 	));
 
+	cleanup(RT_hiz.release());
+	TextureCreateParams hizDesc = sceneDepthDesc;
+	hizDesc.format = EPixelFormat::R32_FLOAT,
+	hizDesc.accessFlags = ETextureAccessFlags::SRV | ETextureAccessFlags::UAV;
+	hizDesc.mipLevels = fullMipCount(hizDesc.width, hizDesc.height);
+	RT_hiz = UniquePtr<Texture>(device->createTexture(hizDesc));
+	RT_hiz->setDebugName(L"RT_HiZ");
+	hizSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_hiz.get(),
+		ShaderResourceViewDesc{
+			.format              = hizDesc.format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = hizDesc.mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	hizUAVs.initialize(hizDesc.mipLevels);
+	for (uint16 mipLevel = 0; mipLevel < hizDesc.mipLevels; ++mipLevel)
+	{
+		hizUAVs[mipLevel] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_hiz.get(),
+			UnorderedAccessViewDesc{
+				.format         = hizDesc.format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{ .mipSlice = mipLevel, .planeSlice = 0 },
+			}
+		));
+	}
+
 	cleanup(RT_velocityMap.release());
 	RT_velocityMap = UniquePtr<Texture>(device->createTexture(
 		TextureCreateParams::texture2D(
@@ -923,6 +993,8 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	));
 
 	cleanup(RT_indirectSpecular.release());
+	cleanup(indirectSpecularTileCoordBuffer.release());
+	cleanup(indirectSpecularTileCounterBuffer.release());
 	RT_indirectSpecular = UniquePtr<Texture>(device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R16G16B16A16_FLOAT,
@@ -949,11 +1021,52 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			.texture2D      = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
-	indirectSpecularUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_indirectSpecular.get(),
+	indirectSpecularUAV = UniquePtr<UnorderedAccessView>(device->createUAV(RT_indirectSpecular.get(),
 		UnorderedAccessViewDesc{
 			.format         = RT_indirectSpecular->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
 			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+	uint32 tileCountX = (sceneWidth + 7) / 8, tileCountY = (sceneHeight + 7) / 8;
+	indirectSpecularTileCoordBuffer = UniquePtr<Buffer>(device->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = sizeof(uint32) * tileCountX * tileCountY,
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::UAV,
+		}
+	));
+	indirectSpecularTileCoordBufferUAV = UniquePtr<UnorderedAccessView>(device->createUAV(indirectSpecularTileCoordBuffer.get(),
+		UnorderedAccessViewDesc{
+			.format        = EPixelFormat::UNKNOWN,
+			.viewDimension = EUAVDimension::Buffer,
+			.buffer        = BufferUAVDesc{
+				.firstElement         = 0,
+				.numElements          = tileCountX * tileCountY,
+				.structureByteStride  = sizeof(uint32),
+				.counterOffsetInBytes = 0,
+				.flags                = EBufferUAVFlags::None,
+			}
+		}
+	));
+	indirectSpecularTileCounterBuffer = UniquePtr<Buffer>(device->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = sizeof(uint32),
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
+		}
+	));
+	indirectSpecularTileCounterBufferUAV = UniquePtr<UnorderedAccessView>(device->createUAV(indirectSpecularTileCounterBuffer.get(),
+		UnorderedAccessViewDesc{
+			.format        = EPixelFormat::UNKNOWN,
+			.viewDimension = EUAVDimension::Buffer,
+			.buffer        = BufferUAVDesc{
+				.firstElement         = 0,
+				.numElements          = 1,
+				.structureByteStride  = sizeof(uint32),
+				.counterOffsetInBytes = 0,
+				.flags                = EBufferUAVFlags::None,
+			}
 		}
 	));
 

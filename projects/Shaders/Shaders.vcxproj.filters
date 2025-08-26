@@ -20,5 +20,50 @@
     <FxCompile Include="..\..\shaders\indirect_diffuse_temporal.hlsl" />
     <FxCompile Include="..\..\shaders\path_tracing_temporal.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_temporal.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_denoiser_reproject_reflections_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\hiz.hlsl" />
+    <FxCompile Include="..\..\shaders\indirect_specular_classifier.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="amd">
+      <UniqueIdentifier>{2457741d-f34d-42be-8724-5463608f243b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="amd\denoiser">
+      <UniqueIdentifier>{1410f651-5b78-48f0-93a3-a49bd3bdd3c0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_callbacks_hlsl.h">
+      <Filter>amd\denoiser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_common.h">
+      <Filter>amd\denoiser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_config.h">
+      <Filter>amd\denoiser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_reproject.h">
+      <Filter>amd\denoiser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_resources.h">
+      <Filter>amd\denoiser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\ffx_common_types.h">
+      <Filter>amd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\ffx_core.h">
+      <Filter>amd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\ffx_core_gpu_common.h">
+      <Filter>amd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\ffx_core_gpu_common_half.h">
+      <Filter>amd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\ffx_core_hlsl.h">
+      <Filter>amd</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

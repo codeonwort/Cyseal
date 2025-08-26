@@ -69,7 +69,7 @@ void GPUScene::initialize()
 
 	// Shader
 	ShaderStage* gpuSceneShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
-	gpuSceneShader->declarePushConstants({ "pushConstants" });
+	gpuSceneShader->declarePushConstants({ { "pushConstants", 1} });
 	gpuSceneShader->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
 	pipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(

@@ -121,7 +121,8 @@ static void createRootSignatureFromParameterTable(
 			rootParameters[p].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 			rootParameters[p].Constants.ShaderRegister = param.registerSlot;
 			rootParameters[p].Constants.RegisterSpace = param.registerSpace;
-			rootParameters[p].Constants.Num32BitValues = 1; // #todo-dx12: Num32BitValues
+			// This field stores Num32BitValues for root constants. See D3DShaderStage::addToShaderParameterTable().
+			rootParameters[p].Constants.Num32BitValues = param.numDescriptors;
 			rootParameters[p].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 			param.rootParameterIndex = p;

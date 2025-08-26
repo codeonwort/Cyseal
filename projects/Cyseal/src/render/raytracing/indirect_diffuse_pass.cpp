@@ -137,7 +137,7 @@ void IndirectDiffusePass::initializeRaytracingPipeline()
 	ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "Diffuse_ClosestHit");
 	ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "Diffuse_Miss");
 	raygenShader->declarePushConstants();
-	closestHitShader->declarePushConstants({ "g_closestHitCB" });
+	closestHitShader->declarePushConstants({ { "g_closestHitCB", 1} });
 	missShader->declarePushConstants();
 	raygenShader->loadFromFile(L"indirect_diffuse_raytracing.hlsl", "MainRaygen");
 	closestHitShader->loadFromFile(L"indirect_diffuse_raytracing.hlsl", "MainClosestHit");

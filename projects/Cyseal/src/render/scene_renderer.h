@@ -74,6 +74,10 @@ private:
 	UniquePtr<Texture> RT_prevSceneDepth;
 	UniquePtr<ShaderResourceView> prevSceneDepthSRV;
 
+	UniquePtr<Texture> RT_hiz;
+	UniquePtr<ShaderResourceView> hizSRV;
+	BufferedUniquePtr<UnorderedAccessView> hizUAVs;
+
 	UniquePtr<Texture> RT_velocityMap;
 	UniquePtr<ShaderResourceView> velocityMapSRV;
 	UniquePtr<RenderTargetView> velocityMapRTV;
@@ -98,6 +102,10 @@ private:
 	UniquePtr<ShaderResourceView> indirectSpecularSRV;
 	UniquePtr<RenderTargetView> indirectSpecularRTV;
 	UniquePtr<UnorderedAccessView> indirectSpecularUAV;
+	UniquePtr<Buffer> indirectSpecularTileCoordBuffer;
+	UniquePtr<UnorderedAccessView> indirectSpecularTileCoordBufferUAV;
+	UniquePtr<Buffer> indirectSpecularTileCounterBuffer;
+	UniquePtr<UnorderedAccessView> indirectSpecularTileCounterBufferUAV;
 
 	UniquePtr<Texture> RT_pathTracing;
 	UniquePtr<ShaderResourceView> pathTracingSRV;
@@ -120,6 +128,7 @@ private:
 	class BilateralBlur*        bilateralBlur         = nullptr;
 	class RayTracedShadowsPass* rayTracedShadowsPass  = nullptr;
 	class BasePass*             basePass              = nullptr;
+	class HiZPass*              hizPass               = nullptr;
 	class SkyPass*              skyPass               = nullptr;
 	class IndirectDiffusePass*  indirectDiffusePass   = nullptr;
 	class IndirecSpecularPass*  indirectSpecularPass  = nullptr;

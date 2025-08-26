@@ -61,6 +61,7 @@ inline bool isRaytracingShader(EShaderStage shaderStage)
 
 class ShaderStage
 {
+	using PushConstantDecls = std::vector<std::pair<std::string, int32>>;
 public:
 	ShaderStage(EShaderStage inStageFlag, const char* inDebugName)
 		: stageFlag(inStageFlag)
@@ -70,33 +71,52 @@ public:
 
 	// Invoke before loadFromFile().
 	// Need to pre-determine before shader compilation as shader reflection can't discriminate between root constants and CBVs.
-	inline void declarePushConstants(const std::vector<std::string>& inPushConstantNames)
+	// @param inPushConstantDecls { { "name_0", num32BitValues_0 }, { "name_1", num32BitValues_1 }, ... }
+	inline void declarePushConstants(const PushConstantDecls& inPushConstantDecls)
 	{
 		CHECK(!bPushConstantsDeclared);
-		pushConstantNames = inPushConstantNames;
+		pushConstantDecls = inPushConstantDecls;
 		bPushConstantsDeclared = true;
+
+		for (const auto& decl : inPushConstantDecls)
+		{
+			CHECK(decl.second > 0);
+		}
 	}
+	// Use this when this shader has no push constants.
 	inline void declarePushConstants()
 	{
 		CHECK(!bPushConstantsDeclared);
-		pushConstantNames.clear();
+		pushConstantDecls.clear();
 		bPushConstantsDeclared = true;
 	}
 
 	inline bool isPushConstantsDeclared() const { return bPushConstantsDeclared; }
 
-	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) = 0;
+	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint, std::initializer_list<std::wstring> defines = {}) = 0;
 
 	virtual const wchar_t* getEntryPointW() = 0;
 	virtual const char* getEntryPointA() = 0;
 
 protected:
-	inline bool shouldBePushConstants(const std::string& name) { return std::find(pushConstantNames.begin(), pushConstantNames.end(), name) != pushConstantNames.end(); }
+	inline bool shouldBePushConstants(const std::string& name, int32* num32BitValues)
+	{
+		for (const auto& decl : pushConstantDecls)
+		{
+			if (decl.first == name)
+			{
+				*num32BitValues = decl.second;
+				return true;
+			}
+		}
+		*num32BitValues = -1;
+		return false;
+	}
 
 protected:
 	EShaderStage stageFlag;
 	std::string debugName;
 
-	std::vector<std::string> pushConstantNames;
+	PushConstantDecls pushConstantDecls;
 	bool bPushConstantsDeclared = false;
 };

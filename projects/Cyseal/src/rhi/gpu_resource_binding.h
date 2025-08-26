@@ -16,7 +16,7 @@
 struct ShaderParameterTable
 {
 	using ParameterName = const char*;
-	struct PushConstant       { std::string name; uint32 value; uint32 destOffsetIn32BitValues; };
+	struct PushConstant       { std::string name; std::vector<uint32> values; uint32 destOffsetIn32BitValues; };
 	struct ConstantBuffer     { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
 	struct StructuredBuffer   { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
 	struct RWBuffer           { std::string name; DescriptorHeap* sourceHeap; uint32 startIndex; uint32 count; };
@@ -27,8 +27,9 @@ struct ShaderParameterTable
 	struct AccelerationStruct { std::string name; ShaderResourceView* srv; };
 
 public:
-	// These API take a single parameter.
-	void pushConstant(ParameterName name, uint32 value, uint32 destOffsetIn32BitValues = 0) { pushConstants.emplace_back(PushConstant{ name, value, destOffsetIn32BitValues }); }
+	// These API take a single parameter except for pushConstants().
+	void pushConstant(ParameterName name, uint32 value, uint32 destOffsetIn32BitValues = 0) { _pushConstants.emplace_back(PushConstant{ name, { value }, destOffsetIn32BitValues }); }
+	void pushConstants(ParameterName name, std::initializer_list<uint32> values, uint32 destOffsetIn32BitValues = 0) { _pushConstants.emplace_back(PushConstant{ name, values, destOffsetIn32BitValues }); }
 	void constantBuffer(ParameterName name, ConstantBufferView* buffer) { constantBuffers.emplace_back(ConstantBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
 	void structuredBuffer(ParameterName name, ShaderResourceView* buffer) { structuredBuffers.emplace_back(StructuredBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
 	void rwBuffer(ParameterName name, UnorderedAccessView* buffer) { rwBuffers.emplace_back(RWBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
@@ -47,16 +48,24 @@ public:
 	void texture(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { textures.emplace_back(Texture{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
 	void rwTexture(ParameterName name, DescriptorHeap* sourceHeap, uint32 firstDescriptorIndex, uint32 descriptorCount) { rwTextures.emplace_back(RWTexture{ name, sourceHeap, firstDescriptorIndex, descriptorCount }); }
 
-	size_t totalParameters() const
+	// Returns the number of required descriptors.
+	uint32 totalDescriptors() const
 	{
-		return pushConstants.size() + constantBuffers.size()
-			+ structuredBuffers.size() + rwBuffers.size() + rwStructuredBuffers.size()
-			+ textures.size() + rwTextures.size()
-			+ accelerationStructures.size();
+		size_t cnt = 0;
+		cnt += _pushConstants.size();
+		for (const auto& p : constantBuffers) cnt += p.count;
+		for (const auto& p : structuredBuffers) cnt += p.count;
+		for (const auto& p : rwBuffers) cnt += p.count;
+		for (const auto& p : rwStructuredBuffers) cnt += p.count;
+		for (const auto& p : byteAddressBuffers) cnt += p.count;
+		for (const auto& p : textures) cnt += p.count;
+		for (const auto& p : rwTextures) cnt += p.count;
+		cnt += accelerationStructures.size();
+		return (uint32)cnt;
 	}
 
 public:
-	std::vector<PushConstant>       pushConstants;
+	std::vector<PushConstant>       _pushConstants;
 	std::vector<ConstantBuffer>     constantBuffers;
 	std::vector<StructuredBuffer>   structuredBuffers;
 	std::vector<RWBuffer>           rwBuffers;

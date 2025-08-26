@@ -80,6 +80,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <FxCompile Include="..\..\shaders\amd\ffx_denoiser_reproject_reflections_pass.hlsl" />
     <FxCompile Include="..\..\shaders\base_pass.hlsl" />
     <FxCompile Include="..\..\shaders\bilateral_blur.hlsl" />
     <FxCompile Include="..\..\shaders\blit_denoiser_input.hlsl" />
@@ -88,8 +89,10 @@
     <FxCompile Include="..\..\shaders\common.hlsl" />
     <FxCompile Include="..\..\shaders\gpu_culling.hlsl" />
     <FxCompile Include="..\..\shaders\gpu_scene.hlsl" />
+    <FxCompile Include="..\..\shaders\hiz.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_raytracing.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_temporal.hlsl" />
+    <FxCompile Include="..\..\shaders\indirect_specular_classifier.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_temporal.hlsl" />
     <FxCompile Include="..\..\shaders\material.hlsl" />
     <FxCompile Include="..\..\shaders\path_tracing.hlsl" />
@@ -99,6 +102,18 @@
     <FxCompile Include="..\..\shaders\ray_traced_shadows.hlsl" />
     <FxCompile Include="..\..\shaders\sky_pass.hlsl" />
     <FxCompile Include="..\..\shaders\tone_mapping.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_callbacks_hlsl.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_common.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_config.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_reproject.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_resources.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_common_types.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_core.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_core_gpu_common.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_core_gpu_common_half.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_core_hlsl.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

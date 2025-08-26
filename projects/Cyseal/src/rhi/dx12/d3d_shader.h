@@ -20,7 +20,7 @@ struct D3DShaderParameter
 	D3D_SHADER_INPUT_TYPE type;
 	uint32 registerSlot;
 	uint32 registerSpace;
-	uint32 numDescriptors;
+	uint32 numDescriptors; // Hack: This is num32BitValues for pushConstants, as specified by ShaderStage::pushConstantDecls.
 
 	// Allocated when generating root signature (except for samplers).
 	uint32 rootParameterIndex = 0xffffffff;
@@ -61,7 +61,7 @@ public:
 		, device(inDevice)
 	{}
 
-	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint) override;
+	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint, std::initializer_list<std::wstring> defines) override;
 
 	virtual const wchar_t* getEntryPointW() override { return wEntryPoint.c_str(); }
 	virtual const char* getEntryPointA() override { return aEntryPoint.c_str(); }

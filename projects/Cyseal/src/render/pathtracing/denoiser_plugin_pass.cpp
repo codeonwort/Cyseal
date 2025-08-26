@@ -25,7 +25,7 @@ void DenoiserPluginPass::initialize()
 	// Shader
 	{
 		ShaderStage* blitShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "BlitDenoiserInputCS");
-		blitShader->declarePushConstants({ "pushConstants" });
+		blitShader->declarePushConstants({ { "pushConstants", 1} });
 		blitShader->loadFromFile(L"blit_denoiser_input.hlsl", "mainCS");
 
 		blitPipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(

@@ -96,7 +96,7 @@ static std::wstring getD3DShaderProfile(D3D_SHADER_MODEL shaderModel, EShaderSta
 	return profile;
 }
 
-void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint)
+void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
 {
 	IDxcUtils* utils = device->getDxcUtils();
 	IDxcCompiler3* compiler = device->getDxcCompiler();
@@ -130,6 +130,11 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 		L"-E", wEntryPoint.c_str(),
 		L"-T", targetProfile.c_str(),
 	};
+	for (const std::wstring& def : defines)
+	{
+		arguments.push_back(L"-D");
+		arguments.push_back(def.c_str());
+	}
 #if SKIP_SHADER_OPTIMIZATION
 	//arguments.push_back(DXC_ARG_DEBUG);
 #endif
@@ -278,11 +283,13 @@ void D3DShaderStage::addToShaderParameterTable(const D3D12_SHADER_INPUT_BIND_DES
 	};
 	
 	// #todo-dx12: Handle missing D3D_SHADER_INPUT_TYPE cases
+	int32 num32BitValues = 0;
 	switch (inputBindDesc.Type)
 	{
 		case D3D_SIT_CBUFFER: // ConstantBuffer
-			if (shouldBePushConstants(inputBindDesc.Name))
+			if (shouldBePushConstants(inputBindDesc.Name, &num32BitValues))
 			{
+				parameter.numDescriptors = num32BitValues;
 				parameterTable.rootConstants.emplace_back(parameter);
 			}
 			else

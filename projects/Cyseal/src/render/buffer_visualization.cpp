@@ -47,7 +47,7 @@ void BufferVisualization::initialize()
 	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BufferVisualizationVS");
 	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BufferVisualizationPS");
 	shaderVS->declarePushConstants();
-	shaderPS->declarePushConstants({ "pushConstants" });
+	shaderPS->declarePushConstants({ { "pushConstants", 1} });
 	shaderVS->loadFromFile(L"buffer_visualization.hlsl", "mainVS");
 	shaderPS->loadFromFile(L"buffer_visualization.hlsl", "mainPS");
 
