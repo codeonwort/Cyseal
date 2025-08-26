@@ -169,7 +169,6 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 	classifierPhase(commandList, swapchainIndex, passInput);
 
-	// #wip: Check FidelityFX's raytracing phase output
 	raytracingPhase(commandList, swapchainIndex, passInput);
 
 	denoisingPhase(commandList, swapchainIndex, passInput);
