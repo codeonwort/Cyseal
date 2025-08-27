@@ -248,6 +248,7 @@ public:
 	virtual void writeConstantBufferView(ConstantBufferView* view) override;
 	virtual void writeShaderResourceView(ShaderResourceView* view) override;
 	virtual void writeUnorderedAccessView(UnorderedAccessView* view) override;
+	virtual void writeDispatchRaysArguments(const DispatchRaysDesc& desc) override;
 	virtual void writeDispatchMeshArguments(
 		uint32 threadGroupCountX,
 		uint32 threadGroupCountY,

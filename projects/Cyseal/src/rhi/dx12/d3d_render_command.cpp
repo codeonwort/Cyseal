@@ -668,34 +668,8 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 
 void D3DRenderCommandList::dispatchRays(const DispatchRaysDesc& inDesc)
 {
-	auto getGpuAddress = [](RaytracingShaderTable* table) {
-		return static_cast<D3DRaytracingShaderTable*>(table)->getGpuVirtualAddress();
-	};
-	auto getSizeInBytes = [](RaytracingShaderTable* table) {
-		return static_cast<D3DRaytracingShaderTable*>(table)->getSizeInBytes();
-	};
-	auto getStrideInBytes = [](RaytracingShaderTable* table) {
-		return static_cast<D3DRaytracingShaderTable*>(table)->getStrideInBytes();
-	};
-
 	D3D12_DISPATCH_RAYS_DESC desc{};
-	desc.RayGenerationShaderRecord.StartAddress = getGpuAddress(inDesc.raygenShaderTable);
-	desc.RayGenerationShaderRecord.SizeInBytes = getSizeInBytes(inDesc.raygenShaderTable);
-	desc.MissShaderTable.StartAddress = getGpuAddress(inDesc.missShaderTable);
-	desc.MissShaderTable.SizeInBytes = getSizeInBytes(inDesc.missShaderTable);
-	desc.MissShaderTable.StrideInBytes = getStrideInBytes(inDesc.missShaderTable);
-	desc.HitGroupTable.StartAddress = getGpuAddress(inDesc.hitGroupTable);
-	desc.HitGroupTable.SizeInBytes = getSizeInBytes(inDesc.hitGroupTable);
-	desc.HitGroupTable.StrideInBytes = getStrideInBytes(inDesc.hitGroupTable);
-	// #todo-dxr: CallableShaderTable for dispatchRays()
-	//desc.CallableShaderTable.StartAddress = 0;
-	//desc.CallableShaderTable.SizeInBytes = 0;
-	//desc.CallableShaderTable.StrideInBytes = 0;
-	
-	desc.Width = inDesc.width;
-	desc.Height = inDesc.height;
-	desc.Depth = inDesc.depth;
-
+	into_d3d::dispatchRaysDesc(inDesc, desc);
 	commandList->DispatchRays(&desc);
 }
 

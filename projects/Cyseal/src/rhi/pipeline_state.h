@@ -675,8 +675,7 @@ public:
 	virtual void writeConstantBufferView(ConstantBufferView* view) = 0;
 	virtual void writeShaderResourceView(ShaderResourceView* view) = 0;
 	virtual void writeUnorderedAccessView(UnorderedAccessView* view) = 0;
-	// #todo-indirect-draw: What should I write for dispatchRays()? D3D12_DISPATCH_RAYS_DESC?
-	//virtual void writeDispatchRaysArguments(...) = 0;
+	virtual void writeDispatchRaysArguments(const DispatchRaysDesc& desc) = 0;
 	virtual void writeDispatchMeshArguments(
 		uint32 threadGroupCountX,
 		uint32 threadGroupCountY,

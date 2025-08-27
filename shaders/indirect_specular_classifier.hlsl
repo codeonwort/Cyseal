@@ -1,4 +1,5 @@
 #include "common.hlsl"
+#include "indirect_arguments.hlsl"
 
 // ---------------------------------------------------------
 // Shader parameters
@@ -13,8 +14,10 @@ Texture2D                     sceneDepthTexture;
 RWStructuredBuffer<uint>      rwTileCoordBuffer; // High 16-bit = y coord, low 16-bit = x coord. A tile is 8x8.
 RWStructuredBuffer<uint>      rwTileCounterBuffer;
 
+RWStructuredBuffer<D3D12_DISPATCH_RAYS_DESC> rwIndirectArgumentBuffer; // For prepareIndirectRaysCS
+
 // ---------------------------------------------------------
-// Shader
+// Shader: tileClassificationCS
 
 groupshared uint g_validPixels;
 
@@ -29,7 +32,7 @@ uint packUint16x2(uint x, uint y)
 }
 
 [numthreads(8, 8, 1)]
-void mainCS(uint3 tid : SV_DispatchThreadID, uint3 gtid : SV_GroupThreadID)
+void tileClassificationCS(uint3 tid : SV_DispatchThreadID, uint3 gtid : SV_GroupThreadID)
 {
 	uint2 texSize = unpackUint16x2(pushConstants.packedTextureSize);
 	if (any(tid.xy >= texSize))
@@ -58,4 +61,23 @@ void mainCS(uint3 tid : SV_DispatchThreadID, uint3 gtid : SV_GroupThreadID)
 		
 		rwTileCoordBuffer[tileIx] = packUint16x2(tid.x, tid.y);
 	}
+}
+
+// ---------------------------------------------------------
+// Shader: prepareIndirectRaysCS
+
+[numthreads(1, 1, 1)]
+void prepareIndirectRaysCS()
+{
+	D3D12_DISPATCH_RAYS_DESC desc = rwIndirectArgumentBuffer[0];
+	uint counter = rwTileCounterBuffer[0];
+	
+	DeviceMemoryBarrier();
+	
+	// x = tile linear index, y = linearized index for 8x8 pixels in a tile
+	desc.Width = counter;
+	desc.Height = 64;
+	desc.Depth = 1;
+	
+	rwIndirectArgumentBuffer[0] = desc;
 }

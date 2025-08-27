@@ -439,9 +439,9 @@ namespace into_d3d
 		return D3D12_HIT_GROUP_TYPE_TRIANGLES;
 	}
 
-	void raytracingGeometryDesc(
-		const RaytracingGeometryDesc& inDesc,
-		D3D12_RAYTRACING_GEOMETRY_DESC& outDesc);
+	void raytracingGeometryDesc(const RaytracingGeometryDesc& inDesc, D3D12_RAYTRACING_GEOMETRY_DESC& outDesc);
+
+	void dispatchRaysDesc(const DispatchRaysDesc& inDesc, D3D12_DISPATCH_RAYS_DESC& outDesc);
 
 	inline D3D12_SRV_DIMENSION srvDimension(ESRVDimension inDimension)
 	{
@@ -712,15 +712,13 @@ namespace into_d3d
 		return static_cast<D3D12_INDIRECT_ARGUMENT_TYPE>(inType);
 	}
 
-	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, D3DGraphicsPipelineState* pipelineState);
+	template<typename TPipelineState>
+	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, TPipelineState* pipelineState);
 
 	uint32 calcIndirectArgumentByteStride(const IndirectArgumentDesc& inDesc);
 	uint32 calcCommandSignatureByteStride(const CommandSignatureDesc& inDesc, uint32& outPaddingBytes);
 
-	void commandSignature(
-		const CommandSignatureDesc& inDesc,
-		D3D12_COMMAND_SIGNATURE_DESC& outDesc,
-		D3DGraphicsPipelineState* pipelineState,
-		TempAlloc& tempAlloc);
+	template<typename TPipelineState>
+	void commandSignature(const CommandSignatureDesc& inDesc, D3D12_COMMAND_SIGNATURE_DESC& outDesc, TPipelineState* pipelineState, TempAlloc& tempAlloc);
 
 }

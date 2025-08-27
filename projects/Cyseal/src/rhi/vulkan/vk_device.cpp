@@ -1258,6 +1258,12 @@ CommandSignature* VulkanDevice::createCommandSignature(const CommandSignatureDes
 	return nullptr;
 }
 
+CommandSignature* VulkanDevice::createCommandSignature(const CommandSignatureDesc& inDesc, RaytracingPipelineStateObject* inPipelineState)
+{
+	// #todo-vulkan: VulkanDevice::createCommandSignature
+	return nullptr;
+}
+
 IndirectCommandGenerator* VulkanDevice::createIndirectCommandGenerator(const CommandSignatureDesc& inDesc, uint32 maxCommandCount)
 {
 	// #todo-vulkan

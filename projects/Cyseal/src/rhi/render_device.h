@@ -132,8 +132,16 @@ public:
 	virtual RenderTargetView* createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams) = 0;
 	virtual DepthStencilView* createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams) = 0;
 
-	// Indirect draw
+	// Indirect draw and dispatch //
+	
+	// Create a command signature that defines indirect commands for the given pipeline.
+	// @param inDesc          Defines indirect command layout.
+	// @param inPipelineState Can be null if root signature won't change across indirect commands.
 	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, GraphicsPipelineState* inPipelineState) = 0;
+	// Create a command signature that defines indirect commands for the given pipeline.
+	// @param inDesc          Defines indirect command layout.
+	// @param inPipelineState Can be null if root signature won't change across indirect commands.
+	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, RaytracingPipelineStateObject* inPipelineState) = 0;
 	virtual IndirectCommandGenerator* createIndirectCommandGenerator(const CommandSignatureDesc& inDesc, uint32 maxCommandCount) = 0;
 
 	// ------------------------------------------------------------------------

@@ -56,6 +56,10 @@ private:
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
 
+	// classifierPhase requires some resources that are created by raytracingPhase.
+	// But classifierPhase runs first, so prepare such resources here.
+	void prepareRaytracingResources(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
+
 	void classifierPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 	void raytracingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 	void denoisingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
@@ -64,6 +68,8 @@ private:
 	// Tile classification pass
 	UniquePtr<ComputePipelineState>          classifierPipeline;
 	VolatileDescriptorHelper                 classifierPassDescriptor;
+	UniquePtr<ComputePipelineState>          indirectRaysPipeline;
+	VolatileDescriptorHelper                 indirectRaysPassDescriptor;
 
 	// Ray pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
@@ -72,6 +78,12 @@ private:
 	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	std::vector<uint32>                      totalHitGroupShaderRecord;
 	VolatileDescriptorHelper                 rayPassDescriptor;
+
+	// Ray pass indirect dispatch
+	UniquePtr<CommandSignature>              rayCommandSignature;
+	UniquePtr<IndirectCommandGenerator>      rayCommandGenerator;
+	UniquePtr<Buffer>                        rayCommandBuffer;
+	UniquePtr<UnorderedAccessView>           rayCommandBufferUAV;
 
 	// Temporal pass
 	UniquePtr<ComputePipelineState>          temporalPipeline;
@@ -84,6 +96,7 @@ private:
 	UniquePtr<Texture>                       raytracingTexture;
 	UniquePtr<ShaderResourceView>            raytracingSRV;
 	UniquePtr<UnorderedAccessView>           raytracingUAV;
+	UniquePtr<RenderTargetView>              raytracingRTV;
 
 private:
 	UniquePtr<ComputePipelineState>          amdReprojectPipeline;

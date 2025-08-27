@@ -13,6 +13,9 @@
 
 // ---------------------------------------------------------
 
+// Should match with INDIRECT_DISPATCH_RAYS in C++ side.
+#define INDIRECT_DISPATCH_RAYS    1
+
 #define OBJECT_ID_NONE            0xffff
 
 // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
@@ -26,8 +29,8 @@
 #define GBUFFER_NORMAL_OFFSET     0.05
 #define REFRACTION_START_OFFSET   0.1
 
-// Sky pass will write sky pixels.
-#define WRITE_SKY_PIXEL           0
+// Sky pass will write sky pixels. (Not supported when using indirect dispatch where not all pixels are written)
+#define WRITE_SKY_PIXEL           (0 && !INDIRECT_DISPATCH_RAYS)
 // Temp boost sky light.
 #define SKYBOX_BOOST              1.0
 
@@ -73,6 +76,9 @@ Texture2D<GBUFFER0_DATATYPE>            gbuffer0              : register(t6, spa
 Texture2D<GBUFFER1_DATATYPE>            gbuffer1              : register(t7, space0);
 Texture2D                               sceneDepthTexture     : register(t8, space0);
 RWTexture2D<float4>                     raytracingTexture     : register(u0, space0);
+#if INDIRECT_DISPATCH_RAYS
+RWStructuredBuffer<uint>                rwTileCoordBuffer     : register(u1, space0);
+#endif
 
 // Material resource binding
 #define TEMP_MAX_SRVS 1024
@@ -82,6 +88,18 @@ Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless 
 SamplerState albedoSampler : register(s0, space0);
 SamplerState skyboxSampler : register(s1, space0);
 SamplerState linearSampler : register(s2, space0);
+
+uint2 unpackCurrentTexel(uint2 dispatchRaysIndex)
+{
+#if INDIRECT_DISPATCH_RAYS
+	uint packed = rwTileCoordBuffer[dispatchRaysIndex.x];
+	uint2 coord = uint2(packed & 0xffff, (packed >> 16) & 0xffff);
+	coord += uint2(dispatchRaysIndex.y % 8, dispatchRaysIndex.y / 8);
+	return coord;
+#else
+	return dispatchRaysIndex;
+#endif
+}
 
 // ---------------------------------------------------------
 // Local root signature (closest hit)
@@ -307,8 +325,13 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 [shader("raygeneration")]
 void MainRaygen()
 {
-	uint2 texel = DispatchRaysIndex().xy;
+	uint2 texel = unpackCurrentTexel(DispatchRaysIndex().xy);
 	float2 screenUV = getScreenUV(texel);
+	
+	if (texel.x >= passUniform.renderTargetWidth || texel.y >= passUniform.renderTargetHeight)
+	{
+		return;
+	}
 
 	float sceneDepth = sceneDepthTexture.Load(int3(texel, 0)).r;
 	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth, sceneUniform.viewProjInvMatrix);

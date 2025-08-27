@@ -137,8 +137,43 @@ namespace into_d3d
 		}
 	}
 
-	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, D3DGraphicsPipelineState* pipelineState)
+	void dispatchRaysDesc(const DispatchRaysDesc& inDesc, D3D12_DISPATCH_RAYS_DESC& outDesc)
 	{
+		auto getGpuAddress = [](RaytracingShaderTable* table) {
+			return static_cast<D3DRaytracingShaderTable*>(table)->getGpuVirtualAddress();
+		};
+		auto getSizeInBytes = [](RaytracingShaderTable* table) {
+			return static_cast<D3DRaytracingShaderTable*>(table)->getSizeInBytes();
+		};
+		auto getStrideInBytes = [](RaytracingShaderTable* table) {
+			return static_cast<D3DRaytracingShaderTable*>(table)->getStrideInBytes();
+		};
+
+		outDesc = D3D12_DISPATCH_RAYS_DESC{
+			.RayGenerationShaderRecord = D3D12_GPU_VIRTUAL_ADDRESS_RANGE{ getGpuAddress(inDesc.raygenShaderTable), getSizeInBytes(inDesc.raygenShaderTable) },
+			.MissShaderTable           = D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE{ getGpuAddress(inDesc.missShaderTable), getSizeInBytes(inDesc.missShaderTable), getStrideInBytes(inDesc.missShaderTable) },
+			.HitGroupTable             = D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE{ getGpuAddress(inDesc.hitGroupTable), getSizeInBytes(inDesc.hitGroupTable), getStrideInBytes(inDesc.hitGroupTable) },
+			.CallableShaderTable       = D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE{ 0, 0, 0 }, // #todo-dxr: CallableShaderTable for dispatchRays()
+			.Width                     = inDesc.width,
+			.Height                    = inDesc.height,
+			.Depth                     = inDesc.depth,
+		};
+	}
+
+	template<typename TPipelineState>
+	void indirectArgument(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, TPipelineState* pipelineState)
+	{
+		auto findParam = [pipelineState](const std::string& pname) -> const D3DShaderParameter* {
+			if constexpr (std::is_same_v<TPipelineState, D3DGraphicsPipelineState>)
+			{
+				return pipelineState->findShaderParameter(pname);
+			}
+			if constexpr (std::is_same_v<TPipelineState, D3DRaytracingPipelineStateObject>)
+			{
+				return pipelineState->findGlobalShaderParameter(pname);
+			}
+		};
+
 		outDesc.Type = into_d3d::indirectArgumentType(inDesc.type);
 		if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_VERTEX_BUFFER_VIEW)
 		{
@@ -146,21 +181,25 @@ namespace into_d3d
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT)
 		{
-			outDesc.Constant.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
+			CHECK(pipelineState != nullptr);
+			outDesc.Constant.RootParameterIndex = findParam(inDesc.name)->rootParameterIndex;
 			outDesc.Constant.DestOffsetIn32BitValues = inDesc.constant.destOffsetIn32BitValues;
 			outDesc.Constant.Num32BitValuesToSet = inDesc.constant.num32BitValuesToSet;
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW)
 		{
-			outDesc.ConstantBufferView.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
+			CHECK(pipelineState != nullptr);
+			outDesc.ConstantBufferView.RootParameterIndex = findParam(inDesc.name)->rootParameterIndex;
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_SHADER_RESOURCE_VIEW)
 		{
-			outDesc.ShaderResourceView.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
+			CHECK(pipelineState != nullptr);
+			outDesc.ShaderResourceView.RootParameterIndex = findParam(inDesc.name)->rootParameterIndex;
 		}
 		else if (outDesc.Type == D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW)
 		{
-			outDesc.UnorderedAccessView.RootParameterIndex = pipelineState->findShaderParameter(inDesc.name)->rootParameterIndex;
+			CHECK(pipelineState != nullptr);
+			outDesc.UnorderedAccessView.RootParameterIndex = findParam(inDesc.name)->rootParameterIndex;
 		}
 	}
 
@@ -177,7 +216,7 @@ namespace into_d3d
 			case EIndirectArgumentType::CONSTANT_BUFFER_VIEW:  return sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
 			case EIndirectArgumentType::SHADER_RESOURCE_VIEW:  return sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
 			case EIndirectArgumentType::UNORDERED_ACCESS_VIEW: return sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
-			case EIndirectArgumentType::DISPATCH_RAYS:         CHECK_NO_ENTRY(); return 0; // #todo-indirect-draw
+			case EIndirectArgumentType::DISPATCH_RAYS:         return sizeof(D3D12_DISPATCH_RAYS_DESC);
 			case EIndirectArgumentType::DISPATCH_MESH:         return sizeof(D3D12_DISPATCH_MESH_ARGUMENTS);
 		}
 		return 0;
@@ -196,11 +235,8 @@ namespace into_d3d
 		return byteStride;
 	}
 
-	void commandSignature(
-		const CommandSignatureDesc& inDesc,
-		D3D12_COMMAND_SIGNATURE_DESC& outDesc,
-		D3DGraphicsPipelineState* pipelineState,
-		TempAlloc& tempAlloc)
+	template<typename TPipelineState>
+	void commandSignature(const CommandSignatureDesc& inDesc, D3D12_COMMAND_SIGNATURE_DESC& outDesc, TPipelineState* pipelineState, TempAlloc& tempAlloc)
 	{
 		uint32 numArgumentDescs = (uint32)inDesc.argumentDescs.size();
 		D3D12_INDIRECT_ARGUMENT_DESC* tempArgumentDescs = tempAlloc.allocIndirectArgumentDescs(numArgumentDescs);
@@ -216,5 +252,11 @@ namespace into_d3d
 		outDesc.pArgumentDescs = tempArgumentDescs;
 		outDesc.NodeMask = inDesc.nodeMask;
 	}
-
 }
+
+// Explicit template instantiation
+template void into_d3d::indirectArgument<D3DGraphicsPipelineState>(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, D3DGraphicsPipelineState* pipelineState);
+template void into_d3d::indirectArgument<D3DRaytracingPipelineStateObject>(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, D3DRaytracingPipelineStateObject* pipelineState);
+
+template void into_d3d::commandSignature<D3DGraphicsPipelineState>(const CommandSignatureDesc& inDesc, D3D12_COMMAND_SIGNATURE_DESC& outDesc, D3DGraphicsPipelineState* pipelineState, TempAlloc& tempAlloc);
+template void into_d3d::commandSignature<D3DRaytracingPipelineStateObject>(const CommandSignatureDesc& inDesc, D3D12_COMMAND_SIGNATURE_DESC& outDesc, D3DRaytracingPipelineStateObject* pipelineState, TempAlloc& tempAlloc);

@@ -747,6 +747,15 @@ void D3DIndirectCommandGenerator::writeUnorderedAccessView(UnorderedAccessView* 
 	currentWritePtr += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
 }
 
+void D3DIndirectCommandGenerator::writeDispatchRaysArguments(const DispatchRaysDesc& inDesc)
+{
+	// https://microsoft.github.io/DirectX-Specs/d3d/IndirectDrawing.html#indirect-argument-buffer-structures
+	D3D12_DISPATCH_RAYS_DESC desc;
+	into_d3d::dispatchRaysDesc(inDesc, desc);
+	::memcpy_s(currentWritePtr, sizeof(desc), &desc, sizeof(desc));
+	currentWritePtr += sizeof(desc);
+}
+
 void D3DIndirectCommandGenerator::writeDispatchMeshArguments(
 	uint32 threadGroupCountX,
 	uint32 threadGroupCountY,

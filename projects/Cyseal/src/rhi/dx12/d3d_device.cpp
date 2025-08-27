@@ -667,6 +667,25 @@ CommandSignature* D3DDevice::createCommandSignature(const CommandSignatureDesc& 
 	return cmdSig;
 }
 
+CommandSignature* D3DDevice::createCommandSignature(const CommandSignatureDesc& inDesc, RaytracingPipelineStateObject* inPipelineState)
+{
+	D3DRaytracingPipelineStateObject* d3dPipelineState = static_cast<D3DRaytracingPipelineStateObject*>(inPipelineState);
+
+	into_d3d::TempAlloc tempAlloc;
+	D3D12_COMMAND_SIGNATURE_DESC d3dDesc;
+	into_d3d::commandSignature(inDesc, d3dDesc, d3dPipelineState, tempAlloc);
+
+	// #todo-dxr: Local root signature w.r.t. command signature?
+	// https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html#createcommandsignature
+	// Spec does not clarify whether 'rootSignature' should be a global root signature,
+	// but using local root signature for indirect commands logically makes no sense... right?
+	ID3D12RootSignature* rootSig = (d3dPipelineState != nullptr) ? d3dPipelineState->getGlobalRootSignature() : nullptr;
+
+	D3DCommandSignature* cmdSig = new D3DCommandSignature;
+	cmdSig->initialize(device.Get(), d3dDesc, rootSig);
+	return cmdSig;
+}
+
 IndirectCommandGenerator* D3DDevice::createIndirectCommandGenerator(const CommandSignatureDesc& sigDesc, uint32 maxCommandCount)
 {
 	D3DIndirectCommandGenerator* gen = new D3DIndirectCommandGenerator;

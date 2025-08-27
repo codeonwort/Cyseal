@@ -1,57 +1,5 @@
 #include "common.hlsl"
-
-// ------------------------------------------------------------------------
-// Indirect draw definitions
-// https://learn.microsoft.com/en-us/windows/win32/direct3d12/indirect-drawing
-
-#define D3D12_GPU_VIRTUAL_ADDRESS uint2
-#define DXGI_FORMAT               uint
-#define UINT                      uint
-#define INT                       int
-
-struct D3D12_DRAW_ARGUMENTS
-{
-	UINT VertexCountPerInstance;
-	UINT InstanceCount;
-	UINT StartVertexLocation;
-	UINT StartInstanceLocation;
-};
-
-struct D3D12_DRAW_INDEXED_ARGUMENTS
-{
-	UINT IndexCountPerInstance;
-	UINT InstanceCount;
-	UINT StartIndexLocation;
-	INT  BaseVertexLocation;
-	UINT StartInstanceLocation;
-};
-
-struct D3D12_DISPATCH_ARGUMENTS
-{
-	UINT ThreadGroupCountX;
-	UINT ThreadGroupCountY;
-	UINT ThreadGroupCountZ;
-};
-
-struct D3D12_VERTEX_BUFFER_VIEW
-{
-	D3D12_GPU_VIRTUAL_ADDRESS BufferLocation;
-	UINT                      SizeInBytes;
-	UINT                      StrideInBytes;
-};
-
-struct D3D12_INDEX_BUFFER_VIEW
-{
-	D3D12_GPU_VIRTUAL_ADDRESS BufferLocation;
-	UINT                      SizeInBytes;
-	DXGI_FORMAT               Format;
-};
-
-struct D3D12_CONSTANT_BUFFER_VIEW_DESC
-{
-	D3D12_GPU_VIRTUAL_ADDRESS BufferLocation;
-	UINT                      SizeInBytes;
-};
+#include "indirect_arguments.hlsl"
 
 // ------------------------------------------------------------------------
 // Resource bindings
