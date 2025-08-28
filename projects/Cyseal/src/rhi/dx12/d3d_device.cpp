@@ -75,7 +75,7 @@ static void reportD3DLiveObjects()
 
 static uint32 computeNumFramesInFlight(D3DDevice* device)
 {
-	if (device->getCreateParams().bHeadless)
+	if (device->getCreateParams().swapChainParams.bHeadless)
 	{
 		return 1;
 	}
@@ -247,14 +247,15 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	rawCommandQueue = static_cast<D3DRenderCommandQueue*>(commandQueue)->getRaw();
 
 	// 5. Create swap chain.
-	if (createParams.bHeadless == false)
+	const SwapChainCreateParams& swapChainParams = createParams.swapChainParams;
+	if (swapChainParams.bHeadless == false)
 	{
 		swapChain = (d3dSwapChain = new D3DSwapChain);
 		swapChain->initialize(
 			this,
-			createParams.nativeWindowHandle,
-			createParams.windowWidth,
-			createParams.windowHeight);
+			swapChainParams.nativeWindowHandle,
+			swapChainParams.windowWidth,
+			swapChainParams.windowHeight);
 	}
 
 	// 6. Create command allocators and command list.
@@ -285,7 +286,7 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 void D3DDevice::onDestroy()
 {
-	if (createParams.bHeadless == false)
+	if (createParams.swapChainParams.bHeadless == false)
 	{
 		delete swapChain;
 	}

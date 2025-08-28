@@ -55,16 +55,23 @@ DEFINE_LOG_CATEGORY_STATIC(LogApplication);
 
 bool TestApplication::onInitialize()
 {
-	CysealEngineCreateParams engineInit;
-	engineInit.renderDevice.rawAPI             = RAW_API;
-	engineInit.renderDevice.nativeWindowHandle = getHWND();
-	engineInit.renderDevice.windowType         = WINDOW_TYPE;
-	engineInit.renderDevice.windowWidth        = getWindowWidth();
-	engineInit.renderDevice.windowHeight       = getWindowHeight();
-	engineInit.renderDevice.raytracingTier     = RAYTRACING_TIER;
-	engineInit.renderDevice.bDoubleBuffering   = DOUBLE_BUFFERING;
-	engineInit.rendererType                    = RENDERER_TYPE;
+	SwapChainCreateParams swapChainParams{
+		.bHeadless          = false,
+		.nativeWindowHandle = getHWND(),
+		.windowType         = WINDOW_TYPE,
+		.windowWidth        = getWindowWidth(),
+		.windowHeight       = getWindowHeight(),
+	};
 
+	CysealEngineCreateParams engineInit{
+		.renderDevice = RenderDeviceCreateParams{
+			.swapChainParams  = swapChainParams,
+			.rawAPI           = RAW_API,
+			.raytracingTier   = RAYTRACING_TIER,
+			.bDoubleBuffering = DOUBLE_BUFFERING,
+		},
+		.rendererType = RENDERER_TYPE,
+	};
 	cysealEngine.startup(engineInit);
 
 	// May overwritten by world.

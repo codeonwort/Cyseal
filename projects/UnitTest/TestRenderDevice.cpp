@@ -98,8 +98,7 @@ namespace UnitTest
 		RenderDevice* createRenderDevice()
 		{
 			RenderDeviceCreateParams createParams{
-				.nativeWindowHandle  = NULL,
-				.bHeadless           = true,
+				.swapChainParams     = SwapChainCreateParams::noSwapChain(),
 				.rawAPI              = graphicsAPI,
 				.raytracingTier      = ERaytracingTier::MaxTier,
 				.vrsTier             = EVariableShadingRateTier::MaxTier,
@@ -107,9 +106,6 @@ namespace UnitTest
 				.samplerFeedbackTier = ESamplerFeedbackTier::MaxTier,
 				.enableDebugLayer    = true,
 				.bDoubleBuffering    = false,
-				.windowType          = EWindowType::WINDOWED,
-				.windowWidth         = 1920,
-				.windowHeight        = 1080,
 			};
 
 			RenderDevice* device = nullptr;

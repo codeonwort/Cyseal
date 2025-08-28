@@ -111,7 +111,7 @@ static bool checkVkDebugMarkerSupport(VkPhysicalDevice physDevice)
 
 static uint32 computeNumFramesInFlight(VulkanDevice* device)
 {
-	if (device->getCreateParams().bHeadless)
+	if (device->getCreateParams().swapChainParams.bHeadless)
 	{
 		return 1;
 	}
@@ -218,14 +218,14 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 #if PLATFORM_WINDOWS
 	CYLOG(LogVulkan, Log, TEXT("> Create KHR surface"));
-	if (createParams.bHeadless)
+	if (createParams.swapChainParams.bHeadless)
 	{
 		vkSurface = VK_NULL_HANDLE;
 		CYLOG(LogVulkan, Log, TEXT("Skip - headless device"));
 	}
 	else
 	{
-		vkSurface = ::createVkSurfaceKHR_win32(vkInstance, createParams.nativeWindowHandle);
+		vkSurface = ::createVkSurfaceKHR_win32(vkInstance, createParams.swapChainParams.nativeWindowHandle);
 	}
 #else
 	#error Not implemented yet
@@ -241,7 +241,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		vkEnumeratePhysicalDevices(vkInstance, &deviceCount, devices.data());
 		for (const VkPhysicalDevice& physDevice : devices)
 		{
-			if (isDeviceSuitable(physDevice, createParams.bHeadless))
+			if (isDeviceSuitable(physDevice, createParams.swapChainParams.bHeadless))
 			{
 				vkPhysicalDevice = physDevice;
 				break;
@@ -345,7 +345,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	}
 
 	// Determine swapchain image count first.
-	if (createParams.bHeadless == false)
+	if (createParams.swapChainParams.bHeadless == false)
 	{
 		swapChain = new VulkanSwapchain;
 		static_cast<VulkanSwapchain*>(swapChain)->preinitialize(this);
@@ -366,13 +366,13 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		}
 	}
 
-	if (createParams.bHeadless == false)
+	if (createParams.swapChainParams.bHeadless == false)
 	{
 		swapChain->initialize(
 			this,
-			createParams.nativeWindowHandle,
-			createParams.windowWidth,
-			createParams.windowHeight);
+			createParams.swapChainParams.nativeWindowHandle,
+			createParams.swapChainParams.windowWidth,
+			createParams.swapChainParams.windowHeight);
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create semaphores for rendering"));
@@ -413,7 +413,7 @@ void VulkanDevice::initializeDearImgui()
 	
 	RenderDevice::initializeDearImgui();
 
-	if (createParams.bHeadless)
+	if (createParams.swapChainParams.bHeadless)
 	{
 		return;
 	}
@@ -450,7 +450,7 @@ void VulkanDevice::initializeDearImgui()
 
 void VulkanDevice::beginDearImguiNewFrame()
 {
-	if (createParams.bHeadless)
+	if (createParams.swapChainParams.bHeadless)
 	{
 		return;
 	}
@@ -460,7 +460,7 @@ void VulkanDevice::beginDearImguiNewFrame()
 
 void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 {
-	if (createParams.bHeadless)
+	if (createParams.swapChainParams.bHeadless)
 	{
 		return;
 	}
@@ -488,7 +488,7 @@ void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 
 void VulkanDevice::shutdownDearImgui()
 {
-	if (createParams.bHeadless)
+	if (createParams.swapChainParams.bHeadless)
 	{
 		return;
 	}

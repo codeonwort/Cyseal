@@ -72,7 +72,7 @@ void CysealEngine::startup(const CysealEngineCreateParams& inCreateParams)
 	CYLOG(LogEngine, Log, TEXT("Renderer has been initialized."));
 
 	// Dear IMGUI
-	createDearImgui(createParams.renderDevice.nativeWindowHandle);
+	createDearImgui(createParams.renderDevice.swapChainParams.nativeWindowHandle);
 	renderDevice->initializeDearImgui();
 
 	CYLOG(LogEngine, Log, TEXT("Dear IMGUI has been initialized."));
@@ -163,7 +163,7 @@ void CysealEngine::renderScene(SceneProxy* sceneProxy, Camera* camera, const Ren
 
 void CysealEngine::setRenderResolution(uint32 newWidth, uint32 newHeight)
 {
-	void* hwnd = createParams.renderDevice.nativeWindowHandle;
+	void* hwnd = createParams.renderDevice.swapChainParams.nativeWindowHandle;
 	renderDevice->recreateSwapChain(hwnd, newWidth, newHeight);
 	renderer->recreateSceneTextures(newWidth, newHeight);
 }

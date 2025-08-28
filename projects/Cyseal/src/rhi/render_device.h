@@ -26,10 +26,24 @@ enum class EWindowType
 	WINDOWED
 };
 
+struct SwapChainCreateParams
+{
+	bool                     bHeadless          = false; // If true, swap chain won't be created.
+	void*                    nativeWindowHandle = nullptr;
+	EWindowType              windowType         = EWindowType::WINDOWED;
+	uint32                   windowWidth        = 1920;
+	uint32                   windowHeight       = 1080;
+
+	static SwapChainCreateParams noSwapChain()
+	{
+		return SwapChainCreateParams{ .bHeadless = true, };
+	}
+};
+
 struct RenderDeviceCreateParams
 {
-	void*                    nativeWindowHandle  = nullptr;
-	bool                     bHeadless           = false; // Don't create swap chain.
+	SwapChainCreateParams    swapChainParams     = SwapChainCreateParams::noSwapChain();
+
 	ERenderDeviceRawAPI      rawAPI;
 
 	// Required capability tiers
@@ -44,12 +58,6 @@ struct RenderDeviceCreateParams
 	// true  : Render for current swapchain, record for next swapchain.
 	// false : Record for current swapchain, render for current swapchain.
 	bool                     bDoubleBuffering    = true;
-
-	// #todo-renderdevice: These are not renderdevice params. Move to somewhere.
-	// or leave here as initial values.
-	EWindowType              windowType          = EWindowType::WINDOWED;
-	uint32                   windowWidth         = 1920;
-	uint32                   windowHeight        = 1080;
 };
 
 // ID3D12Device

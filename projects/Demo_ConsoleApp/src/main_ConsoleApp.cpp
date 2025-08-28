@@ -12,8 +12,7 @@ protected:
     virtual void onExecute() override
     {
         RenderDeviceCreateParams createParams{
-			.nativeWindowHandle  = NULL,
-			.bHeadless           = true,
+			.swapChainParams     = SwapChainCreateParams::noSwapChain(),
 			.rawAPI              = ERenderDeviceRawAPI::DirectX12,
 			.raytracingTier      = ERaytracingTier::MaxTier,
 			.vrsTier             = EVariableShadingRateTier::MaxTier,
@@ -21,9 +20,6 @@ protected:
 			.samplerFeedbackTier = ESamplerFeedbackTier::MaxTier,
 			.enableDebugLayer    = true,
 			.bDoubleBuffering    = false,
-			.windowType          = EWindowType::WINDOWED,
-			.windowWidth         = 1920,
-			.windowHeight        = 1080,
 		};
 
 		RenderDevice* renderDevice = new D3DDevice;

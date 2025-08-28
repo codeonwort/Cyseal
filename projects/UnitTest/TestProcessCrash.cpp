@@ -33,15 +33,22 @@ public:
 protected:
 	virtual bool onInitialize() override
 	{
-		CysealEngineCreateParams engineInit;
-		engineInit.renderDevice.rawAPI = ERenderDeviceRawAPI::DirectX12;
-		engineInit.renderDevice.nativeWindowHandle = getHWND();
-		engineInit.renderDevice.windowType = EWindowType::WINDOWED;
-		engineInit.renderDevice.windowWidth = WINDOW_WIDTH;
-		engineInit.renderDevice.windowHeight = WINDOW_HEIGHT;
-		engineInit.renderDevice.raytracingTier = ERaytracingTier::MaxTier;
-		engineInit.renderDevice.bDoubleBuffering = true;
-		engineInit.rendererType = RENDERER_TYPE;
+		SwapChainCreateParams swapChainParams{
+			.bHeadless          = false,
+			.nativeWindowHandle = getHWND(),
+			.windowType         = EWindowType::WINDOWED,
+			.windowWidth        = WINDOW_WIDTH,
+			.windowHeight       = WINDOW_HEIGHT,
+		};
+		CysealEngineCreateParams engineInit{
+			.renderDevice = RenderDeviceCreateParams{
+				.swapChainParams  = swapChainParams,
+				.rawAPI           = ERenderDeviceRawAPI::DirectX12,
+				.raytracingTier   = ERaytracingTier::MaxTier,
+				.bDoubleBuffering = true,
+			},
+			.rendererType = RENDERER_TYPE,
+		};
 
 		cysealEngine->startup(engineInit);
 
