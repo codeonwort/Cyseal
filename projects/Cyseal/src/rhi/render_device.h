@@ -219,6 +219,7 @@ protected:
 	EVariableShadingRateTier vrsTier = EVariableShadingRateTier::NotSupported;
 	EMeshShaderTier meshShaderTier = EMeshShaderTier::NotSupported;
 	ESamplerFeedbackTier samplerFeedbackTier = ESamplerFeedbackTier::NotSupported;
+	bool bSupportsEnhancedBarrier = false;
 };
 
 extern RenderDevice* gRenderDevice;

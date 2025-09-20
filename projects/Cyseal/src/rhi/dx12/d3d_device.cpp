@@ -170,9 +170,11 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 caps5 = {}; // DXR
 		D3D12_FEATURE_DATA_D3D12_OPTIONS6 caps6 = {}; // VRS
 		D3D12_FEATURE_DATA_D3D12_OPTIONS7 caps7 = {}; // Mesh shader, sampler feedback
+		D3D12_FEATURE_DATA_D3D12_OPTIONS12 caps12 = {}; // Enhanced barrier, relaxed format casting
 		HR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &caps5, sizeof(caps5)));
 		HR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, &caps6, sizeof(caps6)));
 		HR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &caps7, sizeof(caps7)));
+		HR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &caps12, sizeof(caps12)));
 
 		switch (caps5.RaytracingTier)
 		{
@@ -213,6 +215,9 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		vrsTier = static_cast<EVariableShadingRateTier>((std::min)((uint8)createParams.vrsTier, (uint8)vrsTier));
 		meshShaderTier = static_cast<EMeshShaderTier>((std::min)((uint8)createParams.meshShaderTier, (uint8)meshShaderTier));
 		samplerFeedbackTier = static_cast<ESamplerFeedbackTier>((std::min)((uint8)createParams.samplerFeedbackTier, (uint8)samplerFeedbackTier));
+
+		bSupportsEnhancedBarrier = (bool)caps12.EnhancedBarriersSupported;
+		CYLOG(LogDirectX, Log, L"Cap: EnhancedBarrier supported=%S", bSupportsEnhancedBarrier ? "TRUE" : "FALSE");
 	}
 
 	// 2. Create a ID3D12Fence and retrieve sizes of descriptors.
