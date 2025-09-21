@@ -179,6 +179,7 @@ public:
 	inline EVariableShadingRateTier getVRSTier() const { return vrsTier; }
 	inline EMeshShaderTier getMeshShaderTier() const { return meshShaderTier; }
 	inline ESamplerFeedbackTier getSamplerFeedbackTier() const { return samplerFeedbackTier; }
+	inline bool supportsEnhancedBarrier() const { return bSupportsEnhancedBarrier; }
 
 	inline DenoiserDevice* getDenoiserDevice() { return denoiserDevice; }
 
