@@ -207,6 +207,7 @@ void D3DRenderCommandList::barrier(
 		group.Type = D3D12_BARRIER_TYPE_BUFFER;
 		group.NumBarriers = numBufferBarriers;
 		group.pBufferBarriers = d3dBufferBarriers.data();
+		groups.emplace_back(group);
 	}
 	if (numTextureBarriers > 0)
 	{
@@ -218,6 +219,7 @@ void D3DRenderCommandList::barrier(
 		group.Type = D3D12_BARRIER_TYPE_TEXTURE;
 		group.NumBarriers = numTextureBarriers;
 		group.pTextureBarriers = d3dTextureBarriers.data();
+		groups.emplace_back(group);
 	}
 	if (numGlobalBarriers > 0)
 	{
@@ -229,6 +231,7 @@ void D3DRenderCommandList::barrier(
 		group.Type = D3D12_BARRIER_TYPE_GLOBAL;
 		group.NumBarriers = numGlobalBarriers;
 		group.pGlobalBarriers = d3dGlobalBarriers.data();
+		groups.emplace_back(group);
 	}
 
 	commandList->Barrier((uint32)groups.size(), groups.data());
