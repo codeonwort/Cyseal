@@ -133,16 +133,16 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="TestBxDF.cpp" />
-    <ClCompile Include="TestCamera.cpp" />
-    <ClCompile Include="TestFreeNumberList.cpp" />
-    <ClCompile Include="TestImageLoader.cpp" />
-    <ClCompile Include="TestPBRTParser.cpp" />
-    <ClCompile Include="TestProcessCrash.cpp" />
-    <ClCompile Include="TestRenderDevice.cpp" />
-    <ClCompile Include="TestSTBN.cpp" />
-    <ClCompile Include="TestSTL.cpp" />
-    <ClCompile Include="TestVector.cpp" />
+    <ClCompile Include="src\TestBxDF.cpp" />
+    <ClCompile Include="src\TestCamera.cpp" />
+    <ClCompile Include="src\TestFreeNumberList.cpp" />
+    <ClCompile Include="src\TestImageLoader.cpp" />
+    <ClCompile Include="src\TestPBRTParser.cpp" />
+    <ClCompile Include="src\TestProcessCrash.cpp" />
+    <ClCompile Include="src\TestRenderDevice.cpp" />
+    <ClCompile Include="src\TestSTBN.cpp" />
+    <ClCompile Include="src\TestSTL.cpp" />
+    <ClCompile Include="src\TestVector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
