@@ -78,6 +78,10 @@ namespace UnitTest
 			writePassDescriptor.initialize(renderDevice, L"WriteBufferPass", 1, 0);
 			writePassDescriptor.resizeDescriptorHeap(0, 1 * 2);
 
+			VolatileDescriptorHelper readPassDescriptor;
+			readPassDescriptor.initialize(renderDevice, L"ReadBufferPass", 1, 0);
+			readPassDescriptor.resizeDescriptorHeap(0, 3);
+
 			// 2. Validation
 			auto commandAllocator = renderDevice->getCommandAllocator(0);
 			auto commandList = renderDevice->getCommandList(0);
@@ -139,8 +143,28 @@ namespace UnitTest
 						.accessAfter = EBarrierAccess::SHADER_RESOURCE,
 						.buffer = buffer2,
 					},
+					{
+						.syncBefore = EBarrierSync::NONE,
+						.syncAfter = EBarrierSync::COMPUTE_SHADING,
+						.accessBefore = EBarrierAccess::NO_ACCESS,
+						.accessAfter = EBarrierAccess::UNORDERED_ACCESS,
+						.buffer = buffer3,
+					},
 				};
 				commandList->barrier(_countof(barriers), barriers, 0, nullptr, 0, nullptr);
+			}
+			// Read pass
+			{
+				auto heap = readPassDescriptor.getDescriptorHeap(0);
+
+				ShaderParameterTable SPT{};
+				SPT.structuredBuffer("bufferA", buffer1SRV);
+				SPT.structuredBuffer("bufferB", buffer2SRV);
+				SPT.rwBuffer("rwBuffer", buffer3UAV);
+
+				commandList->setComputePipelineState(shaders.bufferReadShader.get());
+				commandList->bindComputeShaderParameters(shaders.bufferReadShader.get(), &SPT, heap);
+				commandList->dispatchCompute(1024, 1, 1);
 			}
 
 			commandList->close();
