@@ -193,7 +193,45 @@ void D3DRenderCommandList::barrier(
 	uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
 	uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers)
 {
-	// #wip
+	std::vector<D3D12_BARRIER_GROUP> groups;
+	std::vector<D3D12_BUFFER_BARRIER> d3dBufferBarriers(numBufferBarriers);
+	std::vector<D3D12_TEXTURE_BARRIER> d3dTextureBarriers(numTextureBarriers);
+	std::vector<D3D12_GLOBAL_BARRIER> d3dGlobalBarriers(numGlobalBarriers);
+	if (numBufferBarriers > 0)
+	{
+		for (size_t i = 0; i < numBufferBarriers; ++i)
+		{
+			d3dBufferBarriers[i] = into_d3d::bufferBarrier(bufferBarriers[i]);
+		}
+		D3D12_BARRIER_GROUP group;
+		group.Type = D3D12_BARRIER_TYPE_BUFFER;
+		group.NumBarriers = numBufferBarriers;
+		group.pBufferBarriers = d3dBufferBarriers.data();
+	}
+	if (numTextureBarriers > 0)
+	{
+		for (size_t i = 0; i < numTextureBarriers; ++i)
+		{
+			d3dTextureBarriers[i] = into_d3d::textureBarrier(textureBarriers[i]);
+		}
+		D3D12_BARRIER_GROUP group;
+		group.Type = D3D12_BARRIER_TYPE_TEXTURE;
+		group.NumBarriers = numTextureBarriers;
+		group.pTextureBarriers = d3dTextureBarriers.data();
+	}
+	if (numGlobalBarriers > 0)
+	{
+		for (size_t i = 0; i < numGlobalBarriers; ++i)
+		{
+			d3dGlobalBarriers[i] = into_d3d::globalBarrier(globalBarriers[i]);
+		}
+		D3D12_BARRIER_GROUP group;
+		group.Type = D3D12_BARRIER_TYPE_GLOBAL;
+		group.NumBarriers = numGlobalBarriers;
+		group.pGlobalBarriers = d3dGlobalBarriers.data();
+	}
+
+	commandList->Barrier((uint32)groups.size(), groups.data());
 }
 
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)

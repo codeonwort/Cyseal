@@ -97,6 +97,80 @@ namespace into_d3d
 		return d3dBarrier;
 	}
 
+	D3D12_BARRIER_SYNC barrierSync(EBarrierSync sync)
+	{
+		return (D3D12_BARRIER_SYNC)sync;
+	}
+
+	D3D12_BARRIER_ACCESS barrierAccess(EBarrierAccess access)
+	{
+		return (D3D12_BARRIER_ACCESS)access;
+	}
+
+	D3D12_BARRIER_LAYOUT barrierLayout(EBarrierLayout layout)
+	{
+		return (D3D12_BARRIER_LAYOUT)layout;
+	}
+
+	D3D12_BARRIER_SUBRESOURCE_RANGE barrierSubresourceRange(const BarrierSubresourceRange& range)
+	{
+		D3D12_BARRIER_SUBRESOURCE_RANGE d3dRange{
+			.IndexOrFirstMipLevel = range.indexOrFirstMipLevel,
+			.NumMipLevels         = range.numMipLevels,
+			.FirstArraySlice      = range.firstArraySlice,
+			.NumArraySlices       = range.numArraySlices,
+			.FirstPlane           = range.firstPlane,
+			.NumPlanes            = range.numPlanes,
+		};
+		return d3dRange;
+	}
+
+	D3D12_TEXTURE_BARRIER_FLAGS textureBarrierFlags(ETextureBarrierFlags flags)
+	{
+		return (D3D12_TEXTURE_BARRIER_FLAGS)flags;
+	}
+
+	D3D12_BUFFER_BARRIER bufferBarrier(const BufferBarrier& barrier)
+	{
+		D3D12_BUFFER_BARRIER d3dBarrier{
+			.SyncBefore   = into_d3d::barrierSync(barrier.syncBefore),
+			.SyncAfter    = into_d3d::barrierSync(barrier.syncAfter),
+			.AccessBefore = into_d3d::barrierAccess(barrier.accessBefore),
+			.AccessAfter  = into_d3d::barrierAccess(barrier.accessAfter),
+			.pResource    = into_d3d::id3d12Resource(barrier.buffer),
+			.Offset       = 0,
+			.Size         = UINT64_MAX,
+		};
+		return d3dBarrier;
+	}
+
+	D3D12_TEXTURE_BARRIER textureBarrier(const TextureBarrier& barrier)
+	{
+		D3D12_TEXTURE_BARRIER d3dBarrier{
+			.SyncBefore   = into_d3d::barrierSync(barrier.syncBefore),
+			.SyncAfter    = into_d3d::barrierSync(barrier.syncAfter),
+			.AccessBefore = into_d3d::barrierAccess(barrier.accessBefore),
+			.AccessAfter  = into_d3d::barrierAccess(barrier.accessAfter),
+			.LayoutBefore = into_d3d::barrierLayout(barrier.layoutBefore),
+			.LayoutAfter  = into_d3d::barrierLayout(barrier.layoutAfter),
+			.pResource    = into_d3d::id3d12Resource(barrier.texture),
+			.Subresources = into_d3d::barrierSubresourceRange(barrier.subresources),
+			.Flags        = into_d3d::textureBarrierFlags(barrier.flags),
+		};
+		return d3dBarrier;
+	}
+
+	D3D12_GLOBAL_BARRIER globalBarrier(const GlobalBarrier& barrier)
+	{
+		D3D12_GLOBAL_BARRIER d3dBarrier{
+			.SyncBefore   = into_d3d::barrierSync(barrier.syncBefore),
+			.SyncAfter    = into_d3d::barrierSync(barrier.syncAfter),
+			.AccessBefore = into_d3d::barrierAccess(barrier.accessBefore),
+			.AccessAfter  = into_d3d::barrierAccess(barrier.accessAfter),
+		};
+		return d3dBarrier;
+	}
+
 	void raytracingGeometryDesc(const RaytracingGeometryDesc& inDesc, D3D12_RAYTRACING_GEOMETRY_DESC& outDesc)
 	{
 		outDesc.Type = raytracingGeometryType(inDesc.type);

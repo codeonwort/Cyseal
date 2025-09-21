@@ -403,6 +403,16 @@ namespace into_d3d
 	D3D12_RESOURCE_BARRIER resourceBarrier(const BufferMemoryBarrier& barrier);
 	D3D12_RESOURCE_BARRIER resourceBarrier(const TextureMemoryBarrier& barrier);
 
+	// Enhanced barrier
+	D3D12_BARRIER_SYNC barrierSync(EBarrierSync sync);
+	D3D12_BARRIER_ACCESS barrierAccess(EBarrierAccess access);
+	D3D12_BARRIER_LAYOUT barrierLayout(EBarrierLayout layout);
+	D3D12_BARRIER_SUBRESOURCE_RANGE barrierSubresourceRange(const BarrierSubresourceRange& range);
+	D3D12_TEXTURE_BARRIER_FLAGS textureBarrierFlags(ETextureBarrierFlags flags);
+	D3D12_BUFFER_BARRIER bufferBarrier(const BufferBarrier& barrier);
+	D3D12_TEXTURE_BARRIER textureBarrier(const TextureBarrier& barrier);
+	D3D12_GLOBAL_BARRIER globalBarrier(const GlobalBarrier& barrier);
+
 	inline D3D12_RAYTRACING_GEOMETRY_TYPE raytracingGeometryType(ERaytracingGeometryType inType)
 	{
 		switch (inType)

@@ -76,7 +76,6 @@ public:
 		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
 		uint32 numUAVBarriers = 0, GPUResource* const* uavBarrierResources = nullptr) = 0;
 
-	// #wip: barrier()
 	virtual void barrier(
 		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
 		uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
