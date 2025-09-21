@@ -380,7 +380,7 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
 	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
-	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	auto setRootDescriptorTables = [d3dPipelineState, device = device, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
 	{
 		for (const auto& inParam : parameters)
 		{
@@ -472,7 +472,7 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	commandList->SetComputeRootSignature(d3dRootSig);
 	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
-	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	auto setRootDescriptorTables = [d3dPipelineState, device = device, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
 	{
 		for (const auto& inParam : parameters)
 		{
@@ -654,7 +654,7 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 	commandList->SetComputeRootSignature(globalRootSig);
 	commandList->SetDescriptorHeaps(numValidHeaps, d3dDescriptorHeaps);
 
-	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]
+	auto setRootDescriptorTables = [d3dPipelineState, device = device, &calcDescriptorHandle, descriptorHeap]
 		<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
 	{
 		for (const auto& inParam : parameters)

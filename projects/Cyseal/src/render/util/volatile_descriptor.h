@@ -13,7 +13,11 @@
 class VolatileDescriptorHelper
 {
 public:
-	// If uniformTotalSize is zero, uniform buffer resources are not created.
+	// If uniformTotalSize is zero, then uniform buffer resources are not created.
+	void initialize(RenderDevice* inRenderDevice, const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize);
+
+	// If uniformTotalSize is zero, then uniform buffer resources are not created.
+	// It uses gRenderDevice and does not take RenderDevice parameter.
 	void initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize);
 	
 	void resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors);
@@ -27,6 +31,7 @@ public:
 	}
 
 private:
+	RenderDevice* renderDevice = nullptr;
 	std::wstring passName;
 	
 	std::vector<uint32> totalDescriptor; // size = swapchain count

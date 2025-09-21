@@ -5,8 +5,9 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogRHI)
 
-void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize)
+void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize)
 {
+	renderDevice = inRenderDevice;
 	passName = inPassName;
 	totalDescriptor.resize(swapchainCount, 0);
 	descriptorHeap.initialize(swapchainCount);
@@ -16,7 +17,7 @@ void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swap
 	{
 		CHECK(uniformTotalSize * swapchainCount <= UNIFORM_MEMORY_POOL_SIZE);
 
-		uniformMemory = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+		uniformMemory = UniquePtr<Buffer>(renderDevice->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = UNIFORM_MEMORY_POOL_SIZE,
 				.alignment   = 0,
@@ -24,7 +25,7 @@ void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swap
 			}
 		));
 
-		uniformDescriptorHeap = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		uniformDescriptorHeap = UniquePtr<DescriptorHeap>(renderDevice->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::CBV,
 				.numDescriptors = swapchainCount,
@@ -38,16 +39,22 @@ void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swap
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
 			uniformCBVs[i] = UniquePtr<ConstantBufferView>(
-				gRenderDevice->createCBV(
+				renderDevice->createCBV(
 					uniformMemory.get(),
 					uniformDescriptorHeap.get(),
 					uniformTotalSize,
 					bufferOffset));
 
-			uint32 alignment = gRenderDevice->getConstantBufferDataAlignment();
+			uint32 alignment = renderDevice->getConstantBufferDataAlignment();
 			bufferOffset += Cymath::alignBytes(uniformTotalSize, alignment);
 		}
 	}
+}
+
+void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize)
+{
+	CHECK(gRenderDevice != nullptr);
+	initialize(gRenderDevice, inPassName, swapchainCount, uniformTotalSize);
 }
 
 void VolatileDescriptorHelper::resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors)
@@ -58,7 +65,7 @@ void VolatileDescriptorHelper::resizeDescriptorHeap(uint32 swapchainIndex, uint3
 	}
 	totalDescriptor[swapchainIndex] = maxDescriptors;
 
-	descriptorHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+	descriptorHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(renderDevice->createDescriptorHeap(
 		DescriptorHeapDesc{
 			.type           = EDescriptorHeapType::CBV_SRV_UAV,
 			.numDescriptors = maxDescriptors,
