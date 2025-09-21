@@ -188,6 +188,14 @@ void D3DRenderCommandList::resourceBarriers(
 	}
 }
 
+void D3DRenderCommandList::barrier(
+	uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
+	uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
+	uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers)
+{
+	// #wip
+}
+
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
 {
 	auto d3dRTV = static_cast<D3DRenderTargetView*>(RTV);

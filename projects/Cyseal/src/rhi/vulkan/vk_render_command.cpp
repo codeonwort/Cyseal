@@ -165,6 +165,14 @@ void VulkanRenderCommandList::resourceBarriers(
 		(uint32)vkImageMemoryBarriers.size(), vkImageMemoryBarriers.data());
 }
 
+void VulkanRenderCommandList::barrier(
+	uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
+	uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
+	uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers)
+{
+	// #wip
+}
+
 void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
 {
 	// #todo-vulkan
