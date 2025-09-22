@@ -318,6 +318,11 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		vkGetDeviceQueue(vkDevice, indices.presentFamily, 0, &vkPresentQueue);
 	}
 
+	// Check capabilities.
+	{
+		bSupportsEnhancedBarrier = true; // vkCmdPipelineBarrier2()
+	}
+
 	// Get debug marker functions.
 	{
 		if (canEnableDebugMarker)
