@@ -1,6 +1,20 @@
 #pragma once
 
-// https://microsoft.github.io/DirectX-Specs/d3d/D3D12EnhancedBarriers.html
+// References
+// - https://microsoft.github.io/DirectX-Specs/d3d/D3D12EnhancedBarriers.html
+// - Vulkanised 2021: Ensure Correct Vulkan Synchronization by Using Synchronization Validation
+// - https://gpuopen.com/learn/vulkan-barriers-explained/
+// - https://docs.vulkan.org/samples/latest/samples/performance/pipeline_barriers/README.html
+
+// Notes from [Vulkanised 2021]
+// Barrier types
+// - A memory barrier synchronizes all memory accessible by the GPU.
+// - A buffer barrier synchronizes memory access to a buffer.
+// - A image barrier synchronizes memory access to an image and allow Image Layout Transitions.
+// Image Layout Transitions
+// - Rearrange memory for efficient use by different pipeline stages.
+// - Happens between the first and second execution scopes of the barrier.
+// - Each subresource of an image can be transitioned independently.
 
 #include "core/int_types.h"
 
@@ -109,7 +123,7 @@ enum class EBarrierAccess : uint32
 	SHADER_RESOURCE = 0x80,
 	STREAM_OUTPUT = 0x100,
 	INDIRECT_ARGUMENT = 0x200,
-	PREDICATION = 0x200,
+	//PREDICATION = 0x200, // #todo-barrier: Conditional rendering
 	COPY_DEST = 0x400,
 	COPY_SOURCE = 0x800,
 	RESOLVE_DEST = 0x1000,
@@ -125,12 +139,13 @@ enum class EBarrierAccess : uint32
 	VIDEO_ENCODE_WRITE = 0x400000,
 	NO_ACCESS = 0x80000000
 };
+ENUM_CLASS_FLAGS(EBarrierAccess);
 
 // D3D12_BARRIER_LAYOUT
 enum class EBarrierLayout : uint32
 {
 	Undefined = 0xffffffff,
-	Common = 0,
+	Common = 0xfffffffe, // Only this value differs from D3D12_BARRIER_LAYOUT
 	Present = 0,
 	GenericRead = (Present + 1),
 	RenderTarget = (GenericRead + 1),

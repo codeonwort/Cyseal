@@ -170,7 +170,34 @@ void VulkanRenderCommandList::barrier(
 	uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
 	uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers)
 {
-	// #wip
+	std::vector<VkBufferMemoryBarrier2> vkBufferBarriers(numBufferBarriers);
+	std::vector<VkImageMemoryBarrier2> vkImageBarriers(numTextureBarriers);
+	std::vector<VkMemoryBarrier2> vkGlobalBarriers(numGlobalBarriers);
+	for (uint32 i = 0; i < numBufferBarriers; ++i)
+	{
+		vkBufferBarriers[i] = into_vk::bufferMemoryBarrier(bufferBarriers[i]);
+	}
+	for (uint32 i = 0; i < numTextureBarriers; ++i)
+	{
+		vkImageBarriers[i] = into_vk::imageMemoryBarrier(textureBarriers[i]);
+	}
+	for (uint32 i = 0; i < numGlobalBarriers; ++i)
+	{
+		vkGlobalBarriers[i] = into_vk::globalMemoryBarrier(globalBarriers[i]);
+	}
+
+	VkDependencyInfo dep{
+		.sType                    = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+		.pNext                    = nullptr,
+		.dependencyFlags          = (VkDependencyFlags)0,
+		.memoryBarrierCount       = numGlobalBarriers,
+		.pMemoryBarriers          = vkGlobalBarriers.data(),
+		.bufferMemoryBarrierCount = numBufferBarriers,
+		.pBufferMemoryBarriers    = vkBufferBarriers.data(),
+		.imageMemoryBarrierCount  = numTextureBarriers,
+		.pImageMemoryBarriers     = vkImageBarriers.data(),
+	};
+	vkCmdPipelineBarrier2(currentCommandBuffer, &dep);
 }
 
 void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)

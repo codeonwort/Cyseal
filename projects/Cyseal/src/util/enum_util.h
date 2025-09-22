@@ -11,3 +11,4 @@
 	inline bool     operator!= (std::underlying_type_t<EnumType> y, EnumType x) { return           (__underlying_type(EnumType))x != y;                               }
 
 #define ENUM_HAS_FLAG(EnumValue, Flag) (0 != (EnumValue & Flag))
+//#define ENUM_REMOVE_FLAG(EnumValue, Flag) decltype(EnumValue)(((__underlying_type(decltype(EnumValue)))EnumValue) & ~((__underlying_type(decltype(EnumValue)))Flag))

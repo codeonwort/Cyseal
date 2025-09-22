@@ -109,6 +109,11 @@ namespace into_d3d
 
 	D3D12_BARRIER_LAYOUT barrierLayout(EBarrierLayout layout)
 	{
+		// D3D12_BARRIER_LAYOUT uses the same value for COMMON and PRESENT...
+		if (layout == EBarrierLayout::Common)
+		{
+			return D3D12_BARRIER_LAYOUT_COMMON;
+		}
 		return (D3D12_BARRIER_LAYOUT)layout;
 	}
 
