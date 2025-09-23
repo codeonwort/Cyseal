@@ -11,6 +11,7 @@
 #include "util/string_conversion.h"
 #include "vk_into.h"
 #include <fstream>
+#include <sstream>
 
 const char* shaderTypeStrings[] = {
 	"vert",
@@ -27,8 +28,9 @@ const char* shaderTypeStrings[] = {
 	nullptr, // miss
 };
 
-VulkanShaderStage::VulkanShaderStage(EShaderStage inStageFlag, const char* inDebugName)
+VulkanShaderStage::VulkanShaderStage(VulkanDevice* inDevice, EShaderStage inStageFlag, const char* inDebugName)
 	: ShaderStage(inStageFlag, inDebugName)
+	, device(inDevice)
 {
 	vkShaderStage = into_vk::shaderStage(inStageFlag);
 }
@@ -37,7 +39,6 @@ VulkanShaderStage::~VulkanShaderStage()
 {
 	CHECK(vkModule != VK_NULL_HANDLE);
 
-	VulkanDevice* device = static_cast<VulkanDevice*>(gRenderDevice);
 	vkDestroyShaderModule(device->getRaw(), vkModule, nullptr);
 }
 
@@ -58,10 +59,24 @@ void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEn
 	const char* glslang = "%VULKAN_SDK%\\Bin\\glslangValidator.exe";
 	const char* shaderTypeStr = shaderTypeStrings[(int)stageFlag];
 	std::string spirvPath = hlslPath.substr(0, hlslPath.find(".hlsl")) + ".spv";
-	char cmd[512];
-	sprintf_s(cmd, "%s -S %s -e %s -o %s -V -D %s",
-		glslang, shaderTypeStr, inEntryPoint, spirvPath.c_str(), hlslPath.c_str());
-	std::system(cmd);
+
+	std::stringstream ss;
+	ss << glslang;
+	ss << " -S " << shaderTypeStr;
+	ss << " -e " << inEntryPoint;
+	// #wip: Maybe hold as in-memory string?
+	// This is gonna be a problem if I compile multiple shaders from a single source file.
+	ss << " -o " << spirvPath.c_str();
+	for (const std::wstring& defW : defines)
+	{
+		std::string def;
+		wstr_to_str(defW, def);
+		ss << " -D" << def;
+	}
+	ss << " -V -D " << hlslPath.c_str(); // -V: create SPIR-V binary, -D: input is HLSL.
+	
+	std::string cmd = ss.str();
+	std::system(cmd.c_str());
 #else
 	#error Not implemented yet
 #endif
@@ -77,8 +92,6 @@ void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEn
 	file.close();
 
 	//////////////////////////////////////////////////////////////////////////
-
-	VulkanDevice* device = static_cast<VulkanDevice*>(gRenderDevice);
 
 	VkShaderModuleCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;

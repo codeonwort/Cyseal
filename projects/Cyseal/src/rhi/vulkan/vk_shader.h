@@ -11,7 +11,7 @@
 class VulkanShaderStage : public ShaderStage
 {
 public:
-	VulkanShaderStage(EShaderStage inStageFlag, const char* inDebugName);
+	VulkanShaderStage(VulkanDevice* inDevice, EShaderStage inStageFlag, const char* inDebugName);
 	~VulkanShaderStage();
 
 	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint, std::initializer_list<std::wstring> defines) override;
@@ -23,6 +23,8 @@ public:
 	VkShaderStageFlagBits getVkShaderStage() const { return vkShaderStage; }
 
 private:
+	VulkanDevice* device = nullptr;
+
 	std::vector<char> sourceCode;
 	std::string aEntryPoint;
 	std::wstring wEntryPoint;

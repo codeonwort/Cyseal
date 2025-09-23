@@ -572,7 +572,7 @@ Texture* VulkanDevice::createTexture(const TextureCreateParams& createParams)
 
 ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* debugName)
 {
-	return new VulkanShaderStage(shaderStage, debugName);
+	return new VulkanShaderStage(this, shaderStage, debugName);
 }
 
 // #todo-vulkan: Root signature abstraction is deprecated
