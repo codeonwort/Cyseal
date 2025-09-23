@@ -134,6 +134,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\barrier\TestBarrier.cpp" />
+    <ClCompile Include="src\shader\TestShaderCodegen.cpp" />
     <ClCompile Include="src\TestBxDF.cpp" />
     <ClCompile Include="src\TestCamera.cpp" />
     <ClCompile Include="src\TestFreeNumberList.cpp" />

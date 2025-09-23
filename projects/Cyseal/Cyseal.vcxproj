@@ -140,6 +140,9 @@
     <ClInclude Include="src\rhi\hardware_raytracing.h" />
     <ClInclude Include="src\rhi\rhi_forward.h" />
     <ClInclude Include="src\rhi\rhi_policy.h" />
+    <ClInclude Include="src\rhi\shader_codegen.h" />
+    <ClInclude Include="src\rhi\shader_common.h" />
+    <ClInclude Include="src\rhi\shader_dxc_common.h" />
     <ClInclude Include="src\rhi\texture.h" />
     <ClInclude Include="src\rhi\vulkan\vk_buffer.h" />
     <ClInclude Include="src\rhi\vulkan\vk_descriptor.h" />
@@ -233,6 +236,8 @@
     <ClCompile Include="src\rhi\dx12\d3d_resource.cpp" />
     <ClCompile Include="src\rhi\dx12\d3d_resource_view.cpp" />
     <ClCompile Include="src\rhi\gpu_resource_view.cpp" />
+    <ClCompile Include="src\rhi\shader_codegen.cpp" />
+    <ClCompile Include="src\rhi\shader_dxc_common.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_buffer.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_render_command.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_resource_view.cpp" />
