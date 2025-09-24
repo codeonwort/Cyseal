@@ -33,6 +33,12 @@ $zip_list = @(
 		'external/dx12'
 	),
 	@(
+		'https://github.com/KhronosGroup/SPIRV-Reflect/archive/refs/tags/vulkan-sdk-1.4.321.0.zip',
+		'external',
+		'spirv-reflect-1.4.321.0.zip',
+		'external/vulkan'
+	),
+	@(
 		'https://github.com/NVIDIA-RTX/STBN/archive/refs/tags/v1.0.0.zip',
 		'external',
 		'NVidiaSTBN.zip',
