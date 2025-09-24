@@ -3,8 +3,14 @@
 // #todo-vulkan: Runtime shader recompilation, maybe using this?
 // https://github.com/KhronosGroup/SPIRV-Tools
 
+// 1 = Use dxc to convert HLSL to SPIR-V. 0 = Use glslangValidator.
+#define USE_DXC 1
+
 #if COMPILE_BACKEND_VULKAN
 
+#if USE_DXC
+	#include "rhi/shader_codegen.h"
+#endif
 #include "core/platform.h"
 #include "core/assertion.h"
 #include "util/resource_finder.h"
@@ -43,6 +49,17 @@ VulkanShaderStage::~VulkanShaderStage()
 }
 
 void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
+{
+#if USE_DXC
+	loadFromFileByDxc(inFilename, inEntryPoint, defines);
+#else
+	loadFromFileByGlslangValidator(inFilename, inEntryPoint, defines);
+#endif
+
+	// #wip-vk: Read shader reflection
+}
+
+void VulkanShaderStage::loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
 {
 	aEntryPoint = inEntryPoint;
 	str_to_wstr(inEntryPoint, wEntryPoint);
@@ -103,6 +120,32 @@ void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEn
 		&createInfo,
 		nullptr,
 		&vkModule);
+	CHECK(ret == VK_SUCCESS);
+}
+
+void VulkanShaderStage::loadFromFileByDxc(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
+{
+	aEntryPoint = inEntryPoint;
+	str_to_wstr(inEntryPoint, wEntryPoint);
+
+	std::wstring hlslPathW = ResourceFinder::get().find(inFilename);
+	CHECK(hlslPathW.size() > 0);
+	std::string hlslPath;
+	wstr_to_str(hlslPathW, hlslPath);
+
+	std::string codegen = ShaderCodegen::get().hlslToSpirv(hlslPath.c_str(), inEntryPoint, stageFlag, defines);
+	CHECK(codegen.size() > 0);
+	sourceCode.assign(codegen.begin(), codegen.end());
+
+	VkShaderModuleCreateInfo createInfo{
+		.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+		.pNext    = nullptr,
+		.flags    = (VkShaderModuleCreateFlags)0,
+		.codeSize = sourceCode.size(),
+		.pCode    = reinterpret_cast<const uint32*>(sourceCode.data()),
+	};
+
+	VkResult ret = vkCreateShaderModule(device->getRaw(), &createInfo, nullptr, &vkModule);
 	CHECK(ret == VK_SUCCESS);
 }
 

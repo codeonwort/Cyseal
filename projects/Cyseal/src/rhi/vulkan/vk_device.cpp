@@ -958,35 +958,9 @@ GraphicsPipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsP
 
 ComputePipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
 {
-	// WIP: Compute PSO
-	VulkanShaderStage* shaderWrapper = static_cast<VulkanShaderStage*>(inDesc.cs);
-	CHECK(shaderWrapper != nullptr);
-
-	VkPipelineShaderStageCreateInfo shaderStageCreateInfo{
-		.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-		.pNext               = nullptr,
-		.flags               = (VkPipelineShaderStageCreateFlagBits)0,
-		.stage               = shaderWrapper->getVkShaderStage(),
-		.module              = shaderWrapper->getVkShaderModule(),
-		.pName               = shaderWrapper->getEntryPointA(),
-		.pSpecializationInfo = nullptr, // WIP: VkSpecializationInfo
-	};
-
-	VkComputePipelineCreateInfo pipelineCreateInfo{
-		.sType              = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-		.pNext              = nullptr,
-		.flags              = (VkPipelineCreateFlagBits)0, // WIP: VkPipelineCreateFlagBits
-		.stage              = shaderStageCreateInfo,
-		.layout             = VK_NULL_HANDLE, // WIP: VulkanPipelineLayout //static_cast<VulkanPipelineLayout*>(inDesc.rootSignature)->getVkPipelineLayout(),
-		.basePipelineHandle = VK_NULL_HANDLE, // WIP: basePipelineHandle
-		.basePipelineIndex  = 0,
-	};
-
-	VkPipeline vkPipeline = VK_NULL_HANDLE;
-	VkResult vkRet = vkCreateComputePipelines(vkDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &vkPipeline);
-	CHECK(vkRet == VK_SUCCESS);
-
-	return new VulkanComputePipelineState(vkPipeline);
+	VulkanComputePipelineState* pipeline = new VulkanComputePipelineState;
+	pipeline->initialize(vkDevice, inDesc);
+	return pipeline;
 }
 
 RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc)

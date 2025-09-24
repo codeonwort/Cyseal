@@ -14,13 +14,17 @@ public:
 	VulkanShaderStage(VulkanDevice* inDevice, EShaderStage inStageFlag, const char* inDebugName);
 	~VulkanShaderStage();
 
-	virtual void loadFromFile(const wchar_t* inFilename, const char* entryPoint, std::initializer_list<std::wstring> defines) override;
+	virtual void loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines) override;
 
 	virtual const wchar_t* getEntryPointW() override { return wEntryPoint.c_str(); }
 	virtual const char* getEntryPointA() override { return aEntryPoint.c_str(); }
 
 	VkShaderModule getVkShaderModule() const { return vkModule; }
 	VkShaderStageFlagBits getVkShaderStage() const { return vkShaderStage; }
+
+private:
+	void loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
+	void loadFromFileByDxc(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
 
 private:
 	VulkanDevice* device = nullptr;

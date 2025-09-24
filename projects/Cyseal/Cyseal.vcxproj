@@ -239,6 +239,7 @@
     <ClCompile Include="src\rhi\shader_codegen.cpp" />
     <ClCompile Include="src\rhi\shader_dxc_common.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_buffer.cpp" />
+    <ClCompile Include="src\rhi\vulkan\vk_pipeline_state.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_render_command.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_resource_view.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_texture.cpp" />
