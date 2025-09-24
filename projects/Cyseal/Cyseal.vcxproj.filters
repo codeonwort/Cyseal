@@ -563,6 +563,9 @@
     <ClCompile Include="src\rhi\vulkan\vk_pipeline_state.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\external\vulkan\SPIRV-Reflect-vulkan-sdk-1.4.321.0\spirv_reflect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

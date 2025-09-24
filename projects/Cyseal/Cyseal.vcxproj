@@ -197,6 +197,10 @@
     <ClInclude Include="src\world\scene_proxy.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\external\vulkan\SPIRV-Reflect-vulkan-sdk-1.4.321.0\spirv_reflect.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\core\critical_section.cpp" />
     <ClCompile Include="src\core\engine.cpp" />
     <ClCompile Include="src\core\matrix.cpp" />

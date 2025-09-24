@@ -1,4 +1,5 @@
 #include "vk_shader.h"
+#include "spirv_reflect.h"
 
 // #todo-vulkan: Runtime shader recompilation, maybe using this?
 // https://github.com/KhronosGroup/SPIRV-Tools
@@ -56,7 +57,7 @@ void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEn
 	loadFromFileByGlslangValidator(inFilename, inEntryPoint, defines);
 #endif
 
-	// #wip-vk: Read shader reflection
+	readShaderReflection(sourceCode.data(), sourceCode.size());
 }
 
 void VulkanShaderStage::loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
@@ -133,7 +134,7 @@ void VulkanShaderStage::loadFromFileByDxc(const wchar_t* inFilename, const char*
 	std::string hlslPath;
 	wstr_to_str(hlslPathW, hlslPath);
 
-	std::string codegen = ShaderCodegen::get().hlslToSpirv(hlslPath.c_str(), inEntryPoint, stageFlag, defines);
+	std::string codegen = ShaderCodegen::get().hlslToSpirv(true, hlslPath.c_str(), inEntryPoint, stageFlag, defines);
 	CHECK(codegen.size() > 0);
 	sourceCode.assign(codegen.begin(), codegen.end());
 
@@ -147,6 +148,30 @@ void VulkanShaderStage::loadFromFileByDxc(const wchar_t* inFilename, const char*
 
 	VkResult ret = vkCreateShaderModule(device->getRaw(), &createInfo, nullptr, &vkModule);
 	CHECK(ret == VK_SUCCESS);
+}
+
+// #wip-vk: Read shader reflection
+void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spirv_nbytes)
+{
+	// Generate reflection data for a shader
+	SpvReflectShaderModule module;
+	SpvReflectResult result = spvReflectCreateShaderModule(spirv_nbytes, spirv_code, &module);
+	assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+	// Enumerate and extract shader's input variables
+	uint32_t var_count = 0;
+	result = spvReflectEnumerateInputVariables(&module, &var_count, NULL);
+	assert(result == SPV_REFLECT_RESULT_SUCCESS);
+	SpvReflectInterfaceVariable** input_vars =
+		(SpvReflectInterfaceVariable**)malloc(var_count * sizeof(SpvReflectInterfaceVariable*));
+	result = spvReflectEnumerateInputVariables(&module, &var_count, input_vars);
+	assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+	// Output variables, descriptor bindings, descriptor sets, and push constants
+	// can be enumerated and extracted using a similar mechanism.
+
+	// Destroy the reflection data when no longer required.
+	spvReflectDestroyShaderModule(&module);
 }
 
 #endif // COMPILE_BACKEND_VULKAN

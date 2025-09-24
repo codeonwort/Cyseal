@@ -26,6 +26,8 @@ private:
 	void loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
 	void loadFromFileByDxc(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
 
+	void readShaderReflection(const void* spirv_code, size_t spirv_nbytes);
+
 private:
 	VulkanDevice* device = nullptr;
 

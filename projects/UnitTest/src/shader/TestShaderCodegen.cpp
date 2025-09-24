@@ -16,17 +16,24 @@ namespace UnitTest
 			std::string filepath = TEST_SHADERS_DIR;
 			filepath += "codegen_test.hlsl";
 
-			std::string codegen = ShaderCodegen::get().hlslToSpirv(
-				filepath.c_str(), "mainCS",
-				EShaderStage::COMPUTE_SHADER, { L"WRITE_PASS" }
-			);
-			Assert::IsTrue(codegen.size() > 0);
+			for (int32 i = 0; i < 2; ++i)
+			{
+				bool bEmitBytecode = (i == 0);
 
-			codegen = ShaderCodegen::get().hlslToSpirv(
-				filepath.c_str(), "mainCS",
-				EShaderStage::COMPUTE_SHADER, { L"READ_PASS" }
-			);
-			Assert::IsTrue(codegen.size() > 0);
+				std::string codegen = ShaderCodegen::get().hlslToSpirv(
+					bEmitBytecode,
+					filepath.c_str(), "mainCS",
+					EShaderStage::COMPUTE_SHADER, { L"WRITE_PASS" }
+				);
+				Assert::IsTrue(codegen.size() > 0);
+
+				codegen = ShaderCodegen::get().hlslToSpirv(
+					bEmitBytecode,
+					filepath.c_str(), "mainCS",
+					EShaderStage::COMPUTE_SHADER, { L"READ_PASS" }
+				);
+				Assert::IsTrue(codegen.size() > 0);
+			}
 		}
 	};
 }

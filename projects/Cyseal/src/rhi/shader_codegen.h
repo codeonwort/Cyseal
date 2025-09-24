@@ -15,7 +15,17 @@ public:
 		return inst;
 	}
 
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="bEmitBytecode">Controls what to generate between SPIR-V assembly and bytecode.</param>
+	/// <param name="inFilename">Full path to a .hlsl file.</param>
+	/// <param name="inEntryPoint">Shader entry point.</param>
+	/// <param name="stageFlag">Shader stage flag.</param>
+	/// <param name="defines">preprocessor macros.</param>
+	/// <returns>SPIR-V assembly or bytecode.</returns>
 	std::string hlslToSpirv(
+		bool bEmitBytecode,
 		const char* inFilename,
 		const char* inEntryPoint,
 		EShaderStage stageFlag,
@@ -24,7 +34,7 @@ public:
 private:
 	ShaderCodegen();
 
-	std::string readProcessOutput(const std::string& cmd);
+	std::string readProcessOutput(const std::string& cmd, bool bEmitBytecode);
 
 private:
 	std::string dxcPath;
