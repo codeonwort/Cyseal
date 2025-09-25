@@ -44,5 +44,20 @@ void VulkanComputePipelineState::initialize(VkDevice inVkDevice, const ComputePi
 void VulkanComputePipelineState::createPipelineLayout(const ComputePipelineDesc& inDesc)
 {
 	VulkanShaderStage* computeShader = static_cast<VulkanShaderStage*>(inDesc.cs);
+	const auto& setLayouts = computeShader->getVkDescriptorSetLayouts();
+	const auto& pushConsts = computeShader->getVkPushConstantRanges();
+
 	// #wip-vk: Create VkPipelineLayout
+	VkPipelineLayoutCreateInfo createInfo{
+		.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+		.pNext                  = nullptr,
+		.flags                  = (VkPipelineLayoutCreateFlags)0,
+		.setLayoutCount         = (uint32_t)setLayouts.size(),
+		.pSetLayouts            = setLayouts.data(),
+		.pushConstantRangeCount = (uint32_t)pushConsts.size(),
+		.pPushConstantRanges    = pushConsts.data(),
+	};
+	
+	VkResult vkRet = vkCreatePipelineLayout(vkDevice, &createInfo, nullptr, &vkPipelineLayout);
+	CHECK(vkRet == VK_SUCCESS);
 }

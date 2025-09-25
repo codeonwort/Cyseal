@@ -8,6 +8,11 @@
 #include "rhi/shader.h"
 #include <vector>
 
+struct VulkanShaderReflection
+{
+	// #wip-vk
+};
+
 class VulkanShaderStage : public ShaderStage
 {
 public:
@@ -19,8 +24,12 @@ public:
 	virtual const wchar_t* getEntryPointW() override { return wEntryPoint.c_str(); }
 	virtual const char* getEntryPointA() override { return aEntryPoint.c_str(); }
 
+	const VulkanShaderReflection& getShaderReflection() { return shaderReflection; }
+
 	VkShaderModule getVkShaderModule() const { return vkModule; }
 	VkShaderStageFlagBits getVkShaderStage() const { return vkShaderStage; }
+	const std::vector<VkDescriptorSetLayout>& getVkDescriptorSetLayouts() const { return vkDescriptorSetLayouts; }
+	const std::vector<VkPushConstantRange>& getVkPushConstantRanges() const { return vkPushConstantRanges; }
 
 private:
 	void loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
@@ -35,8 +44,13 @@ private:
 	std::string aEntryPoint;
 	std::wstring wEntryPoint;
 
+	VulkanShaderReflection shaderReflection;
+
+	// Native resources
 	VkShaderModule vkModule = VK_NULL_HANDLE;
 	VkShaderStageFlagBits vkShaderStage = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+	std::vector<VkDescriptorSetLayout> vkDescriptorSetLayouts; // #wip-vk
+	std::vector<VkPushConstantRange> vkPushConstantRanges; // #wip-vk
 };
 
 #endif // COMPILE_BACKEND_VULKAN

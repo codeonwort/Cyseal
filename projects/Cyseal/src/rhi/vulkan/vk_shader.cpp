@@ -47,7 +47,12 @@ VulkanShaderStage::~VulkanShaderStage()
 {
 	CHECK(vkModule != VK_NULL_HANDLE);
 
-	vkDestroyShaderModule(device->getRaw(), vkModule, nullptr);
+	VkDevice vkDevice = device->getRaw();
+	vkDestroyShaderModule(vkDevice, vkModule, nullptr);
+	for (VkDescriptorSetLayout layout : vkDescriptorSetLayouts)
+	{
+		vkDestroyDescriptorSetLayout(vkDevice, layout, nullptr);
+	}
 }
 
 void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
@@ -188,6 +193,27 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 			int z = 0;
 		}
 	}
+	// Push constants
+	{
+		uint32 pushConstCount = 0;
+		result = spvReflectEnumeratePushConstantBlocks(&module, &pushConstCount, NULL);
+		assert(result == SPV_REFLECT_RESULT_SUCCESS);
+		std::vector<SpvReflectBlockVariable*> spvPushConstants(pushConstCount, nullptr);
+		result = spvReflectEnumeratePushConstantBlocks(&module, &pushConstCount, spvPushConstants.data());
+		assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+		for (uint32 i = 0; i < pushConstCount; ++i)
+		{
+			SpvReflectBlockVariable* spvPushConst = spvPushConstants[i];
+
+			VkPushConstantRange range{
+				.stageFlags = static_cast<VkShaderStageFlags>(vkShaderStage),
+				.offset     = spvPushConst->offset,
+				.size       = spvPushConst->size,
+			};
+			vkPushConstantRanges.emplace_back(range);
+		}
+	}
 	// Descriptor bindings
 	{
 		uint32 count = 0;
@@ -205,17 +231,44 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 	}
 	// Descriptor sets
 	{
-		uint32 count = 0;
-		result = spvReflectEnumerateDescriptorSets(&module, &count, NULL);
+		uint32 setCount = 0;
+		result = spvReflectEnumerateDescriptorSets(&module, &setCount, NULL);
 		assert(result == SPV_REFLECT_RESULT_SUCCESS);
-		std::vector<SpvReflectDescriptorSet*> sets(count, nullptr);
-		result = spvReflectEnumerateDescriptorSets(&module, &count, sets.data());
+		std::vector<SpvReflectDescriptorSet*> sets(setCount, nullptr);
+		result = spvReflectEnumerateDescriptorSets(&module, &setCount, sets.data());
 		assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-		for (uint32 i = 0; i < count; ++i)
+		for (uint32 i = 0; i < setCount; ++i)
 		{
-			SpvReflectDescriptorSet* set = sets[i];
-			int z = 0;
+			SpvReflectDescriptorSet* spvSet = sets[i];
+			
+			std::vector<VkDescriptorSetLayoutBinding> vkBindings(spvSet->binding_count);
+			for (uint32 j = 0; j < spvSet->binding_count; ++j)
+			{
+				SpvReflectDescriptorBinding* spvBinding = spvSet->bindings[j];
+				vkBindings[j] = VkDescriptorSetLayoutBinding{
+					.binding            = spvBinding->binding,
+					.descriptorType     = static_cast<VkDescriptorType>(spvBinding->descriptor_type),
+					.descriptorCount    = spvBinding->count,
+					.stageFlags         = static_cast<VkShaderStageFlags>(vkShaderStage),
+					.pImmutableSamplers = nullptr, // #wip-vk: pImmutableSamplers
+				};
+			}
+
+			VkDescriptorSetLayoutCreateInfo createInfo{
+				.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+				.pNext        = nullptr,
+				.flags        = (VkDescriptorSetLayoutCreateFlagBits)0,
+				.bindingCount = (uint32)vkBindings.size(),
+				.pBindings    = vkBindings.data(),
+			};
+			VkDescriptorSetLayout vkSetLayout = VK_NULL_HANDLE;
+
+			VkResult vkRet = vkCreateDescriptorSetLayout(
+				device->getRaw(), &createInfo, nullptr, &vkSetLayout);
+			CHECK(vkRet == VK_SUCCESS);
+
+			vkDescriptorSetLayouts.push_back(vkSetLayout);
 		}
 	}
 

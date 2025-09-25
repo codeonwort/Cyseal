@@ -1007,7 +1007,7 @@ DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inD
 	VkResult ret = vkCreateDescriptorPool(vkDevice, &createInfo, nullptr, &vkDescriptorPool);
 	CHECK(ret == VK_SUCCESS);
 
-	return new VulkanDescriptorPool(inDesc, vkDescriptorPool);
+	return new VulkanDescriptorPool(this, inDesc, vkDescriptorPool);
 }
 
 ConstantBufferView* VulkanDevice::createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes)
