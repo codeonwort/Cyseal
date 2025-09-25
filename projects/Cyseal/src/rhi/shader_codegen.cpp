@@ -49,7 +49,7 @@ std::string ShaderCodegen::hlslToSpirv(
 		wstr_to_str(defW, def);
 		ss << " -D" << def;
 	}
-	//ss << " -fspv-reflect"; // Emits additional SPIR-V instructions to aid reflection.
+	ss << " -fspv-reflect"; // Emits additional SPIR-V instructions to aid reflection.
 	ss << ' ' << inFilename;
 	if (bEmitBytecode)
 	{
