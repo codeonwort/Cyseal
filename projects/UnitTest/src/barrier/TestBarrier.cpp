@@ -17,10 +17,15 @@ namespace UnitTest
 	template<ERenderDeviceRawAPI graphicsAPI>
 	class TestBarrierBase
 	{
-		struct TestShaders
+		struct BufferTestShaders
 		{
 			UniquePtr<ComputePipelineState> bufferWriteShader;
 			UniquePtr<ComputePipelineState> bufferReadShader;
+		};
+		struct TextureTestShaders
+		{
+			UniquePtr<ComputePipelineState> textureWriteShader;
+			UniquePtr<ComputePipelineState> textureReadShader;
 		};
 
 	// Test methods
@@ -32,7 +37,7 @@ namespace UnitTest
 			RenderDevice* renderDevice = createRenderDevice();
 			auto uavHeap = createDescriptorHeap(renderDevice, EDescriptorHeapType::UAV, 100);
 			auto srvHeap = createDescriptorHeap(renderDevice, EDescriptorHeapType::SRV, 100);
-			TestShaders shaders = createShaders(renderDevice);
+			BufferTestShaders shaders = createBufferTestShaders(renderDevice);
 
 			BufferCreateParams bufferParams{
 				.sizeInBytes = 1024 * sizeof(uint32),
@@ -94,18 +99,18 @@ namespace UnitTest
 			{
 				BufferBarrier barriers[] = {
 					{
-						.syncBefore = EBarrierSync::ALL,
-						.syncAfter = EBarrierSync::COMPUTE_SHADING,
-						.accessBefore = EBarrierAccess::COMMON,
-						.accessAfter = EBarrierAccess::UNORDERED_ACCESS,
-						.buffer = buffer1.get(),
+						.syncBefore   = EBarrierSync::NONE,
+						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
+						.accessBefore = EBarrierAccess::NO_ACCESS,
+						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
+						.buffer       = buffer1.get(),
 					},
 					{
-						.syncBefore = EBarrierSync::ALL,
-						.syncAfter = EBarrierSync::COMPUTE_SHADING,
-						.accessBefore = EBarrierAccess::COMMON,
-						.accessAfter = EBarrierAccess::UNORDERED_ACCESS,
-						.buffer = buffer2.get(),
+						.syncBefore   = EBarrierSync::NONE,
+						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
+						.accessBefore = EBarrierAccess::NO_ACCESS,
+						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
+						.buffer       = buffer2.get(),
 					},
 				};
 				commandList->barrier(_countof(barriers), barriers, 0, nullptr, 0, nullptr);
@@ -130,25 +135,25 @@ namespace UnitTest
 			{
 				BufferBarrier barriers[] = {
 					{
-						.syncBefore = EBarrierSync::COMPUTE_SHADING,
-						.syncAfter = EBarrierSync::COMPUTE_SHADING,
+						.syncBefore   = EBarrierSync::COMPUTE_SHADING,
+						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::UNORDERED_ACCESS,
-						.accessAfter = EBarrierAccess::SHADER_RESOURCE,
-						.buffer = buffer1.get(),
+						.accessAfter  = EBarrierAccess::SHADER_RESOURCE,
+						.buffer       = buffer1.get(),
 					},
 					{
-						.syncBefore = EBarrierSync::COMPUTE_SHADING,
-						.syncAfter = EBarrierSync::COMPUTE_SHADING,
+						.syncBefore   = EBarrierSync::COMPUTE_SHADING,
+						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::UNORDERED_ACCESS,
-						.accessAfter = EBarrierAccess::SHADER_RESOURCE,
-						.buffer = buffer2.get(),
+						.accessAfter  = EBarrierAccess::SHADER_RESOURCE,
+						.buffer       = buffer2.get(),
 					},
 					{
-						.syncBefore = EBarrierSync::NONE,
-						.syncAfter = EBarrierSync::COMPUTE_SHADING,
+						.syncBefore   = EBarrierSync::NONE,
+						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::NO_ACCESS,
-						.accessAfter = EBarrierAccess::UNORDERED_ACCESS,
-						.buffer = buffer3.get(),
+						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
+						.buffer       = buffer3.get(),
 					},
 				};
 				commandList->barrier(_countof(barriers), barriers, 0, nullptr, 0, nullptr);
@@ -165,6 +170,211 @@ namespace UnitTest
 				commandList->setComputePipelineState(shaders.bufferReadShader.get());
 				commandList->bindComputeShaderParameters(shaders.bufferReadShader.get(), &SPT, heap);
 				commandList->dispatchCompute(1024, 1, 1);
+			}
+
+			commandList->close();
+			commandAllocator->markValid();
+
+			commandQueue->executeCommandList(commandList);
+
+			renderDevice->flushCommandQueue();
+
+			// 3. Cleanup
+
+			renderDevice->destroy();
+			delete renderDevice;
+		}
+		void ExecuteTextureBarrier()
+		{
+			// 1. Initialization
+
+			RenderDevice* renderDevice = createRenderDevice();
+			auto uavHeap = createDescriptorHeap(renderDevice, EDescriptorHeapType::UAV, 100);
+			auto srvHeap = createDescriptorHeap(renderDevice, EDescriptorHeapType::SRV, 100);
+			TextureTestShaders shaders = createTextureTestShaders(renderDevice);
+
+			TextureCreateParams textureParams = TextureCreateParams::texture2D(
+				EPixelFormat::R16G16B16A16_FLOAT,
+				ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+				1920, 1080, 1);
+			auto texture1 = UniquePtr<Texture>(renderDevice->createTexture(textureParams));
+			auto texture2 = UniquePtr<Texture>(renderDevice->createTexture(textureParams));
+			auto texture3 = UniquePtr<Texture>(renderDevice->createTexture(textureParams));
+			Assert::IsTrue(texture1 != nullptr, L"Texture is null");
+			Assert::IsTrue(texture2 != nullptr, L"Texture is null");
+			Assert::IsTrue(texture3 != nullptr, L"Texture is null");
+
+			UnorderedAccessViewDesc uavDesc{
+				.format        = textureParams.format,
+				.viewDimension = EUAVDimension::Texture2D,
+				.texture2D     = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+			};
+			auto texture1UAV = UniquePtr<UnorderedAccessView>(renderDevice->createUAV(texture1.get(), uavHeap.get(), uavDesc));
+			auto texture2UAV = UniquePtr<UnorderedAccessView>(renderDevice->createUAV(texture2.get(), uavHeap.get(), uavDesc));
+			auto texture3UAV = UniquePtr<UnorderedAccessView>(renderDevice->createUAV(texture3.get(), uavHeap.get(), uavDesc));
+
+			ShaderResourceViewDesc srvDesc{
+				.format        = textureParams.format,
+				.viewDimension = ESRVDimension::Texture2D,
+				.texture2D     = Texture2DSRVDesc{},
+			};
+			auto texture1SRV = UniquePtr<ShaderResourceView>(renderDevice->createSRV(texture1.get(), srvHeap.get(), srvDesc));
+			auto texture2SRV = UniquePtr<ShaderResourceView>(renderDevice->createSRV(texture2.get(), srvHeap.get(), srvDesc));
+
+			VolatileDescriptorHelper writePassDescriptor;
+			writePassDescriptor.initialize(renderDevice, L"WriteBufferPass", 1, 0);
+			writePassDescriptor.resizeDescriptorHeap(0, 1 * 2);
+
+			VolatileDescriptorHelper readPassDescriptor;
+			readPassDescriptor.initialize(renderDevice, L"ReadBufferPass", 1, 0);
+			readPassDescriptor.resizeDescriptorHeap(0, 3);
+
+			// 2. Validation
+			auto commandAllocator = renderDevice->getCommandAllocator(0);
+			auto commandList = renderDevice->getCommandList(0);
+			auto commandQueue = renderDevice->getCommandQueue();
+
+			commandAllocator->reset();
+			commandList->reset(commandAllocator);
+
+			// Barrier (initial -> write pass)
+			{
+				TextureBarrier barriers[] = {
+					{
+						.syncBefore   = EBarrierSync::NONE,
+						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
+						.accessBefore = EBarrierAccess::NO_ACCESS,
+						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
+						.layoutBefore = EBarrierLayout::Common,
+						.layoutAfter  = EBarrierLayout::UnorderedAccess,
+						.texture      = texture1.get(),
+						.subresources = BarrierSubresourceRange{
+							.indexOrFirstMipLevel = 0,
+							.numMipLevels         = 1,
+							.firstArraySlice      = 0,
+							.numArraySlices       = 0,
+							.firstPlane           = 0,
+							.numPlanes            = 0,
+						},
+						.flags        = ETextureBarrierFlags::None,
+					},
+					{
+						.syncBefore   = EBarrierSync::NONE,
+						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
+						.accessBefore = EBarrierAccess::NO_ACCESS,
+						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
+						.layoutBefore = EBarrierLayout::Common,
+						.layoutAfter  = EBarrierLayout::UnorderedAccess,
+						.texture      = texture2.get(),
+						.subresources = BarrierSubresourceRange{
+							.indexOrFirstMipLevel = 0,
+							.numMipLevels         = 1,
+							.firstArraySlice      = 0,
+							.numArraySlices       = 0,
+							.firstPlane           = 0,
+							.numPlanes            = 0,
+						},
+						.flags        = ETextureBarrierFlags::None,
+					},
+				};
+				commandList->barrier(0, nullptr, _countof(barriers), barriers, 0, nullptr);
+			}
+			// Write pass
+			{
+				auto heap = writePassDescriptor.getDescriptorHeap(0);
+				DescriptorIndexTracker tracker;
+				for (uint32 i = 0; i < 2; ++i)
+				{
+					auto uav = (i == 0) ? texture1UAV.get() : texture2UAV.get();
+
+					ShaderParameterTable SPT{};
+					SPT.pushConstants("pushConstants", { textureParams.width, textureParams.height });
+					SPT.rwTexture("rwTexture", uav);
+
+					commandList->setComputePipelineState(shaders.textureWriteShader.get());
+					commandList->bindComputeShaderParameters(shaders.textureWriteShader.get(), &SPT, heap, &tracker);
+					
+					uint32 dispatchX = (textureParams.width + 7) / 8;
+					uint32 dispatchY = (textureParams.height + 7) / 8;
+					commandList->dispatchCompute(dispatchX, dispatchY, 1);
+				}
+			}
+			// Barrier (write pass -> read pass)
+			{
+				TextureBarrier barriers[] = {
+					{
+						.syncBefore   = EBarrierSync::COMPUTE_SHADING,
+						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
+						.accessBefore = EBarrierAccess::UNORDERED_ACCESS,
+						.accessAfter  = EBarrierAccess::SHADER_RESOURCE,
+						.layoutBefore = EBarrierLayout::UnorderedAccess,
+						.layoutAfter  = EBarrierLayout::ShaderResource,
+						.texture      = texture1.get(),
+						.subresources = BarrierSubresourceRange{
+							.indexOrFirstMipLevel = 0,
+							.numMipLevels         = 1,
+							.firstArraySlice      = 0,
+							.numArraySlices       = 0,
+							.firstPlane           = 0,
+							.numPlanes            = 0,
+						},
+						.flags        = ETextureBarrierFlags::None,
+					},
+					{
+						.syncBefore   = EBarrierSync::COMPUTE_SHADING,
+						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
+						.accessBefore = EBarrierAccess::UNORDERED_ACCESS,
+						.accessAfter  = EBarrierAccess::SHADER_RESOURCE,
+						.layoutBefore = EBarrierLayout::UnorderedAccess,
+						.layoutAfter  = EBarrierLayout::ShaderResource,
+						.texture      = texture2.get(),
+						.subresources = BarrierSubresourceRange{
+							.indexOrFirstMipLevel = 0,
+							.numMipLevels         = 1,
+							.firstArraySlice      = 0,
+							.numArraySlices       = 0,
+							.firstPlane           = 0,
+							.numPlanes            = 0,
+						},
+						.flags        = ETextureBarrierFlags::None,
+					},
+					{
+						.syncBefore   = EBarrierSync::NONE,
+						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
+						.accessBefore = EBarrierAccess::NO_ACCESS,
+						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
+						.layoutBefore = EBarrierLayout::Common,
+						.layoutAfter  = EBarrierLayout::UnorderedAccess,
+						.texture      = texture3.get(),
+						.subresources = BarrierSubresourceRange{
+							.indexOrFirstMipLevel = 0,
+							.numMipLevels         = 1,
+							.firstArraySlice      = 0,
+							.numArraySlices       = 0,
+							.firstPlane           = 0,
+							.numPlanes            = 0,
+						},
+						.flags        = ETextureBarrierFlags::None,
+					},
+				};
+				commandList->barrier(0, nullptr, _countof(barriers), barriers, 0, nullptr);
+			}
+			// Read pass
+			{
+				auto heap = readPassDescriptor.getDescriptorHeap(0);
+
+				ShaderParameterTable SPT{};
+				SPT.pushConstants("pushConstants", { textureParams.width, textureParams.height });
+				SPT.texture("textureA", texture1SRV.get());
+				SPT.texture("textureB", texture2SRV.get());
+				SPT.rwTexture("rwTexture", texture3UAV.get());
+
+				commandList->setComputePipelineState(shaders.textureReadShader.get());
+				commandList->bindComputeShaderParameters(shaders.textureReadShader.get(), &SPT, heap);
+
+				uint32 dispatchX = (textureParams.width + 7) / 8;
+				uint32 dispatchY = (textureParams.height + 7) / 8;
+				commandList->dispatchCompute(dispatchX, dispatchY, 1);
 			}
 
 			commandList->close();
@@ -219,10 +429,10 @@ namespace UnitTest
 			DescriptorHeap* heap = device->createDescriptorHeap(desc);
 			return UniquePtr<DescriptorHeap>(heap);
 		}
-		TestShaders createShaders(RenderDevice* device)
+		BufferTestShaders createBufferTestShaders(RenderDevice* device)
 		{
 			ResourceFinder::get().addBaseDirectory(TEST_SHADERS_DIR);
-			TestShaders shaders;
+			BufferTestShaders shaders;
 			{
 				ShaderStage* cs = device->createShader(EShaderStage::COMPUTE_SHADER, "WriteBufferCS");
 				cs->declarePushConstants();
@@ -245,6 +455,32 @@ namespace UnitTest
 			}
 			return shaders;
 		}
+		TextureTestShaders createTextureTestShaders(RenderDevice* device)
+		{
+			ResourceFinder::get().addBaseDirectory(TEST_SHADERS_DIR);
+			TextureTestShaders shaders;
+			{
+				ShaderStage* cs = device->createShader(EShaderStage::COMPUTE_SHADER, "WriteTextureCS");
+				cs->declarePushConstants({ { "pushConstants", 2 } });
+				cs->loadFromFile(L"texture_test.hlsl", "mainCS", { L"WRITE_PASS" });
+				ComputePipelineDesc pipelineDesc{ .cs = cs, .nodeMask = 0 };
+				ComputePipelineState* pipeline = device->createComputePipelineState(pipelineDesc);
+				CHECK(pipeline != nullptr);
+				delete cs;
+				shaders.textureWriteShader = UniquePtr<ComputePipelineState>(pipeline);
+			}
+			{
+				ShaderStage* cs = device->createShader(EShaderStage::COMPUTE_SHADER, "ReadTextureCS");
+				cs->declarePushConstants({ { "pushConstants", 2 } });
+				cs->loadFromFile(L"texture_test.hlsl", "mainCS", { L"READ_PASS" });
+				ComputePipelineDesc pipelineDesc{ .cs = cs, .nodeMask = 0 };
+				ComputePipelineState* pipeline = device->createComputePipelineState(pipelineDesc);
+				CHECK(pipeline != nullptr);
+				delete cs;
+				shaders.textureReadShader = UniquePtr<ComputePipelineState>(pipeline);
+			}
+			return shaders;
+		}
 	};
 
 	TEST_CLASS(TestBarrierD3D12), TestBarrierBase<ERenderDeviceRawAPI::DirectX12>
@@ -253,6 +489,10 @@ namespace UnitTest
 		TEST_METHOD(ExecuteBufferBarrier)
 		{
 			TestBarrierBase::ExecuteBufferBarrier();
+		}
+		TEST_METHOD(ExecuteTextureBarrier)
+		{
+			TestBarrierBase::ExecuteTextureBarrier();
 		}
 	};
 

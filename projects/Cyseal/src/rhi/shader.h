@@ -8,7 +8,9 @@
 
 class ShaderStage
 {
+	// { { "name_0", num32BitValues_0 }, { "name_1", num32BitValues_1 }, ... }
 	using PushConstantDecls = std::vector<std::pair<std::string, int32>>;
+
 public:
 	ShaderStage(EShaderStage inStageFlag, const char* inDebugName)
 		: stageFlag(inStageFlag)

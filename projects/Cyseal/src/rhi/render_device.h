@@ -223,5 +223,6 @@ protected:
 	bool bSupportsEnhancedBarrier = false;
 };
 
+// #note-rhi: RHI module specifically should not use gRenderDevice. If so, fix it.
 extern RenderDevice* gRenderDevice;
 DECLARE_LOG_CATEGORY(LogDevice);
