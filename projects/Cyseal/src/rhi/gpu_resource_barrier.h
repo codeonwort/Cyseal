@@ -22,7 +22,8 @@ class GPUResource;
 class Buffer;
 class Texture;
 
-// #todo-barrier: Aliasing and UAV barriers?
+// ---------------------------------------------------------
+// Legacy barriers
 
 enum class EBufferMemoryLayout : uint32
 {
@@ -47,9 +48,6 @@ enum class ETextureMemoryLayout : uint32
 	PRESENT                    = 7,
 };
 
-// ---------------------------------------------------------
-// Legacy barriers
-
 // D3D12_RESOURCE_BARRIER
 // VkBufferMemoryBarrier
 struct BufferMemoryBarrier
@@ -67,7 +65,7 @@ struct TextureMemoryBarrier
 {
 	ETextureMemoryLayout stateBefore;
 	ETextureMemoryLayout stateAfter;
-	GPUResource* texture; // #todo-barrier: The type can't be (Texture*) due to swapchain images.
+	GPUResource* texture; // The type can't be (Texture*) due to swapchain images.
 	uint32 subresource = 0xffffffff; // Index of target subresource. Default is all subresources.
 };
 
@@ -118,7 +116,7 @@ enum class EBarrierAccess : uint32
 	SHADER_RESOURCE = 0x80,
 	STREAM_OUTPUT = 0x100,
 	INDIRECT_ARGUMENT = 0x200,
-	//PREDICATION = 0x200, // #todo-barrier: Conditional rendering
+	//PREDICATION = 0x200, // #todo-barrier-vk: Conditional rendering
 	COPY_DEST = 0x400,
 	COPY_SOURCE = 0x800,
 	RESOLVE_DEST = 0x1000,
@@ -199,7 +197,7 @@ struct BufferBarrier
 	EBarrierSync syncAfter;
 	EBarrierAccess accessBefore;
 	EBarrierAccess accessAfter;
-	GPUResource* buffer; // Must be a buffer
+	GPUResource* buffer; // Must be a buffer. #todo-barrier: (Buffer*) if possible.
 	//uint64 offset => fixed to 0
 	//uint64 size => fixed to the buffer size in bytes
 };
@@ -212,7 +210,7 @@ struct TextureBarrier
 	EBarrierAccess accessAfter;
 	EBarrierLayout layoutBefore;
 	EBarrierLayout layoutAfter;
-	GPUResource* texture; // Must be a texture
+	GPUResource* texture; // Must be a texture. Can't be (Texture*) due to swapchain images.
 	BarrierSubresourceRange subresources;
 	ETextureBarrierFlags flags;
 };

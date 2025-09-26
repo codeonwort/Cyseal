@@ -269,7 +269,7 @@ namespace into_vk
 			vkFlags |= VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
 		}
 #if 0
-		// #todo-barrier: Conditional rendering
+		// #todo-barrier-vk: Conditional rendering
 		// Think I won't use it and its enum value conflicts with INDIRECT_ARGUMENT.
 		if (consumeFlag(&access, EBarrierAccess::PREDICATION))
 		{

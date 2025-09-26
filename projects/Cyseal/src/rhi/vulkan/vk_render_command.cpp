@@ -131,19 +131,6 @@ void VulkanRenderCommandList::resourceBarriers(
 	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
 	uint32 numUAVBarriers, GPUResource* const* uavBarrierResources)
 {
-	// [Vulkanised 2021 - Ensure Correct Vulkan Synchronization by Using Synchornization Validation]
-	// Barrier types
-	// - A memory barrier synchronizes all memory accessible by the GPU.
-	// - A buffer barrier synchronizes memory access to a buffer.
-	// - A image barrier synchronizes memory access to an image and allow Image Layout Transitions.
-	// Image Layout Transitions
-	// - Rearrange memory for efficient use by different pipeline stages.
-	// - Happens between the first and second execution scopes of the barrier.
-	// - Each subresource of an image can be transitioned independently.
-
-	// #todo-barrier: Use proper VkPipelineStageFlags
-	// https://gpuopen.com/learn/vulkan-barriers-explained/
-	// https://docs.vulkan.org/samples/latest/samples/performance/pipeline_barriers/README.html
 	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
@@ -157,12 +144,11 @@ void VulkanRenderCommandList::resourceBarriers(
 	{
 		vkImageMemoryBarriers[i] = into_vk::imageMemoryBarrier(textureMemoryBarriers[i]);
 	}
-	// #todo-barrier: UAV barriers
 
 	vkCmdPipelineBarrier(
 		currentCommandBuffer, srcStageMask, dstStageMask,
 		(VkDependencyFlagBits)0,
-		0, nullptr,// #todo-barrier: Vulkan global memory barrier
+		0, nullptr,
 		(uint32)vkBufferMemoryBarriers.size(), vkBufferMemoryBarriers.data(),
 		(uint32)vkImageMemoryBarriers.size(), vkImageMemoryBarriers.data());
 }

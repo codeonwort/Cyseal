@@ -71,6 +71,7 @@ public:
 	// End command recording.
 	virtual void close() = 0;
 
+	// #todo-barrier: Remove legacy barrier API.
 	virtual void resourceBarriers(
 		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
 		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
