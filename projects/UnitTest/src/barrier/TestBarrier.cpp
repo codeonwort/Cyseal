@@ -30,8 +30,8 @@ namespace UnitTest
 			// 1. Initialization
 
 			RenderDevice* renderDevice = createRenderDevice();
-			auto uavHeap = createDescriptorHeap(renderDevice, EDescriptorHeapType::UAV);
-			auto srvHeap = createDescriptorHeap(renderDevice, EDescriptorHeapType::SRV);
+			auto uavHeap = createDescriptorHeap(renderDevice, EDescriptorHeapType::UAV, 100);
+			auto srvHeap = createDescriptorHeap(renderDevice, EDescriptorHeapType::SRV, 100);
 			TestShaders shaders = createShaders(renderDevice);
 
 			BufferCreateParams bufferParams{
@@ -39,12 +39,12 @@ namespace UnitTest
 				.alignment   = 0,
 				.accessFlags = EBufferAccessFlags::SRV | EBufferAccessFlags::UAV,
 			};
-			Buffer* buffer1 = renderDevice->createBuffer(bufferParams);
-			Buffer* buffer2 = renderDevice->createBuffer(bufferParams);
-			Buffer* buffer3 = renderDevice->createBuffer(bufferParams);
-			Assert::IsNotNull(buffer1, L"Buffer is null");
-			Assert::IsNotNull(buffer2, L"Buffer is null");
-			Assert::IsNotNull(buffer3, L"Buffer is null");
+			auto buffer1 = UniquePtr<Buffer>(renderDevice->createBuffer(bufferParams));
+			auto buffer2 = UniquePtr<Buffer>(renderDevice->createBuffer(bufferParams));
+			auto buffer3 = UniquePtr<Buffer>(renderDevice->createBuffer(bufferParams));
+			Assert::IsTrue(buffer1 != nullptr, L"Buffer is null");
+			Assert::IsTrue(buffer2 != nullptr, L"Buffer is null");
+			Assert::IsTrue(buffer3 != nullptr, L"Buffer is null");
 
 			UnorderedAccessViewDesc uavDesc{
 				.format        = EPixelFormat::UNKNOWN,
@@ -57,9 +57,9 @@ namespace UnitTest
 					.flags                = EBufferUAVFlags::None,
 				},
 			};
-			UnorderedAccessView* buffer1UAV = renderDevice->createUAV(buffer1, uavHeap.get(), uavDesc);
-			UnorderedAccessView* buffer2UAV = renderDevice->createUAV(buffer2, uavHeap.get(), uavDesc);
-			UnorderedAccessView* buffer3UAV = renderDevice->createUAV(buffer3, uavHeap.get(), uavDesc);
+			auto buffer1UAV = UniquePtr<UnorderedAccessView>(renderDevice->createUAV(buffer1.get(), uavHeap.get(), uavDesc));
+			auto buffer2UAV = UniquePtr<UnorderedAccessView>(renderDevice->createUAV(buffer2.get(), uavHeap.get(), uavDesc));
+			auto buffer3UAV = UniquePtr<UnorderedAccessView>(renderDevice->createUAV(buffer3.get(), uavHeap.get(), uavDesc));
 
 			ShaderResourceViewDesc srvDesc{
 				.format        = EPixelFormat::UNKNOWN,
@@ -71,8 +71,8 @@ namespace UnitTest
 					.flags               = EBufferSRVFlags::None,
 				},
 			};
-			ShaderResourceView* buffer1SRV = renderDevice->createSRV(buffer1, srvHeap.get(), srvDesc);
-			ShaderResourceView* buffer2SRV = renderDevice->createSRV(buffer2, srvHeap.get(), srvDesc);
+			auto buffer1SRV = UniquePtr<ShaderResourceView>(renderDevice->createSRV(buffer1.get(), srvHeap.get(), srvDesc));
+			auto buffer2SRV = UniquePtr<ShaderResourceView>(renderDevice->createSRV(buffer2.get(), srvHeap.get(), srvDesc));
 
 			VolatileDescriptorHelper writePassDescriptor;
 			writePassDescriptor.initialize(renderDevice, L"WriteBufferPass", 1, 0);
@@ -98,14 +98,14 @@ namespace UnitTest
 						.syncAfter = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::COMMON,
 						.accessAfter = EBarrierAccess::UNORDERED_ACCESS,
-						.buffer = buffer1,
+						.buffer = buffer1.get(),
 					},
 					{
 						.syncBefore = EBarrierSync::ALL,
 						.syncAfter = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::COMMON,
 						.accessAfter = EBarrierAccess::UNORDERED_ACCESS,
-						.buffer = buffer2,
+						.buffer = buffer2.get(),
 					},
 				};
 				commandList->barrier(_countof(barriers), barriers, 0, nullptr, 0, nullptr);
@@ -116,7 +116,7 @@ namespace UnitTest
 				DescriptorIndexTracker tracker;
 				for (uint32 i = 0; i < 2; ++i)
 				{
-					auto uav = (i == 0) ? buffer1UAV : buffer2UAV;
+					auto uav = (i == 0) ? buffer1UAV.get() : buffer2UAV.get();
 
 					ShaderParameterTable SPT{};
 					SPT.rwBuffer("rwBuffer", uav);
@@ -134,21 +134,21 @@ namespace UnitTest
 						.syncAfter = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::UNORDERED_ACCESS,
 						.accessAfter = EBarrierAccess::SHADER_RESOURCE,
-						.buffer = buffer1,
+						.buffer = buffer1.get(),
 					},
 					{
 						.syncBefore = EBarrierSync::COMPUTE_SHADING,
 						.syncAfter = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::UNORDERED_ACCESS,
 						.accessAfter = EBarrierAccess::SHADER_RESOURCE,
-						.buffer = buffer2,
+						.buffer = buffer2.get(),
 					},
 					{
 						.syncBefore = EBarrierSync::NONE,
 						.syncAfter = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::NO_ACCESS,
 						.accessAfter = EBarrierAccess::UNORDERED_ACCESS,
-						.buffer = buffer3,
+						.buffer = buffer3.get(),
 					},
 				};
 				commandList->barrier(_countof(barriers), barriers, 0, nullptr, 0, nullptr);
@@ -158,9 +158,9 @@ namespace UnitTest
 				auto heap = readPassDescriptor.getDescriptorHeap(0);
 
 				ShaderParameterTable SPT{};
-				SPT.structuredBuffer("bufferA", buffer1SRV);
-				SPT.structuredBuffer("bufferB", buffer2SRV);
-				SPT.rwBuffer("rwBuffer", buffer3UAV);
+				SPT.structuredBuffer("bufferA", buffer1SRV.get());
+				SPT.structuredBuffer("bufferB", buffer2SRV.get());
+				SPT.rwBuffer("rwBuffer", buffer3UAV.get());
 
 				commandList->setComputePipelineState(shaders.bufferReadShader.get());
 				commandList->bindComputeShaderParameters(shaders.bufferReadShader.get(), &SPT, heap);
@@ -175,15 +175,6 @@ namespace UnitTest
 			renderDevice->flushCommandQueue();
 
 			// 3. Cleanup
-
-			delete buffer1UAV;
-			delete buffer2UAV;
-			delete buffer3UAV;
-			delete buffer1SRV;
-			delete buffer2SRV;
-			delete buffer1;
-			delete buffer2;
-			delete buffer3;
 
 			renderDevice->destroy();
 			delete renderDevice;
@@ -217,11 +208,11 @@ namespace UnitTest
 
 			return device;
 		}
-		UniquePtr<DescriptorHeap> createDescriptorHeap(RenderDevice* device, EDescriptorHeapType type)
+		UniquePtr<DescriptorHeap> createDescriptorHeap(RenderDevice* device, EDescriptorHeapType type, uint32 numDescriptors)
 		{
 			DescriptorHeapDesc desc{
 				.type           = type,
-				.numDescriptors = 100,
+				.numDescriptors = numDescriptors,
 				.flags          = EDescriptorHeapFlags::None,
 				.nodeMask       = 0,
 			};
