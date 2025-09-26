@@ -88,7 +88,7 @@ void VulkanShaderStage::loadFromFileByGlslangValidator(const wchar_t* inFilename
 	ss << glslang;
 	ss << " -S " << shaderTypeStr;
 	ss << " -e " << inEntryPoint;
-	// #wip: Maybe hold as in-memory string?
+	// #todo-barrier-vk: Maybe hold as in-memory string?
 	// This is gonna be a problem if I compile multiple shaders from a single source file.
 	ss << " -o " << spirvPath.c_str();
 	for (const std::wstring& defW : defines)
@@ -156,13 +156,13 @@ void VulkanShaderStage::loadFromFileByDxc(const wchar_t* inFilename, const char*
 	CHECK(ret == VK_SUCCESS);
 }
 
-// #wip-vk: Read shader reflection
 void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spirv_nbytes)
 {
 	SpvReflectShaderModule module;
 	SpvReflectResult result = spvReflectCreateShaderModule(spirv_nbytes, spirv_code, &module);
 	assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
+	// #todo-barrier-vk: readShaderReflection
 	// Input variables
 	{
 		uint32 varCount = 0;
@@ -251,7 +251,7 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 					.descriptorType     = static_cast<VkDescriptorType>(spvBinding->descriptor_type),
 					.descriptorCount    = spvBinding->count,
 					.stageFlags         = static_cast<VkShaderStageFlags>(vkShaderStage),
-					.pImmutableSamplers = nullptr, // #wip-vk: pImmutableSamplers
+					.pImmutableSamplers = nullptr, // #todo-barrier-vk: pImmutableSamplers
 				};
 			}
 

@@ -35,6 +35,7 @@ public:
 	void initialize(VkDevice inVkDevice, const ComputePipelineDesc& inDesc);
 
 	inline VkPipeline getVkPipeline() const { return vkPipeline; }
+	inline VkPipelineLayout getVkPipelineLayout() const { return vkPipelineLayout; }
 
 private:
 	void createPipelineLayout(const ComputePipelineDesc& inDesc);

@@ -47,13 +47,8 @@ enum class ETextureMemoryLayout : uint32
 	PRESENT                    = 7,
 };
 
-// #todo-barrier: Global memory barrier
-// VkMemoryBarrier
-//struct GlobalMemoryBarrier
-//{
-//	EGPUResourceState stateBefore;
-//	EGPUResourceState stateAfter;
-//};
+// ---------------------------------------------------------
+// Legacy barriers
 
 // D3D12_RESOURCE_BARRIER
 // VkBufferMemoryBarrier
@@ -77,7 +72,7 @@ struct TextureMemoryBarrier
 };
 
 // ---------------------------------------------------------
-// #wip: new types for enhanced barriers
+// Enhanced barriers
 
 // D3D12_BARRIER_SYNC
 enum class EBarrierSync : uint32

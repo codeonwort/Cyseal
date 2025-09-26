@@ -4,6 +4,8 @@
 
 #include "vk_utils.h"
 #include "vk_buffer.h"
+#include "vk_pipeline_state.h"
+#include "vk_descriptor.h"
 #include "vk_into.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -228,8 +230,9 @@ void VulkanRenderCommandList::setGraphicsPipelineState(GraphicsPipelineState* st
 
 void VulkanRenderCommandList::setComputePipelineState(ComputePipelineState* state)
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
+	auto vulkanPipeline = static_cast<VulkanComputePipelineState*>(state);
+	VkPipeline vkPipeline = vulkanPipeline->getVkPipeline();
+	vkCmdBindPipeline(currentCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, vkPipeline);
 }
 
 void VulkanRenderCommandList::setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso)
@@ -369,15 +372,18 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	DescriptorHeap* descriptorHeap,
 	DescriptorIndexTracker* tracker)
 {
-	// #todo-vulkan
+	// #todo-barrier-vk: bindComputeShaderParameters
 	CHECK_NO_ENTRY();
+	VkPipelineLayout layout = static_cast<VulkanComputePipelineState*>(pipelineState)->getVkPipelineLayout();
+	VulkanDescriptorPool* pool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
+
+	//vkAllocateDescriptorSets
+	//vkCmdBindDescriptorSets
 }
 
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
-	// #todo-vulkan
-	//vkCmdDispatch(currentCommandBuffer, threadGroupX, threadGroupY, threadGroupZ);
-	CHECK_NO_ENTRY();
+	vkCmdDispatch(currentCommandBuffer, threadGroupX, threadGroupY, threadGroupZ);
 }
 
 AccelerationStructure* VulkanRenderCommandList::buildRaytracingAccelerationStructure(uint32 numBLASDesc, BLASInstanceInitDesc* blasDescArray)

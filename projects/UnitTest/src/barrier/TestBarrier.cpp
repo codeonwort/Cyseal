@@ -265,7 +265,7 @@ namespace UnitTest
 		}
 	};
 
-	// #wip: Enable test for vulkan
+	// #todo-barrier-vk: Enable test for vulkan
 #if 0
 	TEST_CLASS(TestBarrierVulkan), TestBarrierBase<ERenderDeviceRawAPI::Vulkan>
 	{

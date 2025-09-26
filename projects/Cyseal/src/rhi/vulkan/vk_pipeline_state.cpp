@@ -47,7 +47,6 @@ void VulkanComputePipelineState::createPipelineLayout(const ComputePipelineDesc&
 	const auto& setLayouts = computeShader->getVkDescriptorSetLayouts();
 	const auto& pushConsts = computeShader->getVkPushConstantRanges();
 
-	// #wip-vk: Create VkPipelineLayout
 	VkPipelineLayoutCreateInfo createInfo{
 		.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext                  = nullptr,

@@ -10,7 +10,7 @@
 
 struct VulkanShaderReflection
 {
-	// #wip-vk
+	// #todo-barrier-vk
 };
 
 class VulkanShaderStage : public ShaderStage
@@ -49,8 +49,8 @@ private:
 	// Native resources
 	VkShaderModule vkModule = VK_NULL_HANDLE;
 	VkShaderStageFlagBits vkShaderStage = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
-	std::vector<VkDescriptorSetLayout> vkDescriptorSetLayouts; // #wip-vk
-	std::vector<VkPushConstantRange> vkPushConstantRanges; // #wip-vk
+	std::vector<VkDescriptorSetLayout> vkDescriptorSetLayouts;
+	std::vector<VkPushConstantRange> vkPushConstantRanges;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

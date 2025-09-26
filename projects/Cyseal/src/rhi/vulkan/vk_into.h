@@ -115,7 +115,7 @@ namespace into_vk
 		}
 		if (consumeFlag(&sync, EBarrierSync::DRAW))
 		{
-			CHECK_NO_ENTRY(); // #wip: Proper flag?
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
 			//vkFlags |= VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
 		}
 		if (consumeFlag(&sync, EBarrierSync::INDEX_INPUT))
@@ -132,7 +132,7 @@ namespace into_vk
 		}
 		if (consumeFlag(&sync, EBarrierSync::DEPTH_STENCIL))
 		{
-			CHECK_NO_ENTRY(); // #wip: Proper flag?
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
 			//vkFlags |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
 			//vkFlags |= VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
 		}
@@ -166,15 +166,15 @@ namespace into_vk
 		}
 		if (consumeFlag(&sync, EBarrierSync::ALL_SHADING))
 		{
-			CHECK_NO_ENTRY(); // #wip: Proper flag?
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
 		}
 		if (consumeFlag(&sync, EBarrierSync::NON_PIXEL_SHADING))
 		{
-			CHECK_NO_ENTRY(); // #wip: Proper flag?
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
 		}
 		if (consumeFlag(&sync, EBarrierSync::EMIT_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO))
 		{
-			CHECK_NO_ENTRY(); // #wip: Proper flag?
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
 		}
 		if (consumeFlag(&sync, EBarrierSync::CLEAR_UNORDERED_ACCESS_VIEW))
 		{
@@ -186,7 +186,7 @@ namespace into_vk
 		}
 		if (consumeFlag(&sync, EBarrierSync::VIDEO_PROCESS))
 		{
-			CHECK_NO_ENTRY(); // #wip: Proper flag?
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
 		}
 		if (consumeFlag(&sync, EBarrierSync::VIDEO_ENCODE))
 		{
@@ -202,7 +202,7 @@ namespace into_vk
 		}
 		if (consumeFlag(&sync, EBarrierSync::SPLIT))
 		{
-			CHECK_NO_ENTRY(); // #wip: Proper flag?
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
 		}
 
 		return vkFlags;
@@ -239,7 +239,7 @@ namespace into_vk
 		}
 		if (consumeFlag(&access, EBarrierAccess::UNORDERED_ACCESS))
 		{
-			// #wip: D3D12_BARRIER_ACCESS_UNORDERED_ACCESS is a read/write state
+			// #todo-barrier-vk: D3D12_BARRIER_ACCESS_UNORDERED_ACCESS is a read/write state
 			// but looks like Vulkan allows more fine-grained control?
 			vkFlags |= VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
 			vkFlags |= VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
@@ -258,7 +258,7 @@ namespace into_vk
 		}
 		if (consumeFlag(&access, EBarrierAccess::STREAM_OUTPUT))
 		{
-			// #wip: transform feedback is optional in Vulkan
+			// #todo-barrier-vk: transform feedback is optional in Vulkan
 			// and there are 3 flags... nah I won't ever use it anyway
 			vkFlags |= VK_ACCESS_2_TRANSFORM_FEEDBACK_WRITE_BIT_EXT;
 			//vkFlags |= VK_ACCESS_2_TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT;
@@ -286,12 +286,12 @@ namespace into_vk
 		}
 		if (consumeFlag(&access, EBarrierAccess::RESOLVE_DEST))
 		{
-			// #wip: What to do here?
+			// #todo-barrier-vk: What to do here?
 			CHECK_NO_ENTRY();
 		}
 		if (consumeFlag(&access, EBarrierAccess::RESOLVE_SOURCE))
 		{
-			// #wip: What to do here?
+			// #todo-barrier-vk: What to do here?
 			CHECK_NO_ENTRY();
 		}
 		if (consumeFlag(&access, EBarrierAccess::RAYTRACING_ACCELERATION_STRUCTURE_READ))
@@ -316,12 +316,12 @@ namespace into_vk
 		}
 		if (consumeFlag(&access, EBarrierAccess::VIDEO_PROCESS_READ))
 		{
-			// #wip: What to do here?
+			// #todo-barrier-vk: What to do here?
 			CHECK_NO_ENTRY();
 		}
 		if (consumeFlag(&access, EBarrierAccess::VIDEO_PROCESS_WRITE))
 		{
-			// #wip: What to do here?
+			// #todo-barrier-vk: What to do here?
 			CHECK_NO_ENTRY();
 		}
 		if (consumeFlag(&access, EBarrierAccess::VIDEO_ENCODE_READ))
@@ -333,7 +333,7 @@ namespace into_vk
 			vkFlags |= VK_ACCESS_2_VIDEO_ENCODE_WRITE_BIT_KHR;
 		}
 
-		// #wip: Is this right?
+		// #todo-barrier-vk: Is this right?
 		if (consumeFlag(&access, EBarrierAccess::NO_ACCESS))
 		{
 			CHECK(vkFlags == 0);
@@ -402,7 +402,7 @@ namespace into_vk
 			.levelCount     = range.numMipLevels,
 			.baseArrayLayer = range.firstArraySlice,
 			.layerCount     = range.numArraySlices,
-			// #wip: firstPlane and numPlanes?
+			// #todo-barrier-vk: firstPlane and numPlanes?
 		};
 	}
 
@@ -418,7 +418,7 @@ namespace into_vk
 			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.buffer              = static_cast<VkBuffer>(barrier.buffer->getRawResource()),
-			// #wip: Custom offset and size for buffer barrier?
+			// #todo-barrier-vk: Custom offset and size for buffer barrier?
 			.offset              = 0,
 			.size                = VK_WHOLE_SIZE,
 		};
