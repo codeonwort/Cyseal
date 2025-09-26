@@ -69,12 +69,22 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 	uint32 zeroValue = 0;
 	drawCounterBuffer->singleWriteToGPU(commandList, &zeroValue, sizeof(zeroValue), 0);
 
+	// #wip: GPUCulling
+#if 0
 	BufferMemoryBarrier barriersBefore[] = {
 		{ EBufferMemoryLayout::COMMON, EBufferMemoryLayout::PIXEL_SHADER_RESOURCE, indirectDrawBuffer },
 		{ EBufferMemoryLayout::COMMON, EBufferMemoryLayout::UNORDERED_ACCESS, culledIndirectDrawBuffer },
 		{ EBufferMemoryLayout::COMMON, EBufferMemoryLayout::UNORDERED_ACCESS, drawCounterBuffer },
 	};
 	commandList->resourceBarriers(_countof(barriersBefore), barriersBefore, 0, nullptr);
+#else
+	BufferBarrier barriersBefore[] = {
+		{ EBarrierSync::ALL, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::COMMON, EBarrierAccess::SHADER_RESOURCE, indirectDrawBuffer },
+		{ EBarrierSync::ALL, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::COMMON, EBarrierAccess::SHADER_RESOURCE, culledIndirectDrawBuffer },
+		{ EBarrierSync::ALL, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::COMMON, EBarrierAccess::UNORDERED_ACCESS, drawCounterBuffer },
+	};
+	commandList->barrier(_countof(barriersBefore), barriersBefore, 0, nullptr, 0, nullptr);
+#endif
 
 	ShaderParameterTable SPT{};
 	SPT.pushConstant("pushConstants", maxDrawCommands);
@@ -88,12 +98,22 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 	commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex), &descriptorIndexTracker);
 	commandList->dispatchCompute(maxDrawCommands, 1, 1);
 
+	// #wip: GPUCulling
+#if 0
 	BufferMemoryBarrier barriersAfter[] = {
 		{ EBufferMemoryLayout::PIXEL_SHADER_RESOURCE, EBufferMemoryLayout::INDIRECT_ARGUMENT, indirectDrawBuffer },
 		{ EBufferMemoryLayout::UNORDERED_ACCESS, EBufferMemoryLayout::INDIRECT_ARGUMENT, culledIndirectDrawBuffer },
 		{ EBufferMemoryLayout::UNORDERED_ACCESS, EBufferMemoryLayout::INDIRECT_ARGUMENT, drawCounterBuffer },
 	};
 	commandList->resourceBarriers(_countof(barriersAfter), barriersAfter, 0, nullptr);
+#else
+	BufferBarrier barriersAfter[] = {
+		{ EBarrierSync::COMPUTE_SHADING, EBarrierSync::EXECUTE_INDIRECT, EBarrierAccess::SHADER_RESOURCE, EBarrierAccess::INDIRECT_ARGUMENT, indirectDrawBuffer },
+		{ EBarrierSync::COMPUTE_SHADING, EBarrierSync::EXECUTE_INDIRECT, EBarrierAccess::SHADER_RESOURCE, EBarrierAccess::INDIRECT_ARGUMENT, culledIndirectDrawBuffer },
+		{ EBarrierSync::COMPUTE_SHADING, EBarrierSync::EXECUTE_INDIRECT, EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::INDIRECT_ARGUMENT, drawCounterBuffer },
+	};
+	commandList->barrier(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
+#endif
 }
 
 void GPUCulling::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors)
