@@ -199,6 +199,8 @@ namespace UnitTest
 				1920, 1080, 1);
 			auto texture1 = UniquePtr<Texture>(renderDevice->createTexture(textureParams));
 			auto texture2 = UniquePtr<Texture>(renderDevice->createTexture(textureParams));
+
+			textureParams.accessFlags |= ETextureAccessFlags::RTV;
 			auto texture3 = UniquePtr<Texture>(renderDevice->createTexture(textureParams));
 			Assert::IsTrue(texture1 != nullptr, L"Texture is null");
 			Assert::IsTrue(texture2 != nullptr, L"Texture is null");
@@ -375,6 +377,30 @@ namespace UnitTest
 				uint32 dispatchX = (textureParams.width + 7) / 8;
 				uint32 dispatchY = (textureParams.height + 7) / 8;
 				commandList->dispatchCompute(dispatchX, dispatchY, 1);
+			}
+			// Barrier (read pass -> present)
+			{
+				TextureBarrier barriers[] = {
+					{
+						.syncBefore   = EBarrierSync::COMPUTE_SHADING,
+						.syncAfter    = EBarrierSync::ALL, // #todo-barrier: what should syncAfter be for present?
+						.accessBefore = EBarrierAccess::UNORDERED_ACCESS,
+						.accessAfter  = EBarrierAccess::COMMON,
+						.layoutBefore = EBarrierLayout::UnorderedAccess,
+						.layoutAfter  = EBarrierLayout::Present,
+						.texture      = texture3.get(),
+						.subresources = BarrierSubresourceRange{
+							.indexOrFirstMipLevel = 0,
+							.numMipLevels         = 1,
+							.firstArraySlice      = 0,
+							.numArraySlices       = 0,
+							.firstPlane           = 0,
+							.numPlanes            = 0,
+						},
+						.flags        = ETextureBarrierFlags::None,
+					},
+				};
+				commandList->barrier(0, nullptr, _countof(barriers), barriers, 0, nullptr);
 			}
 
 			commandList->close();
