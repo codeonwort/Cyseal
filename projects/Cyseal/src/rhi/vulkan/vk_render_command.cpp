@@ -4,6 +4,8 @@
 
 #include "vk_utils.h"
 #include "vk_buffer.h"
+#include "vk_pipeline_state.h"
+#include "vk_descriptor.h"
 #include "vk_into.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -129,19 +131,6 @@ void VulkanRenderCommandList::resourceBarriers(
 	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
 	uint32 numUAVBarriers, GPUResource* const* uavBarrierResources)
 {
-	// [Vulkanised 2021 - Ensure Correct Vulkan Synchronization by Using Synchornization Validation]
-	// Barrier types
-	// - A memory barrier synchronizes all memory accessible by the GPU.
-	// - A buffer barrier synchronizes memory access to a buffer.
-	// - A image barrier synchronizes memory access to an image and allow Image Layout Transitions.
-	// Image Layout Transitions
-	// - Rearrange memory for efficient use by different pipeline stages.
-	// - Happens between the first and second execution scopes of the barrier.
-	// - Each subresource of an image can be transitioned independently.
-
-	// #todo-barrier: Use proper VkPipelineStageFlags
-	// https://gpuopen.com/learn/vulkan-barriers-explained/
-	// https://docs.vulkan.org/samples/latest/samples/performance/pipeline_barriers/README.html
 	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
@@ -155,14 +144,48 @@ void VulkanRenderCommandList::resourceBarriers(
 	{
 		vkImageMemoryBarriers[i] = into_vk::imageMemoryBarrier(textureMemoryBarriers[i]);
 	}
-	// #todo-barrier: UAV barriers
 
 	vkCmdPipelineBarrier(
 		currentCommandBuffer, srcStageMask, dstStageMask,
 		(VkDependencyFlagBits)0,
-		0, nullptr,// #todo-barrier: Vulkan global memory barrier
+		0, nullptr,
 		(uint32)vkBufferMemoryBarriers.size(), vkBufferMemoryBarriers.data(),
 		(uint32)vkImageMemoryBarriers.size(), vkImageMemoryBarriers.data());
+}
+
+void VulkanRenderCommandList::barrier(
+	uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
+	uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
+	uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers)
+{
+	std::vector<VkBufferMemoryBarrier2> vkBufferBarriers(numBufferBarriers);
+	std::vector<VkImageMemoryBarrier2> vkImageBarriers(numTextureBarriers);
+	std::vector<VkMemoryBarrier2> vkGlobalBarriers(numGlobalBarriers);
+	for (uint32 i = 0; i < numBufferBarriers; ++i)
+	{
+		vkBufferBarriers[i] = into_vk::bufferMemoryBarrier(bufferBarriers[i]);
+	}
+	for (uint32 i = 0; i < numTextureBarriers; ++i)
+	{
+		vkImageBarriers[i] = into_vk::imageMemoryBarrier(textureBarriers[i]);
+	}
+	for (uint32 i = 0; i < numGlobalBarriers; ++i)
+	{
+		vkGlobalBarriers[i] = into_vk::globalMemoryBarrier(globalBarriers[i]);
+	}
+
+	VkDependencyInfo dep{
+		.sType                    = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+		.pNext                    = nullptr,
+		.dependencyFlags          = (VkDependencyFlags)0,
+		.memoryBarrierCount       = numGlobalBarriers,
+		.pMemoryBarriers          = vkGlobalBarriers.data(),
+		.bufferMemoryBarrierCount = numBufferBarriers,
+		.pBufferMemoryBarriers    = vkBufferBarriers.data(),
+		.imageMemoryBarrierCount  = numTextureBarriers,
+		.pImageMemoryBarriers     = vkImageBarriers.data(),
+	};
+	vkCmdPipelineBarrier2(currentCommandBuffer, &dep);
 }
 
 void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
@@ -193,8 +216,9 @@ void VulkanRenderCommandList::setGraphicsPipelineState(GraphicsPipelineState* st
 
 void VulkanRenderCommandList::setComputePipelineState(ComputePipelineState* state)
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
+	auto vulkanPipeline = static_cast<VulkanComputePipelineState*>(state);
+	VkPipeline vkPipeline = vulkanPipeline->getVkPipeline();
+	vkCmdBindPipeline(currentCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, vkPipeline);
 }
 
 void VulkanRenderCommandList::setRaytracingPipelineState(RaytracingPipelineStateObject* rtpso)
@@ -334,15 +358,18 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	DescriptorHeap* descriptorHeap,
 	DescriptorIndexTracker* tracker)
 {
-	// #todo-vulkan
+	// #todo-barrier-vk: bindComputeShaderParameters
 	CHECK_NO_ENTRY();
+	VkPipelineLayout layout = static_cast<VulkanComputePipelineState*>(pipelineState)->getVkPipelineLayout();
+	VulkanDescriptorPool* pool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
+
+	//vkAllocateDescriptorSets
+	//vkCmdBindDescriptorSets
 }
 
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
-	// #todo-vulkan
-	//vkCmdDispatch(currentCommandBuffer, threadGroupX, threadGroupY, threadGroupZ);
-	CHECK_NO_ENTRY();
+	vkCmdDispatch(currentCommandBuffer, threadGroupX, threadGroupY, threadGroupZ);
 }
 
 AccelerationStructure* VulkanRenderCommandList::buildRaytracingAccelerationStructure(uint32 numBLASDesc, BLASInstanceInitDesc* blasDescArray)

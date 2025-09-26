@@ -140,6 +140,9 @@
     <ClInclude Include="src\rhi\hardware_raytracing.h" />
     <ClInclude Include="src\rhi\rhi_forward.h" />
     <ClInclude Include="src\rhi\rhi_policy.h" />
+    <ClInclude Include="src\rhi\shader_codegen.h" />
+    <ClInclude Include="src\rhi\shader_common.h" />
+    <ClInclude Include="src\rhi\shader_dxc_common.h" />
     <ClInclude Include="src\rhi\texture.h" />
     <ClInclude Include="src\rhi\vulkan\vk_buffer.h" />
     <ClInclude Include="src\rhi\vulkan\vk_descriptor.h" />
@@ -194,6 +197,10 @@
     <ClInclude Include="src\world\scene_proxy.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\external\vulkan\SPIRV-Reflect-vulkan-sdk-1.4.321.0\spirv_reflect.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\core\critical_section.cpp" />
     <ClCompile Include="src\core\engine.cpp" />
     <ClCompile Include="src\core\matrix.cpp" />
@@ -233,7 +240,10 @@
     <ClCompile Include="src\rhi\dx12\d3d_resource.cpp" />
     <ClCompile Include="src\rhi\dx12\d3d_resource_view.cpp" />
     <ClCompile Include="src\rhi\gpu_resource_view.cpp" />
+    <ClCompile Include="src\rhi\shader_codegen.cpp" />
+    <ClCompile Include="src\rhi\shader_dxc_common.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_buffer.cpp" />
+    <ClCompile Include="src\rhi\vulkan\vk_pipeline_state.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_render_command.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_resource_view.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_texture.cpp" />

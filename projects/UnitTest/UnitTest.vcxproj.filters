@@ -11,31 +11,31 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="TestVector.cpp">
+    <ClCompile Include="src\TestVector.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestImageLoader.cpp">
+    <ClCompile Include="src\TestImageLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestFreeNumberList.cpp">
+    <ClCompile Include="src\TestFreeNumberList.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestCamera.cpp">
+    <ClCompile Include="src\TestCamera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestBxDF.cpp">
+    <ClCompile Include="src\TestBxDF.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestSTBN.cpp">
+    <ClCompile Include="src\TestSTBN.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestSTL.cpp">
+    <ClCompile Include="src\TestSTL.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestPBRTParser.cpp">
+    <ClCompile Include="src\TestPBRTParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui.cpp">
@@ -59,13 +59,19 @@
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_win32.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestProcessCrash.cpp">
+    <ClCompile Include="src\TestProcessCrash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestRenderDevice.cpp">
+    <ClCompile Include="src\TestRenderDevice.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_vulkan.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\barrier\TestBarrier.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\shader\TestShaderCodegen.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

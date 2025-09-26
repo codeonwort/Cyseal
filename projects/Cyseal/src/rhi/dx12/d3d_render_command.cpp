@@ -154,10 +154,6 @@ void D3DRenderCommandList::resourceBarriers(
 	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
 	uint32 numUAVBarriers, GPUResource* const* uavBarrierResources)
 {
-	// #todo-barrier: DX12 enhanced barriers
-	// https://learn.microsoft.com/en-us/windows-hardware/drivers/display/enhanced-barriers
-	// https://microsoft.github.io/DirectX-Specs/d3d/D3D12EnhancedBarriers.html#excessive-sync-latency
-
 	uint32 totalBarriers = numBufferMemoryBarriers + numTextureMemoryBarriers + numUAVBarriers;
 	std::vector<D3D12_RESOURCE_BARRIER> rawBarriers(totalBarriers);
 	for (uint32 i = 0; i < numBufferMemoryBarriers; ++i)
@@ -186,6 +182,55 @@ void D3DRenderCommandList::resourceBarriers(
 		auto& desc = textureMemoryBarriers[i];
 		static_cast<D3DTexture*>(desc.texture)->saveLastMemoryLayout(desc.stateAfter);
 	}
+}
+
+void D3DRenderCommandList::barrier(
+	uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
+	uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
+	uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers)
+{
+	std::vector<D3D12_BARRIER_GROUP> groups;
+	std::vector<D3D12_BUFFER_BARRIER> d3dBufferBarriers(numBufferBarriers);
+	std::vector<D3D12_TEXTURE_BARRIER> d3dTextureBarriers(numTextureBarriers);
+	std::vector<D3D12_GLOBAL_BARRIER> d3dGlobalBarriers(numGlobalBarriers);
+	if (numBufferBarriers > 0)
+	{
+		for (size_t i = 0; i < numBufferBarriers; ++i)
+		{
+			d3dBufferBarriers[i] = into_d3d::bufferBarrier(bufferBarriers[i]);
+		}
+		D3D12_BARRIER_GROUP group;
+		group.Type = D3D12_BARRIER_TYPE_BUFFER;
+		group.NumBarriers = numBufferBarriers;
+		group.pBufferBarriers = d3dBufferBarriers.data();
+		groups.emplace_back(group);
+	}
+	if (numTextureBarriers > 0)
+	{
+		for (size_t i = 0; i < numTextureBarriers; ++i)
+		{
+			d3dTextureBarriers[i] = into_d3d::textureBarrier(textureBarriers[i]);
+		}
+		D3D12_BARRIER_GROUP group;
+		group.Type = D3D12_BARRIER_TYPE_TEXTURE;
+		group.NumBarriers = numTextureBarriers;
+		group.pTextureBarriers = d3dTextureBarriers.data();
+		groups.emplace_back(group);
+	}
+	if (numGlobalBarriers > 0)
+	{
+		for (size_t i = 0; i < numGlobalBarriers; ++i)
+		{
+			d3dGlobalBarriers[i] = into_d3d::globalBarrier(globalBarriers[i]);
+		}
+		D3D12_BARRIER_GROUP group;
+		group.Type = D3D12_BARRIER_TYPE_GLOBAL;
+		group.NumBarriers = numGlobalBarriers;
+		group.pGlobalBarriers = d3dGlobalBarriers.data();
+		groups.emplace_back(group);
+	}
+
+	commandList->Barrier((uint32)groups.size(), groups.data());
 }
 
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
@@ -331,7 +376,7 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 	ID3D12DescriptorHeap* d3dDescriptorHeaps[] = { d3dDescriptorHeap };
 	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
-	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	auto setRootDescriptorTables = [d3dPipelineState, device = device, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
 	{
 		for (const auto& inParam : parameters)
 		{
@@ -423,7 +468,7 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	commandList->SetComputeRootSignature(d3dRootSig);
 	commandList->SetDescriptorHeaps(_countof(d3dDescriptorHeaps), d3dDescriptorHeaps);
 
-	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
+	auto setRootDescriptorTables = [d3dPipelineState, device = device, &calcDescriptorHandle, descriptorHeap]<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
 	{
 		for (const auto& inParam : parameters)
 		{
@@ -605,7 +650,7 @@ void D3DRenderCommandList::bindRaytracingShaderParameters(
 	commandList->SetComputeRootSignature(globalRootSig);
 	commandList->SetDescriptorHeaps(numValidHeaps, d3dDescriptorHeaps);
 
-	auto setRootDescriptorTables = [d3dPipelineState, device = gRenderDevice, &calcDescriptorHandle, descriptorHeap]
+	auto setRootDescriptorTables = [d3dPipelineState, device = device, &calcDescriptorHandle, descriptorHeap]
 		<typename T>(ID3D12GraphicsCommandList* cmdList, const std::vector<T>& parameters, uint32* inoutDescriptorIx)
 	{
 		for (const auto& inParam : parameters)

@@ -4,6 +4,8 @@
 #include "d3d_device.h"
 #include "d3d_util.h"
 
+#define ID3D12GraphicsCommandListLatest ID3D12GraphicsCommandList10
+
 class ShaderResourceView;
 
 class D3DRenderCommandQueue : public RenderCommandQueue
@@ -49,6 +51,11 @@ public:
 		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
 		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
 		uint32 numUAVBarriers, GPUResource* const* uavBarrierResources) override;
+
+	virtual void barrier(
+		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
+		uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
+		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) override;
 
 	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override;
 
@@ -128,10 +135,10 @@ public:
 	virtual void beginEventMarker(const char* eventName) override;
 	virtual void endEventMarker() override;
 
-	inline ID3D12GraphicsCommandList4* getRaw() const { return commandList.Get(); }
+	inline ID3D12GraphicsCommandListLatest* getRaw() const { return commandList.Get(); }
 
 private:
 	D3DDevice* device;
 	D3DRenderCommandAllocator* commandAllocator;
-	WRL::ComPtr<ID3D12GraphicsCommandList4> commandList;
+	WRL::ComPtr<ID3D12GraphicsCommandListLatest> commandList;
 };

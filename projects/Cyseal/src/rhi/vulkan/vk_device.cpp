@@ -318,6 +318,11 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		vkGetDeviceQueue(vkDevice, indices.presentFamily, 0, &vkPresentQueue);
 	}
 
+	// Check capabilities.
+	{
+		bSupportsEnhancedBarrier = true; // vkCmdPipelineBarrier2()
+	}
+
 	// Get debug marker functions.
 	{
 		if (canEnableDebugMarker)
@@ -567,7 +572,7 @@ Texture* VulkanDevice::createTexture(const TextureCreateParams& createParams)
 
 ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* debugName)
 {
-	return new VulkanShaderStage(shaderStage, debugName);
+	return new VulkanShaderStage(this, shaderStage, debugName);
 }
 
 // #todo-vulkan: Root signature abstraction is deprecated
@@ -953,35 +958,9 @@ GraphicsPipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsP
 
 ComputePipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
 {
-	// WIP: Compute PSO
-	VulkanShaderStage* shaderWrapper = static_cast<VulkanShaderStage*>(inDesc.cs);
-	CHECK(shaderWrapper != nullptr);
-
-	VkPipelineShaderStageCreateInfo shaderStageCreateInfo{
-		.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-		.pNext               = nullptr,
-		.flags               = (VkPipelineShaderStageCreateFlagBits)0,
-		.stage               = shaderWrapper->getVkShaderStage(),
-		.module              = shaderWrapper->getVkShaderModule(),
-		.pName               = shaderWrapper->getEntryPointA(),
-		.pSpecializationInfo = nullptr, // WIP: VkSpecializationInfo
-	};
-
-	VkComputePipelineCreateInfo pipelineCreateInfo{
-		.sType              = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-		.pNext              = nullptr,
-		.flags              = (VkPipelineCreateFlagBits)0, // WIP: VkPipelineCreateFlagBits
-		.stage              = shaderStageCreateInfo,
-		.layout             = VK_NULL_HANDLE, // WIP: VulkanPipelineLayout //static_cast<VulkanPipelineLayout*>(inDesc.rootSignature)->getVkPipelineLayout(),
-		.basePipelineHandle = VK_NULL_HANDLE, // WIP: basePipelineHandle
-		.basePipelineIndex  = 0,
-	};
-
-	VkPipeline vkPipeline = VK_NULL_HANDLE;
-	VkResult vkRet = vkCreateComputePipelines(vkDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &vkPipeline);
-	CHECK(vkRet == VK_SUCCESS);
-
-	return new VulkanComputePipelineState(vkPipeline);
+	VulkanComputePipelineState* pipeline = new VulkanComputePipelineState;
+	pipeline->initialize(vkDevice, inDesc);
+	return pipeline;
 }
 
 RaytracingPipelineStateObject* VulkanDevice::createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc)
@@ -1028,7 +1007,7 @@ DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inD
 	VkResult ret = vkCreateDescriptorPool(vkDevice, &createInfo, nullptr, &vkDescriptorPool);
 	CHECK(ret == VK_SUCCESS);
 
-	return new VulkanDescriptorPool(inDesc, vkDescriptorPool);
+	return new VulkanDescriptorPool(this, inDesc, vkDescriptorPool);
 }
 
 ConstantBufferView* VulkanDevice::createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes)

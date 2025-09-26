@@ -100,6 +100,361 @@ namespace into_vk
 		};
 	}
 
+	inline VkPipelineStageFlags2 barrierSync(EBarrierSync sync)
+	{
+		auto consumeFlag = [](EBarrierSync* flags, EBarrierSync flag) -> bool {
+			bool hasFlag = ENUM_HAS_FLAG(*flags, flag);
+			*flags = (EBarrierSync)((uint32)(*flags) & (~(uint32)flag));
+			return hasFlag;
+		};
+
+		VkPipelineStageFlags2 vkFlags = 0;
+		if (consumeFlag(&sync, EBarrierSync::ALL))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::DRAW))
+		{
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
+			//vkFlags |= VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::INDEX_INPUT))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::VERTEX_SHADING))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::PIXEL_SHADING))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::DEPTH_STENCIL))
+		{
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
+			//vkFlags |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+			//vkFlags |= VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::RENDER_TARGET))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::COMPUTE_SHADING))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::RAYTRACING))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+		}
+		if (consumeFlag(&sync, EBarrierSync::COPY))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_COPY_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::RESOLVE))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_RESOLVE_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::EXECUTE_INDIRECT))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::PREDICATION))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::ALL_SHADING))
+		{
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
+		}
+		if (consumeFlag(&sync, EBarrierSync::NON_PIXEL_SHADING))
+		{
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
+		}
+		if (consumeFlag(&sync, EBarrierSync::EMIT_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO))
+		{
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
+		}
+		if (consumeFlag(&sync, EBarrierSync::CLEAR_UNORDERED_ACCESS_VIEW))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_CLEAR_BIT;
+		}
+		if (consumeFlag(&sync, EBarrierSync::VIDEO_DECODE))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR;
+		}
+		if (consumeFlag(&sync, EBarrierSync::VIDEO_PROCESS))
+		{
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
+		}
+		if (consumeFlag(&sync, EBarrierSync::VIDEO_ENCODE))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_VIDEO_ENCODE_BIT_KHR;
+		}
+		if (consumeFlag(&sync, EBarrierSync::BUILD_RAYTRACING_ACCELERATION_STRUCTURE))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+		}
+		if (consumeFlag(&sync, EBarrierSync::COPY_RAYTRACING_ACCELERATION_STRUCTURE))
+		{
+			vkFlags |= VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR;
+		}
+		if (consumeFlag(&sync, EBarrierSync::SPLIT))
+		{
+			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
+		}
+
+		return vkFlags;
+	}
+
+	inline VkAccessFlags2 barrierAccess(EBarrierAccess access)
+	{
+		auto consumeFlag = [](EBarrierAccess* flags, EBarrierAccess flag) -> bool {
+			bool hasFlag = ENUM_HAS_FLAG(*flags, flag);
+			*flags = (EBarrierAccess)((uint32)(*flags) & (~(uint32)flag));
+			return hasFlag;
+		};
+
+		VkAccessFlags2 vkFlags = 0;
+		if (consumeFlag(&access, EBarrierAccess::COMMON))
+		{
+			vkFlags |= VK_ACCESS_2_MEMORY_WRITE_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::VERTEX_BUFFER))
+		{
+			vkFlags |= VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::CONSTANT_BUFFER))
+		{
+			vkFlags |= VK_ACCESS_2_UNIFORM_READ_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::INDEX_BUFFER))
+		{
+			vkFlags |= VK_ACCESS_2_INDEX_READ_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::RENDER_TARGET))
+		{
+			vkFlags |= VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::UNORDERED_ACCESS))
+		{
+			// #todo-barrier-vk: D3D12_BARRIER_ACCESS_UNORDERED_ACCESS is a read/write state
+			// but looks like Vulkan allows more fine-grained control?
+			vkFlags |= VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+			vkFlags |= VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::DEPTH_STENCIL_WRITE))
+		{
+			vkFlags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::DEPTH_STENCIL_READ))
+		{
+			vkFlags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::SHADER_RESOURCE))
+		{
+			vkFlags |= VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::STREAM_OUTPUT))
+		{
+			// #todo-barrier-vk: transform feedback is optional in Vulkan
+			// and there are 3 flags... nah I won't ever use it anyway
+			vkFlags |= VK_ACCESS_2_TRANSFORM_FEEDBACK_WRITE_BIT_EXT;
+			//vkFlags |= VK_ACCESS_2_TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT;
+			//vkFlags |= VK_ACCESS_2_TRANSFORM_FEEDBACK_COUNTER_WRITE_BIT_EXT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::INDIRECT_ARGUMENT))
+		{
+			vkFlags |= VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+		}
+#if 0
+		// #todo-barrier-vk: Conditional rendering
+		// Think I won't use it and its enum value conflicts with INDIRECT_ARGUMENT.
+		if (consumeFlag(&access, EBarrierAccess::PREDICATION))
+		{
+			vkFlags |= VK_ACCESS_2_CONDITIONAL_RENDERING_READ_BIT_EXT;
+		}
+#endif
+		if (consumeFlag(&access, EBarrierAccess::COPY_DEST))
+		{
+			vkFlags |= VK_ACCESS_2_TRANSFER_WRITE_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::COPY_SOURCE))
+		{
+			vkFlags |= VK_ACCESS_2_TRANSFER_READ_BIT;
+		}
+		if (consumeFlag(&access, EBarrierAccess::RESOLVE_DEST))
+		{
+			// #todo-barrier-vk: What to do here?
+			CHECK_NO_ENTRY();
+		}
+		if (consumeFlag(&access, EBarrierAccess::RESOLVE_SOURCE))
+		{
+			// #todo-barrier-vk: What to do here?
+			CHECK_NO_ENTRY();
+		}
+		if (consumeFlag(&access, EBarrierAccess::RAYTRACING_ACCELERATION_STRUCTURE_READ))
+		{
+			vkFlags |= VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+		}
+		if (consumeFlag(&access, EBarrierAccess::RAYTRACING_ACCELERATION_STRUCTURE_WRITE))
+		{
+			vkFlags |= VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+		}
+		if (consumeFlag(&access, EBarrierAccess::SHADING_RATE_SOURCE))
+		{
+			vkFlags |= VK_ACCESS_2_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR;
+		}
+		if (consumeFlag(&access, EBarrierAccess::VIDEO_DECODE_READ))
+		{
+			vkFlags |= VK_ACCESS_2_VIDEO_DECODE_READ_BIT_KHR;
+		}
+		if (consumeFlag(&access, EBarrierAccess::VIDEO_DECODE_WRITE))
+		{
+			vkFlags |= VK_ACCESS_2_VIDEO_DECODE_WRITE_BIT_KHR;
+		}
+		if (consumeFlag(&access, EBarrierAccess::VIDEO_PROCESS_READ))
+		{
+			// #todo-barrier-vk: What to do here?
+			CHECK_NO_ENTRY();
+		}
+		if (consumeFlag(&access, EBarrierAccess::VIDEO_PROCESS_WRITE))
+		{
+			// #todo-barrier-vk: What to do here?
+			CHECK_NO_ENTRY();
+		}
+		if (consumeFlag(&access, EBarrierAccess::VIDEO_ENCODE_READ))
+		{
+			vkFlags |= VK_ACCESS_2_VIDEO_ENCODE_READ_BIT_KHR;
+		}
+		if (consumeFlag(&access, EBarrierAccess::VIDEO_ENCODE_WRITE))
+		{
+			vkFlags |= VK_ACCESS_2_VIDEO_ENCODE_WRITE_BIT_KHR;
+		}
+
+		// #todo-barrier-vk: Is this right?
+		if (consumeFlag(&access, EBarrierAccess::NO_ACCESS))
+		{
+			CHECK(vkFlags == 0);
+			vkFlags = VK_ACCESS_2_NONE;
+		}
+
+		CHECK(access == 0); // If failed, not all flag bits were consumed;
+		return vkFlags;
+	}
+
+	inline VkImageLayout barrierLayout(EBarrierLayout layout)
+	{
+		switch (layout)
+		{
+		case EBarrierLayout::Undefined:                   return VK_IMAGE_LAYOUT_UNDEFINED;
+		case EBarrierLayout::Common:                      return VK_IMAGE_LAYOUT_GENERAL;
+		case EBarrierLayout::Present:                     return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		case EBarrierLayout::GenericRead:                 CHECK_NO_ENTRY();
+		case EBarrierLayout::RenderTarget:                return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		case EBarrierLayout::UnorderedAccess:             return VK_IMAGE_LAYOUT_GENERAL;
+		case EBarrierLayout::DepthStencilWrite:           return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		case EBarrierLayout::DepthStencilRead:            return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		case EBarrierLayout::ShaderResource:              return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		case EBarrierLayout::CopySource:                  return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		case EBarrierLayout::CopyDest:                    return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		case EBarrierLayout::ResolveSource:               CHECK_NO_ENTRY();
+		case EBarrierLayout::ResolveDest:                 CHECK_NO_ENTRY();
+		case EBarrierLayout::ShadingRateSource:           return VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
+		case EBarrierLayout::VideoDecodeRead:             return VK_IMAGE_LAYOUT_VIDEO_DECODE_SRC_KHR;
+		case EBarrierLayout::VideoDecodeWrite:            return VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR;
+		case EBarrierLayout::VideoProcessRead:            CHECK_NO_ENTRY();
+		case EBarrierLayout::VideoProcessWrite:           CHECK_NO_ENTRY();
+		case EBarrierLayout::VideoEncodeRead:             return VK_IMAGE_LAYOUT_VIDEO_ENCODE_SRC_KHR;
+		case EBarrierLayout::VideoEncodeWrite:            return VK_IMAGE_LAYOUT_VIDEO_ENCODE_DST_KHR;
+		case EBarrierLayout::DirectQueueCommon:           CHECK_NO_ENTRY();
+		case EBarrierLayout::DirectQueueGenericRead:      CHECK_NO_ENTRY();
+		case EBarrierLayout::DirectQueueUnorderedAccess:  CHECK_NO_ENTRY();
+		case EBarrierLayout::DirectQueueShaderResource:   CHECK_NO_ENTRY();
+		case EBarrierLayout::DirectQueueCopySource:       CHECK_NO_ENTRY();
+		case EBarrierLayout::DirectQueueCopyDest:         CHECK_NO_ENTRY();
+		case EBarrierLayout::ComputeQueueCommon:          CHECK_NO_ENTRY();
+		case EBarrierLayout::ComputeQueueGenericRead:     CHECK_NO_ENTRY();
+		case EBarrierLayout::ComputeQueueUnorderedAccess: CHECK_NO_ENTRY();
+		case EBarrierLayout::ComputeQueueShaderResource:  CHECK_NO_ENTRY();
+		case EBarrierLayout::ComputeQueueCopySource:      CHECK_NO_ENTRY();
+		case EBarrierLayout::ComputeQueueCopyDest:        CHECK_NO_ENTRY();
+		case EBarrierLayout::VideoQueueCommon:            CHECK_NO_ENTRY();
+		}
+		return VK_IMAGE_LAYOUT_UNDEFINED;
+	}
+
+	inline VkImageSubresourceRange barrierSubresourceRange(const BarrierSubresourceRange& range, VkImageLayout newLayout)
+	{
+		VkImageAspectFlags aspectMask;
+		if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+		{
+			aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+		}
+		else
+		{
+			aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		}
+		return VkImageSubresourceRange{
+			.aspectMask     = aspectMask,
+			.baseMipLevel   = range.indexOrFirstMipLevel,
+			.levelCount     = range.numMipLevels,
+			.baseArrayLayer = range.firstArraySlice,
+			.layerCount     = range.numArraySlices,
+			// #todo-barrier-vk: firstPlane and numPlanes?
+		};
+	}
+
+	inline VkBufferMemoryBarrier2 bufferMemoryBarrier(const BufferBarrier& barrier)
+	{
+		return VkBufferMemoryBarrier2{
+			.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+			.pNext               = nullptr,
+			.srcStageMask        = into_vk::barrierSync(barrier.syncBefore),
+			.srcAccessMask       = into_vk::barrierAccess(barrier.accessBefore),
+			.dstStageMask        = into_vk::barrierSync(barrier.syncAfter),
+			.dstAccessMask       = into_vk::barrierAccess(barrier.accessAfter),
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.buffer              = static_cast<VkBuffer>(barrier.buffer->getRawResource()),
+			// #todo-barrier-vk: Custom offset and size for buffer barrier?
+			.offset              = 0,
+			.size                = VK_WHOLE_SIZE,
+		};
+	}
+
+	inline VkImageMemoryBarrier2 imageMemoryBarrier(const TextureBarrier& barrier)
+	{
+		VkImageLayout newLayout = into_vk::barrierLayout(barrier.layoutAfter);
+		return VkImageMemoryBarrier2{
+			.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+			.pNext               = nullptr,
+			.srcStageMask        = into_vk::barrierSync(barrier.syncBefore),
+			.srcAccessMask       = into_vk::barrierAccess(barrier.accessBefore),
+			.dstStageMask        = into_vk::barrierSync(barrier.syncAfter),
+			.dstAccessMask       = into_vk::barrierAccess(barrier.accessAfter),
+			.oldLayout           = into_vk::barrierLayout(barrier.layoutBefore),
+			.newLayout           = newLayout,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.image               = static_cast<VkImage>(barrier.texture->getRawResource()),
+			.subresourceRange    = barrierSubresourceRange(barrier.subresources, newLayout),
+		};
+	}
+
+	inline VkMemoryBarrier2 globalMemoryBarrier(const GlobalBarrier& barrier)
+	{
+		return VkMemoryBarrier2{
+			.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+			.pNext = nullptr,
+			.srcStageMask = into_vk::barrierSync(barrier.syncBefore),
+			.srcAccessMask       = into_vk::barrierAccess(barrier.accessBefore),
+			.dstStageMask        = into_vk::barrierSync(barrier.syncAfter),
+			.dstAccessMask       = into_vk::barrierAccess(barrier.accessAfter),
+		};
+	}
+
 	inline VkViewport viewport(const Viewport& inViewport)
 	{
 		return VkViewport{

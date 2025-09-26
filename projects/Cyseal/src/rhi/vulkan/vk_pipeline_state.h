@@ -30,17 +30,20 @@ private:
 class VulkanComputePipelineState : public ComputePipelineState
 {
 public:
-	VulkanComputePipelineState(VkPipeline inVkPipeline)
-		: vkPipeline(inVkPipeline)
-	{
-	}
-	~VulkanComputePipelineState()
-	{
-		vkDestroyPipeline(getVkDevice(), vkPipeline, nullptr);
-	}
+	~VulkanComputePipelineState();
+
+	void initialize(VkDevice inVkDevice, const ComputePipelineDesc& inDesc);
+
 	inline VkPipeline getVkPipeline() const { return vkPipeline; }
+	inline VkPipelineLayout getVkPipelineLayout() const { return vkPipelineLayout; }
+
 private:
+	void createPipelineLayout(const ComputePipelineDesc& inDesc);
+
+private:
+	VkDevice vkDevice = VK_NULL_HANDLE;
 	VkPipeline vkPipeline = VK_NULL_HANDLE;
+	VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
 };
 
 #endif // COMPILE_BACKEND_VULKAN
