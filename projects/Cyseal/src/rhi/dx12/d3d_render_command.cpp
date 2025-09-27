@@ -180,7 +180,8 @@ void D3DRenderCommandList::resourceBarriers(
 	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
 	{
 		auto& desc = textureMemoryBarriers[i];
-		static_cast<D3DTexture*>(desc.texture)->saveLastMemoryLayout(desc.stateAfter);
+		auto layoutAfter = into_d3d::textureMemoryLayoutToBarrierLayout(desc.stateAfter);
+		static_cast<D3DTexture*>(desc.texture)->saveLastMemoryLayout(layoutAfter);
 	}
 }
 
@@ -231,6 +232,13 @@ void D3DRenderCommandList::barrier(
 	}
 
 	commandList->Barrier((uint32)groups.size(), groups.data());
+
+	// Store last state.
+	for (uint32 i = 0; i < numTextureBarriers; ++i)
+	{
+		auto& desc = textureBarriers[i];
+		static_cast<D3DTexture*>(desc.texture)->saveLastMemoryLayout(desc.layoutAfter);
+	}
 }
 
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)

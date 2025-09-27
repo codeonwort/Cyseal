@@ -403,6 +403,9 @@ namespace into_d3d
 	D3D12_RESOURCE_BARRIER resourceBarrier(const BufferMemoryBarrier& barrier);
 	D3D12_RESOURCE_BARRIER resourceBarrier(const TextureMemoryBarrier& barrier);
 
+	// #todo-barrier: Temp util before removing legacy barrier API
+	EBarrierLayout textureMemoryLayoutToBarrierLayout(ETextureMemoryLayout legacyLayout);
+
 	// Enhanced barrier
 	D3D12_BARRIER_SYNC barrierSync(EBarrierSync sync);
 	D3D12_BARRIER_ACCESS barrierAccess(EBarrierAccess access);
