@@ -247,7 +247,9 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 	}
 }
 
-void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs)
+void D3DBuffer::writeToGPU(RenderCommandList* commandList,
+	uint32 numUploads, Buffer::UploadDesc* uploadDescs,
+	const UploadBarrier& uploadBarrier, bool bSkipBarriers)
 {
 	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
 	for (uint32 i = 0; i < numUploads; ++i)
@@ -264,15 +266,17 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Bu
 		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
 	cmdList->ResourceBarrier(1, &barrierBefore);
 #else
-	// #todo-barrier: How to specify before-values for sync and access?
-	auto barrierBefore = CD3DX12_BUFFER_BARRIER(
-		D3D12_BARRIER_SYNC_ALL,
-		D3D12_BARRIER_SYNC_COPY,
-		D3D12_BARRIER_ACCESS_COMMON,
-		D3D12_BARRIER_ACCESS_COPY_DEST,
-		defaultBuffer.Get());
-	auto barrierBeforeGroup = CD3DX12_BARRIER_GROUP(1, &barrierBefore);
-	cmdList->Barrier(1, &barrierBeforeGroup);
+	if (!bSkipBarriers)
+	{
+		auto barrierBefore = CD3DX12_BUFFER_BARRIER(
+			into_d3d::barrierSync(uploadBarrier.syncBefore),
+			D3D12_BARRIER_SYNC_COPY,
+			into_d3d::barrierAccess(uploadBarrier.accessBefore),
+			D3D12_BARRIER_ACCESS_COPY_DEST,
+			defaultBuffer.Get());
+		auto barrierBeforeGroup = CD3DX12_BARRIER_GROUP(1, &barrierBefore);
+		cmdList->Barrier(1, &barrierBeforeGroup);
+	}
 #endif
 
 	// #todo-renderdevice: Merge buffer copy regions if contiguous.
@@ -340,15 +344,17 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Bu
 		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
 	cmdList->ResourceBarrier(1, &barrierAfter);
 #else
-	// #todo-barrier: How to specify after-values for sync and access?
-	auto barrierAfter = CD3DX12_BUFFER_BARRIER(
-		D3D12_BARRIER_SYNC_COPY,
-		D3D12_BARRIER_SYNC_ALL,
-		D3D12_BARRIER_ACCESS_COPY_DEST,
-		D3D12_BARRIER_ACCESS_COMMON,
-		defaultBuffer.Get());
-	auto barrierAfterGroup = CD3DX12_BARRIER_GROUP(1, &barrierAfter);
-	cmdList->Barrier(1, &barrierAfterGroup);
+	if (!bSkipBarriers)
+	{
+		auto barrierAfter = CD3DX12_BUFFER_BARRIER(
+			D3D12_BARRIER_SYNC_COPY,
+			into_d3d::barrierSync(uploadBarrier.syncAfter),
+			D3D12_BARRIER_ACCESS_COPY_DEST,
+			into_d3d::barrierAccess(uploadBarrier.accessAfter),
+			defaultBuffer.Get());
+		auto barrierAfterGroup = CD3DX12_BARRIER_GROUP(1, &barrierAfter);
+		cmdList->Barrier(1, &barrierAfterGroup);
+	}
 #endif
 }
 

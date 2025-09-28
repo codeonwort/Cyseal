@@ -128,7 +128,9 @@ void VulkanBuffer::initialize(const BufferCreateParams& inCreateParams)
 		vkBuffer, vkBufferMemory);
 }
 
-void VulkanBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs)
+void VulkanBuffer::writeToGPU(RenderCommandList* commandList,
+	uint32 numUploads, Buffer::UploadDesc* uploadDescs,
+	const UploadBarrier& uploadBarrier, bool bSkipBarriers)
 {
 	// #todo-vulkan
 	CHECK_NO_ENTRY();

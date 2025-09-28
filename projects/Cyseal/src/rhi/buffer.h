@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gpu_resource.h"
+#include "gpu_resource_barrier.h"
 #include "pixel_format.h"
 #include "util/enum_util.h"
 
@@ -124,6 +125,19 @@ public:
 		uint32 sizeInBytes;
 		uint64 destOffsetInBytes;
 	};
+	// #todo-barrier: Don't know before/after states. Let the user decides.
+	struct UploadBarrier
+	{
+		EBarrierSync   syncBefore;
+		EBarrierSync   syncAfter;
+		EBarrierAccess accessBefore;
+		EBarrierAccess accessAfter;
+
+		static UploadBarrier blockAll()
+		{
+			return UploadBarrier{ EBarrierSync::ALL, EBarrierSync::ALL, EBarrierAccess::COMMON, EBarrierAccess::COMMON };
+		}
+	};
 
 	virtual void initialize(const BufferCreateParams& inCreateParams)
 	{
@@ -132,12 +146,25 @@ public:
 		// ... subclasses do remaining work
 	}
 
-	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) = 0;
+	/// <summary>
+	/// Upload data to the internal GPU buffer resource.
+	/// This is allowed only if the buffer was initialized with EBufferAccessFlags::COPY_SRC flag.
+	/// </summary>
+	/// <param name="commandList"></param>
+	/// <param name="numUploads"></param>
+	/// <param name="uploadDescs"></param>
+	/// <param name="uploadBarrier">Values for barrier sync and access before/after copy operation.</param>
+	/// <param name="bSkipBarriers">If true, Don't insert barriers before/after copy operation. The caller is expected to insert such barriers.</param>
+	virtual void writeToGPU(RenderCommandList* commandList,
+		uint32 numUploads, Buffer::UploadDesc* uploadDescs,
+		const UploadBarrier& uploadBarrier = UploadBarrier::blockAll(), bool bSkipBarriers = false) = 0;
 	
-	void singleWriteToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes, uint64 destOffsetInBytes)
+	void singleWriteToGPU(RenderCommandList* commandList,
+		void* srcData, uint32 sizeInBytes, uint64 destOffsetInBytes,
+		const UploadBarrier& uploadBarrier = UploadBarrier::blockAll(), bool bSkipBarriers = false)
 	{
 		UploadDesc desc{ srcData, sizeInBytes, destOffsetInBytes };
-		writeToGPU(commandList, 1, &desc);
+		writeToGPU(commandList, 1, &desc, uploadBarrier, bSkipBarriers);
 	}
 
 	inline const BufferCreateParams& getCreateParams() const { return createParams; }

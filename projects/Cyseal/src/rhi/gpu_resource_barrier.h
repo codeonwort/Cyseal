@@ -17,6 +17,7 @@
 // - Each subresource of an image can be transitioned independently.
 
 #include "core/int_types.h"
+#include "util/enum_util.h"
 
 class GPUResource;
 class Buffer;
@@ -197,9 +198,9 @@ struct BufferBarrier
 	EBarrierSync syncAfter;
 	EBarrierAccess accessBefore;
 	EBarrierAccess accessAfter;
-	GPUResource* buffer; // Must be a buffer. #todo-barrier: (Buffer*) if possible.
-	//uint64 offset => fixed to 0
-	//uint64 size => fixed to the buffer size in bytes
+	Buffer* buffer;
+	//uint64 offset; // Fixed to 0
+	//uint64 size;   // Fixed to the buffer size in bytes.
 };
 
 struct TextureBarrier
