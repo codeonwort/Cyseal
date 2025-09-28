@@ -260,12 +260,6 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList,
 
 	ID3D12GraphicsCommandListLatest* cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
-	// #wip
-#if 0
-	auto barrierBefore = CD3DX12_RESOURCE_BARRIER::Transition(
-		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
-	cmdList->ResourceBarrier(1, &barrierBefore);
-#else
 	if (!bSkipBarriers)
 	{
 		auto barrierBefore = CD3DX12_BUFFER_BARRIER(
@@ -277,7 +271,6 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList,
 		auto barrierBeforeGroup = CD3DX12_BARRIER_GROUP(1, &barrierBefore);
 		cmdList->Barrier(1, &barrierBeforeGroup);
 	}
-#endif
 
 	// #todo-renderdevice: Merge buffer copy regions if contiguous.
 	// Below code is not tested at all as there is no multi-write case yet.
@@ -338,12 +331,6 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList,
 			desc.sizeInBytes);
 	}
 
-	// #wip
-#if 0
-	auto barrierAfter = CD3DX12_RESOURCE_BARRIER::Transition(
-		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
-	cmdList->ResourceBarrier(1, &barrierAfter);
-#else
 	if (!bSkipBarriers)
 	{
 		auto barrierAfter = CD3DX12_BUFFER_BARRIER(
@@ -355,7 +342,6 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList,
 		auto barrierAfterGroup = CD3DX12_BARRIER_GROUP(1, &barrierAfter);
 		cmdList->Barrier(1, &barrierAfterGroup);
 	}
-#endif
 }
 
 void D3DBuffer::setDebugName(const wchar_t* inDebugName)
