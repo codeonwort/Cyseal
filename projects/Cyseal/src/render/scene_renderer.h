@@ -51,11 +51,15 @@ private:
 
 	void rebuildAccelerationStructure(RenderCommandList* commandList, const SceneProxy* scene);
 
+	void resetInitialBarriers(RenderCommandList* commandList);
+
 private:
 	RenderDevice* device = nullptr;
 
 	struct DeferredCleanup { GPUResource* resource; /*uint32 count;*/ }; // Don't remember why I put 'count' there...?
 	std::vector<DeferredCleanup> deferredCleanupList;
+
+	bool bShouldResetBarriers = false;
 
 	SceneUniform sceneUniformData;
 	SceneUniform prevSceneUniformData;

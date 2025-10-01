@@ -182,6 +182,15 @@ struct BarrierSubresourceRange
 	uint32 numArraySlices;
 	uint32 firstPlane;
 	uint32 numPlanes;
+
+	static BarrierSubresourceRange singleMip(uint32 mip)
+	{
+		return BarrierSubresourceRange{ mip, 0, 0, 0, 0, 0 };
+	}
+	static BarrierSubresourceRange allMips()
+	{
+		return BarrierSubresourceRange{ 0xffffffff, 0, 0, 0, 0, 0 };
+	}
 };
 
 // D3D12_TEXTURE_BARRIER_FLAGS

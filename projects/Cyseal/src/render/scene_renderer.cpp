@@ -211,6 +211,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	resetCommandList(commandAllocator, commandList);
 
+	resetInitialBarriers(commandList);
+
 	// Just execute prior to any standard renderer works.
 	// If some custom commands should execute in midst of frame rendering,
 	// I need to insert delegates here and there of this SceneRenderer::render() function.
@@ -395,11 +397,28 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, HiZPass);
 
+#if 0
 		TextureMemoryBarrier barriersBefore[] = {
 			{ ETextureMemoryLayout::DEPTH_STENCIL_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_sceneDepth.get() },
 			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_hiz.get() },
 		};
 		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+#else
+		TextureMemoryBarrier barriersBefore[] = {
+			{ ETextureMemoryLayout::DEPTH_STENCIL_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_sceneDepth.get() },
+		};
+		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+
+		TextureBarrier barriersBefore2[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+				EBarrierAccess::COMMON, EBarrierAccess::UNORDERED_ACCESS,
+				EBarrierLayout::ShaderResource, EBarrierLayout::UnorderedAccess,
+				RT_hiz.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			}
+		};
+		commandList->barrier(0, nullptr, _countof(barriersBefore2), barriersBefore2, 0, nullptr);
+#endif
 
 		HiZPassInput passInput{
 			.textureWidth  = sceneWidth,
@@ -731,6 +750,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 {
 	gRenderDevice->getDenoiserDevice()->recreateResources(sceneWidth, sceneHeight);
+	bShouldResetBarriers = true;
 
 	auto& cleanupList = this->deferredCleanupList;
 	auto cleanup = [&cleanupList](GPUResource* resource) {
@@ -1240,4 +1260,23 @@ void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList,
 	// Build acceleration structure.
 	accelStructure = UniquePtr<AccelerationStructure>(
 		commandList->buildRaytracingAccelerationStructure((uint32)blasDescArray.size(), blasDescArray.data()));
+}
+
+void SceneRenderer::resetInitialBarriers(RenderCommandList* commandList)
+{
+	if (!bShouldResetBarriers)
+	{
+		return;
+	}
+	bShouldResetBarriers = false;
+
+	TextureBarrier textureBarriers[] = {
+		{
+			EBarrierSync::NONE, EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::NO_ACCESS, EBarrierAccess::SHADER_RESOURCE,
+			EBarrierLayout::Common, EBarrierLayout::ShaderResource,
+			RT_hiz.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		}
+	};
+	commandList->barrier(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 }

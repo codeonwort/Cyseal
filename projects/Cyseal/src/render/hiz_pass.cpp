@@ -57,11 +57,24 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 		uint32 dispatchY = (passInput.textureHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
+		// #wip: hiz
+#if 0
 		TextureMemoryBarrier texBarriers[] = {
 			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, passInput.hizTexture, 0 },
 		};
 		GPUResource* uavBarriers[] = { passInput.hizTexture };
 		commandList->resourceBarriers(0, nullptr, _countof(texBarriers), texBarriers, _countof(uavBarriers), uavBarriers);
+#else
+		TextureBarrier texBarriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+				EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::SHADER_RESOURCE,
+				EBarrierLayout::UnorderedAccess, EBarrierLayout::ShaderResource,
+				passInput.hizTexture, BarrierSubresourceRange::singleMip(0), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrier(0, nullptr, _countof(texBarriers), texBarriers, 0, nullptr);
+#endif
 	}
 
 	uint32 mipCount = (uint32)passInput.hizUAVs.size();
@@ -95,11 +108,24 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 		uint32 dispatchY = (currHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
+		// #wip: hiz
+#if 0
 		TextureMemoryBarrier texBarriers[] = {
 			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, passInput.hizTexture, currMip },
 		};
 		GPUResource* uavBarriers[] = { passInput.hizTexture };
 		commandList->resourceBarriers(0, nullptr, _countof(texBarriers), texBarriers, _countof(uavBarriers), uavBarriers);
+#else
+		TextureBarrier texBarriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+				EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::SHADER_RESOURCE,
+				EBarrierLayout::UnorderedAccess, EBarrierLayout::ShaderResource,
+				passInput.hizTexture, BarrierSubresourceRange::singleMip(currMip), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrier(0, nullptr, _countof(texBarriers), texBarriers, 0, nullptr);
+#endif
 
 		prevWidth = currWidth;
 		prevHeight = currHeight;
