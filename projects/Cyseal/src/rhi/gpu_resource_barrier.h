@@ -183,6 +183,20 @@ struct BarrierSubresourceRange
 	uint32 firstPlane;
 	uint32 numPlanes;
 
+	bool operator==(const BarrierSubresourceRange& other) const
+	{
+		return indexOrFirstMipLevel == other.indexOrFirstMipLevel
+			&& numMipLevels == other.numMipLevels
+			&& firstArraySlice == other.firstArraySlice
+			&& numArraySlices == other.numArraySlices
+			&& firstPlane == other.firstPlane
+			&& numPlanes == other.numPlanes;
+	}
+	bool operator!=(const BarrierSubresourceRange& other) const
+	{
+		return !(*this == other);
+	}
+
 	static BarrierSubresourceRange singleMip(uint32 mip)
 	{
 		return BarrierSubresourceRange{ mip, 0, 0, 0, 0, 0 };
