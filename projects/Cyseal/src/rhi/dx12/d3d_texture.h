@@ -42,7 +42,7 @@ private:
 	WRL::ComPtr<ID3D12Resource> rawResource;
 	TextureCreateParams createParams;
 
-	// #wip: Storing state here is not a good idea because multiple command lists could touch the same texture.
+	// #wip-tracker: Storing state here is not a good idea because multiple command lists could touch the same texture.
 	// Same reason why I removed various views (UAV, SRV, RTV, ...) from Texture.
 	EBarrierLayout lastMemoryLayout = EBarrierLayout::Common;
 

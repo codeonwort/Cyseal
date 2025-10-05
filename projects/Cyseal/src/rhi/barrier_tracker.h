@@ -1,8 +1,5 @@
 #pragma once
 
-// Tracks resource states for issueing barriers in a render command list.
-// RenderCommandList uses BarrierTacker.
-
 #include "gpu_resource_barrier.h"
 
 #include <map>
@@ -31,19 +28,29 @@ struct TextureBarrierAuto
 	ETextureBarrierFlags flags;
 };
 
-// #wip: Should full-manual ver of RenderCommandList::barrier() save final state to this tracker?
-// yes, because auto barrier after manual barrier need to know before state.
-class BarrierTracker
+// Tracks resource states for issueing barriers in a render command list.
+// RenderCommandList implmentations use BarrierTacker internally.
+// BarrierTracker itself only track and verify resource states. Actual barrier API is still called by render command list.
+class BarrierTracker final
 {
 public:
-	BarrierTracker(RenderCommandList* inCommandList);
+	BarrierTracker();
 	~BarrierTracker();
+
+	void initialize(RenderCommandList* inCommandList);
 
 	// Call after acquiring a command list and before recording any commands.
 	void resetAll();
 
-	BufferBarrier toBufferBarrier(const BufferBarrierAuto& halfBarrier);
-	TextureBarrier toTextureBarrier(const TextureBarrierAuto& halfBarrier);
+	// Convert half-auto barrier to full barrier.
+	BufferBarrier toBufferBarrier(const BufferBarrierAuto& halfBarrier) const;
+	// Convert half-auto barrier to full barrier.
+	TextureBarrier toTextureBarrier(const TextureBarrierAuto& halfBarrier) const;
+
+	// Verify full barrier and update internal state tracker.
+	void applyBufferBarrier(const BufferBarrier& barrier);
+	// Verify full barrier and update internal state tracker.
+	void applyTextureBarrier(const TextureBarrier& barrier);
 
 private:
 	struct BufferState

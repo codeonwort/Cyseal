@@ -1,12 +1,16 @@
 #include "barrier_tracker.h"
 
-BarrierTracker::BarrierTracker(RenderCommandList* inCommandList)
-	: commandList(inCommandList)
+BarrierTracker::BarrierTracker()
 {
 }
 
 BarrierTracker::~BarrierTracker()
 {
+}
+
+void BarrierTracker::initialize(RenderCommandList* inCommandList)
+{
+	commandList = inCommandList;
 }
 
 void BarrierTracker::resetAll()
@@ -15,7 +19,7 @@ void BarrierTracker::resetAll()
 	textureStates.clear();
 }
 
-BufferBarrier BarrierTracker::toBufferBarrier(const BufferBarrierAuto& halfBarrier)
+BufferBarrier BarrierTracker::toBufferBarrier(const BufferBarrierAuto& halfBarrier) const
 {
 	BufferState beforeState{
 		.syncBefore   = EBarrierSync::NONE,
@@ -35,23 +39,17 @@ BufferBarrier BarrierTracker::toBufferBarrier(const BufferBarrierAuto& halfBarri
 		.buffer       = halfBarrier.buffer,
 	};
 
-	beforeState = BufferState{
-		.syncBefore   = halfBarrier.syncAfter,
-		.accessBefore = halfBarrier.accessAfter,
-	};
-	bufferStates.insert_or_assign(halfBarrier.buffer, beforeState);
-
 	return fullBarrier;
 }
 
-TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBarrier)
+TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBarrier) const
 {
 	TextureState beforeState{
 		.syncBefore   = EBarrierSync::NONE,
 		.accessBefore = EBarrierAccess::NO_ACCESS,
-		.layoutBefore = EBarrierLayout::Common,
-		.subresources = halfBarrier.subresources, // #wip: Initial BarrierSubresourceRange?
-		.flags        = halfBarrier.flags // #wip: Initial ETextureBarrierFlags?
+		.layoutBefore = EBarrierLayout::Common, // #wip-tracker: Initial layoutBefore? undefined or common?
+		.subresources = halfBarrier.subresources, // #wip-tracker: Initial BarrierSubresourceRange?
+		.flags        = halfBarrier.flags // #wip-tracker: Initial ETextureBarrierFlags?
 	};
 	auto it = textureStates.find(halfBarrier.texture);
 	if (it != textureStates.end())
@@ -71,18 +69,83 @@ TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBa
 		.flags        = halfBarrier.flags
 	};
 
-	// #wip: subresource range for auto barrier?
+	// #wip-tracker: subresource range for auto barrier?
 	CHECK(beforeState.subresources == halfBarrier.subresources);
 	CHECK(beforeState.flags == halfBarrier.flags);
 
-	beforeState = TextureState{
-		.syncBefore   = halfBarrier.syncAfter,
-		.accessBefore = halfBarrier.accessAfter,
-		.layoutBefore = halfBarrier.layoutAfter,
-		.subresources = halfBarrier.subresources,
-		.flags        = halfBarrier.flags,
-	};
-	textureStates.insert_or_assign(halfBarrier.texture, beforeState);
-
 	return fullBarrier;
+}
+
+void BarrierTracker::applyBufferBarrier(const BufferBarrier& barrier)
+{
+	auto it = bufferStates.find(barrier.buffer);
+	if (it == bufferStates.end())
+	{
+		// #wip-tracker-state: Enable it and remove unnecessary flush
+#if 0
+		if (barrier.syncBefore != EBarrierSync::NONE)
+		{
+			CHECK_NO_ENTRY(); // You don't need syncBefore.
+		}
+		if (barrier.accessBefore != EBarrierAccess::NO_ACCESS)
+		{
+			CHECK_NO_ENTRY(); // You don't need accessBefore.
+		}
+#endif
+	}
+	else
+	{
+		const BufferState& beforeState = it->second;
+		CHECK(beforeState.syncBefore == barrier.syncBefore);
+		CHECK(beforeState.accessBefore == barrier.accessBefore);
+	}
+
+	BufferState beforeState = BufferState{
+		.syncBefore   = barrier.syncAfter,
+		.accessBefore = barrier.accessAfter,
+	};
+	bufferStates.insert_or_assign(barrier.buffer, beforeState);
+}
+
+void BarrierTracker::applyTextureBarrier(const TextureBarrier & barrier)
+{
+	auto it = textureStates.find(barrier.texture);
+	if (it == textureStates.end())
+	{
+		// #wip-tracker-state: Enable it and remove unnecessary flush
+#if 0
+		if (barrier.syncBefore != EBarrierSync::NONE)
+		{
+			CHECK_NO_ENTRY(); // You don't need syncBefore.
+		}
+		if (barrier.accessBefore != EBarrierAccess::NO_ACCESS)
+		{
+			CHECK_NO_ENTRY(); // You don't need accessBefore.
+		}
+		if (barrier.layoutBefore != EBarrierLayout::Undefined && barrier.layoutBefore != EBarrierLayout::Common)
+		{
+			CHECK_NO_ENTRY();
+		}
+#endif
+	}
+	else
+	{
+		const TextureState& beforeState = it->second;
+		CHECK(beforeState.syncBefore == barrier.syncBefore);
+		CHECK(beforeState.accessBefore == barrier.accessBefore);
+		CHECK(beforeState.layoutBefore == barrier.layoutBefore);
+
+		// #wip-tracker: Verify subresource range?
+		CHECK(beforeState.subresources == barrier.subresources);
+		CHECK(beforeState.flags == barrier.flags);
+	}
+
+	TextureState beforeState = TextureState{
+		.syncBefore   = barrier.syncAfter,
+		.accessBefore = barrier.accessAfter,
+		.layoutBefore = barrier.layoutAfter,
+		.subresources = barrier.subresources,
+		.flags        = barrier.flags,
+	};
+	textureStates.insert_or_assign(barrier.texture, beforeState);
 }

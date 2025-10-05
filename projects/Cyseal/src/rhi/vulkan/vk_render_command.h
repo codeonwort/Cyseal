@@ -4,6 +4,7 @@
 
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource_barrier.h"
+#include "rhi/barrier_tracker.h"
 #include "vk_device.h"
 
 #define VK_NO_PROTOTYPES
@@ -59,6 +60,11 @@ public:
 	virtual void barrier(
 		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
 		uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
+		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) override;
+
+	virtual void barrierAuto(
+		uint32 numBufferBarriers, const BufferBarrierAuto* bufferBarriers,
+		uint32 numTextureBarriers, const TextureBarrierAuto* textureBarriers,
 		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) override;
 
 	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "rhi/render_command.h"
+#include "rhi/barrier_tracker.h"
 #include "d3d_device.h"
 #include "d3d_util.h"
 
@@ -55,6 +56,11 @@ public:
 	virtual void barrier(
 		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
 		uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
+		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) override;
+
+	virtual void barrierAuto(
+		uint32 numBufferBarriers, const BufferBarrierAuto* bufferBarriers,
+		uint32 numTextureBarriers, const TextureBarrierAuto* textureBarriers,
 		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) override;
 
 	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override;
@@ -141,4 +147,5 @@ private:
 	D3DDevice* device;
 	D3DRenderCommandAllocator* commandAllocator;
 	WRL::ComPtr<ID3D12GraphicsCommandListLatest> commandList;
+	BarrierTracker barrierTracker;
 };

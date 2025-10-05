@@ -11,6 +11,8 @@
 // Forward Declarations
 class VertexBuffer;
 class IndexBuffer;
+struct BufferBarrierAuto;
+struct TextureBarrierAuto;
 
 // ID3D12CommandQueue
 // VkQueue
@@ -80,6 +82,11 @@ public:
 	virtual void barrier(
 		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
 		uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
+		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) = 0;
+
+	virtual void barrierAuto(
+		uint32 numBufferBarriers, const BufferBarrierAuto* bufferBarriers,
+		uint32 numTextureBarriers, const TextureBarrierAuto* textureBarriers,
 		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) = 0;
 
 	// #todo-rendercommand: Maybe not the best way to clear RTV.

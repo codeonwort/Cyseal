@@ -82,12 +82,16 @@ void D3DRenderCommandList::initialize(RenderDevice* renderDevice)
 		IID_PPV_ARGS(commandList.GetAddressOf()))
 	);
 	HR( commandList->Close() );
+
+	barrierTracker.initialize(this);
 }
 
 void D3DRenderCommandList::reset(RenderCommandAllocator* allocator)
 {
 	ID3D12CommandAllocator* d3dAllocator = static_cast<D3DRenderCommandAllocator*>(allocator)->getRaw();
 	HR( commandList->Reset(d3dAllocator, nullptr) );
+	
+	barrierTracker.resetAll();
 }
 
 void D3DRenderCommandList::close()
@@ -199,6 +203,7 @@ void D3DRenderCommandList::barrier(
 		for (size_t i = 0; i < numBufferBarriers; ++i)
 		{
 			d3dBufferBarriers[i] = into_d3d::bufferBarrier(bufferBarriers[i]);
+			barrierTracker.applyBufferBarrier(bufferBarriers[i]);
 		}
 		D3D12_BARRIER_GROUP group;
 		group.Type = D3D12_BARRIER_TYPE_BUFFER;
@@ -211,6 +216,7 @@ void D3DRenderCommandList::barrier(
 		for (size_t i = 0; i < numTextureBarriers; ++i)
 		{
 			d3dTextureBarriers[i] = into_d3d::textureBarrier(textureBarriers[i]);
+			barrierTracker.applyTextureBarrier(textureBarriers[i]);
 		}
 		D3D12_BARRIER_GROUP group;
 		group.Type = D3D12_BARRIER_TYPE_TEXTURE;
@@ -239,6 +245,32 @@ void D3DRenderCommandList::barrier(
 		auto& desc = textureBarriers[i];
 		static_cast<D3DTexture*>(desc.texture)->saveLastMemoryLayout(desc.layoutAfter);
 	}
+}
+
+void D3DRenderCommandList::barrierAuto(
+	uint32 numBufferBarriers, const BufferBarrierAuto* bufferBarriers,
+	uint32 numTextureBarriers, const TextureBarrierAuto* textureBarriers,
+	uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers)
+{
+	std::vector<BufferBarrier> fullBufferBarriers;
+	std::vector<TextureBarrier> fullTextureBarriers;
+	fullBufferBarriers.reserve(numBufferBarriers);
+	fullTextureBarriers.reserve(numTextureBarriers);
+	for (uint32 i = 0; i < numBufferBarriers; ++i)
+	{
+		BufferBarrier fullBarrier = barrierTracker.toBufferBarrier(bufferBarriers[i]);
+		fullBufferBarriers.emplace_back(fullBarrier);
+	}
+	for (uint32 i = 0; i < numTextureBarriers; ++i)
+	{
+		TextureBarrier fullBarrier = barrierTracker.toTextureBarrier(textureBarriers[i]);
+		fullTextureBarriers.emplace_back(fullBarrier);
+	}
+
+	this->barrier(
+		numBufferBarriers, fullBufferBarriers.data(),
+		numTextureBarriers, fullTextureBarriers.data(),
+		numGlobalBarriers, globalBarriers);
 }
 
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)

@@ -188,6 +188,15 @@ void VulkanRenderCommandList::barrier(
 	vkCmdPipelineBarrier2(currentCommandBuffer, &dep);
 }
 
+void VulkanRenderCommandList::barrierAuto(
+	uint32 numBufferBarriers, const BufferBarrierAuto* bufferBarriers,
+	uint32 numTextureBarriers, const TextureBarrierAuto* textureBarriers,
+	uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers)
+{
+	// #wip-tracker
+	CHECK_NO_ENTRY();
+}
+
 void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
 {
 	// #todo-vulkan
