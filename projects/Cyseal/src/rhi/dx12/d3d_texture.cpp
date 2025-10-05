@@ -188,16 +188,13 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	}
 
 	D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
-	lastMemoryLayout = EBarrierLayout::Common;
 	if (isColorTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::CPU_WRITE))
 	{
 		initialState |= D3D12_RESOURCE_STATE_COPY_DEST;
-		saveLastMemoryLayout(EBarrierLayout::CopyDest);
 	}
 	else if (isDepthTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
 	{
 		initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-		saveLastMemoryLayout(EBarrierLayout::DepthStencilWrite);
 	}
 
 	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -275,17 +272,11 @@ void D3DTexture::uploadData(
 		.SlicePitch = (LONG_PTR)slicePitch,
 	};
 
-	// #todo-barrier: How to specify before-values for sync and access?
-	if (lastMemoryLayout != EBarrierLayout::CopyDest)
-	{
-		TextureBarrier barrierBefore{
-			EBarrierSync::ALL, EBarrierSync::COPY, EBarrierAccess::COMMON, EBarrierAccess::COPY_DEST,
-			lastMemoryLayout, EBarrierLayout::CopyDest, this,
-			BarrierSubresourceRange { subresourceIndex, 1, 0, 0, 0, 0 },
-			ETextureBarrierFlags::None
-		};
-		commandList.barrier(0, nullptr, 1, &barrierBefore, 0, nullptr);
-	}
+	TextureBarrierAuto barrierBefore{
+		EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
+		this, BarrierSubresourceRange { subresourceIndex, 1, 0, 0, 0, 0 }, ETextureBarrierFlags::None
+	};
+	commandList.barrierAuto(0, nullptr, 1, &barrierBefore, 0, nullptr);
 
 	// [ RESOURCE_MANIPULATION ERROR #864: COPYTEXTUREREGION_INVALIDSRCOFFSET ]
 	// Offset must be a multiple of 512.
@@ -297,34 +288,17 @@ void D3DTexture::uploadData(
 		textureUploadHeap.Get(), slicePitchAligned * subresourceIndex,
 		subresourceIndex, 1, &textureData);
 	CHECK(ret != 0);
-
-	// #todo-barrier: How to specify after-values for sync and access?
-	if (lastMemoryLayout != EBarrierLayout::CopyDest)
-	{
-		TextureBarrier barrierAfter{
-			EBarrierSync::COPY, EBarrierSync::ALL, EBarrierAccess::COPY_DEST, EBarrierAccess::COMMON,
-			EBarrierLayout::CopyDest, lastMemoryLayout, this,
-			BarrierSubresourceRange { subresourceIndex, 1, 0, 0, 0, 0 },
-			ETextureBarrierFlags::None
-		};
-		commandList.barrier(0, nullptr, 1, &barrierAfter, 0, nullptr);
-	}
 }
 
 bool D3DTexture::prepareReadback(RenderCommandList* commandList)
 {
 	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, ETextureAccessFlags::CPU_READBACK));
 
-	if (lastMemoryLayout != EBarrierLayout::CopySource)
-	{
-		TextureBarrier barrierBefore{
-			EBarrierSync::ALL, EBarrierSync::COPY, EBarrierAccess::COMMON, EBarrierAccess::COPY_SOURCE,
-			lastMemoryLayout, EBarrierLayout::CopySource, this,
-			BarrierSubresourceRange { 0, 1, 0, 0, 0, 0 },
-			ETextureBarrierFlags::None
-		};
-		commandList->barrier(0, nullptr, 1, &barrierBefore, 0, nullptr);
-	}
+	TextureBarrierAuto barrierBefore{
+		EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+		this, BarrierSubresourceRange { 0, 1, 0, 0, 0, 0 }, ETextureBarrierFlags::None
+	};
+	commandList->barrierAuto(0, nullptr, 1, &barrierBefore, 0, nullptr);
 
 	ID3D12GraphicsCommandList4* d3dCommandList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
@@ -342,17 +316,6 @@ bool D3DTexture::prepareReadback(RenderCommandList* commandList)
 		.back   = 1,
 	};
 	d3dCommandList->CopyTextureRegion(&readbackFootprintDesc, 0, 0, 0, &pSrc, &srcRegion);
-
-	if (lastMemoryLayout != EBarrierLayout::CopySource)
-	{
-		TextureBarrier barrierAfter{
-			EBarrierSync::COPY, EBarrierSync::ALL, EBarrierAccess::COPY_SOURCE, EBarrierAccess::COMMON,
-			EBarrierLayout::CopySource, lastMemoryLayout, this,
-			BarrierSubresourceRange { 0, 1, 0, 0, 0, 0 },
-			ETextureBarrierFlags::None
-		};
-		commandList->barrier(0, nullptr, 1, &barrierAfter, 0, nullptr);
-	}
 
 	bReadbackPrepared = true;
 

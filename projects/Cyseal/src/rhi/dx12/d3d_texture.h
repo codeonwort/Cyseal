@@ -34,17 +34,11 @@ public:
 
 	virtual void* getRawResource() const override { return rawResource.Get(); }
 
-	void saveLastMemoryLayout(EBarrierLayout layout) { lastMemoryLayout = layout; }
-
 private:
 	D3DDevice* device = nullptr;
 
 	WRL::ComPtr<ID3D12Resource> rawResource;
 	TextureCreateParams createParams;
-
-	// #wip-tracker: Storing state here is not a good idea because multiple command lists could touch the same texture.
-	// Same reason why I removed various views (UAV, SRV, RTV, ...) from Texture.
-	EBarrierLayout lastMemoryLayout = EBarrierLayout::Common;
 
 	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 	// the command list that references it has finished executing on the GPU.

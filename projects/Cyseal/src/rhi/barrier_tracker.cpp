@@ -82,7 +82,7 @@ void BarrierTracker::applyBufferBarrier(const BufferBarrier& barrier)
 	if (it == bufferStates.end())
 	{
 		// #wip-tracker-state: Enable it and remove unnecessary flush
-#if 0
+#if 1
 		if (barrier.syncBefore != EBarrierSync::NONE)
 		{
 			CHECK_NO_ENTRY(); // You don't need syncBefore.
@@ -113,7 +113,7 @@ void BarrierTracker::applyTextureBarrier(const TextureBarrier & barrier)
 	if (it == textureStates.end())
 	{
 		// #wip-tracker-state: Enable it and remove unnecessary flush
-#if 0
+#if 1
 		if (barrier.syncBefore != EBarrierSync::NONE)
 		{
 			CHECK_NO_ENTRY(); // You don't need syncBefore.

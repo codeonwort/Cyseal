@@ -180,12 +180,33 @@ void D3DRenderCommandList::resourceBarriers(
 
 	commandList->ResourceBarrier(totalBarriers, rawBarriers.data());
 
-	// Store last state.
-	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
+	// Update tracker state.
+	// I'm gonna deprecate this API so don't need to work hard to translate it correctly.
+	// Just use non-optimal values...
+	for (size_t i = 0; i < numBufferMemoryBarriers; ++i)
 	{
-		auto& desc = textureMemoryBarriers[i];
-		auto layoutAfter = into_d3d::textureMemoryLayoutToBarrierLayout(desc.stateAfter);
-		static_cast<D3DTexture*>(desc.texture)->saveLastMemoryLayout(layoutAfter);
+		const BufferMemoryBarrier& legacy = bufferMemoryBarriers[i];
+		BufferBarrierAuto halfBarrier{
+			.syncAfter   = EBarrierSync::ALL,
+			.accessAfter = EBarrierAccess::COMMON,
+			.buffer      = legacy.buffer,
+		};
+		auto enhanced = barrierTracker.toBufferBarrier(halfBarrier);
+		barrierTracker.applyBufferBarrier(enhanced);
+	}
+	for (size_t i = 0; i < numTextureMemoryBarriers; ++i)
+	{
+		const TextureMemoryBarrier& legacy = textureMemoryBarriers[i];
+		TextureBarrierAuto halfBarrier{
+			.syncAfter    = EBarrierSync::ALL,
+			.accessAfter  = EBarrierAccess::COMMON,
+			.layoutAfter  = into_d3d::textureMemoryLayoutToBarrierLayout(legacy.stateAfter),
+			.texture      = legacy.texture,
+			.subresources = BarrierSubresourceRange::singleMip(legacy.subresource),
+			.flags        = ETextureBarrierFlags::None,
+		};
+		auto enhanced = barrierTracker.toTextureBarrier(halfBarrier);
+		barrierTracker.applyTextureBarrier(enhanced);
 	}
 }
 
@@ -203,7 +224,6 @@ void D3DRenderCommandList::barrier(
 		for (size_t i = 0; i < numBufferBarriers; ++i)
 		{
 			d3dBufferBarriers[i] = into_d3d::bufferBarrier(bufferBarriers[i]);
-			barrierTracker.applyBufferBarrier(bufferBarriers[i]);
 		}
 		D3D12_BARRIER_GROUP group;
 		group.Type = D3D12_BARRIER_TYPE_BUFFER;
@@ -216,7 +236,6 @@ void D3DRenderCommandList::barrier(
 		for (size_t i = 0; i < numTextureBarriers; ++i)
 		{
 			d3dTextureBarriers[i] = into_d3d::textureBarrier(textureBarriers[i]);
-			barrierTracker.applyTextureBarrier(textureBarriers[i]);
 		}
 		D3D12_BARRIER_GROUP group;
 		group.Type = D3D12_BARRIER_TYPE_TEXTURE;
@@ -239,11 +258,14 @@ void D3DRenderCommandList::barrier(
 
 	commandList->Barrier((uint32)groups.size(), groups.data());
 
-	// Store last state.
-	for (uint32 i = 0; i < numTextureBarriers; ++i)
+	// Update tracker state.
+	for (size_t i = 0; i < numBufferBarriers; ++i)
 	{
-		auto& desc = textureBarriers[i];
-		static_cast<D3DTexture*>(desc.texture)->saveLastMemoryLayout(desc.layoutAfter);
+		barrierTracker.applyBufferBarrier(bufferBarriers[i]);
+	}
+	for (size_t i = 0; i < numTextureBarriers; ++i)
+	{
+		barrierTracker.applyTextureBarrier(textureBarriers[i]);
 	}
 }
 
