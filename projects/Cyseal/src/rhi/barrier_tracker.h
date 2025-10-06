@@ -66,8 +66,34 @@ private:
 		BarrierSubresourceRange subresources;
 		ETextureBarrierFlags flags;
 	};
+	struct TextureStateSet
+	{
+		bool bHolistic = true; // true if all subresources are in same state.
+		TextureState globalState; // Used if bHolistic == true
+		std::vector<TextureState> localStates; // Used if bHolistic == false
+
+		inline static TextureStateSet createGlobalState(const TextureState& globalState)
+		{
+			return TextureStateSet{
+				.bHolistic   = true,
+				.globalState = globalState,
+				.localStates = {}
+			};
+		}
+
+		// Successful only if there is a local state with exactly same subresource range.
+		bool replaceLocalState(const TextureBarrier& barrier);
+		
+		// Find local state whose subresource range contains the given range.
+		const TextureState* localStateIncluding(const BarrierSubresourceRange& range) const;
+
+		// Successful if there is a local state whose subresource range contains barrier's subresource range.
+		bool splitLocalState(const TextureBarrier& barrier);
+
+		static bool isSubRange(const TextureState& sub, const BarrierSubresourceRange& range);
+	};
 
 	RenderCommandList* commandList = nullptr;
 	std::map<Buffer*, BufferState> bufferStates;
-	std::map<GPUResource*, TextureState> textureStates;
+	std::map<GPUResource*, TextureStateSet> textureStates;
 };

@@ -274,7 +274,7 @@ void D3DTexture::uploadData(
 
 	TextureBarrierAuto barrierBefore{
 		EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
-		this, BarrierSubresourceRange { subresourceIndex, 1, 0, 0, 0, 0 }, ETextureBarrierFlags::None
+		this, BarrierSubresourceRange { subresourceIndex, 0, 0, 0, 0, 0 }, ETextureBarrierFlags::None
 	};
 	commandList.barrierAuto(0, nullptr, 1, &barrierBefore, 0, nullptr);
 

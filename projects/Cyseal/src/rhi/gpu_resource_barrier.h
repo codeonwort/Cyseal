@@ -183,7 +183,7 @@ struct BarrierSubresourceRange
 	uint32 firstPlane;
 	uint32 numPlanes;
 
-	bool operator==(const BarrierSubresourceRange& other) const
+	inline bool operator==(const BarrierSubresourceRange& other) const
 	{
 		return indexOrFirstMipLevel == other.indexOrFirstMipLevel
 			&& numMipLevels == other.numMipLevels
@@ -192,10 +192,12 @@ struct BarrierSubresourceRange
 			&& firstPlane == other.firstPlane
 			&& numPlanes == other.numPlanes;
 	}
-	bool operator!=(const BarrierSubresourceRange& other) const
+	inline bool operator!=(const BarrierSubresourceRange& other) const
 	{
 		return !(*this == other);
 	}
+
+	inline bool isHolistic() const { return indexOrFirstMipLevel == 0xffffffff; }
 
 	static BarrierSubresourceRange singleMip(uint32 mip)
 	{
