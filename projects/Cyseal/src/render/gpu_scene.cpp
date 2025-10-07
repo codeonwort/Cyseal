@@ -273,12 +273,12 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 			0,
 			uploadBarrier);
 
-		BufferBarrier barriersBefore[] = {
+		BufferBarrierAuto barriersBefore[] = {
 			// No need for gpuSceneCommandBuffer due to custom uploadBarrier.
-			//{ EBarrierSync::ALL, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::COMMON, EBarrierAccess::SHADER_RESOURCE, gpuSceneCommandBuffer.at(swapchainIndex) },
-			{ EBarrierSync::ALL, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::COMMON, EBarrierAccess::UNORDERED_ACCESS, gpuSceneBuffer.get() },
+			//{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneCommandBuffer.at(swapchainIndex) },
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, gpuSceneBuffer.get() },
 		};
-		commandList->barrier(_countof(barriersBefore), barriersBefore, 0, nullptr, 0, nullptr);
+		commandList->barrierAuto(_countof(barriersBefore), barriersBefore, 0, nullptr, 0, nullptr);
 
 		ShaderParameterTable SPT{};
 		SPT.pushConstant("pushConstants", numSceneCommands);
@@ -289,10 +289,10 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 		commandList->dispatchCompute(numSceneCommands, 1, 1);
 
-		BufferBarrier barriersAfter[] = {
-			{ EBarrierSync::COMPUTE_SHADING, EBarrierSync::PIXEL_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::SHADER_RESOURCE, gpuSceneBuffer.get() },
+		BufferBarrierAuto barriersAfter[] = {
+			{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneBuffer.get() },
 		};
-		commandList->barrier(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
+		commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
 	}
 }
 

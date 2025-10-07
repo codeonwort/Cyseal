@@ -125,6 +125,7 @@ public:
 		uint32 sizeInBytes;
 		uint64 destOffsetInBytes;
 	};
+	// #wip: Maybe not needed after replacing all barrier calls with auto barriers?
 	// #todo-barrier: Don't know before/after states. Let the user decides.
 	struct UploadBarrier
 	{

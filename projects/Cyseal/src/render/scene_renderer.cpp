@@ -307,28 +307,29 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, ClearRayTracedShadows);
 
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_shadowMask.get() }
+		TextureBarrierAuto barriersBefore[] = {
+			{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				RT_shadowMask.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			}
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		// Clear as a render target. (not so ideal but works)
 		float clearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		commandList->clearRenderTargetView(shadowMaskRTV.get(), clearColor);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_shadowMask.get() }
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 	else
 	{
 		SCOPED_DRAW_EVENT(commandList, RayTracedShadows);
 
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_shadowMask.get(), }
+		TextureBarrierAuto barriersBefore[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				RT_shadowMask.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			}
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		RayTracedShadowsInput passInput{
 			.scene              = scene,
@@ -342,24 +343,35 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.shadowMaskUAV      = shadowMaskUAV.get(),
 		};
 		rayTracedShadowsPass->renderRayTracedShadows(commandList, swapchainIndex, passInput);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_shadowMask.get(), }
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 
 	// Base pass
 	{
 		SCOPED_DRAW_EVENT(commandList, BasePass);
 
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_sceneColor.get() },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[0].get() },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_gbuffers[1].get() },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_velocityMap.get() },
+		TextureBarrierAuto barriers[] = {
+			{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				RT_sceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+			{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				RT_gbuffers[0].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+			{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				RT_gbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+			{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				RT_velocityMap.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+			{
+				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_WRITE, EBarrierLayout::DepthStencilWrite,
+				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
+		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
 
 		RenderTargetView* RTVs[] = { sceneColorRTV.get(), gbufferRTVs[0].get(), gbufferRTVs[1].get(), velocityMapRTV.get() };
 		commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
@@ -384,41 +396,24 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.shadowMaskSRV      = shadowMaskSRV.get(),
 		};
 		basePass->renderBasePass(commandList, swapchainIndex, passInput);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[0].get() },
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_gbuffers[1].get() },
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_velocityMap.get() },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 
 	// HiZ pass
 	{
 		SCOPED_DRAW_EVENT(commandList, HiZPass);
 
-#if 0
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::DEPTH_STENCIL_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_sceneDepth.get() },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_hiz.get() },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
-#else
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::DEPTH_STENCIL_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_sceneDepth.get() },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
-
-		TextureBarrier barriersBefore2[] = {
+		TextureBarrierAuto barriersBefore[] = {
 			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
-				EBarrierAccess::COMMON, EBarrierAccess::UNORDERED_ACCESS,
-				EBarrierLayout::ShaderResource, EBarrierLayout::UnorderedAccess,
-				RT_hiz.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			}
+				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_READ, EBarrierLayout::DepthStencilRead,
+				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			// #wip-tracker-state
+			//{
+			//	EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			//	RT_hiz.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			//},
 		};
-		commandList->barrier(0, nullptr, _countof(barriersBefore2), barriersBefore2, 0, nullptr);
-#endif
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		HiZPassInput passInput{
 			.textureWidth  = sceneWidth,
@@ -429,11 +424,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.hizUAVs       = hizUAVs,
 		};
 		hizPass->renderHiZ(commandList, swapchainIndex, passInput);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::DEPTH_STENCIL_TARGET, RT_sceneDepth.get() },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 
 	// Sky pass
@@ -454,10 +444,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, PathTracing);
 
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_pathTracing.get(), }
+		TextureBarrierAuto barriersBefore[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				RT_pathTracing.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		const bool keepDenoisingResult = renderOptions.pathTracingDenoiserState == EPathTracingDenoiserState::KeepDenoisingResult;
 
@@ -540,19 +533,17 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, ClearIndirectDiffuse);
 
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_indirectDiffuse.get() }
+		TextureBarrierAuto barriersBefore[] = {
+			{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				RT_indirectDiffuse.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		// Clear as a render target, every frame. (not so ideal but works)
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		commandList->clearRenderTargetView(indirectDiffuseRTV.get(), clearColor);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::UNORDERED_ACCESS, RT_indirectDiffuse.get() }
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 	else
 	{
@@ -589,19 +580,17 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, ClearIndirectSpecular);
 
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::RENDER_TARGET, RT_indirectSpecular.get() }
+		TextureBarrierAuto barriersBefore[] = {
+			{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				RT_indirectSpecular.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			}
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		// Clear as a render target, every frame. (not so ideal but works)
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		commandList->clearRenderTargetView(indirectSpecularRTV.get(), clearColor);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::UNORDERED_ACCESS, RT_indirectSpecular.get() }
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 	else
 	{
@@ -640,14 +629,33 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, ToneMapping);
 
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_sceneColor.get() },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_indirectDiffuse.get() },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_indirectSpecular.get() },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_pathTracing.get() },
-			{ ETextureMemoryLayout::PRESENT, ETextureMemoryLayout::RENDER_TARGET, swapchainBuffer, }
+		TextureBarrierAuto barriersBefore[] = {
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_sceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_READ, EBarrierLayout::DepthStencilRead,
+				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_indirectDiffuse.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_indirectSpecular.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_pathTracing.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			}
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		// #todo-renderer: Should not be here
 		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
@@ -692,19 +700,19 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, StoreFrameHistory);
 
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::DEPTH_STENCIL_TARGET, ETextureMemoryLayout::COPY_SRC, RT_sceneDepth.get() },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::COPY_DEST, RT_prevSceneDepth.get() },
+		TextureBarrierAuto barriersBefore[] = {
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
+				RT_prevSceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::DEPTH_STENCIL_TARGET, RT_sceneDepth.get() },
-			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_prevSceneDepth.get() },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -721,8 +729,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize
 
-	TextureMemoryBarrier presentBarrier{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::PRESENT, swapchainBuffer };
-	commandList->resourceBarriers(0, nullptr, 1, &presentBarrier);
+	TextureBarrierAuto presentBarrier = {
+		EBarrierSync::DRAW, EBarrierAccess::COMMON, EBarrierLayout::Present,
+		swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+	};
+	commandList->barrierAuto(0, nullptr, 1, &presentBarrier, 0, nullptr);
 
 	commandList->close();
 	commandAllocator->markValid();
@@ -1270,13 +1281,11 @@ void SceneRenderer::resetInitialBarriers(RenderCommandList* commandList)
 	}
 	bShouldResetBarriers = false;
 
-	TextureBarrier textureBarriers[] = {
+	TextureBarrierAuto textureBarriers[] = {
 		{
-			EBarrierSync::NONE, EBarrierSync::COMPUTE_SHADING,
-			EBarrierAccess::NO_ACCESS, EBarrierAccess::SHADER_RESOURCE,
-			EBarrierLayout::Common, EBarrierLayout::ShaderResource,
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 			RT_hiz.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		}
 	};
-	commandList->barrier(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 }
