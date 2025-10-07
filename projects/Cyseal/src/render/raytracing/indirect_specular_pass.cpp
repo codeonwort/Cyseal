@@ -699,6 +699,28 @@ void IndirecSpecularPass::denoisingPhase(RenderCommandList* commandList, uint32 
 	auto currMomentUAV = momentHistory.getUAV(currFrame);
 	auto prevMomentSRV = momentHistory.getSRV(prevFrame);
 
+	{
+		TextureBarrierAuto textureBarriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				currColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				currMomentTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				prevColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				prevMomentTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+	}
+
 	// Update uniforms.
 	{
 		TemporalPassUniform uboData;
