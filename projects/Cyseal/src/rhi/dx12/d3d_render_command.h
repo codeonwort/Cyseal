@@ -45,12 +45,8 @@ public:
 	// Common
 
 	virtual void reset(RenderCommandAllocator* allocator) override;
-	virtual void close() override;
 
-	virtual void resourceBarriers(
-		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
-		uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
-		uint32 numUAVBarriers, GPUResource* const* uavBarrierResources) override;
+	virtual void close() override;
 
 	virtual void barrier(
 		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,

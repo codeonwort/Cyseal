@@ -24,53 +24,6 @@ class Buffer;
 class TextureKind;
 
 // ---------------------------------------------------------
-// Legacy barriers
-
-enum class EBufferMemoryLayout : uint32
-{
-	COMMON                     = 0,
-	PIXEL_SHADER_RESOURCE      = 1,
-	UNORDERED_ACCESS           = 2,
-	COPY_SRC                   = 3,
-	COPY_DEST                  = 4,
-	INDIRECT_ARGUMENT          = 5,
-};
-
-// VkImageLayout
-enum class ETextureMemoryLayout : uint32
-{
-	COMMON                     = 0,
-	RENDER_TARGET              = 1,
-	DEPTH_STENCIL_TARGET       = 2,
-	PIXEL_SHADER_RESOURCE      = 3,
-	UNORDERED_ACCESS           = 4,
-	COPY_SRC                   = 5,
-	COPY_DEST                  = 6,
-	PRESENT                    = 7,
-};
-
-// D3D12_RESOURCE_BARRIER
-// VkBufferMemoryBarrier
-struct BufferMemoryBarrier
-{
-	EBufferMemoryLayout stateBefore;
-	EBufferMemoryLayout stateAfter;
-	Buffer* buffer;
-	uint64 offset;
-	uint64 size;
-};
-
-// D3D12_RESOURCE_BARRIER
-// VkImageMemoryBarrier
-struct TextureMemoryBarrier
-{
-	ETextureMemoryLayout stateBefore;
-	ETextureMemoryLayout stateAfter;
-	TextureKind* texture;
-	uint32 subresource = 0xffffffff; // Index of target subresource. Default is all subresources.
-};
-
-// ---------------------------------------------------------
 // Enhanced barriers
 
 // D3D12_BARRIER_SYNC

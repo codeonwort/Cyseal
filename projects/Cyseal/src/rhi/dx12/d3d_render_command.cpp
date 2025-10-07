@@ -155,63 +155,6 @@ void D3DRenderCommandList::rsSetScissorRect(const ScissorRect& scissorRect)
 	commandList->RSSetScissorRects(1, &rect);
 }
 
-void D3DRenderCommandList::resourceBarriers(
-	uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
-	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
-	uint32 numUAVBarriers, GPUResource* const* uavBarrierResources)
-{
-	uint32 totalBarriers = numBufferMemoryBarriers + numTextureMemoryBarriers + numUAVBarriers;
-	std::vector<D3D12_RESOURCE_BARRIER> rawBarriers(totalBarriers);
-	for (uint32 i = 0; i < numBufferMemoryBarriers; ++i)
-	{
-		rawBarriers[i] = into_d3d::resourceBarrier(bufferMemoryBarriers[i]);
-	}
-	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
-	{
-		rawBarriers[i + numBufferMemoryBarriers] = into_d3d::resourceBarrier(textureMemoryBarriers[i]);
-	}
-	for (uint32 i = 0; i < numUAVBarriers; ++i)
-	{
-		D3D12_RESOURCE_BARRIER uavBarrier{
-			.Type       = D3D12_RESOURCE_BARRIER_TYPE_UAV,
-			.Flags      = D3D12_RESOURCE_BARRIER_FLAG_NONE,
-			.UAV        = { .pResource = into_d3d::id3d12Resource(uavBarrierResources[i]) }
-		};
-		rawBarriers[i + numBufferMemoryBarriers + numTextureMemoryBarriers] = uavBarrier;
-	}
-
-	commandList->ResourceBarrier(totalBarriers, rawBarriers.data());
-
-	// Update tracker state.
-	// I'm gonna deprecate this API so don't need to work hard to translate it correctly.
-	// Just use non-optimal values...
-	for (size_t i = 0; i < numBufferMemoryBarriers; ++i)
-	{
-		const BufferMemoryBarrier& legacy = bufferMemoryBarriers[i];
-		BufferBarrierAuto halfBarrier{
-			.syncAfter   = EBarrierSync::ALL,
-			.accessAfter = EBarrierAccess::COMMON,
-			.buffer      = legacy.buffer,
-		};
-		auto enhanced = barrierTracker.toBufferBarrier(halfBarrier);
-		barrierTracker.applyBufferBarrier(enhanced);
-	}
-	for (size_t i = 0; i < numTextureMemoryBarriers; ++i)
-	{
-		const TextureMemoryBarrier& legacy = textureMemoryBarriers[i];
-		TextureBarrierAuto halfBarrier{
-			.syncAfter    = EBarrierSync::ALL,
-			.accessAfter  = EBarrierAccess::COMMON,
-			.layoutAfter  = into_d3d::textureMemoryLayoutToBarrierLayout(legacy.stateAfter),
-			.texture      = legacy.texture,
-			.subresources = BarrierSubresourceRange::singleMip(legacy.subresource),
-			.flags        = ETextureBarrierFlags::None,
-		};
-		auto enhanced = barrierTracker.toTextureBarrier(halfBarrier);
-		barrierTracker.applyTextureBarrier(enhanced);
-	}
-}
-
 void D3DRenderCommandList::barrier(
 	uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
 	uint32 numTextureBarriers, const TextureBarrier* textureBarriers,

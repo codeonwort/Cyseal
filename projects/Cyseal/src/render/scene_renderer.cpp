@@ -211,8 +211,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	resetCommandList(commandAllocator, commandList);
 
-	resetInitialBarriers(commandList);
-
 	// Just execute prior to any standard renderer works.
 	// If some custom commands should execute in midst of frame rendering,
 	// I need to insert delegates here and there of this SceneRenderer::render() function.
@@ -747,7 +745,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 {
 	gRenderDevice->getDenoiserDevice()->recreateResources(sceneWidth, sceneHeight);
-	bShouldResetBarriers = true;
 
 	auto& cleanupList = this->deferredCleanupList;
 	auto cleanup = [&cleanupList](GPUResource* resource) {
@@ -1257,21 +1254,4 @@ void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList,
 	// Build acceleration structure.
 	accelStructure = UniquePtr<AccelerationStructure>(
 		commandList->buildRaytracingAccelerationStructure((uint32)blasDescArray.size(), blasDescArray.data()));
-}
-
-void SceneRenderer::resetInitialBarriers(RenderCommandList* commandList)
-{
-	if (!bShouldResetBarriers)
-	{
-		return;
-	}
-	bShouldResetBarriers = false;
-
-	TextureBarrierAuto textureBarriers[] = {
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			RT_hiz.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		}
-	};
-	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 }

@@ -52,11 +52,6 @@ public:
 	virtual void reset(RenderCommandAllocator* allocator) override;
 	virtual void close() override;
 
-	virtual void resourceBarriers(
-		uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
-		uint32 numTexureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
-		uint32 numUAVBarriers, GPUResource* const* uavBarrierResources) override;
-
 	virtual void barrier(
 		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
 		uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
