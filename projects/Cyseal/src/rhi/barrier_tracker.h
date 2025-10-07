@@ -89,6 +89,17 @@ public:
 				.localStates = {}
 			};
 		}
+		inline static TextureStateSet createUnused()
+		{
+			TextureState globalState{
+					.syncBefore   = EBarrierSync::NONE,
+					.accessBefore = EBarrierAccess::NO_ACCESS,
+					.layoutBefore = EBarrierLayout::Common,
+					.subresources = BarrierSubresourceRange::allMips(),
+					.flags        = ETextureBarrierFlags::None,
+			};
+			return createGlobalState(globalState);
+		}
 
 		// Successful only if there is a local state with exactly same subresource range.
 		bool replaceLocalState(const TextureBarrier& barrier);

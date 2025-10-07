@@ -335,7 +335,7 @@ uint32 VulkanSwapchain::getCurrentBackbufferIndex() const
 	return currentBackbufferIx;
 }
 
-GPUResource* VulkanSwapchain::getSwapchainBuffer(uint32 ix) const
+SwapChainImage* VulkanSwapchain::getSwapchainBuffer(uint32 ix) const
 {
 	return swapchainImages.at(ix);
 }

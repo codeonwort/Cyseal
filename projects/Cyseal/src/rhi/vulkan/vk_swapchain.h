@@ -25,7 +25,7 @@ class DescriptorHeap;
 class VulkanDevice;
 class VulkanRenderTargetView;
 
-class VulkanSwapchainImage : public GPUResource
+class VulkanSwapchainImage : public SwapChainImage
 {
 public:
 	VulkanSwapchainImage(VkImage inVkImage)
@@ -68,7 +68,7 @@ public:
 	virtual uint32 getBufferCount() const override { return swapchainImageCount; }
 
 	virtual uint32 getCurrentBackbufferIndex() const override;
-	virtual GPUResource* getSwapchainBuffer(uint32 ix) const override;
+	virtual SwapChainImage* getSwapchainBuffer(uint32 ix) const override;
 	virtual RenderTargetView* getSwapchainBufferRTV(uint32 ix) const override;
 
 	inline VkFormat getVkSwapchainImageFormat() const { return swapchainImageFormat; }

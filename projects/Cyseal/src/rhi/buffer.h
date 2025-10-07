@@ -181,7 +181,7 @@ protected:
 	BufferCreateParams createParams;
 
 	// This is used only for two cases:
-	//   1. Before beginning recording of a command list
+	//   1. Before beginning recording of a command list.
 	//   2. After finishing recording of a command list.
 	// Intermediate states are tracked by that command list.
 	BarrierTracker::BufferState lastBarrier;

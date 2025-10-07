@@ -145,6 +145,7 @@
     <ClInclude Include="src\rhi\shader_common.h" />
     <ClInclude Include="src\rhi\shader_dxc_common.h" />
     <ClInclude Include="src\rhi\texture.h" />
+    <ClInclude Include="src\rhi\texture_kind.h" />
     <ClInclude Include="src\rhi\vulkan\vk_buffer.h" />
     <ClInclude Include="src\rhi\vulkan\vk_descriptor.h" />
     <ClInclude Include="src\rhi\vulkan\vk_into.h" />
