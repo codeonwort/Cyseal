@@ -131,36 +131,6 @@ void VulkanRenderCommandList::close()
 	barrierTracker.flushFinalStates();
 }
 
-void VulkanRenderCommandList::resourceBarriers(
-	uint32 numBufferMemoryBarriers, const BufferMemoryBarrier* bufferMemoryBarriers,
-	uint32 numTextureMemoryBarriers, const TextureMemoryBarrier* textureMemoryBarriers,
-	uint32 numUAVBarriers, GPUResource* const* uavBarrierResources)
-{
-	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-
-	std::vector<VkBufferMemoryBarrier> vkBufferMemoryBarriers(numBufferMemoryBarriers);
-	std::vector<VkImageMemoryBarrier> vkImageMemoryBarriers(numTextureMemoryBarriers);
-	for (uint32 i = 0; i < numBufferMemoryBarriers; ++i)
-	{
-		vkBufferMemoryBarriers[i] = into_vk::bufferMemoryBarrier(bufferMemoryBarriers[i]);
-	}
-	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
-	{
-		vkImageMemoryBarriers[i] = into_vk::imageMemoryBarrier(textureMemoryBarriers[i]);
-	}
-
-	vkCmdPipelineBarrier(
-		currentCommandBuffer, srcStageMask, dstStageMask,
-		(VkDependencyFlagBits)0,
-		0, nullptr,
-		(uint32)vkBufferMemoryBarriers.size(), vkBufferMemoryBarriers.data(),
-		(uint32)vkImageMemoryBarriers.size(), vkImageMemoryBarriers.data());
-
-	// This API will be removed anyway, so no need to deal with barrierTracker.
-	// All invocations of this method has been removed.
-}
-
 void VulkanRenderCommandList::barrier(
 	uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
 	uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
@@ -230,7 +200,6 @@ void VulkanRenderCommandList::barrierAuto(
 		numBufferBarriers, fullBufferBarriers.data(),
 		numTextureBarriers, fullTextureBarriers.data(),
 		numGlobalBarriers, globalBarriers);
-
 }
 
 void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
