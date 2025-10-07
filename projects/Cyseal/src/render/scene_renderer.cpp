@@ -550,15 +550,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, IndirectDiffuse);
 
-		// #wip-tracker-state: move barrier into renderIndirectDiffuse()
-		TextureBarrierAuto barriers[] = {
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				RT_indirectDiffuse.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			}
-		};
-		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
-		
 		IndirectDiffuseInput passInput{
 			.scene                  = scene,
 			.mode                   = renderOptions.indirectDiffuse,
