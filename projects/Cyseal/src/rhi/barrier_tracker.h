@@ -26,6 +26,37 @@ struct TextureBarrierAuto
 	TextureKind* texture;
 	BarrierSubresourceRange subresources;
 	ETextureBarrierFlags flags;
+
+	static TextureBarrierAuto toCopySource(
+		TextureKind* texture,
+		BarrierSubresourceRange subresources = BarrierSubresourceRange::allMips(),
+		ETextureBarrierFlags flags = ETextureBarrierFlags::None)
+	{
+		return TextureBarrierAuto{
+			EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+			texture, subresources, flags
+		};
+	}
+	static TextureBarrierAuto toCopyDest(
+		TextureKind* texture,
+		BarrierSubresourceRange subresources = BarrierSubresourceRange::allMips(),
+		ETextureBarrierFlags flags = ETextureBarrierFlags::None)
+	{
+		return TextureBarrierAuto{
+			EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
+			texture, subresources, flags
+		};
+	}
+	static TextureBarrierAuto toRenderTarget(
+		TextureKind* texture,
+		BarrierSubresourceRange subresources = BarrierSubresourceRange::allMips(),
+		ETextureBarrierFlags flags = ETextureBarrierFlags::None)
+	{
+		return TextureBarrierAuto{
+			EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+			texture, subresources, flags
+		};
+	}
 };
 
 // Tracks resource states for issueing barriers in a render command list.

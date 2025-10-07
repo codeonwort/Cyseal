@@ -591,15 +591,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	else
 	{
 		SCOPED_DRAW_EVENT(commandList, IndirectSpecular);
-
-		// #wip-tracker-state: move barrier into renderIndirectSpecular()
-		TextureBarrierAuto barriers[] = {
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				RT_indirectSpecular.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			}
-		};
-		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
 		
 		IndirectSpecularInput passInput{
 			.scene                   = scene,
@@ -612,6 +603,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.skyboxSRV               = skyboxSRV.get(),
 			.gbuffer0SRV             = gbufferSRVs[0].get(),
 			.gbuffer1SRV             = gbufferSRVs[1].get(),
+			.sceneDepthTexture       = RT_sceneDepth.get(),
 			.sceneDepthSRV           = sceneDepthSRV.get(),
 			.prevSceneDepthSRV       = prevSceneDepthSRV.get(),
 			.velocityMapSRV          = velocityMapSRV.get(),
