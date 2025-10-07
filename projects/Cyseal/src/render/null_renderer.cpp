@@ -30,12 +30,11 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	commandAllocator->reset();
 	commandList->reset(commandAllocator);
 
-	TextureMemoryBarrier renderToBackbufferBarrier{
-		.stateBefore = ETextureMemoryLayout::PRESENT,
-		.stateAfter  = ETextureMemoryLayout::RENDER_TARGET,
-		.texture     = swapchainBuffer,
+	TextureBarrierAuto renderToBackbufferBarrier = {
+		EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+		swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 	};
-	commandList->resourceBarriers(0, nullptr, 1, &renderToBackbufferBarrier);
+	commandList->barrierAuto(0, nullptr, 1, &renderToBackbufferBarrier, 0, nullptr);
 
 	{
 		SCOPED_DRAW_EVENT(commandList, NullDrawEvent);
@@ -55,12 +54,11 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	}
 #endif
 
-	TextureMemoryBarrier presentBarrier{
-		.stateBefore = ETextureMemoryLayout::RENDER_TARGET,
-		.stateAfter  = ETextureMemoryLayout::PRESENT,
-		.texture     = swapchainBuffer,
+	TextureBarrierAuto presentBarrier = {
+		EBarrierSync::DRAW, EBarrierAccess::COMMON, EBarrierLayout::Present,
+		swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
 	};
-	commandList->resourceBarriers(0, nullptr, 1, &presentBarrier);
+	commandList->barrierAuto(0, nullptr, 1, &presentBarrier, 0, nullptr);
 
 	commandList->close();
 	commandAllocator->markValid();

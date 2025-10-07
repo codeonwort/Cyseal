@@ -259,8 +259,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		// Recreate every BLAS
 		rebuildAccelerationStructure(commandList, scene);
 
-		GPUResource* uavBarrierResources[] = { accelStructure.get() };
-		commandList->resourceBarriers(0, nullptr, 0, nullptr, 1, uavBarrierResources);
+		GlobalBarrier globalBarrier = {
+			EBarrierSync::BUILD_RAYTRACING_ACCELERATION_STRUCTURE, EBarrierSync::RAYTRACING | EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::RAYTRACING_ACCELERATION_STRUCTURE_WRITE, EBarrierAccess::RAYTRACING_ACCELERATION_STRUCTURE_READ
+		};
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 	}
 
 	if (bSupportsRaytracing && !scene->bRebuildRaytracingScene)
@@ -294,8 +297,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			accelStructure->rebuildTLAS(commandList, (uint32)updateDescs.size(), updateDescs.data());
 		}
 
-		GPUResource* uavBarrierResources[] = { accelStructure.get() };
-		commandList->resourceBarriers(0, nullptr, 0, nullptr, 1, uavBarrierResources);
+		GlobalBarrier globalBarrier = {
+			EBarrierSync::BUILD_RAYTRACING_ACCELERATION_STRUCTURE, EBarrierSync::RAYTRACING | EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::RAYTRACING_ACCELERATION_STRUCTURE_WRITE, EBarrierAccess::RAYTRACING_ACCELERATION_STRUCTURE_READ
+		};
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 	}
 
 	// #todo-renderer: Depth PrePass
