@@ -10,7 +10,6 @@ class RenderCommandList;
 
 // D3D12_RESOURCE_FLAGS
 // VkBufferUsageFlags
-// #todo-vulkan: more flags and redundant with EGPUResourceState
 enum class EBufferAccessFlags : uint32
 {
 	NONE          = 0,
