@@ -5,9 +5,8 @@
 #include <vector>
 #include <map>
 
-class GPUResource;
 class Buffer;
-class Texture;
+class TextureKind;
 class RenderCommandList;
 
 // BufferBarrier without 'before' states.
@@ -24,7 +23,7 @@ struct TextureBarrierAuto
 	EBarrierSync syncAfter;
 	EBarrierAccess accessAfter;
 	EBarrierLayout layoutAfter;
-	GPUResource* texture; // Must be a texture. Can't be (Texture*) due to swapchain images.
+	TextureKind* texture;
 	BarrierSubresourceRange subresources;
 	ETextureBarrierFlags flags;
 };
@@ -116,5 +115,5 @@ public:
 private:
 	RenderCommandList* commandList = nullptr;
 	std::map<Buffer*, BufferState> bufferStates;
-	std::map<GPUResource*, TextureStateSet> textureStates;
+	std::map<TextureKind*, TextureStateSet> textureStates;
 };

@@ -21,7 +21,7 @@
 
 class GPUResource;
 class Buffer;
-class Texture;
+class TextureKind;
 
 // ---------------------------------------------------------
 // Legacy barriers
@@ -66,7 +66,7 @@ struct TextureMemoryBarrier
 {
 	ETextureMemoryLayout stateBefore;
 	ETextureMemoryLayout stateAfter;
-	GPUResource* texture; // The type can't be (Texture*) due to swapchain images.
+	TextureKind* texture;
 	uint32 subresource = 0xffffffff; // Index of target subresource. Default is all subresources.
 };
 
@@ -236,7 +236,7 @@ struct TextureBarrier
 	EBarrierAccess accessAfter;
 	EBarrierLayout layoutBefore;
 	EBarrierLayout layoutAfter;
-	GPUResource* texture; // Must be a texture. Can't be (Texture*) due to swapchain images.
+	TextureKind* texture;
 	BarrierSubresourceRange subresources;
 	ETextureBarrierFlags flags;
 };
