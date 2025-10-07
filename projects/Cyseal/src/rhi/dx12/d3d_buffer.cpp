@@ -262,14 +262,12 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList,
 
 	if (!bSkipBarriers)
 	{
-		auto barrierBefore = CD3DX12_BUFFER_BARRIER(
-			into_d3d::barrierSync(uploadBarrier.syncBefore),
-			D3D12_BARRIER_SYNC_COPY,
-			into_d3d::barrierAccess(uploadBarrier.accessBefore),
-			D3D12_BARRIER_ACCESS_COPY_DEST,
-			defaultBuffer.Get());
-		auto barrierBeforeGroup = CD3DX12_BARRIER_GROUP(1, &barrierBefore);
-		cmdList->Barrier(1, &barrierBeforeGroup);
+		BufferBarrierAuto barrierBefore{
+			.syncAfter   = EBarrierSync::COPY,
+			.accessAfter = EBarrierAccess::COPY_DEST,
+			.buffer      = this,
+		};
+		commandList->barrierAuto(1, &barrierBefore, 0, nullptr, 0, nullptr);
 	}
 
 	// #todo-renderdevice: Merge buffer copy regions if contiguous.
@@ -333,14 +331,12 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList,
 
 	if (!bSkipBarriers)
 	{
-		auto barrierAfter = CD3DX12_BUFFER_BARRIER(
-			D3D12_BARRIER_SYNC_COPY,
-			into_d3d::barrierSync(uploadBarrier.syncAfter),
-			D3D12_BARRIER_ACCESS_COPY_DEST,
-			into_d3d::barrierAccess(uploadBarrier.accessAfter),
-			defaultBuffer.Get());
-		auto barrierAfterGroup = CD3DX12_BARRIER_GROUP(1, &barrierAfter);
-		cmdList->Barrier(1, &barrierAfterGroup);
+		BufferBarrierAuto barrierAfter{
+			.syncAfter   = uploadBarrier.syncAfter,
+			.accessAfter = uploadBarrier.accessAfter,
+			.buffer      = this,
+		};
+		commandList->barrierAuto(1, &barrierAfter, 0, nullptr, 0, nullptr);
 	}
 }
 

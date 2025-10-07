@@ -97,6 +97,8 @@ void D3DRenderCommandList::reset(RenderCommandAllocator* allocator)
 void D3DRenderCommandList::close()
 {
 	HR( commandList->Close() );
+
+	barrierTracker.flushFinalStates();
 }
 
 void D3DRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology topology)

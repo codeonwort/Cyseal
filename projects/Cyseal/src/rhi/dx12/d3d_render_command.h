@@ -1,7 +1,6 @@
 #pragma once
 
 #include "rhi/render_command.h"
-#include "rhi/barrier_tracker.h"
 #include "d3d_device.h"
 #include "d3d_util.h"
 

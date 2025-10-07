@@ -2,6 +2,7 @@
 
 #include "gpu_resource_barrier.h"
 
+#include <vector>
 #include <map>
 
 class GPUResource;
@@ -42,6 +43,9 @@ public:
 	// Call after acquiring a command list and before recording any commands.
 	void resetAll();
 
+	// Let buffers and textures store their last barrier state.
+	void flushFinalStates();
+
 	// Convert half-auto barrier to full barrier.
 	BufferBarrier toBufferBarrier(const BufferBarrierAuto& halfBarrier) const;
 	// Convert half-auto barrier to full barrier.
@@ -52,11 +56,16 @@ public:
 	// Verify full barrier and update internal state tracker.
 	void applyTextureBarrier(const TextureBarrier& barrier);
 
-private:
+public:
 	struct BufferState
 	{
 		EBarrierSync syncBefore;
 		EBarrierAccess accessBefore;
+
+		inline static BufferState createUnused()
+		{
+			return BufferState{ EBarrierSync::NONE, EBarrierAccess::NO_ACCESS };
+		}
 	};
 	struct TextureState
 	{
@@ -93,6 +102,7 @@ private:
 		static bool isSubRange(const TextureState& sub, const BarrierSubresourceRange& range);
 	};
 
+private:
 	RenderCommandList* commandList = nullptr;
 	std::map<Buffer*, BufferState> bufferStates;
 	std::map<GPUResource*, TextureStateSet> textureStates;

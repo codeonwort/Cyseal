@@ -1,4 +1,5 @@
 #include "barrier_tracker.h"
+#include "buffer.h"
 
 // ------------------------------------------------------------------
 // BarrierTracker
@@ -22,16 +23,27 @@ void BarrierTracker::resetAll()
 	textureStates.clear();
 }
 
+void BarrierTracker::flushFinalStates()
+{
+	for (const auto& it : bufferStates)
+	{
+		it.first->internal_setLastBarrierState(it.second);
+	}
+	// #wip-tracker-state: flush for textures
+}
+
 BufferBarrier BarrierTracker::toBufferBarrier(const BufferBarrierAuto& halfBarrier) const
 {
-	BufferState beforeState{
-		.syncBefore   = EBarrierSync::NONE,
-		.accessBefore = EBarrierAccess::NO_ACCESS,
-	};
+	BufferState beforeState;
+
 	auto it = bufferStates.find(halfBarrier.buffer);
 	if (it != bufferStates.end())
 	{
 		beforeState = it->second;
+	}
+	else
+	{
+		beforeState = halfBarrier.buffer->internal_getLastBarrierState();
 	}
 
 	BufferBarrier fullBarrier = {

@@ -4,7 +4,6 @@
 
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource_barrier.h"
-#include "rhi/barrier_tracker.h"
 #include "vk_device.h"
 
 #define VK_NO_PROTOTYPES

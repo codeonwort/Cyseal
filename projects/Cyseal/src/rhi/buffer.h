@@ -2,6 +2,7 @@
 
 #include "gpu_resource.h"
 #include "gpu_resource_barrier.h"
+#include "barrier_tracker.h"
 #include "pixel_format.h"
 #include "util/enum_util.h"
 
@@ -143,6 +144,9 @@ public:
 	{
 		createParams = inCreateParams;
 		CHECK(createParams.sizeInBytes > 0);
+
+		lastBarrier = BarrierTracker::BufferState::createUnused();
+
 		// ... subclasses do remaining work
 	}
 
@@ -169,6 +173,17 @@ public:
 
 	inline const BufferCreateParams& getCreateParams() const { return createParams; }
 
+	// Use only when a barrier tracker in a command list has no history for this buffer.
+	inline BarrierTracker::BufferState internal_getLastBarrierState() const { return lastBarrier; }
+	// Use only when a command list is closed.
+	inline void internal_setLastBarrierState(const BarrierTracker::BufferState& newState) { lastBarrier = newState; }
+
 protected:
 	BufferCreateParams createParams;
+
+	// This is used only for two cases:
+	//   1. Before beginning recording of a command list
+	//   2. After finishing recording of a command list.
+	// Intermediate states are tracked by that command list.
+	BarrierTracker::BufferState lastBarrier;
 };

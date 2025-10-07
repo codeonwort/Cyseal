@@ -5,14 +5,13 @@
 #include "pipeline_state.h"
 #include "gpu_resource_binding.h"
 #include "gpu_resource_barrier.h"
+#include "barrier_tracker.h"
 
 #include <functional>
 
 // Forward Declarations
 class VertexBuffer;
 class IndexBuffer;
-struct BufferBarrierAuto;
-struct TextureBarrierAuto;
 
 // ID3D12CommandQueue
 // VkQueue
