@@ -266,19 +266,11 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 			(uint32)(sizeof(GPUSceneCommand) * numSceneCommands),
 			0);
 
-		BufferMemoryBarrier barriersBefore[] = {
-			{
-				EBufferMemoryLayout::COMMON,
-				EBufferMemoryLayout::PIXEL_SHADER_RESOURCE,
-				gpuSceneCommandBuffer.at(swapchainIndex),
-			},
-			{
-				EBufferMemoryLayout::COMMON,
-				EBufferMemoryLayout::UNORDERED_ACCESS,
-				gpuSceneBuffer.get(),
-			},
+		BufferBarrierAuto barriersBefore[] = {
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneCommandBuffer.at(swapchainIndex) },
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, gpuSceneBuffer.get() },
 		};
-		commandList->resourceBarriers(_countof(barriersBefore), barriersBefore, 0, nullptr);
+		commandList->barrierAuto(_countof(barriersBefore), barriersBefore, 0, nullptr, 0, nullptr);
 
 		ShaderParameterTable SPT{};
 		SPT.pushConstant("pushConstants", numSceneCommands);
@@ -289,14 +281,10 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 		commandList->dispatchCompute(numSceneCommands, 1, 1);
 
-		BufferMemoryBarrier barriersAfter[] = {
-			{
-				EBufferMemoryLayout::UNORDERED_ACCESS,
-				EBufferMemoryLayout::PIXEL_SHADER_RESOURCE,
-				gpuSceneBuffer.get(),
-			},
+		BufferBarrierAuto barriersAfter[] = {
+			{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneBuffer.get() },
 		};
-		commandList->resourceBarriers(_countof(barriersAfter), barriersAfter, 0, nullptr);
+		commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
 	}
 }
 

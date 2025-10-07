@@ -256,11 +256,10 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Bu
 		CHECK(uploadDescs[i].destOffsetInBytes + uploadDescs[i].sizeInBytes <= createParams.sizeInBytes);
 	}
 
-	ID3D12GraphicsCommandList* cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
+	ID3D12GraphicsCommandListLatest* cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
-	auto barrierBefore = CD3DX12_RESOURCE_BARRIER::Transition(
-		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
-	cmdList->ResourceBarrier(1, &barrierBefore);
+	BufferBarrierAuto barrierBefore{ EBarrierSync::COPY, EBarrierAccess::COPY_DEST, this };
+	commandList->barrierAuto(1, &barrierBefore, 0, nullptr, 0, nullptr);
 
 	// #todo-renderdevice: Merge buffer copy regions if contiguous.
 	// Below code is not tested at all as there is no multi-write case yet.
@@ -320,10 +319,6 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Bu
 			uploadBuffer.Get(), desc.destOffsetInBytes,
 			desc.sizeInBytes);
 	}
-
-	auto barrierAfter = CD3DX12_RESOURCE_BARRIER::Transition(
-		defaultBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
-	cmdList->ResourceBarrier(1, &barrierAfter);
 }
 
 void D3DBuffer::setDebugName(const wchar_t* inDebugName)

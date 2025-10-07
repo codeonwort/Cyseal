@@ -2,11 +2,15 @@
 
 #include "core/int_types.h"
 #include "pixel_format.h"
+#include "texture_kind.h"
 
 class RenderDevice;
 class SwapChain;
 class GPUResource;
 class RenderTargetView;
+
+// Marker class.
+class SwapChainImage : public TextureKind {};
 
 // ID3D12SwapChain
 // VkSwapchainKHR
@@ -34,7 +38,7 @@ public:
 	}
 
 	virtual uint32 getCurrentBackbufferIndex() const = 0;
-	virtual GPUResource* getSwapchainBuffer(uint32 ix) const = 0;
+	virtual SwapChainImage* getSwapchainBuffer(uint32 ix) const = 0;
 	virtual RenderTargetView* getSwapchainBufferRTV(uint32 ix) const = 0;
 
 	inline uint32 getBackbufferWidth() const { return backbufferWidth; }

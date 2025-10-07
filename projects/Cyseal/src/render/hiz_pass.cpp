@@ -57,11 +57,17 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 		uint32 dispatchY = (passInput.textureHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
-		TextureMemoryBarrier texBarriers[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, passInput.hizTexture, 0 },
+		TextureBarrierAuto texBarriers[] = {
+			{
+				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_READ, EBarrierLayout::DepthStencilRead,
+				passInput.sceneDepthTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				passInput.hizTexture, BarrierSubresourceRange::singleMip(0), ETextureBarrierFlags::None
+			},
 		};
-		GPUResource* uavBarriers[] = { passInput.hizTexture };
-		commandList->resourceBarriers(0, nullptr, _countof(texBarriers), texBarriers, _countof(uavBarriers), uavBarriers);
+		commandList->barrierAuto(0, nullptr, _countof(texBarriers), texBarriers, 0, nullptr);
 	}
 
 	uint32 mipCount = (uint32)passInput.hizUAVs.size();
@@ -95,11 +101,13 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 		uint32 dispatchY = (currHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
-		TextureMemoryBarrier texBarriers[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, passInput.hizTexture, currMip },
+		TextureBarrierAuto texBarriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				passInput.hizTexture, BarrierSubresourceRange::singleMip(currMip), ETextureBarrierFlags::None
+			},
 		};
-		GPUResource* uavBarriers[] = { passInput.hizTexture };
-		commandList->resourceBarriers(0, nullptr, _countof(texBarriers), texBarriers, _countof(uavBarriers), uavBarriers);
+		commandList->barrierAuto(0, nullptr, _countof(texBarriers), texBarriers, 0, nullptr);
 
 		prevWidth = currWidth;
 		prevHeight = currHeight;

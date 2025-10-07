@@ -82,17 +82,23 @@ void D3DRenderCommandList::initialize(RenderDevice* renderDevice)
 		IID_PPV_ARGS(commandList.GetAddressOf()))
 	);
 	HR( commandList->Close() );
+
+	barrierTracker.initialize(this);
 }
 
 void D3DRenderCommandList::reset(RenderCommandAllocator* allocator)
 {
 	ID3D12CommandAllocator* d3dAllocator = static_cast<D3DRenderCommandAllocator*>(allocator)->getRaw();
 	HR( commandList->Reset(d3dAllocator, nullptr) );
+	
+	barrierTracker.resetAll();
 }
 
 void D3DRenderCommandList::close()
 {
 	HR( commandList->Close() );
+
+	barrierTracker.flushFinalStates();
 }
 
 void D3DRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology topology)
@@ -176,11 +182,33 @@ void D3DRenderCommandList::resourceBarriers(
 
 	commandList->ResourceBarrier(totalBarriers, rawBarriers.data());
 
-	// Store last state.
-	for (uint32 i = 0; i < numTextureMemoryBarriers; ++i)
+	// Update tracker state.
+	// I'm gonna deprecate this API so don't need to work hard to translate it correctly.
+	// Just use non-optimal values...
+	for (size_t i = 0; i < numBufferMemoryBarriers; ++i)
 	{
-		auto& desc = textureMemoryBarriers[i];
-		static_cast<D3DTexture*>(desc.texture)->saveLastMemoryLayout(desc.stateAfter);
+		const BufferMemoryBarrier& legacy = bufferMemoryBarriers[i];
+		BufferBarrierAuto halfBarrier{
+			.syncAfter   = EBarrierSync::ALL,
+			.accessAfter = EBarrierAccess::COMMON,
+			.buffer      = legacy.buffer,
+		};
+		auto enhanced = barrierTracker.toBufferBarrier(halfBarrier);
+		barrierTracker.applyBufferBarrier(enhanced);
+	}
+	for (size_t i = 0; i < numTextureMemoryBarriers; ++i)
+	{
+		const TextureMemoryBarrier& legacy = textureMemoryBarriers[i];
+		TextureBarrierAuto halfBarrier{
+			.syncAfter    = EBarrierSync::ALL,
+			.accessAfter  = EBarrierAccess::COMMON,
+			.layoutAfter  = into_d3d::textureMemoryLayoutToBarrierLayout(legacy.stateAfter),
+			.texture      = legacy.texture,
+			.subresources = BarrierSubresourceRange::singleMip(legacy.subresource),
+			.flags        = ETextureBarrierFlags::None,
+		};
+		auto enhanced = barrierTracker.toTextureBarrier(halfBarrier);
+		barrierTracker.applyTextureBarrier(enhanced);
 	}
 }
 
@@ -231,6 +259,42 @@ void D3DRenderCommandList::barrier(
 	}
 
 	commandList->Barrier((uint32)groups.size(), groups.data());
+
+	// Update tracker state.
+	for (size_t i = 0; i < numBufferBarriers; ++i)
+	{
+		barrierTracker.applyBufferBarrier(bufferBarriers[i]);
+	}
+	for (size_t i = 0; i < numTextureBarriers; ++i)
+	{
+		barrierTracker.applyTextureBarrier(textureBarriers[i]);
+	}
+}
+
+void D3DRenderCommandList::barrierAuto(
+	uint32 numBufferBarriers, const BufferBarrierAuto* bufferBarriers,
+	uint32 numTextureBarriers, const TextureBarrierAuto* textureBarriers,
+	uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers)
+{
+	std::vector<BufferBarrier> fullBufferBarriers;
+	std::vector<TextureBarrier> fullTextureBarriers;
+	fullBufferBarriers.reserve(numBufferBarriers);
+	fullTextureBarriers.reserve(numTextureBarriers);
+	for (uint32 i = 0; i < numBufferBarriers; ++i)
+	{
+		BufferBarrier fullBarrier = barrierTracker.toBufferBarrier(bufferBarriers[i]);
+		fullBufferBarriers.emplace_back(fullBarrier);
+	}
+	for (uint32 i = 0; i < numTextureBarriers; ++i)
+	{
+		TextureBarrier fullBarrier = barrierTracker.toTextureBarrier(textureBarriers[i]);
+		fullTextureBarriers.emplace_back(fullBarrier);
+	}
+
+	this->barrier(
+		numBufferBarriers, fullBufferBarriers.data(),
+		numTextureBarriers, fullTextureBarriers.data(),
+		numGlobalBarriers, globalBarriers);
 }
 
 void D3DRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)

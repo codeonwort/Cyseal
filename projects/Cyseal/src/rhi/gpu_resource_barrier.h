@@ -17,10 +17,11 @@
 // - Each subresource of an image can be transitioned independently.
 
 #include "core/int_types.h"
+#include "util/enum_util.h"
 
 class GPUResource;
 class Buffer;
-class Texture;
+class TextureKind;
 
 // ---------------------------------------------------------
 // Legacy barriers
@@ -65,7 +66,7 @@ struct TextureMemoryBarrier
 {
 	ETextureMemoryLayout stateBefore;
 	ETextureMemoryLayout stateAfter;
-	GPUResource* texture; // The type can't be (Texture*) due to swapchain images.
+	TextureKind* texture;
 	uint32 subresource = 0xffffffff; // Index of target subresource. Default is all subresources.
 };
 
@@ -181,6 +182,31 @@ struct BarrierSubresourceRange
 	uint32 numArraySlices;
 	uint32 firstPlane;
 	uint32 numPlanes;
+
+	inline bool operator==(const BarrierSubresourceRange& other) const
+	{
+		return indexOrFirstMipLevel == other.indexOrFirstMipLevel
+			&& numMipLevels == other.numMipLevels
+			&& firstArraySlice == other.firstArraySlice
+			&& numArraySlices == other.numArraySlices
+			&& firstPlane == other.firstPlane
+			&& numPlanes == other.numPlanes;
+	}
+	inline bool operator!=(const BarrierSubresourceRange& other) const
+	{
+		return !(*this == other);
+	}
+
+	inline bool isHolistic() const { return indexOrFirstMipLevel == 0xffffffff; }
+
+	static BarrierSubresourceRange singleMip(uint32 mip)
+	{
+		return BarrierSubresourceRange{ mip, 0, 0, 0, 0, 0 };
+	}
+	static BarrierSubresourceRange allMips()
+	{
+		return BarrierSubresourceRange{ 0xffffffff, 0, 0, 0, 0, 0 };
+	}
 };
 
 // D3D12_TEXTURE_BARRIER_FLAGS
@@ -197,9 +223,9 @@ struct BufferBarrier
 	EBarrierSync syncAfter;
 	EBarrierAccess accessBefore;
 	EBarrierAccess accessAfter;
-	GPUResource* buffer; // Must be a buffer. #todo-barrier: (Buffer*) if possible.
-	//uint64 offset => fixed to 0
-	//uint64 size => fixed to the buffer size in bytes
+	Buffer* buffer;
+	//uint64 offset; // Fixed to 0
+	//uint64 size;   // Fixed to the buffer size in bytes.
 };
 
 struct TextureBarrier
@@ -210,7 +236,7 @@ struct TextureBarrier
 	EBarrierAccess accessAfter;
 	EBarrierLayout layoutBefore;
 	EBarrierLayout layoutAfter;
-	GPUResource* texture; // Must be a texture. Can't be (Texture*) due to swapchain images.
+	TextureKind* texture;
 	BarrierSubresourceRange subresources;
 	ETextureBarrierFlags flags;
 };

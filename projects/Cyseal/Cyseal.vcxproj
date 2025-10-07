@@ -129,6 +129,7 @@
     <ClInclude Include="src\render\sky_pass.h" />
     <ClInclude Include="src\render\util\texture_sequence.h" />
     <ClInclude Include="src\render\util\volatile_descriptor.h" />
+    <ClInclude Include="src\rhi\barrier_tracker.h" />
     <ClInclude Include="src\rhi\buffer.h" />
     <ClInclude Include="src\rhi\denoiser_device.h" />
     <ClInclude Include="src\rhi\descriptor_heap.h" />
@@ -144,6 +145,7 @@
     <ClInclude Include="src\rhi\shader_common.h" />
     <ClInclude Include="src\rhi\shader_dxc_common.h" />
     <ClInclude Include="src\rhi\texture.h" />
+    <ClInclude Include="src\rhi\texture_kind.h" />
     <ClInclude Include="src\rhi\vulkan\vk_buffer.h" />
     <ClInclude Include="src\rhi\vulkan\vk_descriptor.h" />
     <ClInclude Include="src\rhi\vulkan\vk_into.h" />
@@ -231,6 +233,7 @@
     <ClCompile Include="src\render\sky_pass.cpp" />
     <ClCompile Include="src\render\util\texture_sequence.cpp" />
     <ClCompile Include="src\render\util\volatile_descriptor.cpp" />
+    <ClCompile Include="src\rhi\barrier_tracker.cpp" />
     <ClCompile Include="src\rhi\denoiser_device.cpp" />
     <ClCompile Include="src\rhi\dx12\d3d_pipeline_state.cpp" />
     <ClCompile Include="src\rhi\global_descriptor_heaps.cpp" />

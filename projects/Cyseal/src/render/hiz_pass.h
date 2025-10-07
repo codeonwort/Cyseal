@@ -10,6 +10,7 @@ struct HiZPassInput
 {
 	uint32                                  textureWidth;
 	uint32                                  textureHeight;
+	Texture*                                sceneDepthTexture;
 	ShaderResourceView*                     sceneDepthSRV;
 	Texture*                                hizTexture;
 	ShaderResourceView*                     hizSRV;

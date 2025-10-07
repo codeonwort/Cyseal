@@ -57,6 +57,11 @@ public:
 		uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
 		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) override;
 
+	virtual void barrierAuto(
+		uint32 numBufferBarriers, const BufferBarrierAuto* bufferBarriers,
+		uint32 numTextureBarriers, const TextureBarrierAuto* textureBarriers,
+		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) override;
+
 	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override;
 
 	virtual void clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil) override;
@@ -141,4 +146,5 @@ private:
 	D3DDevice* device;
 	D3DRenderCommandAllocator* commandAllocator;
 	WRL::ComPtr<ID3D12GraphicsCommandListLatest> commandList;
+	BarrierTracker barrierTracker;
 };

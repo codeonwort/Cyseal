@@ -345,6 +345,12 @@
     <ClInclude Include="src\rhi\shader_common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\rhi\barrier_tracker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rhi\texture_kind.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -564,6 +570,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\external\vulkan\SPIRV-Reflect-vulkan-sdk-1.4.321.0\spirv_reflect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rhi\barrier_tracker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

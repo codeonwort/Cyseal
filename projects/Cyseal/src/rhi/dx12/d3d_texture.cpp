@@ -142,7 +142,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	createParams = params;
 
 	auto rawDevice = device->getRawDevice();
-	D3D12_RESOURCE_DESC textureDesc = into_d3d::textureDesc(params);
+	D3D12_RESOURCE_DESC1 textureDesc = into_d3d::textureDesc1(params);
 
 	const size_t bytesPerPixel = bitsPerPixel(textureDesc.Format) / 8;
 	rowPitch = (textureDesc.Width * bytesPerPixel + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
@@ -187,26 +187,16 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		optClearValue.DepthStencil.Stencil = params.optimalClearStencil;
 	}
 
-	D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
-	lastMemoryLayout = ETextureMemoryLayout::COMMON;
-	if (isColorTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::CPU_WRITE))
-	{
-		initialState |= D3D12_RESOURCE_STATE_COPY_DEST;
-		saveLastMemoryLayout(ETextureMemoryLayout::COPY_DEST);
-	}
-	else if (isDepthTarget && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
-	{
-		initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-		saveLastMemoryLayout(ETextureMemoryLayout::DEPTH_STENCIL_TARGET);
-	}
-
 	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-	HR(rawDevice->CreateCommittedResource(
+	HR(rawDevice->CreateCommittedResource3(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&textureDesc,
-		initialState,
+		D3D12_BARRIER_LAYOUT_COMMON,
 		bNeedsClearValue ? &optClearValue : nullptr,
+		nullptr, // pProtectedSession
+		0, // NumCastableFormats
+		nullptr, // pCastableFormats
 		IID_PPV_ARGS(&rawResource)));
 
 	// #todo-rhi: Properly count subresources?
@@ -218,29 +208,35 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, numSubresources);
 	readbackBufferSize = uploadBufferSize;
 
+	// Create optional resources if this texture supports upload and/or readback.
 	if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::CPU_WRITE))
 	{
 		auto uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-		auto uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
-		HR(rawDevice->CreateCommittedResource(
+		auto uploadBufferDesc = CD3DX12_RESOURCE_DESC1::Buffer(uploadBufferSize);
+		HR(rawDevice->CreateCommittedResource3(
 			&uploadHeapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&uploadBufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
+			D3D12_BARRIER_LAYOUT_UNDEFINED,
+			nullptr, // pOptimizedClearValue
+			nullptr, // pProtectedSession
+			0, // NumCastableFormats
+			nullptr, // pCastableFormats
 			IID_PPV_ARGS(&textureUploadHeap)));
 	}
-
 	if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::CPU_READBACK))
 	{
 		auto readbackHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
-		auto readbackBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(readbackBufferSize);
-		HR(rawDevice->CreateCommittedResource(
+		auto readbackBufferDesc = CD3DX12_RESOURCE_DESC1::Buffer(readbackBufferSize);
+		HR(rawDevice->CreateCommittedResource3(
 			&readbackHeapProperties,
 			D3D12_HEAP_FLAG_NONE,
 			&readbackBufferDesc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
+			D3D12_BARRIER_LAYOUT_UNDEFINED,
+			nullptr, // pOptimizedClearValue
+			nullptr, // pProtectedSession
+			0, // NumCastableFormats
+			nullptr, // pCastableFormats
 			IID_PPV_ARGS(&readbackBuffer)));
 		
 		readbackFootprintDesc = D3D12_TEXTURE_COPY_LOCATION{
@@ -275,11 +271,11 @@ void D3DTexture::uploadData(
 		.SlicePitch = (LONG_PTR)slicePitch,
 	};
 
-	if (lastMemoryLayout != ETextureMemoryLayout::COPY_DEST)
-	{
-		TextureMemoryBarrier barrierBefore{ lastMemoryLayout, ETextureMemoryLayout::COPY_DEST, this };
-		commandList.resourceBarriers(0, nullptr, 1, &barrierBefore);
-	}
+	TextureBarrierAuto barrierBefore{
+		EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
+		this, BarrierSubresourceRange { subresourceIndex, 0, 0, 0, 0, 0 }, ETextureBarrierFlags::None
+	};
+	commandList.barrierAuto(0, nullptr, 1, &barrierBefore, 0, nullptr);
 
 	// [ RESOURCE_MANIPULATION ERROR #864: COPYTEXTUREREGION_INVALIDSRCOFFSET ]
 	// Offset must be a multiple of 512.
@@ -291,23 +287,17 @@ void D3DTexture::uploadData(
 		textureUploadHeap.Get(), slicePitchAligned * subresourceIndex,
 		subresourceIndex, 1, &textureData);
 	CHECK(ret != 0);
-
-	if (lastMemoryLayout != ETextureMemoryLayout::COPY_DEST)
-	{
-		TextureMemoryBarrier barrierAfter{ ETextureMemoryLayout::COPY_DEST, lastMemoryLayout, this };
-		commandList.resourceBarriers(0, nullptr, 1, &barrierAfter);
-	}
 }
 
 bool D3DTexture::prepareReadback(RenderCommandList* commandList)
 {
 	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, ETextureAccessFlags::CPU_READBACK));
 
-	if (lastMemoryLayout != ETextureMemoryLayout::COPY_SRC)
-	{
-		TextureMemoryBarrier barrierBefore{ lastMemoryLayout, ETextureMemoryLayout::COPY_SRC, this };
-		commandList->resourceBarriers(0, nullptr, 1, &barrierBefore);
-	}
+	TextureBarrierAuto barrierBefore{
+		EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+		this, BarrierSubresourceRange { 0, 1, 0, 0, 0, 0 }, ETextureBarrierFlags::None
+	};
+	commandList->barrierAuto(0, nullptr, 1, &barrierBefore, 0, nullptr);
 
 	ID3D12GraphicsCommandList4* d3dCommandList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
@@ -325,12 +315,6 @@ bool D3DTexture::prepareReadback(RenderCommandList* commandList)
 		.back   = 1,
 	};
 	d3dCommandList->CopyTextureRegion(&readbackFootprintDesc, 0, 0, 0, &pSrc, &srcRegion);
-
-	if (lastMemoryLayout != ETextureMemoryLayout::COPY_SRC)
-	{
-		TextureMemoryBarrier barrierAfter{ ETextureMemoryLayout::COPY_SRC, lastMemoryLayout, this };
-		commandList->resourceBarriers(0, nullptr, 1, &barrierAfter);
-	}
 
 	bReadbackPrepared = true;
 

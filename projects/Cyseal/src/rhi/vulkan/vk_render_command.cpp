@@ -102,7 +102,8 @@ void VulkanRenderCommandAllocator::onReset()
 
 void VulkanRenderCommandList::initialize(RenderDevice* renderDevice)
 {
-	//
+	device = static_cast<VulkanDevice*>(renderDevice);
+	barrierTracker.initialize(this);
 }
 
 void VulkanRenderCommandList::reset(RenderCommandAllocator* allocator)
@@ -118,12 +119,16 @@ void VulkanRenderCommandList::reset(RenderCommandAllocator* allocator)
 	};
 	VkResult ret = vkBeginCommandBuffer(currentCommandBuffer, &beginInfo);
 	CHECK(ret == VK_SUCCESS);
+
+	barrierTracker.resetAll();
 }
 
 void VulkanRenderCommandList::close()
 {
 	VkResult ret = vkEndCommandBuffer(currentCommandBuffer);
 	CHECK(ret == VK_SUCCESS);
+
+	barrierTracker.flushFinalStates();
 }
 
 void VulkanRenderCommandList::resourceBarriers(
@@ -151,6 +156,9 @@ void VulkanRenderCommandList::resourceBarriers(
 		0, nullptr,
 		(uint32)vkBufferMemoryBarriers.size(), vkBufferMemoryBarriers.data(),
 		(uint32)vkImageMemoryBarriers.size(), vkImageMemoryBarriers.data());
+
+	// This API will be removed anyway, so no need to deal with barrierTracker.
+	// All invocations of this method has been removed.
 }
 
 void VulkanRenderCommandList::barrier(
@@ -186,6 +194,43 @@ void VulkanRenderCommandList::barrier(
 		.pImageMemoryBarriers     = vkImageBarriers.data(),
 	};
 	vkCmdPipelineBarrier2(currentCommandBuffer, &dep);
+
+	// Update tracker state.
+	for (size_t i = 0; i < numBufferBarriers; ++i)
+	{
+		barrierTracker.applyBufferBarrier(bufferBarriers[i]);
+	}
+	for (size_t i = 0; i < numTextureBarriers; ++i)
+	{
+		barrierTracker.applyTextureBarrier(textureBarriers[i]);
+	}
+}
+
+void VulkanRenderCommandList::barrierAuto(
+	uint32 numBufferBarriers, const BufferBarrierAuto* bufferBarriers,
+	uint32 numTextureBarriers, const TextureBarrierAuto* textureBarriers,
+	uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers)
+{
+	std::vector<BufferBarrier> fullBufferBarriers;
+	std::vector<TextureBarrier> fullTextureBarriers;
+	fullBufferBarriers.reserve(numBufferBarriers);
+	fullTextureBarriers.reserve(numTextureBarriers);
+	for (uint32 i = 0; i < numBufferBarriers; ++i)
+	{
+		BufferBarrier fullBarrier = barrierTracker.toBufferBarrier(bufferBarriers[i]);
+		fullBufferBarriers.emplace_back(fullBarrier);
+	}
+	for (uint32 i = 0; i < numTextureBarriers; ++i)
+	{
+		TextureBarrier fullBarrier = barrierTracker.toTextureBarrier(textureBarriers[i]);
+		fullTextureBarriers.emplace_back(fullBarrier);
+	}
+
+	this->barrier(
+		numBufferBarriers, fullBufferBarriers.data(),
+		numTextureBarriers, fullTextureBarriers.data(),
+		numGlobalBarriers, globalBarriers);
+
 }
 
 void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
@@ -393,14 +438,12 @@ void VulkanRenderCommandList::dispatchRays(const DispatchRaysDesc& dispatchDesc)
 
 void VulkanRenderCommandList::beginEventMarker(const char* eventName)
 {
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
-	deviceWrapper->beginVkDebugMarker(currentCommandBuffer, eventName);
+	device->beginVkDebugMarker(currentCommandBuffer, eventName);
 }
 
 void VulkanRenderCommandList::endEventMarker()
 {
-	VulkanDevice* deviceWrapper = static_cast<VulkanDevice*>(gRenderDevice);
-	deviceWrapper->endVkDebugMarker(currentCommandBuffer);
+	device->endVkDebugMarker(currentCommandBuffer);
 }
 
 #endif

@@ -34,14 +34,11 @@ public:
 
 	virtual void* getRawResource() const override { return rawResource.Get(); }
 
-	void saveLastMemoryLayout(ETextureMemoryLayout layout) { lastMemoryLayout = layout; }
-
 private:
 	D3DDevice* device = nullptr;
 
 	WRL::ComPtr<ID3D12Resource> rawResource;
 	TextureCreateParams createParams;
-	ETextureMemoryLayout lastMemoryLayout;
 
 	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 	// the command list that references it has finished executing on the GPU.

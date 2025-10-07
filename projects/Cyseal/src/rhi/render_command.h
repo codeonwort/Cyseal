@@ -5,6 +5,7 @@
 #include "pipeline_state.h"
 #include "gpu_resource_binding.h"
 #include "gpu_resource_barrier.h"
+#include "barrier_tracker.h"
 
 #include <functional>
 
@@ -80,6 +81,11 @@ public:
 	virtual void barrier(
 		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
 		uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
+		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) = 0;
+
+	virtual void barrierAuto(
+		uint32 numBufferBarriers, const BufferBarrierAuto* bufferBarriers,
+		uint32 numTextureBarriers, const TextureBarrierAuto* textureBarriers,
 		uint32 numGlobalBarriers, const GlobalBarrier* globalBarriers) = 0;
 
 	// #todo-rendercommand: Maybe not the best way to clear RTV.

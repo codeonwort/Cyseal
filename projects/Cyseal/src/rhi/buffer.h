@@ -1,6 +1,8 @@
 #pragma once
 
 #include "gpu_resource.h"
+#include "gpu_resource_barrier.h"
+#include "barrier_tracker.h"
 #include "pixel_format.h"
 #include "util/enum_util.h"
 
@@ -8,7 +10,6 @@ class RenderCommandList;
 
 // D3D12_RESOURCE_FLAGS
 // VkBufferUsageFlags
-// #todo-vulkan: more flags and redundant with EGPUResourceState
 enum class EBufferAccessFlags : uint32
 {
 	NONE          = 0,
@@ -129,9 +130,19 @@ public:
 	{
 		createParams = inCreateParams;
 		CHECK(createParams.sizeInBytes > 0);
+
+		lastBarrier = BarrierTracker::BufferState::createUnused();
+
 		// ... subclasses do remaining work
 	}
 
+	/// <summary>
+	/// Upload data to the internal GPU buffer resource.
+	/// This is allowed only if the buffer was initialized with EBufferAccessFlags::COPY_SRC flag.
+	/// </summary>
+	/// <param name="commandList"></param>
+	/// <param name="numUploads"></param>
+	/// <param name="uploadDescs"></param>
 	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) = 0;
 	
 	void singleWriteToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes, uint64 destOffsetInBytes)
@@ -142,6 +153,17 @@ public:
 
 	inline const BufferCreateParams& getCreateParams() const { return createParams; }
 
+	// Use only when a barrier tracker in a command list has no history for this buffer.
+	inline const BarrierTracker::BufferState& internal_getLastBarrierState() const { return lastBarrier; }
+	// Use only when a command list is closed.
+	inline void internal_setLastBarrierState(const BarrierTracker::BufferState& newState) { lastBarrier = newState; }
+
 protected:
 	BufferCreateParams createParams;
+
+	// This is used only for two cases:
+	//   1. Before beginning recording of a command list.
+	//   2. After finishing recording of a command list.
+	// Intermediate states are tracked by that command list.
+	BarrierTracker::BufferState lastBarrier;
 };

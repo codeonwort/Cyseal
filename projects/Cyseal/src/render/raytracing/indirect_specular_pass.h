@@ -28,6 +28,7 @@ struct IndirectSpecularInput
 	ShaderResourceView*    skyboxSRV;
 	ShaderResourceView*    gbuffer0SRV;
 	ShaderResourceView*    gbuffer1SRV;
+	Texture*               sceneDepthTexture;
 	ShaderResourceView*    sceneDepthSRV;
 	ShaderResourceView*    prevSceneDepthSRV;
 	ShaderResourceView*    velocityMapSRV;

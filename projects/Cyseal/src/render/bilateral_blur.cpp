@@ -95,10 +95,15 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, uint32 s
 	UnorderedAccessView* blurInput = passInput.inColorUAV;
 	UnorderedAccessView* blurOutput = colorScratchUAV.get();
 
-	std::vector<GPUResource*> uavBarriers = { passInput.inColorTexture, colorScratch.get() };
-	if (!bInOutColorsAreSame)
+	std::vector<Texture*> uavBarrierTargets = { passInput.inColorTexture, colorScratch.get() };
+	if (!bInOutColorsAreSame) uavBarrierTargets.push_back(passInput.outColorTexture);
+	std::vector<TextureBarrierAuto> uavBarriers;
+	for (size_t i = 0; i < uavBarrierTargets.size(); ++i)
 	{
-		uavBarriers.push_back(passInput.outColorTexture);
+		uavBarriers.push_back({
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			uavBarrierTargets[i], BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		});
 	}
 
 	bool bShouldCopyScratchToOutColor = false;
@@ -131,7 +136,7 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, uint32 s
 		uint32 groupX = (passInput.imageWidth + 7) / 8, groupY = (passInput.imageHeight + 7) / 8;
 		commandList->dispatchCompute(groupX, groupY, 1);
 
-		commandList->resourceBarriers(0, nullptr, 0, nullptr, (uint32)uavBarriers.size(), uavBarriers.data());
+		commandList->barrierAuto(0, nullptr, (uint32)uavBarriers.size(), uavBarriers.data(), 0, nullptr);
 
 		auto temp = blurInput;
 		blurInput = blurOutput;
@@ -140,19 +145,19 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, uint32 s
 
 	if (bShouldCopyScratchToOutColor)
 	{
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, colorScratch.get() },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_DEST, passInput.outColorTexture },
+		TextureBarrierAuto barriersBefore[] = {
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+				colorScratch.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
+				passInput.outColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		commandList->copyTexture2D(colorScratch.get(), passInput.outColorTexture);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::UNORDERED_ACCESS, colorScratch.get() },
-			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, passInput.outColorTexture },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 }
 

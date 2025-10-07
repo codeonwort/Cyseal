@@ -97,6 +97,23 @@ namespace into_d3d
 		return d3dBarrier;
 	}
 
+	EBarrierLayout textureMemoryLayoutToBarrierLayout(ETextureMemoryLayout legacyLayout)
+	{
+		switch (legacyLayout)
+		{
+			case ETextureMemoryLayout::COMMON                : return EBarrierLayout::Common;
+			case ETextureMemoryLayout::RENDER_TARGET         : return EBarrierLayout::RenderTarget;
+			case ETextureMemoryLayout::DEPTH_STENCIL_TARGET  : return EBarrierLayout::DepthStencilWrite;
+			case ETextureMemoryLayout::PIXEL_SHADER_RESOURCE : return EBarrierLayout::ShaderResource;
+			case ETextureMemoryLayout::UNORDERED_ACCESS      : return EBarrierLayout::UnorderedAccess;
+			case ETextureMemoryLayout::COPY_SRC              : return EBarrierLayout::CopySource;
+			case ETextureMemoryLayout::COPY_DEST             : return EBarrierLayout::CopyDest;
+			case ETextureMemoryLayout::PRESENT               : return EBarrierLayout::Present;
+		}
+		CHECK_NO_ENTRY();
+		return EBarrierLayout::Undefined;
+	}
+
 	D3D12_BARRIER_SYNC barrierSync(EBarrierSync sync)
 	{
 		return (D3D12_BARRIER_SYNC)sync;

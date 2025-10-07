@@ -1,6 +1,6 @@
 #pragma once
 
-#include "rhi/gpu_resource.h"
+#include "rhi/texture_kind.h"
 #include "rhi/render_command.h"
 #include "util/enum_util.h"
 
@@ -133,7 +133,7 @@ struct TextureCreateParams
 	}
 };
 
-class Texture : public GPUResource
+class Texture : public TextureKind
 {
 public:
 	virtual const TextureCreateParams& getCreateParams() const = 0;

@@ -121,7 +121,7 @@ uint32 D3DSwapChain::getCurrentBackbufferIndex() const
 	return rawSwapChain->GetCurrentBackBufferIndex();
 }
 
-GPUResource* D3DSwapChain::getSwapchainBuffer(uint32 ix) const
+SwapChainImage* D3DSwapChain::getSwapchainBuffer(uint32 ix) const
 {
 	return swapChainBuffers.at(ix);
 }

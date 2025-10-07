@@ -12,7 +12,7 @@ class D3DRenderTargetView;
 // #todo-dx12: Is there any way to automatically select latest IDXGISwapChainN?
 #define IDXGISwapChainLatest IDXGISwapChain4
 
-class D3DSwapChainBuffer : public GPUResource
+class D3DSwapChainBuffer : public SwapChainImage
 {
 public:
 	virtual void* getRawResource() const override { return raw; }
@@ -46,7 +46,7 @@ public:
 	virtual uint32 getBufferCount() const override { return SWAP_CHAIN_BUFFER_COUNT; }
 
 	virtual uint32 getCurrentBackbufferIndex() const override;
-	virtual GPUResource* getSwapchainBuffer(uint32 ix) const override;
+	virtual SwapChainImage* getSwapchainBuffer(uint32 ix) const override;
 	virtual RenderTargetView* getSwapchainBufferRTV(uint32 ix) const override;
 
 	inline IDXGISwapChain* getRaw() const { return rawSwapChain.Get(); }

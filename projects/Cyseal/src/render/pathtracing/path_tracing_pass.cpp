@@ -247,12 +247,17 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		uint32 dispatchY = (historyHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
-		TextureMemoryBarrier textureBarriers[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevMomentTexture },
+		TextureBarrierAuto textureBarriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				raytracingTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				prevMomentTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
 		};
-		GPUResource* uavBarriers[] = { currentColorTexture, currentMomentTexture };
-		commandList->resourceBarriers(0, nullptr, _countof(textureBarriers), textureBarriers, _countof(uavBarriers), uavBarriers);
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 	}
 
 	// -------------------------------------------------------------------
@@ -262,38 +267,37 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, currentColorTexture },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_DEST, passInput.sceneColorTexture },
+		TextureBarrierAuto barriersBefore[] = {
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+				currentColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
+				passInput.sceneColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		commandList->copyTexture2D(currentColorTexture, passInput.sceneColorTexture);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::UNORDERED_ACCESS, currentColorTexture },
-			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, passInput.sceneColorTexture },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 	else
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToPrevColor);
 
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, currentColorTexture },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::COPY_DEST, prevColorTexture },
+		TextureBarrierAuto barriersBefore[] = {
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+				currentColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
+				prevColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		commandList->copyTexture2D(currentColorTexture, prevColorTexture);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::UNORDERED_ACCESS, currentColorTexture },
-			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 
 		BilateralBlurInput blurPassInput{
 			.imageWidth      = sceneWidth,
@@ -529,17 +533,13 @@ void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, uint32 s
 	{
 		SCOPED_DRAW_EVENT(commandList, BarriersAfterRaytracing);
 
-		TextureMemoryBarrier textureBarriers[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevMomentTexture },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, raytracingTexture.get() },
+		TextureBarrierAuto textureBarriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				raytracingTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			}
 		};
-		GPUResource* uavBarriers[] = { raytracingTexture.get() };
-
-		commandList->resourceBarriers(
-			0, nullptr,
-			_countof(textureBarriers), textureBarriers,
-			_countof(uavBarriers), uavBarriers);
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 	}
 }
 
@@ -581,19 +581,6 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
-
-	{
-		SCOPED_DRAW_EVENT(commandList, ColorHistoryBarrier);
-
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(0) },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(1) },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(0) },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(1) },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
-	}
 }
 
 void PathTracingPass::resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene)

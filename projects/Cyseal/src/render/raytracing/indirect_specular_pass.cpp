@@ -181,19 +181,13 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_SRC, currColorTexture },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::COPY_DEST, passInput.indirectSpecularTexture },
+		TextureBarrierAuto barriersBefore[] = {
+			TextureBarrierAuto::toCopySource(currColorTexture),
+			TextureBarrierAuto::toCopyDest(passInput.indirectSpecularTexture),
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		commandList->copyTexture2D(currColorTexture, passInput.indirectSpecularTexture);
-
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::COPY_SRC, ETextureMemoryLayout::UNORDERED_ACCESS, currColorTexture },
-			{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, passInput.indirectSpecularTexture },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
 	}
 }
 
@@ -457,19 +451,6 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 		}
 	));
 #endif
-
-	{
-		SCOPED_DRAW_EVENT(commandList, SpecularTexturesInitBarrier);
-
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(0) },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, colorHistory.getTexture(1) },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(0) },
-			{ ETextureMemoryLayout::COMMON, ETextureMemoryLayout::UNORDERED_ACCESS, momentHistory.getTexture(1) },
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
-	}
 }
 
 void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords)
@@ -535,6 +516,20 @@ void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32
 		uint32 zeroValue = 0;
 		passInput.tileCounterBuffer->singleWriteToGPU(commandList, &zeroValue, sizeof(zeroValue), 0);
 
+		{
+			BufferBarrierAuto bufferBarriers[] = {
+				{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
+				{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCounterBuffer },
+			};
+			TextureBarrierAuto textureBarriers[] = {
+				{
+					EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_READ, EBarrierLayout::DepthStencilRead,
+					passInput.sceneDepthTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				}
+			};
+			commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
+		}
+
 		ShaderParameterTable SPT{};
 		SPT.pushConstants("pushConstants", { packedSize }, 0);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
@@ -553,8 +548,11 @@ void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32
 		uint32 dispatchY = (passInput.sceneHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
-		GPUResource* uavBarriers[] = { passInput.tileCoordBuffer, passInput.tileCounterBuffer, };
-		commandList->resourceBarriers(0, nullptr, 0, nullptr, _countof(uavBarriers), uavBarriers);
+		GlobalBarrier globalBarrier = {
+			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
+		};
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 	}
 	{
 		SCOPED_DRAW_EVENT(commandList, PrepareIndirectRays);
@@ -573,8 +571,11 @@ void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32
 
 		commandList->dispatchCompute(1, 1, 1);
 
-		GPUResource* uavBarriers[] = { rayCommandBuffer.get() };
-		commandList->resourceBarriers(0, nullptr, 0, nullptr, _countof(uavBarriers), uavBarriers);
+		GlobalBarrier globalBarrier = {
+			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
+		};
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 	}
 }
 
@@ -648,21 +649,28 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 		// #todo-rhi: ID3D12GraphicsCommandList::ClearUnorderedAccessViewFloat() requires TWO descriptor heaps for a single UAV?
 		// Well let's just adopt the most lazy way...
 
-		TextureMemoryBarrier barriersBefore[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::RENDER_TARGET, raytracingTexture.get() }
-		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersBefore), barriersBefore);
+		TextureBarrierAuto barriersBefore = TextureBarrierAuto::toRenderTarget(raytracingTexture.get());
+		commandList->barrierAuto(0, nullptr, 1, &barriersBefore, 0, nullptr);
 
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		commandList->clearRenderTargetView(raytracingRTV.get(), clearColor);
 
-		TextureMemoryBarrier barriersAfter[] = {
-			{ ETextureMemoryLayout::RENDER_TARGET, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() }
+		TextureBarrierAuto barriersAfter = {
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			raytracingTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriersAfter), barriersAfter);
+		commandList->barrierAuto(0, nullptr, 1, &barriersAfter, 0, nullptr);
 	}
 
 	commandList->executeIndirect(rayCommandSignature.get(), 1, rayCommandBuffer.get(), 0);
+
+	{
+		GlobalBarrier globalBarrier = {
+			EBarrierSync::EXECUTE_INDIRECT, EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::INDIRECT_ARGUMENT, EBarrierAccess::UNORDERED_ACCESS
+		};
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
+	}
 #else
 	DispatchRaysDesc dispatchDesc{
 		.raygenShaderTable = raygenShaderTable.get(),
@@ -674,21 +682,6 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 	};
 	commandList->dispatchRays(dispatchDesc);
 #endif
-
-	{
-		SCOPED_DRAW_EVENT(commandList, BarriersAfterRaytracing);
-
-		TextureMemoryBarrier textureBarriers[] = {
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevColorTexture },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, prevMomentTexture },
-			{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, raytracingTexture.get() },
-		};
-		GPUResource* uavBarriers[] = { raytracingTexture.get() };
-		commandList->resourceBarriers(
-			0, nullptr,
-			_countof(textureBarriers), textureBarriers,
-			_countof(uavBarriers), uavBarriers);
-	}
 }
 
 void IndirecSpecularPass::denoisingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
@@ -752,13 +745,11 @@ void IndirecSpecularPass::denoisingPhase(RenderCommandList* commandList, uint32 
 		uint32 dispatchY = (historyHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
-		TextureMemoryBarrier textureBarriers[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, raytracingTexture.get() },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevColorTexture },
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, prevMomentTexture },
+		GlobalBarrier uavBarrier = {
+			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
 		};
-		GPUResource* uavBarriers[] = { currColorTexture, currMomentTexture };
-		commandList->resourceBarriers(0, nullptr, _countof(textureBarriers), textureBarriers, _countof(uavBarriers), uavBarriers);
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &uavBarrier);
 	}
 
 	// -------------------------------------------------------------------
