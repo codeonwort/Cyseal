@@ -173,7 +173,7 @@ public:
 	inline const BufferCreateParams& getCreateParams() const { return createParams; }
 
 	// Use only when a barrier tracker in a command list has no history for this buffer.
-	inline BarrierTracker::BufferState internal_getLastBarrierState() const { return lastBarrier; }
+	inline const BarrierTracker::BufferState& internal_getLastBarrierState() const { return lastBarrier; }
 	// Use only when a command list is closed.
 	inline void internal_setLastBarrierState(const BarrierTracker::BufferState& newState) { lastBarrier = newState; }
 

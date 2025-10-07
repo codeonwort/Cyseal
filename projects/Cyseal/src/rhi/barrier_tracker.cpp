@@ -1,5 +1,6 @@
 #include "barrier_tracker.h"
 #include "buffer.h"
+#include "texture_kind.h"
 
 // ------------------------------------------------------------------
 // BarrierTracker
@@ -29,7 +30,10 @@ void BarrierTracker::flushFinalStates()
 	{
 		it.first->internal_setLastBarrierState(it.second);
 	}
-	// #wip-tracker-state: flush for textures
+	for (const auto& it : textureStates)
+	{
+		it.first->internal_setLastBarrierState(it.second);
+	}
 }
 
 BufferBarrier BarrierTracker::toBufferBarrier(const BufferBarrierAuto& halfBarrier) const
@@ -88,6 +92,19 @@ TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBa
 			}
 		}
 		// applyTextureBarrier() will handle split or append for localStates.
+	}
+	else
+	{
+		const BarrierTracker::TextureStateSet& lastStateSet = halfBarrier.texture->internal_getLastBarrierState();
+		if (lastStateSet.bHolistic)
+		{
+			beforeState = lastStateSet.globalState;
+		}
+		else
+		{
+			const BarrierTracker::TextureState* lastLocalState = lastStateSet.localStateIncluding(halfBarrier.subresources);
+			beforeState = (lastLocalState != nullptr) ? (*lastLocalState) : lastStateSet.globalState;
+		}
 	}
 
 	// #wip-tracker: What to do on ETextureBarrierFlags mismatch?
