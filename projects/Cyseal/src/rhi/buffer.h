@@ -125,20 +125,6 @@ public:
 		uint32 sizeInBytes;
 		uint64 destOffsetInBytes;
 	};
-	// #wip: Maybe not needed after replacing all barrier calls with auto barriers?
-	// #todo-barrier: Don't know before/after states. Let the user decides.
-	struct UploadBarrier
-	{
-		EBarrierSync   syncBefore;
-		EBarrierSync   syncAfter;
-		EBarrierAccess accessBefore;
-		EBarrierAccess accessAfter;
-
-		static UploadBarrier blockAll()
-		{
-			return UploadBarrier{ EBarrierSync::ALL, EBarrierSync::ALL, EBarrierAccess::COMMON, EBarrierAccess::COMMON };
-		}
-	};
 
 	virtual void initialize(const BufferCreateParams& inCreateParams)
 	{
@@ -157,18 +143,12 @@ public:
 	/// <param name="commandList"></param>
 	/// <param name="numUploads"></param>
 	/// <param name="uploadDescs"></param>
-	/// <param name="uploadBarrier">Values for barrier sync and access before/after copy operation.</param>
-	/// <param name="bSkipBarriers">If true, Don't insert barriers before/after copy operation. The caller is expected to insert such barriers.</param>
-	virtual void writeToGPU(RenderCommandList* commandList,
-		uint32 numUploads, Buffer::UploadDesc* uploadDescs,
-		const UploadBarrier& uploadBarrier = UploadBarrier::blockAll(), bool bSkipBarriers = false) = 0;
+	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) = 0;
 	
-	void singleWriteToGPU(RenderCommandList* commandList,
-		void* srcData, uint32 sizeInBytes, uint64 destOffsetInBytes,
-		const UploadBarrier& uploadBarrier = UploadBarrier::blockAll(), bool bSkipBarriers = false)
+	void singleWriteToGPU(RenderCommandList* commandList, void* srcData, uint32 sizeInBytes, uint64 destOffsetInBytes)
 	{
 		UploadDesc desc{ srcData, sizeInBytes, destOffsetInBytes };
-		writeToGPU(commandList, 1, &desc, uploadBarrier, bSkipBarriers);
+		writeToGPU(commandList, 1, &desc);
 	}
 
 	inline const BufferCreateParams& getCreateParams() const { return createParams; }

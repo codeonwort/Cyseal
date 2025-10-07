@@ -260,22 +260,14 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		}
 		SCOPED_DRAW_EVENT_STRING(commandList, eventString);
 
-		Buffer::UploadBarrier uploadBarrier{
-			.syncBefore   = EBarrierSync::ALL,
-			.syncAfter    = EBarrierSync::COMPUTE_SHADING,
-			.accessBefore = EBarrierAccess::COMMON,
-			.accessAfter  = EBarrierAccess::SHADER_RESOURCE,
-		};
 		gpuSceneCommandBuffer[swapchainIndex]->singleWriteToGPU(
 			commandList,
 			sceneCommands.data(),
 			(uint32)(sizeof(GPUSceneCommand) * numSceneCommands),
-			0,
-			uploadBarrier);
+			0);
 
 		BufferBarrierAuto barriersBefore[] = {
-			// No need for gpuSceneCommandBuffer due to custom uploadBarrier.
-			//{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneCommandBuffer.at(swapchainIndex) },
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneCommandBuffer.at(swapchainIndex) },
 			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, gpuSceneBuffer.get() },
 		};
 		commandList->barrierAuto(_countof(barriersBefore), barriersBefore, 0, nullptr, 0, nullptr);

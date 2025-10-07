@@ -247,9 +247,7 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 	}
 }
 
-void D3DBuffer::writeToGPU(RenderCommandList* commandList,
-	uint32 numUploads, Buffer::UploadDesc* uploadDescs,
-	const UploadBarrier& uploadBarrier, bool bSkipBarriers)
+void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs)
 {
 	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
 	for (uint32 i = 0; i < numUploads; ++i)
@@ -260,15 +258,8 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList,
 
 	ID3D12GraphicsCommandListLatest* cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
-	if (!bSkipBarriers)
-	{
-		BufferBarrierAuto barrierBefore{
-			.syncAfter   = EBarrierSync::COPY,
-			.accessAfter = EBarrierAccess::COPY_DEST,
-			.buffer      = this,
-		};
-		commandList->barrierAuto(1, &barrierBefore, 0, nullptr, 0, nullptr);
-	}
+	BufferBarrierAuto barrierBefore{ EBarrierSync::COPY, EBarrierAccess::COPY_DEST, this };
+	commandList->barrierAuto(1, &barrierBefore, 0, nullptr, 0, nullptr);
 
 	// #todo-renderdevice: Merge buffer copy regions if contiguous.
 	// Below code is not tested at all as there is no multi-write case yet.
@@ -327,16 +318,6 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList,
 			defaultBuffer.Get(), desc.destOffsetInBytes,
 			uploadBuffer.Get(), desc.destOffsetInBytes,
 			desc.sizeInBytes);
-	}
-
-	if (!bSkipBarriers)
-	{
-		BufferBarrierAuto barrierAfter{
-			.syncAfter   = uploadBarrier.syncAfter,
-			.accessAfter = uploadBarrier.accessAfter,
-			.buffer      = this,
-		};
-		commandList->barrierAuto(1, &barrierAfter, 0, nullptr, 0, nullptr);
 	}
 }
 

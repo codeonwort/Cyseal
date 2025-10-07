@@ -16,9 +16,7 @@ public:
 	VulkanBuffer(VulkanDevice* inDevice) : device(inDevice) {}
 	virtual ~VulkanBuffer();
 	virtual void initialize(const BufferCreateParams& inCreateParams) override;
-	virtual void writeToGPU(RenderCommandList* commandList,
-		uint32 numUploads, Buffer::UploadDesc* uploadDescs,
-		const UploadBarrier& uploadBarrier, bool bSkipBarriers) override;
+	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) override;
 
 	virtual void* getRawResource() const { return vkBuffer; }
 	virtual void setDebugName(const wchar_t* inDebugName) override;
