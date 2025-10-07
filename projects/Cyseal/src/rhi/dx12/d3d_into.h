@@ -397,6 +397,26 @@ namespace into_d3d
 		return desc;
 	}
 
+	inline D3D12_RESOURCE_DESC1 textureDesc1(const TextureCreateParams& params)
+	{
+		D3D12_RESOURCE_DESC legacy = textureDesc(params);
+
+		return D3D12_RESOURCE_DESC1{
+			.Dimension        = legacy.Dimension,
+			.Alignment        = legacy.Alignment,
+			.Width            = legacy.Width,
+			.Height           = legacy.Height,
+			.DepthOrArraySize = legacy.DepthOrArraySize,
+			.MipLevels        = legacy.MipLevels,
+			.Format           = legacy.Format,
+			.SampleDesc       = legacy.SampleDesc,
+			.Layout           = legacy.Layout,
+			.Flags            = legacy.Flags,
+			// #todo-dx12: SamplerFeedbackMipRegion
+			.SamplerFeedbackMipRegion = D3D12_MIP_REGION{ 0, 0, 0 },
+		};
+	}
+
 	D3D12_RESOURCE_STATES bufferMemoryLayout(EBufferMemoryLayout layout);
 	D3D12_RESOURCE_STATES textureMemoryLayout(ETextureMemoryLayout layout);
 
