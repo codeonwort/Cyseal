@@ -59,6 +59,10 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 
 		TextureBarrierAuto texBarriers[] = {
 			{
+				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_READ, EBarrierLayout::DepthStencilRead,
+				passInput.sceneDepthTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
 				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				passInput.hizTexture, BarrierSubresourceRange::singleMip(0), ETextureBarrierFlags::None
 			},

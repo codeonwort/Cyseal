@@ -63,20 +63,17 @@ BufferBarrier BarrierTracker::toBufferBarrier(const BufferBarrierAuto& halfBarri
 
 TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBarrier) const
 {
-	TextureState beforeState{
-		.syncBefore   = EBarrierSync::NONE,
-		.accessBefore = EBarrierAccess::NO_ACCESS,
-		.layoutBefore = EBarrierLayout::Common, // #wip-tracker: Initial layoutBefore? undefined or common?
-		.subresources = halfBarrier.subresources, // #wip-tracker: Initial BarrierSubresourceRange?
-		.flags        = halfBarrier.flags // #wip-tracker: Initial ETextureBarrierFlags?
-	};
+	TextureState beforeState;
+
+	// Find beforeState. If not registered to current tracker, read what's stored in the texture.
+	// If registered, find a state that best-matches the given argument.
 	auto it = textureStates.find(halfBarrier.texture);
 	if (it != textureStates.end())
 	{
 		const TextureStateSet& stateSet = it->second;
 		if (halfBarrier.subresources.isHolistic())
 		{
-			CHECK(stateSet.bHolistic); // #wip-tracker-state
+			CHECK(stateSet.bHolistic); // #todo-barrier: What to do in this case? No use case yet
 			beforeState = stateSet.globalState;
 		}
 		else
@@ -91,7 +88,6 @@ TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBa
 				beforeState = stateSet.globalState;
 			}
 		}
-		// applyTextureBarrier() will handle split or append for localStates.
 	}
 	else
 	{
@@ -106,8 +102,9 @@ TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBa
 			beforeState = (lastLocalState != nullptr) ? (*lastLocalState) : lastStateSet.globalState;
 		}
 	}
+	// Now beforeState is initialized. applyTextureBarrier() will handle split or append for localStates.
 
-	// #wip-tracker: What to do on ETextureBarrierFlags mismatch?
+	// #todo-barrier: What to do on ETextureBarrierFlags mismatch?
 	CHECK(beforeState.flags == halfBarrier.flags);
 
 	TextureBarrier fullBarrier = {
@@ -130,17 +127,9 @@ void BarrierTracker::applyBufferBarrier(const BufferBarrier& barrier)
 	auto it = bufferStates.find(barrier.buffer);
 	if (it == bufferStates.end())
 	{
-		// #wip-tracker-state: Enable it and remove unnecessary flush
-#if 0
-		if (barrier.syncBefore != EBarrierSync::NONE)
-		{
-			CHECK_NO_ENTRY(); // You don't need syncBefore.
-		}
-		if (barrier.accessBefore != EBarrierAccess::NO_ACCESS)
-		{
-			CHECK_NO_ENTRY(); // You don't need accessBefore.
-		}
-#endif
+		const BufferState& beforeState = barrier.buffer->internal_getLastBarrierState();
+		CHECK(beforeState.syncBefore == barrier.syncBefore);
+		CHECK(beforeState.accessBefore == barrier.accessBefore);
 	}
 	else
 	{
@@ -159,23 +148,9 @@ void BarrierTracker::applyBufferBarrier(const BufferBarrier& barrier)
 void BarrierTracker::applyTextureBarrier(const TextureBarrier& barrier)
 {
 	auto it = textureStates.find(barrier.texture);
+	// #todo-barrier: Verify if before-states in the argument match with this tracker's before-states.
 	if (it == textureStates.end())
 	{
-		// #wip-tracker-state: Enable it and remove unnecessary flush
-#if 0
-		if (barrier.syncBefore != EBarrierSync::NONE)
-		{
-			CHECK_NO_ENTRY(); // You don't need syncBefore.
-		}
-		if (barrier.accessBefore != EBarrierAccess::NO_ACCESS)
-		{
-			CHECK_NO_ENTRY(); // You don't need accessBefore.
-		}
-		if (barrier.layoutBefore != EBarrierLayout::Undefined && barrier.layoutBefore != EBarrierLayout::Common)
-		{
-			CHECK_NO_ENTRY();
-		}
-#endif
 		TextureState initGlobalState{
 			.syncBefore   = EBarrierSync::NONE,
 			.accessBefore = EBarrierAccess::NO_ACCESS,
@@ -281,11 +256,12 @@ bool BarrierTracker::TextureStateSet::splitLocalState(const TextureBarrier& barr
 	{
 		if (isSubRange(localState, barrier.subresources))
 		{
-			// #wip-tracker-state: All the combinations giving me headache
+			// #todo-barrier: Need to handle all the combinations... no use case yet.
 			CHECK(barrier.subresources.numMipLevels == 0);
 			CHECK(barrier.subresources.numArraySlices == 0);
 			CHECK(barrier.subresources.numPlanes == 0);
-			// Exact match should be processed by replaceLocalState().
+
+			// Exact match should have been processed by replaceLocalState().
 			CHECK(barrier.subresources.indexOrFirstMipLevel != localState.subresources.indexOrFirstMipLevel
 				|| barrier.subresources.numMipLevels != localState.subresources.numMipLevels);
 

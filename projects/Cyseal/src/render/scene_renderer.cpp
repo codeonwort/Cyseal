@@ -408,26 +408,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, HiZPass);
 
-		TextureBarrierAuto barriersBefore[] = {
-			{
-				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_READ, EBarrierLayout::DepthStencilRead,
-				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			// #wip-tracker-state
-			//{
-			//	EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			//	RT_hiz.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			//},
-		};
-		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
-
 		HiZPassInput passInput{
-			.textureWidth  = sceneWidth,
-			.textureHeight = sceneHeight,
-			.sceneDepthSRV = sceneDepthSRV.get(),
-			.hizTexture    = RT_hiz.get(),
-			.hizSRV        = hizSRV.get(),
-			.hizUAVs       = hizUAVs,
+			.textureWidth      = sceneWidth,
+			.textureHeight     = sceneHeight,
+			.sceneDepthTexture = RT_sceneDepth.get(),
+			.sceneDepthSRV     = sceneDepthSRV.get(),
+			.hizTexture        = RT_hiz.get(),
+			.hizSRV            = hizSRV.get(),
+			.hizUAVs           = hizUAVs,
 		};
 		hizPass->renderHiZ(commandList, swapchainIndex, passInput);
 	}
