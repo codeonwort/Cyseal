@@ -489,10 +489,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			{
 				SCOPED_DRAW_EVENT(commandList, BlitDenoiserInput);
 
-				TextureMemoryBarrier barriers1[] = {
-					{ ETextureMemoryLayout::UNORDERED_ACCESS, ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, RT_pathTracing.get(), }
+				TextureBarrierAuto barriers1[] = {
+					{
+						EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+						RT_pathTracing.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+					}
 				};
-				commandList->resourceBarriers(0, nullptr, _countof(barriers1), barriers1);
+				commandList->barrierAuto(0, nullptr, _countof(barriers1), barriers1, 0, nullptr);
 
 				DenoiserPluginInput passInput{
 					.imageWidth = sceneWidth,
@@ -513,17 +516,15 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			{
 				SCOPED_DRAW_EVENT(commandList, ExecuteDenoiser);
 
-				TextureMemoryBarrier barriers2[] = {
-					{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::COPY_DEST, RT_pathTracing.get(), }
+				TextureBarrierAuto barriers2[] = {
+					{
+						EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
+						RT_pathTracing.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+					}
 				};
-				commandList->resourceBarriers(0, nullptr, _countof(barriers2), barriers2);
+				commandList->barrierAuto(0, nullptr, _countof(barriers2), barriers2, 0, nullptr);
 
 				denoiserPluginPass->executeDenoiser(commandList, RT_pathTracing.get());
-
-				TextureMemoryBarrier barriers3[] = {
-					{ ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::UNORDERED_ACCESS, RT_pathTracing.get(), }
-				};
-				commandList->resourceBarriers(0, nullptr, _countof(barriers3), barriers3);
 			}
 		}
 	}
@@ -549,10 +550,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, IndirectDiffuse);
 
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_indirectDiffuse.get() }
+		// #wip-tracker-state: move barrier into renderIndirectDiffuse()
+		TextureBarrierAuto barriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				RT_indirectDiffuse.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			}
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
+		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
 		
 		IndirectDiffuseInput passInput{
 			.scene                  = scene,
@@ -596,10 +601,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, IndirectSpecular);
 
-		TextureMemoryBarrier barriers[] = {
-			{ ETextureMemoryLayout::PIXEL_SHADER_RESOURCE, ETextureMemoryLayout::UNORDERED_ACCESS, RT_indirectSpecular.get() }
+		// #wip-tracker-state: move barrier into renderIndirectSpecular()
+		TextureBarrierAuto barriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				RT_indirectSpecular.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			}
 		};
-		commandList->resourceBarriers(0, nullptr, _countof(barriers), barriers);
+		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
 		
 		IndirectSpecularInput passInput{
 			.scene                   = scene,

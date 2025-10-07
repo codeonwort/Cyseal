@@ -102,10 +102,11 @@ void DenoiserPluginPass::executeDenoiser(RenderCommandList* commandList, Texture
 
 	denoisedTexture->uploadData(*commandList, denoisedBuffer.data(), rowPitch, slicePitch, 0);
 
-	TextureMemoryBarrier barrier{
-		ETextureMemoryLayout::COPY_DEST, ETextureMemoryLayout::COPY_SRC, denoisedTexture.get()
+	TextureBarrierAuto barrier{
+		EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+		denoisedTexture.get(), BarrierSubresourceRange::singleMip(0), ETextureBarrierFlags::None,
 	};
-	commandList->resourceBarriers(0, nullptr, 1, &barrier);
+	commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
 
 	commandList->copyTexture2D(denoisedTexture.get(), dst);
 }
