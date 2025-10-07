@@ -4,6 +4,7 @@
 
 #include "rhi/render_command.h"
 #include "rhi/gpu_resource_barrier.h"
+#include "rhi/barrier_tracker.h"
 #include "vk_device.h"
 
 #define VK_NO_PROTOTYPES
@@ -143,6 +144,9 @@ public:
 public:
 //private:
 	VkCommandBuffer currentCommandBuffer = VK_NULL_HANDLE;
+private:
+	VulkanDevice* device = nullptr;
+	BarrierTracker barrierTracker;
 };
 
 #endif // COMPILE_BACKEND_VULKAN
