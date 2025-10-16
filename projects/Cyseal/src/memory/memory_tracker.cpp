@@ -133,3 +133,9 @@ void MemoryTracker::report()
 		//std::printf("tag = %d, total size = %zu\n", i, total);
 	}
 }
+
+size_t MemoryTracker::getTotalBytes(EMemoryTag tag) const
+{
+	size_t total = memtrack::totalAllocated[(int)tag];
+	return total;
+}

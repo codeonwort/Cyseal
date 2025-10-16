@@ -3,6 +3,7 @@
 #include "world2.h"
 
 #include "core/core_minimal.h"
+#include "memory/memory_tracker.h"
 #include "rhi/render_device_capabilities.h"
 #include "util/profiling.h"
 #include "imgui.h"
@@ -262,6 +263,12 @@ void TestApplication::onTick(float deltaSeconds)
 			else
 			{
 				ImGui::Text("Static Mesh LOD is enabled");
+			}
+
+			ImGui::SeparatorText("Memory");
+			for (uint32 i = 0; i < (uint32)EMemoryTag::Count; ++i)
+			{
+				ImGui::Text("Tag: %u, bytes = %u", i, MemoryTracker::get().getTotalBytes((EMemoryTag)i));
 			}
 			
 			ImGui::End();

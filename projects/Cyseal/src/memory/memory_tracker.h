@@ -19,4 +19,5 @@ public:
 	void decrease(void* ptr);
 
 	void report();
+	size_t getTotalBytes(EMemoryTag tag) const;
 };
