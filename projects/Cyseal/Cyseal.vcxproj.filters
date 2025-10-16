@@ -351,6 +351,15 @@
     <ClInclude Include="src\rhi\texture_kind.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\memory\memory_tag.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\memory\memory_tracker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\memory\custom_new_delete.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -573,6 +582,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\rhi\barrier_tracker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\memory\custom_new_delete.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\memory\memory_tracker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

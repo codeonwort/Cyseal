@@ -1,6 +1,8 @@
 #include "engine.h"
 #include "platform.h"
 #include "assertion.h"
+#include "memory/custom_new_delete.h"
+#include "memory/memory_tracker.h"
 
 #include "util/unit_test.h"
 #include "util/resource_finder.h"
@@ -33,6 +35,8 @@ DEFINE_LOG_CATEGORY(LogEngine);
 CysealEngine::~CysealEngine()
 {
 	CHECK(state == EEngineState::SHUTDOWN);
+
+	MemoryTracker::get().report();
 }
 
 void CysealEngine::startup(const CysealEngineCreateParams& inCreateParams)

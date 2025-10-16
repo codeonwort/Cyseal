@@ -95,6 +95,8 @@
     <ClInclude Include="src\core\engine.h" />
     <ClInclude Include="src\core\int_types.h" />
     <ClInclude Include="src\core\matrix.h" />
+    <ClInclude Include="src\memory\custom_new_delete.h" />
+    <ClInclude Include="src\memory\memory_tag.h" />
     <ClInclude Include="src\core\plane.h" />
     <ClInclude Include="src\core\platform.h" />
     <ClInclude Include="src\core\quaternion.h" />
@@ -113,6 +115,7 @@
     <ClInclude Include="src\loader\pbrt_scanner.h" />
     <ClInclude Include="src\loader\ply_loader.h" />
     <ClInclude Include="src\memory\free_number_list.h" />
+    <ClInclude Include="src\memory\memory_tracker.h" />
     <ClInclude Include="src\memory\mem_alloc.h" />
     <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\render\base_pass.h" />
@@ -216,6 +219,11 @@
     <ClCompile Include="src\loader\pbrt_parser.cpp" />
     <ClCompile Include="src\loader\pbrt_scanner.cpp" />
     <ClCompile Include="src\loader\ply_loader.cpp" />
+    <ClCompile Include="src\memory\custom_new_delete.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\memory\memory_tracker.cpp" />
     <ClCompile Include="src\memory\mem_alloc.cpp" />
     <ClCompile Include="src\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

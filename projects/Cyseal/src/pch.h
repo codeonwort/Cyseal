@@ -10,6 +10,8 @@
 #include "core/smart_pointer.h"
 #include "core/assertion.h"
 
+#include "memory/custom_new_delete.h"
+
 #include "util/enum_util.h"
 
 // Preprocessor Defintion
