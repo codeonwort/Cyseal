@@ -57,16 +57,16 @@ void CysealEngine::startup(const CysealEngineCreateParams& inCreateParams)
 
 	// Subsystems
 	{
-		gDescriptorHeaps = new GlobalDescriptorHeaps;
+		gDescriptorHeaps = new(EMemoryTag::RHI) GlobalDescriptorHeaps;
 		gDescriptorHeaps->initialize();
 
-		gVertexBufferPool = new VertexBufferPool;
+		gVertexBufferPool = new(EMemoryTag::RHI) VertexBufferPool;
 		gVertexBufferPool->initialize(VERTEX_BUFFER_POOL_SIZE);
 
-		gIndexBufferPool = new IndexBufferPool;
+		gIndexBufferPool = new(EMemoryTag::RHI) IndexBufferPool;
 		gIndexBufferPool->initialize(INDEX_BUFFER_POOL_SIZE);
 
-		gTextureManager = new TextureManager;
+		gTextureManager = new(EMemoryTag::RHI) TextureManager;
 		gTextureManager->initialize();
 	}
 
@@ -202,10 +202,10 @@ void CysealEngine::createRenderer(ERendererType rendererType)
 	switch (rendererType)
 	{
 	case ERendererType::Standard:
-		renderer = new SceneRenderer;
+		renderer = new(EMemoryTag::Renderer) SceneRenderer;
 		break;
 	case ERendererType::Null:
-		renderer = new NullRenderer;
+		renderer = new(EMemoryTag::Renderer) NullRenderer;
 		break;
 	default:
 		CHECK_NO_ENTRY();

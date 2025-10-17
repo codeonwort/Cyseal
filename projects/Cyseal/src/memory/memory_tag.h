@@ -3,7 +3,8 @@
 enum class EMemoryTag
 {
 	Etc      = 0,
-	Graphics = 1,
+	RHI      = 1,
+	Renderer = 2,
 
 	Count,
 	Untracked
