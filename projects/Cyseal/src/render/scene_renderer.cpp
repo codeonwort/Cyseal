@@ -56,7 +56,7 @@ static const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R32_FLOAT_X8X24_TYPEL
 
 static uint32 fullMipCount(uint32 width, uint32 height)
 {
-	return static_cast<uint32>(floor(log2(max(width, height))) + 1);
+	return static_cast<uint32>(floor(log2(std::max(width, height))) + 1);
 }
 
 void SceneRenderer::initialize(RenderDevice* renderDevice)

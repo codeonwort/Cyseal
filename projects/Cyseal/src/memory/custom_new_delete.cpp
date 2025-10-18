@@ -19,34 +19,45 @@
 
 // --------------------------------------------------------
 
-void* customAlloc(std::size_t sz, EMemoryTag memoryTag)
+namespace cyseal_private
 {
-	if (sz == 0)
-		++sz; // avoid std::malloc(0) which may return nullptr on success
-
-	if (void* ptr = std::malloc(sz))
+	void* customMalloc(std::size_t sz, EMemoryTag memoryTag)
 	{
-#if ENABLE_MEMORY_TRACKING
-		if (memoryTag != EMemoryTag::Untracked)
+		if (sz == 0)
 		{
-			MemoryTracker::get().increase(ptr, sz, memoryTag);
+			throw std::bad_alloc{};
+			//++sz; // avoid std::malloc(0) which may return nullptr on success
 		}
+
+		if (void* ptr = std::malloc(sz))
+		{
+#if ENABLE_MEMORY_TRACKING
+			if (memoryTag != EMemoryTag::Untracked)
+			{
+				MemoryTracker::get().increase(ptr, sz, memoryTag);
+			}
 #endif
-		return ptr;
+			return ptr;
+		}
+
+		throw std::bad_alloc{};
 	}
 
-	throw std::bad_alloc{};
+	void customFree(void* ptr)
+	{
+		delete ptr;
+	}
 }
 
 void* operator new(std::size_t sz)
 {
-	return customAlloc(sz, EMemoryTag::Etc);
+	return cyseal_private::customMalloc(sz, EMemoryTag::Etc);
 }
 
 void* operator new(std::size_t sz, EMemoryTag memoryTag)
 {
 	CHECK(memoryTag != EMemoryTag::Count);
-	return customAlloc(sz, memoryTag);
+	return cyseal_private::customMalloc(sz, memoryTag);
 }
 
 void operator delete(void* ptr) noexcept

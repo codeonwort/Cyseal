@@ -16,6 +16,7 @@
 
 // Preprocessor Defintion
 #if COMPILE_BACKEND_DX12
+	#define NOMINMAX
 	#include <wrl.h>
 	#include <d3dx12.h>
 	#include <d3d12.h>

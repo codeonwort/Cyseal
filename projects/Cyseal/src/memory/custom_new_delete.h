@@ -1,6 +1,14 @@
 #pragma once
 
 #include "memory_tag.h"
+#include <cstdlib>
+
+namespace cyseal_private
+{
+	void* customMalloc(std::size_t sz, EMemoryTag memoryTag);
+
+	void customFree(void* ptr);
+}
 
 void* operator new(std::size_t sz, EMemoryTag memoryTag);
 

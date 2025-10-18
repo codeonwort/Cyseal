@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <atomic>
 #include <map>
+#include <mutex>
 
 DEFINE_LOG_CATEGORY_STATIC(LogMemory);
 
