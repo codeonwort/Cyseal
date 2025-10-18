@@ -246,7 +246,7 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	CHECK(quality4xMSAA > 0);
 
 	// 4. Create command queue.
-	commandQueue = new D3DRenderCommandQueue;
+	commandQueue = new(EMemoryTag::RHI) D3DRenderCommandQueue;
 	commandQueue->initialize(this);
 
 	rawCommandQueue = static_cast<D3DRenderCommandQueue*>(commandQueue)->getRaw();
@@ -255,7 +255,7 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	const SwapChainCreateParams& swapChainParams = createParams.swapChainParams;
 	if (swapChainParams.bHeadless == false)
 	{
-		swapChain = (d3dSwapChain = new D3DSwapChain);
+		swapChain = (d3dSwapChain = new(EMemoryTag::RHI) D3DSwapChain);
 		swapChain->initialize(
 			this,
 			swapChainParams.nativeWindowHandle,
@@ -343,14 +343,14 @@ void D3DDevice::shutdownDearImgui()
 
 RenderCommandList* D3DDevice::createRenderCommandList()
 {
-	RenderCommandList* commandList = new D3DRenderCommandList;
+	RenderCommandList* commandList = new(EMemoryTag::RHI) D3DRenderCommandList;
 	commandList->initialize(this);
 	return commandList;
 }
 
 RenderCommandAllocator* D3DDevice::createRenderCommandAllocator()
 {
-	RenderCommandAllocator* allocator = new D3DRenderCommandAllocator;
+	RenderCommandAllocator* allocator = new(EMemoryTag::RHI) D3DRenderCommandAllocator;
 	allocator->initialize(this);
 	return allocator;
 }
@@ -440,7 +440,7 @@ VertexBuffer* D3DDevice::createVertexBuffer(
 	uint32 sizeInBytes, EBufferAccessFlags usageFlags,
 	const wchar_t* inDebugName)
 {
-	D3DVertexBuffer* buffer = new D3DVertexBuffer(this);
+	D3DVertexBuffer* buffer = new(EMemoryTag::RHI) D3DVertexBuffer(this);
 	buffer->initialize(sizeInBytes, usageFlags);
 	if (inDebugName != nullptr)
 	{
@@ -452,7 +452,7 @@ VertexBuffer* D3DDevice::createVertexBuffer(
 VertexBuffer* D3DDevice::createVertexBuffer(
 	VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
 {
-	D3DVertexBuffer* buffer = new D3DVertexBuffer(this);
+	D3DVertexBuffer* buffer = new(EMemoryTag::RHI) D3DVertexBuffer(this);
 	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
@@ -461,7 +461,7 @@ IndexBuffer* D3DDevice::createIndexBuffer(
 	uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags,
 	const wchar_t* inDebugName)
 {
-	D3DIndexBuffer* buffer = new D3DIndexBuffer(this);
+	D3DIndexBuffer* buffer = new(EMemoryTag::RHI) D3DIndexBuffer(this);
 	buffer->initialize(sizeInBytes, format, usageFlags);
 	if (inDebugName != nullptr)
 	{
@@ -474,47 +474,47 @@ IndexBuffer* D3DDevice::createIndexBuffer(
 	IndexBufferPool* pool, uint64 offsetInPool,
 	uint32 sizeInBytes, EPixelFormat format)
 {
-	D3DIndexBuffer* buffer = new D3DIndexBuffer(this);
+	D3DIndexBuffer* buffer = new(EMemoryTag::RHI) D3DIndexBuffer(this);
 	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
 
 Buffer* D3DDevice::createBuffer(const BufferCreateParams& createParams)
 {
-	D3DBuffer* buffer = new D3DBuffer(this);
+	D3DBuffer* buffer = new(EMemoryTag::RHI) D3DBuffer(this);
 	buffer->initialize(createParams);
 	return buffer;
 }
 
 Texture* D3DDevice::createTexture(const TextureCreateParams& createParams)
 {
-	D3DTexture* texture = new D3DTexture(this);
+	D3DTexture* texture = new(EMemoryTag::RHI) D3DTexture(this);
 	texture->initialize(createParams);
 	return texture;
 }
 
 ShaderStage* D3DDevice::createShader(EShaderStage shaderStage, const char* debugName)
 {
-	return new D3DShaderStage(this, shaderStage, debugName);
+	return new(EMemoryTag::RHI) D3DShaderStage(this, shaderStage, debugName);
 }
 
 GraphicsPipelineState* D3DDevice::createGraphicsPipelineState(const GraphicsPipelineDesc& inDesc)
 {
-	D3DGraphicsPipelineState* pipeline = new D3DGraphicsPipelineState;
+	D3DGraphicsPipelineState* pipeline = new(EMemoryTag::RHI) D3DGraphicsPipelineState;
 	pipeline->initialize(device.Get(), inDesc);
 	return pipeline;
 }
 
 ComputePipelineState* D3DDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
 {
-	D3DComputePipelineState* pipeline = new D3DComputePipelineState;
+	D3DComputePipelineState* pipeline = new(EMemoryTag::RHI) D3DComputePipelineState;
 	pipeline->initialize(device.Get(), inDesc);
 	return pipeline;
 }
 
 RaytracingPipelineStateObject* D3DDevice::createRaytracingPipelineStateObject(const RaytracingPipelineStateObjectDesc& desc)
 {
-	D3DRaytracingPipelineStateObject* RTPSO = new D3DRaytracingPipelineStateObject;
+	D3DRaytracingPipelineStateObject* RTPSO = new(EMemoryTag::RHI) D3DRaytracingPipelineStateObject;
 	RTPSO->initialize(device.Get(), desc);
 	return RTPSO;
 }
@@ -526,7 +526,7 @@ RaytracingShaderTable* D3DDevice::createRaytracingShaderTable(
 	const wchar_t* debugName)
 {
 	auto d3dRTPSO = static_cast<D3DRaytracingPipelineStateObject*>(RTPSO);
-	D3DRaytracingShaderTable* table = new D3DRaytracingShaderTable(device.Get(), d3dRTPSO, numShaderRecords, rootArgumentSize, debugName);
+	D3DRaytracingShaderTable* table = new(EMemoryTag::RHI) D3DRaytracingShaderTable(device.Get(), d3dRTPSO, numShaderRecords, rootArgumentSize, debugName);
 	return table;
 }
 
@@ -535,7 +535,7 @@ DescriptorHeap* D3DDevice::createDescriptorHeap(const DescriptorHeapDesc& desc)
 	D3D12_DESCRIPTOR_HEAP_DESC d3dDesc;
 	into_d3d::descriptorHeapDesc(desc, d3dDesc);
 
-	D3DDescriptorHeap* heap = new D3DDescriptorHeap(desc);
+	D3DDescriptorHeap* heap = new(EMemoryTag::RHI) D3DDescriptorHeap(desc);
 	heap->initialize(device.Get(), d3dDesc);
 
 	return heap;
@@ -555,7 +555,7 @@ ConstantBufferView* D3DDevice::createCBV(
 	ID3D12DescriptorHeap* id3d12Heap = static_cast<D3DDescriptorHeap*>(descriptorHeap)->getRaw();
 	uint32 sizeAligned = align(sizeInBytes, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
-	D3DConstantBufferView* cbv = new D3DConstantBufferView(
+	D3DConstantBufferView* cbv = new(EMemoryTag::RHI) D3DConstantBufferView(
 		d3dBuffer, descriptorHeap, offsetInBytes, sizeAligned);
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc;
@@ -586,7 +586,7 @@ ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, DescriptorHea
 	cpuHandle.ptr += SIZE_T(descriptorIndex) * SIZE_T(descSizeCBV_SRV_UAV);
 	device->CreateShaderResourceView(d3dResource, &d3dDesc, cpuHandle);
 
-	return new D3DShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
+	return new(EMemoryTag::RHI) D3DShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
 }
 
 ShaderResourceView* D3DDevice::createSRV(GPUResource* gpuResource, const ShaderResourceViewDesc& createParams)
@@ -607,7 +607,7 @@ RenderTargetView* D3DDevice::createRTV(GPUResource* gpuResource, DescriptorHeap*
 	cpuHandle.ptr += SIZE_T(descriptorIndex) * SIZE_T(descSizeRTV);
 	device->CreateRenderTargetView(d3dResource, &d3dDesc, cpuHandle);
 
-	return new D3DRenderTargetView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
+	return new(EMemoryTag::RHI) D3DRenderTargetView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
 }
 
 RenderTargetView* D3DDevice::createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams)
@@ -629,7 +629,7 @@ UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, DescriptorHe
 	cpuHandle.ptr += SIZE_T(descriptorIndex) * SIZE_T(descSizeCBV_SRV_UAV);
 	device->CreateUnorderedAccessView(d3dResource, counterResource, &d3dDesc, cpuHandle);
 
-	return new D3DUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
+	return new(EMemoryTag::RHI) D3DUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
 }
 
 UnorderedAccessView* D3DDevice::createUAV(GPUResource* gpuResource, const UnorderedAccessViewDesc& createParams)
@@ -650,7 +650,7 @@ DepthStencilView* D3DDevice::createDSV(GPUResource* gpuResource, DescriptorHeap*
 	cpuHandle.ptr += SIZE_T(descriptorIndex) * SIZE_T(descSizeDSV);
 	device->CreateDepthStencilView(d3dResource, &d3dDesc, cpuHandle);
 
-	return new D3DDepthStencilView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
+	return new(EMemoryTag::RHI) D3DDepthStencilView(gpuResource, descriptorHeap, descriptorIndex, cpuHandle);
 }
 
 DepthStencilView* D3DDevice::createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams)
@@ -668,7 +668,7 @@ CommandSignature* D3DDevice::createCommandSignature(const CommandSignatureDesc& 
 
 	ID3D12RootSignature* rootSig = (d3dPipelineState != nullptr) ? d3dPipelineState->getRootSignature() : nullptr;
 
-	D3DCommandSignature* cmdSig = new D3DCommandSignature;
+	D3DCommandSignature* cmdSig = new(EMemoryTag::RHI) D3DCommandSignature;
 	cmdSig->initialize(device.Get(), d3dDesc, rootSig);
 	return cmdSig;
 }
@@ -687,14 +687,14 @@ CommandSignature* D3DDevice::createCommandSignature(const CommandSignatureDesc& 
 	// but using local root signature for indirect commands logically makes no sense... right?
 	ID3D12RootSignature* rootSig = (d3dPipelineState != nullptr) ? d3dPipelineState->getGlobalRootSignature() : nullptr;
 
-	D3DCommandSignature* cmdSig = new D3DCommandSignature;
+	D3DCommandSignature* cmdSig = new(EMemoryTag::RHI) D3DCommandSignature;
 	cmdSig->initialize(device.Get(), d3dDesc, rootSig);
 	return cmdSig;
 }
 
 IndirectCommandGenerator* D3DDevice::createIndirectCommandGenerator(const CommandSignatureDesc& sigDesc, uint32 maxCommandCount)
 {
-	D3DIndirectCommandGenerator* gen = new D3DIndirectCommandGenerator;
+	D3DIndirectCommandGenerator* gen = new(EMemoryTag::RHI) D3DIndirectCommandGenerator;
 	gen->initialize(sigDesc, maxCommandCount);
 	return gen;
 }

@@ -12,6 +12,7 @@
 
 namespace cyseal_private
 {
+	// Allocator for SharedPtr<T> that supports memory tag.
 	template<class T>
 	struct SharedPtrAllocator
 	{
