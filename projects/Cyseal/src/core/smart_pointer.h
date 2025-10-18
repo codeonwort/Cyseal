@@ -75,10 +75,15 @@ using SharedPtr = std::shared_ptr<T>;
 template<typename T>
 using WeakPtr = std::weak_ptr<T>;
 
-template<typename T, typename ...Args>
+template<typename T, EMemoryTag tag = EMemoryTag::Etc, typename ...Args>
 UniquePtr<T> makeUnique(Args&& ...args)
 {
+#if 0
 	return std::make_unique<T>(std::forward<Args>(args)...);
+#else
+	T* raw = new(tag) T(std::forward<Args>(args)...);
+	return UniquePtr<T>(raw);
+#endif
 }
 
 template<typename T, EMemoryTag tag = EMemoryTag::Etc, typename ...Args>
