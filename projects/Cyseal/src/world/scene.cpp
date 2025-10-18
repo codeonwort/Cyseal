@@ -30,7 +30,7 @@ void Scene::updateMeshLODs(const Camera& camera, const RendererOptions& renderer
 
 SceneProxy* Scene::createProxy()
 {
-	SceneProxy* proxy = new SceneProxy;
+	SceneProxy* proxy = new(EMemoryTag::World) SceneProxy;
 
 	std::vector<StaticMeshProxy*> staticMeshProxyList;
 	uint32 totalMeshSectionsLOD0 = 0;

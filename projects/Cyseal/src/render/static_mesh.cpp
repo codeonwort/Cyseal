@@ -1,9 +1,10 @@
 #include "static_mesh.h"
 #include "rhi/gpu_resource.h"
+#include "memory/custom_new_delete.h"
 
 StaticMeshProxy* StaticMesh::createStaticMeshProxy() const
 {
-	StaticMeshProxy* proxy = new StaticMeshProxy{
+	StaticMeshProxy* proxy = new(EMemoryTag::Renderer) StaticMeshProxy{
 		.lod              = LODs[activeLOD],
 		.localToWorld     = transform.getMatrix(),
 		.prevLocalToWorld = prevModelMatrix,

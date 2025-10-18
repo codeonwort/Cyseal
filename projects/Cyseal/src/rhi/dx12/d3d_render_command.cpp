@@ -585,7 +585,7 @@ AccelerationStructure* D3DRenderCommandList::buildRaytracingAccelerationStructur
 
 	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDescArray(numBLASDesc);
 
-	D3DAccelerationStructure* accelStruct = new D3DAccelerationStructure(device);
+	D3DAccelerationStructure* accelStruct = new(EMemoryTag::RHI) D3DAccelerationStructure(device);
 	accelStruct->initialize(numBLASDesc);
 
 	for (uint32 blasIndex = 0; blasIndex < numBLASDesc; ++blasIndex)

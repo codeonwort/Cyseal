@@ -426,7 +426,7 @@ IndirectDrawHelper* BasePass::createIndirectDrawHelper(GraphicsPipelineState* pi
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
-	IndirectDrawHelper* helper = new IndirectDrawHelper(pipelineKey);
+	IndirectDrawHelper* helper = new(EMemoryTag::Renderer) IndirectDrawHelper(pipelineKey);
 	helper->argumentBuffer.initialize(swapchainCount);
 	helper->argumentBufferSRV.initialize(swapchainCount);
 	helper->culledArgumentBuffer.initialize(swapchainCount);

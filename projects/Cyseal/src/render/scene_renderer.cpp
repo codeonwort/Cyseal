@@ -110,19 +110,19 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 	// Render passes
 	{
-		sceneRenderPasses.push_back(gpuScene = new GPUScene);
-		sceneRenderPasses.push_back(gpuCulling = new GPUCulling);
-		sceneRenderPasses.push_back(bilateralBlur = new BilateralBlur);
-		sceneRenderPasses.push_back(rayTracedShadowsPass = new RayTracedShadowsPass);
-		sceneRenderPasses.push_back(basePass = new BasePass);
-		sceneRenderPasses.push_back(hizPass = new HiZPass);
-		sceneRenderPasses.push_back(skyPass = new SkyPass);
-		sceneRenderPasses.push_back(indirectDiffusePass = new IndirectDiffusePass);
-		sceneRenderPasses.push_back(indirectSpecularPass = new IndirecSpecularPass);
-		sceneRenderPasses.push_back(toneMapping = new ToneMapping);
-		sceneRenderPasses.push_back(bufferVisualization = new BufferVisualization);
-		sceneRenderPasses.push_back(pathTracingPass = new PathTracingPass);
-		sceneRenderPasses.push_back(denoiserPluginPass = new DenoiserPluginPass);
+		sceneRenderPasses.push_back(gpuScene = new(EMemoryTag::Renderer) GPUScene);
+		sceneRenderPasses.push_back(gpuCulling = new(EMemoryTag::Renderer) GPUCulling);
+		sceneRenderPasses.push_back(bilateralBlur = new(EMemoryTag::Renderer) BilateralBlur);
+		sceneRenderPasses.push_back(rayTracedShadowsPass = new(EMemoryTag::Renderer) RayTracedShadowsPass);
+		sceneRenderPasses.push_back(basePass = new(EMemoryTag::Renderer) BasePass);
+		sceneRenderPasses.push_back(hizPass = new(EMemoryTag::Renderer) HiZPass);
+		sceneRenderPasses.push_back(skyPass = new(EMemoryTag::Renderer) SkyPass);
+		sceneRenderPasses.push_back(indirectDiffusePass = new(EMemoryTag::Renderer) IndirectDiffusePass);
+		sceneRenderPasses.push_back(indirectSpecularPass = new(EMemoryTag::Renderer) IndirecSpecularPass);
+		sceneRenderPasses.push_back(toneMapping = new(EMemoryTag::Renderer) ToneMapping);
+		sceneRenderPasses.push_back(bufferVisualization = new(EMemoryTag::Renderer) BufferVisualization);
+		sceneRenderPasses.push_back(pathTracingPass = new(EMemoryTag::Renderer) PathTracingPass);
+		sceneRenderPasses.push_back(denoiserPluginPass = new(EMemoryTag::Renderer) DenoiserPluginPass);
 
 		gpuScene->initialize();
 		gpuCulling->initialize(kMaxBasePassPermutation);

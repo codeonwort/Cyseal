@@ -79,7 +79,7 @@ bool TestApplication::onInitialize()
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 
-	world = new WORLD_CLASS;
+	world = new(EMemoryTag::World) WORLD_CLASS;
 	world->preinitialize(&scene, &camera, &appState);
 	world->onInitialize();
 

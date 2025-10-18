@@ -31,7 +31,7 @@ namespace memtrack
 		}
 		inline void deallocate(T* p, std::size_t n) noexcept
 		{
-			::operator delete(p);
+			cyseal_private::customFree(p);
 		}
 	};
 	using TrackerKey = void*;
