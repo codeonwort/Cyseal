@@ -91,8 +91,8 @@ public:
 					if (candPrev != nullptr)
 					{
 						candPrev->next = cand->next;
-						delete cand;
 					}
+					delete cand;
 				}
 				return true;
 			}
