@@ -30,6 +30,8 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	commandAllocator->reset();
 	commandList->reset(commandAllocator);
 
+	commandList->executeCustomCommands();
+
 	TextureBarrierAuto renderToBackbufferBarrier = {
 		EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
 		swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
@@ -69,5 +71,7 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	swapChain->swapBackbuffer();
 
 	device->flushCommandQueue();
+
+	commandList->executeDeferredDealloc();
 #endif
 }
