@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "memory/custom_new_delete.h"
 
 // Possible improvements
 // 1. Binary search the intervals to alloc/dealloc.
@@ -14,8 +15,9 @@ class FreeNumberList
 	struct Range { uint32 a, b; Range* next; }; // [a, b]
 
 public:
-	FreeNumberList(uint32 inMaxNumber = 0xffffffff)
+	FreeNumberList(uint32 inMaxNumber = 0xffffffff, EMemoryTag inMemoryTag = EMemoryTag::Etc)
 		: maxNumber(inMaxNumber)
+		, memoryTag(inMemoryTag)
 		, head(nullptr)
 	{
 	}
@@ -32,7 +34,7 @@ public:
 	{
 		if (head == nullptr)
 		{
-			head = new Range{ 1, 1, nullptr };
+			head = new(memoryTag) Range{ 1, 1, nullptr };
 			return head->a;
 		}
 		else if (head->a > 1)
@@ -96,7 +98,7 @@ public:
 			}
 			else if (cand->a < number && number < cand->b)
 			{
-				cand->next = new Range{ number + 1, cand->b, cand->next };
+				cand->next = new(memoryTag) Range{ number + 1, cand->b, cand->next };
 				cand->b = number - 1;
 				return true;
 			}
@@ -136,5 +138,7 @@ public:
 
 private:
 	uint32 maxNumber;
+	EMemoryTag memoryTag;
+
 	Range* head;
 };

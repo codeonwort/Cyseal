@@ -46,7 +46,8 @@ class DescriptorHeap
 public:
 	DescriptorHeap(const DescriptorHeapDesc& inCreateParams)
 		: createParams(inCreateParams)
-		, freeNumberList(inCreateParams.numDescriptors)
+		// #wip: Memory leak here!!!
+		, freeNumberList(inCreateParams.numDescriptors, EMemoryTag::RHI)
 	{
 	}
 
