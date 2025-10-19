@@ -27,7 +27,7 @@ namespace memtrack
 
 		inline T* allocate(std::size_t n)
 		{
-			return static_cast<T*>(::operator new(n * sizeof(T), EMemoryTag::Untracked));
+			return static_cast<T*>(cyseal_private::customMalloc(n * sizeof(T), EMemoryTag::Untracked));
 		}
 		inline void deallocate(T* p, std::size_t n) noexcept
 		{
