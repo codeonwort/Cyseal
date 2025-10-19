@@ -10,10 +10,13 @@
 #include "core/smart_pointer.h"
 #include "core/assertion.h"
 
+#include "memory/custom_new_delete.h"
+
 #include "util/enum_util.h"
 
 // Preprocessor Defintion
 #if COMPILE_BACKEND_DX12
+	#define NOMINMAX
 	#include <wrl.h>
 	#include <d3dx12.h>
 	#include <d3d12.h>

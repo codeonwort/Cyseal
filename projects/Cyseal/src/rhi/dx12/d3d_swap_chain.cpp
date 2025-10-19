@@ -83,7 +83,7 @@ void D3DSwapChain::initialize(
 	backBufferRTVs.initialize(SWAP_CHAIN_BUFFER_COUNT);
 	for (auto i = 0u; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{
-		swapChainBuffers[i] = makeUnique<D3DSwapChainBuffer>();
+		swapChainBuffers[i] = makeUnique<D3DSwapChainBuffer, EMemoryTag::RHI>();
 	}
 
 	createSwapchainImages();

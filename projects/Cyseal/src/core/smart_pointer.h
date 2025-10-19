@@ -1,9 +1,69 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "memory/custom_new_delete.h"
 
 #include <memory>
 #include <vector>
+#include <limits>
+#include <cstdlib>
+
+// ------------------------------------------------------------------
+
+namespace cyseal_private
+{
+	// Allocator for SharedPtr<T> that supports memory tag.
+	template<class T>
+	struct SharedPtrAllocator
+	{
+		using value_type = T;
+
+		SharedPtrAllocator() = default;
+
+		SharedPtrAllocator(EMemoryTag inTag) : tag(inTag) {}
+
+		template<class U>
+		constexpr SharedPtrAllocator(const SharedPtrAllocator<U>& other) noexcept
+		{
+			tag = other.getTag();
+		}
+
+		[[nodiscard]] T* allocate(std::size_t n)
+		{
+#if 0
+			// Where on the earth Windows.h min and max are smearing???
+			constexpr size_t maxAllocSize = std::numeric_limits<std::size_t>::max();
+#else
+			constexpr size_t maxAllocSize = (std::numeric_limits<std::size_t>::max)();
+#endif
+			if (n > maxAllocSize / sizeof(T))
+			{
+				throw std::bad_array_new_length();
+			}
+			if (auto p = static_cast<T*>(cyseal_private::customMalloc(n * sizeof(T), tag)))
+			{
+				return p;
+			}
+			throw std::bad_alloc();
+		}
+
+		void deallocate(T* p, std::size_t n) noexcept
+		{
+			cyseal_private::customFree(p);
+		}
+
+		inline EMemoryTag getTag() const { return tag; }
+
+	private:
+		EMemoryTag tag = EMemoryTag::Etc;
+	};
+
+	template<class T, class U>
+	bool operator==(const SharedPtrAllocator<T>&, const SharedPtrAllocator<U>&) { return true; }
+
+	template<class T, class U>
+	bool operator!=(const SharedPtrAllocator<T>&, const SharedPtrAllocator<U>&) { return false; }
+}
 
 // ------------------------------------------------------------------
 
@@ -16,16 +76,26 @@ using SharedPtr = std::shared_ptr<T>;
 template<typename T>
 using WeakPtr = std::weak_ptr<T>;
 
-template<typename T, typename ...Args>
+template<typename T, EMemoryTag tag = EMemoryTag::Etc, typename ...Args>
 UniquePtr<T> makeUnique(Args&& ...args)
 {
+#if 0
 	return std::make_unique<T>(std::forward<Args>(args)...);
+#else
+	T* raw = new(tag) T(std::forward<Args>(args)...);
+	return UniquePtr<T>(raw);
+#endif
 }
 
-template<typename T, typename ...Args>
+template<typename T, EMemoryTag tag = EMemoryTag::Etc, typename ...Args>
 SharedPtr<T> makeShared(Args&& ...args)
 {
+#if 0
 	return std::make_shared<T>(std::forward<Args>(args)...);
+#else
+	cyseal_private::SharedPtrAllocator<T> allocator(tag);
+	return std::allocate_shared<T>(allocator, std::forward<Args>(args)...);
+#endif
 }
 
 // ------------------------------------------------------------------

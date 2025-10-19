@@ -77,8 +77,8 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 
 	for (uint32 currMip = 1; currMip < mipCount; ++currMip)
 	{
-		uint32 currWidth = max(1, prevWidth / 2);
-		uint32 currHeight = max(1, prevHeight / 2);
+		uint32 currWidth = std::max(1u, prevWidth / 2);
+		uint32 currHeight = std::max(1u, prevHeight / 2);
 
 		uint32 packedInputSize = Cymath::packUint16x2(prevWidth, prevHeight);
 		uint32 packedOutputSize = Cymath::packUint16x2(currWidth, currHeight);

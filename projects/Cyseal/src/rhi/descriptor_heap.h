@@ -46,7 +46,7 @@ class DescriptorHeap
 public:
 	DescriptorHeap(const DescriptorHeapDesc& inCreateParams)
 		: createParams(inCreateParams)
-		, freeNumberList(inCreateParams.numDescriptors)
+		, freeNumberList(inCreateParams.numDescriptors, EMemoryTag::RHI)
 	{
 	}
 

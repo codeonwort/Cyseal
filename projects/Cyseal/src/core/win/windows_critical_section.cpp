@@ -1,5 +1,4 @@
 #include "windows_critical_section.h"
-#include "core/assertion.h"
 
 WindowsCriticalSection::WindowsCriticalSection()
 {

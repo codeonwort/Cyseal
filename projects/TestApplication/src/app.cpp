@@ -3,6 +3,7 @@
 #include "world2.h"
 
 #include "core/core_minimal.h"
+#include "memory/memory_tracker.h"
 #include "rhi/render_device_capabilities.h"
 #include "util/profiling.h"
 #include "imgui.h"
@@ -78,7 +79,7 @@ bool TestApplication::onInitialize()
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 
-	world = new WORLD_CLASS;
+	world = new(EMemoryTag::World) WORLD_CLASS;
 	world->preinitialize(&scene, &camera, &appState);
 	world->onInitialize();
 
@@ -262,6 +263,12 @@ void TestApplication::onTick(float deltaSeconds)
 			else
 			{
 				ImGui::Text("Static Mesh LOD is enabled");
+			}
+
+			ImGui::SeparatorText("Memory");
+			for (uint32 i = 0; i < (uint32)EMemoryTag::Count; ++i)
+			{
+				ImGui::Text("Tag: %u, bytes = %u", i, MemoryTracker::get().getTotalBytes((EMemoryTag)i));
 			}
 			
 			ImGui::End();

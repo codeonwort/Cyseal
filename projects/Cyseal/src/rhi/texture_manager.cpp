@@ -55,13 +55,13 @@ void TextureManager::createSystemTextures()
 		bool bIsCube;
 	};
 
-	systemTexture_grey2D = makeShared<TextureAsset>();
-	systemTexture_white2D = makeShared<TextureAsset>();
-	systemTexture_black2D = makeShared<TextureAsset>();
-	systemTexture_red2D = makeShared<TextureAsset>();
-	systemTexture_green2D = makeShared<TextureAsset>();
-	systemTexture_blue2D = makeShared<TextureAsset>();
-	systemTexture_blackCube = makeShared<TextureAsset>();
+	systemTexture_grey2D = makeShared<TextureAsset, EMemoryTag::RHI>();
+	systemTexture_white2D = makeShared<TextureAsset, EMemoryTag::RHI>();
+	systemTexture_black2D = makeShared<TextureAsset, EMemoryTag::RHI>();
+	systemTexture_red2D = makeShared<TextureAsset, EMemoryTag::RHI>();
+	systemTexture_green2D = makeShared<TextureAsset, EMemoryTag::RHI>();
+	systemTexture_blue2D = makeShared<TextureAsset, EMemoryTag::RHI>();
+	systemTexture_blackCube = makeShared<TextureAsset, EMemoryTag::RHI>();
 
 	std::vector<InitSysTex>* initTablePtr = new std::vector<InitSysTex>({
 		{ { 127, 127, 127, 255 }, systemTexture_grey2D   , L"Texture_SystemGrey2D"   , false },
