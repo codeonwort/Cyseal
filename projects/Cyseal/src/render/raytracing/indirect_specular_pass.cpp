@@ -176,7 +176,9 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 	raytracingPhase(commandList, swapchainIndex, passInput);
 
-	denoisingPhase(commandList, swapchainIndex, passInput);
+	// #wip: Ultimately need to execute only one path.
+	legacyDenoisingPhase(commandList, swapchainIndex, passInput);
+	amdReprojPhase(commandList, swapchainIndex, passInput);
 
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
@@ -684,7 +686,7 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 #endif
 }
 
-void IndirecSpecularPass::denoisingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
 {
 	const uint32 currFrame = swapchainIndex % 2;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
@@ -777,4 +779,9 @@ void IndirecSpecularPass::denoisingPhase(RenderCommandList* commandList, uint32 
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
 	// #todo-specular: Spatial filter
+}
+
+void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+{
+	// #wip: Implement this
 }
