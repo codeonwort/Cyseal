@@ -29,7 +29,11 @@ public:
 
 		for (const auto& decl : inPushConstantDecls)
 		{
-			CHECK(decl.second > 0);
+			auto num32BitValues = decl.second;
+			if (num32BitValues <= 0)
+			{
+				CHECK_NO_ENTRY();
+			}
 		}
 	}
 	// Use this when this shader has no push constants.
