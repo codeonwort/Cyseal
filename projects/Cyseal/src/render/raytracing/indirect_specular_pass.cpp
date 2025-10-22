@@ -784,4 +784,64 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
 {
 	// #wip: Implement this
+
+	// Defines in hlsl. Prepare matching resources...
+#if 0
+	#define DENOISER_BIND_SRV_INPUT_DEPTH_HIERARCHY    2
+	#define DENOISER_BIND_SRV_INPUT_MOTION_VECTORS     3
+	#define DENOISER_BIND_SRV_INPUT_NORMAL             4
+	#define DENOISER_BIND_SRV_RADIANCE                 7
+	#define DENOISER_BIND_SRV_RADIANCE_HISTORY         8
+	#define DENOISER_BIND_SRV_VARIANCE                 9
+	#define DENOISER_BIND_SRV_SAMPLE_COUNT             10
+	#define DENOISER_BIND_SRV_EXTRACTED_ROUGHNESS      12
+	#define DENOISER_BIND_SRV_DEPTH_HISTORY            13
+	#define DENOISER_BIND_SRV_NORMAL_HISTORY           14
+	#define DENOISER_BIND_SRV_ROUGHNESS_HISTORY        15
+
+	#define DENOISER_BIND_UAV_VARIANCE                        1
+	#define DENOISER_BIND_UAV_SAMPLE_COUNT                    2
+	#define DENOISER_BIND_UAV_AVERAGE_RADIANCE                3
+	#define DENOISER_BIND_UAV_DENOISER_TILE_LIST              5
+	#define DENOISER_BIND_UAV_REPROJECTED_RADIANCE            9
+#endif
+
+	// Stub shader resource bindings.
+#if 0
+	ShaderResourceView* hizSRV                  = nullptr; // tex2d, r32
+	ShaderResourceView* motionVectorSRV         = nullptr; // tex2d, rg32
+	ShaderResourceView* normalSRV               = nullptr; // tex2d, rgb32 (world space?)
+	ShaderResourceView* radianceSRV             = nullptr; // tex2d, rgba32 (alpha channel value?)
+	ShaderResourceView* radianceHistorySRV      = nullptr; // tex2d, rgba32 (alpha channel value?)
+	ShaderResourceView* varianceSRV             = nullptr; // tex2d, r32
+	ShaderResourceView* sampleCountSRV          = nullptr; // tex2d, r32
+	ShaderResourceView* extractedRoughnessSRV   = nullptr; // tex2d, r32 (perceptual?)
+	ShaderResourceView* depthHistorySRV         = nullptr; // tex2d, r32
+	ShaderResourceView* normalHistorySRV        = nullptr; // tex2d, rgb32 (world space?)
+	ShaderResourceView* roughnessHistorySRV     = nullptr; // tex2d, r32
+	UnorderedAccessView* varianceUAV            = nullptr; // rwTex2d, r32 (is varianceSRV for prev frame?)
+	UnorderedAccessView* sampleCountUAV         = nullptr; // rwTex2d, r32 (is sampleCountSRV for prev frame?)
+	UnorderedAccessView* averageRadianceUAV     = nullptr; // rwTex2d, rgb32
+	UnorderedAccessView* denoiserTileListUAV    = nullptr; // rwStructuredBuffer<uint>
+	UnorderedAccessView* reprojectedRadianceUAV = nullptr; // rwTex2d, rgb32
+
+	// Param names from ffx_denoiser_reflections_callbacks_hlsl.h
+	ShaderParameterTable SPT{};
+	SPT.texture("r_input_depth_hierarchy", hizSRV);
+	SPT.texture("r_input_motion_vectors", motionVectorSRV);
+	SPT.texture("r_input_normal", normalSRV);
+	SPT.texture("r_radiance", radianceSRV);
+	SPT.texture("r_radiance_history", radianceHistorySRV);
+	SPT.texture("r_variance", varianceSRV);
+	SPT.texture("r_sample_count", sampleCountSRV);
+	SPT.texture("r_extracted_roughness", extractedRoughnessSRV);
+	SPT.texture("r_depth_history", depthHistorySRV);
+	SPT.texture("r_normal_history", normalHistorySRV);
+	SPT.texture("r_roughness_history", roughnessHistorySRV);
+	SPT.rwTexture("rw_variance", varianceUAV);
+	SPT.rwTexture("rw_sample_count", sampleCountUAV);
+	SPT.rwTexture("rw_average_radiance", averageRadianceUAV);
+	SPT.rwStructuredBuffer("rw_denoiser_tile_list", denoiserTileListUAV);
+	SPT.rwTexture("rw_reprojected_radiance", reprojectedRadianceUAV);
+#endif
 }
