@@ -808,8 +808,20 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 
 	// Stub shader resource bindings.
 #if 0
-	ShaderResourceView* hizSRV                  = nullptr; // tex2d, r32
-	ShaderResourceView* motionVectorSRV         = nullptr; // tex2d, rg32
+	TextureBarrierAuto textureBarriers[] = {
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			passInput.hizTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			passInput.velocityMapTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+	};
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+	ShaderResourceView* hizSRV                  = passInput.hizSRV; // tex2d, r32
+	ShaderResourceView* motionVectorSRV         = passInput.velocityMapSRV; // tex2d, rg32
 	ShaderResourceView* normalSRV               = nullptr; // tex2d, rgb32 (world space?)
 	ShaderResourceView* radianceSRV             = nullptr; // tex2d, rgba32 (alpha channel value?)
 	ShaderResourceView* radianceHistorySRV      = nullptr; // tex2d, rgba32 (alpha channel value?)

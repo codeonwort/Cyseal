@@ -31,6 +31,9 @@ struct IndirectSpecularInput
 	Texture*               sceneDepthTexture;
 	ShaderResourceView*    sceneDepthSRV;
 	ShaderResourceView*    prevSceneDepthSRV;
+	Texture*               hizTexture;
+	ShaderResourceView*    hizSRV;
+	Texture*               velocityMapTexture;
 	ShaderResourceView*    velocityMapSRV;
 	Buffer*                tileCoordBuffer;
 	Buffer*                tileCounterBuffer;
