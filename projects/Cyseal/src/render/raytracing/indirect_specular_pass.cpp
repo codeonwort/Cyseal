@@ -125,8 +125,9 @@ static StaticSamplerDesc getPointSamplerDesc()
 	};
 }
 
-void IndirecSpecularPass::initialize()
+void IndirecSpecularPass::initialize(RenderDevice* inRenderDevice)
 {
+	device = inRenderDevice;
 	if (isAvailable() == false)
 	{
 		CYLOG(LogDevice, Warning, L"HardwareRT is not available. Indirect Specular Reflection will be disabled.");
@@ -142,7 +143,7 @@ void IndirecSpecularPass::initialize()
 
 bool IndirecSpecularPass::isAvailable() const
 {
-	return gRenderDevice->getRaytracingTier() != ERaytracingTier::NotSupported;
+	return device->getRaytracingTier() != ERaytracingTier::NotSupported;
 }
 
 void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
@@ -196,21 +197,20 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 void IndirecSpecularPass::initializeClassifierPipeline()
 {
-	RenderDevice* const device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
 	classifierPassDescriptor.initialize(L"IndirectSpecular_ClassifierPass", swapchainCount, 0);
 	indirectRaysPassDescriptor.initialize(L"IndirectSpecular_PrepareDispatch", swapchainCount, 0);
 
-	ShaderStage* tileShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "IndirectSpecularClassifierCS");
+	ShaderStage* tileShader = device->createShader(EShaderStage::COMPUTE_SHADER, "IndirectSpecularClassifierCS");
 	tileShader->declarePushConstants({ {"pushConstants", 1} });
 	tileShader->loadFromFile(L"indirect_specular_classifier.hlsl", "tileClassificationCS");
 
-	ShaderStage* prepareShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "IndirectSpecularIndirectRaysCS");
+	ShaderStage* prepareShader = device->createShader(EShaderStage::COMPUTE_SHADER, "IndirectSpecularIndirectRaysCS");
 	prepareShader->declarePushConstants();
 	prepareShader->loadFromFile(L"indirect_specular_classifier.hlsl", "prepareIndirectRaysCS");
 
-	classifierPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+	classifierPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 		ComputePipelineDesc{
 			.cs             = tileShader,
 			.nodeMask       = 0,
@@ -218,7 +218,7 @@ void IndirecSpecularPass::initializeClassifierPipeline()
 		}
 	));
 
-	indirectRaysPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+	indirectRaysPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 		ComputePipelineDesc{
 			.cs             = prepareShader,
 			.nodeMask       = 0,
@@ -232,7 +232,6 @@ void IndirecSpecularPass::initializeClassifierPipeline()
 
 void IndirecSpecularPass::initializeRaytracingPipeline()
 {
-	RenderDevice* const device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
 	rayPassDescriptor.initialize(L"IndirectSpecular_RayPass", swapchainCount, sizeof(RayPassUniform));
@@ -300,7 +299,7 @@ void IndirecSpecularPass::initializeRaytracingPipeline()
 		.maxTraceRecursionDepth       = INDIRECT_SPECULAR_MAX_RECURSION,
 		.staticSamplers               = std::move(staticSamplers),
 	};
-	RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
+	RTPSO = UniquePtr<RaytracingPipelineStateObject>(device->createRaytracingPipelineStateObject(pipelineDesc));
 
 	// Raygen shader table
 	{
@@ -356,7 +355,6 @@ void IndirecSpecularPass::initializeRaytracingPipeline()
 
 void IndirecSpecularPass::initializeTemporalPipeline()
 {
-	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
 	temporalPassDescriptor.initialize(L"IndirectSpecular_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
@@ -378,7 +376,6 @@ void IndirecSpecularPass::initializeTemporalPipeline()
 
 void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 {
-	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
 	amdReprojectPassDescriptor.initialize(L"IndirectSpecular_AMDReprojectPass", swapchainCount, sizeof(AMDReprojectPassUniform));
@@ -406,8 +403,6 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	}
 	historyWidth = newWidth;
 	historyHeight = newHeight;
-
-	RenderDevice* device = gRenderDevice;
 
 	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
 	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
@@ -468,7 +463,7 @@ void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint3
 	};
 
 	hitGroupShaderTable[swapchainIndex] = UniquePtr<RaytracingShaderTable>(
-		gRenderDevice->createRaytracingShaderTable(RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
+		device->createRaytracingShaderTable(RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
 
 	for (uint32 i = 0; i < maxRecords; ++i)
 	{

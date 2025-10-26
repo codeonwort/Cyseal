@@ -52,7 +52,7 @@ struct IndirectSpecularInput
 class IndirecSpecularPass final : public SceneRenderPass
 {
 public:
-	void initialize();
+	void initialize(RenderDevice* inRenderDevice);
 
 	bool isAvailable() const;
 
@@ -78,6 +78,8 @@ private:
 	void amdReprojPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 
 private:
+	RenderDevice*                            device = nullptr;
+
 	// Tile classification pass
 	UniquePtr<ComputePipelineState>          classifierPipeline;
 	VolatileDescriptorHelper                 classifierPassDescriptor;

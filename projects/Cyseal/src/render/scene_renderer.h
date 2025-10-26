@@ -88,14 +88,6 @@ private:
 	UniquePtr<ShaderResourceView> gbufferSRVs[NUM_GBUFFERS];
 	UniquePtr<UnorderedAccessView> gbufferUAVs[NUM_GBUFFERS];
 
-	UniquePtr<Texture> RT_prevNormalTexture;
-	UniquePtr<ShaderResourceView> prevNormalSRV;
-	UniquePtr<UnorderedAccessView> prevNormalUAV;
-
-	UniquePtr<Texture> RT_prevRoughnessTexture;
-	UniquePtr<ShaderResourceView> prevRoughnessSRV;
-	UniquePtr<UnorderedAccessView> prevRoughnessUAV;
-
 	UniquePtr<Texture> RT_shadowMask;
 	UniquePtr<RenderTargetView> shadowMaskRTV;
 	UniquePtr<ShaderResourceView> shadowMaskSRV;
