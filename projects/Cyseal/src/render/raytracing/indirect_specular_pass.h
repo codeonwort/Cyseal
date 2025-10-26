@@ -30,6 +30,10 @@ struct IndirectSpecularInput
 	Texture*               gbuffer1Texture;
 	ShaderResourceView*    gbuffer0SRV;
 	ShaderResourceView*    gbuffer1SRV;
+	Texture*               prevNormalTexture;
+	ShaderResourceView*    prevNormalSRV;
+	Texture*               prevRoughnessTexture;
+	ShaderResourceView*    prevRoughnessSRV;
 	Texture*               sceneDepthTexture;
 	ShaderResourceView*    sceneDepthSRV;
 	Texture*               prevSceneDepthTexture;
