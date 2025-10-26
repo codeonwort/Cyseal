@@ -817,18 +817,26 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 			passInput.velocityMapTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			passInput.gbuffer1Texture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			passInput.prevSceneDepthTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
 	};
 	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 	ShaderResourceView* hizSRV                  = passInput.hizSRV; // tex2d, r32
 	ShaderResourceView* motionVectorSRV         = passInput.velocityMapSRV; // tex2d, rg32
-	ShaderResourceView* normalSRV               = nullptr; // tex2d, rgb32 (world space?)
+	ShaderResourceView* normalSRV               = passInput.gbuffer1SRV; // tex2d, rgb32 (world space?)
 	ShaderResourceView* radianceSRV             = nullptr; // tex2d, rgba32 (alpha channel value?)
 	ShaderResourceView* radianceHistorySRV      = nullptr; // tex2d, rgba32 (alpha channel value?)
 	ShaderResourceView* varianceSRV             = nullptr; // tex2d, r32
 	ShaderResourceView* sampleCountSRV          = nullptr; // tex2d, r32
 	ShaderResourceView* extractedRoughnessSRV   = nullptr; // tex2d, r32 (perceptual?)
-	ShaderResourceView* depthHistorySRV         = nullptr; // tex2d, r32
+	ShaderResourceView* depthHistorySRV         = passInput.prevSceneDepthSRV; // tex2d, r32
 	ShaderResourceView* normalHistorySRV        = nullptr; // tex2d, rgb32 (world space?)
 	ShaderResourceView* roughnessHistorySRV     = nullptr; // tex2d, r32
 	UnorderedAccessView* varianceUAV            = nullptr; // rwTex2d, r32 (is varianceSRV for prev frame?)

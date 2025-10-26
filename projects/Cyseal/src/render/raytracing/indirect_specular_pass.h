@@ -26,10 +26,13 @@ struct IndirectSpecularInput
 	GPUScene*              gpuScene;
 	AccelerationStructure* raytracingScene;
 	ShaderResourceView*    skyboxSRV;
+	Texture*               gbuffer0Texture;
+	Texture*               gbuffer1Texture;
 	ShaderResourceView*    gbuffer0SRV;
 	ShaderResourceView*    gbuffer1SRV;
 	Texture*               sceneDepthTexture;
 	ShaderResourceView*    sceneDepthSRV;
+	Texture*               prevSceneDepthTexture;
 	ShaderResourceView*    prevSceneDepthSRV;
 	Texture*               hizTexture;
 	ShaderResourceView*    hizSRV;
