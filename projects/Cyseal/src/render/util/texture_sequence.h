@@ -4,6 +4,10 @@
 #include "rhi/rhi_forward.h"
 #include "rhi/texture.h"
 
+/// <summary>
+/// Util for maintaing history of a texture.
+/// Currently only supports 2-frame history of 2D texture.
+/// </summary>
 class TextureSequence
 {
 public:

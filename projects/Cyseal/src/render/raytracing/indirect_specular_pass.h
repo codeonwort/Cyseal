@@ -106,6 +106,7 @@ private:
 	uint32                                   historyHeight = 0;
 	TextureSequence                          colorHistory;
 	TextureSequence                          momentHistory;
+	TextureSequence                          sampleCountHistory;
 	UniquePtr<Texture>                       raytracingTexture;
 	UniquePtr<ShaderResourceView>            raytracingSRV;
 	UniquePtr<UnorderedAccessView>           raytracingUAV;

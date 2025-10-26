@@ -25,8 +25,10 @@ Texture2D                    velocityMapTexture;
 Texture2D                    prevSceneDepthTexture;
 Texture2D                    prevColorTexture;
 Texture2D                    prevMomentTexture;
+Texture2D                    prevSampleCountTexture;
 RWTexture2D<float4>          currentColorTexture;
-RWTexture2D<float4>          currentMomentTexture;
+RWTexture2D<float2>          currentMomentTexture;
+RWTexture2D<float>           currentSampleCountTexture;
 
 SamplerState linearSampler : register(s0, space0);
 SamplerState pointSampler  : register(s1, space0);
@@ -69,14 +71,15 @@ PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
 
 	float sceneDepth = prevSceneDepthTexture.SampleLevel(pointSampler, screenUV, 0).x;
 	float3 color = prevColorTexture.SampleLevel(linearSampler, screenUV, 0).xyz;
-	float4 moments = prevMomentTexture.SampleLevel(pointSampler, screenUV, 0);
+	float2 moments = prevMomentTexture.SampleLevel(pointSampler, screenUV, 0).xy;
+	float sampleCount = prevSampleCountTexture.SampleLevel(pointSampler, screenUV, 0).x;
 
 	info.bValid = true;
 	info.positionWS = clipSpaceToWorldSpace(positionCS, sceneUniform.prevViewProjInvMatrix);
 	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
 	info.color = color;
-	info.historyCount = moments.z;
-	info.moments = moments.xy;
+	info.historyCount = sampleCount;
+	info.moments = moments;
 	
 	return info;
 }
@@ -135,5 +138,6 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	//variance = max(0.0, moments.y - moments.x * moments.x);
 	
 	currentColorTexture[texel] = float4(Wo, 1);
-	currentMomentTexture[texel] = float4(moments, historyCount, 1);
+	currentMomentTexture[texel] = moments;
+	currentSampleCountTexture[texel] = historyCount;
 }

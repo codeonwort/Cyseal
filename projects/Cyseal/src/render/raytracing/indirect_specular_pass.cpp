@@ -28,7 +28,8 @@
 
 #define PF_raytracing                       EPixelFormat::R16G16B16A16_FLOAT
 #define PF_colorHistory                     EPixelFormat::R16G16B16A16_FLOAT
-#define PF_momentHistory                    EPixelFormat::R16G16B16A16_FLOAT
+#define PF_momentHistory                    EPixelFormat::R16G16_FLOAT
+#define PF_sampleCountHistory               EPixelFormat::R32_FLOAT
 
 // Should match with INDIRECT_DISPATCH_RAYS in shader side.
 #define INDIRECT_DISPATCH_RAYS              1
@@ -238,6 +239,7 @@ void IndirecSpecularPass::initializeRaytracingPipeline()
 
 	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularColorHistory");
 	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularMomentHistory");
+	sampleCountHistory.initialize(PF_sampleCountHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularSampleCountHistory");
 
 	totalHitGroupShaderRecord.resize(swapchainCount, 0);
 	hitGroupShaderTable.initialize(swapchainCount);
@@ -409,6 +411,7 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 
 	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
 	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
+	sampleCountHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
 	commandList->enqueueDeferredDealloc(raytracingTexture.release(), true);
 
@@ -587,12 +590,6 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 	uint32 sceneHeight = passInput.sceneHeight;
 	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = passInput.gpuScene->queryMaterialDescriptors(swapchainIndex);
 
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
-
-	auto prevColorTexture  = colorHistory.getTexture(prevFrame);
-	auto prevMomentTexture = momentHistory.getTexture(prevFrame);
-
 	// Update uniforms.
 	{
 		RayPassUniform* uboData = new RayPassUniform;
@@ -701,6 +698,11 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 	auto currMomentUAV = momentHistory.getUAV(currFrame);
 	auto prevMomentSRV = momentHistory.getSRV(prevFrame);
 
+	auto currSampleCountTexture = sampleCountHistory.getTexture(currFrame);
+	auto prevSampleCountTexture = sampleCountHistory.getTexture(prevFrame);
+	auto currSampleCountUAV = sampleCountHistory.getUAV(currFrame);
+	auto prevSampleCountSRV = sampleCountHistory.getSRV(prevFrame);
+
 	{
 		TextureBarrierAuto textureBarriers[] = {
 			{
@@ -712,12 +714,20 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 				currMomentTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				currSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
 				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				prevColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 			{
 				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				prevMomentTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				prevSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
@@ -748,9 +758,11 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
 		SPT.texture("prevColorTexture", prevColorSRV);
 		SPT.texture("prevMomentTexture", prevMomentSRV);
+		SPT.texture("prevSampleCountTexture", prevSampleCountSRV);
 		SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
 		SPT.rwTexture("currentColorTexture", currColorUAV);
 		SPT.rwTexture("currentMomentTexture", currMomentUAV);
+		SPT.rwTexture("currentSampleCountTexture", currSampleCountUAV);
 
 		// Resize volatile heaps if needed.
 		uint32 requiredVolatiles = SPT.totalDescriptors();
