@@ -71,6 +71,7 @@ private:
 	UniquePtr<DepthStencilView> sceneDepthDSV;
 	UniquePtr<ShaderResourceView> sceneDepthSRV;
 
+	// #wip: Also need normalHistory and roughnessHistory
 	UniquePtr<Texture> RT_prevSceneDepth;
 	UniquePtr<ShaderResourceView> prevSceneDepthSRV;
 

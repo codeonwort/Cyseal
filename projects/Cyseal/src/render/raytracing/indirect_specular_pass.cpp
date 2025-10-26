@@ -808,6 +808,9 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 
 	// Stub shader resource bindings.
 #if 0
+	BufferBarrierAuto bufferBarriers[] = {
+		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
+	};
 	TextureBarrierAuto textureBarriers[] = {
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
@@ -826,7 +829,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 			passInput.prevSceneDepthTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
 	};
-	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+	commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 	ShaderResourceView* hizSRV                  = passInput.hizSRV; // tex2d, r32
 	ShaderResourceView* motionVectorSRV         = passInput.velocityMapSRV; // tex2d, rg32
@@ -842,7 +845,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	UnorderedAccessView* varianceUAV            = nullptr; // rwTex2d, r32 (is varianceSRV for prev frame?)
 	UnorderedAccessView* sampleCountUAV         = nullptr; // rwTex2d, r32 (is sampleCountSRV for prev frame?)
 	UnorderedAccessView* averageRadianceUAV     = nullptr; // rwTex2d, rgb32
-	UnorderedAccessView* denoiserTileListUAV    = nullptr; // rwStructuredBuffer<uint>
+	UnorderedAccessView* denoiserTileListUAV    = passInput.tileCoordBufferUAV; // rwStructuredBuffer<uint>, readonly
 	UnorderedAccessView* reprojectedRadianceUAV = nullptr; // rwTex2d, rgb32
 
 	// Param names from ffx_denoiser_reflections_callbacks_hlsl.h
