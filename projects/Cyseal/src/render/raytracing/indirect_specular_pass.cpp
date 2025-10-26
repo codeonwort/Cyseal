@@ -842,7 +842,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.gbuffer1Texture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			passInput.normalTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
@@ -856,6 +856,10 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 			prevSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			passInput.roughnessTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
@@ -884,12 +888,12 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 
 	ShaderResourceView* hizSRV                  = passInput.hizSRV; // tex2d, r32
 	ShaderResourceView* motionVectorSRV         = passInput.velocityMapSRV; // tex2d, rg32
-	ShaderResourceView* normalSRV               = passInput.gbuffer1SRV; // tex2d, rgb32 (world space?)
+	ShaderResourceView* normalSRV               = passInput.normalSRV; // tex2d, rgb32 (world space?)
 	ShaderResourceView* radianceSRV             = raytracingSRV.get(); // tex2d, rgba32 (alpha channel value?)
 	ShaderResourceView* radianceHistorySRV      = prevRadianceSRV; // tex2d, rgba32 (alpha channel value?)
 	ShaderResourceView* varianceSRV             = nullptr; // tex2d, r32 (history; for prev frame)
 	ShaderResourceView* sampleCountSRV          = prevSampleCountSRV; // tex2d, r32 (history; for prev frame)
-	ShaderResourceView* extractedRoughnessSRV   = nullptr; // tex2d, r32 (not perceptual. see ffx_denoiser_reflections_callbacks_hlsl.h)
+	ShaderResourceView* extractedRoughnessSRV   = passInput.roughnessSRV; // tex2d, r32 (not perceptual. see ffx_denoiser_reflections_callbacks_hlsl.h)
 	ShaderResourceView* depthHistorySRV         = passInput.prevSceneDepthSRV; // tex2d, r32
 	ShaderResourceView* normalHistorySRV        = passInput.prevNormalSRV; // tex2d, rgb32 (world space?)
 	ShaderResourceView* roughnessHistorySRV     = passInput.prevRoughnessSRV; // tex2d, r32
