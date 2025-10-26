@@ -805,6 +805,11 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	auto currRadianceUAV = colorHistory.getUAV(currFrame);
 	auto prevRadianceSRV = colorHistory.getSRV(prevFrame);
 
+	auto currSampleCountTexture = sampleCountHistory.getTexture(currFrame);
+	auto prevSampleCountTexture = sampleCountHistory.getTexture(prevFrame);
+	auto currSampleCountUAV = sampleCountHistory.getUAV(currFrame);
+	auto prevSampleCountSRV = sampleCountHistory.getSRV(prevFrame);
+
 	// Defines in hlsl. Prepare matching resources...
 #if 0
 	#define DENOISER_BIND_SRV_INPUT_DEPTH_HIERARCHY    2
@@ -852,6 +857,11 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 			prevRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
+		// #wip: prev variance SRV
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			prevSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 			passInput.prevSceneDepthTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
@@ -864,6 +874,12 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 			passInput.prevRoughnessTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
+		// #wip: curr variance UAV
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			currSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		// #wip: avg radiance UAV
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
 			currRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
@@ -877,13 +893,13 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	ShaderResourceView* radianceSRV             = raytracingSRV.get(); // tex2d, rgba32 (alpha channel value?)
 	ShaderResourceView* radianceHistorySRV      = prevRadianceSRV; // tex2d, rgba32 (alpha channel value?)
 	ShaderResourceView* varianceSRV             = nullptr; // tex2d, r32 (history; for prev frame)
-	ShaderResourceView* sampleCountSRV          = nullptr; // tex2d, r32 (history; for prev frame)
+	ShaderResourceView* sampleCountSRV          = prevSampleCountSRV; // tex2d, r32 (history; for prev frame)
 	ShaderResourceView* extractedRoughnessSRV   = nullptr; // tex2d, r32 (not perceptual. see ffx_denoiser_reflections_callbacks_hlsl.h)
 	ShaderResourceView* depthHistorySRV         = passInput.prevSceneDepthSRV; // tex2d, r32
 	ShaderResourceView* normalHistorySRV        = passInput.prevNormalSRV; // tex2d, rgb32 (world space?)
 	ShaderResourceView* roughnessHistorySRV     = passInput.prevRoughnessSRV; // tex2d, r32
 	UnorderedAccessView* varianceUAV            = nullptr; // rwTex2d, r32 (writeonly)
-	UnorderedAccessView* sampleCountUAV         = nullptr; // rwTex2d, r32 (writeonly)
+	UnorderedAccessView* sampleCountUAV         = currSampleCountUAV; // rwTex2d, r32 (writeonly)
 	UnorderedAccessView* averageRadianceUAV     = nullptr; // rwTex2d, rgb32 (writeonly, per 8x8 tile)
 	UnorderedAccessView* denoiserTileListUAV    = passInput.tileCoordBufferUAV; // rwStructuredBuffer<uint> (readonly)
 	UnorderedAccessView* reprojectedRadianceUAV = currRadianceUAV; // rwTex2d, rgb32 (writeonly)
