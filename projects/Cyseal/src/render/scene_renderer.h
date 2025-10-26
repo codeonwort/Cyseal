@@ -71,7 +71,6 @@ private:
 	UniquePtr<DepthStencilView> sceneDepthDSV;
 	UniquePtr<ShaderResourceView> sceneDepthSRV;
 
-	// #wip: Also need normalHistory and roughnessHistory
 	UniquePtr<Texture> RT_prevSceneDepth;
 	UniquePtr<ShaderResourceView> prevSceneDepthSRV;
 
@@ -88,6 +87,14 @@ private:
 	UniquePtr<RenderTargetView> gbufferRTVs[NUM_GBUFFERS];
 	UniquePtr<ShaderResourceView> gbufferSRVs[NUM_GBUFFERS];
 	UniquePtr<UnorderedAccessView> gbufferUAVs[NUM_GBUFFERS];
+
+	UniquePtr<Texture> RT_prevNormalTexture;
+	UniquePtr<ShaderResourceView> prevNormalSRV;
+	UniquePtr<UnorderedAccessView> prevNormalUAV;
+
+	UniquePtr<Texture> RT_prevRoughnessTexture;
+	UniquePtr<ShaderResourceView> prevRoughnessSRV;
+	UniquePtr<UnorderedAccessView> prevRoughnessUAV;
 
 	UniquePtr<Texture> RT_shadowMask;
 	UniquePtr<RenderTargetView> shadowMaskRTV;
@@ -137,6 +144,7 @@ private:
 	class BufferVisualization*  bufferVisualization   = nullptr;
 	class PathTracingPass*      pathTracingPass       = nullptr;
 	class DenoiserPluginPass*   denoiserPluginPass    = nullptr;
+	class StoreHistoryPass*     storeHistoryPass      = nullptr;
 
 	std::vector<class SceneRenderPass*> sceneRenderPasses;
 };

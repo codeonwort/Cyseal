@@ -23,6 +23,7 @@
 #include "render/sky_pass.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
+#include "render/store_history_pass.h"
 #include "render/raytracing/ray_traced_shadows.h"
 #include "render/raytracing/indirect_diffuse_pass.h"
 #include "render/raytracing/indirect_specular_pass.h"
@@ -123,6 +124,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(bufferVisualization = new(EMemoryTag::Renderer) BufferVisualization);
 		sceneRenderPasses.push_back(pathTracingPass = new(EMemoryTag::Renderer) PathTracingPass);
 		sceneRenderPasses.push_back(denoiserPluginPass = new(EMemoryTag::Renderer) DenoiserPluginPass);
+		sceneRenderPasses.push_back(storeHistoryPass = new(EMemoryTag::Renderer) StoreHistoryPass);
 
 		gpuScene->initialize();
 		gpuCulling->initialize(kMaxBasePassPermutation);
@@ -137,6 +139,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		bufferVisualization->initialize();
 		pathTracingPass->initialize();
 		denoiserPluginPass->initialize();
+		storeHistoryPass->initialize(renderDevice);
 	}
 }
 
@@ -145,7 +148,11 @@ void SceneRenderer::destroy()
 	RT_sceneColor.reset();
 	RT_sceneDepth.reset();
 	RT_prevSceneDepth.reset();
+	RT_hiz.reset();
+	RT_velocityMap.reset();
 	for (uint32 i=0; i<NUM_GBUFFERS; ++i) RT_gbuffers[i].reset();
+	RT_prevNormalTexture.reset();
+	RT_prevRoughnessTexture.reset();
 	RT_shadowMask.reset();
 	RT_indirectDiffuse.reset();
 	RT_indirectSpecular.reset();
@@ -703,6 +710,20 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
 		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
+
+		StoreHistoryPassInput passInput{
+			.textureWidth         = sceneWidth,
+			.textureHeight        = sceneHeight,
+			.gbuffer0             = RT_gbuffers[0].get(),
+			.gbuffer1             = RT_gbuffers[1].get(),
+			.gbuffer0SRV          = gbufferSRVs[0].get(),
+			.gbuffer1SRV          = gbufferSRVs[1].get(),
+			.prevNormalTexture    = RT_prevNormalTexture.get(),
+			.prevNormalUAV        = prevNormalUAV.get(),
+			.prevRoughnessTexture = RT_prevRoughnessTexture.get(),
+			.prevRoughnessUAV     = prevRoughnessUAV.get(),
+		};
+		storeHistoryPass->renderHistory(commandList, swapchainIndex, passInput);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -940,6 +961,68 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			}
 		));
 	}
+
+	cleanup(RT_prevNormalTexture.release());
+	RT_prevNormalTexture = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::R16G16B16A16_FLOAT,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			sceneWidth, sceneHeight,
+			1, 1, 0).setOptimalClearColor(0, 0, 0, 1)));
+	RT_prevNormalTexture->setDebugName(L"RT_PrevNormal");
+	prevNormalSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_prevNormalTexture.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_prevNormalTexture->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_prevNormalTexture->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	prevNormalUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_prevNormalTexture.get(),
+		UnorderedAccessViewDesc{
+			.format         = RT_prevNormalTexture->getCreateParams().format,
+			.viewDimension  = EUAVDimension::Texture2D,
+			.texture2D      = Texture2DUAVDesc{
+				.mipSlice   = 0,
+				.planeSlice = 0,
+			},
+		}
+	));
+
+	cleanup(RT_prevRoughnessTexture.release());
+	RT_prevRoughnessTexture = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			EPixelFormat::R32_FLOAT,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			sceneWidth, sceneHeight,
+			1, 1, 0).setOptimalClearColor(1, 1, 1, 1)));
+	RT_prevRoughnessTexture->setDebugName(L"RT_PrevNormal");
+	prevRoughnessSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_prevRoughnessTexture.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_prevRoughnessTexture->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_prevRoughnessTexture->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	prevRoughnessUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_prevRoughnessTexture.get(),
+		UnorderedAccessViewDesc{
+			.format         = RT_prevRoughnessTexture->getCreateParams().format,
+			.viewDimension  = EUAVDimension::Texture2D,
+			.texture2D      = Texture2DUAVDesc{
+				.mipSlice   = 0,
+				.planeSlice = 0,
+			},
+		}
+	));
 
 	cleanup(RT_shadowMask.release());
 	RT_shadowMask = UniquePtr<Texture>(device->createTexture(

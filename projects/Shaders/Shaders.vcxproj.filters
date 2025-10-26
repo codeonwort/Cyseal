@@ -25,6 +25,7 @@
     </FxCompile>
     <FxCompile Include="..\..\shaders\hiz.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_classifier.hlsl" />
+    <FxCompile Include="..\..\shaders\store_history.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">
