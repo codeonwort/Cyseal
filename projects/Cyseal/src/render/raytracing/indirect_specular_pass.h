@@ -121,4 +121,7 @@ private:
 private:
 	UniquePtr<ComputePipelineState>          amdReprojectPipeline;
 	VolatileDescriptorHelper                 amdReprojectPassDescriptor;
+
+	UniquePtr<Texture>                       avgRadianceTexture;
+	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
 };

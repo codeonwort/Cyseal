@@ -31,6 +31,8 @@
 #define PF_momentHistory                    EPixelFormat::R16G16_FLOAT
 #define PF_sampleCountHistory               EPixelFormat::R32_FLOAT
 
+#define PF_avgRadiance                      EPixelFormat::R16G16B16A16_FLOAT
+
 // Should match with INDIRECT_DISPATCH_RAYS in shader side.
 #define INDIRECT_DISPATCH_RAYS              1
 
@@ -408,8 +410,6 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
 	sampleCountHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
-	commandList->enqueueDeferredDealloc(raytracingTexture.release(), true);
-
 	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
 		PF_raytracing, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
 #if INDIRECT_DISPATCH_RAYS
@@ -417,6 +417,7 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	rayTexDesc.accessFlags = rayTexDesc.accessFlags | ETextureAccessFlags::RTV;
 #endif
 
+	commandList->enqueueDeferredDealloc(raytracingTexture.release(), true);
 	raytracingTexture = UniquePtr<Texture>(device->createTexture(rayTexDesc));
 	raytracingTexture->setDebugName(L"RT_SpecularRaysTexture");
 
@@ -451,6 +452,23 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 		}
 	));
 #endif
+
+	commandList->enqueueDeferredDealloc(avgRadianceTexture.release(), true);
+	avgRadianceTexture = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_avgRadiance, ETextureAccessFlags::UAV,
+			(historyWidth + 7) / 8, (historyHeight + 7) / 8,
+			1, 1, 0
+		)
+	));
+	avgRadianceTexture->setDebugName(L"RT_SpecularRaysTexture");
+	avgRadianceUAV = UniquePtr<UnorderedAccessView>(device->createUAV(avgRadianceTexture.get(),
+		UnorderedAccessViewDesc{
+			.format = avgRadianceTexture->getCreateParams().format,
+			.viewDimension = EUAVDimension::Texture2D,
+			.texture2D = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
 }
 
 void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords)
@@ -878,7 +896,10 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
 			currSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
-		// #wip: avg radiance UAV
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			avgRadianceTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
 			currRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
@@ -899,7 +920,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	ShaderResourceView* roughnessHistorySRV     = passInput.prevRoughnessSRV; // tex2d, r32
 	UnorderedAccessView* varianceUAV            = nullptr; // rwTex2d, r32 (writeonly)
 	UnorderedAccessView* sampleCountUAV         = currSampleCountUAV; // rwTex2d, r32 (writeonly)
-	UnorderedAccessView* averageRadianceUAV     = nullptr; // rwTex2d, rgb32 (writeonly, per 8x8 tile)
+	UnorderedAccessView* averageRadianceUAV     = avgRadianceUAV.get(); // rwTex2d, rgb32 (writeonly, per 8x8 tile)
 	UnorderedAccessView* denoiserTileListUAV    = passInput.tileCoordBufferUAV; // rwStructuredBuffer<uint> (readonly)
 	UnorderedAccessView* reprojectedRadianceUAV = currRadianceUAV; // rwTex2d, rgb32 (writeonly)
 
