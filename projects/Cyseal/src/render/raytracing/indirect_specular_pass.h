@@ -124,4 +124,5 @@ private:
 
 	UniquePtr<Texture>                       avgRadianceTexture;
 	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
+	TextureSequence                          amdVarianceHistory;
 };
