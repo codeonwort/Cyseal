@@ -86,4 +86,6 @@ void prepareIndirectRaysCS()
 	amdDesc.ThreadGroupCountX = counter;
 	amdDesc.ThreadGroupCountY = 1;
 	amdDesc.ThreadGroupCountZ = 1;
+	
+	rwAmdReprojArgumentBuffer[0] = amdDesc;
 }

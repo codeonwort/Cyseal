@@ -647,6 +647,8 @@ void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32
 
 void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
 {
+	SCOPED_DRAW_EVENT(commandList, SpecularRaytracing);
+
 	uint32 sceneWidth = passInput.sceneWidth;
 	uint32 sceneHeight = passInput.sceneHeight;
 	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = passInput.gpuScene->queryMaterialDescriptors(swapchainIndex);
@@ -857,6 +859,7 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
 {
 	// #wip: Implement this
+	SCOPED_DRAW_EVENT(commandList, AMDReproject);
 
 	const uint32 currFrame = swapchainIndex % 2;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
@@ -983,6 +986,9 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	UnorderedAccessView* denoiserTileListUAV    = passInput.tileCoordBufferUAV; // rwStructuredBuffer<uint> (readonly)
 	UnorderedAccessView* reprojectedRadianceUAV = currRadianceUAV; // rwTex2d, rgb32 (writeonly)
 
+	// #wip: Oops need to prepare cbuffer cbDenoiserReflections :/
+	// '#define DENOISER_BIND_CB_DENOISER   0' does not mean it won't use cb...
+
 	// Param names from ffx_denoiser_reflections_callbacks_hlsl.h
 	ShaderParameterTable SPT{};
 	SPT.texture("r_input_depth_hierarchy", hizSRV);
@@ -1010,16 +1016,12 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	commandList->bindComputeShaderParameters(amdReprojectPipeline.get(), &SPT, volatileHeap);
 
 	// Dispatch compute and issue memory barriers.
-	{
-		SCOPED_DRAW_EVENT(commandList, AMDReproject);
+	commandList->executeIndirect(amdReprojCommandSignature.get(), 1, amdReprojCommandBuffer.get(), 0);
 
-		commandList->executeIndirect(amdReprojCommandSignature.get(), 1, amdReprojCommandBuffer.get(), 0);
-
-		GlobalBarrier uavBarrier = {
-			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
-			EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
-		};
-		commandList->barrier(0, nullptr, 0, nullptr, 1, &uavBarrier);
-	}
+	GlobalBarrier uavBarrier = {
+		EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+		EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
+	};
+	commandList->barrier(0, nullptr, 0, nullptr, 1, &uavBarrier);
 #endif
 }
