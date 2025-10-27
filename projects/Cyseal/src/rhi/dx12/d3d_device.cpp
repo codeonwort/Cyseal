@@ -673,6 +673,21 @@ CommandSignature* D3DDevice::createCommandSignature(const CommandSignatureDesc& 
 	return cmdSig;
 }
 
+CommandSignature* D3DDevice::createCommandSignature(const CommandSignatureDesc& inDesc, ComputePipelineState* inPipelineState)
+{
+	D3DComputePipelineState* d3dPipelineState = static_cast<D3DComputePipelineState*>(inPipelineState);
+
+	into_d3d::TempAlloc tempAlloc;
+	D3D12_COMMAND_SIGNATURE_DESC d3dDesc;
+	into_d3d::commandSignature(inDesc, d3dDesc, d3dPipelineState, tempAlloc);
+
+	ID3D12RootSignature* rootSig = (d3dPipelineState != nullptr) ? d3dPipelineState->getRootSignature() : nullptr;
+
+	D3DCommandSignature* cmdSig = new(EMemoryTag::RHI) D3DCommandSignature;
+	cmdSig->initialize(device.Get(), d3dDesc, rootSig);
+	return cmdSig;
+}
+
 CommandSignature* D3DDevice::createCommandSignature(const CommandSignatureDesc& inDesc, RaytracingPipelineStateObject* inPipelineState)
 {
 	D3DRaytracingPipelineStateObject* d3dPipelineState = static_cast<D3DRaytracingPipelineStateObject*>(inPipelineState);

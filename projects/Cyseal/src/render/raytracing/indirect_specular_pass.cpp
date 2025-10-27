@@ -33,6 +33,7 @@
 #define PF_sampleCountHistory               EPixelFormat::R32_FLOAT
 
 #define PF_avgRadiance                      EPixelFormat::R16G16B16A16_FLOAT
+#define PF_amdRadiance                      EPixelFormat::R16G16B16A16_FLOAT
 #define PF_amdVariance                      EPixelFormat::R32_FLOAT
 
 // Should match with INDIRECT_DISPATCH_RAYS in shader side.
@@ -384,7 +385,10 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 
 	amdReprojectPassDescriptor.initialize(L"IndirectSpecular_AMDReprojectPass", swapchainCount, sizeof(AMDReprojectPassUniform));
 
-	amdVarianceHistory.initialize(PF_amdVariance, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, L"RT_SpecularAmdVarianceHistory");
+	const auto historyFlags = ETextureAccessFlags::SRV | ETextureAccessFlags::UAV;
+	amdRadianceHistory.initialize(PF_amdRadiance, historyFlags, L"RT_SpecularAmdRadianceHistory");
+	amdVarianceHistory.initialize(PF_amdVariance, historyFlags, L"RT_SpecularAmdVarianceHistory");
+	amdSampleCountHistory.initialize(PF_sampleCountHistory, historyFlags, L"RT_SpecularAmdSampleCountHistory");
 
 	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularReprojectCS");
 	shader->declarePushConstants();
@@ -399,6 +403,35 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 	));
 
 	delete shader;
+
+	// Indirect dispatch
+	CommandSignatureDesc commandSignatureDesc{
+		.argumentDescs = { IndirectArgumentDesc{ .type = EIndirectArgumentType::DISPATCH, }, },
+		.nodeMask = 0,
+	};
+	// Pass null instead of RTPSO because root signature won't be changed by indirect commands.
+	amdReprojCommandSignature = UniquePtr<CommandSignature>(device->createCommandSignature(commandSignatureDesc, (ComputePipelineState*)nullptr));
+	amdReprojCommandGenerator = UniquePtr<IndirectCommandGenerator>(device->createIndirectCommandGenerator(commandSignatureDesc, 1));
+	amdReprojCommandBuffer = UniquePtr<Buffer>(device->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = amdReprojCommandGenerator->getCommandByteStride(),
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::UAV,
+		}
+	));
+	amdReprojCommandBufferUAV = UniquePtr<UnorderedAccessView>(device->createUAV(amdReprojCommandBuffer.get(),
+		UnorderedAccessViewDesc{
+			.format        = EPixelFormat::UNKNOWN,
+			.viewDimension = EUAVDimension::Buffer,
+			.buffer        = BufferUAVDesc{
+				.firstElement         = 0,
+				.numElements          = 1,
+				.structureByteStride  = amdReprojCommandGenerator->getCommandByteStride(),
+				.counterOffsetInBytes = 0,
+				.flags                = EBufferUAVFlags::None,
+			},
+		}
+	));
 }
 
 void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
@@ -414,7 +447,9 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
 	sampleCountHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
+	amdRadianceHistory.resizeTextures(commandList, historyWidth, historyHeight);
 	amdVarianceHistory.resizeTextures(commandList, historyWidth, historyHeight);
+	amdSampleCountHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
 	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
 		PF_raytracing, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
@@ -581,9 +616,16 @@ void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32
 	{
 		SCOPED_DRAW_EVENT(commandList, PrepareIndirectRays);
 
+		BufferBarrierAuto bufferBarriers[] = {
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, rayCommandBuffer.get() },
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, amdReprojCommandBuffer.get() },
+		};
+		commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, 0, nullptr, 0, nullptr);
+
 		ShaderParameterTable SPT{};
 		SPT.rwBuffer("rwTileCounterBuffer", passInput.tileCounterBufferUAV);
 		SPT.rwBuffer("rwIndirectArgumentBuffer", rayCommandBufferUAV.get());
+		SPT.rwBuffer("rwAmdReprojArgumentBuffer", amdReprojCommandBufferUAV.get());
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
 		indirectRaysPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
@@ -819,15 +861,15 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	const uint32 currFrame = swapchainIndex % 2;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
 
-	auto currRadianceTexture = colorHistory.getTexture(currFrame);
-	auto prevRadianceTexture = colorHistory.getTexture(prevFrame);
-	auto currRadianceUAV = colorHistory.getUAV(currFrame);
-	auto prevRadianceSRV = colorHistory.getSRV(prevFrame);
+	auto currRadianceTexture = amdRadianceHistory.getTexture(currFrame);
+	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
+	auto currRadianceUAV = amdRadianceHistory.getUAV(currFrame);
+	auto prevRadianceSRV = amdRadianceHistory.getSRV(prevFrame);
 
-	auto currSampleCountTexture = sampleCountHistory.getTexture(currFrame);
-	auto prevSampleCountTexture = sampleCountHistory.getTexture(prevFrame);
-	auto currSampleCountUAV = sampleCountHistory.getUAV(currFrame);
-	auto prevSampleCountSRV = sampleCountHistory.getSRV(prevFrame);
+	auto currSampleCountTexture = amdSampleCountHistory.getTexture(currFrame);
+	auto prevSampleCountTexture = amdSampleCountHistory.getTexture(prevFrame);
+	auto currSampleCountUAV = amdSampleCountHistory.getUAV(currFrame);
+	auto prevSampleCountSRV = amdSampleCountHistory.getSRV(prevFrame);
 
 	auto currVarianceTexture = amdVarianceHistory.getTexture(currFrame);
 	auto prevVarianceTexture = amdVarianceHistory.getTexture(prevFrame);
@@ -856,7 +898,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 #endif
 
 	// Stub shader resource bindings.
-#if 0
+#if 1
 	BufferBarrierAuto bufferBarriers[] = {
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
 	};
@@ -959,5 +1001,25 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	SPT.rwTexture("rw_average_radiance", averageRadianceUAV);
 	SPT.rwStructuredBuffer("rw_denoiser_tile_list", denoiserTileListUAV);
 	SPT.rwTexture("rw_reprojected_radiance", reprojectedRadianceUAV);
+
+	uint32 requiredVolatiles = SPT.totalDescriptors();
+	amdReprojectPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	DescriptorHeap* volatileHeap = amdReprojectPassDescriptor.getDescriptorHeap(swapchainIndex);
+
+	commandList->setComputePipelineState(amdReprojectPipeline.get());
+	commandList->bindComputeShaderParameters(amdReprojectPipeline.get(), &SPT, volatileHeap);
+
+	// Dispatch compute and issue memory barriers.
+	{
+		SCOPED_DRAW_EVENT(commandList, AMDReproject);
+
+		commandList->executeIndirect(amdReprojCommandSignature.get(), 1, amdReprojCommandBuffer.get(), 0);
+
+		GlobalBarrier uavBarrier = {
+			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
+		};
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &uavBarrier);
+	}
 #endif
 }

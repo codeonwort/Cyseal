@@ -10,7 +10,25 @@ class GPUResource;
 class RenderTargetView;
 
 // Marker class.
-class SwapChainImage : public TextureKind {};
+class SwapChainImage : public TextureKind
+{
+public:
+	virtual TextureKindShapeDesc internal_getShapeDesc() override
+	{
+		return shapeDesc;
+	}
+
+	void internal_setShapeDesc(uint32 inWidth, uint32 inHeight)
+	{
+		shapeDesc = TextureKindShapeDesc{
+			TextureKindShapeDesc::Dimension::Tex2D,
+			inWidth, inHeight, 1, 1, 1,
+		};
+	}
+
+private:
+	TextureKindShapeDesc shapeDesc;
+};
 
 // ID3D12SwapChain
 // VkSwapchainKHR

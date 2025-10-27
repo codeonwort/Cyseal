@@ -136,6 +136,22 @@ struct TextureCreateParams
 class Texture : public TextureKind
 {
 public:
+	virtual TextureKindShapeDesc internal_getShapeDesc() override
+	{
+		const TextureCreateParams& params = getCreateParams();
+		TextureKindShapeDesc::Dimension dim;
+		switch (params.dimension)
+		{
+			case ETextureDimension::UNKNOWN   : dim = TextureKindShapeDesc::Dimension::Unknown; break;
+			case ETextureDimension::TEXTURE1D : dim = TextureKindShapeDesc::Dimension::Tex1D; break;
+			case ETextureDimension::TEXTURE2D : dim = TextureKindShapeDesc::Dimension::Tex2D; break;
+			case ETextureDimension::TEXTURE3D : dim = TextureKindShapeDesc::Dimension::Tex3D; break;
+		}
+		return TextureKindShapeDesc{
+			dim, params.width, params.height, params.depth, params.mipLevels, params.numLayers,
+		};
+	}
+
 	virtual const TextureCreateParams& getCreateParams() const = 0;
 
 	virtual void uploadData(

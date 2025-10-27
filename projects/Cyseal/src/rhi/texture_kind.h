@@ -5,6 +5,18 @@
 #include "gpu_resource.h"
 #include "barrier_tracker.h"
 
+struct TextureKindShapeDesc
+{
+	enum class Dimension { Unknown, Tex1D, Tex2D, Tex3D };
+
+	Dimension dimension        = Dimension::Unknown;
+	uint32    width            = 0;
+	uint32    height           = 0;
+	uint16    depthOrArraySize = 1;
+	uint16    mipCount         = 1;
+	uint32    numLayers        = 1; // For tex2Darray or texCube
+};
+
 class TextureKind : public GPUResource
 {
 public:
@@ -17,6 +29,8 @@ public:
 	inline const BarrierTracker::TextureStateSet& internal_getLastBarrierState() const { return lastBarrier; }
 	// Use only when a command list is closed.
 	inline void internal_setLastBarrierState(const BarrierTracker::TextureStateSet& newState) { lastBarrier = newState; }
+
+	virtual TextureKindShapeDesc internal_getShapeDesc() = 0;
 
 private:
 	// This is used only for two cases:

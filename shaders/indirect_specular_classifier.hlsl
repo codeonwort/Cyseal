@@ -15,6 +15,7 @@ RWStructuredBuffer<uint>      rwTileCoordBuffer; // High 16-bit = y coord, low 1
 RWStructuredBuffer<uint>      rwTileCounterBuffer;
 
 RWStructuredBuffer<D3D12_DISPATCH_RAYS_DESC> rwIndirectArgumentBuffer; // For prepareIndirectRaysCS
+RWStructuredBuffer<D3D12_DISPATCH_ARGUMENTS> rwAmdReprojArgumentBuffer; // For ffx_denoiser_reproject_reflections_pass.hlsl
 
 // ---------------------------------------------------------
 // Shader: tileClassificationCS
@@ -80,4 +81,9 @@ void prepareIndirectRaysCS()
 	desc.Depth = 1;
 	
 	rwIndirectArgumentBuffer[0] = desc;
+	
+	D3D12_DISPATCH_ARGUMENTS amdDesc;
+	amdDesc.ThreadGroupCountX = counter;
+	amdDesc.ThreadGroupCountY = 1;
+	amdDesc.ThreadGroupCountZ = 1;
 }

@@ -122,7 +122,15 @@ private:
 	UniquePtr<ComputePipelineState>          amdReprojectPipeline;
 	VolatileDescriptorHelper                 amdReprojectPassDescriptor;
 
+	UniquePtr<CommandSignature>              amdReprojCommandSignature;
+	UniquePtr<IndirectCommandGenerator>      amdReprojCommandGenerator;
+	UniquePtr<Buffer>                        amdReprojCommandBuffer;
+	UniquePtr<UnorderedAccessView>           amdReprojCommandBufferUAV;
+
 	UniquePtr<Texture>                       avgRadianceTexture;
 	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
+	// #wip: Maintain separate history until denoiser is fully integrated.
+	TextureSequence                          amdRadianceHistory;
 	TextureSequence                          amdVarianceHistory;
+	TextureSequence                          amdSampleCountHistory;
 };

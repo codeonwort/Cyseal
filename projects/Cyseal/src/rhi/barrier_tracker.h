@@ -79,7 +79,8 @@ public:
 	// Convert half-auto barrier to full barrier.
 	BufferBarrier toBufferBarrier(const BufferBarrierAuto& halfBarrier) const;
 	// Convert half-auto barrier to full barrier.
-	TextureBarrier toTextureBarrier(const TextureBarrierAuto& halfBarrier) const;
+	// #todo-barrier: Non-const due to TextureStateSet::convertToHolisticIfPossible(). Maybe need to move it to applyTextureBarrier().
+	TextureBarrier toTextureBarrier(const TextureBarrierAuto& halfBarrier);
 
 	// Verify full barrier and update internal state tracker.
 	void applyBufferBarrier(const BufferBarrier& barrier);
@@ -139,6 +140,9 @@ public:
 
 		// Successful if there is a local state whose subresource range contains barrier's subresource range.
 		bool splitLocalState(const TextureBarrier& barrier);
+
+		// targetTexture: texture related to this TextureStateSet instance.
+		void convertToHolisticIfPossible(TextureKind* targetTexture);
 
 		static bool isSubRange(const TextureState& sub, const BarrierSubresourceRange& range);
 	};
