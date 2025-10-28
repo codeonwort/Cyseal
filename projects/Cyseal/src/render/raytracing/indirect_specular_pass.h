@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "core/matrix.h"
 #include "core/smart_pointer.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/rhi_forward.h"
@@ -21,6 +22,9 @@ struct IndirectSpecularInput
 
 	uint32                 sceneWidth;
 	uint32                 sceneHeight;
+	Float4x4               invProjection;
+	Float4x4               invView;
+	Float4x4               prevViewProjection;
 
 	ConstantBufferView*    sceneUniformBuffer;
 	GPUScene*              gpuScene;

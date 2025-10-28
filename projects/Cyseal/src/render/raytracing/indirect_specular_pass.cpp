@@ -60,9 +60,21 @@ struct TemporalPassUniform
 	uint32   _pad1;
 };
 
+// cbuffer cbDenoiserReflections in ffx_denoiser_reflections_callbacks_hlsl.h
 struct AMDReprojectPassUniform
 {
-	uint32   _pad[4];
+	Float4x4 invProjection;
+	Float4x4 invView;
+	Float4x4 prevViewProjection;
+	uint32   renderSize[2];
+	float    invRenderSize[2];
+	float    motionVectorScale[2];
+	float    normalsUnpackMul;
+	float    normalsUnpackAdd;
+	bool     isRoughnessPerceptual;
+	float    temporalStabilityFactor;
+	float    roughnessThreshold;
+	float    _pad0;
 };
 
 // Just to calculate size in bytes.
@@ -187,6 +199,8 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	legacyDenoisingPhase(commandList, swapchainIndex, passInput);
 	amdReprojPhase(commandList, swapchainIndex, passInput);
 
+	// #wip: Temp emit amd denoiser result.
+#if 0
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
@@ -198,6 +212,21 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 		commandList->copyTexture2D(currColorTexture, passInput.indirectSpecularTexture);
 	}
+#else
+	{
+		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
+
+		auto amdResult = amdRadianceHistory.getTexture(currFrame);
+
+		TextureBarrierAuto barriersBefore[] = {
+			TextureBarrierAuto::toCopySource(amdResult),
+			TextureBarrierAuto::toCopyDest(passInput.indirectSpecularTexture),
+		};
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+
+		commandList->copyTexture2D(amdResult, passInput.indirectSpecularTexture);
+	}
+#endif
 }
 
 void IndirecSpecularPass::initializeClassifierPipeline()
@@ -502,7 +531,7 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 			1, 1, 0
 		)
 	));
-	avgRadianceTexture->setDebugName(L"RT_SpecularRaysTexture");
+	avgRadianceTexture->setDebugName(L"RT_SpecularAvgRadianceTexture");
 	avgRadianceUAV = UniquePtr<UnorderedAccessView>(device->createUAV(avgRadianceTexture.get(),
 		UnorderedAccessViewDesc{
 			.format = avgRadianceTexture->getCreateParams().format,
@@ -879,6 +908,23 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	auto currVarianceUAV = amdVarianceHistory.getUAV(currFrame);
 	auto prevVarianceSRV = amdVarianceHistory.getSRV(prevFrame);
 
+	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(swapchainIndex);
+	
+	AMDReprojectPassUniform uniformData{
+		.invProjection           = passInput.invProjection,
+		.invView                 = passInput.invView,
+		.prevViewProjection      = passInput.prevViewProjection,
+		.renderSize              = { passInput.sceneWidth, passInput.sceneHeight },
+		.invRenderSize           = { 1.0f / (float)passInput.sceneWidth, 1.0f / (float)passInput.sceneHeight },
+		.motionVectorScale       = { 1.0f, 1.0f },
+		.normalsUnpackMul        = 1.0f,
+		.normalsUnpackAdd        = 0.0f,
+		.isRoughnessPerceptual   = false, // #wip: Why true in PIX capture?
+		.temporalStabilityFactor = 0.97f,
+		.roughnessThreshold      = 0.4f,
+	};
+	passUniformCBV->writeToGPU(commandList, &uniformData, sizeof(uniformData));
+
 	// Defines in hlsl. Prepare matching resources...
 #if 0
 	#define DENOISER_BIND_SRV_INPUT_DEPTH_HIERARCHY    2
@@ -971,26 +1017,24 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 
 	ShaderResourceView* hizSRV                  = passInput.hizSRV; // tex2d, r32
 	ShaderResourceView* motionVectorSRV         = passInput.velocityMapSRV; // tex2d, rg32
-	ShaderResourceView* normalSRV               = passInput.normalSRV; // tex2d, rgb32 (world space?)
-	ShaderResourceView* radianceSRV             = raytracingSRV.get(); // tex2d, rgba32 (alpha channel value?)
-	ShaderResourceView* radianceHistorySRV      = prevRadianceSRV; // tex2d, rgba32 (alpha channel value?)
+	ShaderResourceView* normalSRV               = passInput.normalSRV; // tex2d, rgb32 (world space)
+	ShaderResourceView* radianceSRV             = raytracingSRV.get(); // tex2d, rgba32 (w = ray length)
+	ShaderResourceView* radianceHistorySRV      = prevRadianceSRV; // tex2d, rgba32 (w not used)
 	ShaderResourceView* varianceSRV             = prevVarianceSRV; // tex2d, r32 (history; for prev frame)
 	ShaderResourceView* sampleCountSRV          = prevSampleCountSRV; // tex2d, r32 (history; for prev frame)
 	ShaderResourceView* extractedRoughnessSRV   = passInput.roughnessSRV; // tex2d, r32 (not perceptual. see ffx_denoiser_reflections_callbacks_hlsl.h)
 	ShaderResourceView* depthHistorySRV         = passInput.prevSceneDepthSRV; // tex2d, r32
-	ShaderResourceView* normalHistorySRV        = passInput.prevNormalSRV; // tex2d, rgb32 (world space?)
+	ShaderResourceView* normalHistorySRV        = passInput.prevNormalSRV; // tex2d, rgb32 (world space)
 	ShaderResourceView* roughnessHistorySRV     = passInput.prevRoughnessSRV; // tex2d, r32
 	UnorderedAccessView* varianceUAV            = currVarianceUAV; // rwTex2d, r32 (writeonly)
 	UnorderedAccessView* sampleCountUAV         = currSampleCountUAV; // rwTex2d, r32 (writeonly)
 	UnorderedAccessView* averageRadianceUAV     = avgRadianceUAV.get(); // rwTex2d, rgb32 (writeonly, per 8x8 tile)
 	UnorderedAccessView* denoiserTileListUAV    = passInput.tileCoordBufferUAV; // rwStructuredBuffer<uint> (readonly)
-	UnorderedAccessView* reprojectedRadianceUAV = currRadianceUAV; // rwTex2d, rgb32 (writeonly)
-
-	// #wip: Oops need to prepare cbuffer cbDenoiserReflections :/
-	// '#define DENOISER_BIND_CB_DENOISER   0' does not mean it won't use cb...
+	UnorderedAccessView* reprojectedRadianceUAV = currRadianceUAV; // rwTex2d, rgb32 (writeonly, w not used)
 
 	// Param names from ffx_denoiser_reflections_callbacks_hlsl.h
 	ShaderParameterTable SPT{};
+	SPT.constantBuffer("cbDenoiserReflections", passUniformCBV);
 	SPT.texture("r_input_depth_hierarchy", hizSRV);
 	SPT.texture("r_input_motion_vectors", motionVectorSRV);
 	SPT.texture("r_input_normal", normalSRV);

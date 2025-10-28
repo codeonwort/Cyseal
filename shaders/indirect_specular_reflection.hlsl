@@ -221,10 +221,13 @@ float3 traceLightSources(float3 rayOrigin, float3 surfaceNormal)
 // ---------------------------------------------------------
 // Shader stages
 
-float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
+// {rayOrigin, rayDir} = ray that starts from gbuffer surface
+// returns (xyz = radiance, w = ray length between gbuffer surface and next surface)
+float4 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 {
 	RayPayload currentRayPayload = createRayPayload();
 	float prevIoR = IOR_AIR; // #todo-refraction: Assume primary ray is always in air.
+	float rayLength = 65000.0;
 
 	RayDesc currentRay;
 	currentRay.Origin = rayOrigin;
@@ -268,6 +271,11 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
+		
+		if (pathLen == 0 && currentRayPayload.objectID != OBJECT_ID_NONE)
+		{
+			rayLength = length(rayOrigin - surfacePosition);
+		}
 
 		float2 randoms = getRandoms(texel, pathLen);
 
@@ -319,7 +327,7 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		pathLen += 1;
 	}
 
-	return Li;
+	return float4(Li, rayLength);
 }
 
 [shader("raygeneration")]
@@ -345,7 +353,7 @@ void MainRaygen()
 #else
 		float3 Wo = 0;
 #endif
-		raytracingTexture[texel] = float4(Wo, 1.0);
+		raytracingTexture[texel] = float4(Wo, 65000.0);
 		return;
 	}
 
@@ -363,6 +371,7 @@ void MainRaygen()
 	// Consider only specular part for first indirect bounce, but consider both for further bounces.
 	// Therefore it's L(D|S)SE path.
 	float3 Wo = 0;
+	float rayLength = 65000.0;
 	MicrofacetBRDFOutput brdfOutput;
 	if (gbufferData.materialID == MATERIAL_ID_DEFAULT_LIT)
 	{
@@ -378,9 +387,10 @@ void MainRaygen()
 			brdfOutput = hwrt::evaluateMirror(viewDirection, normalWS);
 		}
 		float3 relaxedPositionWS = normalWS * GBUFFER_NORMAL_OFFSET + positionWS;
-		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, brdfOutput.outRayDir);
+		float4 LiAndRayLen = traceIncomingRadiance(texel, relaxedPositionWS, brdfOutput.outRayDir);
 		
-		Wo = (brdfOutput.specularReflectance / brdfOutput.pdf) * Li;
+		Wo = (brdfOutput.specularReflectance / brdfOutput.pdf) * LiAndRayLen.xyz;
+		rayLength = LiAndRayLen.w;
 	}
 	else if (gbufferData.materialID == MATERIAL_ID_GLASS)
 	{
@@ -389,14 +399,15 @@ void MainRaygen()
 		brdfOutput = hwrt::evaluateGlass(viewDirection, normalWS, IOR_AIR, ior, transmittance);
 
 		float3 relaxedPositionWS = positionWS + (brdfOutput.outRayDir * REFRACTION_START_OFFSET);
-		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, brdfOutput.outRayDir);
+		float4 LiAndRayLen = traceIncomingRadiance(texel, relaxedPositionWS, brdfOutput.outRayDir);
 
-		Wo = (brdfOutput.specularReflectance / brdfOutput.pdf) * Li;
+		Wo = (brdfOutput.specularReflectance / brdfOutput.pdf) * LiAndRayLen.xyz;
+		rayLength = LiAndRayLen.w;
 	}
 	
 	if (any(isnan(Wo))) Wo = 0;
 
-	raytracingTexture[texel] = float4(Wo, 1);
+	raytracingTexture[texel] = float4(Wo, rayLength);
 }
 
 [shader("closesthit")]
