@@ -133,6 +133,8 @@ private:
 
 	UniquePtr<Texture>                       avgRadianceTexture;
 	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
+	UniquePtr<Texture>                       reprojectedRadianceTexture;
+	UniquePtr<UnorderedAccessView>           reprojectedRadianceUAV;
 	// #wip: Maintain separate history until denoiser is fully integrated.
 	TextureSequence                          amdRadianceHistory;
 	TextureSequence                          amdVarianceHistory;

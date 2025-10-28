@@ -75,9 +75,10 @@ TextureCube                             skybox                : register(t5, spa
 Texture2D<GBUFFER0_DATATYPE>            gbuffer0              : register(t6, space0);
 Texture2D<GBUFFER1_DATATYPE>            gbuffer1              : register(t7, space0);
 Texture2D                               sceneDepthTexture     : register(t8, space0);
-RWTexture2D<float4>                     raytracingTexture     : register(u0, space0);
+RWTexture2D<float4>                     rwRaytracingTexture   : register(u0, space0);
+RWTexture2D<float4>                     rwPrevRadianceTexture : register(u1, space0);
 #if INDIRECT_DISPATCH_RAYS
-RWStructuredBuffer<uint>                rwTileCoordBuffer     : register(u1, space0);
+RWStructuredBuffer<uint>                rwTileCoordBuffer     : register(u2, space0);
 #endif
 
 // Material resource binding
@@ -353,7 +354,8 @@ void MainRaygen()
 #else
 		float3 Wo = 0;
 #endif
-		raytracingTexture[texel] = float4(Wo, 65000.0);
+		rwRaytracingTexture[texel] = float4(Wo, 65000.0);
+		rwPrevRadianceTexture[texel] = float4(Wo, 65000.0);
 		return;
 	}
 
@@ -407,7 +409,8 @@ void MainRaygen()
 	
 	if (any(isnan(Wo))) Wo = 0;
 
-	raytracingTexture[texel] = float4(Wo, rayLength);
+	rwRaytracingTexture[texel] = float4(Wo, rayLength);
+	rwPrevRadianceTexture[texel] = float4(Wo, rayLength);
 }
 
 [shader("closesthit")]
