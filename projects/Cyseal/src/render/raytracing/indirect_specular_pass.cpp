@@ -725,11 +725,17 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 	commandList->setRaytracingPipelineState(RTPSO.get());
 
 	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
-	auto prevRadianceUAV = amdRadianceHistory.getUAV(prevFrame);
+	auto prevRadianceUAV     = amdRadianceHistory.getUAV(prevFrame);
+	auto prevVarianceTexture = amdVarianceHistory.getTexture(prevFrame);
+	auto prevVarianceUAV     = amdVarianceHistory.getUAV(prevFrame);
 	TextureBarrierAuto textureBarriers[] = {
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
 			prevRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			prevVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
 	};
 	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
@@ -750,6 +756,7 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.rwTexture("rwRaytracingTexture", raytracingUAV.get());
 		SPT.rwTexture("rwPrevRadianceTexture", prevRadianceUAV);
+		SPT.rwTexture("rwPrevVarianceTexture", prevVarianceUAV);
 #if INDIRECT_DISPATCH_RAYS
 		SPT.rwBuffer("rwTileCoordBuffer", passInput.tileCoordBufferUAV);
 #endif
