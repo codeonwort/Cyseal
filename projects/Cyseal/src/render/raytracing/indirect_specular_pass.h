@@ -85,6 +85,7 @@ private:
 
 	void amdReprojPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 	void amdPrefilterPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
+	void amdResolveTemporalPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 
 private:
 	RenderDevice*                            device = nullptr;
@@ -131,6 +132,9 @@ private:
 	UniquePtr<ComputePipelineState>          amdPrefilterPipeline;
 	VolatileDescriptorHelper                 amdPrefilterPassDescriptor;
 
+	UniquePtr<ComputePipelineState>          amdResolveTemporalPipeline;
+	VolatileDescriptorHelper                 amdResolveTemporalPassDescriptor;
+
 	UniquePtr<CommandSignature>              amdCommandSignature;
 	UniquePtr<IndirectCommandGenerator>      amdCommandGenerator;
 	UniquePtr<Buffer>                        amdCommandBuffer;
@@ -140,6 +144,7 @@ private:
 	UniquePtr<ShaderResourceView>            avgRadianceSRV;
 	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
 	UniquePtr<Texture>                       reprojectedRadianceTexture;
+	UniquePtr<ShaderResourceView>            reprojectedRadianceSRV;
 	UniquePtr<UnorderedAccessView>           reprojectedRadianceUAV;
 	TextureSequence                          amdRadianceHistory;
 	TextureSequence                          amdVarianceHistory;
