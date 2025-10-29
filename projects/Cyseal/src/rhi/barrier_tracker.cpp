@@ -61,7 +61,7 @@ BufferBarrier BarrierTracker::toBufferBarrier(const BufferBarrierAuto& halfBarri
 	return fullBarrier;
 }
 
-TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBarrier)
+TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBarrier) const
 {
 	TextureState beforeState;
 
@@ -70,14 +70,10 @@ TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBa
 	auto it = textureStates.find(halfBarrier.texture);
 	if (it != textureStates.end())
 	{
-		TextureStateSet& stateSet = it->second;
+		const TextureStateSet& stateSet = it->second;
 		if (halfBarrier.subresources.isHolistic())
 		{
-			if (stateSet.bHolistic == false)
-			{
-				stateSet.convertToHolisticIfPossible(halfBarrier.texture);
-			}
-			CHECK(stateSet.bHolistic); // #todo-barrier: Failed to convert. What to do?
+			CHECK(stateSet.bHolistic); // #todo-barrier: What to do?
 			beforeState = stateSet.globalState;
 		}
 		else
@@ -207,6 +203,8 @@ void BarrierTracker::applyTextureBarrier(const TextureBarrier& barrier)
 			}
 		}
 	}
+
+	stateSet.convertToHolisticIfPossible(barrier.texture);
 }
 
 // ------------------------------------------------------------------
@@ -349,8 +347,15 @@ void BarrierTracker::TextureStateSet::convertToHolisticIfPossible(TextureKind* t
 	CHECK(localStates.size() > 0);
 
 	const TextureKindShapeDesc& desc = targetTexture->internal_getShapeDesc();
-	// #todo-barrier: Support other dimensions
-	CHECK(desc.dimension == TextureKindShapeDesc::Dimension::Tex2D && desc.numLayers == 1);
+
+	// #todo-barrier: Process all cases correctly.
+	bool bCanProcess = (desc.dimension == TextureKindShapeDesc::Dimension::Tex2D && desc.numLayers == 1);
+	if (!bCanProcess)
+	{
+		// Can be problematic in BarrierTracker::toTextureBarrier()
+		// when target barrier's subresource range is holistic, the actual GPU resource is holistic, but current stateSet is not.
+		return;
+	}
 
 	std::vector<bool> localVisited(desc.mipCount, false);
 	std::vector<EBarrierSync> localSyncs(desc.mipCount);

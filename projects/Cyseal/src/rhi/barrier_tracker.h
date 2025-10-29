@@ -79,8 +79,7 @@ public:
 	// Convert half-auto barrier to full barrier.
 	BufferBarrier toBufferBarrier(const BufferBarrierAuto& halfBarrier) const;
 	// Convert half-auto barrier to full barrier.
-	// #wip: Non-const due to TextureStateSet::convertToHolisticIfPossible(). Maybe need to move it to applyTextureBarrier().
-	TextureBarrier toTextureBarrier(const TextureBarrierAuto& halfBarrier);
+	TextureBarrier toTextureBarrier(const TextureBarrierAuto& halfBarrier) const;
 
 	// Verify full barrier and update internal state tracker.
 	void applyBufferBarrier(const BufferBarrier& barrier);
