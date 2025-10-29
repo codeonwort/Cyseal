@@ -80,6 +80,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <FxCompile Include="..\..\shaders\amd\ffx_denoiser_prefilter_reflections_pass.hlsl" />
     <FxCompile Include="..\..\shaders\amd\ffx_denoiser_reproject_reflections_pass.hlsl" />
     <FxCompile Include="..\..\shaders\base_pass.hlsl" />
     <FxCompile Include="..\..\shaders\bilateral_blur.hlsl" />
@@ -108,6 +109,7 @@
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_callbacks_hlsl.h" />
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_common.h" />
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_config.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_prefilter.h" />
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_reproject.h" />
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_resources.h" />
     <ClInclude Include="..\..\shaders\amd\ffx_common_types.h" />
