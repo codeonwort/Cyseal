@@ -132,6 +132,9 @@ private:
 	UniquePtr<Buffer>                        amdReprojCommandBuffer;
 	UniquePtr<UnorderedAccessView>           amdReprojCommandBufferUAV;
 
+	UniquePtr<ComputePipelineState>          amdPrefilterPipeline;
+	VolatileDescriptorHelper                 amdPrefilterPassDescriptor;
+
 	UniquePtr<Texture>                       avgRadianceTexture;
 	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
 	UniquePtr<Texture>                       reprojectedRadianceTexture;

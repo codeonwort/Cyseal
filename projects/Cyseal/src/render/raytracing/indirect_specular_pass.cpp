@@ -62,7 +62,7 @@ struct TemporalPassUniform
 };
 
 // cbuffer cbDenoiserReflections in ffx_denoiser_reflections_callbacks_hlsl.h
-struct AMDReprojectPassUniform
+struct AMDDenoiserUniform
 {
 	Float4x4 invProjection;
 	Float4x4 invView;
@@ -411,26 +411,47 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 {
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
-	amdReprojectPassDescriptor.initialize(L"IndirectSpecular_AMDReprojectPass", swapchainCount, sizeof(AMDReprojectPassUniform));
-
 	const auto historyFlags = ETextureAccessFlags::SRV | ETextureAccessFlags::UAV;
 	amdRadianceHistory.initialize(PF_amdRadiance, historyFlags, L"RT_SpecularAmdRadianceHistory");
 	amdVarianceHistory.initialize(PF_amdVariance, historyFlags, L"RT_SpecularAmdVarianceHistory");
 	amdSampleCountHistory.initialize(PF_sampleCountHistory, historyFlags, L"RT_SpecularAmdSampleCountHistory");
 
-	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularReprojectCS");
-	shader->declarePushConstants();
-	shader->loadFromFile(L"amd/ffx_denoiser_reproject_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL" });
+	{
+		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularReprojectCS");
+		shader->declarePushConstants();
+		shader->loadFromFile(L"amd/ffx_denoiser_reproject_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL" });
 
-	amdReprojectPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
-		ComputePipelineDesc{
-			.cs             = shader,
-			.nodeMask       = 0,
-			.staticSamplers = {},
-		}
-	));
+		amdReprojectPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
+			ComputePipelineDesc{
+				.cs             = shader,
+				.nodeMask       = 0,
+				.staticSamplers = {},
+			}
+		));
 
-	delete shader;
+		// All 3 passes use the same cbuffer. Let's maintain it in the first pass.
+		amdReprojectPassDescriptor.initialize(L"IndirectSpecular_AMDReprojectPass", swapchainCount, sizeof(AMDDenoiserUniform));
+
+		delete shader;
+	}
+	{
+		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularPrefilterCS");
+		shader->declarePushConstants();
+		shader->loadFromFile(L"amd/ffx_denoiser_prefilter_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL" });
+
+		amdPrefilterPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
+			ComputePipelineDesc{
+				.cs             = shader,
+				.nodeMask       = 0,
+				.staticSamplers = {},
+			}
+		));
+
+		// cbuffer will be borrowed from first pass.
+		amdPrefilterPassDescriptor.initialize(L"IndirectSpecular_AMDPrefilterPass", swapchainCount, 0);
+
+		delete shader;
+	}
 
 	// Indirect dispatch
 	CommandSignatureDesc commandSignatureDesc{
@@ -948,7 +969,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 
 	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(swapchainIndex);
 	
-	AMDReprojectPassUniform uniformData{
+	AMDDenoiserUniform uniformData{
 		.invProjection           = passInput.invProjection,
 		.invView                 = passInput.invView,
 		.prevViewProjection      = passInput.prevViewProjection,
