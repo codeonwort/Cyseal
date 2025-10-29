@@ -437,7 +437,7 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 		.argumentDescs = { IndirectArgumentDesc{ .type = EIndirectArgumentType::DISPATCH, }, },
 		.nodeMask = 0,
 	};
-	// Pass null instead of RTPSO because root signature won't be changed by indirect commands.
+	// Pass null instead of pipeline state because root signature won't be changed by indirect commands.
 	amdReprojCommandSignature = UniquePtr<CommandSignature>(device->createCommandSignature(commandSignatureDesc, (ComputePipelineState*)nullptr));
 	amdReprojCommandGenerator = UniquePtr<IndirectCommandGenerator>(device->createIndirectCommandGenerator(commandSignatureDesc, 1));
 	amdReprojCommandBuffer = UniquePtr<Buffer>(device->createBuffer(
