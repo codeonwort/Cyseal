@@ -122,6 +122,7 @@ private:
 	UniquePtr<UnorderedAccessView>           raytracingUAV;
 	UniquePtr<RenderTargetView>              raytracingRTV;
 
+// Only for AMD reflection denoiser
 private:
 	UniquePtr<ComputePipelineState>          amdReprojectPipeline;
 	VolatileDescriptorHelper                 amdReprojectPassDescriptor;
@@ -135,7 +136,6 @@ private:
 	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
 	UniquePtr<Texture>                       reprojectedRadianceTexture;
 	UniquePtr<UnorderedAccessView>           reprojectedRadianceUAV;
-	// #wip: Maintain separate history until denoiser is fully integrated.
 	TextureSequence                          amdRadianceHistory;
 	TextureSequence                          amdVarianceHistory;
 	TextureSequence                          amdSampleCountHistory;

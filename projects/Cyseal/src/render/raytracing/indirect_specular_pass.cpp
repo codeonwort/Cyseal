@@ -26,7 +26,7 @@
 
 #define RANDOM_SEQUENCE_LENGTH              (64 * 64)
 
-// #wip: Need to support r16 in EPixelFormat
+// #todo-specular-denoiser: Add EPixelFormat::R16_FLOAT support
 #define PF_raytracing                       EPixelFormat::R16G16B16A16_FLOAT
 #define PF_colorHistory                     EPixelFormat::R16G16B16A16_FLOAT
 #define PF_momentHistory                    EPixelFormat::R16G16_FLOAT
@@ -196,12 +196,10 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 	raytracingPhase(commandList, swapchainIndex, passInput);
 
-	// #wip: Ultimately need to execute only one path.
+	// #todo-specular-denoiser: Ultimately need to execute only one path.
 	legacyDenoisingPhase(commandList, swapchainIndex, passInput);
 	amdReprojPhase(commandList, swapchainIndex, passInput);
-
-	// #wip: Temp emit amd denoiser result.
-#if 0
+#if 1
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
@@ -724,10 +722,12 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 
 	commandList->setRaytracingPipelineState(RTPSO.get());
 
+	// #todo-reflection-denoiser: Is it correct to use prevFrame?
 	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
 	auto prevRadianceUAV     = amdRadianceHistory.getUAV(prevFrame);
 	auto prevVarianceTexture = amdVarianceHistory.getTexture(prevFrame);
 	auto prevVarianceUAV     = amdVarianceHistory.getUAV(prevFrame);
+
 	TextureBarrierAuto textureBarriers[] = {
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
@@ -926,7 +926,6 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 
 void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
 {
-	// #wip: Implement this
 	SCOPED_DRAW_EVENT(commandList, AMDReproject);
 
 	const uint32 currFrame = swapchainIndex % 2;
@@ -958,7 +957,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 		.motionVectorScale       = { 1.0f, 1.0f },
 		.normalsUnpackMul        = 1.0f,
 		.normalsUnpackAdd        = 0.0f,
-		.isRoughnessPerceptual   = false, // #wip: Why true in PIX capture?
+		.isRoughnessPerceptual   = false, // #todo-reflection-denoiser: Why true in PIX capture?
 		.temporalStabilityFactor = 0.97f,
 		.roughnessThreshold      = 0.4f,
 	};
@@ -1057,7 +1056,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	ShaderResourceView* hizSRV                  = passInput.hizSRV; // tex2d, r32
 	ShaderResourceView* motionVectorSRV         = passInput.velocityMapSRV; // tex2d, rg32
 	ShaderResourceView* normalSRV               = passInput.normalSRV; // tex2d, rgb32 (world space)
-	// #wip: I don't understand how radiance, radiance history, and reprojected radiance plays their roles...
+	// #todo-reflection-denoiser: Are history bindings correct?
 	ShaderResourceView* radianceSRV             = currRadianceSRV; // tex2d, rgba32 (w = ray length)
 	ShaderResourceView* radianceHistorySRV      = prevRadianceSRV; // tex2d, rgba32 (w not used)
 	ShaderResourceView* varianceSRV             = prevVarianceSRV; // tex2d, r32 (history; for prev frame)
