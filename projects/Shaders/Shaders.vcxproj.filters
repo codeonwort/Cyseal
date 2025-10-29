@@ -29,6 +29,9 @@
     <FxCompile Include="..\..\shaders\amd\ffx_denoiser_prefilter_reflections_pass.hlsl">
       <Filter>amd</Filter>
     </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_denoiser_resolve_temporal_reflections_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">
@@ -70,6 +73,9 @@
       <Filter>amd</Filter>
     </ClInclude>
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_prefilter.h">
+      <Filter>amd\denoiser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_resolve_temporal.h">
       <Filter>amd\denoiser</Filter>
     </ClInclude>
   </ItemGroup>
