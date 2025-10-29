@@ -26,6 +26,9 @@
     <FxCompile Include="..\..\shaders\hiz.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_classifier.hlsl" />
     <FxCompile Include="..\..\shaders\store_history.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_denoiser_prefilter_reflections_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">
@@ -65,6 +68,9 @@
     </ClInclude>
     <ClInclude Include="..\..\shaders\amd\ffx_core_hlsl.h">
       <Filter>amd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_prefilter.h">
+      <Filter>amd\denoiser</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
