@@ -912,11 +912,11 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 		uint32 dispatchY = (historyHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
-		GlobalBarrier uavBarrier = {
+		GlobalBarrier globalBarrier = {
 			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
 			EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
 		};
-		commandList->barrier(0, nullptr, 0, nullptr, 1, &uavBarrier);
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 	}
 
 	// -------------------------------------------------------------------
@@ -963,29 +963,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	};
 	passUniformCBV->writeToGPU(commandList, &uniformData, sizeof(uniformData));
 
-	// Defines in hlsl. Prepare matching resources...
-#if 0
-	#define DENOISER_BIND_SRV_INPUT_DEPTH_HIERARCHY    2
-	#define DENOISER_BIND_SRV_INPUT_MOTION_VECTORS     3
-	#define DENOISER_BIND_SRV_INPUT_NORMAL             4
-	#define DENOISER_BIND_SRV_RADIANCE                 7
-	#define DENOISER_BIND_SRV_RADIANCE_HISTORY         8
-	#define DENOISER_BIND_SRV_VARIANCE                 9
-	#define DENOISER_BIND_SRV_SAMPLE_COUNT             10
-	#define DENOISER_BIND_SRV_EXTRACTED_ROUGHNESS      12
-	#define DENOISER_BIND_SRV_DEPTH_HISTORY            13
-	#define DENOISER_BIND_SRV_NORMAL_HISTORY           14
-	#define DENOISER_BIND_SRV_ROUGHNESS_HISTORY        15
-
-	#define DENOISER_BIND_UAV_VARIANCE                        1
-	#define DENOISER_BIND_UAV_SAMPLE_COUNT                    2
-	#define DENOISER_BIND_UAV_AVERAGE_RADIANCE                3
-	#define DENOISER_BIND_UAV_DENOISER_TILE_LIST              5
-	#define DENOISER_BIND_UAV_REPROJECTED_RADIANCE            9
-#endif
-
 	// Stub shader resource bindings.
-#if 1
 	BufferBarrierAuto bufferBarriers[] = {
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
 	};
@@ -1053,6 +1031,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	};
 	commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
+	// See ffx_denoiser_reproject_reflections_pass.hlsl
 	ShaderResourceView* hizSRV                  = passInput.hizSRV; // tex2d, r32
 	ShaderResourceView* motionVectorSRV         = passInput.velocityMapSRV; // tex2d, rg32
 	ShaderResourceView* normalSRV               = passInput.normalSRV; // tex2d, rgb32 (world space)
@@ -1101,10 +1080,9 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	// Dispatch compute and issue memory barriers.
 	commandList->executeIndirect(amdReprojCommandSignature.get(), 1, amdReprojCommandBuffer.get(), 0);
 
-	GlobalBarrier uavBarrier = {
+	GlobalBarrier globalBarrier = {
 		EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
 		EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
 	};
-	commandList->barrier(0, nullptr, 0, nullptr, 1, &uavBarrier);
-#endif
+	commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 }
