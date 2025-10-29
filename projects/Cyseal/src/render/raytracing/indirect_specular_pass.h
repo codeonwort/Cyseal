@@ -84,6 +84,7 @@ private:
 	void legacyDenoisingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 
 	void amdReprojPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
+	void amdPrefilterPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 
 private:
 	RenderDevice*                            device = nullptr;
@@ -127,15 +128,16 @@ private:
 	UniquePtr<ComputePipelineState>          amdReprojectPipeline;
 	VolatileDescriptorHelper                 amdReprojectPassDescriptor;
 
-	UniquePtr<CommandSignature>              amdReprojCommandSignature;
-	UniquePtr<IndirectCommandGenerator>      amdReprojCommandGenerator;
-	UniquePtr<Buffer>                        amdReprojCommandBuffer;
-	UniquePtr<UnorderedAccessView>           amdReprojCommandBufferUAV;
-
 	UniquePtr<ComputePipelineState>          amdPrefilterPipeline;
 	VolatileDescriptorHelper                 amdPrefilterPassDescriptor;
 
+	UniquePtr<CommandSignature>              amdCommandSignature;
+	UniquePtr<IndirectCommandGenerator>      amdCommandGenerator;
+	UniquePtr<Buffer>                        amdCommandBuffer;
+	UniquePtr<UnorderedAccessView>           amdCommandBufferUAV;
+
 	UniquePtr<Texture>                       avgRadianceTexture;
+	UniquePtr<ShaderResourceView>            avgRadianceSRV;
 	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
 	UniquePtr<Texture>                       reprojectedRadianceTexture;
 	UniquePtr<UnorderedAccessView>           reprojectedRadianceUAV;

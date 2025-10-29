@@ -230,7 +230,7 @@ float4 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 {
 	RayPayload currentRayPayload = createRayPayload();
 	float prevIoR = IOR_AIR; // #todo-refraction: Assume primary ray is always in air.
-	float rayLength = 65000.0;
+	float rayLength = 0.0;
 
 	RayDesc currentRay;
 	currentRay.Origin = rayOrigin;
