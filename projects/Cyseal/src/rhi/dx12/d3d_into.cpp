@@ -184,6 +184,10 @@ namespace into_d3d
 			{
 				return pipelineState->findShaderParameter(pname);
 			}
+			if constexpr (std::is_same_v<TPipelineState, D3DComputePipelineState>)
+			{
+				return pipelineState->findShaderParameter(pname);
+			}
 			if constexpr (std::is_same_v<TPipelineState, D3DRaytracingPipelineStateObject>)
 			{
 				return pipelineState->findGlobalShaderParameter(pname);
@@ -275,4 +279,5 @@ template void into_d3d::indirectArgument<D3DGraphicsPipelineState>(const Indirec
 template void into_d3d::indirectArgument<D3DRaytracingPipelineStateObject>(const IndirectArgumentDesc& inDesc, D3D12_INDIRECT_ARGUMENT_DESC& outDesc, D3DRaytracingPipelineStateObject* pipelineState);
 
 template void into_d3d::commandSignature<D3DGraphicsPipelineState>(const CommandSignatureDesc& inDesc, D3D12_COMMAND_SIGNATURE_DESC& outDesc, D3DGraphicsPipelineState* pipelineState, TempAlloc& tempAlloc);
+template void into_d3d::commandSignature<D3DComputePipelineState>(const CommandSignatureDesc& inDesc, D3D12_COMMAND_SIGNATURE_DESC& outDesc, D3DComputePipelineState* pipelineState, TempAlloc& tempAlloc);
 template void into_d3d::commandSignature<D3DRaytracingPipelineStateObject>(const CommandSignatureDesc& inDesc, D3D12_COMMAND_SIGNATURE_DESC& outDesc, D3DRaytracingPipelineStateObject* pipelineState, TempAlloc& tempAlloc);

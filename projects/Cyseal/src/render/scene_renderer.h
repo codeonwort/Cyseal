@@ -136,6 +136,7 @@ private:
 	class BufferVisualization*  bufferVisualization   = nullptr;
 	class PathTracingPass*      pathTracingPass       = nullptr;
 	class DenoiserPluginPass*   denoiserPluginPass    = nullptr;
+	class StoreHistoryPass*     storeHistoryPass      = nullptr;
 
 	std::vector<class SceneRenderPass*> sceneRenderPasses;
 };

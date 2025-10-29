@@ -73,7 +73,7 @@ TextureBarrier BarrierTracker::toTextureBarrier(const TextureBarrierAuto& halfBa
 		const TextureStateSet& stateSet = it->second;
 		if (halfBarrier.subresources.isHolistic())
 		{
-			CHECK(stateSet.bHolistic); // #todo-barrier: What to do in this case? No use case yet
+			CHECK(stateSet.bHolistic); // #todo-barrier: What to do?
 			beforeState = stateSet.globalState;
 		}
 		else
@@ -203,6 +203,8 @@ void BarrierTracker::applyTextureBarrier(const TextureBarrier& barrier)
 			}
 		}
 	}
+
+	stateSet.convertToHolisticIfPossible(barrier.texture);
 }
 
 // ------------------------------------------------------------------
@@ -334,6 +336,96 @@ bool BarrierTracker::TextureStateSet::splitLocalState(const TextureBarrier& barr
 		localStates.emplace_back(newLocalState2);
 	}
 	return append1 || append2;
+}
+
+void BarrierTracker::TextureStateSet::convertToHolisticIfPossible(TextureKind* targetTexture)
+{
+	if (bHolistic)
+	{
+		return;
+	}
+	CHECK(localStates.size() > 0);
+
+	const TextureKindShapeDesc& desc = targetTexture->internal_getShapeDesc();
+
+	// #todo-barrier: Process all cases correctly.
+	bool bCanProcess = (desc.dimension == TextureKindShapeDesc::Dimension::Tex2D && desc.numLayers == 1);
+	if (!bCanProcess)
+	{
+		// Can be problematic in BarrierTracker::toTextureBarrier()
+		// when target barrier's subresource range is holistic, the actual GPU resource is holistic, but current stateSet is not.
+		return;
+	}
+
+	std::vector<bool> localVisited(desc.mipCount, false);
+	std::vector<EBarrierSync> localSyncs(desc.mipCount);
+	std::vector<EBarrierAccess> localAccesses(desc.mipCount);
+	std::vector<EBarrierLayout> localLayouts(desc.mipCount);
+	for (auto i = 0u; i < localStates.size(); ++i)
+	{
+		const auto& range = localStates[i].subresources;
+		uint32 beginIx, endIx; // inclusive, exclusive
+		if (range.numMipLevels == 0)
+		{
+			beginIx = range.indexOrFirstMipLevel;
+			endIx = beginIx + 1;
+		}
+		else
+		{
+			beginIx = range.indexOrFirstMipLevel;
+			endIx = beginIx + range.numMipLevels;
+		}
+		for (uint32 j = beginIx; j < endIx; ++j)
+		{
+			localVisited[j] = true;
+			localSyncs[j] = localStates[i].syncBefore;
+			localAccesses[j] = localStates[i].accessBefore;
+			localLayouts[j] = localStates[i].layoutBefore;
+		}
+	}
+
+	// Local states perfectly cover all subresources and all of them have the same state.
+	bool bAllLocalsChangedSame = true;
+	for (auto i = 0u; i < desc.mipCount; ++i)
+	{
+		bool bSync = (localSyncs[i] == localSyncs[0]);
+		bool bAccess = (localAccesses[i] == localAccesses[0]);
+		bool bLayout = (localLayouts[i] == localLayouts[0]);
+		if (!bSync || !bAccess || !bLayout || !localVisited[i])
+		{
+			bAllLocalsChangedSame = false;
+			break;
+		}
+	}
+	if (bAllLocalsChangedSame)
+	{
+		bHolistic = true;
+		globalState = localStates[0];
+		localStates.clear();
+	}
+
+	// Only some subresources are transitioned, but they are same as the global state.
+	bool bAllLocalsSameAsGlobal = true;
+	for (auto i = 0u; i < desc.mipCount; ++i)
+	{
+		if (localVisited[i] == false)
+		{
+			continue;
+		}
+		bool bSync = (localSyncs[i] == globalState.syncBefore);
+		bool bAccess = (localAccesses[i] == globalState.accessBefore);
+		bool bLayout = (localLayouts[i] == globalState.layoutBefore);
+		if (!bSync || !bAccess || !bLayout)
+		{
+			bAllLocalsSameAsGlobal = false;
+			break;
+		}
+	}
+	if (bAllLocalsSameAsGlobal)
+	{
+		bHolistic = true;
+		localStates.clear();
+	}
 }
 
 bool BarrierTracker::TextureStateSet::isSubRange(const TextureState& sub, const BarrierSubresourceRange& range)

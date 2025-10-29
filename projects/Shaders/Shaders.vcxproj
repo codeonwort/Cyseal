@@ -101,6 +101,7 @@
     <FxCompile Include="..\..\shaders\raytracing_common.hlsl" />
     <FxCompile Include="..\..\shaders\ray_traced_shadows.hlsl" />
     <FxCompile Include="..\..\shaders\sky_pass.hlsl" />
+    <FxCompile Include="..\..\shaders\store_history.hlsl" />
     <FxCompile Include="..\..\shaders\tone_mapping.hlsl" />
   </ItemGroup>
   <ItemGroup>

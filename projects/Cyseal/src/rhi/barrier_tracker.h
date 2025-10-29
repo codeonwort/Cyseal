@@ -140,6 +140,9 @@ public:
 		// Successful if there is a local state whose subresource range contains barrier's subresource range.
 		bool splitLocalState(const TextureBarrier& barrier);
 
+		// targetTexture: texture related to this TextureStateSet instance.
+		void convertToHolisticIfPossible(TextureKind* targetTexture);
+
 		static bool isSubRange(const TextureState& sub, const BarrierSubresourceRange& range);
 	};
 

@@ -23,6 +23,7 @@
 #include "render/sky_pass.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
+#include "render/store_history_pass.h"
 #include "render/raytracing/ray_traced_shadows.h"
 #include "render/raytracing/indirect_diffuse_pass.h"
 #include "render/raytracing/indirect_specular_pass.h"
@@ -123,6 +124,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(bufferVisualization = new(EMemoryTag::Renderer) BufferVisualization);
 		sceneRenderPasses.push_back(pathTracingPass = new(EMemoryTag::Renderer) PathTracingPass);
 		sceneRenderPasses.push_back(denoiserPluginPass = new(EMemoryTag::Renderer) DenoiserPluginPass);
+		sceneRenderPasses.push_back(storeHistoryPass = new(EMemoryTag::Renderer) StoreHistoryPass);
 
 		gpuScene->initialize();
 		gpuCulling->initialize(kMaxBasePassPermutation);
@@ -132,11 +134,12 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		hizPass->initialize();
 		skyPass->initialize(PF_sceneColor);
 		indirectDiffusePass->initialize();
-		indirectSpecularPass->initialize();
+		indirectSpecularPass->initialize(renderDevice);
 		toneMapping->initialize();
 		bufferVisualization->initialize();
 		pathTracingPass->initialize();
 		denoiserPluginPass->initialize();
+		storeHistoryPass->initialize(renderDevice);
 	}
 }
 
@@ -145,6 +148,8 @@ void SceneRenderer::destroy()
 	RT_sceneColor.reset();
 	RT_sceneDepth.reset();
 	RT_prevSceneDepth.reset();
+	RT_hiz.reset();
+	RT_velocityMap.reset();
 	for (uint32 i=0; i<NUM_GBUFFERS; ++i) RT_gbuffers[i].reset();
 	RT_shadowMask.reset();
 	RT_indirectDiffuse.reset();
@@ -402,6 +407,21 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		basePass->renderBasePass(commandList, swapchainIndex, passInput);
 	}
 
+	// Store history pass (step 1. There's step 2 below)
+	{
+		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Current);
+
+		StoreHistoryPassInput passInput{
+			.textureWidth         = sceneWidth,
+			.textureHeight        = sceneHeight,
+			.gbuffer0             = RT_gbuffers[0].get(),
+			.gbuffer1             = RT_gbuffers[1].get(),
+			.gbuffer0SRV          = gbufferSRVs[0].get(),
+			.gbuffer1SRV          = gbufferSRVs[1].get(),
+		};
+		storeHistoryPass->extractCurrent(commandList, swapchainIndex, passInput);
+	}
+
 	// HiZ pass
 	{
 		SCOPED_DRAW_EVENT(commandList, HiZPass);
@@ -583,21 +603,40 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	else
 	{
 		SCOPED_DRAW_EVENT(commandList, IndirectSpecular);
+
+		StoreHistoryPassResources historyResources = storeHistoryPass->getResources(swapchainIndex);
 		
 		IndirectSpecularInput passInput{
 			.scene                   = scene,
 			.mode                    = renderOptions.indirectSpecular,
 			.sceneWidth              = sceneWidth,
 			.sceneHeight             = sceneHeight,
+			.invProjection           = sceneUniformData.projInvMatrix,
+			.invView                 = sceneUniformData.viewInvMatrix,
+			.prevViewProjection      = sceneUniformData.prevViewProjMatrix,
 			.sceneUniformBuffer      = sceneUniformCBV,
 			.gpuScene                = gpuScene,
 			.raytracingScene         = accelStructure.get(),
 			.skyboxSRV               = skyboxSRV.get(),
+			.gbuffer0Texture         = RT_gbuffers[0].get(),
+			.gbuffer1Texture         = RT_gbuffers[1].get(),
 			.gbuffer0SRV             = gbufferSRVs[0].get(),
 			.gbuffer1SRV             = gbufferSRVs[1].get(),
+			.normalTexture           = historyResources.currNormal,
+			.normalSRV               = historyResources.currNormalSRV,
+			.roughnessTexture        = historyResources.currRoughness,
+			.roughnessSRV            = historyResources.currRoughnessSRV,
+			.prevNormalTexture       = historyResources.prevNormal,
+			.prevNormalSRV           = historyResources.prevNormalSRV,
+			.prevRoughnessTexture    = historyResources.prevRoughness,
+			.prevRoughnessSRV        = historyResources.prevRoughnessSRV,
 			.sceneDepthTexture       = RT_sceneDepth.get(),
 			.sceneDepthSRV           = sceneDepthSRV.get(),
+			.prevSceneDepthTexture   = RT_prevSceneDepth.get(),
 			.prevSceneDepthSRV       = prevSceneDepthSRV.get(),
+			.hizTexture              = RT_hiz.get(),
+			.hizSRV                  = hizSRV.get(),
+			.velocityMapTexture      = RT_velocityMap.get(),
 			.velocityMapSRV          = velocityMapSRV.get(),
 			.tileCoordBuffer         = indirectSpecularTileCoordBuffer.get(),
 			.tileCounterBuffer       = indirectSpecularTileCounterBuffer.get(),
@@ -680,11 +719,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
 	}
 
-	// Store history
+	// Store history pass (step 2)
 	{
-		SCOPED_DRAW_EVENT(commandList, StoreFrameHistory);
+		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Prev);
 
-		TextureBarrierAuto barriersBefore[] = {
+		TextureBarrierAuto textureBarriers[] = {
 			{
 				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
 				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
@@ -694,9 +733,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				RT_prevSceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
 			},
 		};
-		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
+
+		storeHistoryPass->copyCurrentToPrev(commandList, swapchainIndex);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
