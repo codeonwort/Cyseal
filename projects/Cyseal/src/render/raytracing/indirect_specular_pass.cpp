@@ -26,16 +26,15 @@
 
 #define RANDOM_SEQUENCE_LENGTH              (64 * 64)
 
-// #wip: Use float16 for AMD shader resources
 #define PF_raytracing                       EPixelFormat::R16G16B16A16_FLOAT
 #define PF_colorHistory                     EPixelFormat::R16G16B16A16_FLOAT
 #define PF_momentHistory                    EPixelFormat::R16G16_FLOAT
-#define PF_sampleCountHistory               EPixelFormat::R32_FLOAT
+#define PF_sampleCountHistory               EPixelFormat::R16_FLOAT
 
 #define PF_avgRadiance                      EPixelFormat::R16G16B16A16_FLOAT
 #define PF_reprojectedRadiance              EPixelFormat::R16G16B16A16_FLOAT
 #define PF_amdRadiance                      EPixelFormat::R16G16B16A16_FLOAT
-#define PF_amdVariance                      EPixelFormat::R32_FLOAT
+#define PF_amdVariance                      EPixelFormat::R16_FLOAT
 
 // Should match with INDIRECT_DISPATCH_RAYS in shader side.
 #define INDIRECT_DISPATCH_RAYS              1
@@ -438,7 +437,7 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularReprojectCS");
 		shader->declarePushConstants();
-		shader->loadFromFile(L"amd/ffx_denoiser_reproject_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL" });
+		shader->loadFromFile(L"amd/ffx_denoiser_reproject_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL", L"FFX_HALF" });
 
 		amdReprojectPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 			ComputePipelineDesc{
@@ -456,7 +455,7 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularPrefilterCS");
 		shader->declarePushConstants();
-		shader->loadFromFile(L"amd/ffx_denoiser_prefilter_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL" });
+		shader->loadFromFile(L"amd/ffx_denoiser_prefilter_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL", L"FFX_HALF" });
 
 		amdPrefilterPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 			ComputePipelineDesc{
@@ -474,7 +473,7 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularResolveTemporalCS");
 		shader->declarePushConstants();
-		shader->loadFromFile(L"amd/ffx_denoiser_resolve_temporal_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL" });
+		shader->loadFromFile(L"amd/ffx_denoiser_resolve_temporal_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL", L"FFX_HALF" });
 
 		amdResolveTemporalPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 			ComputePipelineDesc{

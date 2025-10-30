@@ -4,7 +4,7 @@
 #include "rhi/swap_chain.h"
 
 #define PF_normalHistory       EPixelFormat::R16G16B16A16_FLOAT
-#define PF_roughnessHistory    EPixelFormat::R32_FLOAT
+#define PF_roughnessHistory    EPixelFormat::R16_FLOAT
 
 void StoreHistoryPass::initialize(RenderDevice* renderDevice)
 {
