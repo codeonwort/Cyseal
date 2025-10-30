@@ -72,7 +72,7 @@ struct AMDDenoiserUniform
 	float    motionVectorScale[2];
 	float    normalsUnpackMul;
 	float    normalsUnpackAdd;
-	bool     isRoughnessPerceptual;
+	uint32   isRoughnessPerceptual;
 	float    temporalStabilityFactor;
 	float    roughnessThreshold;
 	float    _pad0;
@@ -1039,7 +1039,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 		.motionVectorScale       = { 1.0f, 1.0f },
 		.normalsUnpackMul        = 1.0f,
 		.normalsUnpackAdd        = 0.0f,
-		.isRoughnessPerceptual   = false,
+		.isRoughnessPerceptual   = 0,
 		.temporalStabilityFactor = 0.7f,
 		.roughnessThreshold      = 0.22f,
 	};
