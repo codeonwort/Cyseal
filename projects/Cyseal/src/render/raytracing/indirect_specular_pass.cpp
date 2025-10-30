@@ -26,7 +26,7 @@
 
 #define RANDOM_SEQUENCE_LENGTH              (64 * 64)
 
-// #todo-specular-denoiser: Add EPixelFormat::R16_FLOAT support
+// #wip: Use float16 for AMD shader resources
 #define PF_raytracing                       EPixelFormat::R16G16B16A16_FLOAT
 #define PF_colorHistory                     EPixelFormat::R16G16B16A16_FLOAT
 #define PF_momentHistory                    EPixelFormat::R16G16_FLOAT
