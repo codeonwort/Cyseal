@@ -837,8 +837,8 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 		SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.rwTexture("rwRaytracingTexture", raytracingUAV.get());
-		SPT.rwTexture("rwPrevRadianceTexture", radianceUAV);
-		SPT.rwTexture("rwPrevVarianceTexture", varianceUAV);
+		SPT.rwTexture("rwRadianceTexture", radianceUAV);
+		SPT.rwTexture("rwVarianceTexture", varianceUAV);
 #if INDIRECT_DISPATCH_RAYS
 		SPT.rwBuffer("rwTileCoordBuffer", passInput.tileCoordBufferUAV);
 #endif
@@ -1031,17 +1031,17 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(swapchainIndex);
 	
 	AMDDenoiserUniform uniformData{
-		.invProjection           = passInput.invProjection,
-		.invView                 = passInput.invView,
-		.prevViewProjection      = passInput.prevViewProjection,
+		.invProjection           = passInput.invProjection.transpose(),
+		.invView                 = passInput.invView.transpose(),
+		.prevViewProjection      = passInput.prevViewProjection.transpose(),
 		.renderSize              = { passInput.sceneWidth, passInput.sceneHeight },
 		.invRenderSize           = { 1.0f / (float)passInput.sceneWidth, 1.0f / (float)passInput.sceneHeight },
 		.motionVectorScale       = { 1.0f, 1.0f },
 		.normalsUnpackMul        = 1.0f,
 		.normalsUnpackAdd        = 0.0f,
 		.isRoughnessPerceptual   = false,
-		.temporalStabilityFactor = 0.97f,
-		.roughnessThreshold      = 0.4f,
+		.temporalStabilityFactor = 0.7f,
+		.roughnessThreshold      = 0.22f,
 	};
 	passUniformCBV->writeToGPU(commandList, &uniformData, sizeof(uniformData));
 

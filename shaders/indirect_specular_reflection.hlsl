@@ -77,8 +77,8 @@ Texture2D<GBUFFER1_DATATYPE>            gbuffer1              : register(t7, spa
 Texture2D                               sceneDepthTexture     : register(t8, space0);
 RWTexture2D<float4>                     rwRaytracingTexture   : register(u0, space0);
 // For AMD reflection denoiser
-RWTexture2D<float4>                     rwPrevRadianceTexture : register(u1, space0);
-RWTexture2D<float>                      rwPrevVarianceTexture : register(u2, space0);
+RWTexture2D<float4>                     rwRadianceTexture     : register(u1, space0);
+RWTexture2D<float>                      rwVarianceTexture     : register(u2, space0);
 #if INDIRECT_DISPATCH_RAYS
 RWStructuredBuffer<uint>                rwTileCoordBuffer     : register(u3, space0);
 #endif
@@ -357,8 +357,8 @@ void MainRaygen()
 		float3 Wo = 0;
 #endif
 		rwRaytracingTexture[texel] = float4(Wo, 0.0);
-		rwPrevRadianceTexture[texel] = float4(Wo, 0.0);
-		rwPrevVarianceTexture[texel] = 0.0;
+		rwRadianceTexture[texel] = float4(Wo, 0.0);
+		rwVarianceTexture[texel] = 0.0;
 		return;
 	}
 
@@ -413,8 +413,8 @@ void MainRaygen()
 	if (any(isnan(Wo))) Wo = 0;
 
 	rwRaytracingTexture[texel] = float4(Wo, rayLength);
-	rwPrevRadianceTexture[texel] = float4(Wo, rayLength);
-	rwPrevVarianceTexture[texel] = rayLength;
+	rwRadianceTexture[texel] = float4(Wo, rayLength);
+	rwVarianceTexture[texel] = rayLength;
 }
 
 [shader("closesthit")]
