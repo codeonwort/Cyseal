@@ -39,6 +39,8 @@
 // Should match with INDIRECT_DISPATCH_RAYS in shader side.
 #define INDIRECT_DISPATCH_RAYS              1
 
+// 1 means roughness values are perceptual, so need to be squred for linear roughness.
+// BRDF functions expect linear roughness values.
 #define AMD_IS_ROUGHNESS_PERCEPTUAL         0
 #define AMD_TEMPORAL_STABILITY_FACTOR       0.7f
 #define AMD_ROUGHNESS_THRESHOLD             0.22f

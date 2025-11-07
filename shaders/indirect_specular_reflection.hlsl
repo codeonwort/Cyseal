@@ -23,7 +23,11 @@
 // #todo: See 'Ray Tracing Gems' series.
 #define RAYGEN_T_MIN              0.001
 #define RAYGEN_T_MAX              10000.0
-#define MAX_PATH_LEN              5
+// Default limit, could be increased when hitting mirror or glass.
+#define MAX_PATH_LEN              2
+#define MIRROR_EXTRA_LEN          1
+#define FORCE_MIRROR_EXTRA_LEN    3
+#define GLASS_EXTRA_LEN           2
 #define SURFACE_NORMAL_OFFSET     0.001
 // Precision of world position from scene depth is bad; need more bias.
 #define GBUFFER_NORMAL_OFFSET     0.05
@@ -241,8 +245,11 @@ float4 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 	float3 Li = 0;
 	float3 modulation = 1; // Accumulation of (brdf * cosine_term), better name?
 	uint pathLen = 0;
+	
+	uint pathMaxLen = MAX_PATH_LEN;
+	uint mirrorHitCount = 0, glassHitCount = 0;
 
-	while (pathLen < MAX_PATH_LEN)
+	while (pathLen < pathMaxLen)
 	{
 		uint instanceInclusionMask = ~0; // Do not ignore anything
 		uint rayContributionToHitGroupIndex = 0;
@@ -291,10 +298,24 @@ float4 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 				brdfOutput = hwrt::evaluateDefaultLit(currentRay.Direction, surfaceNormal,
 					currentRayPayload.albedo, currentRayPayload.roughness,
 					currentRayPayload.metalMask, randoms);
+				
+				if (currentRayPayload.roughness < 0.01)
+				{
+					if (mirrorHitCount < MIRROR_EXTRA_LEN)
+					{
+						pathMaxLen += 1;
+					}
+					mirrorHitCount += 1;
+				}
 			}
 			else if (passUniform.traceMode == TRACE_FORCE_MIRROR)
 			{
 				brdfOutput = hwrt::evaluateMirror(currentRay.Direction, surfaceNormal);
+				if (mirrorHitCount < FORCE_MIRROR_EXTRA_LEN)
+				{
+					pathMaxLen += 1;
+				}
+				mirrorHitCount += 1;
 			}
 			nextRayOffset = SURFACE_NORMAL_OFFSET * surfaceNormal;
 		}
@@ -303,6 +324,12 @@ float4 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			brdfOutput = hwrt::evaluateGlass(currentRay.Direction, surfaceNormal,
 				prevIoR, currentRayPayload.indexOfRefraction, currentRayPayload.transmittance);
 			nextRayOffset = REFRACTION_START_OFFSET * brdfOutput.outRayDir;
+			
+			if (glassHitCount < GLASS_EXTRA_LEN)
+			{
+				pathMaxLen += 1;
+			}
+			glassHitCount += 1;
 		}
 		
 		// #todo: Sometimes surfaceNormal is NaN so brdfOutput is also NaN.
