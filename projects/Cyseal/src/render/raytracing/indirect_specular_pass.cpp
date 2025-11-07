@@ -39,6 +39,8 @@
 // Should match with INDIRECT_DISPATCH_RAYS in shader side.
 #define INDIRECT_DISPATCH_RAYS              1
 
+#define USE_AMD_DENOISER                    1
+
 // 1 means roughness values are perceptual, so need to be squred for linear roughness.
 // BRDF functions expect linear roughness values.
 #define AMD_IS_ROUGHNESS_PERCEPTUAL         0
@@ -203,7 +205,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		return;
 	}
 
-	resizeTextures(commandList, sceneWidth, sceneHeight);
+	prepareRaytracingResources(commandList, swapchainIndex, passInput);
 
 	const uint32 currFrame = swapchainIndex % 2;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
@@ -213,19 +215,12 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	auto currMomentTexture = momentHistory.getTexture(currFrame);
 	auto prevMomentTexture = momentHistory.getTexture(prevFrame);
 
-	prepareRaytracingResources(commandList, swapchainIndex, passInput);
-
 	classifierPhase(commandList, swapchainIndex, passInput);
 
 	raytracingPhase(commandList, swapchainIndex, passInput);
 
-	// #wip: Ultimately need to execute only one path.
+#if !USE_AMD_DENOISER
 	legacyDenoisingPhase(commandList, swapchainIndex, passInput);
-	amdReprojPhase(commandList, swapchainIndex, passInput);
-	amdPrefilterPhase(commandList, swapchainIndex, passInput);
-	amdResolveTemporalPhase(commandList, swapchainIndex, passInput);
-	amdFinalizeOutputPhase(commandList, swapchainIndex, passInput);
-#if 0
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
@@ -238,6 +233,10 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		commandList->copyTexture2D(currColorTexture, passInput.indirectSpecularTexture);
 	}
 #else
+	amdReprojPhase(commandList, swapchainIndex, passInput);
+	amdPrefilterPhase(commandList, swapchainIndex, passInput);
+	amdResolveTemporalPhase(commandList, swapchainIndex, passInput);
+	amdFinalizeOutputPhase(commandList, swapchainIndex, passInput);
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
