@@ -26,6 +26,7 @@ This project is at a very early stage. Only basic rendering features work with D
   * GPU scene management
   * GPU culling and indirect draw
 * Hardware Raytracing
+  * Ray Traced Shadows
   * Raytraced indirect diffuse reflection
-  * Raytraced indirect specular reflection and refraction
-  * Monte Carlo path tracing with denoiser integration (Intel OpenImageDenoise)
+  * Raytraced indirect specular reflection and refraction with AMD FidelityFX Reflection Denoiser
+  * Monte Carlo path tracing with Intel OpenImageDenoise
