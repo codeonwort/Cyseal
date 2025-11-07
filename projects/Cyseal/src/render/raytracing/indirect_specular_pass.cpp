@@ -39,6 +39,10 @@
 // Should match with INDIRECT_DISPATCH_RAYS in shader side.
 #define INDIRECT_DISPATCH_RAYS              1
 
+#define AMD_IS_ROUGHNESS_PERCEPTUAL         0
+#define AMD_TEMPORAL_STABILITY_FACTOR       0.7f
+#define AMD_ROUGHNESS_THRESHOLD             0.22f
+
 DEFINE_LOG_CATEGORY_STATIC(LogIndirectSpecular);
 
 struct RayPassUniform
@@ -803,7 +807,6 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 
 	commandList->setRaytracingPipelineState(RTPSO.get());
 
-	// #wip: Is it correct to use prevFrame?
 	auto radianceTexture = amdRadianceHistory.getTexture(prevFrame);
 	auto radianceUAV     = amdRadianceHistory.getUAV(prevFrame);
 	auto varianceTexture = amdVarianceHistory.getTexture(prevFrame);
@@ -1038,9 +1041,9 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 		.motionVectorScale       = { 1.0f, 1.0f },
 		.normalsUnpackMul        = 1.0f,
 		.normalsUnpackAdd        = 0.0f,
-		.isRoughnessPerceptual   = 0,
-		.temporalStabilityFactor = 0.7f,
-		.roughnessThreshold      = 0.22f,
+		.isRoughnessPerceptual   = AMD_IS_ROUGHNESS_PERCEPTUAL,
+		.temporalStabilityFactor = AMD_TEMPORAL_STABILITY_FACTOR,
+		.roughnessThreshold      = AMD_ROUGHNESS_THRESHOLD,
 	};
 	passUniformCBV->writeToGPU(commandList, &uniformData, sizeof(uniformData));
 
@@ -1115,7 +1118,6 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	ShaderResourceView* hizSRV                  = passInput.hizSRV; // tex2d, r32
 	ShaderResourceView* motionVectorSRV         = passInput.velocityMapSRV; // tex2d, rg32
 	ShaderResourceView* normalSRV               = passInput.normalSRV; // tex2d, rgb32 (world space)
-	// #wip: Are history bindings correct?
 	ShaderResourceView* radianceSRV             = prevRadianceSRV; // tex2d, rgba32 (w = ray length)
 	ShaderResourceView* radianceHistorySRV      = currRadianceSRV; // tex2d, rgba32 (w not used)
 	ShaderResourceView* varianceSRV             = currVarianceSRV; // tex2d, r32 (history; for prev frame)

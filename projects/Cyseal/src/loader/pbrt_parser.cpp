@@ -934,6 +934,11 @@ namespace pbrt
 			rgbK = (pK->datatype == PBRT4ParameterType::Float) ? vec3(pK->asFloat) : pK->asFloat3;
 		}
 
+		// #wip: Lower roughness makes denoiser happy...?
+		roughness *= 0.1f;
+		vroughness *= 0.1f;
+		uroughness *= 0.1f;
+
 		PBRT4ParserOutput::NamedMaterialDesc outDesc{
 			.materialName             = std::move(inDesc.name),
 			.materialType             = std::move(pType->asString),
