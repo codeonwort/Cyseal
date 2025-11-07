@@ -70,7 +70,9 @@ private:
 	void initializeClassifierPipeline();
 	void initializeRaytracingPipeline();
 	void initializeTemporalPipeline();
+
 	void initializeAMDReflectionDenoiser();
+	void initializeAMDFinalizeColor();
 
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
@@ -85,6 +87,8 @@ private:
 
 	void amdReprojPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 	void amdPrefilterPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
+	void amdResolveTemporalPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
+	void amdFinalizeOutputPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
 
 private:
 	RenderDevice*                            device = nullptr;
@@ -131,6 +135,9 @@ private:
 	UniquePtr<ComputePipelineState>          amdPrefilterPipeline;
 	VolatileDescriptorHelper                 amdPrefilterPassDescriptor;
 
+	UniquePtr<ComputePipelineState>          amdResolveTemporalPipeline;
+	VolatileDescriptorHelper                 amdResolveTemporalPassDescriptor;
+
 	UniquePtr<CommandSignature>              amdCommandSignature;
 	UniquePtr<IndirectCommandGenerator>      amdCommandGenerator;
 	UniquePtr<Buffer>                        amdCommandBuffer;
@@ -140,8 +147,18 @@ private:
 	UniquePtr<ShaderResourceView>            avgRadianceSRV;
 	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
 	UniquePtr<Texture>                       reprojectedRadianceTexture;
+	UniquePtr<ShaderResourceView>            reprojectedRadianceSRV;
 	UniquePtr<UnorderedAccessView>           reprojectedRadianceUAV;
 	TextureSequence                          amdRadianceHistory;
 	TextureSequence                          amdVarianceHistory;
 	TextureSequence                          amdSampleCountHistory;
+
+	// Only necessary portions are updated by indirect dispatch, so the whole radiance texture is quite dirty.
+	// Prepare a texture, clear it every frame, then copy valid pixels from the radiance texture.
+	// This texture is a waste of bandwidth and memory, just here for convenience of coding...
+	UniquePtr<ComputePipelineState>          amdFinalizePipeline;
+	VolatileDescriptorHelper                 amdFinalizePassDescriptor;
+	UniquePtr<Texture>                       amdFinalColorTexture;
+	UniquePtr<RenderTargetView>              amdFinalColorRTV;
+	UniquePtr<UnorderedAccessView>           amdFinalColorUAV;
 };

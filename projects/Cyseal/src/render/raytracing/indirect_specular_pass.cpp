@@ -26,19 +26,26 @@
 
 #define RANDOM_SEQUENCE_LENGTH              (64 * 64)
 
-// #todo-specular-denoiser: Add EPixelFormat::R16_FLOAT support
 #define PF_raytracing                       EPixelFormat::R16G16B16A16_FLOAT
 #define PF_colorHistory                     EPixelFormat::R16G16B16A16_FLOAT
 #define PF_momentHistory                    EPixelFormat::R16G16_FLOAT
-#define PF_sampleCountHistory               EPixelFormat::R32_FLOAT
+#define PF_sampleCountHistory               EPixelFormat::R16_FLOAT
 
 #define PF_avgRadiance                      EPixelFormat::R16G16B16A16_FLOAT
 #define PF_reprojectedRadiance              EPixelFormat::R16G16B16A16_FLOAT
 #define PF_amdRadiance                      EPixelFormat::R16G16B16A16_FLOAT
-#define PF_amdVariance                      EPixelFormat::R32_FLOAT
+#define PF_amdVariance                      EPixelFormat::R16_FLOAT
 
 // Should match with INDIRECT_DISPATCH_RAYS in shader side.
 #define INDIRECT_DISPATCH_RAYS              1
+
+#define USE_AMD_DENOISER                    1
+
+// 1 means roughness values are perceptual, so need to be squred for linear roughness.
+// BRDF functions expect linear roughness values.
+#define AMD_IS_ROUGHNESS_PERCEPTUAL         0
+#define AMD_TEMPORAL_STABILITY_FACTOR       0.7f
+#define AMD_ROUGHNESS_THRESHOLD             0.22f
 
 DEFINE_LOG_CATEGORY_STATIC(LogIndirectSpecular);
 
@@ -72,7 +79,7 @@ struct AMDDenoiserUniform
 	float    motionVectorScale[2];
 	float    normalsUnpackMul;
 	float    normalsUnpackAdd;
-	bool     isRoughnessPerceptual;
+	uint32   isRoughnessPerceptual;
 	float    temporalStabilityFactor;
 	float    roughnessThreshold;
 	float    _pad0;
@@ -142,6 +149,23 @@ static StaticSamplerDesc getPointSamplerDesc()
 		.shaderVisibility = EShaderVisibility::All,
 	};
 }
+static StaticSamplerDesc getAmdLinearSamplerDesc()
+{
+	return StaticSamplerDesc{
+		.name             = "s_LinearSampler",
+		.filter           = ETextureFilter::MIN_MAG_LINEAR_MIP_POINT,
+		.addressU         = ETextureAddressMode::Clamp,
+		.addressV         = ETextureAddressMode::Clamp,
+		.addressW         = ETextureAddressMode::Clamp,
+		.mipLODBias       = 0.0f,
+		.maxAnisotropy    = 16,
+		.comparisonFunc   = EComparisonFunc::Never,
+		.borderColor      = EStaticBorderColor::TransparentBlack,
+		.minLOD           = 0.0f,
+		.maxLOD           = FLT_MAX,
+		.shaderVisibility = EShaderVisibility::All,
+	};
+}
 
 void IndirecSpecularPass::initialize(RenderDevice* inRenderDevice)
 {
@@ -157,6 +181,7 @@ void IndirecSpecularPass::initialize(RenderDevice* inRenderDevice)
 	initializeTemporalPipeline();
 
 	initializeAMDReflectionDenoiser();
+	initializeAMDFinalizeColor();
 }
 
 bool IndirecSpecularPass::isAvailable() const
@@ -180,7 +205,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		return;
 	}
 
-	resizeTextures(commandList, sceneWidth, sceneHeight);
+	prepareRaytracingResources(commandList, swapchainIndex, passInput);
 
 	const uint32 currFrame = swapchainIndex % 2;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
@@ -190,17 +215,12 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	auto currMomentTexture = momentHistory.getTexture(currFrame);
 	auto prevMomentTexture = momentHistory.getTexture(prevFrame);
 
-	prepareRaytracingResources(commandList, swapchainIndex, passInput);
-
 	classifierPhase(commandList, swapchainIndex, passInput);
 
 	raytracingPhase(commandList, swapchainIndex, passInput);
 
-	// #todo-specular-denoiser: Ultimately need to execute only one path.
+#if !USE_AMD_DENOISER
 	legacyDenoisingPhase(commandList, swapchainIndex, passInput);
-	amdReprojPhase(commandList, swapchainIndex, passInput);
-	amdPrefilterPhase(commandList, swapchainIndex, passInput);
-#if 1
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
@@ -213,10 +233,16 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		commandList->copyTexture2D(currColorTexture, passInput.indirectSpecularTexture);
 	}
 #else
+	amdReprojPhase(commandList, swapchainIndex, passInput);
+	amdPrefilterPhase(commandList, swapchainIndex, passInput);
+	amdResolveTemporalPhase(commandList, swapchainIndex, passInput);
+	amdFinalizeOutputPhase(commandList, swapchainIndex, passInput);
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
-		auto amdResult = amdRadianceHistory.getTexture(currFrame);
+		// It ended up that amdRadianceHistory.getTexture(prevFrame) stores the denoising result... oops :p
+		//auto amdResult = amdRadianceHistory.getTexture(prevFrame);
+		auto amdResult = amdFinalColorTexture.get();
 
 		TextureBarrierAuto barriersBefore[] = {
 			TextureBarrierAuto::toCopySource(amdResult),
@@ -420,13 +446,13 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularReprojectCS");
 		shader->declarePushConstants();
-		shader->loadFromFile(L"amd/ffx_denoiser_reproject_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL" });
+		shader->loadFromFile(L"amd/ffx_denoiser_reproject_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL", L"FFX_HALF" });
 
 		amdReprojectPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 			ComputePipelineDesc{
 				.cs             = shader,
 				.nodeMask       = 0,
-				.staticSamplers = {},
+				.staticSamplers = { getAmdLinearSamplerDesc() },
 			}
 		));
 
@@ -438,18 +464,36 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularPrefilterCS");
 		shader->declarePushConstants();
-		shader->loadFromFile(L"amd/ffx_denoiser_prefilter_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL" });
+		shader->loadFromFile(L"amd/ffx_denoiser_prefilter_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL", L"FFX_HALF" });
 
 		amdPrefilterPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 			ComputePipelineDesc{
 				.cs             = shader,
 				.nodeMask       = 0,
-				.staticSamplers = {},
+				.staticSamplers = { getAmdLinearSamplerDesc() },
 			}
 		));
 
 		// cbuffer will be borrowed from first pass.
 		amdPrefilterPassDescriptor.initialize(L"IndirectSpecular_AMDPrefilterPass", swapchainCount, 0);
+
+		delete shader;
+	}
+	{
+		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularResolveTemporalCS");
+		shader->declarePushConstants();
+		shader->loadFromFile(L"amd/ffx_denoiser_resolve_temporal_reflections_pass.hlsl", "CS", { L"FFX_GPU", L"FFX_HLSL", L"FFX_HALF" });
+
+		amdResolveTemporalPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
+			ComputePipelineDesc{
+				.cs             = shader,
+				.nodeMask       = 0,
+				.staticSamplers = { getAmdLinearSamplerDesc() },
+			}
+		));
+
+		// cbuffer will be borrowed from first pass.
+		amdResolveTemporalPassDescriptor.initialize(L"IndirectSpecular_AMDResolveTemporalPass", swapchainCount, 0);
 
 		delete shader;
 	}
@@ -482,6 +526,27 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 			},
 		}
 	));
+}
+
+void IndirecSpecularPass::initializeAMDFinalizeColor()
+{
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularFinalizeColorCS");
+	shader->declarePushConstants({ {"pushConstants", 2} });
+	shader->loadFromFile(L"indirect_specular_amd_temp_finalize.hlsl", "finalizeColorCS");
+
+	amdFinalizePipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
+		ComputePipelineDesc{
+			.cs             = shader,
+			.nodeMask       = 0,
+			.staticSamplers = {},
+		}
+	));
+
+	amdFinalizePassDescriptor.initialize(L"IndirectSpecular_AMDFinalizeColorPass", swapchainCount, 0);
+
+	delete shader;
 }
 
 void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
@@ -582,9 +647,45 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 		)
 	));
 	reprojectedRadianceTexture->setDebugName(L"RT_SpecularReprojectedRadianceTexture");
+	reprojectedRadianceSRV = UniquePtr<ShaderResourceView>(device->createSRV(reprojectedRadianceTexture.get(),
+		ShaderResourceViewDesc{
+			.format              = reprojectedRadianceTexture->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = reprojectedRadianceTexture->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
 	reprojectedRadianceUAV = UniquePtr<UnorderedAccessView>(device->createUAV(reprojectedRadianceTexture.get(),
 		UnorderedAccessViewDesc{
 			.format = reprojectedRadianceTexture->getCreateParams().format,
+			.viewDimension = EUAVDimension::Texture2D,
+			.texture2D = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+
+	commandList->enqueueDeferredDealloc(amdFinalColorTexture.release(), true);
+	amdFinalColorTexture = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_reprojectedRadiance, ETextureAccessFlags::RTV | ETextureAccessFlags::UAV,
+			historyWidth, historyHeight,
+			1, 1, 0
+		)
+	));
+	amdFinalColorTexture->setDebugName(L"RT_SpecularAMDFinalColorTexture");
+	amdFinalColorRTV = UniquePtr<RenderTargetView>(device->createRTV(amdFinalColorTexture.get(),
+		RenderTargetViewDesc{
+			.format        = amdFinalColorTexture->getCreateParams().format,
+			.viewDimension = ERTVDimension::Texture2D,
+			.texture2D     = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+	amdFinalColorUAV = UniquePtr<UnorderedAccessView>(device->createUAV(amdFinalColorTexture.get(),
+		UnorderedAccessViewDesc{
+			.format = amdFinalColorTexture->getCreateParams().format,
 			.viewDimension = EUAVDimension::Texture2D,
 			.texture2D = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
@@ -756,20 +857,19 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 
 	commandList->setRaytracingPipelineState(RTPSO.get());
 
-	// #todo-reflection-denoiser: Is it correct to use prevFrame?
-	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
-	auto prevRadianceUAV     = amdRadianceHistory.getUAV(prevFrame);
-	auto prevVarianceTexture = amdVarianceHistory.getTexture(prevFrame);
-	auto prevVarianceUAV     = amdVarianceHistory.getUAV(prevFrame);
+	auto radianceTexture = amdRadianceHistory.getTexture(prevFrame);
+	auto radianceUAV     = amdRadianceHistory.getUAV(prevFrame);
+	auto varianceTexture = amdVarianceHistory.getTexture(prevFrame);
+	auto varianceUAV     = amdVarianceHistory.getUAV(prevFrame);
 
 	TextureBarrierAuto textureBarriers[] = {
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			prevRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			radianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			prevVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			varianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
 	};
 	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
@@ -789,8 +889,8 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 		SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.rwTexture("rwRaytracingTexture", raytracingUAV.get());
-		SPT.rwTexture("rwPrevRadianceTexture", prevRadianceUAV);
-		SPT.rwTexture("rwPrevVarianceTexture", prevVarianceUAV);
+		SPT.rwTexture("rwRadianceTexture", radianceUAV);
+		SPT.rwTexture("rwVarianceTexture", varianceUAV);
 #if INDIRECT_DISPATCH_RAYS
 		SPT.rwBuffer("rwTileCoordBuffer", passInput.tileCoordBufferUAV);
 #endif
@@ -972,28 +1072,28 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 
 	auto currSampleCountTexture = amdSampleCountHistory.getTexture(currFrame);
 	auto prevSampleCountTexture = amdSampleCountHistory.getTexture(prevFrame);
-	auto currSampleCountUAV = amdSampleCountHistory.getUAV(currFrame);
-	auto prevSampleCountSRV = amdSampleCountHistory.getSRV(prevFrame);
+	auto currSampleCountSRV = amdSampleCountHistory.getSRV(currFrame);
+	auto prevSampleCountUAV = amdSampleCountHistory.getUAV(prevFrame);
 
 	auto currVarianceTexture = amdVarianceHistory.getTexture(currFrame);
 	auto prevVarianceTexture = amdVarianceHistory.getTexture(prevFrame);
-	auto currVarianceUAV = amdVarianceHistory.getUAV(currFrame);
-	auto prevVarianceSRV = amdVarianceHistory.getSRV(prevFrame);
+	auto currVarianceSRV = amdVarianceHistory.getSRV(currFrame);
+	auto prevVarianceUAV = amdVarianceHistory.getUAV(prevFrame);
 
 	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(swapchainIndex);
 	
 	AMDDenoiserUniform uniformData{
-		.invProjection           = passInput.invProjection,
-		.invView                 = passInput.invView,
-		.prevViewProjection      = passInput.prevViewProjection,
+		.invProjection           = passInput.invProjection.transpose(),
+		.invView                 = passInput.invView.transpose(),
+		.prevViewProjection      = passInput.prevViewProjection.transpose(),
 		.renderSize              = { passInput.sceneWidth, passInput.sceneHeight },
 		.invRenderSize           = { 1.0f / (float)passInput.sceneWidth, 1.0f / (float)passInput.sceneHeight },
 		.motionVectorScale       = { 1.0f, 1.0f },
 		.normalsUnpackMul        = 1.0f,
 		.normalsUnpackAdd        = 0.0f,
-		.isRoughnessPerceptual   = false, // #todo-reflection-denoiser: Why true in PIX capture?
-		.temporalStabilityFactor = 0.97f,
-		.roughnessThreshold      = 0.4f,
+		.isRoughnessPerceptual   = AMD_IS_ROUGHNESS_PERCEPTUAL,
+		.temporalStabilityFactor = AMD_TEMPORAL_STABILITY_FACTOR,
+		.roughnessThreshold      = AMD_ROUGHNESS_THRESHOLD,
 	};
 	passUniformCBV->writeToGPU(commandList, &uniformData, sizeof(uniformData));
 
@@ -1023,11 +1123,11 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			prevVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			currVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			prevSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			currSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
@@ -1047,11 +1147,11 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			currVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			prevVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			currSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			prevSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
 		{
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
@@ -1068,17 +1168,16 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	ShaderResourceView* hizSRV                  = passInput.hizSRV; // tex2d, r32
 	ShaderResourceView* motionVectorSRV         = passInput.velocityMapSRV; // tex2d, rg32
 	ShaderResourceView* normalSRV               = passInput.normalSRV; // tex2d, rgb32 (world space)
-	// #todo-reflection-denoiser: Are history bindings correct?
-	ShaderResourceView* radianceSRV             = currRadianceSRV; // tex2d, rgba32 (w = ray length)
-	ShaderResourceView* radianceHistorySRV      = prevRadianceSRV; // tex2d, rgba32 (w not used)
-	ShaderResourceView* varianceSRV             = prevVarianceSRV; // tex2d, r32 (history; for prev frame)
-	ShaderResourceView* sampleCountSRV          = prevSampleCountSRV; // tex2d, r32 (history; for prev frame)
+	ShaderResourceView* radianceSRV             = prevRadianceSRV; // tex2d, rgba32 (w = ray length)
+	ShaderResourceView* radianceHistorySRV      = currRadianceSRV; // tex2d, rgba32 (w not used)
+	ShaderResourceView* varianceSRV             = currVarianceSRV; // tex2d, r32 (history; for prev frame)
+	ShaderResourceView* sampleCountSRV          = currSampleCountSRV; // tex2d, r32 (history; for prev frame)
 	ShaderResourceView* extractedRoughnessSRV   = passInput.roughnessSRV; // tex2d, r32 (not perceptual. see ffx_denoiser_reflections_callbacks_hlsl.h)
 	ShaderResourceView* depthHistorySRV         = passInput.prevSceneDepthSRV; // tex2d, r32
 	ShaderResourceView* normalHistorySRV        = passInput.prevNormalSRV; // tex2d, rgb32 (world space)
 	ShaderResourceView* roughnessHistorySRV     = passInput.prevRoughnessSRV; // tex2d, r32
-	UnorderedAccessView* varianceUAV            = currVarianceUAV; // rwTex2d, r32 (writeonly)
-	UnorderedAccessView* sampleCountUAV         = currSampleCountUAV; // rwTex2d, r32 (writeonly)
+	UnorderedAccessView* varianceUAV            = prevVarianceUAV; // rwTex2d, r32 (writeonly)
+	UnorderedAccessView* sampleCountUAV         = prevSampleCountUAV; // rwTex2d, r32 (writeonly)
 	UnorderedAccessView* averageRadianceUAV     = avgRadianceUAV.get(); // rwTex2d, rgb32 (writeonly, per 8x8 tile)
 	UnorderedAccessView* denoiserTileListUAV    = passInput.tileCoordBufferUAV; // rwStructuredBuffer<uint> (readonly)
 	UnorderedAccessView* reprojRadianceUAV      = reprojectedRadianceUAV.get(); // rwTex2d, rgb32 (writeonly, w not used)
@@ -1218,4 +1317,168 @@ void IndirecSpecularPass::amdPrefilterPhase(RenderCommandList* commandList, uint
 		EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
 	};
 	commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
+}
+
+void IndirecSpecularPass::amdResolveTemporalPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+{
+	SCOPED_DRAW_EVENT(commandList, AMDResolveTemporal);
+
+	const uint32 currFrame = swapchainIndex % 2;
+	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+
+	auto currRadianceTexture = amdRadianceHistory.getTexture(currFrame);
+	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
+	auto currRadianceSRV = amdRadianceHistory.getSRV(currFrame);
+	auto prevRadianceUAV = amdRadianceHistory.getUAV(prevFrame);
+
+	auto currVarianceTexture = amdVarianceHistory.getTexture(currFrame);
+	auto prevVarianceTexture = amdVarianceHistory.getTexture(prevFrame);
+	auto currVarianceSRV = amdVarianceHistory.getSRV(currFrame);
+	auto prevVarianceUAV = amdVarianceHistory.getUAV(prevFrame);
+
+	auto currSampleCountTexture = amdSampleCountHistory.getTexture(currFrame);
+	auto currSampleCountSRV = amdSampleCountHistory.getSRV(currFrame);
+
+	// Reuse CBV from reproj phase.
+	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(swapchainIndex);
+
+	BufferBarrierAuto bufferBarriers[] = {
+		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
+	};
+	TextureBarrierAuto textureBarriers[] = {
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			currRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			currVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			currSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			avgRadianceTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			passInput.roughnessTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			reprojectedRadianceTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			prevRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			prevVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+	};
+	commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+	// See ffx_denoiser_resolve_temporal_reflections_pass.hlsl
+	ShaderResourceView* radianceSRV             = currRadianceSRV; // tex2d, rgba32 (w = ray length)
+	ShaderResourceView* varianceSRV             = currVarianceSRV; // tex2d, r32 (history; for prev frame)
+	ShaderResourceView* sampleCountSRV          = currSampleCountSRV; // tex2d, r32 (history; for prev frame)
+	ShaderResourceView* avgRadianceSRV          = this->avgRadianceSRV.get(); // tex2d, r32
+	ShaderResourceView* extractedRoughnessSRV   = passInput.roughnessSRV; // tex2d, r32 (not perceptual. see ffx_denoiser_reflections_callbacks_hlsl.h)
+	ShaderResourceView* reprojRadianceSRV       = reprojectedRadianceSRV.get();
+	UnorderedAccessView* radianceUAV            = prevRadianceUAV; // rwTex2d, rgb32 (writeonly, w not used)
+	UnorderedAccessView* varianceUAV            = prevVarianceUAV; // rwTex2d, r32 (writeonly)
+	UnorderedAccessView* denoiserTileListUAV    = passInput.tileCoordBufferUAV; // rwStructuredBuffer<uint> (readonly)
+
+	// Param names from ffx_denoiser_reflections_callbacks_hlsl.h
+	ShaderParameterTable SPT{};
+	SPT.constantBuffer("cbDenoiserReflections", passUniformCBV);
+	SPT.texture("r_radiance", radianceSRV);
+	SPT.texture("r_variance", varianceSRV);
+	SPT.texture("r_sample_count", sampleCountSRV);
+	SPT.texture("r_average_radiance", avgRadianceSRV);
+	SPT.texture("r_extracted_roughness", extractedRoughnessSRV);
+	SPT.texture("r_reprojected_radiance", reprojRadianceSRV);
+	SPT.rwTexture("rw_radiance", radianceUAV);
+	SPT.rwTexture("rw_variance", varianceUAV);
+	SPT.rwStructuredBuffer("rw_denoiser_tile_list", denoiserTileListUAV);
+
+	uint32 requiredVolatiles = SPT.totalDescriptors();
+	amdResolveTemporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	DescriptorHeap* volatileHeap = amdResolveTemporalPassDescriptor.getDescriptorHeap(swapchainIndex);
+
+	commandList->setComputePipelineState(amdResolveTemporalPipeline.get());
+	commandList->bindComputeShaderParameters(amdResolveTemporalPipeline.get(), &SPT, volatileHeap);
+
+	// Dispatch compute and issue memory barriers.
+	commandList->executeIndirect(amdCommandSignature.get(), 1, amdCommandBuffer.get(), 0);
+
+	GlobalBarrier globalBarrier = {
+		EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+		EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
+	};
+	commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
+}
+
+void IndirecSpecularPass::amdFinalizeOutputPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+{
+	SCOPED_DRAW_EVENT(commandList, AMDFinalizeOutput);
+
+	const uint32 currFrame = swapchainIndex % 2;
+	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+
+	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
+	auto prevRadianceSRV = amdRadianceHistory.getSRV(prevFrame);
+
+	{
+		// #todo-rhi: ID3D12GraphicsCommandList::ClearUnorderedAccessViewFloat() requires TWO descriptor heaps for a single UAV?
+		// Well let's just adopt the most lazy way...
+
+		TextureBarrierAuto textureBarrier = TextureBarrierAuto::toRenderTarget(amdFinalColorTexture.get());
+		commandList->barrierAuto(0, nullptr, 1, &textureBarrier, 0, nullptr);
+
+		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		commandList->clearRenderTargetView(amdFinalColorRTV.get(), clearColor);
+	}
+	{
+		BufferBarrierAuto bufferBarriers[] = {
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
+		};
+		TextureBarrierAuto textureBarriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				prevRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				amdFinalColorTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+		ShaderParameterTable SPT{};
+		SPT.pushConstants("pushConstants", { passInput.sceneWidth, passInput.sceneHeight });
+		SPT.texture("inRadiance", prevRadianceSRV); // resolve temporal pass ended up writing the result to prev radiance...
+		SPT.rwBuffer("rwTileCoordBuffer", passInput.tileCoordBufferUAV);
+		SPT.rwTexture("rwRadiance", amdFinalColorUAV.get());
+
+		uint32 requiredVolatiles = SPT.totalDescriptors();
+		amdFinalizePassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = amdFinalizePassDescriptor.getDescriptorHeap(swapchainIndex);
+
+		commandList->setComputePipelineState(amdFinalizePipeline.get());
+		commandList->bindComputeShaderParameters(amdFinalizePipeline.get(), &SPT, volatileHeap);
+
+		// Dispatch compute and issue memory barriers.
+		commandList->executeIndirect(amdCommandSignature.get(), 1, amdCommandBuffer.get(), 0);
+	}
+	{
+		GlobalBarrier globalBarrier = {
+			EBarrierSync::EXECUTE_INDIRECT, EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::INDIRECT_ARGUMENT, EBarrierAccess::UNORDERED_ACCESS
+		};
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
+	}
 }

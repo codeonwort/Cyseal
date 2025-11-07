@@ -82,6 +82,7 @@
   <ItemGroup>
     <FxCompile Include="..\..\shaders\amd\ffx_denoiser_prefilter_reflections_pass.hlsl" />
     <FxCompile Include="..\..\shaders\amd\ffx_denoiser_reproject_reflections_pass.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_denoiser_resolve_temporal_reflections_pass.hlsl" />
     <FxCompile Include="..\..\shaders\base_pass.hlsl" />
     <FxCompile Include="..\..\shaders\bilateral_blur.hlsl" />
     <FxCompile Include="..\..\shaders\blit_denoiser_input.hlsl" />
@@ -93,6 +94,7 @@
     <FxCompile Include="..\..\shaders\hiz.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_raytracing.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_temporal.hlsl" />
+    <FxCompile Include="..\..\shaders\indirect_specular_amd_temp_finalize.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_classifier.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_temporal.hlsl" />
     <FxCompile Include="..\..\shaders\material.hlsl" />
@@ -111,6 +113,7 @@
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_config.h" />
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_prefilter.h" />
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_reproject.h" />
+    <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_resolve_temporal.h" />
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_resources.h" />
     <ClInclude Include="..\..\shaders\amd\ffx_common_types.h" />
     <ClInclude Include="..\..\shaders\amd\ffx_core.h" />

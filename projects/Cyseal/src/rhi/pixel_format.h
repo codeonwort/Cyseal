@@ -29,6 +29,7 @@ enum class EPixelFormat : uint8
 	R32G32B32A32_FLOAT,
 	R16G16B16A16_FLOAT,
 	R16G16_FLOAT,
+	R16_FLOAT,
 
 	// UINT
 	R32_UINT,
@@ -58,6 +59,7 @@ inline uint32 getPixelFormatBytes(EPixelFormat format)
 		case EPixelFormat::R32G32B32A32_FLOAT       : return 16;
 		case EPixelFormat::R16G16B16A16_FLOAT       : return 8;
 		case EPixelFormat::R16G16_FLOAT             : return 4;
+		case EPixelFormat::R16_FLOAT                : return 2;
 		case EPixelFormat::R32_UINT                 : return 4;
 		case EPixelFormat::R16_UINT                 : return 2;
 		case EPixelFormat::R32G32B32A32_UINT        : return 16;
