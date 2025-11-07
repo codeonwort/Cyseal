@@ -32,6 +32,7 @@
     <FxCompile Include="..\..\shaders\amd\ffx_denoiser_resolve_temporal_reflections_pass.hlsl">
       <Filter>amd</Filter>
     </FxCompile>
+    <FxCompile Include="..\..\shaders\indirect_specular_amd_temp_finalize.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">

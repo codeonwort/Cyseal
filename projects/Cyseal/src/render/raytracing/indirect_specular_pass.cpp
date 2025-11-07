@@ -179,6 +179,7 @@ void IndirecSpecularPass::initialize(RenderDevice* inRenderDevice)
 	initializeTemporalPipeline();
 
 	initializeAMDReflectionDenoiser();
+	initializeAMDFinalizeColor();
 }
 
 bool IndirecSpecularPass::isAvailable() const
@@ -223,6 +224,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	amdReprojPhase(commandList, swapchainIndex, passInput);
 	amdPrefilterPhase(commandList, swapchainIndex, passInput);
 	amdResolveTemporalPhase(commandList, swapchainIndex, passInput);
+	amdFinalizeOutputPhase(commandList, swapchainIndex, passInput);
 #if 0
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
@@ -239,7 +241,9 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
-		auto amdResult = amdRadianceHistory.getTexture(currFrame);
+		// It ended up that amdRadianceHistory.getTexture(prevFrame) stores the denoising result... oops :p
+		//auto amdResult = amdRadianceHistory.getTexture(prevFrame);
+		auto amdResult = amdFinalColorTexture.get();
 
 		TextureBarrierAuto barriersBefore[] = {
 			TextureBarrierAuto::toCopySource(amdResult),
@@ -525,6 +529,27 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 	));
 }
 
+void IndirecSpecularPass::initializeAMDFinalizeColor()
+{
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularFinalizeColorCS");
+	shader->declarePushConstants({ {"pushConstants", 2} });
+	shader->loadFromFile(L"indirect_specular_amd_temp_finalize.hlsl", "finalizeColorCS");
+
+	amdFinalizePipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
+		ComputePipelineDesc{
+			.cs             = shader,
+			.nodeMask       = 0,
+			.staticSamplers = {},
+		}
+	));
+
+	amdFinalizePassDescriptor.initialize(L"IndirectSpecular_AMDFinalizeColorPass", swapchainCount, 0);
+
+	delete shader;
+}
+
 void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
 {
 	if (historyWidth == newWidth && historyHeight == newHeight)
@@ -638,6 +663,30 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	reprojectedRadianceUAV = UniquePtr<UnorderedAccessView>(device->createUAV(reprojectedRadianceTexture.get(),
 		UnorderedAccessViewDesc{
 			.format = reprojectedRadianceTexture->getCreateParams().format,
+			.viewDimension = EUAVDimension::Texture2D,
+			.texture2D = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+
+	commandList->enqueueDeferredDealloc(amdFinalColorTexture.release(), true);
+	amdFinalColorTexture = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_reprojectedRadiance, ETextureAccessFlags::RTV | ETextureAccessFlags::UAV,
+			historyWidth, historyHeight,
+			1, 1, 0
+		)
+	));
+	amdFinalColorTexture->setDebugName(L"RT_SpecularAMDFinalColorTexture");
+	amdFinalColorRTV = UniquePtr<RenderTargetView>(device->createRTV(amdFinalColorTexture.get(),
+		RenderTargetViewDesc{
+			.format        = amdFinalColorTexture->getCreateParams().format,
+			.viewDimension = ERTVDimension::Texture2D,
+			.texture2D     = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+	amdFinalColorUAV = UniquePtr<UnorderedAccessView>(device->createUAV(amdFinalColorTexture.get(),
+		UnorderedAccessViewDesc{
+			.format = amdFinalColorTexture->getCreateParams().format,
 			.viewDimension = EUAVDimension::Texture2D,
 			.texture2D = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
@@ -1372,4 +1421,65 @@ void IndirecSpecularPass::amdResolveTemporalPhase(RenderCommandList* commandList
 		EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
 	};
 	commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
+}
+
+void IndirecSpecularPass::amdFinalizeOutputPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+{
+	SCOPED_DRAW_EVENT(commandList, AMDFinalizeOutput);
+
+	const uint32 currFrame = swapchainIndex % 2;
+	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+
+	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
+	auto prevRadianceSRV = amdRadianceHistory.getSRV(prevFrame);
+
+	{
+		// #todo-rhi: ID3D12GraphicsCommandList::ClearUnorderedAccessViewFloat() requires TWO descriptor heaps for a single UAV?
+		// Well let's just adopt the most lazy way...
+
+		TextureBarrierAuto textureBarrier = TextureBarrierAuto::toRenderTarget(amdFinalColorTexture.get());
+		commandList->barrierAuto(0, nullptr, 1, &textureBarrier, 0, nullptr);
+
+		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		commandList->clearRenderTargetView(amdFinalColorRTV.get(), clearColor);
+	}
+	{
+		BufferBarrierAuto bufferBarriers[] = {
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
+		};
+		TextureBarrierAuto textureBarriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				prevRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				amdFinalColorTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+		ShaderParameterTable SPT{};
+		SPT.pushConstants("pushConstants", { passInput.sceneWidth, passInput.sceneHeight });
+		SPT.texture("inRadiance", prevRadianceSRV); // resolve temporal pass ended up writing the result to prev radiance...
+		SPT.rwBuffer("rwTileCoordBuffer", passInput.tileCoordBufferUAV);
+		SPT.rwTexture("rwRadiance", amdFinalColorUAV.get());
+
+		uint32 requiredVolatiles = SPT.totalDescriptors();
+		amdFinalizePassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = amdFinalizePassDescriptor.getDescriptorHeap(swapchainIndex);
+
+		commandList->setComputePipelineState(amdFinalizePipeline.get());
+		commandList->bindComputeShaderParameters(amdFinalizePipeline.get(), &SPT, volatileHeap);
+
+		// Dispatch compute and issue memory barriers.
+		commandList->executeIndirect(amdCommandSignature.get(), 1, amdCommandBuffer.get(), 0);
+	}
+	{
+		GlobalBarrier globalBarrier = {
+			EBarrierSync::EXECUTE_INDIRECT, EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::INDIRECT_ARGUMENT, EBarrierAccess::UNORDERED_ACCESS
+		};
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
+	}
 }
