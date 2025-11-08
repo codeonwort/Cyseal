@@ -367,20 +367,57 @@ void VulkanRenderCommandList::executeIndirect(
 	// #todo-vulkan
 }
 
+// #wip: bindComputeShaderParameters()
 void VulkanRenderCommandList::bindComputeShaderParameters(
 	PipelineState* pipelineState,
 	const ShaderParameterTable* parameters,
 	DescriptorHeap* descriptorHeap,
 	DescriptorIndexTracker* tracker)
 {
-	// #wip: bindComputeShaderParameters
+	VulkanComputePipelineState* computePSO = static_cast<VulkanComputePipelineState*>(pipelineState);
+
+	VkDevice vkDevice = device->getRaw();
+	VkPipelineLayout vkPipelineLayout = computePSO->getVkPipelineLayout();
+	VkDescriptorPool vkDescPool = static_cast<VulkanDescriptorPool*>(descriptorHeap)->getVkPool();
+	const std::vector<VkDescriptorSetLayout>& vkDescriptorSetLayouts = computePSO->getVkDescriptorSetLayouts();
+
 	CHECK_NO_ENTRY();
 
-	VkPipelineLayout vkPipelineLayout = static_cast<VulkanComputePipelineState*>(pipelineState)->getVkPipelineLayout();
-	VulkanDescriptorPool* descPool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
+	// #wip: vkResetDescriptorPool?
+	//vkResetDescriptorPool(vkDevice, vkDescPool, (VkDescriptorPoolResetFlags)0);
 
-	//vkAllocateDescriptorSets
-	//vkCmdBindDescriptorSets
+	const uint32_t descSetCount = (uint32_t)vkDescriptorSetLayouts.size();
+	const uint32_t firstSet = 0; // Assume firstSet=0 and consecutive set indices.
+	std::vector<VkDescriptorSet> vkDescriptorSets(descSetCount, VK_NULL_HANDLE);
+	std::vector<uint32_t> dynamicOffsets = {}; // Needed?
+
+	// #wip: vkAllocateDescriptorSets() need to happen only once but it needs descriptor pool...
+	VkDescriptorSetAllocateInfo allocInfo{
+		.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+		.pNext              = nullptr,
+		.descriptorPool     = vkDescPool,
+		.descriptorSetCount = descSetCount,
+		.pSetLayouts        = vkDescriptorSetLayouts.data(),
+	};
+	vkAllocateDescriptorSets(vkDevice, &allocInfo, vkDescriptorSets.data());
+
+	// #wip: vkUpdateDescriptorSets() here
+	// ...
+#if 0
+	std::vector<VkWriteDescriptorSet> writes;
+	std::vector<VkCopyDescriptorSet> copies;
+	// Fill writes and copies //
+	vkUpdateDescriptorSets(
+		vkDevice,
+		static_cast<uint32_t>(writes.size()), writes.data(),
+		static_cast<uint32_t>(copies.size()), copies.data());
+#endif
+
+	vkCmdBindDescriptorSets(
+		currentCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+		vkPipelineLayout, firstSet,
+		(uint32_t)vkDescriptorSets.size(), vkDescriptorSets.data(),
+		(uint32_t)dynamicOffsets.size(), dynamicOffsets.data());
 }
 
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)

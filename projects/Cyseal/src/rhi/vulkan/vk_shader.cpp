@@ -49,10 +49,13 @@ VulkanShaderStage::~VulkanShaderStage()
 
 	VkDevice vkDevice = device->getRaw();
 	vkDestroyShaderModule(vkDevice, vkModule, nullptr);
+
+	// Arrays might be already empty by moveVkDescriptorSetLayouts().
 	for (VkDescriptorSetLayout layout : vkDescriptorSetLayouts)
 	{
 		vkDestroyDescriptorSetLayout(vkDevice, layout, nullptr);
 	}
+	vkPushConstantRanges.clear();
 }
 
 void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
@@ -64,6 +67,18 @@ void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEn
 #endif
 
 	readShaderReflection(sourceCode.data(), sourceCode.size());
+}
+
+void VulkanShaderStage::moveVkDescriptorSetLayouts(std::vector<VkDescriptorSetLayout>& target)
+{
+	target = vkDescriptorSetLayouts;
+	vkDescriptorSetLayouts.clear();
+}
+
+void VulkanShaderStage::moveVkPushConstantRanges(std::vector<VkPushConstantRange>& target)
+{
+	target = vkPushConstantRanges;
+	vkPushConstantRanges.clear();
 }
 
 void VulkanShaderStage::loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
@@ -156,13 +171,13 @@ void VulkanShaderStage::loadFromFileByDxc(const wchar_t* inFilename, const char*
 	CHECK(ret == VK_SUCCESS);
 }
 
+// #wip: readShaderReflection()
 void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spirv_nbytes)
 {
 	SpvReflectShaderModule module;
 	SpvReflectResult result = spvReflectCreateShaderModule(spirv_nbytes, spirv_code, &module);
 	assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-	// #todo-barrier-vk: readShaderReflection
 	// Input variables
 	{
 		uint32 varCount = 0;
@@ -238,9 +253,12 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		result = spvReflectEnumerateDescriptorSets(&module, &setCount, sets.data());
 		assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
+		std::vector<uint32> setIndicesValidation(setCount, 0xffffffff);
+
 		for (uint32 i = 0; i < setCount; ++i)
 		{
 			SpvReflectDescriptorSet* spvSet = sets[i];
+			setIndicesValidation[i] = spvSet->set;
 			
 			std::vector<VkDescriptorSetLayoutBinding> vkBindings(spvSet->binding_count);
 			for (uint32 j = 0; j < spvSet->binding_count; ++j)
@@ -251,7 +269,7 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 					.descriptorType     = static_cast<VkDescriptorType>(spvBinding->descriptor_type),
 					.descriptorCount    = spvBinding->count,
 					.stageFlags         = static_cast<VkShaderStageFlags>(vkShaderStage),
-					.pImmutableSamplers = nullptr, // #todo-barrier-vk: pImmutableSamplers
+					.pImmutableSamplers = nullptr, // #wip: pImmutableSamplers
 				};
 			}
 
@@ -269,6 +287,12 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 			CHECK(vkRet == VK_SUCCESS);
 
 			vkDescriptorSetLayouts.push_back(vkSetLayout);
+		}
+
+		for (uint32 i = 0; i < setCount; ++i)
+		{
+			// Other logics assume firstSet=0 and consecutive set indices...
+			CHECK(setIndicesValidation[i] == i);
 		}
 	}
 

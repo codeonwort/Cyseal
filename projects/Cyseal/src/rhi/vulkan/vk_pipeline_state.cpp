@@ -5,6 +5,13 @@ VulkanComputePipelineState::~VulkanComputePipelineState()
 {
 	vkDestroyPipeline(vkDevice, vkPipeline, nullptr);
 	vkDestroyPipelineLayout(vkDevice, vkPipelineLayout, nullptr);
+
+	// Ownership taken from VulkanShaderStage, so we need to free them here.
+	for (VkDescriptorSetLayout layout : vkDescriptorSetLayouts)
+	{
+		vkDestroyDescriptorSetLayout(vkDevice, layout, nullptr);
+	}
+	vkPushConstantRanges.clear();
 }
 
 void VulkanComputePipelineState::initialize(VkDevice inVkDevice, const ComputePipelineDesc& inDesc)
@@ -14,6 +21,7 @@ void VulkanComputePipelineState::initialize(VkDevice inVkDevice, const ComputePi
 	VulkanShaderStage* shaderStage = static_cast<VulkanShaderStage*>(inDesc.cs);
 	CHECK(shaderStage != nullptr);
 
+	shaderReflection = shaderStage->getShaderReflection();
 	createPipelineLayout(inDesc);
 
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfo{
@@ -44,17 +52,17 @@ void VulkanComputePipelineState::initialize(VkDevice inVkDevice, const ComputePi
 void VulkanComputePipelineState::createPipelineLayout(const ComputePipelineDesc& inDesc)
 {
 	VulkanShaderStage* computeShader = static_cast<VulkanShaderStage*>(inDesc.cs);
-	const auto& setLayouts = computeShader->getVkDescriptorSetLayouts();
-	const auto& pushConsts = computeShader->getVkPushConstantRanges();
+	computeShader->moveVkDescriptorSetLayouts(vkDescriptorSetLayouts);
+	computeShader->moveVkPushConstantRanges(vkPushConstantRanges);
 
 	VkPipelineLayoutCreateInfo createInfo{
 		.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext                  = nullptr,
 		.flags                  = (VkPipelineLayoutCreateFlags)0,
-		.setLayoutCount         = (uint32_t)setLayouts.size(),
-		.pSetLayouts            = setLayouts.data(),
-		.pushConstantRangeCount = (uint32_t)pushConsts.size(),
-		.pPushConstantRanges    = pushConsts.data(),
+		.setLayoutCount         = (uint32_t)vkDescriptorSetLayouts.size(),
+		.pSetLayouts            = vkDescriptorSetLayouts.data(),
+		.pushConstantRangeCount = (uint32_t)vkPushConstantRanges.size(),
+		.pPushConstantRanges    = vkPushConstantRanges.data(),
 	};
 	
 	VkResult vkRet = vkCreatePipelineLayout(vkDevice, &createInfo, nullptr, &vkPipelineLayout);

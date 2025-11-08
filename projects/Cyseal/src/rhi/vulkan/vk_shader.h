@@ -8,9 +8,9 @@
 #include "rhi/shader.h"
 #include <vector>
 
+// #wip: VulkanShaderReflection
 struct VulkanShaderReflection
 {
-	// #todo-barrier-vk
 };
 
 class VulkanShaderStage : public ShaderStage
@@ -28,8 +28,9 @@ public:
 
 	VkShaderModule getVkShaderModule() const { return vkModule; }
 	VkShaderStageFlagBits getVkShaderStage() const { return vkShaderStage; }
-	const std::vector<VkDescriptorSetLayout>& getVkDescriptorSetLayouts() const { return vkDescriptorSetLayouts; }
-	const std::vector<VkPushConstantRange>& getVkPushConstantRanges() const { return vkPushConstantRanges; }
+
+	void moveVkDescriptorSetLayouts(std::vector<VkDescriptorSetLayout>& target);
+	void moveVkPushConstantRanges(std::vector<VkPushConstantRange>& target);
 
 private:
 	void loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
@@ -49,6 +50,8 @@ private:
 	// Native resources
 	VkShaderModule vkModule = VK_NULL_HANDLE;
 	VkShaderStageFlagBits vkShaderStage = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+
+	// Native resources, but ownership might be lost and get emptied.
 	std::vector<VkDescriptorSetLayout> vkDescriptorSetLayouts;
 	std::vector<VkPushConstantRange> vkPushConstantRanges;
 };
