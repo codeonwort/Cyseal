@@ -522,8 +522,7 @@ namespace UnitTest
 		}
 	};
 
-	// #todo-barrier-vk: Enable test for vulkan
-#if 0
+	// #wip: Make barrier test pass
 	TEST_CLASS(TestBarrierVulkan), TestBarrierBase<ERenderDeviceRawAPI::Vulkan>
 	{
 	public:
@@ -531,6 +530,9 @@ namespace UnitTest
 		{
 			TestBarrierBase::ExecuteBufferBarrier();
 		}
+		TEST_METHOD(ExecuteTextureBarrier)
+		{
+			TestBarrierBase::ExecuteTextureBarrier();
+		}
 	};
-#endif
 }

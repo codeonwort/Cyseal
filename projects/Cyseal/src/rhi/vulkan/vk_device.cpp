@@ -470,7 +470,7 @@ void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 		return;
 	}
 
-	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->currentCommandBuffer;
+	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->internal_getVkCommandBuffer();
 	uint32 ix = swapChain->getCurrentBackbufferIndex();
 
 	VkClearValue clearValues[2] = {

@@ -37,6 +37,7 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 #endif
 
 	VkSemaphore signalSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
+	VkCommandBuffer vkCommandBuffer = vkCmdList->internal_getVkCommandBuffer();
 
 	VkSubmitInfo submitInfo{
 		.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -45,7 +46,7 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 		.pWaitSemaphores      = waitSemaphores,
 		.pWaitDstStageMask    = waitStages,
 		.commandBufferCount   = 1,
-		.pCommandBuffers      = &(vkCmdList->currentCommandBuffer),
+		.pCommandBuffers      = &vkCommandBuffer,
 		.signalSemaphoreCount = 1,
 		.pSignalSemaphores    = signalSemaphores,
 	};
@@ -372,10 +373,11 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	DescriptorHeap* descriptorHeap,
 	DescriptorIndexTracker* tracker)
 {
-	// #todo-barrier-vk: bindComputeShaderParameters
+	// #wip: bindComputeShaderParameters
 	CHECK_NO_ENTRY();
-	VkPipelineLayout layout = static_cast<VulkanComputePipelineState*>(pipelineState)->getVkPipelineLayout();
-	VulkanDescriptorPool* pool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
+
+	VkPipelineLayout vkPipelineLayout = static_cast<VulkanComputePipelineState*>(pipelineState)->getVkPipelineLayout();
+	VulkanDescriptorPool* descPool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
 
 	//vkAllocateDescriptorSets
 	//vkCmdBindDescriptorSets
