@@ -7,27 +7,12 @@
 class VulkanDescriptorPool : public DescriptorHeap
 {
 public:
-	VulkanDescriptorPool(VulkanDevice* inDevice, const DescriptorHeapDesc& inDesc, VkDescriptorPool inPool)
-		: DescriptorHeap(inDesc)
-		, device(inDevice)
-		, vkPool(inPool)
-	{
-	}
-	~VulkanDescriptorPool()
-	{
-		vkDestroyDescriptorPool(device->getRaw(), vkPool, nullptr);
-	}
+	VulkanDescriptorPool(const DescriptorHeapDesc& inDesc);
+	~VulkanDescriptorPool();
 
-	virtual void setDebugName(const wchar_t* debugNameW)
-	{
-		std::string debugNameA;
-		wstr_to_str(debugNameW, debugNameA);
+	virtual void setDebugName(const wchar_t* debugNameW);
 
-		device->setObjectDebugName(
-			VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_POOL_EXT,
-			(uint64)vkPool,
-			debugNameA.c_str());
-	}
+	void initialize(VulkanDevice* inDevice);
 
 	inline VkDescriptorPool getVkPool() const { return vkPool; }
 

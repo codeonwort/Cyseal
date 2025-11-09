@@ -982,32 +982,9 @@ RaytracingShaderTable* VulkanDevice::createRaytracingShaderTable(
 
 DescriptorHeap* VulkanDevice::createDescriptorHeap(const DescriptorHeapDesc& inDesc)
 {
-	std::vector<VkDescriptorPoolSize> poolSizes;
-	if (inDesc.type == EDescriptorHeapType::CBV_SRV_UAV) {
-		// #todo-vulkan: For now, allocate 3x times than requested...
-		poolSizes.emplace_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, inDesc.numDescriptors }); // CBV
-		poolSizes.emplace_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, inDesc.numDescriptors });  // SRV
-		poolSizes.emplace_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, inDesc.numDescriptors });  // UAV
-	} else {
-		// #todo-vulkan: Watch out for VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK
-		// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkDescriptorPoolSize.html
-		poolSizes.emplace_back(VkDescriptorPoolSize{ into_vk::descriptorPoolType(inDesc.type), inDesc.numDescriptors });
-	}
-
-	VkDescriptorPoolCreateInfo createInfo{
-		.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-		.pNext         = nullptr,
-		.flags         = (VkDescriptorPoolCreateFlagBits)0,
-		.maxSets       = 1, // #todo-vulkan: maxSets of VkDescriptorPoolCreateInfo
-		.poolSizeCount = (uint32_t)poolSizes.size(),
-		.pPoolSizes    = poolSizes.data(),
-	};
-
-	VkDescriptorPool vkDescriptorPool = VK_NULL_HANDLE;
-	VkResult ret = vkCreateDescriptorPool(vkDevice, &createInfo, nullptr, &vkDescriptorPool);
-	CHECK(ret == VK_SUCCESS);
-
-	return new VulkanDescriptorPool(this, inDesc, vkDescriptorPool);
+	auto pool = new(EMemoryTag::RHI) VulkanDescriptorPool(inDesc);
+	pool->initialize(this);
+	return pool;
 }
 
 ConstantBufferView* VulkanDevice::createCBV(Buffer* buffer, DescriptorHeap* descriptorHeap, uint32 sizeInBytes, uint32 offsetInBytes)
