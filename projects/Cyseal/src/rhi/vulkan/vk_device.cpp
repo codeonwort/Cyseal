@@ -1112,23 +1112,46 @@ RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, const Render
 
 UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const UnorderedAccessViewDesc& createParams)
 {
+	VulkanDescriptorPool* pool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
+	VkDescriptorSet vkDescSet = pool->getVkDescriptorSetGlobal();
+	// In Vulkan backend, only persistent heaps are allowed for writing descriptors.
+	// Volatile views must copy descriptors from persistent heaps.
+	CHECK(pool->getCreateParams().purpose == EDescriptorHeapPurpose::Persistent);
+	CHECK(vkDescSet != VK_NULL_HANDLE);
+
 	VulkanUnorderedAccessView* uav = nullptr;
 
 	const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
 	if (createParams.viewDimension == EUAVDimension::Buffer)
 	{
+		const uint32 descriptorBinding = pool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
 		VkDescriptorBufferInfo bufferInfo{
 			.buffer = (VkBuffer)(gpuResource->getRawResource()),
 			.offset = createParams.buffer.firstElement * createParams.buffer.structureByteStride,
 			.range  = createParams.buffer.numElements * createParams.buffer.structureByteStride,
 		};
-
+		VkWriteDescriptorSet vkWrite{
+			.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.pNext            = nullptr,
+			.dstSet           = vkDescSet,
+			.dstBinding       = descriptorBinding,
+			.dstArrayElement  = descriptorIndex,
+			.descriptorCount  = 1,
+			.descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // #wip-pool: dynamic storage buffer?
+			.pImageInfo       = nullptr,
+			.pBufferInfo      = &bufferInfo,
+			.pTexelBufferView = nullptr,
+		};
+		vkUpdateDescriptorSets(vkDevice, 1, &vkWrite, 0, nullptr);
+		
 		uav = new(EMemoryTag::RHI) VulkanUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, bufferInfo);
-		// #wip-createUAV: VkWriteDescriptorSet, vkUpdateDescriptorSets
 	}
 	else if (createParams.viewDimension == EUAVDimension::Texture2D)
 	{
+		CHECK_NO_ENTRY();
+
 		// VkDescriptorImageInfo?
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,

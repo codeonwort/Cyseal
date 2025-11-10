@@ -375,10 +375,12 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	DescriptorIndexTracker* tracker)
 {
 	VulkanComputePipelineState* computePSO = static_cast<VulkanComputePipelineState*>(pipelineState);
+	VulkanDescriptorPool* pool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
+	CHECK(pool->getCreateParams().purpose == EDescriptorHeapPurpose::Volatile);
 
 	VkDevice vkDevice = device->getRaw();
 	VkPipelineLayout vkPipelineLayout = computePSO->getVkPipelineLayout();
-	VkDescriptorPool vkDescPool = static_cast<VulkanDescriptorPool*>(descriptorHeap)->getVkPool();
+	VkDescriptorPool vkDescPool = pool->getVkPool();
 	const std::vector<VkDescriptorSetLayout>& vkDescriptorSetLayouts = computePSO->getVkDescriptorSetLayouts();
 
 	CHECK_NO_ENTRY();

@@ -15,8 +15,17 @@ public:
 	void initialize(VulkanDevice* inDevice);
 
 	inline VkDescriptorPool getVkPool() const { return vkPool; }
+	uint32 getDescriptorBindingIndex(VkDescriptorType descriptorType) const;
+
+	inline VkDescriptorSet getVkDescriptorSetGlobal() const { return vkDescriptorSetGlobal; }
 
 private:
 	VulkanDevice* device = nullptr;
 	VkDescriptorPool vkPool = VK_NULL_HANDLE;
+
+	std::vector<VkDescriptorPoolSize> poolSizes; // element index = binding index in shader
+
+	// Allocated only if this pool is persistent.
+	VkDescriptorSetLayout vkDescriptorSetLayoutGlobal = VK_NULL_HANDLE;
+	VkDescriptorSet vkDescriptorSetGlobal = VK_NULL_HANDLE;
 };
