@@ -352,12 +352,12 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	// Determine swapchain image count first.
 	if (createParams.swapChainParams.bHeadless == false)
 	{
-		swapChain = new VulkanSwapchain;
+		swapChain = new(EMemoryTag::RHI) VulkanSwapchain;
 		static_cast<VulkanSwapchain*>(swapChain)->preinitialize(this);
 	}
 
 	{
-		commandQueue = new VulkanRenderCommandQueue;
+		commandQueue = new(EMemoryTag::RHI) VulkanRenderCommandQueue;
 		commandQueue->initialize(this);
 
 		uint32 count = computeNumFramesInFlight(this);
@@ -504,21 +504,21 @@ void VulkanDevice::shutdownDearImgui()
 
 RenderCommandList* VulkanDevice::createRenderCommandList()
 {
-	RenderCommandList* commandList = new VulkanRenderCommandList;
+	RenderCommandList* commandList = new(EMemoryTag::RHI) VulkanRenderCommandList;
 	commandList->initialize(this);
 	return commandList;
 }
 
 RenderCommandAllocator* VulkanDevice::createRenderCommandAllocator()
 {
-	RenderCommandAllocator* allocator = new VulkanRenderCommandAllocator;
+	RenderCommandAllocator* allocator = new(EMemoryTag::RHI) VulkanRenderCommandAllocator;
 	allocator->initialize(this);
 	return allocator;
 }
 
 VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, EBufferAccessFlags usageFlags, const wchar_t* inDebugName)
 {
-	VulkanVertexBuffer* buffer = new VulkanVertexBuffer(this);
+	VulkanVertexBuffer* buffer = new(EMemoryTag::RHI) VulkanVertexBuffer(this);
 	buffer->initialize(sizeInBytes, usageFlags);
 	if (inDebugName != nullptr)
 	{
@@ -531,14 +531,14 @@ VertexBuffer* VulkanDevice::createVertexBuffer(uint32 sizeInBytes, EBufferAccess
 
 VertexBuffer* VulkanDevice::createVertexBuffer(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes)
 {
-	VulkanVertexBuffer* buffer = new VulkanVertexBuffer(this);
+	VulkanVertexBuffer* buffer = new(EMemoryTag::RHI) VulkanVertexBuffer(this);
 	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
 
 IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags, const wchar_t* inDebugName)
 {
-	VulkanIndexBuffer* buffer = new VulkanIndexBuffer(this);
+	VulkanIndexBuffer* buffer = new(EMemoryTag::RHI) VulkanIndexBuffer(this);
 	buffer->initialize(sizeInBytes, format, usageFlags);
 	if (inDebugName != nullptr)
 	{
@@ -551,28 +551,28 @@ IndexBuffer* VulkanDevice::createIndexBuffer(uint32 sizeInBytes, EPixelFormat fo
 
 IndexBuffer* VulkanDevice::createIndexBuffer(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes, EPixelFormat format)
 {
-	VulkanIndexBuffer* buffer = new VulkanIndexBuffer(this);
+	VulkanIndexBuffer* buffer = new(EMemoryTag::RHI) VulkanIndexBuffer(this);
 	buffer->initializeWithinPool(pool, offsetInPool, sizeInBytes);
 	return buffer;
 }
 
 Buffer* VulkanDevice::createBuffer(const BufferCreateParams& createParams)
 {
-	VulkanBuffer* buffer = new VulkanBuffer(this);
+	VulkanBuffer* buffer = new(EMemoryTag::RHI) VulkanBuffer(this);
 	buffer->initialize(createParams);
 	return buffer;
 }
 
 Texture* VulkanDevice::createTexture(const TextureCreateParams& createParams)
 {
-	VulkanTexture* texture = new VulkanTexture(this);
+	VulkanTexture* texture = new(EMemoryTag::RHI) VulkanTexture(this);
 	texture->initialize(createParams);
 	return texture;
 }
 
 ShaderStage* VulkanDevice::createShader(EShaderStage shaderStage, const char* debugName)
 {
-	return new VulkanShaderStage(this, shaderStage, debugName);
+	return new(EMemoryTag::RHI) VulkanShaderStage(this, shaderStage, debugName);
 }
 
 // #todo-vulkan: Root signature abstraction is deprecated
@@ -680,7 +680,7 @@ RootSignature* VulkanDevice::createRootSignature(const RootSignatureDesc& inDesc
 	vkRet = vkCreatePipelineLayout(vkDevice, &pipelineLayoutCreateInfo, nullptr, &vkPipelineLayout);
 	CHECK(vkRet == VK_SUCCESS);
 
-	return new VulkanPipelineLayout(vkPipelineLayout);
+	return new(EMemoryTag::RHI) VulkanPipelineLayout(vkPipelineLayout);
 }
 #endif
 
@@ -951,14 +951,14 @@ GraphicsPipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsP
 		vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkPipeline);
 	CHECK(ret == VK_SUCCESS);
 
-	return new VulkanGraphicsPipelineState(vkPipeline, vkRenderPass);
+	return new(EMemoryTag::RHI) VulkanGraphicsPipelineState(vkPipeline, vkRenderPass);
 #endif
 	return nullptr;
 }
 
 ComputePipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDesc& inDesc)
 {
-	VulkanComputePipelineState* pipeline = new VulkanComputePipelineState;
+	VulkanComputePipelineState* pipeline = new(EMemoryTag::RHI) VulkanComputePipelineState;
 	pipeline->initialize(vkDevice, inDesc);
 	return pipeline;
 }
@@ -992,7 +992,7 @@ ConstantBufferView* VulkanDevice::createCBV(Buffer* buffer, DescriptorHeap* desc
 	VkBuffer vkBuffer = (VkBuffer)buffer->getRawResource();
 	uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
-	return new VulkanConstantBufferView(vkBuffer, sizeInBytes, offsetInBytes, descriptorHeap, descriptorIndex);
+	return new(EMemoryTag::RHI) VulkanConstantBufferView(vkBuffer, sizeInBytes, offsetInBytes, descriptorHeap, descriptorIndex);
 }
 
 ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams)
@@ -1024,7 +1024,7 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 		
 		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 		
-		srv = new VulkanShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, vkBuffer);
+		srv = new(EMemoryTag::RHI) VulkanShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, vkBuffer);
 	}
 	else if (createParams.viewDimension == ESRVDimension::Texture2D)
 	{
@@ -1051,7 +1051,7 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 
 		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
-		srv = new VulkanShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+		srv = new(EMemoryTag::RHI) VulkanShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 	}
 	else
 	{
@@ -1099,7 +1099,7 @@ RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHe
 
 		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
-		rtv = new VulkanRenderTargetView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+		rtv = new(EMemoryTag::RHI) VulkanRenderTargetView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 	}
 
 	return rtv;
@@ -1124,8 +1124,8 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 			.range  = createParams.buffer.numElements * createParams.buffer.structureByteStride,
 		};
 
-		uav = new VulkanUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, bufferInfo);
-		// VkWriteDescriptorSet, vkUpdateDescriptorSets
+		uav = new(EMemoryTag::RHI) VulkanUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, bufferInfo);
+		// #wip-createUAV: VkWriteDescriptorSet, vkUpdateDescriptorSets
 	}
 	else if (createParams.viewDimension == EUAVDimension::Texture2D)
 	{
@@ -1151,7 +1151,9 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
 		CHECK(vkRet == VK_SUCCESS);
 
-		uav = new VulkanUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+		// #wip-createUAV: VkWriteDescriptorSet
+
+		uav = new(EMemoryTag::RHI) VulkanUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 	}
 	else
 	{
@@ -1200,7 +1202,7 @@ DepthStencilView* VulkanDevice::createDSV(GPUResource* gpuResource, DescriptorHe
 
 	const uint32 descriptorIndex = gDescriptorHeaps->allocateDSVIndex();
 
-	return new VulkanDepthStencilView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+	return new(EMemoryTag::RHI) VulkanDepthStencilView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 }
 
 DepthStencilView* VulkanDevice::createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams)
