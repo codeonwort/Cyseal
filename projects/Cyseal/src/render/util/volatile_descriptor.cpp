@@ -31,6 +31,7 @@ void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wc
 				.numDescriptors = swapchainCount,
 				.flags          = EDescriptorHeapFlags::None,
 				.nodeMask       = 0,
+				.purpose        = EDescriptorHeapPurpose::Volatile,
 			}
 		));
 
@@ -71,6 +72,7 @@ void VolatileDescriptorHelper::resizeDescriptorHeap(uint32 swapchainIndex, uint3
 			.numDescriptors = maxDescriptors,
 			.flags          = EDescriptorHeapFlags::ShaderVisible,
 			.nodeMask       = 0,
+			.purpose        = EDescriptorHeapPurpose::Volatile,
 		}
 	));
 

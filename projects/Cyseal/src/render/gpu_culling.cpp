@@ -106,6 +106,7 @@ void GPUCulling::resizeVolatileHeap(uint32 swapchainIndex, uint32 maxDescriptors
 			.numDescriptors = maxDescriptors * maxBasePassPermutation,
 			.flags          = EDescriptorHeapFlags::ShaderVisible,
 			.nodeMask       = 0,
+			.purpose        = EDescriptorHeapPurpose::Volatile,
 		}
 	));
 

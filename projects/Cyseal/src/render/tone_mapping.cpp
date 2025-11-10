@@ -23,6 +23,7 @@ void ToneMapping::initialize()
 			.numDescriptors = MAX_VOLATILE_DESCRIPTORS,
 			.flags          = EDescriptorHeapFlags::ShaderVisible,
 			.nodeMask       = 0,
+			.purpose        = EDescriptorHeapPurpose::Volatile,
 		};
 		volatileViewHeap[i] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(desc));
 

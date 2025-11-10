@@ -451,6 +451,7 @@ namespace UnitTest
 				.numDescriptors = numDescriptors,
 				.flags          = EDescriptorHeapFlags::None,
 				.nodeMask       = 0,
+				.purpose        = EDescriptorHeapPurpose::Volatile,
 			};
 			DescriptorHeap* heap = device->createDescriptorHeap(desc);
 			return UniquePtr<DescriptorHeap>(heap);

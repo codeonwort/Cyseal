@@ -29,6 +29,7 @@ void BufferVisualization::initialize()
 			.numDescriptors = requiredVolatileDescriptors,
 			.flags          = EDescriptorHeapFlags::ShaderVisible,
 			.nodeMask       = 0,
+			.purpose        = EDescriptorHeapPurpose::Volatile,
 		};
 
 		volatileViewHeap[i] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(desc));
