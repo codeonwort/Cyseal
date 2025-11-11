@@ -41,6 +41,7 @@ public:
 
 	void initialize(VkDevice inVkDevice, const ComputePipelineDesc& inDesc);
 
+	const VulkanPushConstantParameter* findPushConstantParameter(const std::string& name) const;
 	const VulkanShaderParameter* findShaderParameter(const std::string& name) const;
 
 	inline VkPipeline getVkPipeline() const { return vkPipeline; }
@@ -60,7 +61,6 @@ private:
 
 	// Ownership taken from VulkanShaderStage.
 	std::vector<VkDescriptorSetLayout> vkDescriptorSetLayouts;
-	std::vector<VkPushConstantRange> vkPushConstantRanges;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

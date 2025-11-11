@@ -415,9 +415,22 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	std::vector<VkCopyDescriptorSet> copies;
 	for (const auto& inParam : inParameters->_pushConstants)
 	{
-		// #wip-param: update push constant
-		// Needed in texture_test.hlsl
-		CHECK_NO_ENTRY();
+		const VulkanPushConstantParameter* param = computePSO->findPushConstantParameter(inParam.name);
+		if (param == nullptr)
+		{
+			reportUndeclaredShaderParameter(inParam.name.c_str());
+			continue;
+		}
+
+		CHECK(inParam.destOffsetIn32BitValues == param->range.offset); // #wip: What to use?
+
+		vkCmdPushConstants(
+			currentCommandBuffer,
+			vkPipelineLayout,
+			VK_SHADER_STAGE_ALL, // #wip-pool: stage flag for vkCmdPushConstants()
+			param->range.offset,
+			param->range.size,
+			inParam.values.data());
 	}
 	for (const auto& inParam : inParameters->rwStructuredBuffers)
 	{

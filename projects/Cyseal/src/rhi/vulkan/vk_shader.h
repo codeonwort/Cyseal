@@ -8,6 +8,13 @@
 #include "rhi/shader.h"
 #include <vector>
 
+// Special struct for push constants.
+struct VulkanPushConstantParameter
+{
+	std::string         name;
+	VkPushConstantRange range;
+};
+// All other shader parameters use this.
 struct VulkanShaderParameter
 {
 	std::string      name;
@@ -19,8 +26,10 @@ struct VulkanShaderParameter
 
 struct VulkanShaderParameterTable
 {
-	std::vector<VulkanShaderParameter> pushConstants;
+	std::vector<VulkanPushConstantParameter> pushConstants;
 	std::vector<VulkanShaderParameter> storageBuffers;
+	std::vector<VulkanShaderParameter> storageImages;
+	std::vector<VulkanShaderParameter> sampledImages;
 	// #wip-param: VulkanShaderParameterTable
 };
 
@@ -41,7 +50,6 @@ public:
 	VkShaderStageFlagBits getVkShaderStage() const { return vkShaderStage; }
 
 	void moveVkDescriptorSetLayouts(std::vector<VkDescriptorSetLayout>& target);
-	void moveVkPushConstantRanges(std::vector<VkPushConstantRange>& target);
 
 private:
 	void loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
@@ -65,7 +73,6 @@ private:
 
 	// Native resources, but ownership might be lost and get emptied.
 	std::vector<VkDescriptorSetLayout> vkDescriptorSetLayouts;
-	std::vector<VkPushConstantRange> vkPushConstantRanges;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

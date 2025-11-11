@@ -60,7 +60,6 @@ VulkanShaderStage::~VulkanShaderStage()
 	{
 		vkDestroyDescriptorSetLayout(vkDevice, layout, nullptr);
 	}
-	vkPushConstantRanges.clear();
 }
 
 void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
@@ -78,12 +77,6 @@ void VulkanShaderStage::moveVkDescriptorSetLayouts(std::vector<VkDescriptorSetLa
 {
 	target = vkDescriptorSetLayouts;
 	vkDescriptorSetLayouts.clear();
-}
-
-void VulkanShaderStage::moveVkPushConstantRanges(std::vector<VkPushConstantRange>& target)
-{
-	target = vkPushConstantRanges;
-	vkPushConstantRanges.clear();
 }
 
 void VulkanShaderStage::loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
@@ -234,7 +227,12 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 				.offset     = spvPushConst->offset,
 				.size       = spvPushConst->size,
 			};
-			vkPushConstantRanges.emplace_back(range);
+
+			VulkanPushConstantParameter param{
+				.name  = spvPushConst->name,
+				.range = std::move(range),
+			};
+			parameterTable.pushConstants.emplace_back(param);
 		}
 	}
 	// Descriptor bindings
@@ -322,6 +320,7 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 
 void VulkanShaderStage::addToShaderParameterTable(const VulkanShaderParameter& inParam)
 {
+	// #wip-param
 	switch (inParam.vkDescriptorType)
 	{
 		case VK_DESCRIPTOR_TYPE_SAMPLER:
@@ -331,10 +330,10 @@ void VulkanShaderStage::addToShaderParameterTable(const VulkanShaderParameter& i
 			CHECK_NO_ENTRY();
 			break;
 		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-			CHECK_NO_ENTRY();
+			parameterTable.sampledImages.emplace_back(inParam);
 			break;
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-			CHECK_NO_ENTRY();
+			parameterTable.storageImages.emplace_back(inParam);
 			break;
 		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 			CHECK_NO_ENTRY();
