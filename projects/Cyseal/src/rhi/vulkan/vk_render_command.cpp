@@ -8,6 +8,14 @@
 #include "vk_descriptor.h"
 #include "vk_into.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogVulkanCommandList);
+
+static void reportUndeclaredShaderParameter(const char* name)
+{
+	// #todo-log: How to stop error spam? Track same errors and report only once?
+	//CYLOG(LogVulkanCommandList, Error, L"Undeclared parameter: %S", name);
+}
+
 //////////////////////////////////////////////////////////////////////////
 // VulkanRenderCommandQueue
 
@@ -367,15 +375,14 @@ void VulkanRenderCommandList::executeIndirect(
 	// #todo-vulkan
 }
 
-// #wip: bindComputeShaderParameters()
 void VulkanRenderCommandList::bindComputeShaderParameters(
 	PipelineState* pipelineState,
-	const ShaderParameterTable* parameters,
-	DescriptorHeap* descriptorHeap,
+	const ShaderParameterTable* inParameters,
+	DescriptorHeap* inDescriptorHeap,
 	DescriptorIndexTracker* tracker)
 {
 	VulkanComputePipelineState* computePSO = static_cast<VulkanComputePipelineState*>(pipelineState);
-	VulkanDescriptorPool* pool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
+	VulkanDescriptorPool* pool = static_cast<VulkanDescriptorPool*>(inDescriptorHeap);
 	CHECK(pool->getCreateParams().purpose == EDescriptorHeapPurpose::Volatile);
 
 	VkDevice vkDevice = device->getRaw();
@@ -383,43 +390,65 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	VkDescriptorPool vkDescPool = pool->getVkPool();
 	const std::vector<VkDescriptorSetLayout>& vkDescriptorSetLayouts = computePSO->getVkDescriptorSetLayouts();
 
-	CHECK_NO_ENTRY();
-
-	// #wip: vkResetDescriptorPool?
-	//vkResetDescriptorPool(vkDevice, vkDescPool, (VkDescriptorPoolResetFlags)0);
+	if (tracker == nullptr || tracker->lastIndex == 0)
+	{
+		vkResetDescriptorPool(vkDevice, vkDescPool, (VkDescriptorPoolResetFlags)0);
+	}
 
 	const uint32_t descSetCount = (uint32_t)vkDescriptorSetLayouts.size();
 	const uint32_t firstSet = 0; // Assume firstSet=0 and consecutive set indices.
-	std::vector<VkDescriptorSet> vkDescriptorSets(descSetCount, VK_NULL_HANDLE);
 	std::vector<uint32_t> dynamicOffsets = {}; // Needed?
 
-	// #wip: vkAllocateDescriptorSets() need to happen only once but it needs descriptor pool...
-	VkDescriptorSetAllocateInfo allocInfo{
-		.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-		.pNext              = nullptr,
-		.descriptorPool     = vkDescPool,
-		.descriptorSetCount = descSetCount,
-		.pSetLayouts        = vkDescriptorSetLayouts.data(),
-	};
-	vkAllocateDescriptorSets(vkDevice, &allocInfo, vkDescriptorSets.data());
-
-	// #wip: vkUpdateDescriptorSets() here
-	// ...
-#if 0
-	std::vector<VkWriteDescriptorSet> writes;
-	std::vector<VkCopyDescriptorSet> copies;
-	// Fill writes and copies //
-	vkUpdateDescriptorSets(
-		vkDevice,
-		static_cast<uint32_t>(writes.size()), writes.data(),
-		static_cast<uint32_t>(copies.size()), copies.data());
-#endif
+	const std::vector<VkDescriptorSet>* vkDescriptorSets = pool->findCachedDescriptorSets(computePSO);
+	if (vkDescriptorSets == nullptr)
+	{
+		vkDescriptorSets = pool->createDescriptorSets(computePSO, vkDescriptorSetLayouts);
+	}
 
 	vkCmdBindDescriptorSets(
 		currentCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
 		vkPipelineLayout, firstSet,
-		(uint32_t)vkDescriptorSets.size(), vkDescriptorSets.data(),
+		(uint32_t)vkDescriptorSets->size(), vkDescriptorSets->data(),
 		(uint32_t)dynamicOffsets.size(), dynamicOffsets.data());
+
+	std::vector<VkWriteDescriptorSet> writes;
+	std::vector<VkCopyDescriptorSet> copies;
+	for (const auto& inParam : inParameters->_pushConstants)
+	{
+		// #wip-param: update push constant
+		// Needed in texture_test.hlsl
+		CHECK_NO_ENTRY();
+	}
+	for (const auto& inParam : inParameters->rwStructuredBuffers)
+	{
+		auto srcPool = static_cast<VulkanDescriptorPool*>(inParam.sourceHeap);
+		CHECK(srcPool->getCreateParams().purpose == EDescriptorHeapPurpose::Persistent);
+
+		const VulkanShaderParameter* param = computePSO->findShaderParameter(inParam.name);
+		if (param == nullptr)
+		{
+			reportUndeclaredShaderParameter(inParam.name.c_str());
+			continue;
+		}
+
+		VkCopyDescriptorSet copyDesc{
+			.sType           = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET,
+			.pNext           = nullptr,
+			.srcSet          = srcPool->getVkDescriptorSetGlobal(),
+			.srcBinding      = srcPool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
+			.srcArrayElement = inParam.startIndex,
+			.dstSet          = (*vkDescriptorSets)[param->set],
+			.dstBinding      = param->binding,
+			.dstArrayElement = 0,
+			.descriptorCount = inParam.count,
+		};
+		copies.emplace_back(copyDesc);
+	}
+
+	vkUpdateDescriptorSets(
+		vkDevice,
+		static_cast<uint32_t>(writes.size()), writes.data(),
+		static_cast<uint32_t>(copies.size()), copies.data());
 }
 
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)

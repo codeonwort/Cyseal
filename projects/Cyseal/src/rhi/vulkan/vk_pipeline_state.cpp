@@ -1,6 +1,24 @@
 #include "vk_pipeline_state.h"
 #include "vk_shader.h"
 
+static void createShaderParameterHashMap(
+	std::map<std::string, const VulkanShaderParameter*>& outParameterHashMap,
+	const VulkanShaderParameterTable& parameterTable)
+{
+	auto build = [&outParameterHashMap](const std::vector<VulkanShaderParameter>& params) {
+		for (auto i = 0; i < params.size(); ++i)
+		{
+			outParameterHashMap.insert(std::make_pair(params[i].name, &(params[i])));
+		}
+	};
+	// #wip-param
+	build(parameterTable.pushConstants);
+	build(parameterTable.storageBuffers);
+}
+
+// --------------------------------------------------------
+// VulkanComputePipelineState
+
 VulkanComputePipelineState::~VulkanComputePipelineState()
 {
 	vkDestroyPipeline(vkDevice, vkPipeline, nullptr);
@@ -21,8 +39,9 @@ void VulkanComputePipelineState::initialize(VkDevice inVkDevice, const ComputePi
 	VulkanShaderStage* shaderStage = static_cast<VulkanShaderStage*>(inDesc.cs);
 	CHECK(shaderStage != nullptr);
 
-	shaderReflection = shaderStage->getShaderReflection();
+	parameterTable = shaderStage->getParameterTable(); // There is only one shader; just do deep copy.
 	createPipelineLayout(inDesc);
+	createShaderParameterHashMap(parameterHashMap, parameterTable);
 
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfo{
 		.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -47,6 +66,12 @@ void VulkanComputePipelineState::initialize(VkDevice inVkDevice, const ComputePi
 	VkResult vkRet = vkCreateComputePipelines(
 		vkDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &vkPipeline);
 	CHECK(vkRet == VK_SUCCESS);
+}
+
+const VulkanShaderParameter* VulkanComputePipelineState::findShaderParameter(const std::string& name) const
+{
+	auto it = parameterHashMap.find(name);
+	return (it == parameterHashMap.end()) ? nullptr : it->second;
 }
 
 void VulkanComputePipelineState::createPipelineLayout(const ComputePipelineDesc& inDesc)

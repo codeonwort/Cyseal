@@ -36,6 +36,11 @@ const char* shaderTypeStrings[] = {
 	nullptr, // miss
 };
 
+static VkDescriptorType descriptorTypeSpvToVk(SpvReflectDescriptorType inType)
+{
+	return (VkDescriptorType)inType; // Enum values are same; just cast it
+}
+
 VulkanShaderStage::VulkanShaderStage(VulkanDevice* inDevice, EShaderStage inStageFlag, const char* inDebugName)
 	: ShaderStage(inStageFlag, inDebugName)
 	, device(inDevice)
@@ -171,7 +176,6 @@ void VulkanShaderStage::loadFromFileByDxc(const wchar_t* inFilename, const char*
 	CHECK(ret == VK_SUCCESS);
 }
 
-// #wip: readShaderReflection()
 void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spirv_nbytes)
 {
 	SpvReflectShaderModule module;
@@ -190,6 +194,8 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < varCount; ++i)
 		{
 			SpvReflectInterfaceVariable* inputVar = inputVars[i];
+			
+			// #wip-reflection: inputVar
 			int z = 0;
 		}
 	}
@@ -205,6 +211,8 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < varCount; ++i)
 		{
 			SpvReflectInterfaceVariable* outputVar = outputVars[i];
+
+			// #wip-reflection: outputVar
 			int z = 0;
 		}
 	}
@@ -241,10 +249,22 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < count; ++i)
 		{
 			SpvReflectDescriptorBinding* binding = bindings[i];
-			int z = 0;
+
+			// #wip-shader: storage buffer readonly vs readwrite?
+			//if (binding->user_type == SPV_REFLECT_USER_TYPE_RW_STRUCTURED_BUFFER){}
+			//else if (binding->user_type == SPV_REFLECT_USER_TYPE_STRUCTURED_BUFFER){}
+
+			VulkanShaderParameter param{
+				.name             = binding->name,
+				.vkDescriptorType = descriptorTypeSpvToVk(binding->descriptor_type),
+				.set              = binding->set,
+				.binding          = binding->binding,
+				.numDescriptors   = binding->count,
+			};
+			addToShaderParameterTable(param);
 		}
 	}
-	// Descriptor sets
+	// Descriptor sets (only create set layouts here; actual sets are allocated later)
 	{
 		uint32 setCount = 0;
 		result = spvReflectEnumerateDescriptorSets(&module, &setCount, NULL);
@@ -298,6 +318,73 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 
 	// Destroy the reflection data when no longer required.
 	spvReflectDestroyShaderModule(&module);
+}
+
+void VulkanShaderStage::addToShaderParameterTable(const VulkanShaderParameter& inParam)
+{
+	switch (inParam.vkDescriptorType)
+	{
+		case VK_DESCRIPTOR_TYPE_SAMPLER:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+			parameterTable.storageBuffers.emplace_back(inParam);
+			break;
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_SAMPLE_WEIGHT_IMAGE_QCOM:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_BLOCK_MATCH_IMAGE_QCOM:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_TENSOR_ARM:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_MUTABLE_EXT:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_PARTITIONED_ACCELERATION_STRUCTURE_NV:
+			CHECK_NO_ENTRY();
+			break;
+		default:
+			CHECK_NO_ENTRY();
+			break;
+	}
 }
 
 #endif // COMPILE_BACKEND_VULKAN

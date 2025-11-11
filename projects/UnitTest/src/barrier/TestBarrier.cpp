@@ -180,7 +180,21 @@ namespace UnitTest
 			renderDevice->flushCommandQueue();
 
 			// 3. Cleanup
-
+#if 1
+			// #wip-test: Need to destroy them first in Vulkan. Why D3D is OK without this?
+			buffer1UAV.reset();
+			buffer2UAV.reset();
+			buffer3UAV.reset();
+			buffer1SRV.reset();
+			buffer2SRV.reset();
+			buffer1.reset();
+			buffer2.reset();
+			buffer3.reset();
+			uavHeap.reset();
+			srvHeap.reset();
+			writePassDescriptor.destroy();
+			readPassDescriptor.destroy();
+#endif
 			renderDevice->destroy();
 			delete renderDevice;
 		}
@@ -523,7 +537,7 @@ namespace UnitTest
 		}
 	};
 
-	// #wip: Make barrier test pass
+	// #wip-test: Make barrier test pass
 	TEST_CLASS(TestBarrierVulkan), TestBarrierBase<ERenderDeviceRawAPI::Vulkan>
 	{
 	public:

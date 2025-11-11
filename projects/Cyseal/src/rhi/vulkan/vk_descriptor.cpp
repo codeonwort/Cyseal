@@ -10,10 +10,15 @@ VulkanDescriptorPool::~VulkanDescriptorPool()
 {
 	CHECK(device != nullptr && vkPool != nullptr);
 
+	// There's no API to destroy a VkDescriptorSet; we just destroy its owner pool.
 	if (getCreateParams().purpose == EDescriptorHeapPurpose::Persistent)
 	{
 		vkDestroyDescriptorSetLayout(device->getRaw(), vkDescriptorSetLayoutGlobal, nullptr);
 		vkDescriptorSetGlobal = VK_NULL_HANDLE;
+	}
+	else if (getCreateParams().purpose == EDescriptorHeapPurpose::Volatile)
+	{
+		volDescriptorSetCache.clear();
 	}
 
 	vkDestroyDescriptorPool(device->getRaw(), vkPool, nullptr);
@@ -138,4 +143,38 @@ uint32 VulkanDescriptorPool::getDescriptorBindingIndex(VkDescriptorType descript
 	}
 	CHECK_NO_ENTRY();
 	return 0xffffffff;
+}
+
+const std::vector<VkDescriptorSet>* VulkanDescriptorPool::findCachedDescriptorSets(PipelineState* pipeline) const
+{
+	CHECK(getCreateParams().purpose == EDescriptorHeapPurpose::Volatile);
+
+	auto it = volDescriptorSetCache.find(pipeline);
+	return it == volDescriptorSetCache.end() ? nullptr : &(it->second);
+}
+
+const std::vector<VkDescriptorSet>* VulkanDescriptorPool::createDescriptorSets(PipelineState* pipeline, const std::vector<VkDescriptorSetLayout>& layouts)
+{
+	CHECK(getCreateParams().purpose == EDescriptorHeapPurpose::Volatile);
+
+	// #wip-param: 'layouts' can be acquired from 'pipeline'...
+	// But currently only VulkanComputePipelineState provides such public method.
+
+	VkDevice vkDevice = device->getRaw();
+
+	VkDescriptorSetAllocateInfo allocInfo{
+		.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+		.pNext              = nullptr,
+		.descriptorPool     = vkPool,
+		.descriptorSetCount = (uint32)layouts.size(),
+		.pSetLayouts        = layouts.data(),
+	};
+
+	std::vector<VkDescriptorSet> sets(layouts.size(), VK_NULL_HANDLE);
+	VkResult vkRet = vkAllocateDescriptorSets(vkDevice, &allocInfo, sets.data());
+	CHECK(vkRet == VK_SUCCESS);
+
+	auto it = volDescriptorSetCache.insert({ pipeline, std::move(sets) });
+	CHECK(it.second == true);
+	return &(it.first->second);
 }

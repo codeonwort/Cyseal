@@ -9,6 +9,8 @@
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
 
+#include <map>
+
 class VulkanGraphicsPipelineState : public GraphicsPipelineState
 {
 public:
@@ -39,6 +41,8 @@ public:
 
 	void initialize(VkDevice inVkDevice, const ComputePipelineDesc& inDesc);
 
+	const VulkanShaderParameter* findShaderParameter(const std::string& name) const;
+
 	inline VkPipeline getVkPipeline() const { return vkPipeline; }
 	inline VkPipelineLayout getVkPipelineLayout() const { return vkPipelineLayout; }
 	inline const std::vector<VkDescriptorSetLayout>& getVkDescriptorSetLayouts() const { return vkDescriptorSetLayouts; }
@@ -51,7 +55,8 @@ private:
 	VkPipeline vkPipeline = VK_NULL_HANDLE;
 	VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
 
-	VulkanShaderReflection shaderReflection;
+	VulkanShaderParameterTable parameterTable; // Copied from VulkanShaderStage
+	std::map<std::string, const VulkanShaderParameter*> parameterHashMap; // For fast query
 
 	// Ownership taken from VulkanShaderStage.
 	std::vector<VkDescriptorSetLayout> vkDescriptorSetLayouts;

@@ -58,6 +58,14 @@ void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swap
 	initialize(gRenderDevice, inPassName, swapchainCount, uniformTotalSize);
 }
 
+void VolatileDescriptorHelper::destroy()
+{
+	descriptorHeap.clear();
+	uniformMemory.reset();
+	uniformDescriptorHeap.reset();
+	uniformCBVs.clear();
+}
+
 void VolatileDescriptorHelper::resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors)
 {
 	if (maxDescriptors <= totalDescriptor[swapchainIndex])

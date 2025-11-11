@@ -1150,8 +1150,6 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 	}
 	else if (createParams.viewDimension == EUAVDimension::Texture2D)
 	{
-		CHECK_NO_ENTRY();
-
 		// VkDescriptorImageInfo?
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -1174,7 +1172,8 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
 		CHECK(vkRet == VK_SUCCESS);
 
-		// #wip-createUAV: VkWriteDescriptorSet
+		// #wip-createUAV: VkWriteDescriptorSet for texture
+		CHECK_NO_ENTRY();
 
 		uav = new(EMemoryTag::RHI) VulkanUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 	}
