@@ -28,8 +28,8 @@ public:
 // Volatile pool only.
 public:
 	// Returns nullptr if not found for the given pipeline.
-	const std::vector<VkDescriptorSet>* findCachedDescriptorSets(PipelineState* pipeline) const;
-	const std::vector<VkDescriptorSet>* createDescriptorSets(PipelineState* pipeline, const std::vector<VkDescriptorSetLayout>& layouts);
+	const std::vector<VkDescriptorSet>* findCachedDescriptorSets(PipelineState* pipeline, uint32 generation) const;
+	const std::vector<VkDescriptorSet>* createDescriptorSets(PipelineState* pipeline, uint32 generation, const std::vector<VkDescriptorSetLayout>& layouts);
 
 private:
 	VulkanDevice* device = nullptr;
@@ -44,5 +44,9 @@ private:
 
 // Volatile pool only.
 private:
-	std::map<PipelineState*, std::vector<VkDescriptorSet>> volDescriptorSetCache;
+	struct DescriptorSetGeneration
+	{
+		std::vector<std::vector<VkDescriptorSet>> generations;
+	};
+	std::map<PipelineState*, DescriptorSetGeneration> volDescriptorSetCache;
 };

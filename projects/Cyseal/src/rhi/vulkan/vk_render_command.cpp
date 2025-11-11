@@ -390,29 +390,55 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	VkDescriptorPool vkDescPool = pool->getVkPool();
 	const std::vector<VkDescriptorSetLayout>& vkDescriptorSetLayouts = computePSO->getVkDescriptorSetLayouts();
 
+	// #wip: When to vkResetDescriptorPool()?
+#if 0
 	if (tracker == nullptr || tracker->lastIndex == 0)
 	{
 		vkResetDescriptorPool(vkDevice, vkDescPool, (VkDescriptorPoolResetFlags)0);
 	}
+#endif
+	uint32 setGeneration = (tracker == nullptr) ? 0 : tracker->lastIndex;
 
 	const uint32_t descSetCount = (uint32_t)vkDescriptorSetLayouts.size();
 	const uint32_t firstSet = 0; // Assume firstSet=0 and consecutive set indices.
 	std::vector<uint32_t> dynamicOffsets = {}; // Needed?
 
-	const std::vector<VkDescriptorSet>* vkDescriptorSets = pool->findCachedDescriptorSets(computePSO);
+	const std::vector<VkDescriptorSet>* vkDescriptorSets = pool->findCachedDescriptorSets(computePSO, setGeneration);
 	if (vkDescriptorSets == nullptr)
 	{
-		vkDescriptorSets = pool->createDescriptorSets(computePSO, vkDescriptorSetLayouts);
+		vkDescriptorSets = pool->createDescriptorSets(computePSO, setGeneration, vkDescriptorSetLayouts);
 	}
 
-	vkCmdBindDescriptorSets(
-		currentCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-		vkPipelineLayout, firstSet,
-		(uint32_t)vkDescriptorSets->size(), vkDescriptorSets->data(),
-		(uint32_t)dynamicOffsets.size(), dynamicOffsets.data());
+	auto bindParameterClass = [computePSO, vkDescriptorSets]
+		<typename T>(std::vector<VkCopyDescriptorSet>& outCopies, const std::vector<T>& parameters, VkDescriptorType vkDescriptorType)
+	{
+		for (const auto& inParam : parameters)
+		{
+			auto srcPool = static_cast<VulkanDescriptorPool*>(inParam.sourceHeap);
+			CHECK(srcPool->getCreateParams().purpose == EDescriptorHeapPurpose::Persistent);
 
-	std::vector<VkWriteDescriptorSet> writes;
-	std::vector<VkCopyDescriptorSet> copies;
+			const VulkanShaderParameter* param = computePSO->findShaderParameter(inParam.name);
+			if (param == nullptr)
+			{
+				reportUndeclaredShaderParameter(inParam.name.c_str());
+				continue;
+			}
+
+			VkCopyDescriptorSet copyDesc{
+				.sType           = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET,
+				.pNext           = nullptr,
+				.srcSet          = srcPool->getVkDescriptorSetGlobal(),
+				.srcBinding      = srcPool->getDescriptorBindingIndex(vkDescriptorType),
+				.srcArrayElement = inParam.startIndex,
+				.dstSet          = (*vkDescriptorSets)[param->set],
+				.dstBinding      = param->binding,
+				.dstArrayElement = 0,
+				.descriptorCount = inParam.count,
+			};
+			outCopies.emplace_back(copyDesc);
+		}
+	};
+
 	for (const auto& inParam : inParameters->_pushConstants)
 	{
 		const VulkanPushConstantParameter* param = computePSO->findPushConstantParameter(inParam.name);
@@ -427,41 +453,29 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 		vkCmdPushConstants(
 			currentCommandBuffer,
 			vkPipelineLayout,
-			VK_SHADER_STAGE_ALL, // #wip-pool: stage flag for vkCmdPushConstants()
+			VK_SHADER_STAGE_COMPUTE_BIT,
 			param->range.offset,
 			param->range.size,
 			inParam.values.data());
 	}
-	for (const auto& inParam : inParameters->rwStructuredBuffers)
+
+	std::vector<VkCopyDescriptorSet> copies;
+	bindParameterClass(copies, inParameters->rwStructuredBuffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	bindParameterClass(copies, inParameters->rwBuffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	bindParameterClass(copies, inParameters->rwTextures, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+	vkUpdateDescriptorSets(vkDevice, 0, nullptr, static_cast<uint32_t>(copies.size()), copies.data());
+
+	vkCmdBindDescriptorSets(
+		currentCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+		vkPipelineLayout, firstSet,
+		(uint32_t)vkDescriptorSets->size(), vkDescriptorSets->data(),
+		(uint32_t)dynamicOffsets.size(), dynamicOffsets.data());
+
+	if (tracker != nullptr)
 	{
-		auto srcPool = static_cast<VulkanDescriptorPool*>(inParam.sourceHeap);
-		CHECK(srcPool->getCreateParams().purpose == EDescriptorHeapPurpose::Persistent);
-
-		const VulkanShaderParameter* param = computePSO->findShaderParameter(inParam.name);
-		if (param == nullptr)
-		{
-			reportUndeclaredShaderParameter(inParam.name.c_str());
-			continue;
-		}
-
-		VkCopyDescriptorSet copyDesc{
-			.sType           = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET,
-			.pNext           = nullptr,
-			.srcSet          = srcPool->getVkDescriptorSetGlobal(),
-			.srcBinding      = srcPool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
-			.srcArrayElement = inParam.startIndex,
-			.dstSet          = (*vkDescriptorSets)[param->set],
-			.dstBinding      = param->binding,
-			.dstArrayElement = 0,
-			.descriptorCount = inParam.count,
-		};
-		copies.emplace_back(copyDesc);
+		tracker->lastIndex += 1;
 	}
-
-	vkUpdateDescriptorSets(
-		vkDevice,
-		static_cast<uint32_t>(writes.size()), writes.data(),
-		static_cast<uint32_t>(copies.size()), copies.data());
 }
 
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)

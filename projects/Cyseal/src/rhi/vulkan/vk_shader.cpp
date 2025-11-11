@@ -175,6 +175,8 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 	SpvReflectResult result = spvReflectCreateShaderModule(spirv_nbytes, spirv_code, &module);
 	assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
+	// #wip-reflection: Do I need to care about inputVar and outputVar reflections?
+#if 0
 	// Input variables
 	{
 		uint32 varCount = 0;
@@ -187,9 +189,6 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < varCount; ++i)
 		{
 			SpvReflectInterfaceVariable* inputVar = inputVars[i];
-			
-			// #wip-reflection: inputVar
-			int z = 0;
 		}
 	}
 	// Output variables
@@ -204,11 +203,9 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < varCount; ++i)
 		{
 			SpvReflectInterfaceVariable* outputVar = outputVars[i];
-
-			// #wip-reflection: outputVar
-			int z = 0;
 		}
 	}
+#endif
 	// Push constants
 	{
 		uint32 pushConstCount = 0;

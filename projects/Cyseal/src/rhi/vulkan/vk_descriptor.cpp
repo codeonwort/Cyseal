@@ -89,7 +89,7 @@ void VulkanDescriptorPool::initialize(VulkanDevice* inDevice)
 		.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 		.pNext         = nullptr,
 		.flags         = (VkDescriptorPoolCreateFlagBits)0,
-		.maxSets       = 1, // #wip-pool: maxSets of VkDescriptorPoolCreateInfo
+		.maxSets       = 32, // #wip-set: maxSets? usually swapchain count is enough but suballocated cbuffers might need more...
 		.poolSizeCount = (uint32_t)poolSizes.size(),
 		.pPoolSizes    = poolSizes.data(),
 	};
@@ -145,15 +145,23 @@ uint32 VulkanDescriptorPool::getDescriptorBindingIndex(VkDescriptorType descript
 	return 0xffffffff;
 }
 
-const std::vector<VkDescriptorSet>* VulkanDescriptorPool::findCachedDescriptorSets(PipelineState* pipeline) const
+const std::vector<VkDescriptorSet>* VulkanDescriptorPool::findCachedDescriptorSets(PipelineState* pipeline, uint32 generation) const
 {
 	CHECK(getCreateParams().purpose == EDescriptorHeapPurpose::Volatile);
 
 	auto it = volDescriptorSetCache.find(pipeline);
-	return it == volDescriptorSetCache.end() ? nullptr : &(it->second);
+	if (it == volDescriptorSetCache.end())
+	{
+		return nullptr;
+	}
+	else if (it->second.generations.size() <= generation)
+	{
+		return nullptr;
+	}
+	return &(it->second.generations[generation]);
 }
 
-const std::vector<VkDescriptorSet>* VulkanDescriptorPool::createDescriptorSets(PipelineState* pipeline, const std::vector<VkDescriptorSetLayout>& layouts)
+const std::vector<VkDescriptorSet>* VulkanDescriptorPool::createDescriptorSets(PipelineState* pipeline, uint32 generation, const std::vector<VkDescriptorSetLayout>& layouts)
 {
 	CHECK(getCreateParams().purpose == EDescriptorHeapPurpose::Volatile);
 
@@ -174,7 +182,26 @@ const std::vector<VkDescriptorSet>* VulkanDescriptorPool::createDescriptorSets(P
 	VkResult vkRet = vkAllocateDescriptorSets(vkDevice, &allocInfo, sets.data());
 	CHECK(vkRet == VK_SUCCESS);
 
-	auto it = volDescriptorSetCache.insert({ pipeline, std::move(sets) });
-	CHECK(it.second == true);
-	return &(it.first->second);
+	const std::vector<VkDescriptorSet>* pSets = nullptr;
+
+	auto it = volDescriptorSetCache.find(pipeline);
+	if (it == volDescriptorSetCache.end())
+	{
+		DescriptorSetGeneration gen;
+		gen.generations.emplace_back(sets);
+		auto itit = volDescriptorSetCache.insert({ pipeline, std::move(gen) });
+		CHECK(itit.second == true);
+
+		pSets = &(itit.first->second.generations[generation]);
+	}
+	else
+	{
+		auto& generations = it->second.generations;
+		CHECK(generations.size() == generation);
+
+		generations.emplace_back(std::move(sets));
+		pSets = &(generations[generations.size() - 1]);
+	}
+
+	return pSets;
 }

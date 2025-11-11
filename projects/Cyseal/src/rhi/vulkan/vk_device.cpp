@@ -1024,7 +1024,8 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 		
 		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 		
-		srv = new(EMemoryTag::RHI) VulkanShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, vkBuffer);
+		srv = new(EMemoryTag::RHI) VulkanShaderResourceView(
+			this, gpuResource, descriptorHeap, descriptorIndex, vkBuffer);
 	}
 	else if (createParams.viewDimension == ESRVDimension::Texture2D)
 	{
@@ -1051,7 +1052,8 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 
 		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
-		srv = new(EMemoryTag::RHI) VulkanShaderResourceView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+		srv = new(EMemoryTag::RHI) VulkanShaderResourceView(
+			this, gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 	}
 	else
 	{
@@ -1146,7 +1148,8 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 		};
 		vkUpdateDescriptorSets(vkDevice, 1, &vkWrite, 0, nullptr);
 		
-		uav = new(EMemoryTag::RHI) VulkanUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, bufferInfo);
+		uav = new(EMemoryTag::RHI) VulkanUnorderedAccessView(
+			this, gpuResource, descriptorHeap, descriptorIndex, bufferInfo);
 	}
 	else if (createParams.viewDimension == EUAVDimension::Texture2D)
 	{
@@ -1172,10 +1175,28 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
 		CHECK(vkRet == VK_SUCCESS);
 
-		// #wip-createUAV: VkWriteDescriptorSet for texture
-		CHECK_NO_ENTRY();
+		const uint32 descriptorBinding = pool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		VkDescriptorImageInfo imageInfo{
+			.sampler     = VK_NULL_HANDLE,
+			.imageView   = vkImageView,
+			.imageLayout = VK_IMAGE_LAYOUT_GENERAL, // #wip: Initial imageLayout?
+		};
+		VkWriteDescriptorSet vkWrite{
+			.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.pNext            = nullptr,
+			.dstSet           = vkDescSet,
+			.dstBinding       = descriptorBinding,
+			.dstArrayElement  = descriptorIndex,
+			.descriptorCount  = 1,
+			.descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+			.pImageInfo       = &imageInfo,
+			.pBufferInfo      = nullptr,
+			.pTexelBufferView = nullptr,
+		};
+		vkUpdateDescriptorSets(vkDevice, 1, &vkWrite, 0, nullptr);
 
-		uav = new(EMemoryTag::RHI) VulkanUnorderedAccessView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+		uav = new(EMemoryTag::RHI) VulkanUnorderedAccessView(
+			this, gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 	}
 	else
 	{

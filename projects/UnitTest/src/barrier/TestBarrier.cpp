@@ -426,6 +426,21 @@ namespace UnitTest
 
 			// 3. Cleanup
 
+#if 1
+			// #wip-test: Need to destroy them first in Vulkan. Why D3D is OK without this?
+			texture1UAV.reset();
+			texture2UAV.reset();
+			texture3UAV.reset();
+			texture1SRV.reset();
+			texture2SRV.reset();
+			texture1.reset();
+			texture2.reset();
+			texture3.reset();
+			uavHeap.reset();
+			srvHeap.reset();
+			writePassDescriptor.destroy();
+			readPassDescriptor.destroy();
+#endif
 			renderDevice->destroy();
 			delete renderDevice;
 		}

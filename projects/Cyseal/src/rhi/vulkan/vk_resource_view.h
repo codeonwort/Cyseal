@@ -7,6 +7,7 @@
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
 
+class VulkanDevice;
 class VulkanBuffer;
 
 class VulkanRenderTargetView : public RenderTargetView
@@ -67,13 +68,15 @@ private:
 class VulkanShaderResourceView : public ShaderResourceView
 {
 public:
-	VulkanShaderResourceView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
+	VulkanShaderResourceView(VulkanDevice* inDevice, GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
 		: ShaderResourceView(inOwner, inSourceHeap, inDescriptorIndex)
+		, device(inDevice)
 		, vkImageView(inVkImageView)
 		, bIsBufferView(false)
 	{}
-	VulkanShaderResourceView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkBuffer inVkBuffer)
+	VulkanShaderResourceView(VulkanDevice* inDevice, GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkBuffer inVkBuffer)
 		: ShaderResourceView(inOwner, inSourceHeap, inDescriptorIndex)
+		, device(inDevice)
 		, vkBuffer(inVkBuffer)
 		, bIsBufferView(true)
 	{}
@@ -85,6 +88,8 @@ public:
 	inline VkImageView getVkImageView() const { return vkImageView; }
 
 private:
+	VulkanDevice* device = nullptr;
+
 	const bool bIsBufferView;
 	VkBuffer vkBuffer = VK_NULL_HANDLE;
 	VkImageView vkImageView = VK_NULL_HANDLE;
@@ -93,14 +98,16 @@ private:
 class VulkanUnorderedAccessView : public UnorderedAccessView
 {
 public:
-	VulkanUnorderedAccessView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, const VkDescriptorBufferInfo& inBufferInfo)
+	VulkanUnorderedAccessView(VulkanDevice* inDevice, GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, const VkDescriptorBufferInfo& inBufferInfo)
 		: UnorderedAccessView(inOwner, inSourceHeap, inDescriptorIndex)
+		, device(inDevice)
 		, vkDescriptorBufferInfo(inBufferInfo)
 		, bIsBufferView(true)
 	{
 	}
-	VulkanUnorderedAccessView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
+	VulkanUnorderedAccessView(VulkanDevice* inDevice, GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
 		: UnorderedAccessView(inOwner, inSourceHeap, inDescriptorIndex)
+		, device(inDevice)
 		, vkImageView(inVkImageView)
 		, bIsBufferView(false)
 	{
@@ -113,6 +120,8 @@ public:
 	inline VkImageView getVkImageView() const { return vkImageView; }
 
 private:
+	VulkanDevice* device = nullptr;
+
 	const bool bIsBufferView;
 	VkDescriptorBufferInfo vkDescriptorBufferInfo = {};
 	VkImageView vkImageView = VK_NULL_HANDLE;
