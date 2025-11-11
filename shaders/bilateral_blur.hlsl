@@ -25,7 +25,9 @@ struct BlurUniform
     uint _pad2;
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants>  pushConstants;
+
 ConstantBuffer<SceneUniform>   sceneUniform;
 ConstantBuffer<BlurUniform>    blurUniform;
 RWTexture2D<float4>            inColorTexture;

@@ -5,6 +5,7 @@ struct PushConstants
 	uint textureHeight;
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants;
 
 #if defined(WRITE_PASS)

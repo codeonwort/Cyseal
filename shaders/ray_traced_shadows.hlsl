@@ -45,6 +45,7 @@ RWTexture2D<float>                      renderTarget            : register(u0, s
 // ---------------------------------------------------------
 // Local root signature (closest hit)
 
+[[vk::push_constant]]
 ConstantBuffer<ClosestHitPushConstants> g_closestHitCB          : register(b0, space2);
 
 // ---------------------------------------------------------

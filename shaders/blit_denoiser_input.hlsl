@@ -8,7 +8,9 @@ struct PushConstants
     uint packedWidthHeight;
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants;
+
 Texture2D<float4>             inSceneColor;
 Texture2D<GBUFFER0_DATATYPE>  inGBuffer0;
 Texture2D<GBUFFER1_DATATYPE>  inGBuffer1;

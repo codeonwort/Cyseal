@@ -9,7 +9,9 @@ struct PushConstants
 	uint height;
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants;
+
 Texture2D<GBUFFER0_DATATYPE>  gbuffer0;
 Texture2D<GBUFFER1_DATATYPE>  gbuffer1;
 RWTexture2D<float4>           rwNormal;

@@ -73,6 +73,7 @@ SamplerState linearSampler : register(s2, space0);
 // ---------------------------------------------------------
 // Local root signature (closest hit)
 
+[[vk::push_constant]]
 ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
 
 // ---------------------------------------------------------
