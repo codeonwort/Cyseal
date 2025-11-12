@@ -89,7 +89,7 @@ void VulkanDescriptorPool::initialize(VulkanDevice* inDevice)
 		.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 		.pNext         = nullptr,
 		.flags         = (VkDescriptorPoolCreateFlagBits)0,
-		.maxSets       = 32, // #wip-set: maxSets? usually swapchain count is enough but suballocated cbuffers might need more...
+		.maxSets       = 32, // #todo-vulkan: maxSets? Usually swapchain count is enough but suballocated cbuffers might need more...
 		.poolSizeCount = (uint32_t)poolSizes.size(),
 		.pPoolSizes    = poolSizes.data(),
 	};
@@ -194,7 +194,7 @@ const std::vector<VkDescriptorSet>* VulkanDescriptorPool::createDescriptorSets(P
 {
 	CHECK(getCreateParams().purpose == EDescriptorHeapPurpose::Volatile);
 
-	// #wip-param: 'layouts' can be acquired from 'pipeline'...
+	// #todo-vulkan-reflection: 'layouts' can be acquired from 'pipeline'...
 	// But currently only VulkanComputePipelineState provides such public method.
 
 	VkDevice vkDevice = device->getRaw();

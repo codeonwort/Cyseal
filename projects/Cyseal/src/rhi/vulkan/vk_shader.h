@@ -30,7 +30,7 @@ struct VulkanShaderParameterTable
 	std::vector<VulkanShaderParameter> storageBuffers;
 	std::vector<VulkanShaderParameter> storageImages;
 	std::vector<VulkanShaderParameter> sampledImages;
-	// #wip-param: VulkanShaderParameterTable
+	// #todo-vulkan-reflection: See VulkanShaderStage::addToShaderParameterTable()
 };
 
 class VulkanShaderStage : public ShaderStage

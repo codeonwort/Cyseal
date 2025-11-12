@@ -175,7 +175,7 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 	SpvReflectResult result = spvReflectCreateShaderModule(spirv_nbytes, spirv_code, &module);
 	assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-	// #wip-reflection: Do I need to care about inputVar and outputVar reflections?
+	// #todo-vulkan-reflection: Process inputVar and outputVar if needed.
 #if 0
 	// Input variables
 	{
@@ -189,6 +189,7 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < varCount; ++i)
 		{
 			SpvReflectInterfaceVariable* inputVar = inputVars[i];
+			// ...
 		}
 	}
 	// Output variables
@@ -203,9 +204,11 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < varCount; ++i)
 		{
 			SpvReflectInterfaceVariable* outputVar = outputVars[i];
+			// ...
 		}
 	}
 #endif
+
 	// Push constants
 	{
 		uint32 pushConstCount = 0;
@@ -244,10 +247,6 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < count; ++i)
 		{
 			SpvReflectDescriptorBinding* binding = bindings[i];
-
-			// #wip-shader: storage buffer readonly vs readwrite?
-			//if (binding->user_type == SPV_REFLECT_USER_TYPE_RW_STRUCTURED_BUFFER){}
-			//else if (binding->user_type == SPV_REFLECT_USER_TYPE_STRUCTURED_BUFFER){}
 
 			VulkanShaderParameter param{
 				.name             = binding->name,
@@ -317,7 +316,9 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 
 void VulkanShaderStage::addToShaderParameterTable(const VulkanShaderParameter& inParam)
 {
-	// #wip-param
+	// #todo-shader-reflection: Fill the table for new cases. Also need to modify:
+	// 1. The definition of VulkanShaderParameterTable struct.
+	// 2. createShaderParameterHashMap() in vk_pipeline_state.cpp.
 	switch (inParam.vkDescriptorType)
 	{
 		case VK_DESCRIPTOR_TYPE_SAMPLER:

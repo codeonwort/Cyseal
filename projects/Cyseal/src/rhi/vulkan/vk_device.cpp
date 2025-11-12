@@ -1223,7 +1223,7 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 			.dstBinding       = descriptorBinding,
 			.dstArrayElement  = descriptorIndex,
 			.descriptorCount  = 1,
-			.descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // #wip-pool: dynamic storage buffer?
+			.descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			.pImageInfo       = nullptr,
 			.pBufferInfo      = &bufferInfo,
 			.pTexelBufferView = nullptr,

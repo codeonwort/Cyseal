@@ -11,7 +11,7 @@ static void createShaderParameterHashMap(
 			outParameterHashMap.insert(std::make_pair(params[i].name, &(params[i])));
 		}
 	};
-	// #wip-param
+	// #todo-vulkan-reflection: See VulkanShaderStage::addToShaderParameterTable()
 	build(parameterTable.storageBuffers);
 	build(parameterTable.storageImages);
 	build(parameterTable.sampledImages);
