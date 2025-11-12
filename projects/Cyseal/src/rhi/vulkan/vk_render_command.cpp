@@ -34,7 +34,11 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 	//   not relevant to swapchain present. So I don't wanna wait for imageAvailable sem here...
 	// - Why should I wait for swapchain image here at first? If I do offscreen rendering
 	//   then am I ok to defer wait sem until the time to blit offscreen render target to backbuffer?
-#if 1
+	// - [2025-11-12] OK this code is ancient old... now I clearly see it that
+	//   even if a swapchain-available semaphore is required, it should never be in a command queue.
+	//   Let's just disable it for the sake of barrier unit tests.
+	//   Revisit when doing actual present using Vulkan backend.
+#if 0
 	uint32 waitSemaphoreCount = 1;
 	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkSwapchainImageAvailableSemaphore() };
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };

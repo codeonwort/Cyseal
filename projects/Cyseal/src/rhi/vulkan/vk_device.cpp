@@ -81,11 +81,11 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL GVulkanDebugCallback(
 		case VK_DEBUG_REPORT_FLAG_BITS_MAX_ENUM_EXT      : CHECK_NO_ENTRY(); break;
 		default: CHECK_NO_ENTRY(); break;
 	}
-	// #wip-validation
-	//if (bShouldAssert)
-	//{
-	//	CHECK_NO_ENTRY();
-	//}
+	
+	if (bShouldAssert)
+	{
+		CHECK_NO_ENTRY();
+	}
 
 	// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/PFN_vkDebugReportCallbackEXT.html
 	// The application should always return VK_FALSE. The VK_TRUE value is reserved for use in layer development.
@@ -1260,7 +1260,7 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 		VkDescriptorImageInfo imageInfo{
 			.sampler     = VK_NULL_HANDLE,
 			.imageView   = vkImageView,
-			.imageLayout = VK_IMAGE_LAYOUT_GENERAL, // #wip-validation: validation warning; layout is UNDEFINED?
+			.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
 		};
 		VkWriteDescriptorSet vkWrite{
 			.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
