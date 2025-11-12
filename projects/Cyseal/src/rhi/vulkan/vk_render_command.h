@@ -137,11 +137,13 @@ public:
 	virtual void endEventMarker() override;
 
 public:
-//private:
-	VkCommandBuffer currentCommandBuffer = VK_NULL_HANDLE;
+	inline VkCommandBuffer internal_getVkCommandBuffer() const { return currentCommandBuffer; }
+
 private:
 	VulkanDevice* device = nullptr;
 	BarrierTracker barrierTracker;
+
+	VkCommandBuffer currentCommandBuffer = VK_NULL_HANDLE;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

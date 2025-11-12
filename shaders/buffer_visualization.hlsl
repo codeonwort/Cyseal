@@ -21,7 +21,9 @@ struct PushConstants
     uint modeEnum;
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants : register(b0, space0);
+
 Texture2D<GBUFFER0_DATATYPE> gbuffer0       : register(t0, space0);
 Texture2D<GBUFFER1_DATATYPE> gbuffer1       : register(t1, space0);
 Texture2D sceneColor                        : register(t2, space0);

@@ -9,7 +9,9 @@ struct PushConstants
 	uint textureHeight;
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants;
+
 Texture2D                     inRadiance;
 RWStructuredBuffer<uint>      rwTileCoordBuffer;
 RWTexture2D<float4>           rwRadiance;

@@ -16,6 +16,10 @@ public:
 	// If uniformTotalSize is zero, then uniform buffer resources are not created.
 	void initialize(RenderDevice* inRenderDevice, const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize);
 
+	// Manually reset internal smart pointers.
+	// The destructor will reset them anyway, so use this function if you need to destroy manually at certain point.
+	void destroy();
+
 	// If uniformTotalSize is zero, then uniform buffer resources are not created.
 	// It uses gRenderDevice and does not take RenderDevice parameter.
 	void initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize);

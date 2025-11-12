@@ -100,9 +100,9 @@ public:
 	// #todo-vulkan: Correct constant buffer data alignment
 	virtual uint32 getConstantBufferDataAlignment() const { return 256; }
 
-	// ------------------------------------------------------------------------
-	// Internal use only
-
+// ------------------------------------------------------------------------
+// Internal use only
+public:
 	inline VkDevice getRaw() const { return vkDevice; }
 	inline VkPhysicalDevice getVkPhysicalDevice() const { return vkPhysicalDevice; }
 	inline VkSurfaceKHR getVkSurface() const { return vkSurface; }

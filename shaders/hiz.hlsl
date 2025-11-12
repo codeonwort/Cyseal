@@ -10,7 +10,9 @@ struct PushConstants
 	uint outputMip;
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants;
+
 Texture2D                     inputTexture;
 RWTexture2D<float>            outputTexture;
 

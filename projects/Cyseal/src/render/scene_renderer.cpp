@@ -90,6 +90,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 				.numDescriptors = swapchainCount,
 				.flags          = EDescriptorHeapFlags::None,
 				.nodeMask       = 0,
+				.purpose        = EDescriptorHeapPurpose::Volatile,
 			}
 		));
 

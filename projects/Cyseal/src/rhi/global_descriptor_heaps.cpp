@@ -19,6 +19,7 @@ void GlobalDescriptorHeaps::initialize()
 			.numDescriptors = MAX_SRV_DESCRIPTORS,
 			.flags          = EDescriptorHeapFlags::None,
 			.nodeMask       = 0,
+			.purpose        = EDescriptorHeapPurpose::Persistent,
 		}
 	));
 
@@ -28,6 +29,7 @@ void GlobalDescriptorHeaps::initialize()
 			.numDescriptors = MAX_RTV_DESCRIPTORS,
 			.flags          = EDescriptorHeapFlags::None,
 			.nodeMask       = 0,
+			.purpose        = EDescriptorHeapPurpose::Persistent,
 		}
 	));
 
@@ -37,6 +39,7 @@ void GlobalDescriptorHeaps::initialize()
 			.numDescriptors = MAX_DSV_DESCRIPTORS,
 			.flags          = EDescriptorHeapFlags::None,
 			.nodeMask       = 0,
+			.purpose        = EDescriptorHeapPurpose::Persistent,
 		}
 	));
 
@@ -46,6 +49,7 @@ void GlobalDescriptorHeaps::initialize()
 			.numDescriptors = MAX_UAV_DESCRIPTORS,
 			.flags          = EDescriptorHeapFlags::None,
 			.nodeMask       = 0,
+			.purpose        = EDescriptorHeapPurpose::Persistent,
 		}
 	));
 }

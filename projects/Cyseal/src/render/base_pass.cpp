@@ -513,6 +513,7 @@ void BasePass::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)
 			.numDescriptors = maxDescriptors,
 			.flags          = EDescriptorHeapFlags::ShaderVisible,
 			.nodeMask       = 0,
+			.purpose        = EDescriptorHeapPurpose::Volatile,
 		}
 	));
 

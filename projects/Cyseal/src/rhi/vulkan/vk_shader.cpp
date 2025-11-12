@@ -36,6 +36,11 @@ const char* shaderTypeStrings[] = {
 	nullptr, // miss
 };
 
+static VkDescriptorType descriptorTypeSpvToVk(SpvReflectDescriptorType inType)
+{
+	return (VkDescriptorType)inType; // Enum values are same; just cast it
+}
+
 VulkanShaderStage::VulkanShaderStage(VulkanDevice* inDevice, EShaderStage inStageFlag, const char* inDebugName)
 	: ShaderStage(inStageFlag, inDebugName)
 	, device(inDevice)
@@ -49,6 +54,8 @@ VulkanShaderStage::~VulkanShaderStage()
 
 	VkDevice vkDevice = device->getRaw();
 	vkDestroyShaderModule(vkDevice, vkModule, nullptr);
+
+	// Arrays might be already empty by moveVkDescriptorSetLayouts().
 	for (VkDescriptorSetLayout layout : vkDescriptorSetLayouts)
 	{
 		vkDestroyDescriptorSetLayout(vkDevice, layout, nullptr);
@@ -64,6 +71,12 @@ void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEn
 #endif
 
 	readShaderReflection(sourceCode.data(), sourceCode.size());
+}
+
+void VulkanShaderStage::moveVkDescriptorSetLayouts(std::vector<VkDescriptorSetLayout>& target)
+{
+	target = vkDescriptorSetLayouts;
+	vkDescriptorSetLayouts.clear();
 }
 
 void VulkanShaderStage::loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
@@ -162,7 +175,8 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 	SpvReflectResult result = spvReflectCreateShaderModule(spirv_nbytes, spirv_code, &module);
 	assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-	// #todo-barrier-vk: readShaderReflection
+	// #todo-vulkan-reflection: Process inputVar and outputVar if needed.
+#if 0
 	// Input variables
 	{
 		uint32 varCount = 0;
@@ -175,7 +189,7 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < varCount; ++i)
 		{
 			SpvReflectInterfaceVariable* inputVar = inputVars[i];
-			int z = 0;
+			// ...
 		}
 	}
 	// Output variables
@@ -190,9 +204,11 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < varCount; ++i)
 		{
 			SpvReflectInterfaceVariable* outputVar = outputVars[i];
-			int z = 0;
+			// ...
 		}
 	}
+#endif
+
 	// Push constants
 	{
 		uint32 pushConstCount = 0;
@@ -211,7 +227,12 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 				.offset     = spvPushConst->offset,
 				.size       = spvPushConst->size,
 			};
-			vkPushConstantRanges.emplace_back(range);
+
+			VulkanPushConstantParameter param{
+				.name  = spvPushConst->name,
+				.range = std::move(range),
+			};
+			parameterTable.pushConstants.emplace_back(param);
 		}
 	}
 	// Descriptor bindings
@@ -226,10 +247,18 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		for (uint32 i = 0; i < count; ++i)
 		{
 			SpvReflectDescriptorBinding* binding = bindings[i];
-			int z = 0;
+
+			VulkanShaderParameter param{
+				.name             = binding->name,
+				.vkDescriptorType = descriptorTypeSpvToVk(binding->descriptor_type),
+				.set              = binding->set,
+				.binding          = binding->binding,
+				.numDescriptors   = binding->count,
+			};
+			addToShaderParameterTable(param);
 		}
 	}
-	// Descriptor sets
+	// Descriptor sets (only create set layouts here; actual sets are allocated later)
 	{
 		uint32 setCount = 0;
 		result = spvReflectEnumerateDescriptorSets(&module, &setCount, NULL);
@@ -238,9 +267,12 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 		result = spvReflectEnumerateDescriptorSets(&module, &setCount, sets.data());
 		assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
+		std::vector<uint32> setIndicesValidation(setCount, 0xffffffff);
+
 		for (uint32 i = 0; i < setCount; ++i)
 		{
 			SpvReflectDescriptorSet* spvSet = sets[i];
+			setIndicesValidation[i] = spvSet->set;
 			
 			std::vector<VkDescriptorSetLayoutBinding> vkBindings(spvSet->binding_count);
 			for (uint32 j = 0; j < spvSet->binding_count; ++j)
@@ -251,7 +283,7 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 					.descriptorType     = static_cast<VkDescriptorType>(spvBinding->descriptor_type),
 					.descriptorCount    = spvBinding->count,
 					.stageFlags         = static_cast<VkShaderStageFlags>(vkShaderStage),
-					.pImmutableSamplers = nullptr, // #todo-barrier-vk: pImmutableSamplers
+					.pImmutableSamplers = nullptr, // #todo-vulkan-reflection: pImmutableSamplers
 				};
 			}
 
@@ -270,10 +302,86 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 
 			vkDescriptorSetLayouts.push_back(vkSetLayout);
 		}
+
+		for (uint32 i = 0; i < setCount; ++i)
+		{
+			// Other logics assume firstSet=0 and consecutive set indices...
+			CHECK(setIndicesValidation[i] == i);
+		}
 	}
 
 	// Destroy the reflection data when no longer required.
 	spvReflectDestroyShaderModule(&module);
+}
+
+void VulkanShaderStage::addToShaderParameterTable(const VulkanShaderParameter& inParam)
+{
+	// #todo-shader-reflection: Fill the table for new cases. Also need to modify:
+	// 1. The definition of VulkanShaderParameterTable struct.
+	// 2. createShaderParameterHashMap() in vk_pipeline_state.cpp.
+	switch (inParam.vkDescriptorType)
+	{
+		case VK_DESCRIPTOR_TYPE_SAMPLER:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+			parameterTable.sampledImages.emplace_back(inParam);
+			break;
+		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+			parameterTable.storageImages.emplace_back(inParam);
+			break;
+		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+			parameterTable.storageBuffers.emplace_back(inParam);
+			break;
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_SAMPLE_WEIGHT_IMAGE_QCOM:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_BLOCK_MATCH_IMAGE_QCOM:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_TENSOR_ARM:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_MUTABLE_EXT:
+			CHECK_NO_ENTRY();
+			break;
+		case VK_DESCRIPTOR_TYPE_PARTITIONED_ACCELERATION_STRUCTURE_NV:
+			CHECK_NO_ENTRY();
+			break;
+		default:
+			CHECK_NO_ENTRY();
+			break;
+	}
 }
 
 #endif // COMPILE_BACKEND_VULKAN

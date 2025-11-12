@@ -16,7 +16,9 @@ struct PushConstants
     uint objectId;
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants>  pushConstants  : register(b0);
+
 ConstantBuffer<SceneUniform>   sceneUniform   : register(b1);
 StructuredBuffer<GPUSceneItem> gpuSceneBuffer : register(t0);
 StructuredBuffer<Material>     materials      : register(t1);

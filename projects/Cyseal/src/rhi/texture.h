@@ -146,6 +146,7 @@ public:
 			case ETextureDimension::TEXTURE1D : dim = TextureKindShapeDesc::Dimension::Tex1D; break;
 			case ETextureDimension::TEXTURE2D : dim = TextureKindShapeDesc::Dimension::Tex2D; break;
 			case ETextureDimension::TEXTURE3D : dim = TextureKindShapeDesc::Dimension::Tex3D; break;
+			default: dim = TextureKindShapeDesc::Dimension::Unknown; CHECK_NO_ENTRY();
 		}
 		return TextureKindShapeDesc{
 			dim, params.width, params.height, params.depth, params.mipLevels, params.numLayers,

@@ -7,28 +7,27 @@
 
 VulkanRenderTargetView::~VulkanRenderTargetView()
 {
-	vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
+	vkDestroyImageView(device->getRaw(), vkImageView, nullptr);
 }
 
 VulkanDepthStencilView::~VulkanDepthStencilView()
 {
-	vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
+	vkDestroyImageView(device->getRaw(), vkImageView, nullptr);
 }
 
 VulkanShaderResourceView::~VulkanShaderResourceView()
 {
 	if (!bIsBufferView)
 	{
-		vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
+		vkDestroyImageView(device->getRaw(), vkImageView, nullptr);
 	}
 }
-
 
 VulkanUnorderedAccessView::~VulkanUnorderedAccessView()
 {
 	if (!bIsBufferView)
 	{
-		vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
+		vkDestroyImageView(device->getRaw(), vkImageView, nullptr);
 	}
 }
 

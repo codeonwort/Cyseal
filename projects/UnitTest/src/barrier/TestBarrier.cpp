@@ -88,6 +88,7 @@ namespace UnitTest
 			readPassDescriptor.resizeDescriptorHeap(0, 3);
 
 			// 2. Validation
+
 			auto commandAllocator = renderDevice->getCommandAllocator(0);
 			auto commandList = renderDevice->getCommandList(0);
 			auto commandQueue = renderDevice->getCommandQueue();
@@ -181,6 +182,19 @@ namespace UnitTest
 
 			// 3. Cleanup
 
+			buffer1UAV.reset();
+			buffer2UAV.reset();
+			buffer3UAV.reset();
+			buffer1SRV.reset();
+			buffer2SRV.reset();
+			buffer1.reset();
+			buffer2.reset();
+			buffer3.reset();
+			uavHeap.reset();
+			srvHeap.reset();
+			writePassDescriptor.destroy();
+			readPassDescriptor.destroy();
+
 			renderDevice->destroy();
 			delete renderDevice;
 		}
@@ -232,6 +246,7 @@ namespace UnitTest
 			readPassDescriptor.resizeDescriptorHeap(0, 3);
 
 			// 2. Validation
+
 			auto commandAllocator = renderDevice->getCommandAllocator(0);
 			auto commandList = renderDevice->getCommandList(0);
 			auto commandQueue = renderDevice->getCommandQueue();
@@ -247,14 +262,14 @@ namespace UnitTest
 						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::NO_ACCESS,
 						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
-						.layoutBefore = EBarrierLayout::Common,
+						.layoutBefore = EBarrierLayout::Undefined,
 						.layoutAfter  = EBarrierLayout::UnorderedAccess,
 						.texture      = texture1.get(),
 						.subresources = BarrierSubresourceRange{
 							.indexOrFirstMipLevel = 0,
 							.numMipLevels         = 1,
 							.firstArraySlice      = 0,
-							.numArraySlices       = 0,
+							.numArraySlices       = 1,
 							.firstPlane           = 0,
 							.numPlanes            = 0,
 						},
@@ -265,14 +280,14 @@ namespace UnitTest
 						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::NO_ACCESS,
 						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
-						.layoutBefore = EBarrierLayout::Common,
+						.layoutBefore = EBarrierLayout::Undefined,
 						.layoutAfter  = EBarrierLayout::UnorderedAccess,
 						.texture      = texture2.get(),
 						.subresources = BarrierSubresourceRange{
 							.indexOrFirstMipLevel = 0,
 							.numMipLevels         = 1,
 							.firstArraySlice      = 0,
-							.numArraySlices       = 0,
+							.numArraySlices       = 1,
 							.firstPlane           = 0,
 							.numPlanes            = 0,
 						},
@@ -316,7 +331,7 @@ namespace UnitTest
 							.indexOrFirstMipLevel = 0,
 							.numMipLevels         = 1,
 							.firstArraySlice      = 0,
-							.numArraySlices       = 0,
+							.numArraySlices       = 1,
 							.firstPlane           = 0,
 							.numPlanes            = 0,
 						},
@@ -334,7 +349,7 @@ namespace UnitTest
 							.indexOrFirstMipLevel = 0,
 							.numMipLevels         = 1,
 							.firstArraySlice      = 0,
-							.numArraySlices       = 0,
+							.numArraySlices       = 1,
 							.firstPlane           = 0,
 							.numPlanes            = 0,
 						},
@@ -345,14 +360,14 @@ namespace UnitTest
 						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::NO_ACCESS,
 						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
-						.layoutBefore = EBarrierLayout::Common,
+						.layoutBefore = EBarrierLayout::Undefined,
 						.layoutAfter  = EBarrierLayout::UnorderedAccess,
 						.texture      = texture3.get(),
 						.subresources = BarrierSubresourceRange{
 							.indexOrFirstMipLevel = 0,
 							.numMipLevels         = 1,
 							.firstArraySlice      = 0,
-							.numArraySlices       = 0,
+							.numArraySlices       = 1,
 							.firstPlane           = 0,
 							.numPlanes            = 0,
 						},
@@ -393,7 +408,7 @@ namespace UnitTest
 							.indexOrFirstMipLevel = 0,
 							.numMipLevels         = 1,
 							.firstArraySlice      = 0,
-							.numArraySlices       = 0,
+							.numArraySlices       = 1,
 							.firstPlane           = 0,
 							.numPlanes            = 0,
 						},
@@ -411,6 +426,19 @@ namespace UnitTest
 			renderDevice->flushCommandQueue();
 
 			// 3. Cleanup
+
+			texture1UAV.reset();
+			texture2UAV.reset();
+			texture3UAV.reset();
+			texture1SRV.reset();
+			texture2SRV.reset();
+			texture1.reset();
+			texture2.reset();
+			texture3.reset();
+			uavHeap.reset();
+			srvHeap.reset();
+			writePassDescriptor.destroy();
+			readPassDescriptor.destroy();
 
 			renderDevice->destroy();
 			delete renderDevice;
@@ -451,6 +479,7 @@ namespace UnitTest
 				.numDescriptors = numDescriptors,
 				.flags          = EDescriptorHeapFlags::None,
 				.nodeMask       = 0,
+				.purpose        = EDescriptorHeapPurpose::Persistent,
 			};
 			DescriptorHeap* heap = device->createDescriptorHeap(desc);
 			return UniquePtr<DescriptorHeap>(heap);
@@ -522,8 +551,6 @@ namespace UnitTest
 		}
 	};
 
-	// #todo-barrier-vk: Enable test for vulkan
-#if 0
 	TEST_CLASS(TestBarrierVulkan), TestBarrierBase<ERenderDeviceRawAPI::Vulkan>
 	{
 	public:
@@ -531,6 +558,9 @@ namespace UnitTest
 		{
 			TestBarrierBase::ExecuteBufferBarrier();
 		}
+		TEST_METHOD(ExecuteTextureBarrier)
+		{
+			TestBarrierBase::ExecuteTextureBarrier();
+		}
 	};
-#endif
 }

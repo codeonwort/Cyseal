@@ -27,6 +27,7 @@ class TextureKind;
 // Enhanced barriers
 
 // D3D12_BARRIER_SYNC
+// VkPipelineStageFlags2
 enum class EBarrierSync : uint32
 {
 	NONE = 0,
@@ -57,6 +58,7 @@ enum class EBarrierSync : uint32
 ENUM_CLASS_FLAGS(EBarrierSync);
 
 // D3D12_BARRIER_ACCESS
+// VkAccessFlags2
 enum class EBarrierAccess : uint32
 {
 	COMMON = 0,
@@ -89,6 +91,7 @@ enum class EBarrierAccess : uint32
 ENUM_CLASS_FLAGS(EBarrierAccess);
 
 // D3D12_BARRIER_LAYOUT
+// VkImageLayout
 enum class EBarrierLayout : uint32
 {
 	Undefined = 0xffffffff,
@@ -127,12 +130,13 @@ enum class EBarrierLayout : uint32
 };
 
 // D3D12_BARRIER_SUBRESOURCE_RANGE
+// VkImageSubresourceRange
 struct BarrierSubresourceRange
 {
 	uint32 indexOrFirstMipLevel;
 	uint32 numMipLevels;
 	uint32 firstArraySlice;
-	uint32 numArraySlices;
+	uint32 numArraySlices; // #note-rhi: For a single mip of tex2d, vk: should be 1. dx12: ignored.
 	uint32 firstPlane;
 	uint32 numPlanes;
 
@@ -170,6 +174,8 @@ enum class ETextureBarrierFlags : uint8
 };
 ENUM_CLASS_FLAGS(ETextureBarrierFlags);
 
+// D3D12_BUFFER_BARRIER
+// VkBufferMemoryBarrier2
 struct BufferBarrier
 {
 	EBarrierSync syncBefore;
@@ -181,6 +187,8 @@ struct BufferBarrier
 	//uint64 size;   // Fixed to the buffer size in bytes.
 };
 
+// D3D12_TEXTURE_BARRIER
+// VkImageMemoryBarrier2
 struct TextureBarrier
 {
 	EBarrierSync syncBefore;
@@ -195,6 +203,7 @@ struct TextureBarrier
 };
 
 // D3D12_GLOBAL_BARRIER
+// VkMemoryBarrier2
 struct GlobalBarrier
 {
 	EBarrierSync syncBefore;

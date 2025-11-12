@@ -1,10 +1,35 @@
 #include "vk_pipeline_state.h"
 #include "vk_shader.h"
 
+static void createShaderParameterHashMap(
+	std::map<std::string, const VulkanShaderParameter*>& outParameterHashMap,
+	const VulkanShaderParameterTable& parameterTable)
+{
+	auto build = [&outParameterHashMap](const std::vector<VulkanShaderParameter>& params) {
+		for (auto i = 0; i < params.size(); ++i)
+		{
+			outParameterHashMap.insert(std::make_pair(params[i].name, &(params[i])));
+		}
+	};
+	// #todo-vulkan-reflection: See VulkanShaderStage::addToShaderParameterTable()
+	build(parameterTable.storageBuffers);
+	build(parameterTable.storageImages);
+	build(parameterTable.sampledImages);
+}
+
+// --------------------------------------------------------
+// VulkanComputePipelineState
+
 VulkanComputePipelineState::~VulkanComputePipelineState()
 {
 	vkDestroyPipeline(vkDevice, vkPipeline, nullptr);
 	vkDestroyPipelineLayout(vkDevice, vkPipelineLayout, nullptr);
+
+	// Ownership taken from VulkanShaderStage, so we need to free them here.
+	for (VkDescriptorSetLayout layout : vkDescriptorSetLayouts)
+	{
+		vkDestroyDescriptorSetLayout(vkDevice, layout, nullptr);
+	}
 }
 
 void VulkanComputePipelineState::initialize(VkDevice inVkDevice, const ComputePipelineDesc& inDesc)
@@ -14,7 +39,9 @@ void VulkanComputePipelineState::initialize(VkDevice inVkDevice, const ComputePi
 	VulkanShaderStage* shaderStage = static_cast<VulkanShaderStage*>(inDesc.cs);
 	CHECK(shaderStage != nullptr);
 
+	parameterTable = shaderStage->getParameterTable(); // There is only one shader; just do deep copy.
 	createPipelineLayout(inDesc);
+	createShaderParameterHashMap(parameterHashMap, parameterTable);
 
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfo{
 		.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -41,20 +68,43 @@ void VulkanComputePipelineState::initialize(VkDevice inVkDevice, const ComputePi
 	CHECK(vkRet == VK_SUCCESS);
 }
 
+const VulkanPushConstantParameter* VulkanComputePipelineState::findPushConstantParameter(const std::string& name) const
+{
+	for (const VulkanPushConstantParameter& param : parameterTable.pushConstants)
+	{
+		if (param.name == name)
+		{
+			return &param;
+		}
+	}
+	return nullptr;
+}
+
+const VulkanShaderParameter* VulkanComputePipelineState::findShaderParameter(const std::string& name) const
+{
+	auto it = parameterHashMap.find(name);
+	return (it == parameterHashMap.end()) ? nullptr : it->second;
+}
+
 void VulkanComputePipelineState::createPipelineLayout(const ComputePipelineDesc& inDesc)
 {
 	VulkanShaderStage* computeShader = static_cast<VulkanShaderStage*>(inDesc.cs);
-	const auto& setLayouts = computeShader->getVkDescriptorSetLayouts();
-	const auto& pushConsts = computeShader->getVkPushConstantRanges();
+	computeShader->moveVkDescriptorSetLayouts(vkDescriptorSetLayouts);
+
+	std::vector<VkPushConstantRange> ranges(parameterTable.pushConstants.size());
+	for (size_t i = 0; i < ranges.size(); ++i)
+	{
+		ranges[i] = parameterTable.pushConstants[i].range;
+	}
 
 	VkPipelineLayoutCreateInfo createInfo{
 		.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext                  = nullptr,
 		.flags                  = (VkPipelineLayoutCreateFlags)0,
-		.setLayoutCount         = (uint32_t)setLayouts.size(),
-		.pSetLayouts            = setLayouts.data(),
-		.pushConstantRangeCount = (uint32_t)pushConsts.size(),
-		.pPushConstantRanges    = pushConsts.data(),
+		.setLayoutCount         = (uint32_t)vkDescriptorSetLayouts.size(),
+		.pSetLayouts            = vkDescriptorSetLayouts.data(),
+		.pushConstantRangeCount = (uint32_t)ranges.size(),
+		.pPushConstantRanges    = ranges.data(),
 	};
 	
 	VkResult vkRet = vkCreatePipelineLayout(vkDevice, &createInfo, nullptr, &vkPipelineLayout);

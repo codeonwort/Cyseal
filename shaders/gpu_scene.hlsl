@@ -21,7 +21,9 @@ struct PushConstants
     uint numCommands;
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants;
+
 ConstantBuffer<SceneUniform> sceneUniform;
 RWStructuredBuffer<GPUSceneItem> gpuSceneBuffer;
 StructuredBuffer<GPUSceneCommand> commandBuffer;

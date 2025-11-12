@@ -19,7 +19,9 @@ struct IDrawCommand
 	D3D12_DRAW_INDEXED_ARGUMENTS drawIndexedArguments;
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants;
+
 ConstantBuffer<SceneUniform> sceneUniform;
 StructuredBuffer<GPUSceneItem> gpuSceneBuffer;
 StructuredBuffer<IDrawCommand> drawCommandBuffer;

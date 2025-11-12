@@ -9,7 +9,9 @@ struct PushConstants
 	uint packedTextureSize; // high 16-bit: height, low 16-bit: low
 };
 
+[[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants;
+
 Texture2D                     sceneDepthTexture;
 RWStructuredBuffer<uint>      rwTileCoordBuffer; // High 16-bit = y coord, low 16-bit = x coord. A tile is 8x8.
 RWStructuredBuffer<uint>      rwTileCounterBuffer;

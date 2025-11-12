@@ -8,9 +8,29 @@
 #include "rhi/shader.h"
 #include <vector>
 
-struct VulkanShaderReflection
+// Special struct for push constants.
+struct VulkanPushConstantParameter
 {
-	// #todo-barrier-vk
+	std::string         name;
+	VkPushConstantRange range;
+};
+// All other shader parameters use this.
+struct VulkanShaderParameter
+{
+	std::string      name;
+	VkDescriptorType vkDescriptorType;
+	uint32           set;
+	uint32           binding;
+	uint32           numDescriptors;
+};
+
+struct VulkanShaderParameterTable
+{
+	std::vector<VulkanPushConstantParameter> pushConstants;
+	std::vector<VulkanShaderParameter> storageBuffers;
+	std::vector<VulkanShaderParameter> storageImages;
+	std::vector<VulkanShaderParameter> sampledImages;
+	// #todo-vulkan-reflection: See VulkanShaderStage::addToShaderParameterTable()
 };
 
 class VulkanShaderStage : public ShaderStage
@@ -24,18 +44,19 @@ public:
 	virtual const wchar_t* getEntryPointW() override { return wEntryPoint.c_str(); }
 	virtual const char* getEntryPointA() override { return aEntryPoint.c_str(); }
 
-	const VulkanShaderReflection& getShaderReflection() { return shaderReflection; }
+	inline const VulkanShaderParameterTable& getParameterTable() const { return parameterTable; }
 
 	VkShaderModule getVkShaderModule() const { return vkModule; }
 	VkShaderStageFlagBits getVkShaderStage() const { return vkShaderStage; }
-	const std::vector<VkDescriptorSetLayout>& getVkDescriptorSetLayouts() const { return vkDescriptorSetLayouts; }
-	const std::vector<VkPushConstantRange>& getVkPushConstantRanges() const { return vkPushConstantRanges; }
+
+	void moveVkDescriptorSetLayouts(std::vector<VkDescriptorSetLayout>& target);
 
 private:
 	void loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
 	void loadFromFileByDxc(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
 
 	void readShaderReflection(const void* spirv_code, size_t spirv_nbytes);
+	void addToShaderParameterTable(const VulkanShaderParameter& inParam);
 
 private:
 	VulkanDevice* device = nullptr;
@@ -44,13 +65,14 @@ private:
 	std::string aEntryPoint;
 	std::wstring wEntryPoint;
 
-	VulkanShaderReflection shaderReflection;
+	VulkanShaderParameterTable parameterTable; // Filled by shader reflection
 
 	// Native resources
 	VkShaderModule vkModule = VK_NULL_HANDLE;
 	VkShaderStageFlagBits vkShaderStage = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+
+	// Native resources, but ownership might be lost and get emptied.
 	std::vector<VkDescriptorSetLayout> vkDescriptorSetLayouts;
-	std::vector<VkPushConstantRange> vkPushConstantRanges;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

@@ -25,13 +25,23 @@ enum class EDescriptorHeapFlags : uint8
 	ShaderVisible = 1,
 };
 
+// Not directly mapped to DX12 or Vulkan API, but for Cyseal's architecture.
+enum class EDescriptorHeapPurpose : uint8
+{
+	Persistent, // For global descriptors. The heap will remain persistent.
+	Volatile,   // For per-frame descriptor. The heap will be cleared and updated every frame.
+};
+
 // D3D12_DESCRIPTOR_HEAP_DESC
+// VkDescriptorPoolCreateInfo
 struct DescriptorHeapDesc
 {
-	EDescriptorHeapType type   = EDescriptorHeapType::NUM_TYPES;
-	uint32 numDescriptors      = 0;
-	EDescriptorHeapFlags flags = EDescriptorHeapFlags::None;
-	uint32 nodeMask            = 0; // MGPU thing
+	EDescriptorHeapType    type;
+	uint32                 numDescriptors;
+	EDescriptorHeapFlags   flags;
+	uint32                 nodeMask; // MGPU thing
+
+	EDescriptorHeapPurpose purpose;
 };
 
 struct DescriptorIndexTracker
