@@ -462,6 +462,9 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	std::vector<VkCopyDescriptorSet> copies;
 	bindParameterClass(copies, inParameters->rwStructuredBuffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	bindParameterClass(copies, inParameters->rwBuffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	bindParameterClass(copies, inParameters->structuredBuffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	// #wip: sampled image or combined image sampler?
+	bindParameterClass(copies, inParameters->textures, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
 	bindParameterClass(copies, inParameters->rwTextures, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
 	vkUpdateDescriptorSets(vkDevice, 0, nullptr, static_cast<uint32_t>(copies.size()), copies.data());

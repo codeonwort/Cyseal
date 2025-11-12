@@ -45,7 +45,9 @@ const std::vector<const char*> REQUIRED_VALIDATION_LAYERS = {
 };
 
 const std::vector<const char*> REQUIRED_DEVICE_EXTENSIONS = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	VK_GOOGLE_HLSL_FUNCTIONALITY1_EXTENSION_NAME, // Needed because SPIR-V comes from DXC.
+	VK_GOOGLE_USER_TYPE_EXTENSION_NAME,           // Needed because SPIR-V comes from DXC.
 };
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL GVulkanDebugCallback(
@@ -58,7 +60,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL GVulkanDebugCallback(
 	const char* msg,
 	void* userData)
 {
-	static_cast<void>(flags);
 	static_cast<void>(objType);
 	static_cast<void>(obj);
 	static_cast<void>(location);
@@ -67,6 +68,23 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL GVulkanDebugCallback(
 	static_cast<void>(userData);
 
 	CYLOG(LogVulkan, Warning, TEXT("[validation layer] %S"), msg);
+
+	bool bShouldAssert = false;
+	switch (flags)
+	{
+		case VK_DEBUG_REPORT_INFORMATION_BIT_EXT         : bShouldAssert = false; break;
+		case VK_DEBUG_REPORT_WARNING_BIT_EXT             : bShouldAssert = true; break;
+		case VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT : bShouldAssert = true; break;
+		case VK_DEBUG_REPORT_ERROR_BIT_EXT               : bShouldAssert = true; break;
+		case VK_DEBUG_REPORT_DEBUG_BIT_EXT               : bShouldAssert = false; break;
+		case VK_DEBUG_REPORT_FLAG_BITS_MAX_ENUM_EXT      : CHECK_NO_ENTRY(); break;
+		default: CHECK_NO_ENTRY(); break;
+	}
+	// #wip-validation
+	//if (bShouldAssert)
+	//{
+	//	CHECK_NO_ENTRY();
+	//}
 
 	// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/PFN_vkDebugReportCallbackEXT.html
 	// The application should always return VK_FALSE. The VK_TRUE value is reserved for use in layer development.
@@ -281,6 +299,16 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
 		//deviceFeatures.multiDrawIndirect = VK_TRUE;
 
+		VkPhysicalDeviceVulkan13Features features13{};
+		features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+		features13.pNext = nullptr;
+		features13.synchronization2 = VK_TRUE;
+
+		VkPhysicalDeviceFeatures2 deviceFeatures2{};
+		deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+		deviceFeatures2.pNext = &features13;
+		deviceFeatures2.features = deviceFeatures;
+
 		std::vector<const char*> enabledExtensions(
 			REQUIRED_DEVICE_EXTENSIONS.begin(),
 			REQUIRED_DEVICE_EXTENSIONS.end());
@@ -299,7 +327,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 		VkDeviceCreateInfo createInfo{
 			.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			.pNext                   = nullptr,
+			.pNext                   = &deviceFeatures2,
 			.flags                   = 0, // VkDeviceCreateFlags
 			.queueCreateInfoCount    = static_cast<uint32>(queueCreateInfos.size()),
 			.pQueueCreateInfos       = queueCreateInfos.data(),
@@ -307,7 +335,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 			.ppEnabledLayerNames     = ppEnabledLayerNames,
 			.enabledExtensionCount   = (uint32)enabledExtensions.size(),
 			.ppEnabledExtensionNames = enabledExtensions.data(),
-			.pEnabledFeatures        = &deviceFeatures,
+			.pEnabledFeatures        = nullptr, // Should be null when pNext refers to a VkPhysicalDeviceFeatures2.
 		};
 
 		const VkAllocationCallbacks* allocator = nullptr;
@@ -997,43 +1025,59 @@ ConstantBufferView* VulkanDevice::createCBV(Buffer* buffer, DescriptorHeap* desc
 
 ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const ShaderResourceViewDesc& createParams)
 {
+	VulkanDescriptorPool* pool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
+	VkDescriptorSet vkDescSet = pool->getVkDescriptorSetGlobal();
+	// In Vulkan backend, only persistent heaps are allowed for writing descriptors.
+	// Volatile views must copy descriptors from persistent heaps.
+	CHECK(pool->getCreateParams().purpose == EDescriptorHeapPurpose::Persistent);
+	CHECK(vkDescSet != VK_NULL_HANDLE);
+
 	VulkanShaderResourceView* srv = nullptr;
+
+	const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 	
 	if (createParams.viewDimension == ESRVDimension::Buffer)
 	{
+		// #wip
 		// Can't know if it's VulkanBuffer, VulkanVertexBuffer, or VulkanIndexBuffer :/
 		// VulkanBuffer* buffer = ?
 		//CHECK(ENUM_HAS_FLAG(buffer->getCreateParams().accessFlags, EBufferAccessFlags::SRV));
 
+		const uint32 descriptorBinding = pool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		VkBuffer vkBuffer = (VkBuffer)gpuResource->getRawResource();
 
-		// #todo-vulkan: From VertexBufferPool::initialize
-		// Is this even needed? First find out how Vulkan binds storage buffers
-		//VkBufferViewCreateInfo createInfo{
-		//	.sType  = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
-		//	.pNext  = nullptr,
-		//	.flags  = (VkBufferViewCreateFlags)0,
-		//	.buffer = (VkBuffer)(gpuResource->getRawResource()),
-		//	.format = into_vk::bufferFormat(createParams.format),
-		//	.offset = 0,
-		//	.range  = 0,
-		//};
-		//VkBufferView vkBufferView = VK_NULL_HANDLE;
-		//VkResult vkRet = vkCreateBufferView(vkDevice, &createInfo, nullptr, &vkBufferView);
-		//CHECK(vkRet == VK_SUCCESS);
-		
-		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
+		VkDescriptorBufferInfo bufferInfo{
+			.buffer = vkBuffer,
+			.offset = createParams.buffer.firstElement * createParams.buffer.structureByteStride,
+			.range  = createParams.buffer.numElements * createParams.buffer.structureByteStride,
+		};
+		VkWriteDescriptorSet vkWrite{
+			.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.pNext            = nullptr,
+			.dstSet           = vkDescSet,
+			.dstBinding       = descriptorBinding,
+			.dstArrayElement  = descriptorIndex,
+			.descriptorCount  = 1,
+			.descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			.pImageInfo       = nullptr,
+			.pBufferInfo      = &bufferInfo,
+			.pTexelBufferView = nullptr,
+		};
+		vkUpdateDescriptorSets(vkDevice, 1, &vkWrite, 0, nullptr);
 		
 		srv = new(EMemoryTag::RHI) VulkanShaderResourceView(
 			this, gpuResource, descriptorHeap, descriptorIndex, vkBuffer);
 	}
 	else if (createParams.viewDimension == ESRVDimension::Texture2D)
 	{
+		const uint32 descriptorBinding = pool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+		VkImage vkImage = (VkImage)gpuResource->getRawResource();
+
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.pNext            = nullptr,
 			.flags            = (VkImageViewCreateFlags)0,
-			.image            = (VkImage)(gpuResource->getRawResource()),
+			.image            = vkImage,
 			.viewType         = into_vk::imageViewType(createParams.viewDimension),
 			.format           = into_vk::pixelFormat(createParams.format),
 			.components       = (VkComponentSwizzle)0,
@@ -1050,7 +1094,24 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
 		CHECK(vkRet == VK_SUCCESS);
 
-		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
+		VkDescriptorImageInfo imageInfo{
+			.sampler     = VK_NULL_HANDLE,
+			.imageView   = vkImageView,
+			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		};
+		VkWriteDescriptorSet vkWrite{
+			.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.pNext            = nullptr,
+			.dstSet           = vkDescSet,
+			.dstBinding       = descriptorBinding,
+			.dstArrayElement  = descriptorIndex,
+			.descriptorCount  = 1,
+			.descriptorType   = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+			.pImageInfo       = &imageInfo,
+			.pBufferInfo      = nullptr,
+			.pTexelBufferView = nullptr,
+		};
+		vkUpdateDescriptorSets(vkDevice, 1, &vkWrite, 0, nullptr);
 
 		srv = new(EMemoryTag::RHI) VulkanShaderResourceView(
 			this, gpuResource, descriptorHeap, descriptorIndex, vkImageView);
@@ -1153,7 +1214,6 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 	}
 	else if (createParams.viewDimension == EUAVDimension::Texture2D)
 	{
-		// VkDescriptorImageInfo?
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.pNext            = nullptr,
@@ -1161,7 +1221,7 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 			.image            = (VkImage)(gpuResource->getRawResource()),
 			.viewType         = into_vk::imageViewType(createParams.viewDimension),
 			.format           = into_vk::pixelFormat(createParams.format),
-			.components       = VkComponentSwizzle{},
+			.components       = (VkComponentSwizzle)0,
 			.subresourceRange = VkImageSubresourceRange{
 				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consider depthstencil case
 				.baseMipLevel   = createParams.texture2D.mipSlice,
@@ -1179,7 +1239,7 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 		VkDescriptorImageInfo imageInfo{
 			.sampler     = VK_NULL_HANDLE,
 			.imageView   = vkImageView,
-			.imageLayout = VK_IMAGE_LAYOUT_GENERAL, // #wip: Initial imageLayout?
+			.imageLayout = VK_IMAGE_LAYOUT_GENERAL, // #wip-validation: validation warning; layout is UNDEFINED?
 		};
 		VkWriteDescriptorSet vkWrite{
 			.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -1390,8 +1450,11 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice physDevice, bool bSkipSwapc
 
 	VkPhysicalDeviceProperties deviceProperties;
 	vkGetPhysicalDeviceProperties(physDevice, &deviceProperties);
-	VkPhysicalDeviceFeatures deviceFeatures;
-	vkGetPhysicalDeviceFeatures(physDevice, &deviceFeatures);
+
+	VkPhysicalDeviceFeatures2 deviceFeatures2;
+	deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+	deviceFeatures2.pNext = nullptr;
+	vkGetPhysicalDeviceFeatures2(physDevice, &deviceFeatures2);
 
 	bool extensionsSupported = checkDeviceExtensionSupport(physDevice);
 	bool swapChainAdequate = bSkipSwapchainSupport;
@@ -1402,7 +1465,7 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice physDevice, bool bSkipSwapc
 	}
 
 	return indices.isComplete() && extensionsSupported
-		&& swapChainAdequate && deviceFeatures.samplerAnisotropy;
+		&& swapChainAdequate && deviceFeatures2.features.samplerAnisotropy;
 }
 
 bool VulkanDevice::checkDeviceExtensionSupport(VkPhysicalDevice physDevice)
