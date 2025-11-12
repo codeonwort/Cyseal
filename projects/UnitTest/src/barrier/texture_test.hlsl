@@ -10,6 +10,7 @@ ConstantBuffer<PushConstants> pushConstants;
 
 #if defined(WRITE_PASS)
 
+[[vk::image_format("rgba16f")]]
 RWTexture2D<float4> rwTexture;
 
 [numthreads(8, 8, 1)]
@@ -23,6 +24,8 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 
 Texture2D<float4> textureA;
 Texture2D<float4> textureB;
+
+[[vk::image_format("rgba16f")]]
 RWTexture2D<float4> rwTexture;
 
 [numthreads(8, 8, 1)]

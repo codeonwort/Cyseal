@@ -85,6 +85,7 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 		L"-I", includeDir.c_str(),
 		L"-E", wEntryPoint.c_str(),
 		L"-T", targetProfile.c_str(),
+		L"-enable-16bit-types",
 	};
 	for (const std::wstring& def : defines)
 	{

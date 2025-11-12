@@ -50,6 +50,7 @@ std::string ShaderCodegen::hlslToSpirv(
 		ss << " -D" << def;
 	}
 	ss << " -fspv-reflect"; // Emits additional SPIR-V instructions to aid reflection.
+	ss << " -enable-16bit-types";
 	ss << ' ' << inFilename;
 	if (bEmitBytecode)
 	{

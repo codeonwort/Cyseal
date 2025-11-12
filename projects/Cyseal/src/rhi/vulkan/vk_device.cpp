@@ -304,9 +304,14 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		features13.pNext = nullptr;
 		features13.synchronization2 = VK_TRUE;
 
+		VkPhysicalDeviceVulkan12Features features12{};
+		features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+		features12.pNext = &features13;
+		features12.shaderFloat16 = VK_TRUE;
+
 		VkPhysicalDeviceFeatures2 deviceFeatures2{};
 		deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-		deviceFeatures2.pNext = &features13;
+		deviceFeatures2.pNext = &features12;
 		deviceFeatures2.features = deviceFeatures;
 
 		std::vector<const char*> enabledExtensions(
