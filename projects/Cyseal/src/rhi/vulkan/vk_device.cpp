@@ -1056,6 +1056,11 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 			.offset = createParams.buffer.firstElement * createParams.buffer.structureByteStride,
 			.range  = createParams.buffer.numElements * createParams.buffer.structureByteStride,
 		};
+		if (createParams.buffer.structureByteStride == 0)
+		{
+			bufferInfo.range = VK_WHOLE_SIZE;
+		}
+
 		VkWriteDescriptorSet vkWrite{
 			.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 			.pNext            = nullptr,
@@ -1200,6 +1205,11 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 			.offset = createParams.buffer.firstElement * createParams.buffer.structureByteStride,
 			.range  = createParams.buffer.numElements * createParams.buffer.structureByteStride,
 		};
+		if (createParams.buffer.structureByteStride == 0)
+		{
+			bufferInfo.range = VK_WHOLE_SIZE;
+		}
+
 		VkWriteDescriptorSet vkWrite{
 			.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 			.pNext            = nullptr,

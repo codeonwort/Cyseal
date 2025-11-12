@@ -99,15 +99,44 @@ void VulkanDescriptorPool::initialize(VulkanDevice* inDevice)
 
 	if (desc.purpose == EDescriptorHeapPurpose::Persistent)
 	{
+		VkShaderStageFlags stageFlags = 0;
+		for (const auto& sz : poolSizes)
+		{
+			VkDescriptorType type = sz.type;
+			switch (type)
+			{
+				case VK_DESCRIPTOR_TYPE_SAMPLER                               : stageFlags |= VK_SHADER_STAGE_ALL; break;
+				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER                : stageFlags |= VK_SHADER_STAGE_ALL; break;
+				case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE                         : stageFlags |= VK_SHADER_STAGE_ALL; break;
+				case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE                         : stageFlags |= VK_SHADER_STAGE_ALL; break;
+				case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER                  : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER                  : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER                        : stageFlags |= VK_SHADER_STAGE_ALL; break;
+				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER                        : stageFlags |= VK_SHADER_STAGE_ALL; break;
+				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC                : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC                : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT                      : stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT; break;
+				case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK                  : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR            : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV             : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_SAMPLE_WEIGHT_IMAGE_QCOM              : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_BLOCK_MATCH_IMAGE_QCOM                : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_TENSOR_ARM                            : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_MUTABLE_EXT                           : CHECK_NO_ENTRY(); break;
+				case VK_DESCRIPTOR_TYPE_PARTITIONED_ACCELERATION_STRUCTURE_NV : CHECK_NO_ENTRY(); break;
+				default: CHECK_NO_ENTRY(); break;
+			}
+		}
+
 		std::vector<VkDescriptorSetLayoutBinding> vkBindings(poolSizes.size());
 		for (size_t i = 0; i < vkBindings.size(); ++i)
 		{
 			vkBindings[i] = VkDescriptorSetLayoutBinding{
-				.binding            = (uint32)i, // #wip-pool
+				.binding            = (uint32)i,
 				.descriptorType     = poolSizes[i].type,
 				.descriptorCount    = poolSizes[i].descriptorCount,
-				.stageFlags         = VK_SHADER_STAGE_ALL, // #wip-pool
-				.pImmutableSamplers = nullptr, // #wip-pool
+				.stageFlags         = stageFlags,
+				.pImmutableSamplers = nullptr,
 			};
 		}
 		VkDescriptorSetLayoutCreateInfo layoutInfo{
