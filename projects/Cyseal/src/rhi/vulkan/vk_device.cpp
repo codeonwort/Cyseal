@@ -17,7 +17,8 @@
 #include "rhi/swap_chain.h"
 #include "rhi/global_descriptor_heaps.h"
 
-#include <vulkan/vulkan.h>
+// Defining it here won't work; instead it's provided as preprocessor definition (VulkanBuild.props).
+// #define IMGUI_IMPL_VULKAN_NO_PROTOTYPES
 #include "imgui_impl_vulkan.h"
 
 #include <algorithm>
@@ -459,6 +460,11 @@ void VulkanDevice::initializeDearImgui()
 	QueueFamilyIndices queueFamily = findQueueFamilies(vkPhysicalDevice, vkSurface);
 	VulkanSwapchain* vkSwapchain = static_cast<VulkanSwapchain*>(swapChain);
 	VkRenderPass renderPass = vkSwapchain->getVkRenderPass();
+
+	// https://github.com/ocornut/imgui/issues/4854
+	ImGui_ImplVulkan_LoadFunctions([](const char *function_name, void *vulkan_instance) {
+		return vkGetInstanceProcAddr(*(reinterpret_cast<VkInstance *>(vulkan_instance)), function_name);
+	}, &vkInstance);
 
 	ImGui_ImplVulkan_InitInfo imguiInitInfo{
 		.Instance        = vkInstance,
