@@ -1049,11 +1049,6 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 	
 	if (createParams.viewDimension == ESRVDimension::Buffer)
 	{
-		// #wip
-		// Can't know if it's VulkanBuffer, VulkanVertexBuffer, or VulkanIndexBuffer :/
-		// VulkanBuffer* buffer = ?
-		//CHECK(ENUM_HAS_FLAG(buffer->getCreateParams().accessFlags, EBufferAccessFlags::SRV));
-
 		const uint32 descriptorBinding = pool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		VkBuffer vkBuffer = (VkBuffer)gpuResource->getRawResource();
 

@@ -283,7 +283,7 @@ void VulkanShaderStage::readShaderReflection(const void* spirv_code, size_t spir
 					.descriptorType     = static_cast<VkDescriptorType>(spvBinding->descriptor_type),
 					.descriptorCount    = spvBinding->count,
 					.stageFlags         = static_cast<VkShaderStageFlags>(vkShaderStage),
-					.pImmutableSamplers = nullptr, // #wip: pImmutableSamplers
+					.pImmutableSamplers = nullptr, // #todo-vulkan-reflection: pImmutableSamplers
 				};
 			}
 

@@ -394,7 +394,7 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	VkDescriptorPool vkDescPool = pool->getVkPool();
 	const std::vector<VkDescriptorSetLayout>& vkDescriptorSetLayouts = computePSO->getVkDescriptorSetLayouts();
 
-	// #wip: When to vkResetDescriptorPool()?
+	// #todo-vulkan-shader: When to vkResetDescriptorPool()?
 #if 0
 	if (tracker == nullptr || tracker->lastIndex == 0)
 	{
@@ -452,7 +452,8 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 			continue;
 		}
 
-		CHECK(inParam.destOffsetIn32BitValues == param->range.offset); // #wip: What to use?
+		// #todo-vulkan-shader: What to use?
+		CHECK(inParam.destOffsetIn32BitValues == param->range.offset);
 
 		vkCmdPushConstants(
 			currentCommandBuffer,
@@ -467,7 +468,7 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	bindParameterClass(copies, inParameters->rwStructuredBuffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	bindParameterClass(copies, inParameters->rwBuffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	bindParameterClass(copies, inParameters->structuredBuffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	// #wip: sampled image or combined image sampler?
+	// #todo-vulkan-shader: sampled image or combined image sampler?
 	bindParameterClass(copies, inParameters->textures, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
 	bindParameterClass(copies, inParameters->rwTextures, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
