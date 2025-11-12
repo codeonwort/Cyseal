@@ -13,8 +13,9 @@ class VulkanBuffer;
 class VulkanRenderTargetView : public RenderTargetView
 {
 public:
-	VulkanRenderTargetView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
+	VulkanRenderTargetView(VulkanDevice* inDevice, GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
 		: RenderTargetView(inOwner, inSourceHeap, inDescriptorIndex)
+		, device(inDevice)
 		, vkImageView(inVkImageView)
 	{}
 
@@ -23,14 +24,16 @@ public:
 	VkImageView getVkImageView() const { return vkImageView; }
 
 private:
+	VulkanDevice* device = nullptr;
 	VkImageView vkImageView = VK_NULL_HANDLE;
 };
 
 class VulkanDepthStencilView : public DepthStencilView
 {
 public:
-	VulkanDepthStencilView(GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
+	VulkanDepthStencilView(VulkanDevice* inDevice, GPUResource* inOwner, DescriptorHeap* inSourceHeap, uint32 inDescriptorIndex, VkImageView inVkImageView)
 		: DepthStencilView(inOwner, inSourceHeap, inDescriptorIndex)
+		, device(inDevice)
 		, vkImageView(inVkImageView)
 	{}
 
@@ -39,6 +42,7 @@ public:
 	VkImageView getVkImageView() const { return vkImageView; }
 
 private:
+	VulkanDevice* device = nullptr;
 	VkImageView vkImageView = VK_NULL_HANDLE;
 };
 

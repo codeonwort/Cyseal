@@ -7,14 +7,12 @@
 
 VulkanRenderTargetView::~VulkanRenderTargetView()
 {
-	CHECK_NO_ENTRY(); // Replace getVkDevice() with device->getRaw()
-	vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
+	vkDestroyImageView(device->getRaw(), vkImageView, nullptr);
 }
 
 VulkanDepthStencilView::~VulkanDepthStencilView()
 {
-	CHECK_NO_ENTRY(); // Replace getVkDevice() with device->getRaw()
-	vkDestroyImageView(getVkDevice(), vkImageView, nullptr);
+	vkDestroyImageView(device->getRaw(), vkImageView, nullptr);
 }
 
 VulkanShaderResourceView::~VulkanShaderResourceView()

@@ -1145,7 +1145,7 @@ RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHe
 {
 	VulkanRenderTargetView* rtv = nullptr;
 
-	// WIP: Other dimensions
+	// Need to support other dimensions
 	CHECK(createParams.viewDimension == ERTVDimension::Texture2D);
 	
 	if (createParams.viewDimension == ERTVDimension::Texture2D)
@@ -1173,7 +1173,10 @@ RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHe
 
 		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
 
-		rtv = new(EMemoryTag::RHI) VulkanRenderTargetView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+		// Need to update descriptor set
+		CHECK_NO_ENTRY();
+
+		rtv = new(EMemoryTag::RHI) VulkanRenderTargetView(this, gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 	}
 
 	return rtv;
@@ -1321,7 +1324,10 @@ DepthStencilView* VulkanDevice::createDSV(GPUResource* gpuResource, DescriptorHe
 
 	const uint32 descriptorIndex = gDescriptorHeaps->allocateDSVIndex();
 
-	return new(EMemoryTag::RHI) VulkanDepthStencilView(gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+	// Need to update descriptor set
+	CHECK_NO_ENTRY();
+
+	return new(EMemoryTag::RHI) VulkanDepthStencilView(this, gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 }
 
 DepthStencilView* VulkanDevice::createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams)
