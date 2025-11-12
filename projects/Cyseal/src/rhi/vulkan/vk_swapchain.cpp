@@ -113,7 +113,7 @@ void VulkanSwapchain::initialize(
 			.numDescriptors = swapchainImageCount,
 			.flags          = EDescriptorHeapFlags::None,
 			.nodeMask       = 0,
-			.purpose        = EDescriptorHeapPurpose::Persistent, // #wip-heap-purpose
+			.purpose        = EDescriptorHeapPurpose::Persistent,
 		};
 		heapRTV = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(heapDesc));
 

@@ -76,7 +76,7 @@ void D3DSwapChain::initialize(
 		.numDescriptors = SWAP_CHAIN_BUFFER_COUNT,
 		.flags          = EDescriptorHeapFlags::None,
 		.nodeMask       = 0,
-		.purpose        = EDescriptorHeapPurpose::Persistent, // #wip-heap-purpose
+		.purpose        = EDescriptorHeapPurpose::Persistent,
 	};
 	heapRTV = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(heapDesc));
 

@@ -441,7 +441,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 				.numDescriptors = maxConstantsCount,
 				.flags          = EDescriptorHeapFlags::None,
 				.nodeMask       = 0,
-				.purpose        = EDescriptorHeapPurpose::Volatile, // #wip-heap-purpose
+				.purpose        = EDescriptorHeapPurpose::Volatile,
 			}
 		));
 		materialConstantsSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(
@@ -470,7 +470,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 				.numDescriptors = maxSRVCount,
 				.flags          = EDescriptorHeapFlags::None,
 				.nodeMask       = 0,
-				.purpose        = EDescriptorHeapPurpose::Volatile, // #wip-heap-purpose
+				.purpose        = EDescriptorHeapPurpose::Volatile,
 			}
 		));
 	}

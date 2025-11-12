@@ -33,7 +33,7 @@ void RenderDevice::initializeDearImgui()
 			.numDescriptors = 1,
 			.flags          = EDescriptorHeapFlags::ShaderVisible,
 			.nodeMask       = 0,
-			.purpose        = EDescriptorHeapPurpose::Volatile, // #wip-heap-purpose
+			.purpose        = EDescriptorHeapPurpose::Volatile,
 		}
 	);
 }
