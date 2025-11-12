@@ -261,7 +261,7 @@ namespace UnitTest
 						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::NO_ACCESS,
 						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
-						.layoutBefore = EBarrierLayout::Common,
+						.layoutBefore = EBarrierLayout::Undefined,
 						.layoutAfter  = EBarrierLayout::UnorderedAccess,
 						.texture      = texture1.get(),
 						.subresources = BarrierSubresourceRange{
@@ -279,7 +279,7 @@ namespace UnitTest
 						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::NO_ACCESS,
 						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
-						.layoutBefore = EBarrierLayout::Common,
+						.layoutBefore = EBarrierLayout::Undefined,
 						.layoutAfter  = EBarrierLayout::UnorderedAccess,
 						.texture      = texture2.get(),
 						.subresources = BarrierSubresourceRange{
@@ -359,7 +359,7 @@ namespace UnitTest
 						.syncAfter    = EBarrierSync::COMPUTE_SHADING,
 						.accessBefore = EBarrierAccess::NO_ACCESS,
 						.accessAfter  = EBarrierAccess::UNORDERED_ACCESS,
-						.layoutBefore = EBarrierLayout::Common,
+						.layoutBefore = EBarrierLayout::Undefined,
 						.layoutAfter  = EBarrierLayout::UnorderedAccess,
 						.texture      = texture3.get(),
 						.subresources = BarrierSubresourceRange{
