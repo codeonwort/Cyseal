@@ -88,6 +88,7 @@ namespace UnitTest
 			readPassDescriptor.resizeDescriptorHeap(0, 3);
 
 			// 2. Validation
+
 			auto commandAllocator = renderDevice->getCommandAllocator(0);
 			auto commandList = renderDevice->getCommandList(0);
 			auto commandQueue = renderDevice->getCommandQueue();
@@ -180,8 +181,7 @@ namespace UnitTest
 			renderDevice->flushCommandQueue();
 
 			// 3. Cleanup
-#if 1
-			// #wip-test: Need to destroy them first in Vulkan. Why D3D is OK without this?
+
 			buffer1UAV.reset();
 			buffer2UAV.reset();
 			buffer3UAV.reset();
@@ -194,7 +194,7 @@ namespace UnitTest
 			srvHeap.reset();
 			writePassDescriptor.destroy();
 			readPassDescriptor.destroy();
-#endif
+
 			renderDevice->destroy();
 			delete renderDevice;
 		}
@@ -246,6 +246,7 @@ namespace UnitTest
 			readPassDescriptor.resizeDescriptorHeap(0, 3);
 
 			// 2. Validation
+
 			auto commandAllocator = renderDevice->getCommandAllocator(0);
 			auto commandList = renderDevice->getCommandList(0);
 			auto commandQueue = renderDevice->getCommandQueue();
@@ -426,8 +427,6 @@ namespace UnitTest
 
 			// 3. Cleanup
 
-#if 1
-			// #wip-test: Need to destroy them first in Vulkan. Why D3D is OK without this?
 			texture1UAV.reset();
 			texture2UAV.reset();
 			texture3UAV.reset();
@@ -440,7 +439,7 @@ namespace UnitTest
 			srvHeap.reset();
 			writePassDescriptor.destroy();
 			readPassDescriptor.destroy();
-#endif
+
 			renderDevice->destroy();
 			delete renderDevice;
 		}
@@ -552,7 +551,6 @@ namespace UnitTest
 		}
 	};
 
-	// #wip-test: Make barrier test pass
 	TEST_CLASS(TestBarrierVulkan), TestBarrierBase<ERenderDeviceRawAPI::Vulkan>
 	{
 	public:
