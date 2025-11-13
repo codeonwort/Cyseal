@@ -49,6 +49,45 @@ const std::vector<const char*> REQUIRED_DEVICE_EXTENSIONS = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	VK_GOOGLE_HLSL_FUNCTIONALITY1_EXTENSION_NAME, // Needed because SPIR-V comes from DXC.
 	VK_GOOGLE_USER_TYPE_EXTENSION_NAME,           // Needed because SPIR-V comes from DXC.
+	//VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,    // #wip: Do I need KHR extension when I'm using Vulkan 1.3?
+};
+
+struct PhysicalDeviceFeatureBlob
+{
+	// What's all this structs?
+	VkPhysicalDeviceFeatures deviceFeatures{};
+	VkPhysicalDeviceVulkan13Features features13{};
+	VkPhysicalDeviceVulkan12Features features12{};
+	VkPhysicalDeviceFeatures2 deviceFeatures2{};
+
+	const void* pNextForVkDeviceCreateInfo() const
+	{
+		return (void*)(&deviceFeatures2);
+	}
+	const VkPhysicalDeviceFeatures* pEnabledFeaturesForVkDeviceCreateInfo() const
+	{
+		return nullptr; // Should be null when pNext refers to a VkPhysicalDeviceFeatures2.
+	}
+
+	PhysicalDeviceFeatureBlob()
+	{
+		//deviceFeatures.imageCubeArray = VK_TRUE;
+		deviceFeatures.samplerAnisotropy = VK_TRUE;
+		//deviceFeatures.multiDrawIndirect = VK_TRUE;
+
+		features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+		features13.pNext = nullptr;
+		features13.synchronization2 = VK_TRUE;
+		features13.dynamicRendering = VK_TRUE;
+
+		features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+		features12.pNext = &features13;
+		features12.shaderFloat16 = VK_TRUE;
+
+		deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+		deviceFeatures2.pNext = &features12;
+		deviceFeatures2.features = deviceFeatures;
+	}
 };
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL GVulkanDebugCallback(
@@ -294,26 +333,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 			queueCreateInfos.push_back(queueCreateInfo);
 		}
 
-		// #note-vulkan: Too many fields to use designated initializer.
-		VkPhysicalDeviceFeatures deviceFeatures{};
-		//deviceFeatures.imageCubeArray = VK_TRUE;
-		deviceFeatures.samplerAnisotropy = VK_TRUE;
-		//deviceFeatures.multiDrawIndirect = VK_TRUE;
-
-		VkPhysicalDeviceVulkan13Features features13{};
-		features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-		features13.pNext = nullptr;
-		features13.synchronization2 = VK_TRUE;
-
-		VkPhysicalDeviceVulkan12Features features12{};
-		features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-		features12.pNext = &features13;
-		features12.shaderFloat16 = VK_TRUE;
-
-		VkPhysicalDeviceFeatures2 deviceFeatures2{};
-		deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-		deviceFeatures2.pNext = &features12;
-		deviceFeatures2.features = deviceFeatures;
+		PhysicalDeviceFeatureBlob deviceFeatureBlob{};
 
 		std::vector<const char*> enabledExtensions(
 			REQUIRED_DEVICE_EXTENSIONS.begin(),
@@ -333,15 +353,15 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 		VkDeviceCreateInfo createInfo{
 			.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			.pNext                   = &deviceFeatures2,
-			.flags                   = 0, // VkDeviceCreateFlags
+			.pNext                   = deviceFeatureBlob.pNextForVkDeviceCreateInfo(),
+			.flags                   = (VkDeviceCreateFlags)0,
 			.queueCreateInfoCount    = static_cast<uint32>(queueCreateInfos.size()),
 			.pQueueCreateInfos       = queueCreateInfos.data(),
 			.enabledLayerCount       = enabledLayerCount,
 			.ppEnabledLayerNames     = ppEnabledLayerNames,
 			.enabledExtensionCount   = (uint32)enabledExtensions.size(),
 			.ppEnabledExtensionNames = enabledExtensions.data(),
-			.pEnabledFeatures        = nullptr, // Should be null when pNext refers to a VkPhysicalDeviceFeatures2.
+			.pEnabledFeatures        = deviceFeatureBlob.pEnabledFeaturesForVkDeviceCreateInfo(),
 		};
 
 		const VkAllocationCallbacks* allocator = nullptr;
