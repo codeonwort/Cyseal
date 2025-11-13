@@ -309,6 +309,11 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		
 		// This is true if the process was launched via a frame debugger (e.g., RenderDoc).
 		canEnableDebugMarker = checkVkDebugMarkerSupport(vkPhysicalDevice);
+
+		// Check physical device properties.
+		vkPhysicalDeviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+		vkPhysicalDeviceProperties2.pNext = nullptr;
+		vkGetPhysicalDeviceProperties2(vkPhysicalDevice, &vkPhysicalDeviceProperties2);
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create a logical device"));

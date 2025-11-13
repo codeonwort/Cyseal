@@ -6,6 +6,7 @@
 #include "vk_buffer.h"
 #include "vk_pipeline_state.h"
 #include "vk_descriptor.h"
+#include "vk_resource_view.h"
 #include "vk_into.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogVulkanCommandList);
@@ -138,6 +139,8 @@ void VulkanRenderCommandList::reset(RenderCommandAllocator* allocator)
 
 void VulkanRenderCommandList::close()
 {
+	endCurrentDynamicRendering();
+
 	VkResult ret = vkEndCommandBuffer(currentCommandBuffer);
 	CHECK(ret == VK_SUCCESS);
 
@@ -217,9 +220,31 @@ void VulkanRenderCommandList::barrierAuto(
 
 void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
 {
-	// #todo-vulkan
-	//throw std::logic_error("The method or operation is not implemented.");
-	CHECK_NO_ENTRY();
+	uint32 attachmentIx = 0xffffffff;
+	for (size_t i = 0; i < currentRTVs.size(); ++i)
+	{
+		if (currentRTVs[i] == RTV)
+		{
+			attachmentIx = (uint32)i;
+			break;
+		}
+	}
+	CHECK(attachmentIx != 0xffffffff);
+
+	TextureKind* textureKind = static_cast<TextureKind*>(RTV->getOwnerResource());
+	TextureKindShapeDesc shapeDesc = textureKind->internal_getShapeDesc();
+
+	VkClearAttachment vkClear{
+		.aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
+		.colorAttachment = attachmentIx,
+		.clearValue      = VkClearValue{.color = {.float32 = { rgba[0], rgba[1], rgba[2], rgba[3] }}},
+	};
+	VkClearRect vkRect{
+		.rect           = VkRect2D{ {0, 0}, {shapeDesc.width, shapeDesc.height} },
+		.baseArrayLayer = 0,
+		.layerCount     = 1,
+	};
+	vkCmdClearAttachments(currentCommandBuffer, 1, &vkClear, 1, &vkRect);
 }
 
 void VulkanRenderCommandList::clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil)
@@ -257,8 +282,7 @@ void VulkanRenderCommandList::setRaytracingPipelineState(RaytracingPipelineState
 void VulkanRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps)
 {
 	// #todo-vulkan: What to do here?
-	// Vulkan binds descriptor sets, not descriptor pools.
-	CHECK_NO_ENTRY();
+	// In Vulkan, we just bind a pipeline, update descriptor sets, and bind those sets...
 }
 
 void VulkanRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology inTopology)
@@ -315,15 +339,84 @@ void VulkanRenderCommandList::rsSetScissorRect(const ScissorRect& scissorRect)
 
 void VulkanRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV)
 {
-	// #wip: render pass or dynamic rendering?
-	//throw std::logic_error("The method or operation is not implemented.");
-	CHECK_NO_ENTRY();
+	omSetRenderTargets(1, &RTV, DSV);
 }
 
 void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV)
 {
-	// #wip: render pass or dynamic rendering?
-	CHECK_NO_ENTRY();
+	const uint32 maxRTVs = device->getVkPhysicalDeviceProperties2().properties.limits.maxColorAttachments;
+	CHECK(numRTVs <= maxRTVs);
+	CHECK(numRTVs > 0 || DSV != nullptr);
+
+	// #wip: No DSV support yet
+	CHECK(DSV == nullptr);
+
+	endCurrentDynamicRendering();
+
+	uint32 width = 0, height = 0;
+	for (uint32 i = 0; i < numRTVs; ++i)
+	{
+		TextureKind* textureKind = static_cast<TextureKind*>(RTVs[i]->getOwnerResource());
+		TextureKindShapeDesc shapeDesc = textureKind->internal_getShapeDesc();
+		if (i != 0 && (shapeDesc.width != width || shapeDesc.height != height))
+		{
+			CHECK_NO_ENTRY(); // Inconsistent RT sizes
+		}
+		width = shapeDesc.width;
+		height = shapeDesc.height;
+	}
+	if (DSV != nullptr)
+	{
+		TextureKind* textureKind = static_cast<TextureKind*>(DSV->getOwnerResource());
+		TextureKindShapeDesc shapeDesc = textureKind->internal_getShapeDesc();
+		if (numRTVs > 0 && (shapeDesc.width != width || shapeDesc.height != height))
+		{
+			CHECK_NO_ENTRY(); // Inconsistent RT sizes
+		}
+		width = shapeDesc.width;
+		height = shapeDesc.height;
+	}
+
+	std::vector<VkRenderingAttachmentInfo> colorAttachments(numRTVs);
+	for (uint32 i = 0; i < numRTVs; ++i)
+	{
+		VulkanRenderTargetView* vulkanRTV = static_cast<VulkanRenderTargetView*>(RTVs[i]);
+
+		colorAttachments[i] = VkRenderingAttachmentInfo{
+			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+			.pNext = nullptr,
+			.imageView = vulkanRTV->getVkImageView(),
+			.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			.resolveMode = VK_RESOLVE_MODE_NONE,
+			.resolveImageView = VK_NULL_HANDLE,
+			.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.clearValue = VkClearValue{ .color = { .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } } },
+		};
+	}
+
+	VkRenderingInfo info{
+		.sType                = VK_STRUCTURE_TYPE_RENDERING_INFO,
+		.pNext                = nullptr,
+		.flags                = (VkRenderingFlags)0,
+		.renderArea           = VkRect2D{ {0, 0}, {width, height} },
+		.layerCount           = 1,
+		.viewMask             = 0,
+		.colorAttachmentCount = numRTVs,
+		.pColorAttachments    = colorAttachments.data(),
+		.pDepthAttachment     = VK_NULL_HANDLE,
+		.pStencilAttachment   = VK_NULL_HANDLE,
+	};
+
+	vkCmdBeginRendering(currentCommandBuffer, &info);
+
+	bInDynamicRendering = true;
+	currentRTVs.resize(numRTVs);
+	for (uint32 i = 0; i < numRTVs; ++i)
+	{
+		currentRTVs[i] = RTVs[i];
+	}
 }
 
 void VulkanRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap)
@@ -488,6 +581,8 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
+	endCurrentDynamicRendering();
+
 	vkCmdDispatch(currentCommandBuffer, threadGroupX, threadGroupY, threadGroupZ);
 }
 
@@ -518,6 +613,16 @@ void VulkanRenderCommandList::beginEventMarker(const char* eventName)
 void VulkanRenderCommandList::endEventMarker()
 {
 	device->endVkDebugMarker(currentCommandBuffer);
+}
+
+void VulkanRenderCommandList::endCurrentDynamicRendering()
+{
+	if (bInDynamicRendering)
+	{
+		vkCmdEndRendering(currentCommandBuffer);
+		currentRTVs.clear();
+		bInDynamicRendering = false;
+	}
 }
 
 #endif

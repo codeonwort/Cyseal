@@ -43,8 +43,8 @@ namespace into_vk
 		}
 		if (consumeFlag(&sync, EBarrierSync::DRAW))
 		{
-			CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
-			//vkFlags |= VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+			//CHECK_NO_ENTRY(); // #todo-barrier-vk: Proper flag?
+			vkFlags |= VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
 		}
 		if (consumeFlag(&sync, EBarrierSync::INDEX_INPUT))
 		{

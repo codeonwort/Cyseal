@@ -136,6 +136,8 @@ public:
 	virtual void beginEventMarker(const char* eventName) override;
 	virtual void endEventMarker() override;
 
+	void endCurrentDynamicRendering();
+
 public:
 	inline VkCommandBuffer internal_getVkCommandBuffer() const { return currentCommandBuffer; }
 
@@ -144,6 +146,10 @@ private:
 	BarrierTracker barrierTracker;
 
 	VkCommandBuffer currentCommandBuffer = VK_NULL_HANDLE;
+
+	// Raster context
+	bool bInDynamicRendering = false;
+	std::vector<RenderTargetView*> currentRTVs;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

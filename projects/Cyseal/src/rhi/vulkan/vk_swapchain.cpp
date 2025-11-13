@@ -99,6 +99,7 @@ void VulkanSwapchain::initialize(
 			swapchainImages[i] = makeUnique<VulkanSwapchainImage>(vkSwapchainImages[i]);
 			std::wstring debugName = std::wstring(L"SwapchainImage_") + std::to_wstring(i);
 			swapchainImages[i]->setDebugName(debugName.c_str());
+			swapchainImages[i]->internal_setShapeDesc(backbufferWidth, backbufferHeight, backbufferFormat);
 		}
 
 		swapchainImageFormat = surfaceFormat.format;
