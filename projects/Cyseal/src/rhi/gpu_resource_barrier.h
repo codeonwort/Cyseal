@@ -158,7 +158,7 @@ struct BarrierSubresourceRange
 
 	static BarrierSubresourceRange singleMip(uint32 mip)
 	{
-		return BarrierSubresourceRange{ mip, 0, 0, 0, 0, 0 };
+		return BarrierSubresourceRange{ mip, 0, 0, 1, 0, 0 };
 	}
 	static BarrierSubresourceRange allMips()
 	{

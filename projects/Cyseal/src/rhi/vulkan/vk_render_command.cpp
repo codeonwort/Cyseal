@@ -315,14 +315,14 @@ void VulkanRenderCommandList::rsSetScissorRect(const ScissorRect& scissorRect)
 
 void VulkanRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV)
 {
-	// #todo-vulkan
+	// #wip: render pass or dynamic rendering?
 	//throw std::logic_error("The method or operation is not implemented.");
 	CHECK_NO_ENTRY();
 }
 
 void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV)
 {
-	// #todo-vulkan
+	// #wip: render pass or dynamic rendering?
 	CHECK_NO_ENTRY();
 }
 

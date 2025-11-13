@@ -55,6 +55,7 @@ void VulkanDescriptorPool::initialize(VulkanDevice* inDevice)
 	case EDescriptorHeapType::SRV:
 		poolSizes.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, desc.numDescriptors });
 		poolSizes.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, desc.numDescriptors });
+		poolSizes.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, desc.numDescriptors });
 		break;
 	case EDescriptorHeapType::UAV:
 		poolSizes.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, desc.numDescriptors });
@@ -66,6 +67,7 @@ void VulkanDescriptorPool::initialize(VulkanDevice* inDevice)
 		poolSizes.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, desc.numDescriptors });
 		poolSizes.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, desc.numDescriptors });
 		poolSizes.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, desc.numDescriptors });
+		poolSizes.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, desc.numDescriptors });
 		poolSizes.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, desc.numDescriptors });
 		break;
 	case EDescriptorHeapType::SAMPLER:

@@ -324,6 +324,20 @@ namespace into_vk
 		{
 			aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		}
+
+		// BarrierSubresourceRange{ 0xffffffff, ... } is d3d convention.
+		if (range.isHolistic())
+		{
+			return VkImageSubresourceRange{
+				.aspectMask     = aspectMask,
+				.baseMipLevel   = 0,
+				.levelCount     = VK_REMAINING_MIP_LEVELS,
+				.baseArrayLayer = 0,
+				.layerCount     = VK_REMAINING_ARRAY_LAYERS,
+				// #todo-barrier-vk: firstPlane and numPlanes?
+			};
+		}
+
 		return VkImageSubresourceRange{
 			.aspectMask     = aspectMask,
 			.baseMipLevel   = range.indexOrFirstMipLevel,

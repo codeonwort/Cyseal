@@ -18,10 +18,11 @@ public:
 		return shapeDesc;
 	}
 
-	void internal_setShapeDesc(uint32 inWidth, uint32 inHeight)
+	void internal_setShapeDesc(uint32 inWidth, uint32 inHeight, EPixelFormat inFormat)
 	{
 		shapeDesc = TextureKindShapeDesc{
 			TextureKindShapeDesc::Dimension::Tex2D,
+			inFormat,
 			inWidth, inHeight, 1, 1, 1,
 		};
 	}

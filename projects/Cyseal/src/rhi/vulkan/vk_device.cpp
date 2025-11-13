@@ -1081,19 +1081,24 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 	}
 	else if (createParams.viewDimension == ESRVDimension::Texture2D)
 	{
+		TextureKind* textureKind = static_cast<TextureKind*>(gpuResource);
+		EPixelFormat textureFormat = textureKind->internal_getShapeDesc().format;
+		VkImageAspectFlags aspectMask = isDepthStencilFormat(textureFormat)
+			? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+			: VK_IMAGE_ASPECT_COLOR_BIT;
+
 		const uint32 descriptorBinding = pool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-		VkImage vkImage = (VkImage)gpuResource->getRawResource();
 
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.pNext            = nullptr,
 			.flags            = (VkImageViewCreateFlags)0,
-			.image            = vkImage,
+			.image            = (VkImage)(gpuResource->getRawResource()),
 			.viewType         = into_vk::imageViewType(createParams.viewDimension),
 			.format           = into_vk::pixelFormat(createParams.format),
 			.components       = (VkComponentSwizzle)0,
 			.subresourceRange = VkImageSubresourceRange{
-				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consider depthstencil case
+				.aspectMask     = aspectMask,
 				.baseMipLevel   = createParams.texture2D.mostDetailedMip,
 				.levelCount     = createParams.texture2D.mipLevels,
 				.baseArrayLayer = 0,
@@ -1143,13 +1148,23 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 
 RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const RenderTargetViewDesc& createParams)
 {
+	VulkanDescriptorPool* pool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
+	VkDescriptorSet vkDescSet = pool->getVkDescriptorSetGlobal();
+	// In Vulkan backend, only persistent heaps are allowed for writing descriptors.
+	// Volatile views must copy descriptors from persistent heaps.
+	CHECK(pool->getCreateParams().purpose == EDescriptorHeapPurpose::Persistent);
+	CHECK(vkDescSet != VK_NULL_HANDLE);
+
 	VulkanRenderTargetView* rtv = nullptr;
 
-	// Need to support other dimensions
-	CHECK(createParams.viewDimension == ERTVDimension::Texture2D);
-	
 	if (createParams.viewDimension == ERTVDimension::Texture2D)
 	{
+		TextureKind* textureKind = static_cast<TextureKind*>(gpuResource);
+		EPixelFormat textureFormat = textureKind->internal_getShapeDesc().format;
+		VkImageAspectFlags aspectMask = isDepthStencilFormat(textureFormat)
+			? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+			: VK_IMAGE_ASPECT_COLOR_BIT;
+
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.pNext            = nullptr,
@@ -1159,7 +1174,7 @@ RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHe
 			.format           = into_vk::pixelFormat(createParams.format),
 			.components       = (VkComponentSwizzle)0,
 			.subresourceRange = VkImageSubresourceRange{
-				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consider depthstencil case
+				.aspectMask     = aspectMask,
 				.baseMipLevel   = createParams.texture2D.mipSlice,
 				.levelCount     = 1,
 				.baseArrayLayer = createParams.texture2D.planeSlice,
@@ -1171,12 +1186,42 @@ RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHe
 		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
 		CHECK(vkRet == VK_SUCCESS);
 
-		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
+		// #wip: Do I need to write a descriptor for a color/depth attachment?
+		const uint32 descriptorIndex = pool->allocateDescriptorIndex();
+#if 0
+		const uint32 descriptorBinding = pool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
 
-		// Need to update descriptor set
+		const VkImageLayout vkImageLayout = isDepthStencilFormat(textureFormat)
+			? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+			: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkDescriptorImageInfo imageInfo{
+			.sampler     = VK_NULL_HANDLE,
+			.imageView   = vkImageView,
+			.imageLayout = vkImageLayout,
+		};
+		VkWriteDescriptorSet vkWrite{
+			.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.pNext            = nullptr,
+			.dstSet           = vkDescSet,
+			.dstBinding       = descriptorBinding,
+			.dstArrayElement  = descriptorIndex,
+			.descriptorCount  = 1,
+			.descriptorType   = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+			.pImageInfo       = &imageInfo,
+			.pBufferInfo      = nullptr,
+			.pTexelBufferView = nullptr,
+		};
+		vkUpdateDescriptorSets(vkDevice, 1, &vkWrite, 0, nullptr);
+#endif
+
+		rtv = new(EMemoryTag::RHI) VulkanRenderTargetView(
+			this, gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+	}
+	else
+	{
+		// Need to support other dimensions
 		CHECK_NO_ENTRY();
-
-		rtv = new(EMemoryTag::RHI) VulkanRenderTargetView(this, gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 	}
 
 	return rtv;
@@ -1233,6 +1278,12 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 	}
 	else if (createParams.viewDimension == EUAVDimension::Texture2D)
 	{
+		TextureKind* textureKind = static_cast<TextureKind*>(gpuResource);
+		EPixelFormat textureFormat = textureKind->internal_getShapeDesc().format;
+		VkImageAspectFlags aspectMask = isDepthStencilFormat(textureFormat)
+			? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+			: VK_IMAGE_ASPECT_COLOR_BIT;
+
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.pNext            = nullptr,
@@ -1242,7 +1293,7 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 			.format           = into_vk::pixelFormat(createParams.format),
 			.components       = (VkComponentSwizzle)0,
 			.subresourceRange = VkImageSubresourceRange{
-				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consider depthstencil case
+				.aspectMask     = aspectMask,
 				.baseMipLevel   = createParams.texture2D.mipSlice,
 				.levelCount     = 1,
 				.baseArrayLayer = createParams.texture2D.planeSlice,

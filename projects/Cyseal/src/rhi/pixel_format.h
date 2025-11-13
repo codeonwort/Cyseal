@@ -5,6 +5,7 @@
 
 // NOTE: Should modify following places when adding a new enum:
 // - getPixelFormatBytes()
+// - isDepthStencilFormat()
 // - into_d3d::pixelFormat()
 // - into_vk::pixelFormat()
 enum class EPixelFormat : uint8
@@ -66,4 +67,15 @@ inline uint32 getPixelFormatBytes(EPixelFormat format)
 		default: CHECK_NO_ENTRY();
 	}
 	return 0;
+}
+
+inline bool isDepthStencilFormat(EPixelFormat format)
+{
+	switch (format)
+	{
+		case EPixelFormat::D24_UNORM_S8_UINT:
+		case EPixelFormat::D32_FLOAT_S8_UINT:
+			return true;
+	}
+	return false;
 }
