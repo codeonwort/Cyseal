@@ -184,7 +184,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		if (cmdAllocator->isValid())
 		{
-			commandQueue->executeCommandList(cmdList);
+			commandQueue->executeCommandList(cmdList, swapChain);
 		}
 	}
 
@@ -766,7 +766,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	if (!bDoubleBuffering)
 	{
-		commandQueue->executeCommandList(commandList);
+		commandQueue->executeCommandList(commandList, swapChain);
 	}
 
 	swapChain->present();
@@ -1179,7 +1179,7 @@ void SceneRenderer::immediateFlushCommandQueue(RenderCommandQueue* commandQueue,
 {
 	commandList->close();
 	commandAllocator->markValid();
-	commandQueue->executeCommandList(commandList);
+	commandQueue->executeCommandList(commandList, nullptr);
 
 	{
 		SCOPED_CPU_EVENT(WaitForGPU);

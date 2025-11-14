@@ -108,7 +108,7 @@ public:
 	inline VkSurfaceKHR getVkSurface() const { return vkSurface; }
 	inline VkQueue getVkGraphicsQueue() const { return vkGraphicsQueue; }
 	inline VkQueue getVkPresentQueue() const { return vkPresentQueue; }
-	inline VkSemaphore getVkSwapchainImageAvailableSemaphore() const { return vkSwapchainImageAvailableSemaphore; }
+	inline VkSemaphore getVkSwapchainImageAvailableSemaphore(uint32 swapchainIx) const { return vkSwapchainImageAvailableSemaphores[swapchainIx]; }
 	inline VkSemaphore getVkRenderFinishedSemaphore() const { return vkRenderFinishedSemaphore; }
 
 	inline const VkPhysicalDeviceProperties2& getVkPhysicalDeviceProperties2() const { return vkPhysicalDeviceProperties2; }
@@ -144,10 +144,8 @@ private:
 	VkQueue vkGraphicsQueue = VK_NULL_HANDLE;
 	VkQueue vkPresentQueue = VK_NULL_HANDLE;
 
-	// #todo-vulkan Swapchain image is available. Is this needed?
-	VkSemaphore vkSwapchainImageAvailableSemaphore = VK_NULL_HANDLE;
-	// Graphics queue has finished.
-	VkSemaphore vkRenderFinishedSemaphore = VK_NULL_HANDLE;
+	std::vector<VkSemaphore> vkSwapchainImageAvailableSemaphores; // Swapchain image is available.
+	VkSemaphore vkRenderFinishedSemaphore = VK_NULL_HANDLE; // Graphics queue has finished.
 
 	VkDebugReportCallbackEXT vkDebugCallback = VK_NULL_HANDLE;
 	bool enableDebugLayer = false;

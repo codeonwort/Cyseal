@@ -11,13 +11,15 @@
 #include <vulkan/vulkan_core.h>
 
 class ShaderResourceView;
+class RenderCommandList;
+class SwapChain;
 
 class VulkanRenderCommandQueue : public RenderCommandQueue
 {
 public:
 	virtual void initialize(RenderDevice* renderDevice) override;
 
-	virtual void executeCommandList(class RenderCommandList* commandList) override;
+	virtual void executeCommandList(RenderCommandList* commandList, SwapChain* swapChain) override;
 
 private:
 	VulkanDevice* deviceWrapper = nullptr;

@@ -7,6 +7,7 @@
 #include "vk_pipeline_state.h"
 #include "vk_descriptor.h"
 #include "vk_resource_view.h"
+#include "vk_swapchain.h"
 #include "vk_into.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogVulkanCommandList);
@@ -26,11 +27,12 @@ void VulkanRenderCommandQueue::initialize(RenderDevice* renderDevice)
 	vkGraphicsQueue = deviceWrapper->getVkGraphicsQueue();
 }
 
-void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList)
+void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList, SwapChain* swapChain)
 {
 	VulkanRenderCommandList* vkCmdList = static_cast<VulkanRenderCommandList*>(commandList);
+	VulkanSwapchain* vulkanSwapChain = static_cast<VulkanSwapchain*>(swapChain);
 
-	// #todo-vulkan-critical: waitSemaphore in executeCommandList()
+	// #wip: waitSemaphore in executeCommandList()
 	// - It's possible that current command list is executing some one-time commands,
 	//   not relevant to swapchain present. So I don't wanna wait for imageAvailable sem here...
 	// - Why should I wait for swapchain image here at first? If I do offscreen rendering
@@ -39,10 +41,18 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 	//   even if a swapchain-available semaphore is required, it should never be in a command queue.
 	//   Let's just disable it for the sake of barrier unit tests.
 	//   Revisit when doing actual present using Vulkan backend.
-#if 0
-	uint32 waitSemaphoreCount = 1;
-	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkSwapchainImageAvailableSemaphore() };
-	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+#if 1
+	std::vector<VkSemaphore> waitSemaphores;
+	std::vector<VkPipelineStageFlags> waitStages;
+	if (vulkanSwapChain != nullptr)
+	{
+		VkSemaphore semaphore = vulkanSwapChain->internal_getSemaphoreForImageAcquisition();
+		if (semaphore != VK_NULL_HANDLE)
+		{
+			waitSemaphores.push_back(semaphore);
+			waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+		}
+	}
 #else
 	uint32 waitSemaphoreCount = 0;
 	VkSemaphore* waitSemaphores = nullptr;
@@ -55,9 +65,9 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 	VkSubmitInfo submitInfo{
 		.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 		.pNext                = nullptr,
-		.waitSemaphoreCount   = waitSemaphoreCount,
-		.pWaitSemaphores      = waitSemaphores,
-		.pWaitDstStageMask    = waitStages,
+		.waitSemaphoreCount   = (uint32)waitSemaphores.size(),
+		.pWaitSemaphores      = waitSemaphores.data(),
+		.pWaitDstStageMask    = waitStages.data(),
 		.commandBufferCount   = 1,
 		.pCommandBuffers      = &vkCommandBuffer,
 		.signalSemaphoreCount = 1,
@@ -166,6 +176,11 @@ void VulkanRenderCommandList::barrier(
 	for (uint32 i = 0; i < numGlobalBarriers; ++i)
 	{
 		vkGlobalBarriers[i] = into_vk::globalMemoryBarrier(globalBarriers[i]);
+	}
+
+	if (vkImageBarriers[0].oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+	{
+		int z = 0; // #wip: Wuuuuuuuuuuut
 	}
 
 	VkDependencyInfo dep{

@@ -322,12 +322,15 @@ void VulkanSwapchain::present()
 void VulkanSwapchain::swapBackbuffer()
 {
 	VkDevice vkDevice = deviceWrapper->getRaw();
+
+	semaphoreInFlight = deviceWrapper->getVkSwapchainImageAvailableSemaphore(currentBackbufferIx);
+
 	VkResult ret = vkAcquireNextImageKHR(
 		vkDevice,
 		swapchainKHR,
-		UINT64_MAX,
-		deviceWrapper->getVkSwapchainImageAvailableSemaphore(),
-		VK_NULL_HANDLE,
+		UINT64_MAX, // timeout
+		semaphoreInFlight,
+		VK_NULL_HANDLE, // fence
 		&currentBackbufferIx);
 	CHECK(ret == VK_SUCCESS);
 }

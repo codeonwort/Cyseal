@@ -17,12 +17,14 @@ class IndexBuffer;
 // VkQueue
 class RenderCommandQueue
 {
-	
+
 public:
 	virtual ~RenderCommandQueue() = default;
 
 	virtual void initialize(RenderDevice* renderDevice) = 0;
-	virtual void executeCommandList(class RenderCommandList* commandList) = 0;
+
+	// swapChain should be non-null if commandList contains some commands that access swap chain images.
+	virtual void executeCommandList(RenderCommandList* commandList, SwapChain* swapChain) = 0;
 
 };
 

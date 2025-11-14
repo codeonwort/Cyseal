@@ -70,10 +70,10 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	commandList->close();
 	commandAllocator->markValid();
 
-	commandQueue->executeCommandList(commandList);
+	commandQueue->executeCommandList(commandList, swapChain);
 
 	swapChain->present();
-	swapChain->swapBackbuffer();
+	swapChain->swapBackbuffer(); // #wip: If I do this here, no image will be acquired by vkAcquireNextImageKHR() at the first frame...
 
 	device->flushCommandQueue();
 

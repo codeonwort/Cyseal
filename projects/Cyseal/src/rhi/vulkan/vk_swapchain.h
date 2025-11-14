@@ -76,10 +76,13 @@ public:
 	inline VkFramebuffer getVkFramebuffer(uint32 ix) const { return swapchainFramebuffers[ix]; }
 	inline VkSampleCountFlagBits getVkSampleCountFlagBits() const { return vkSampleCountFlagBits; }
 
+	inline VkSemaphore internal_getSemaphoreForImageAcquisition() const { return semaphoreInFlight; }
+
 private:
 	VulkanDevice* deviceWrapper = nullptr;
 
 	uint32 currentBackbufferIx = 0;
+	VkSemaphore semaphoreInFlight = VK_NULL_HANDLE;
 
 	VkSwapchainKHR swapchainKHR = VK_NULL_HANDLE;
 	VkExtent2D swapchainExtent = VkExtent2D{ 0,0 };

@@ -186,6 +186,11 @@ VkDevice getVkDevice()
 VulkanDevice::~VulkanDevice()
 {
 	// #todo-vulkan
+	for (size_t i = 0; i < vkSwapchainImageAvailableSemaphores.size(); ++i)
+	{
+		vkDestroySemaphore(vkDevice, vkSwapchainImageAvailableSemaphores[i], nullptr);
+	}
+	vkDestroySemaphore(vkDevice, vkRenderFinishedSemaphore, nullptr);
 }
 
 void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
@@ -444,13 +449,18 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		VkSemaphoreCreateInfo semaphoreInfo{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 			.pNext = nullptr,
-			.flags = 0, // VkSemaphoreCreateFlags
+			.flags = (VkSemaphoreCreateFlags)0,
 		};
 
 		VkResult ret;
 
-		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkSwapchainImageAvailableSemaphore);
-		CHECK(ret == VK_SUCCESS);
+		const uint32 swapChainImageCount = swapChain->getBufferCount();
+		vkSwapchainImageAvailableSemaphores.resize(swapChainImageCount, VK_NULL_HANDLE);
+		for (uint32 i = 0; i < swapChainImageCount; ++i)
+		{
+			ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkSwapchainImageAvailableSemaphores[i]);
+			CHECK(ret == VK_SUCCESS);
+		}
 
 		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkRenderFinishedSemaphore);
 		CHECK(ret == VK_SUCCESS);

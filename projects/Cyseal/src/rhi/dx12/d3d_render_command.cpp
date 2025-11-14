@@ -36,11 +36,13 @@ void D3DRenderCommandQueue::initialize(RenderDevice* renderDevice)
 	HR(device->getRawDevice()->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)));
 }
 
-void D3DRenderCommandQueue::executeCommandList(class RenderCommandList* commandList)
+void D3DRenderCommandQueue::executeCommandList(class RenderCommandList* commandList, SwapChain* swapChain)
 {
 	auto rawList = static_cast<D3DRenderCommandList*>(commandList);
 	ID3D12CommandList* const lists[] = { rawList->getRaw() };
 	queue->ExecuteCommandLists(1, lists);
+
+	static_cast<void>(swapChain); // Only Vulkan uses this parameter for now.
 }
 
 //////////////////////////////////////////////////////////////////////////

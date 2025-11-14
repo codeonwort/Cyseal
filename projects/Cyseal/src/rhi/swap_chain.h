@@ -5,6 +5,7 @@
 #include "texture_kind.h"
 
 class RenderDevice;
+class RenderCommandList;
 class SwapChain;
 class GPUResource;
 class RenderTargetView;

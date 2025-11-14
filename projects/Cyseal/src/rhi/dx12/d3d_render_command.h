@@ -7,12 +7,13 @@
 #define ID3D12GraphicsCommandListLatest ID3D12GraphicsCommandList10
 
 class ShaderResourceView;
+class SwapChain;
 
 class D3DRenderCommandQueue : public RenderCommandQueue
 {
 public:
 	virtual void initialize(RenderDevice* renderDevice) override;
-	virtual void executeCommandList(class RenderCommandList* commandList) override;
+	virtual void executeCommandList(RenderCommandList* commandList, SwapChain* swapChain) override;
 
 	inline ID3D12CommandQueue* getRaw() const { return queue.Get(); }
 
