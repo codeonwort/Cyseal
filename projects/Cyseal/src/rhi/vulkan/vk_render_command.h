@@ -93,6 +93,9 @@ public:
 
 	virtual void updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters) override;
 
+	virtual void beginRenderPass() override;
+	virtual void endRenderPass() override;
+
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
 		uint32 instanceCount,
@@ -136,8 +139,6 @@ public:
 	virtual void beginEventMarker(const char* eventName) override;
 	virtual void endEventMarker() override;
 
-	void endCurrentDynamicRendering();
-
 public:
 	inline VkCommandBuffer internal_getVkCommandBuffer() const { return currentCommandBuffer; }
 
@@ -150,6 +151,7 @@ private:
 	// Raster context
 	bool bInDynamicRendering = false;
 	std::vector<RenderTargetView*> currentRTVs;
+	DepthStencilView* currentDSV = nullptr;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

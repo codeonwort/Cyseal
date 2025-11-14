@@ -115,5 +115,8 @@ void SkyPass::renderSky(RenderCommandList* commandList, uint32 swapchainIndex, c
 	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, descriptorHeap);
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);
+
+	commandList->beginRenderPass();
 	commandList->drawInstanced(3, 1, 0, 0); // Fullscreen triangle
+	commandList->endRenderPass();
 }

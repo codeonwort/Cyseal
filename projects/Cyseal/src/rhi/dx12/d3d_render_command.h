@@ -89,6 +89,9 @@ public:
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) override;
 	virtual void omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV) override;
 
+	virtual void beginRenderPass() override;
+	virtual void endRenderPass() override;
+
 	virtual void bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) override;
 
 	virtual void updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters) override;
@@ -143,4 +146,7 @@ private:
 	D3DRenderCommandAllocator* commandAllocator;
 	WRL::ComPtr<ID3D12GraphicsCommandListLatest> commandList;
 	BarrierTracker barrierTracker;
+
+	// Raster context
+	bool bInRenderPass = false;
 };

@@ -91,5 +91,8 @@ void ToneMapping::renderToneMapping(RenderCommandList* commandList, uint32 swapc
 	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);
+
+	commandList->beginRenderPass();
 	commandList->drawInstanced(3, 1, 0, 0); // Fullscreen triangle
+	commandList->endRenderPass();
 }

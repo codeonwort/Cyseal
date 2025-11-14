@@ -144,10 +144,10 @@ struct BarrierSubresourceRange
 	{
 		return indexOrFirstMipLevel == other.indexOrFirstMipLevel
 			&& numMipLevels == other.numMipLevels
-			&& firstArraySlice == other.firstArraySlice
-			&& numArraySlices == other.numArraySlices
-			&& firstPlane == other.firstPlane
-			&& numPlanes == other.numPlanes;
+			&& (numMipLevels == 0 || firstArraySlice == other.firstArraySlice)
+			&& (numMipLevels == 0 || numArraySlices == other.numArraySlices)
+			&& (numMipLevels == 0 || firstPlane == other.firstPlane)
+			&& (numMipLevels == 0 || numPlanes == other.numPlanes);
 	}
 	inline bool operator!=(const BarrierSubresourceRange& other) const
 	{
@@ -162,7 +162,7 @@ struct BarrierSubresourceRange
 	}
 	static BarrierSubresourceRange allMips()
 	{
-		return BarrierSubresourceRange{ 0xffffffff, 0, 0, 0, 0, 0 };
+		return BarrierSubresourceRange{ 0xffffffff, 0, 0, 1, 0, 0 };
 	}
 };
 

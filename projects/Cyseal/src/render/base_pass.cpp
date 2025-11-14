@@ -331,6 +331,8 @@ void BasePass::renderForPipeline(RenderCommandList* commandList, uint32 swapchai
 	}
 	else
 	{
+		commandList->beginRenderPass();
+
 		for (size_t i = 0; i < drawList.meshes.size(); ++i)
 		{
 			const StaticMeshSection* section = drawList.meshes[i];
@@ -350,6 +352,8 @@ void BasePass::renderForPipeline(RenderCommandList* commandList, uint32 swapchai
 			commandList->iaSetIndexBuffer(indexBuffer);
 			commandList->drawIndexedInstanced(indexBuffer->getIndexCount(), 1, 0, 0, 0);
 		}
+
+		commandList->endRenderPass();
 	}
 }
 

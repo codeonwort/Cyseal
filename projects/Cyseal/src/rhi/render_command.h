@@ -122,6 +122,12 @@ public:
 	// - parameters may contain only root constants. Other types of parameters are ignored.
 	virtual void updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters) = 0;
 
+	// omSetRenderTargets() is enough for DX12 but Vulkan needs explicit endpoints for raster work...
+	// Invoke beginRenderPass() AFTER omSetRenderTargets().
+	virtual void beginRenderPass() = 0;
+	// Invoke beginRenderPass(), issue drawcalls, then invoke endRenderPass().
+	virtual void endRenderPass() = 0;
+
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
 		uint32 instanceCount,

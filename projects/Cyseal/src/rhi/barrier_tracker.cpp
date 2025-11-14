@@ -436,10 +436,12 @@ bool BarrierTracker::TextureStateSet::isSubRange(const TextureState& sub, const 
 	bool mip = (sub.subresources.numMipLevels != 0)
 		&& (sub.subresources.indexOrFirstMipLevel <= range.indexOrFirstMipLevel)
 		&& (range.indexOrFirstMipLevel + range.numMipLevels <= sub.subresources.indexOrFirstMipLevel + sub.subresources.numMipLevels);
-	bool slice = (sub.subresources.numArraySlices != 0)
+	// slice-related fields are invalid if numMipLevels == 0.
+	bool slice = (sub.subresources.numMipLevels != 0) && (sub.subresources.numArraySlices != 0)
 		&& (sub.subresources.firstArraySlice <= range.firstArraySlice)
 		&& (range.firstArraySlice + range.numArraySlices <= sub.subresources.firstArraySlice + sub.subresources.numArraySlices);
-	bool plane = (sub.subresources.numPlanes != 0)
+	// plane-related fields are invalid if numMipLevels == 0.
+	bool plane = (sub.subresources.numMipLevels != 0) && (sub.subresources.numPlanes != 0)
 		&& (sub.subresources.firstPlane <= range.firstPlane)
 		&& (range.firstPlane + range.numPlanes <= sub.subresources.firstPlane + sub.subresources.numPlanes);
 	return (match || all || mip || slice || plane);

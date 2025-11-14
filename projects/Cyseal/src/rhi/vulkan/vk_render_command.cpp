@@ -139,7 +139,7 @@ void VulkanRenderCommandList::reset(RenderCommandAllocator* allocator)
 
 void VulkanRenderCommandList::close()
 {
-	endCurrentDynamicRendering();
+	CHECK(bInDynamicRendering == false);
 
 	VkResult ret = vkEndCommandBuffer(currentCommandBuffer);
 	CHECK(ret == VK_SUCCESS);
@@ -351,12 +351,39 @@ void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetVie
 	// #wip: No DSV support yet
 	CHECK(DSV == nullptr);
 
-	endCurrentDynamicRendering();
+	currentRTVs.resize(numRTVs);
+	for (uint32 i = 0; i < numRTVs; ++i)
+	{
+		currentRTVs[i] = RTVs[i];
+	}
+	currentDSV = DSV;
+}
+
+void VulkanRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+}
+
+void VulkanRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+}
+
+void VulkanRenderCommandList::beginRenderPass()
+{
+	CHECK(currentRTVs.size() > 0 || currentDSV != nullptr); // omSetRenderTarget(s) should have set something.
+
+	CHECK(bInDynamicRendering == false); // already in a render pass
+	bInDynamicRendering = true;
+
+	const uint32 numRTVs = (uint32)currentRTVs.size();
 
 	uint32 width = 0, height = 0;
 	for (uint32 i = 0; i < numRTVs; ++i)
 	{
-		TextureKind* textureKind = static_cast<TextureKind*>(RTVs[i]->getOwnerResource());
+		TextureKind* textureKind = static_cast<TextureKind*>(currentRTVs[i]->getOwnerResource());
 		TextureKindShapeDesc shapeDesc = textureKind->internal_getShapeDesc();
 		if (i != 0 && (shapeDesc.width != width || shapeDesc.height != height))
 		{
@@ -365,9 +392,9 @@ void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetVie
 		width = shapeDesc.width;
 		height = shapeDesc.height;
 	}
-	if (DSV != nullptr)
+	if (currentDSV != nullptr)
 	{
-		TextureKind* textureKind = static_cast<TextureKind*>(DSV->getOwnerResource());
+		TextureKind* textureKind = static_cast<TextureKind*>(currentDSV->getOwnerResource());
 		TextureKindShapeDesc shapeDesc = textureKind->internal_getShapeDesc();
 		if (numRTVs > 0 && (shapeDesc.width != width || shapeDesc.height != height))
 		{
@@ -380,7 +407,7 @@ void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetVie
 	std::vector<VkRenderingAttachmentInfo> colorAttachments(numRTVs);
 	for (uint32 i = 0; i < numRTVs; ++i)
 	{
-		VulkanRenderTargetView* vulkanRTV = static_cast<VulkanRenderTargetView*>(RTVs[i]);
+		VulkanRenderTargetView* vulkanRTV = static_cast<VulkanRenderTargetView*>(currentRTVs[i]);
 
 		colorAttachments[i] = VkRenderingAttachmentInfo{
 			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -410,25 +437,17 @@ void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetVie
 	};
 
 	vkCmdBeginRendering(currentCommandBuffer, &info);
-
-	bInDynamicRendering = true;
-	currentRTVs.resize(numRTVs);
-	for (uint32 i = 0; i < numRTVs; ++i)
-	{
-		currentRTVs[i] = RTVs[i];
-	}
 }
 
-void VulkanRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap)
+void VulkanRenderCommandList::endRenderPass()
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
-}
+	CHECK(bInDynamicRendering);
+	bInDynamicRendering = false;
 
-void VulkanRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters)
-{
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
+	vkCmdEndRendering(currentCommandBuffer);
+
+	currentRTVs.clear();
+	currentDSV = nullptr;
 }
 
 void VulkanRenderCommandList::drawIndexedInstanced(
@@ -438,6 +457,8 @@ void VulkanRenderCommandList::drawIndexedInstanced(
 	int32 baseVertexLocation,
 	uint32 startInstanceLocation)
 {
+	CHECK(bInDynamicRendering);
+
 	vkCmdDrawIndexed(
 		currentCommandBuffer,
 		indexCountPerInstance,
@@ -453,6 +474,8 @@ void VulkanRenderCommandList::drawInstanced(
 	uint32 startVertexLocation,
 	uint32 startInstanceLocation)
 {
+	CHECK(bInDynamicRendering);
+
 	vkCmdDraw(
 		currentCommandBuffer,
 		vertexCountPerInstance,
@@ -470,6 +493,7 @@ void VulkanRenderCommandList::executeIndirect(
 	uint64 countBufferOffset /*= 0*/)
 {
 	// #todo-vulkan
+	//CHECK(bInDynamicRendering); // What if there are only compute dispatch commands?
 }
 
 void VulkanRenderCommandList::bindComputeShaderParameters(
@@ -581,7 +605,7 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
-	endCurrentDynamicRendering();
+	//CHECK(bInDynamicRendering == false); // #wip: Should I end current render pass before compute dispatch?
 
 	vkCmdDispatch(currentCommandBuffer, threadGroupX, threadGroupY, threadGroupZ);
 }
@@ -613,16 +637,6 @@ void VulkanRenderCommandList::beginEventMarker(const char* eventName)
 void VulkanRenderCommandList::endEventMarker()
 {
 	device->endVkDebugMarker(currentCommandBuffer);
-}
-
-void VulkanRenderCommandList::endCurrentDynamicRendering()
-{
-	if (bInDynamicRendering)
-	{
-		vkCmdEndRendering(currentCommandBuffer);
-		currentRTVs.clear();
-		bInDynamicRendering = false;
-	}
 }
 
 #endif
