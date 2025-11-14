@@ -46,12 +46,17 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 #if VERIFY_DEAR_IMGUI
 	{
 		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
+
 		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		commandList->beginRenderPass(); // Just for clearRenderTargetView() (it needs to be inside a render pass for Vulkan)
 		commandList->clearRenderTargetView(swapchainBufferRTV, clearColor);
+		commandList->endRenderPass();
 
 		SCOPED_DRAW_EVENT(commandList, DearImgui);
 		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
 		commandList->setDescriptorHeaps(1, imguiHeaps);
+
+		// No beginRenderPass() and endRenderPass() as DearImgui handles render pass part internally.
 		device->renderDearImgui(commandList);
 	}
 #endif
