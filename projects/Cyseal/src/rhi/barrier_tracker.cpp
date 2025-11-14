@@ -260,7 +260,8 @@ bool BarrierTracker::TextureStateSet::splitLocalState(const TextureBarrier& barr
 		{
 			// #todo-barrier: Need to handle all the combinations... no use case yet.
 			CHECK(barrier.subresources.numMipLevels == 0);
-			CHECK(barrier.subresources.numArraySlices == 0);
+			// Need to deal with array slices, but pass if single mip (numMipLevels == 0) where numArraySlices should be 1 for vk but is ignored for d3d12)
+			CHECK((barrier.subresources.numMipLevels == 0 && barrier.subresources.numArraySlices == 1) || barrier.subresources.numArraySlices == 0);
 			CHECK(barrier.subresources.numPlanes == 0);
 
 			// Exact match should have been processed by replaceLocalState().
