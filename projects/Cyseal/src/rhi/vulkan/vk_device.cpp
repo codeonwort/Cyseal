@@ -537,14 +537,15 @@ void VulkanDevice::beginDearImguiNewFrame()
 	ImGui_ImplVulkan_NewFrame();
 }
 
-void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
+void VulkanDevice::renderDearImgui(RenderCommandList* commandList, SwapChainImage* swapChainImage)
 {
 	if (createParams.swapChainParams.bHeadless)
 	{
 		return;
 	}
 
-	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->internal_getVkCommandBuffer();
+	VulkanRenderCommandList* vulkanCommandList = static_cast<VulkanRenderCommandList*>(commandList);
+	VkCommandBuffer vkCommandBuffer = vulkanCommandList->internal_getVkCommandBuffer();
 	uint32 ix = swapChain->getCurrentBackbufferIndex();
 
 	VkClearValue clearValues[2] = {
@@ -563,6 +564,10 @@ void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 	vkCmdBeginRenderPass(vkCommandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), vkCommandBuffer, VK_NULL_HANDLE);
 	vkCmdEndRenderPass(vkCommandBuffer);
+
+	VulkanSwapchainImage* vulkanSwapChainImage = static_cast<VulkanSwapchainImage*>(swapChainImage);
+	vulkanSwapChainImage->internal_overrideLastImageLayout(EBarrierLayout::Present);
+	vulkanCommandList->internal_overrideLastImageLayout(swapChainImage, EBarrierLayout::Present);
 }
 
 void VulkanDevice::shutdownDearImgui()

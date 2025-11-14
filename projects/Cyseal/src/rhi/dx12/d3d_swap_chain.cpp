@@ -109,7 +109,7 @@ void D3DSwapChain::resize(uint32 newWidth, uint32 newHeight)
 	createSwapchainImages();
 }
 
-void D3DSwapChain::swapBackbuffer()
+void D3DSwapChain::prepareBackbuffer()
 {
 	// Do nothing here. DXGI swapchain automatically flips the back buffers.
 	// 

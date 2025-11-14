@@ -46,7 +46,7 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 	std::vector<VkPipelineStageFlags> waitStages;
 	if (vulkanSwapChain != nullptr)
 	{
-		VkSemaphore semaphore = vulkanSwapChain->internal_getSemaphoreForImageAcquisition();
+		VkSemaphore semaphore = vulkanSwapChain->internal_getCurrentImageAvailableSemaphore();
 		if (semaphore != VK_NULL_HANDLE)
 		{
 			waitSemaphores.push_back(semaphore);
@@ -59,6 +59,7 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 	VkPipelineStageFlags* waitStages = nullptr;
 #endif
 
+	// #wip: well... this semaphore should be signaled only for the final command list...
 	VkSemaphore signalSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
 	VkCommandBuffer vkCommandBuffer = vkCmdList->internal_getVkCommandBuffer();
 
@@ -176,11 +177,6 @@ void VulkanRenderCommandList::barrier(
 	for (uint32 i = 0; i < numGlobalBarriers; ++i)
 	{
 		vkGlobalBarriers[i] = into_vk::globalMemoryBarrier(globalBarriers[i]);
-	}
-
-	if (vkImageBarriers[0].oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-	{
-		int z = 0; // #wip: Wuuuuuuuuuuut
 	}
 
 	VkDependencyInfo dep{
@@ -652,6 +648,11 @@ void VulkanRenderCommandList::beginEventMarker(const char* eventName)
 void VulkanRenderCommandList::endEventMarker()
 {
 	device->endVkDebugMarker(currentCommandBuffer);
+}
+
+void VulkanRenderCommandList::internal_overrideLastImageLayout(TextureKind* textureKind, EBarrierLayout layout)
+{
+	barrierTracker.internal_overrideLastImageLayout(textureKind, layout);
 }
 
 #endif

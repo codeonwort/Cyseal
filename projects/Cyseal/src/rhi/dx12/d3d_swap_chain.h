@@ -42,7 +42,7 @@ public:
 	virtual void resize(uint32 newWidth, uint32 newHeight) override;
 
 	virtual void present() override;
-	virtual void swapBackbuffer() override;
+	virtual void prepareBackbuffer() override;
 	virtual uint32 getBufferCount() const override { return SWAP_CHAIN_BUFFER_COUNT; }
 
 	virtual uint32 getCurrentBackbufferIndex() const override;

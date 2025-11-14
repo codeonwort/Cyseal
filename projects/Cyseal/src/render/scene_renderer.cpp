@@ -749,7 +749,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
 		commandList->setDescriptorHeaps(1, imguiHeaps);
-		device->renderDearImgui(commandList);
+		device->renderDearImgui(commandList, swapchainBuffer);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -770,7 +770,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 
 	swapChain->present();
-	swapChain->swapBackbuffer();
+	swapChain->prepareBackbuffer();
 
 	{
 		SCOPED_CPU_EVENT(WaitForGPU);

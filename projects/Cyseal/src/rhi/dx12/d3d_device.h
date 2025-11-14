@@ -29,7 +29,7 @@ public:
 
 	virtual void initializeDearImgui() override;
 	virtual void beginDearImguiNewFrame() override;
-	virtual void renderDearImgui(RenderCommandList* commandList) override;
+	virtual void renderDearImgui(RenderCommandList* commandList, SwapChainImage* swapChainImage) override;
 	virtual void shutdownDearImgui() override;
 
 	// ------------------------------------------------------------------------

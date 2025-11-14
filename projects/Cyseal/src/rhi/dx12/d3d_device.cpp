@@ -328,7 +328,7 @@ void D3DDevice::beginDearImguiNewFrame()
 	ImGui_ImplDX12_NewFrame();
 }
 
-void D3DDevice::renderDearImgui(RenderCommandList* commandList)
+void D3DDevice::renderDearImgui(RenderCommandList* commandList, SwapChainImage* swapChainImage)
 {
 	auto d3dCmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), d3dCmdList);

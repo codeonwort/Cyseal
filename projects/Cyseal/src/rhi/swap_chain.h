@@ -49,7 +49,7 @@ public:
 	virtual void resize(uint32 newWidth, uint32 newHeight) = 0;
 
 	virtual void present() = 0;
-	virtual void swapBackbuffer() = 0;
+	virtual void prepareBackbuffer() = 0;
 	virtual uint32 getBufferCount() const = 0;
 
 	uint32 getNextBackbufferIndex() const

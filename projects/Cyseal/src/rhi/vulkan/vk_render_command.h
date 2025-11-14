@@ -144,6 +144,9 @@ public:
 public:
 	inline VkCommandBuffer internal_getVkCommandBuffer() const { return currentCommandBuffer; }
 
+	// Unwanted hack due to implicit layout conversion by Vulkan API or third party modules. Outside of my control :(
+	void internal_overrideLastImageLayout(TextureKind* textureKind, EBarrierLayout layout);
+
 private:
 	VulkanDevice* device = nullptr;
 	BarrierTracker barrierTracker;

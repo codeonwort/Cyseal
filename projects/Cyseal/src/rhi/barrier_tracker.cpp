@@ -207,6 +207,16 @@ void BarrierTracker::applyTextureBarrier(const TextureBarrier& barrier)
 	stateSet.convertToHolisticIfPossible(barrier.texture);
 }
 
+void BarrierTracker::internal_overrideLastImageLayout(TextureKind* textureKind, EBarrierLayout layout)
+{
+	auto it = textureStates.find(textureKind);
+	if (it != textureStates.end())
+	{
+		CHECK(it->second.bHolistic);
+		it->second.globalState.layoutBefore = layout;
+	}
+}
+
 // ------------------------------------------------------------------
 // BarrierTracker::TextureStateSet
 

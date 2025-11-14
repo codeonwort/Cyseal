@@ -100,6 +100,14 @@ void VulkanSwapchain::initialize(
 			std::wstring debugName = std::wstring(L"SwapchainImage_") + std::to_wstring(i);
 			swapchainImages[i]->setDebugName(debugName.c_str());
 			swapchainImages[i]->internal_setShapeDesc(backbufferWidth, backbufferHeight, backbufferFormat);
+
+			transitionImageLayout(
+				deviceWrapper->vkDevice,
+				deviceWrapper->getTempCommandPool(),
+				deviceWrapper->vkGraphicsQueue,
+				vkSwapchainImages[i], createInfo.imageFormat,
+				VK_IMAGE_LAYOUT_UNDEFINED,
+				VK_IMAGE_LAYOUT_GENERAL); // GENERAL to match with internal barrier tracker.
 		}
 
 		swapchainImageFormat = surfaceFormat.format;
@@ -295,7 +303,7 @@ void VulkanSwapchain::present()
 {
 	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
 	VkSwapchainKHR swapchains[] = { swapchainKHR };
-	uint32 swapchainIndices[] = { currentBackbufferIx };
+	uint32 swapchainIndices[] = { backbufferInFlight };
 
 	VkPresentInfoKHR presentInfo{
 		.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -319,11 +327,12 @@ void VulkanSwapchain::present()
 	}
 }
 
-void VulkanSwapchain::swapBackbuffer()
+void VulkanSwapchain::prepareBackbuffer()
 {
 	VkDevice vkDevice = deviceWrapper->getRaw();
 
 	semaphoreInFlight = deviceWrapper->getVkSwapchainImageAvailableSemaphore(currentBackbufferIx);
+	//backbufferInFlight = currentBackbufferIx;
 
 	VkResult ret = vkAcquireNextImageKHR(
 		vkDevice,
@@ -333,6 +342,8 @@ void VulkanSwapchain::swapBackbuffer()
 		VK_NULL_HANDLE, // fence
 		&currentBackbufferIx);
 	CHECK(ret == VK_SUCCESS);
+
+	backbufferInFlight = currentBackbufferIx;
 }
 
 uint32 VulkanSwapchain::getCurrentBackbufferIndex() const

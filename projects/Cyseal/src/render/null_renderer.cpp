@@ -27,6 +27,8 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	auto commandList          = device->getCommandList(swapchainIndex);
 	auto commandQueue         = device->getCommandQueue();
 
+	swapChain->prepareBackbuffer();
+
 	commandAllocator->reset();
 	commandList->reset(commandAllocator);
 
@@ -47,17 +49,28 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	{
 		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
 
-		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		// #wip: clear color overrides imgui rendering... what?
+#if 0
+		float clearColor[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 		commandList->beginRenderPass(); // Just for clearRenderTargetView() (it needs to be inside a render pass for Vulkan)
 		commandList->clearRenderTargetView(swapchainBufferRTV, clearColor);
 		commandList->endRenderPass();
+
+		// No effect?
+		GlobalBarrier globalBarrier{
+			EBarrierSync::ALL, EBarrierSync::ALL, EBarrierAccess::COMMON, EBarrierAccess::COMMON,
+		};
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
+#endif
 
 		SCOPED_DRAW_EVENT(commandList, DearImgui);
 		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
 		commandList->setDescriptorHeaps(1, imguiHeaps);
 
-		// No beginRenderPass() and endRenderPass() as DearImgui handles render pass part internally.
-		device->renderDearImgui(commandList);
+		// - No beginRenderPass() and endRenderPass() as this function handles render pass part internally.
+		// - Render pass implicitly converts the swapchain image's layout to PRESENT.
+		//   So we pass swapchainBuffer and forcefully change its internal barrier tracker.
+		device->renderDearImgui(commandList, swapchainBuffer);
 	}
 #endif
 
@@ -73,7 +86,6 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	commandQueue->executeCommandList(commandList, swapChain);
 
 	swapChain->present();
-	swapChain->swapBackbuffer(); // #wip: If I do this here, no image will be acquired by vkAcquireNextImageKHR() at the first frame...
 
 	device->flushCommandQueue();
 

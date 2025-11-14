@@ -87,6 +87,10 @@ public:
 	void applyTextureBarrier(const TextureBarrier& barrier);
 
 public:
+	// Unwanted hack due to implicit layout conversion by Vulkan API or third party modules. Outside of my control :(
+	void internal_overrideLastImageLayout(TextureKind* textureKind, EBarrierLayout layout);
+
+public:
 	struct BufferState
 	{
 		EBarrierSync syncBefore;
