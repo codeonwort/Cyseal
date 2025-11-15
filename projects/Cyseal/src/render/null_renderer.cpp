@@ -19,6 +19,7 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 {
 #if VERIFY_EMPTY_LOOP
 	SwapChain* swapChain      = device->getSwapChain();
+	swapChain->prepareBackbuffer();
 
 	uint32 swapchainIndex     = swapChain->getCurrentBackbufferIndex();
 	auto swapchainBuffer      = swapChain->getSwapchainBuffer(swapchainIndex);
@@ -26,8 +27,6 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	auto commandAllocator     = device->getCommandAllocator(swapchainIndex);
 	auto commandList          = device->getCommandList(swapchainIndex);
 	auto commandQueue         = device->getCommandQueue();
-
-	swapChain->prepareBackbuffer();
 
 	commandAllocator->reset();
 	commandList->reset(commandAllocator);
@@ -49,19 +48,11 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	{
 		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
 
-		// #wip: clear color overrides imgui rendering... what?
-#if 0
+		// #wip: clearColor is not working? background is just black
 		float clearColor[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 		commandList->beginRenderPass(); // Just for clearRenderTargetView() (it needs to be inside a render pass for Vulkan)
 		commandList->clearRenderTargetView(swapchainBufferRTV, clearColor);
 		commandList->endRenderPass();
-
-		// No effect?
-		GlobalBarrier globalBarrier{
-			EBarrierSync::ALL, EBarrierSync::ALL, EBarrierAccess::COMMON, EBarrierAccess::COMMON,
-		};
-		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
-#endif
 
 		SCOPED_DRAW_EVENT(commandList, DearImgui);
 		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };

@@ -91,8 +91,7 @@ public:
 private:
 	VulkanDevice* deviceWrapper = nullptr;
 
-	uint32 currentBackbufferIx = 0;
-	
+	uint32 currentBackbufferIx = 0xffffffff;
 	VkSemaphore semaphoreInFlight = VK_NULL_HANDLE;
 	uint32 backbufferInFlight = 0xffffffff;
 

@@ -331,8 +331,8 @@ void VulkanSwapchain::prepareBackbuffer()
 {
 	VkDevice vkDevice = deviceWrapper->getRaw();
 
-	semaphoreInFlight = deviceWrapper->getVkSwapchainImageAvailableSemaphore(currentBackbufferIx);
-	//backbufferInFlight = currentBackbufferIx;
+	uint32 semaphoreIx = (currentBackbufferIx == 0xffffffff) ? (swapchainImageCount - 1) : currentBackbufferIx;
+	semaphoreInFlight = deviceWrapper->getVkSwapchainImageAvailableSemaphore(semaphoreIx);
 
 	VkResult ret = vkAcquireNextImageKHR(
 		vkDevice,

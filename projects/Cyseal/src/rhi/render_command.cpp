@@ -37,6 +37,14 @@ EnqueueCustomRenderCommand::EnqueueCustomRenderCommand(RenderCommandList::Custom
 		? gRenderDevice->getSwapChain()->getNextBackbufferIndex()
 		: gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
 
+	// #wip: hack
+	if (gRenderDevice->getSwapChain()->getCurrentBackbufferIndex() == 0xffffffff)
+	{
+		swapchainIx = gRenderDevice->getCreateParams().bDoubleBuffering
+			? 1
+			: 0;
+	}
+
 	RenderCommandList* commandList = gRenderDevice->getCommandList(swapchainIx);
 	commandList->enqueueCustomCommand(inLambda);
 }
