@@ -166,15 +166,17 @@ void SceneRenderer::destroy()
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
 	bool bDoubleBuffering     = device->getCreateParams().bDoubleBuffering;
-
-	auto commandQueue         = device->getCommandQueue();
+	
 	auto swapChain            = device->getSwapChain();
+	swapChain->prepareBackbuffer();
+
 	uint32 swapchainIndex     = bDoubleBuffering ? swapChain->getNextBackbufferIndex() : swapChain->getCurrentBackbufferIndex();
 
 	auto swapchainBuffer      = swapChain->getSwapchainBuffer(swapchainIndex);
 	auto swapchainBufferRTV   = swapChain->getSwapchainBufferRTV(swapchainIndex);
 	auto commandAllocator     = device->getCommandAllocator(swapchainIndex);
 	auto commandList          = device->getCommandList(swapchainIndex);
+	auto commandQueue         = device->getCommandQueue();
 
 	if (bDoubleBuffering)
 	{
@@ -770,7 +772,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 
 	swapChain->present();
-	swapChain->prepareBackbuffer();
 
 	{
 		SCOPED_CPU_EVENT(WaitForGPU);
