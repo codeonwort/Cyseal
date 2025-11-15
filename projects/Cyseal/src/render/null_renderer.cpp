@@ -48,7 +48,6 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	{
 		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
 
-		// #wip: clearColor is not working? background is just black
 		float clearColor[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 		commandList->beginRenderPass(); // Just for clearRenderTargetView() (it needs to be inside a render pass for Vulkan)
 		commandList->clearRenderTargetView(swapchainBufferRTV, clearColor);

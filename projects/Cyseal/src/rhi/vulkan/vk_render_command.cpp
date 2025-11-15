@@ -32,16 +32,8 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 	VulkanRenderCommandList* vkCmdList = static_cast<VulkanRenderCommandList*>(commandList);
 	VulkanSwapchain* vulkanSwapChain = static_cast<VulkanSwapchain*>(swapChain);
 
-	// #wip: waitSemaphore in executeCommandList()
-	// - It's possible that current command list is executing some one-time commands,
-	//   not relevant to swapchain present. So I don't wanna wait for imageAvailable sem here...
-	// - Why should I wait for swapchain image here at first? If I do offscreen rendering
-	//   then am I ok to defer wait sem until the time to blit offscreen render target to backbuffer?
-	// - [2025-11-12] OK this code is ancient old... now I clearly see it that
-	//   even if a swapchain-available semaphore is required, it should never be in a command queue.
-	//   Let's just disable it for the sake of barrier unit tests.
-	//   Revisit when doing actual present using Vulkan backend.
-#if 1
+	// If commandList contains commands that access a swap chain image in swapChain,
+	// then commandList needs to wait for the image to be available before being executed.
 	std::vector<VkSemaphore> waitSemaphores;
 	std::vector<VkPipelineStageFlags> waitStages;
 	if (vulkanSwapChain != nullptr)
@@ -53,11 +45,6 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 			waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 		}
 	}
-#else
-	uint32 waitSemaphoreCount = 0;
-	VkSemaphore* waitSemaphores = nullptr;
-	VkPipelineStageFlags* waitStages = nullptr;
-#endif
 
 	// #wip: well... this semaphore should be signaled only for the final command list...
 	VkSemaphore signalSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
@@ -359,7 +346,7 @@ void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetVie
 	CHECK(numRTVs <= maxRTVs);
 	CHECK(numRTVs > 0 || DSV != nullptr);
 
-	// #wip: No DSV support yet
+	// #todo-vulkan: No DSV support yet
 	CHECK(DSV == nullptr);
 
 	currentRTVs.resize(numRTVs);
@@ -616,7 +603,7 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
-	//CHECK(bInDynamicRendering == false); // #wip: Should I end current render pass before compute dispatch?
+	CHECK(bInDynamicRendering == false); // #todo-vulkan: Should I end current render pass before compute dispatch?
 
 	vkCmdDispatch(currentCommandBuffer, threadGroupX, threadGroupY, threadGroupZ);
 }

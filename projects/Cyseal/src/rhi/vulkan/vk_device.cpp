@@ -49,7 +49,7 @@ const std::vector<const char*> REQUIRED_DEVICE_EXTENSIONS = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	VK_GOOGLE_HLSL_FUNCTIONALITY1_EXTENSION_NAME, // Needed because SPIR-V comes from DXC.
 	VK_GOOGLE_USER_TYPE_EXTENSION_NAME,           // Needed because SPIR-V comes from DXC.
-	//VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,    // #wip: Do I need KHR extension when I'm using Vulkan 1.3?
+	//VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,    // Maybe not needed because I'm using Vulkan 1.3?
 };
 
 struct PhysicalDeviceFeatureBlob
@@ -454,12 +454,15 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 		VkResult ret;
 
-		const uint32 swapChainImageCount = swapChain->getBufferCount();
-		vkSwapchainImageAvailableSemaphores.resize(swapChainImageCount, VK_NULL_HANDLE);
-		for (uint32 i = 0; i < swapChainImageCount; ++i)
+		if (createParams.swapChainParams.bHeadless == false)
 		{
-			ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkSwapchainImageAvailableSemaphores[i]);
-			CHECK(ret == VK_SUCCESS);
+			const uint32 swapChainImageCount = swapChain->getBufferCount();
+			vkSwapchainImageAvailableSemaphores.resize(swapChainImageCount, VK_NULL_HANDLE);
+			for (uint32 i = 0; i < swapChainImageCount; ++i)
+			{
+				ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkSwapchainImageAvailableSemaphores[i]);
+				CHECK(ret == VK_SUCCESS);
+			}
 		}
 
 		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkRenderFinishedSemaphore);
@@ -1226,7 +1229,8 @@ RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHe
 		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
 		CHECK(vkRet == VK_SUCCESS);
 
-		// #wip: Do I need to write a descriptor for a color/depth attachment?
+		// #todo-vulkan: Do I need to write a descriptor for a color/depth attachment?
+		// So far it seems only VkImageView is required for render pass or dynamic rendering...
 		const uint32 descriptorIndex = pool->allocateDescriptorIndex();
 #if 0
 		const uint32 descriptorBinding = pool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
