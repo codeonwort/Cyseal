@@ -185,7 +185,8 @@ VkDevice getVkDevice()
 
 VulkanDevice::~VulkanDevice()
 {
-	// #todo-vulkan
+	// #todo-vulkan: Destroy other objects
+
 	for (size_t i = 0; i < vkSwapchainImageAvailableSemaphores.size(); ++i)
 	{
 		vkDestroySemaphore(vkDevice, vkSwapchainImageAvailableSemaphores[i], nullptr);

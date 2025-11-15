@@ -29,26 +29,27 @@ void VulkanRenderCommandQueue::initialize(RenderDevice* renderDevice)
 
 void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList, SwapChain* swapChain)
 {
-	VulkanRenderCommandList* vkCmdList = static_cast<VulkanRenderCommandList*>(commandList);
 	VulkanSwapchain* vulkanSwapChain = static_cast<VulkanSwapchain*>(swapChain);
+	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->internal_getVkCommandBuffer();
 
-	// If commandList contains commands that access a swap chain image in swapChain,
-	// then commandList needs to wait for the image to be available before being executed.
+	// - If commandList contains commands that access a swap chain image in swapChain,
+	//   then commandList needs to wait for 'imageAvailableSemaphore' before being executed.
+	// - Also need to signal 'renderFinishedSemaphore' after execution.
 	std::vector<VkSemaphore> waitSemaphores;
 	std::vector<VkPipelineStageFlags> waitStages;
+	std::vector<VkSemaphore> signalSemaphores;
 	if (vulkanSwapChain != nullptr)
 	{
-		VkSemaphore semaphore = vulkanSwapChain->internal_getCurrentImageAvailableSemaphore();
-		if (semaphore != VK_NULL_HANDLE)
+		VkSemaphore waitSem = vulkanSwapChain->internal_getCurrentImageAvailableSemaphore();
+		if (waitSem != VK_NULL_HANDLE)
 		{
-			waitSemaphores.push_back(semaphore);
+			waitSemaphores.push_back(waitSem);
 			waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 		}
-	}
 
-	// #wip: well... this semaphore should be signaled only for the final command list...
-	VkSemaphore signalSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
-	VkCommandBuffer vkCommandBuffer = vkCmdList->internal_getVkCommandBuffer();
+		VkSemaphore signalSem = deviceWrapper->getVkRenderFinishedSemaphore();
+		signalSemaphores.push_back(signalSem);
+	}
 
 	VkSubmitInfo submitInfo{
 		.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -58,8 +59,8 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 		.pWaitDstStageMask    = waitStages.data(),
 		.commandBufferCount   = 1,
 		.pCommandBuffers      = &vkCommandBuffer,
-		.signalSemaphoreCount = 1,
-		.pSignalSemaphores    = signalSemaphores,
+		.signalSemaphoreCount = (uint32)signalSemaphores.size(),
+		.pSignalSemaphores    = signalSemaphores.data(),
 	};
 
 	VkResult ret = vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
