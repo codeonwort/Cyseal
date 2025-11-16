@@ -29,7 +29,7 @@ public:
 
 	virtual void initializeDearImgui() override;
 	virtual void beginDearImguiNewFrame() override;
-	virtual void renderDearImgui(RenderCommandList* commandList) override;
+	virtual void renderDearImgui(RenderCommandList* commandList, SwapChainImage* swapChainImage) override;
 	virtual void shutdownDearImgui() override;
 
 	// ------------------------------------------------------------------------
@@ -91,6 +91,8 @@ public:
 
 	// ------------------------------------------------------------------------
 	// Getters
+
+	virtual RenderCommandList* getCommandListForCustomCommand() const override;
 	
 	virtual uint32 getConstantBufferDataAlignment() const { return D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT; }
 

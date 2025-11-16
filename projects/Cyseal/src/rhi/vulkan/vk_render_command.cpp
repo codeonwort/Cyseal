@@ -6,6 +6,8 @@
 #include "vk_buffer.h"
 #include "vk_pipeline_state.h"
 #include "vk_descriptor.h"
+#include "vk_resource_view.h"
+#include "vk_swapchain.h"
 #include "vk_into.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogVulkanCommandList);
@@ -25,42 +27,40 @@ void VulkanRenderCommandQueue::initialize(RenderDevice* renderDevice)
 	vkGraphicsQueue = deviceWrapper->getVkGraphicsQueue();
 }
 
-void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList)
+void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList, SwapChain* swapChain)
 {
-	VulkanRenderCommandList* vkCmdList = static_cast<VulkanRenderCommandList*>(commandList);
+	VulkanSwapchain* vulkanSwapChain = static_cast<VulkanSwapchain*>(swapChain);
+	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->internal_getVkCommandBuffer();
 
-	// #todo-vulkan-critical: waitSemaphore in executeCommandList()
-	// - It's possible that current command list is executing some one-time commands,
-	//   not relevant to swapchain present. So I don't wanna wait for imageAvailable sem here...
-	// - Why should I wait for swapchain image here at first? If I do offscreen rendering
-	//   then am I ok to defer wait sem until the time to blit offscreen render target to backbuffer?
-	// - [2025-11-12] OK this code is ancient old... now I clearly see it that
-	//   even if a swapchain-available semaphore is required, it should never be in a command queue.
-	//   Let's just disable it for the sake of barrier unit tests.
-	//   Revisit when doing actual present using Vulkan backend.
-#if 0
-	uint32 waitSemaphoreCount = 1;
-	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkSwapchainImageAvailableSemaphore() };
-	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-#else
-	uint32 waitSemaphoreCount = 0;
-	VkSemaphore* waitSemaphores = nullptr;
-	VkPipelineStageFlags* waitStages = nullptr;
-#endif
+	// - If commandList contains commands that access a swap chain image in swapChain,
+	//   then commandList needs to wait for 'imageAvailableSemaphore' before being executed.
+	// - Also need to signal 'renderFinishedSemaphore' after execution.
+	std::vector<VkSemaphore> waitSemaphores;
+	std::vector<VkPipelineStageFlags> waitStages;
+	std::vector<VkSemaphore> signalSemaphores;
+	if (vulkanSwapChain != nullptr)
+	{
+		VkSemaphore waitSem = vulkanSwapChain->internal_getCurrentImageAvailableSemaphore();
+		if (waitSem != VK_NULL_HANDLE)
+		{
+			waitSemaphores.push_back(waitSem);
+			waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+		}
 
-	VkSemaphore signalSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
-	VkCommandBuffer vkCommandBuffer = vkCmdList->internal_getVkCommandBuffer();
+		VkSemaphore signalSem = deviceWrapper->getVkRenderFinishedSemaphore();
+		signalSemaphores.push_back(signalSem);
+	}
 
 	VkSubmitInfo submitInfo{
 		.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 		.pNext                = nullptr,
-		.waitSemaphoreCount   = waitSemaphoreCount,
-		.pWaitSemaphores      = waitSemaphores,
-		.pWaitDstStageMask    = waitStages,
+		.waitSemaphoreCount   = (uint32)waitSemaphores.size(),
+		.pWaitSemaphores      = waitSemaphores.data(),
+		.pWaitDstStageMask    = waitStages.data(),
 		.commandBufferCount   = 1,
 		.pCommandBuffers      = &vkCommandBuffer,
-		.signalSemaphoreCount = 1,
-		.pSignalSemaphores    = signalSemaphores,
+		.signalSemaphoreCount = (uint32)signalSemaphores.size(),
+		.pSignalSemaphores    = signalSemaphores.data(),
 	};
 
 	VkResult ret = vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
@@ -138,6 +138,8 @@ void VulkanRenderCommandList::reset(RenderCommandAllocator* allocator)
 
 void VulkanRenderCommandList::close()
 {
+	CHECK(bInDynamicRendering == false);
+
 	VkResult ret = vkEndCommandBuffer(currentCommandBuffer);
 	CHECK(ret == VK_SUCCESS);
 
@@ -217,9 +219,31 @@ void VulkanRenderCommandList::barrierAuto(
 
 void VulkanRenderCommandList::clearRenderTargetView(RenderTargetView* RTV, const float* rgba)
 {
-	// #todo-vulkan
-	//throw std::logic_error("The method or operation is not implemented.");
-	CHECK_NO_ENTRY();
+	uint32 attachmentIx = 0xffffffff;
+	for (size_t i = 0; i < currentRTVs.size(); ++i)
+	{
+		if (currentRTVs[i] == RTV)
+		{
+			attachmentIx = (uint32)i;
+			break;
+		}
+	}
+	CHECK(attachmentIx != 0xffffffff);
+
+	TextureKind* textureKind = static_cast<TextureKind*>(RTV->getOwnerResource());
+	TextureKindShapeDesc shapeDesc = textureKind->internal_getShapeDesc();
+
+	VkClearAttachment vkClear{
+		.aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
+		.colorAttachment = attachmentIx,
+		.clearValue      = VkClearValue{.color = {.float32 = { rgba[0], rgba[1], rgba[2], rgba[3] }}},
+	};
+	VkClearRect vkRect{
+		.rect           = VkRect2D{ {0, 0}, {shapeDesc.width, shapeDesc.height} },
+		.baseArrayLayer = 0,
+		.layerCount     = 1,
+	};
+	vkCmdClearAttachments(currentCommandBuffer, 1, &vkClear, 1, &vkRect);
 }
 
 void VulkanRenderCommandList::clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil)
@@ -257,8 +281,7 @@ void VulkanRenderCommandList::setRaytracingPipelineState(RaytracingPipelineState
 void VulkanRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* const* heaps)
 {
 	// #todo-vulkan: What to do here?
-	// Vulkan binds descriptor sets, not descriptor pools.
-	CHECK_NO_ENTRY();
+	// In Vulkan, we just bind a pipeline, update descriptor sets, and bind those sets...
 }
 
 void VulkanRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology inTopology)
@@ -315,15 +338,24 @@ void VulkanRenderCommandList::rsSetScissorRect(const ScissorRect& scissorRect)
 
 void VulkanRenderCommandList::omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV)
 {
-	// #todo-vulkan
-	//throw std::logic_error("The method or operation is not implemented.");
-	CHECK_NO_ENTRY();
+	omSetRenderTargets(1, &RTV, DSV);
 }
 
 void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV)
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
+	const uint32 maxRTVs = device->getVkPhysicalDeviceProperties2().properties.limits.maxColorAttachments;
+	CHECK(numRTVs <= maxRTVs);
+	CHECK(numRTVs > 0 || DSV != nullptr);
+
+	// #todo-vulkan: No DSV support yet
+	CHECK(DSV == nullptr);
+
+	currentRTVs.resize(numRTVs);
+	for (uint32 i = 0; i < numRTVs; ++i)
+	{
+		currentRTVs[i] = RTVs[i];
+	}
+	currentDSV = DSV;
 }
 
 void VulkanRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap)
@@ -338,6 +370,85 @@ void VulkanRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelin
 	CHECK_NO_ENTRY();
 }
 
+void VulkanRenderCommandList::beginRenderPass()
+{
+	CHECK(currentRTVs.size() > 0 || currentDSV != nullptr); // omSetRenderTarget(s) should have set something.
+
+	CHECK(bInDynamicRendering == false); // already in a render pass
+	bInDynamicRendering = true;
+
+	const uint32 numRTVs = (uint32)currentRTVs.size();
+
+	uint32 width = 0, height = 0;
+	for (uint32 i = 0; i < numRTVs; ++i)
+	{
+		TextureKind* textureKind = static_cast<TextureKind*>(currentRTVs[i]->getOwnerResource());
+		TextureKindShapeDesc shapeDesc = textureKind->internal_getShapeDesc();
+		if (i != 0 && (shapeDesc.width != width || shapeDesc.height != height))
+		{
+			CHECK_NO_ENTRY(); // Inconsistent RT sizes
+		}
+		width = shapeDesc.width;
+		height = shapeDesc.height;
+	}
+	if (currentDSV != nullptr)
+	{
+		TextureKind* textureKind = static_cast<TextureKind*>(currentDSV->getOwnerResource());
+		TextureKindShapeDesc shapeDesc = textureKind->internal_getShapeDesc();
+		if (numRTVs > 0 && (shapeDesc.width != width || shapeDesc.height != height))
+		{
+			CHECK_NO_ENTRY(); // Inconsistent RT sizes
+		}
+		width = shapeDesc.width;
+		height = shapeDesc.height;
+	}
+
+	std::vector<VkRenderingAttachmentInfo> colorAttachments(numRTVs);
+	for (uint32 i = 0; i < numRTVs; ++i)
+	{
+		VulkanRenderTargetView* vulkanRTV = static_cast<VulkanRenderTargetView*>(currentRTVs[i]);
+
+		colorAttachments[i] = VkRenderingAttachmentInfo{
+			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+			.pNext = nullptr,
+			.imageView = vulkanRTV->getVkImageView(),
+			.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			.resolveMode = VK_RESOLVE_MODE_NONE,
+			.resolveImageView = VK_NULL_HANDLE,
+			.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.clearValue = VkClearValue{ .color = { .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } } },
+		};
+	}
+
+	VkRenderingInfo info{
+		.sType                = VK_STRUCTURE_TYPE_RENDERING_INFO,
+		.pNext                = nullptr,
+		.flags                = (VkRenderingFlags)0,
+		.renderArea           = VkRect2D{ {0, 0}, {width, height} },
+		.layerCount           = 1,
+		.viewMask             = 0,
+		.colorAttachmentCount = numRTVs,
+		.pColorAttachments    = colorAttachments.data(),
+		.pDepthAttachment     = VK_NULL_HANDLE,
+		.pStencilAttachment   = VK_NULL_HANDLE,
+	};
+
+	vkCmdBeginRendering(currentCommandBuffer, &info);
+}
+
+void VulkanRenderCommandList::endRenderPass()
+{
+	CHECK(bInDynamicRendering);
+	bInDynamicRendering = false;
+
+	vkCmdEndRendering(currentCommandBuffer);
+
+	currentRTVs.clear();
+	currentDSV = nullptr;
+}
+
 void VulkanRenderCommandList::drawIndexedInstanced(
 	uint32 indexCountPerInstance,
 	uint32 instanceCount,
@@ -345,6 +456,8 @@ void VulkanRenderCommandList::drawIndexedInstanced(
 	int32 baseVertexLocation,
 	uint32 startInstanceLocation)
 {
+	CHECK(bInDynamicRendering);
+
 	vkCmdDrawIndexed(
 		currentCommandBuffer,
 		indexCountPerInstance,
@@ -360,6 +473,8 @@ void VulkanRenderCommandList::drawInstanced(
 	uint32 startVertexLocation,
 	uint32 startInstanceLocation)
 {
+	CHECK(bInDynamicRendering);
+
 	vkCmdDraw(
 		currentCommandBuffer,
 		vertexCountPerInstance,
@@ -377,6 +492,7 @@ void VulkanRenderCommandList::executeIndirect(
 	uint64 countBufferOffset /*= 0*/)
 {
 	// #todo-vulkan
+	//CHECK(bInDynamicRendering); // What if there are only compute dispatch commands?
 }
 
 void VulkanRenderCommandList::bindComputeShaderParameters(
@@ -488,6 +604,8 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
+	CHECK(bInDynamicRendering == false); // #todo-vulkan: Should I end current render pass before compute dispatch?
+
 	vkCmdDispatch(currentCommandBuffer, threadGroupX, threadGroupY, threadGroupZ);
 }
 
@@ -518,6 +636,11 @@ void VulkanRenderCommandList::beginEventMarker(const char* eventName)
 void VulkanRenderCommandList::endEventMarker()
 {
 	device->endVkDebugMarker(currentCommandBuffer);
+}
+
+void VulkanRenderCommandList::internal_overrideLastImageLayout(TextureKind* textureKind, EBarrierLayout layout)
+{
+	barrierTracker.internal_overrideLastImageLayout(textureKind, layout);
 }
 
 #endif

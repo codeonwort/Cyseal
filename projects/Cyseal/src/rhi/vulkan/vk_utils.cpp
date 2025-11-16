@@ -198,6 +198,14 @@ void findImageBarrierFlags(
 		*outSrcAccessMask = VK_ACCESS_NONE;
 		*outDstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	}
+	else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_GENERAL)
+	{
+		*outSrcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		*outDstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+		*outSrcAccessMask = VK_ACCESS_NONE;
+		*outDstAccessMask = VK_ACCESS_NONE;
+	}
 	else
 	{
 		CHECK_NO_ENTRY(); // Unsupported layout transition

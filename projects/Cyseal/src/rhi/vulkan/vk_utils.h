@@ -99,6 +99,7 @@ inline void endSingleTimeCommands(VkDevice device, VkCommandPool commandPool, Vk
 	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
+// #todo-vulkan: Delete this weirdo
 void findImageBarrierFlags(
 	VkImageLayout oldLayout,
 	VkImageLayout newLayout,
@@ -109,6 +110,7 @@ void findImageBarrierFlags(
 	VkAccessFlags* outDstAccessMask,
 	VkImageAspectFlags* outAspectMask);
 
+// #todo-vulkan: Delete this weirdo
 void transitionImageLayout(
 	VkDevice device,
 	VkCommandPool commandPool,

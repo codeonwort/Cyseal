@@ -149,7 +149,7 @@ public:
 			default: dim = TextureKindShapeDesc::Dimension::Unknown; CHECK_NO_ENTRY();
 		}
 		return TextureKindShapeDesc{
-			dim, params.width, params.height, params.depth, params.mipLevels, params.numLayers,
+			dim, params.format, params.width, params.height, params.depth, params.mipLevels, params.numLayers,
 		};
 	}
 

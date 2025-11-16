@@ -4,17 +4,19 @@
 
 #include "gpu_resource.h"
 #include "barrier_tracker.h"
+#include "pixel_format.h"
 
 struct TextureKindShapeDesc
 {
 	enum class Dimension { Unknown, Tex1D, Tex2D, Tex3D };
 
-	Dimension dimension        = Dimension::Unknown;
-	uint32    width            = 0;
-	uint32    height           = 0;
-	uint16    depthOrArraySize = 1;
-	uint16    mipCount         = 1;
-	uint32    numLayers        = 1; // For tex2Darray or texCube
+	Dimension    dimension        = Dimension::Unknown;
+	EPixelFormat format           = EPixelFormat::UNKNOWN;
+	uint32       width            = 0;
+	uint32       height           = 0;
+	uint16       depthOrArraySize = 1;
+	uint16       mipCount         = 1;
+	uint32       numLayers        = 1; // For tex2Darray or texCube
 };
 
 class TextureKind : public GPUResource

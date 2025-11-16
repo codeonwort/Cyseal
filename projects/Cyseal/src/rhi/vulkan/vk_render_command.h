@@ -11,13 +11,15 @@
 #include <vulkan/vulkan_core.h>
 
 class ShaderResourceView;
+class RenderCommandList;
+class SwapChain;
 
 class VulkanRenderCommandQueue : public RenderCommandQueue
 {
 public:
 	virtual void initialize(RenderDevice* renderDevice) override;
 
-	virtual void executeCommandList(class RenderCommandList* commandList) override;
+	virtual void executeCommandList(RenderCommandList* commandList, SwapChain* swapChain) override;
 
 private:
 	VulkanDevice* deviceWrapper = nullptr;
@@ -93,6 +95,9 @@ public:
 
 	virtual void updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters) override;
 
+	virtual void beginRenderPass() override;
+	virtual void endRenderPass() override;
+
 	virtual void drawIndexedInstanced(
 		uint32 indexCountPerInstance,
 		uint32 instanceCount,
@@ -139,11 +144,19 @@ public:
 public:
 	inline VkCommandBuffer internal_getVkCommandBuffer() const { return currentCommandBuffer; }
 
+	// Unwanted hack due to implicit layout conversion by Vulkan API or third party modules. Outside of my control :(
+	void internal_overrideLastImageLayout(TextureKind* textureKind, EBarrierLayout layout);
+
 private:
 	VulkanDevice* device = nullptr;
 	BarrierTracker barrierTracker;
 
 	VkCommandBuffer currentCommandBuffer = VK_NULL_HANDLE;
+
+	// Raster context
+	bool bInDynamicRendering = false;
+	std::vector<RenderTargetView*> currentRTVs;
+	DepthStencilView* currentDSV = nullptr;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

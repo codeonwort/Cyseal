@@ -166,15 +166,17 @@ void SceneRenderer::destroy()
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
 	bool bDoubleBuffering     = device->getCreateParams().bDoubleBuffering;
-
-	auto commandQueue         = device->getCommandQueue();
+	
 	auto swapChain            = device->getSwapChain();
+	swapChain->prepareBackbuffer();
+
 	uint32 swapchainIndex     = bDoubleBuffering ? swapChain->getNextBackbufferIndex() : swapChain->getCurrentBackbufferIndex();
 
 	auto swapchainBuffer      = swapChain->getSwapchainBuffer(swapchainIndex);
 	auto swapchainBufferRTV   = swapChain->getSwapchainBufferRTV(swapchainIndex);
 	auto commandAllocator     = device->getCommandAllocator(swapchainIndex);
 	auto commandList          = device->getCommandList(swapchainIndex);
+	auto commandQueue         = device->getCommandQueue();
 
 	if (bDoubleBuffering)
 	{
@@ -184,7 +186,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		if (cmdAllocator->isValid())
 		{
-			commandQueue->executeCommandList(cmdList);
+			commandQueue->executeCommandList(cmdList, swapChain);
 		}
 	}
 
@@ -749,7 +751,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
 		commandList->setDescriptorHeaps(1, imguiHeaps);
-		device->renderDearImgui(commandList);
+		device->renderDearImgui(commandList, swapchainBuffer);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -766,11 +768,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	if (!bDoubleBuffering)
 	{
-		commandQueue->executeCommandList(commandList);
+		commandQueue->executeCommandList(commandList, swapChain);
 	}
 
 	swapChain->present();
-	swapChain->swapBackbuffer();
 
 	{
 		SCOPED_CPU_EVENT(WaitForGPU);
@@ -1179,7 +1180,7 @@ void SceneRenderer::immediateFlushCommandQueue(RenderCommandQueue* commandQueue,
 {
 	commandList->close();
 	commandAllocator->markValid();
-	commandQueue->executeCommandList(commandList);
+	commandQueue->executeCommandList(commandList, nullptr);
 
 	{
 		SCOPED_CPU_EVENT(WaitForGPU);

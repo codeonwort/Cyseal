@@ -49,6 +49,45 @@ const std::vector<const char*> REQUIRED_DEVICE_EXTENSIONS = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	VK_GOOGLE_HLSL_FUNCTIONALITY1_EXTENSION_NAME, // Needed because SPIR-V comes from DXC.
 	VK_GOOGLE_USER_TYPE_EXTENSION_NAME,           // Needed because SPIR-V comes from DXC.
+	//VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,    // Maybe not needed because I'm using Vulkan 1.3?
+};
+
+struct PhysicalDeviceFeatureBlob
+{
+	// What's all this structs?
+	VkPhysicalDeviceFeatures deviceFeatures{};
+	VkPhysicalDeviceVulkan13Features features13{};
+	VkPhysicalDeviceVulkan12Features features12{};
+	VkPhysicalDeviceFeatures2 deviceFeatures2{};
+
+	const void* pNextForVkDeviceCreateInfo() const
+	{
+		return (void*)(&deviceFeatures2);
+	}
+	const VkPhysicalDeviceFeatures* pEnabledFeaturesForVkDeviceCreateInfo() const
+	{
+		return nullptr; // Should be null when pNext refers to a VkPhysicalDeviceFeatures2.
+	}
+
+	PhysicalDeviceFeatureBlob()
+	{
+		//deviceFeatures.imageCubeArray = VK_TRUE;
+		deviceFeatures.samplerAnisotropy = VK_TRUE;
+		//deviceFeatures.multiDrawIndirect = VK_TRUE;
+
+		features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+		features13.pNext = nullptr;
+		features13.synchronization2 = VK_TRUE;
+		features13.dynamicRendering = VK_TRUE;
+
+		features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+		features12.pNext = &features13;
+		features12.shaderFloat16 = VK_TRUE;
+
+		deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+		deviceFeatures2.pNext = &features12;
+		deviceFeatures2.features = deviceFeatures;
+	}
 };
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL GVulkanDebugCallback(
@@ -146,7 +185,13 @@ VkDevice getVkDevice()
 
 VulkanDevice::~VulkanDevice()
 {
-	// #todo-vulkan
+	// #todo-vulkan: Destroy other objects
+
+	for (size_t i = 0; i < vkSwapchainImageAvailableSemaphores.size(); ++i)
+	{
+		vkDestroySemaphore(vkDevice, vkSwapchainImageAvailableSemaphores[i], nullptr);
+	}
+	vkDestroySemaphore(vkDevice, vkRenderFinishedSemaphore, nullptr);
 }
 
 void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
@@ -270,6 +315,11 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		
 		// This is true if the process was launched via a frame debugger (e.g., RenderDoc).
 		canEnableDebugMarker = checkVkDebugMarkerSupport(vkPhysicalDevice);
+
+		// Check physical device properties.
+		vkPhysicalDeviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+		vkPhysicalDeviceProperties2.pNext = nullptr;
+		vkGetPhysicalDeviceProperties2(vkPhysicalDevice, &vkPhysicalDeviceProperties2);
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create a logical device"));
@@ -294,26 +344,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 			queueCreateInfos.push_back(queueCreateInfo);
 		}
 
-		// #note-vulkan: Too many fields to use designated initializer.
-		VkPhysicalDeviceFeatures deviceFeatures{};
-		//deviceFeatures.imageCubeArray = VK_TRUE;
-		deviceFeatures.samplerAnisotropy = VK_TRUE;
-		//deviceFeatures.multiDrawIndirect = VK_TRUE;
-
-		VkPhysicalDeviceVulkan13Features features13{};
-		features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-		features13.pNext = nullptr;
-		features13.synchronization2 = VK_TRUE;
-
-		VkPhysicalDeviceVulkan12Features features12{};
-		features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-		features12.pNext = &features13;
-		features12.shaderFloat16 = VK_TRUE;
-
-		VkPhysicalDeviceFeatures2 deviceFeatures2{};
-		deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-		deviceFeatures2.pNext = &features12;
-		deviceFeatures2.features = deviceFeatures;
+		PhysicalDeviceFeatureBlob deviceFeatureBlob{};
 
 		std::vector<const char*> enabledExtensions(
 			REQUIRED_DEVICE_EXTENSIONS.begin(),
@@ -333,15 +364,15 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 
 		VkDeviceCreateInfo createInfo{
 			.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			.pNext                   = &deviceFeatures2,
-			.flags                   = 0, // VkDeviceCreateFlags
+			.pNext                   = deviceFeatureBlob.pNextForVkDeviceCreateInfo(),
+			.flags                   = (VkDeviceCreateFlags)0,
 			.queueCreateInfoCount    = static_cast<uint32>(queueCreateInfos.size()),
 			.pQueueCreateInfos       = queueCreateInfos.data(),
 			.enabledLayerCount       = enabledLayerCount,
 			.ppEnabledLayerNames     = ppEnabledLayerNames,
 			.enabledExtensionCount   = (uint32)enabledExtensions.size(),
 			.ppEnabledExtensionNames = enabledExtensions.data(),
-			.pEnabledFeatures        = nullptr, // Should be null when pNext refers to a VkPhysicalDeviceFeatures2.
+			.pEnabledFeatures        = deviceFeatureBlob.pEnabledFeaturesForVkDeviceCreateInfo(),
 		};
 
 		const VkAllocationCallbacks* allocator = nullptr;
@@ -419,13 +450,21 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		VkSemaphoreCreateInfo semaphoreInfo{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 			.pNext = nullptr,
-			.flags = 0, // VkSemaphoreCreateFlags
+			.flags = (VkSemaphoreCreateFlags)0,
 		};
 
 		VkResult ret;
 
-		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkSwapchainImageAvailableSemaphore);
-		CHECK(ret == VK_SUCCESS);
+		if (createParams.swapChainParams.bHeadless == false)
+		{
+			const uint32 swapChainImageCount = swapChain->getBufferCount();
+			vkSwapchainImageAvailableSemaphores.resize(swapChainImageCount, VK_NULL_HANDLE);
+			for (uint32 i = 0; i < swapChainImageCount; ++i)
+			{
+				ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkSwapchainImageAvailableSemaphores[i]);
+				CHECK(ret == VK_SUCCESS);
+			}
+		}
 
 		ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &vkRenderFinishedSemaphore);
 		CHECK(ret == VK_SUCCESS);
@@ -502,14 +541,15 @@ void VulkanDevice::beginDearImguiNewFrame()
 	ImGui_ImplVulkan_NewFrame();
 }
 
-void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
+void VulkanDevice::renderDearImgui(RenderCommandList* commandList, SwapChainImage* swapChainImage)
 {
 	if (createParams.swapChainParams.bHeadless)
 	{
 		return;
 	}
 
-	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->internal_getVkCommandBuffer();
+	VulkanRenderCommandList* vulkanCommandList = static_cast<VulkanRenderCommandList*>(commandList);
+	VkCommandBuffer vkCommandBuffer = vulkanCommandList->internal_getVkCommandBuffer();
 	uint32 ix = swapChain->getCurrentBackbufferIndex();
 
 	VkClearValue clearValues[2] = {
@@ -528,6 +568,10 @@ void VulkanDevice::renderDearImgui(RenderCommandList* commandList)
 	vkCmdBeginRenderPass(vkCommandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), vkCommandBuffer, VK_NULL_HANDLE);
 	vkCmdEndRenderPass(vkCommandBuffer);
+
+	VulkanSwapchainImage* vulkanSwapChainImage = static_cast<VulkanSwapchainImage*>(swapChainImage);
+	vulkanSwapChainImage->internal_overrideLastImageLayout(EBarrierLayout::Present);
+	vulkanCommandList->internal_overrideLastImageLayout(swapChainImage, EBarrierLayout::Present);
 }
 
 void VulkanDevice::shutdownDearImgui()
@@ -1081,19 +1125,24 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, Descriptor
 	}
 	else if (createParams.viewDimension == ESRVDimension::Texture2D)
 	{
+		TextureKind* textureKind = static_cast<TextureKind*>(gpuResource);
+		EPixelFormat textureFormat = textureKind->internal_getShapeDesc().format;
+		VkImageAspectFlags aspectMask = isDepthStencilFormat(textureFormat)
+			? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+			: VK_IMAGE_ASPECT_COLOR_BIT;
+
 		const uint32 descriptorBinding = pool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-		VkImage vkImage = (VkImage)gpuResource->getRawResource();
 
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.pNext            = nullptr,
 			.flags            = (VkImageViewCreateFlags)0,
-			.image            = vkImage,
+			.image            = (VkImage)(gpuResource->getRawResource()),
 			.viewType         = into_vk::imageViewType(createParams.viewDimension),
 			.format           = into_vk::pixelFormat(createParams.format),
 			.components       = (VkComponentSwizzle)0,
 			.subresourceRange = VkImageSubresourceRange{
-				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consider depthstencil case
+				.aspectMask     = aspectMask,
 				.baseMipLevel   = createParams.texture2D.mostDetailedMip,
 				.levelCount     = createParams.texture2D.mipLevels,
 				.baseArrayLayer = 0,
@@ -1143,13 +1192,23 @@ ShaderResourceView* VulkanDevice::createSRV(GPUResource* gpuResource, const Shad
 
 RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHeap* descriptorHeap, const RenderTargetViewDesc& createParams)
 {
+	VulkanDescriptorPool* pool = static_cast<VulkanDescriptorPool*>(descriptorHeap);
+	VkDescriptorSet vkDescSet = pool->getVkDescriptorSetGlobal();
+	// In Vulkan backend, only persistent heaps are allowed for writing descriptors.
+	// Volatile views must copy descriptors from persistent heaps.
+	CHECK(pool->getCreateParams().purpose == EDescriptorHeapPurpose::Persistent);
+	CHECK(vkDescSet != VK_NULL_HANDLE);
+
 	VulkanRenderTargetView* rtv = nullptr;
 
-	// Need to support other dimensions
-	CHECK(createParams.viewDimension == ERTVDimension::Texture2D);
-	
 	if (createParams.viewDimension == ERTVDimension::Texture2D)
 	{
+		TextureKind* textureKind = static_cast<TextureKind*>(gpuResource);
+		EPixelFormat textureFormat = textureKind->internal_getShapeDesc().format;
+		VkImageAspectFlags aspectMask = isDepthStencilFormat(textureFormat)
+			? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+			: VK_IMAGE_ASPECT_COLOR_BIT;
+
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.pNext            = nullptr,
@@ -1159,7 +1218,7 @@ RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHe
 			.format           = into_vk::pixelFormat(createParams.format),
 			.components       = (VkComponentSwizzle)0,
 			.subresourceRange = VkImageSubresourceRange{
-				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consider depthstencil case
+				.aspectMask     = aspectMask,
 				.baseMipLevel   = createParams.texture2D.mipSlice,
 				.levelCount     = 1,
 				.baseArrayLayer = createParams.texture2D.planeSlice,
@@ -1171,12 +1230,43 @@ RenderTargetView* VulkanDevice::createRTV(GPUResource* gpuResource, DescriptorHe
 		VkResult vkRet = vkCreateImageView(vkDevice, &createInfo, nullptr, &vkImageView);
 		CHECK(vkRet == VK_SUCCESS);
 
-		const uint32 descriptorIndex = descriptorHeap->allocateDescriptorIndex();
+		// #todo-vulkan: Do I need to write a descriptor for a color/depth attachment?
+		// So far it seems only VkImageView is required for render pass or dynamic rendering...
+		const uint32 descriptorIndex = pool->allocateDescriptorIndex();
+#if 0
+		const uint32 descriptorBinding = pool->getDescriptorBindingIndex(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
 
-		// Need to update descriptor set
+		const VkImageLayout vkImageLayout = isDepthStencilFormat(textureFormat)
+			? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+			: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkDescriptorImageInfo imageInfo{
+			.sampler     = VK_NULL_HANDLE,
+			.imageView   = vkImageView,
+			.imageLayout = vkImageLayout,
+		};
+		VkWriteDescriptorSet vkWrite{
+			.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.pNext            = nullptr,
+			.dstSet           = vkDescSet,
+			.dstBinding       = descriptorBinding,
+			.dstArrayElement  = descriptorIndex,
+			.descriptorCount  = 1,
+			.descriptorType   = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+			.pImageInfo       = &imageInfo,
+			.pBufferInfo      = nullptr,
+			.pTexelBufferView = nullptr,
+		};
+		vkUpdateDescriptorSets(vkDevice, 1, &vkWrite, 0, nullptr);
+#endif
+
+		rtv = new(EMemoryTag::RHI) VulkanRenderTargetView(
+			this, gpuResource, descriptorHeap, descriptorIndex, vkImageView);
+	}
+	else
+	{
+		// Need to support other dimensions
 		CHECK_NO_ENTRY();
-
-		rtv = new(EMemoryTag::RHI) VulkanRenderTargetView(this, gpuResource, descriptorHeap, descriptorIndex, vkImageView);
 	}
 
 	return rtv;
@@ -1233,6 +1323,12 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 	}
 	else if (createParams.viewDimension == EUAVDimension::Texture2D)
 	{
+		TextureKind* textureKind = static_cast<TextureKind*>(gpuResource);
+		EPixelFormat textureFormat = textureKind->internal_getShapeDesc().format;
+		VkImageAspectFlags aspectMask = isDepthStencilFormat(textureFormat)
+			? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+			: VK_IMAGE_ASPECT_COLOR_BIT;
+
 		VkImageViewCreateInfo createInfo{
 			.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.pNext            = nullptr,
@@ -1242,7 +1338,7 @@ UnorderedAccessView* VulkanDevice::createUAV(GPUResource* gpuResource, Descripto
 			.format           = into_vk::pixelFormat(createParams.format),
 			.components       = (VkComponentSwizzle)0,
 			.subresourceRange = VkImageSubresourceRange{
-				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, // #todo-vulkan: Consider depthstencil case
+				.aspectMask     = aspectMask,
 				.baseMipLevel   = createParams.texture2D.mipSlice,
 				.levelCount     = 1,
 				.baseArrayLayer = createParams.texture2D.planeSlice,
@@ -1368,6 +1464,23 @@ void VulkanDevice::copyDescriptors(
 {
 	// #todo-vulkan
 	CHECK_NO_ENTRY();
+}
+
+RenderCommandList* VulkanDevice::getCommandListForCustomCommand() const
+{
+	uint32 swapchainIx = getCreateParams().bDoubleBuffering
+		? getSwapChain()->getNextBackbufferIndex()
+		: getSwapChain()->getCurrentBackbufferIndex();
+
+	if (getSwapChain()->getCurrentBackbufferIndex() == 0xffffffff)
+	{
+		swapchainIx = getCreateParams().bDoubleBuffering
+			? 1
+			: 0;
+	}
+
+	RenderCommandList* commandList = getCommandList(swapchainIx);
+	return commandList;
 }
 
 void VulkanDevice::beginVkDebugMarker(

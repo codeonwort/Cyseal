@@ -72,6 +72,7 @@ protected:
 			SceneProxy* sceneProxy = scene.createProxy();
 			RendererOptions rendererOptions{};
 
+			// #todo-test: Crashes due to no ImGui operations
 			cysealEngine->renderScene(sceneProxy, &camera, rendererOptions);
 
 			delete sceneProxy;

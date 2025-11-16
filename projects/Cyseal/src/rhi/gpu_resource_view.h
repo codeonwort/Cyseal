@@ -233,6 +233,7 @@ public:
 
 	virtual ~RenderTargetView();
 
+	GPUResource* getOwnerResource() const { return ownerResource; }
 	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
 	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
 
@@ -253,6 +254,7 @@ public:
 
 	virtual ~DepthStencilView();
 
+	GPUResource* getOwnerResource() const { return ownerResource; }
 	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
 	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
 

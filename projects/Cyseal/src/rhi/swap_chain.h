@@ -5,6 +5,7 @@
 #include "texture_kind.h"
 
 class RenderDevice;
+class RenderCommandList;
 class SwapChain;
 class GPUResource;
 class RenderTargetView;
@@ -18,10 +19,11 @@ public:
 		return shapeDesc;
 	}
 
-	void internal_setShapeDesc(uint32 inWidth, uint32 inHeight)
+	void internal_setShapeDesc(uint32 inWidth, uint32 inHeight, EPixelFormat inFormat)
 	{
 		shapeDesc = TextureKindShapeDesc{
 			TextureKindShapeDesc::Dimension::Tex2D,
+			inFormat,
 			inWidth, inHeight, 1, 1, 1,
 		};
 	}
@@ -47,7 +49,7 @@ public:
 	virtual void resize(uint32 newWidth, uint32 newHeight) = 0;
 
 	virtual void present() = 0;
-	virtual void swapBackbuffer() = 0;
+	virtual void prepareBackbuffer() = 0;
 	virtual uint32 getBufferCount() const = 0;
 
 	uint32 getNextBackbufferIndex() const

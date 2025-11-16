@@ -328,7 +328,7 @@ void D3DDevice::beginDearImguiNewFrame()
 	ImGui_ImplDX12_NewFrame();
 }
 
-void D3DDevice::renderDearImgui(RenderCommandList* commandList)
+void D3DDevice::renderDearImgui(RenderCommandList* commandList, SwapChainImage* swapChainImage)
 {
 	auto d3dCmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), d3dCmdList);
@@ -755,4 +755,14 @@ void D3DDevice::copyDescriptors(
 	srcHandle.ptr += descSize * srcHeapDescriptorStartOffset;
 
 	device->CopyDescriptorsSimple(numDescriptors, destHandle, srcHandle, into_d3d::descriptorHeapType(dstType));
+}
+
+RenderCommandList* D3DDevice::getCommandListForCustomCommand() const
+{
+	uint32 swapchainIx = getCreateParams().bDoubleBuffering
+		? getSwapChain()->getNextBackbufferIndex()
+		: getSwapChain()->getCurrentBackbufferIndex();
+
+	RenderCommandList* commandList = getCommandList(swapchainIx);
+	return commandList;
 }

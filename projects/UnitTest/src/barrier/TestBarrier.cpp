@@ -176,7 +176,7 @@ namespace UnitTest
 			commandList->close();
 			commandAllocator->markValid();
 
-			commandQueue->executeCommandList(commandList);
+			commandQueue->executeCommandList(commandList, nullptr);
 
 			renderDevice->flushCommandQueue();
 
@@ -421,7 +421,7 @@ namespace UnitTest
 			commandList->close();
 			commandAllocator->markValid();
 
-			commandQueue->executeCommandList(commandList);
+			commandQueue->executeCommandList(commandList, nullptr);
 
 			renderDevice->flushCommandQueue();
 

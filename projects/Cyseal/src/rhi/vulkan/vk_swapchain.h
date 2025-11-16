@@ -44,6 +44,16 @@ public:
 	{
 		vkImage = reinterpret_cast<VkImage>(inResource);
 	}
+
+	// Unwanted hack due to implicit layout conversion by Vulkan API or third party modules. Outside of my control :(
+	void internal_overrideLastImageLayout(EBarrierLayout layout)
+	{
+		auto state = internal_getLastBarrierState();
+		CHECK(state.bHolistic);
+		state.globalState.layoutBefore = layout;
+		internal_setLastBarrierState(state);
+	}
+
 private:
 	VkImage vkImage = VK_NULL_HANDLE;
 };
@@ -64,7 +74,7 @@ public:
 	virtual void resize(uint32 newWidth, uint32 newHeight) override;
 
 	virtual void present() override;
-	virtual void swapBackbuffer() override;
+	virtual void prepareBackbuffer() override;
 	virtual uint32 getBufferCount() const override { return swapchainImageCount; }
 
 	virtual uint32 getCurrentBackbufferIndex() const override;
@@ -76,10 +86,14 @@ public:
 	inline VkFramebuffer getVkFramebuffer(uint32 ix) const { return swapchainFramebuffers[ix]; }
 	inline VkSampleCountFlagBits getVkSampleCountFlagBits() const { return vkSampleCountFlagBits; }
 
+	inline VkSemaphore internal_getCurrentImageAvailableSemaphore() const { return semaphoreInFlight; }
+
 private:
 	VulkanDevice* deviceWrapper = nullptr;
 
-	uint32 currentBackbufferIx = 0;
+	uint32 currentBackbufferIx = 0xffffffff;
+	VkSemaphore semaphoreInFlight = VK_NULL_HANDLE;
+	uint32 backbufferInFlight = 0xffffffff;
 
 	VkSwapchainKHR swapchainKHR = VK_NULL_HANDLE;
 	VkExtent2D swapchainExtent = VkExtent2D{ 0,0 };

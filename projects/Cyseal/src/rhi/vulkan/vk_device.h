@@ -34,7 +34,7 @@ public:
 
 	virtual void initializeDearImgui() override;
 	virtual void beginDearImguiNewFrame() override;
-	virtual void renderDearImgui(RenderCommandList* commandList) override;
+	virtual void renderDearImgui(RenderCommandList* commandList, SwapChainImage* swapChainImage) override;
 	virtual void shutdownDearImgui() override;
 
 	// ------------------------------------------------------------------------
@@ -97,6 +97,8 @@ public:
 	// ------------------------------------------------------------------------
 	// Getters
 
+	virtual RenderCommandList* getCommandListForCustomCommand() const override;
+
 	// #todo-vulkan: Correct constant buffer data alignment
 	virtual uint32 getConstantBufferDataAlignment() const { return 256; }
 
@@ -108,8 +110,10 @@ public:
 	inline VkSurfaceKHR getVkSurface() const { return vkSurface; }
 	inline VkQueue getVkGraphicsQueue() const { return vkGraphicsQueue; }
 	inline VkQueue getVkPresentQueue() const { return vkPresentQueue; }
-	inline VkSemaphore getVkSwapchainImageAvailableSemaphore() const { return vkSwapchainImageAvailableSemaphore; }
+	inline VkSemaphore getVkSwapchainImageAvailableSemaphore(uint32 swapchainIx) const { return vkSwapchainImageAvailableSemaphores[swapchainIx]; }
 	inline VkSemaphore getVkRenderFinishedSemaphore() const { return vkRenderFinishedSemaphore; }
+
+	inline const VkPhysicalDeviceProperties2& getVkPhysicalDeviceProperties2() const { return vkPhysicalDeviceProperties2; }
 
 	void beginVkDebugMarker(VkCommandBuffer& cmdBuffer, const char* debugName, uint32 color = 0x000000);
 	void endVkDebugMarker(VkCommandBuffer& cmdBuffer);
@@ -137,13 +141,13 @@ private:
 
 	VkSurfaceKHR vkSurface = VK_NULL_HANDLE;
 
+	VkPhysicalDeviceProperties2 vkPhysicalDeviceProperties2;
+
 	VkQueue vkGraphicsQueue = VK_NULL_HANDLE;
 	VkQueue vkPresentQueue = VK_NULL_HANDLE;
 
-	// #todo-vulkan Swapchain image is available. Is this needed?
-	VkSemaphore vkSwapchainImageAvailableSemaphore = VK_NULL_HANDLE;
-	// Graphics queue has finished.
-	VkSemaphore vkRenderFinishedSemaphore = VK_NULL_HANDLE;
+	std::vector<VkSemaphore> vkSwapchainImageAvailableSemaphores; // Swapchain image is available.
+	VkSemaphore vkRenderFinishedSemaphore = VK_NULL_HANDLE; // Graphics queue has finished.
 
 	VkDebugReportCallbackEXT vkDebugCallback = VK_NULL_HANDLE;
 	bool enableDebugLayer = false;

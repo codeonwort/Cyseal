@@ -109,7 +109,7 @@ void D3DSwapChain::resize(uint32 newWidth, uint32 newHeight)
 	createSwapchainImages();
 }
 
-void D3DSwapChain::swapBackbuffer()
+void D3DSwapChain::prepareBackbuffer()
 {
 	// Do nothing here. DXGI swapchain automatically flips the back buffers.
 	// 
@@ -141,7 +141,7 @@ void D3DSwapChain::createSwapchainImages()
 		auto bufferPtr = rawSwapChainBuffers[i].GetAddressOf();
 		HR(rawSwapChain->GetBuffer(i, IID_PPV_ARGS(bufferPtr)));
 		swapChainBuffers[i]->setRawResource(rawSwapChainBuffers[i].Get());
-		swapChainBuffers[i]->internal_setShapeDesc(backbufferWidth, backbufferHeight);
+		swapChainBuffers[i]->internal_setShapeDesc(backbufferWidth, backbufferHeight, backbufferFormat);
 
 		wchar_t debugName[256];
 		swprintf_s(debugName, L"Backbuffer%u", i);

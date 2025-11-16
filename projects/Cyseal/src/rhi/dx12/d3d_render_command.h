@@ -7,12 +7,13 @@
 #define ID3D12GraphicsCommandListLatest ID3D12GraphicsCommandList10
 
 class ShaderResourceView;
+class SwapChain;
 
 class D3DRenderCommandQueue : public RenderCommandQueue
 {
 public:
 	virtual void initialize(RenderDevice* renderDevice) override;
-	virtual void executeCommandList(class RenderCommandList* commandList) override;
+	virtual void executeCommandList(RenderCommandList* commandList, SwapChain* swapChain) override;
 
 	inline ID3D12CommandQueue* getRaw() const { return queue.Get(); }
 
@@ -89,6 +90,9 @@ public:
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) override;
 	virtual void omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV) override;
 
+	virtual void beginRenderPass() override;
+	virtual void endRenderPass() override;
+
 	virtual void bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) override;
 
 	virtual void updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* parameters) override;
@@ -143,4 +147,7 @@ private:
 	D3DRenderCommandAllocator* commandAllocator;
 	WRL::ComPtr<ID3D12GraphicsCommandListLatest> commandList;
 	BarrierTracker barrierTracker;
+
+	// Raster context
+	bool bInRenderPass = false;
 };

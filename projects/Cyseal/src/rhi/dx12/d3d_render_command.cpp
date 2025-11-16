@@ -36,11 +36,13 @@ void D3DRenderCommandQueue::initialize(RenderDevice* renderDevice)
 	HR(device->getRawDevice()->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)));
 }
 
-void D3DRenderCommandQueue::executeCommandList(class RenderCommandList* commandList)
+void D3DRenderCommandQueue::executeCommandList(class RenderCommandList* commandList, SwapChain* swapChain)
 {
 	auto rawList = static_cast<D3DRenderCommandList*>(commandList);
 	ID3D12CommandList* const lists[] = { rawList->getRaw() };
 	queue->ExecuteCommandLists(1, lists);
+
+	static_cast<void>(swapChain); // Only Vulkan uses this parameter for now.
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -330,6 +332,22 @@ void D3DRenderCommandList::omSetRenderTargets(
 		(DSV != nullptr ? &rawDSV : nullptr));
 }
 
+void D3DRenderCommandList::beginRenderPass()
+{
+	CHECK(bInRenderPass == false);
+	bInRenderPass = true;
+
+	// Currently do nothing. This method is for Vulkan.
+}
+
+void D3DRenderCommandList::endRenderPass()
+{
+	CHECK(bInRenderPass);
+	bInRenderPass = false;
+
+	// Currently do nothing. This method is for Vulkan.
+}
+
 void D3DRenderCommandList::setGraphicsPipelineState(GraphicsPipelineState* state)
 {
 	auto pipelineWrapper = static_cast<D3DGraphicsPipelineState*>(state);
@@ -531,6 +549,8 @@ void D3DRenderCommandList::drawIndexedInstanced(
 	int32 baseVertexLocation,
 	uint32 startInstanceLocation)
 {
+	CHECK(bInRenderPass);
+
 	commandList->DrawIndexedInstanced(
 		indexCountPerInstance,
 		instanceCount,
@@ -545,6 +565,8 @@ void D3DRenderCommandList::drawInstanced(
 	uint32 startVertexLocation,
 	uint32 startInstanceLocation)
 {
+	CHECK(bInRenderPass);
+
 	commandList->DrawInstanced(
 		vertexCountPerInstance,
 		instanceCount,

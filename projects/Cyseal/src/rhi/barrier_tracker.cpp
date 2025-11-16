@@ -207,6 +207,16 @@ void BarrierTracker::applyTextureBarrier(const TextureBarrier& barrier)
 	stateSet.convertToHolisticIfPossible(barrier.texture);
 }
 
+void BarrierTracker::internal_overrideLastImageLayout(TextureKind* textureKind, EBarrierLayout layout)
+{
+	auto it = textureStates.find(textureKind);
+	if (it != textureStates.end())
+	{
+		CHECK(it->second.bHolistic);
+		it->second.globalState.layoutBefore = layout;
+	}
+}
+
 // ------------------------------------------------------------------
 // BarrierTracker::TextureStateSet
 
@@ -260,7 +270,8 @@ bool BarrierTracker::TextureStateSet::splitLocalState(const TextureBarrier& barr
 		{
 			// #todo-barrier: Need to handle all the combinations... no use case yet.
 			CHECK(barrier.subresources.numMipLevels == 0);
-			CHECK(barrier.subresources.numArraySlices == 0);
+			// Need to deal with array slices, but pass if single mip (numMipLevels == 0) where numArraySlices should be 1 for vk but is ignored for d3d12)
+			CHECK((barrier.subresources.numMipLevels == 0 && barrier.subresources.numArraySlices == 1) || barrier.subresources.numArraySlices == 0);
 			CHECK(barrier.subresources.numPlanes == 0);
 
 			// Exact match should have been processed by replaceLocalState().
@@ -435,10 +446,12 @@ bool BarrierTracker::TextureStateSet::isSubRange(const TextureState& sub, const 
 	bool mip = (sub.subresources.numMipLevels != 0)
 		&& (sub.subresources.indexOrFirstMipLevel <= range.indexOrFirstMipLevel)
 		&& (range.indexOrFirstMipLevel + range.numMipLevels <= sub.subresources.indexOrFirstMipLevel + sub.subresources.numMipLevels);
-	bool slice = (sub.subresources.numArraySlices != 0)
+	// slice-related fields are invalid if numMipLevels == 0.
+	bool slice = (sub.subresources.numMipLevels != 0) && (sub.subresources.numArraySlices != 0)
 		&& (sub.subresources.firstArraySlice <= range.firstArraySlice)
 		&& (range.firstArraySlice + range.numArraySlices <= sub.subresources.firstArraySlice + sub.subresources.numArraySlices);
-	bool plane = (sub.subresources.numPlanes != 0)
+	// plane-related fields are invalid if numMipLevels == 0.
+	bool plane = (sub.subresources.numMipLevels != 0) && (sub.subresources.numPlanes != 0)
 		&& (sub.subresources.firstPlane <= range.firstPlane)
 		&& (range.firstPlane + range.numPlanes <= sub.subresources.firstPlane + sub.subresources.numPlanes);
 	return (match || all || mip || slice || plane);

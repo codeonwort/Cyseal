@@ -33,11 +33,7 @@ void RenderCommandList::executeDeferredDealloc()
 
 EnqueueCustomRenderCommand::EnqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda)
 {
-	uint32 swapchainIx = gRenderDevice->getCreateParams().bDoubleBuffering
-		? gRenderDevice->getSwapChain()->getNextBackbufferIndex()
-		: gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
-
-	RenderCommandList* commandList = gRenderDevice->getCommandList(swapchainIx);
+	RenderCommandList* commandList = gRenderDevice->getCommandListForCustomCommand();
 	commandList->enqueueCustomCommand(inLambda);
 }
 

@@ -12,6 +12,7 @@
 #include "util/logging.h"
 
 class DenoiserDevice;
+class SwapChainImage;
 
 enum class ERenderDeviceRawAPI
 {
@@ -84,7 +85,7 @@ public:
 
 	virtual void initializeDearImgui();
 	virtual void beginDearImguiNewFrame() = 0;
-	virtual void renderDearImgui(RenderCommandList* commandList) = 0;
+	virtual void renderDearImgui(RenderCommandList* commandList, SwapChainImage* swapChainImage) = 0;
 	virtual void shutdownDearImgui();
 	inline DescriptorHeap* getDearImguiSRVHeap() const { return imguiSRVHeap; }
 
@@ -178,6 +179,8 @@ public:
 	inline RenderCommandAllocator* getCommandAllocator(uint32 swapchainIndex) const { return commandAllocators[swapchainIndex]; }
 	inline RenderCommandList* getCommandList(uint32 swapchainIndex) const { return commandLists[swapchainIndex]; }
 	inline RenderCommandQueue* getCommandQueue() const { return commandQueue; }
+
+	virtual RenderCommandList* getCommandListForCustomCommand() const = 0;
 
 	inline ERaytracingTier getRaytracingTier() const { return raytracingTier; }
 	inline EVariableShadingRateTier getVRSTier() const { return vrsTier; }
