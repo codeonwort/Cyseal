@@ -207,6 +207,9 @@ struct EnqueueCustomRenderCommand
 	EnqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda);
 };
 
+// Enqueues custom render commands that will be executed at next frame rendering.
+// Search for executeCustomCommands() from SceneRenderer or NullRenderer.
+// Only works if render device is not headless and renderer is running.
 #define ENQUEUE_RENDER_COMMAND(CommandName) EnqueueCustomRenderCommand CommandName
 
 #if 0

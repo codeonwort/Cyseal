@@ -97,6 +97,8 @@ public:
 	// ------------------------------------------------------------------------
 	// Getters
 
+	virtual RenderCommandList* getCommandListForCustomCommand() const override;
+
 	// #todo-vulkan: Correct constant buffer data alignment
 	virtual uint32 getConstantBufferDataAlignment() const { return 256; }
 

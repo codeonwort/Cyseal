@@ -91,6 +91,8 @@ public:
 
 	// ------------------------------------------------------------------------
 	// Getters
+
+	virtual RenderCommandList* getCommandListForCustomCommand() const override;
 	
 	virtual uint32 getConstantBufferDataAlignment() const { return D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT; }
 

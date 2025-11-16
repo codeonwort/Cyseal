@@ -756,3 +756,13 @@ void D3DDevice::copyDescriptors(
 
 	device->CopyDescriptorsSimple(numDescriptors, destHandle, srcHandle, into_d3d::descriptorHeapType(dstType));
 }
+
+RenderCommandList* D3DDevice::getCommandListForCustomCommand() const
+{
+	uint32 swapchainIx = getCreateParams().bDoubleBuffering
+		? getSwapChain()->getNextBackbufferIndex()
+		: getSwapChain()->getCurrentBackbufferIndex();
+
+	RenderCommandList* commandList = getCommandList(swapchainIx);
+	return commandList;
+}

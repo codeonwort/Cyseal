@@ -1466,6 +1466,23 @@ void VulkanDevice::copyDescriptors(
 	CHECK_NO_ENTRY();
 }
 
+RenderCommandList* VulkanDevice::getCommandListForCustomCommand() const
+{
+	uint32 swapchainIx = getCreateParams().bDoubleBuffering
+		? getSwapChain()->getNextBackbufferIndex()
+		: getSwapChain()->getCurrentBackbufferIndex();
+
+	if (getSwapChain()->getCurrentBackbufferIndex() == 0xffffffff)
+	{
+		swapchainIx = getCreateParams().bDoubleBuffering
+			? 1
+			: 0;
+	}
+
+	RenderCommandList* commandList = getCommandList(swapchainIx);
+	return commandList;
+}
+
 void VulkanDevice::beginVkDebugMarker(
 	VkCommandBuffer& cmdBuffer,
 	const char* debugName,

@@ -180,6 +180,8 @@ public:
 	inline RenderCommandList* getCommandList(uint32 swapchainIndex) const { return commandLists[swapchainIndex]; }
 	inline RenderCommandQueue* getCommandQueue() const { return commandQueue; }
 
+	virtual RenderCommandList* getCommandListForCustomCommand() const = 0;
+
 	inline ERaytracingTier getRaytracingTier() const { return raytracingTier; }
 	inline EVariableShadingRateTier getVRSTier() const { return vrsTier; }
 	inline EMeshShaderTier getMeshShaderTier() const { return meshShaderTier; }
