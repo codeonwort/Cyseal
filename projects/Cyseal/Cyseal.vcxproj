@@ -121,6 +121,7 @@
     <ClInclude Include="src\render\base_pass.h" />
     <ClInclude Include="src\render\bilateral_blur.h" />
     <ClInclude Include="src\render\buffer_visualization.h" />
+    <ClInclude Include="src\render\depth_prepass.h" />
     <ClInclude Include="src\render\gpu_culling.h" />
     <ClInclude Include="src\render\hiz_pass.h" />
     <ClInclude Include="src\render\pathtracing\denoiser_plugin_pass.h" />
@@ -233,6 +234,7 @@
     <ClCompile Include="src\render\base_pass.cpp" />
     <ClCompile Include="src\render\bilateral_blur.cpp" />
     <ClCompile Include="src\render\buffer_visualization.cpp" />
+    <ClCompile Include="src\render\depth_prepass.cpp" />
     <ClCompile Include="src\render\gpu_culling.cpp" />
     <ClCompile Include="src\render\hiz_pass.cpp" />
     <ClCompile Include="src\render\pathtracing\denoiser_plugin_pass.cpp" />
