@@ -128,7 +128,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(storeHistoryPass = new(EMemoryTag::Renderer) StoreHistoryPass);
 
 		gpuScene->initialize();
-		gpuCulling->initialize(kMaxBasePassPermutation);
+		gpuCulling->initialize(renderDevice, kMaxBasePassPermutation);
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
 		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
@@ -136,8 +136,8 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		skyPass->initialize(PF_sceneColor);
 		indirectDiffusePass->initialize();
 		indirectSpecularPass->initialize(renderDevice);
-		toneMapping->initialize();
-		bufferVisualization->initialize();
+		toneMapping->initialize(renderDevice);
+		bufferVisualization->initialize(renderDevice);
 		pathTracingPass->initialize();
 		denoiserPluginPass->initialize();
 		storeHistoryPass->initialize(renderDevice);

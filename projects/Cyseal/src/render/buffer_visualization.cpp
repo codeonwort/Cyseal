@@ -5,39 +5,13 @@
 #include "rhi/shader.h"
 #include "rhi/texture_manager.h"
 
-void BufferVisualization::initialize()
+void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 {
-	RenderDevice* device = gRenderDevice;
+	RenderDevice* device = inRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
-	uint32 requiredVolatileDescriptors = 0;
-	requiredVolatileDescriptors += 1; // gbuffer0
-	requiredVolatileDescriptors += 1; // gbuffer1
-	requiredVolatileDescriptors += 1; // sceneColor
-	requiredVolatileDescriptors += 1; // shadowMask
-	requiredVolatileDescriptors += 1; // indirectDiffuse
-	requiredVolatileDescriptors += 1; // indirectSpecular
-	requiredVolatileDescriptors += 1; // velocityMap
-
-	// Create volatile heap.
-	volatileViewHeap.initialize(swapchainCount);
-	for (uint32 i = 0; i < swapchainCount; ++i)
-	{
-		DescriptorHeapDesc desc{
-			.type           = EDescriptorHeapType::CBV_SRV_UAV,
-			.numDescriptors = requiredVolatileDescriptors,
-			.flags          = EDescriptorHeapFlags::ShaderVisible,
-			.nodeMask       = 0,
-			.purpose        = EDescriptorHeapPurpose::Volatile,
-		};
-
-		volatileViewHeap[i] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(desc));
-
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"BufferVisualization_VolatileViewHeap_%u", i);
-		volatileViewHeap[i]->setDebugName(debugName);
-	}
+	passDescriptor.initialize(L"BufferVisualization", swapchainCount, 0);
 
 	// Create input layout.
 	VertexInputLayout inputLayout = {
@@ -91,8 +65,12 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
 	SPT.texture("velocityMap", passInput.velocityMapSRV);
 
+	uint32 requiredVolatiles = SPT.totalDescriptors();
+	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+
 	commandList->setGraphicsPipelineState(pipelineState.get());
-	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
+	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileHeap);
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);
 
 	commandList->beginRenderPass();

@@ -6,6 +6,7 @@
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_binding.h"
 #include "render/renderer_options.h"
+#include "util/volatile_descriptor.h"
 
 class RenderCommandList;
 class ShaderResourceView;
@@ -26,11 +27,11 @@ struct BufferVisualizationInput
 class BufferVisualization final : public SceneRenderPass
 {
 public:
-	void initialize();
+	void initialize(RenderDevice* inRenderDevice);
 
 	void renderVisualization(RenderCommandList* commandList, uint32 swapchainIndex, const BufferVisualizationInput& passInput);
 
 private:
 	UniquePtr<GraphicsPipelineState> pipelineState;
-	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
+	VolatileDescriptorHelper         passDescriptor;
 };

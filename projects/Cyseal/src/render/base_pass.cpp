@@ -139,12 +139,12 @@ void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat in
 	gbufferFormats.assign(inGbufferFormats, inGbufferFormats + numGBuffers);
 	velocityMapFormat = inVelocityMapFormat;
 
+	// #todo-rhi: Don't use gRenderDevice
 	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
-	totalVolatileDescriptor.resize(swapchainCount, 0);
-	volatileViewHeap.initialize(swapchainCount);
+	passDescriptor.initialize(L"BasePass", swapchainCount, 0);
 
 	// Shader stages
 	shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BasePassVS");
@@ -174,21 +174,6 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		return;
 	}
 	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
-
-	// Resize volatile heaps if needed.
-	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // gpuSceneBuffer
-		requiredVolatiles += 1; // gpuSceneDesc.constantsBufferSRV
-		requiredVolatiles += gpuSceneDesc.srvCount; // albedoTextures[]
-		requiredVolatiles += 1; // shadowMaskSRV
-
-		if (requiredVolatiles > totalVolatileDescriptor[swapchainIndex])
-		{
-			resizeVolatileHeaps(swapchainIndex, requiredVolatiles);
-		}
-	}
 
 	// #todo-basepass: Need smarter way to generate drawlists per pipeline if permutation blows up.
 	BasePassDrawList drawsForDefaultPipelines;
@@ -234,7 +219,11 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		SPT.texture("shadowMask", passInput.shadowMaskSRV);
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
-		commandList->bindGraphicsShaderParameters(defaultPipeline, &SPT, volatileViewHeap.at(swapchainIndex));
+		uint32 requiredVolatiles = SPT.totalDescriptors();
+		passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+
+		DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+		commandList->bindGraphicsShaderParameters(defaultPipeline, &SPT, volatileHeap);
 	}
 
 	const GraphicsPipelineKey defaultPipelineKey = assemblePipelineKey(kDefaultPipelineKeyDesc);
@@ -505,25 +494,4 @@ IndirectDrawHelper* BasePass::createIndirectDrawHelper(GraphicsPipelineState* pi
 	}
 
 	return helper;
-}
-
-void BasePass::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)
-{
-	totalVolatileDescriptor[swapchainIndex] = maxDescriptors;
-
-	volatileViewHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
-		DescriptorHeapDesc{
-			.type           = EDescriptorHeapType::CBV_SRV_UAV,
-			.numDescriptors = maxDescriptors,
-			.flags          = EDescriptorHeapFlags::ShaderVisible,
-			.nodeMask       = 0,
-			.purpose        = EDescriptorHeapPurpose::Volatile,
-		}
-	));
-
-	wchar_t debugName[256];
-	swprintf_s(debugName, L"BasePass_VolatileViewHeap_%u", swapchainIndex);
-	volatileViewHeap[swapchainIndex]->setDebugName(debugName);
-
-	CYLOG(LogBasePass, Log, L"Resize volatile heap [%u]: %u descriptors", swapchainIndex, maxDescriptors);
 }

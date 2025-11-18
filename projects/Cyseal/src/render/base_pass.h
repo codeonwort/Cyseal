@@ -8,6 +8,7 @@
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
+#include "util/volatile_descriptor.h"
 
 #include <map>
 
@@ -118,7 +119,6 @@ private:
 
 	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc);
 	IndirectDrawHelper* createIndirectDrawHelper(GraphicsPipelineState* pipelineState, GraphicsPipelineKey pipelineKey);
-	void resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors);
 
 private:
 	GraphicsPipelineStatePermutation pipelinePermutation;
@@ -128,6 +128,5 @@ private:
 	ShaderStage* shaderVS = nullptr;
 	ShaderStage* shaderPS = nullptr;
 
-	std::vector<uint32> totalVolatileDescriptor;
-	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
+	VolatileDescriptorHelper passDescriptor;
 };

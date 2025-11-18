@@ -6,31 +6,12 @@
 #include "rhi/render_command.h"
 #include "rhi/texture_manager.h"
 
-#define MAX_VOLATILE_DESCRIPTORS 7
-
-void ToneMapping::initialize()
+void ToneMapping::initialize(RenderDevice* device)
 {
-	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
-	// Create volatile heaps for CBVs, SRVs, and UAVs for each frame
-	volatileViewHeap.initialize(swapchainCount);
-	for (uint32 i = 0; i < swapchainCount; ++i)
-	{
-		DescriptorHeapDesc desc{
-			.type           = EDescriptorHeapType::CBV_SRV_UAV,
-			.numDescriptors = MAX_VOLATILE_DESCRIPTORS,
-			.flags          = EDescriptorHeapFlags::ShaderVisible,
-			.nodeMask       = 0,
-			.purpose        = EDescriptorHeapPurpose::Volatile,
-		};
-		volatileViewHeap[i] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(desc));
-
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"ToneMapping_VolatileViewHeap_%u", i);
-		volatileViewHeap[i]->setDebugName(debugName);
-	}
+	passDescriptor.initialize(L"ToneMapping", swapchainCount, 0);
 
 	// Create input layout
 	{
@@ -85,11 +66,15 @@ void ToneMapping::renderToneMapping(RenderCommandList* commandList, uint32 swapc
 	SPT.texture("indirectDiffuse", passInput.indirectDiffuseSRV);
 	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
 
+	uint32 requiredVolatiles = SPT.totalDescriptors();
+	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+
 	commandList->rsSetViewport(passInput.viewport);
 	commandList->rsSetScissorRect(passInput.scissorRect);
 
 	commandList->setGraphicsPipelineState(pipelineState.get());
-	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
+	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileHeap);
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);
 
 	commandList->beginRenderPass();

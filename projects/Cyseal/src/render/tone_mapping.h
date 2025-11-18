@@ -5,6 +5,7 @@
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource.h"
+#include "util/volatile_descriptor.h"
 
 class RenderCommandList;
 class ShaderResourceView;
@@ -25,13 +26,12 @@ struct ToneMappingInput
 class ToneMapping final : public SceneRenderPass
 {
 public:
-	void initialize();
+	void initialize(RenderDevice* renderDevice);
 
 	void renderToneMapping(RenderCommandList* commandList, uint32 swapchainIndex, const ToneMappingInput& passInput);
 
 private:
 	UniquePtr<GraphicsPipelineState> pipelineState;
-	VertexInputLayout inputLayout;
-
-	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
+	VertexInputLayout                inputLayout;
+	VolatileDescriptorHelper         passDescriptor;
 };
