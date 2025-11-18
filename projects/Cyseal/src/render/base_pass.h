@@ -29,13 +29,15 @@ using GraphicsPipelineKey = uint32;
 
 struct IndirectDrawHelper
 {
-	IndirectDrawHelper(GraphicsPipelineKey inPipelineKey)
-		: pipelineKey(inPipelineKey)
+	IndirectDrawHelper(RenderDevice* inRenderDevice, GraphicsPipelineKey inPipelineKey)
+		: device(inRenderDevice)
+		, pipelineKey(inPipelineKey)
 	{
 	}
 
 	void resizeResources(uint32 swapchainIndex, uint32 maxDrawCount);
 
+	RenderDevice* device = nullptr;
 	GraphicsPipelineKey pipelineKey;
 
 	UniquePtr<CommandSignature> commandSignature;
@@ -110,7 +112,7 @@ class BasePass final : public SceneRenderPass
 public:
 	~BasePass();
 
-	void initialize(EPixelFormat sceneColorFormat, const EPixelFormat gbufferForamts[], uint32 numGBuffers, EPixelFormat velocityMapFormat);
+	void initialize(RenderDevice* inRenderDevice, EPixelFormat sceneColorFormat, const EPixelFormat gbufferForamts[], uint32 numGBuffers, EPixelFormat velocityMapFormat);
 
 	void renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput);
 
@@ -121,12 +123,12 @@ private:
 	IndirectDrawHelper* createIndirectDrawHelper(GraphicsPipelineState* pipelineState, GraphicsPipelineKey pipelineKey);
 
 private:
+	RenderDevice*                    device = nullptr;
 	GraphicsPipelineStatePermutation pipelinePermutation;
-	EPixelFormat sceneColorFormat;
-	std::vector<EPixelFormat> gbufferFormats;
-	EPixelFormat velocityMapFormat;
-	ShaderStage* shaderVS = nullptr;
-	ShaderStage* shaderPS = nullptr;
-
-	VolatileDescriptorHelper passDescriptor;
+	EPixelFormat                     sceneColorFormat;
+	std::vector<EPixelFormat>        gbufferFormats;
+	EPixelFormat                     velocityMapFormat;
+	ShaderStage*                     shaderVS = nullptr;
+	ShaderStage*                     shaderPS = nullptr;
+	VolatileDescriptorHelper         passDescriptor;
 };

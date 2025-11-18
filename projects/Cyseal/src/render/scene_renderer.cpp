@@ -134,7 +134,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
 		depthPrepass->initialize(renderDevice);
-		basePass->initialize(PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
+		basePass->initialize(renderDevice, PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
 		hizPass->initialize();
 		skyPass->initialize(PF_sceneColor);
 		indirectDiffusePass->initialize();

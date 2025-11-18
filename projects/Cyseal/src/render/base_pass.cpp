@@ -17,6 +17,13 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
+// #wip: gather what to do...
+/*
+- Need to share GPU culling result with depth prepass.
+- Need to create separate graphics pipelines for depth prepass and base pass.
+  - Need vs/ps for pipeline creation.
+*/
+
 #define kMaxIndirectDrawCommandCount 256
 // #todo-renderer: Support other topologies
 #define kPrimitiveTopology           EPrimitiveTopology::TRIANGLELIST
@@ -50,7 +57,7 @@ void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCo
 
 	if (argBuffer == nullptr || argBuffer->getCreateParams().sizeInBytes < requiredCapacity)
 	{
-		argumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+		argumentBuffer[swapchainIndex] = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = requiredCapacity,
 				.alignment   = 0,
@@ -71,11 +78,11 @@ void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCo
 		srvDesc.buffer.flags               = EBufferSRVFlags::None;
 
 		argumentBufferSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(
-			gRenderDevice->createSRV(argumentBuffer.at(swapchainIndex), srvDesc));
+			device->createSRV(argumentBuffer.at(swapchainIndex), srvDesc));
 	}
 	if (culledArgBuffer == nullptr || culledArgBuffer->getCreateParams().sizeInBytes < requiredCapacity)
 	{
-		culledArgumentBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+		culledArgumentBuffer[swapchainIndex] = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = requiredCapacity,
 				.alignment   = 0,
@@ -97,7 +104,7 @@ void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCo
 		uavDesc.buffer.flags                = EBufferUAVFlags::None;
 
 		culledArgumentBufferUAV[swapchainIndex] = UniquePtr<UnorderedAccessView>(
-			gRenderDevice->createUAV(culledArgumentBuffer.at(swapchainIndex), uavDesc));
+			device->createUAV(culledArgumentBuffer.at(swapchainIndex), uavDesc));
 	}
 }
 
@@ -133,14 +140,13 @@ BasePass::~BasePass()
 	delete shaderPS;
 }
 
-void BasePass::initialize(EPixelFormat inSceneColorFormat, const EPixelFormat inGbufferFormats[], uint32 numGBuffers, EPixelFormat inVelocityMapFormat)
+void BasePass::initialize(RenderDevice* inRenderDevice, EPixelFormat inSceneColorFormat, const EPixelFormat inGbufferFormats[], uint32 numGBuffers, EPixelFormat inVelocityMapFormat)
 {
+	device = inRenderDevice;
 	sceneColorFormat = inSceneColorFormat;
 	gbufferFormats.assign(inGbufferFormats, inGbufferFormats + numGBuffers);
 	velocityMapFormat = inVelocityMapFormat;
 
-	// #todo-rhi: Don't use gRenderDevice
-	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
@@ -348,7 +354,7 @@ void BasePass::renderForPipeline(RenderCommandList* commandList, uint32 swapchai
 
 GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc)
 {
-	SwapChain* swapchain = gRenderDevice->getSwapChain();
+	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
 	RasterizerDesc rasterizerDesc = RasterizerDesc();
@@ -408,18 +414,17 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 	CHECK(rtvIndex == numRTVs);
 
 	GraphicsPipelineKey pipelineKey = assemblePipelineKey(pipelineKeyDesc);
-	GraphicsPipelineState* pipelineState = gRenderDevice->createGraphicsPipelineState(pipelineDesc);
+	GraphicsPipelineState* pipelineState = device->createGraphicsPipelineState(pipelineDesc);
 
 	return pipelineState;
 }
 
 IndirectDrawHelper* BasePass::createIndirectDrawHelper(GraphicsPipelineState* pipelineState, GraphicsPipelineKey pipelineKey)
 {
-	RenderDevice* device = gRenderDevice;
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
-	IndirectDrawHelper* helper = new(EMemoryTag::Renderer) IndirectDrawHelper(pipelineKey);
+	IndirectDrawHelper* helper = new(EMemoryTag::Renderer) IndirectDrawHelper(device, pipelineKey);
 	helper->argumentBuffer.initialize(swapchainCount);
 	helper->argumentBufferSRV.initialize(swapchainCount);
 	helper->culledArgumentBuffer.initialize(swapchainCount);
@@ -468,7 +473,7 @@ IndirectDrawHelper* BasePass::createIndirectDrawHelper(GraphicsPipelineState* pi
 	// Fixed size. Create here.
 	for (uint32 i = 0; i < swapchainCount; ++i)
 	{
-		helper->drawCounterBuffer[i] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+		helper->drawCounterBuffer[i] = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = sizeof(uint32),
 				.alignment   = 0,
@@ -490,7 +495,7 @@ IndirectDrawHelper* BasePass::createIndirectDrawHelper(GraphicsPipelineState* pi
 		uavDesc.buffer.flags                = EBufferUAVFlags::None;
 
 		helper->drawCounterBufferUAV[i] = UniquePtr<UnorderedAccessView>(
-			gRenderDevice->createUAV(helper->drawCounterBuffer[i].get(), uavDesc));
+			device->createUAV(helper->drawCounterBuffer[i].get(), uavDesc));
 	}
 
 	return helper;
