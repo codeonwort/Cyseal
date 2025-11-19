@@ -22,10 +22,7 @@ void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxBasePassPe
 	gpuCullingShader->loadFromFile(L"gpu_culling.hlsl", "mainCS");
 
 	pipelineState = UniquePtr<ComputePipelineState>(inRenderDevice->createComputePipelineState(
-		ComputePipelineDesc{
-			.cs = gpuCullingShader,
-			.nodeMask = 0,
-		}
+		ComputePipelineDesc{ .cs = gpuCullingShader, .nodeMask = 0, }
 	));
 
 	delete gpuCullingShader; // No use after PSO creation.

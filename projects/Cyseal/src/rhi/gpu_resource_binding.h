@@ -28,8 +28,24 @@ struct ShaderParameterTable
 
 public:
 	// These API take a single parameter except for pushConstants().
-	void pushConstant(ParameterName name, uint32 value, uint32 destOffsetIn32BitValues = 0) { _pushConstants.emplace_back(PushConstant{ name, { value }, destOffsetIn32BitValues }); }
-	void pushConstants(ParameterName name, std::initializer_list<uint32> values, uint32 destOffsetIn32BitValues = 0) { _pushConstants.emplace_back(PushConstant{ name, values, destOffsetIn32BitValues }); }
+	void pushConstants(ParameterName name, void* pData, size_t size, uint32 destOffsetIn32BitValues = 0)
+	{
+		CHECK(size % 4 == 0); // Should be multiple of 4.
+		std::vector<uint32> values;
+		values.resize(size / 4);
+		std::memcpy(values.data(), pData, size);
+		PushConstant pushConst{ name, std::move(values), destOffsetIn32BitValues };
+		_pushConstants.emplace_back(pushConst);
+	}
+	void pushConstant(ParameterName name, uint32 value, uint32 destOffsetIn32BitValues = 0)
+	{
+		pushConstants(name, &value, sizeof(uint32), destOffsetIn32BitValues);
+	}
+	void pushConstants(ParameterName name, std::initializer_list<uint32> values, uint32 destOffsetIn32BitValues = 0)
+	{
+		pushConstants(name, (void*)values.begin(), sizeof(uint32) * values.size(), destOffsetIn32BitValues);
+	}
+	
 	void constantBuffer(ParameterName name, ConstantBufferView* buffer) { constantBuffers.emplace_back(ConstantBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
 	void structuredBuffer(ParameterName name, ShaderResourceView* buffer) { structuredBuffers.emplace_back(StructuredBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
 	void rwBuffer(ParameterName name, UnorderedAccessView* buffer) { rwBuffers.emplace_back(RWBuffer{ name, buffer->getSourceHeap(), buffer->getDescriptorIndexInHeap(), 1 }); }
