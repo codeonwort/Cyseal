@@ -14,9 +14,6 @@ class Camera;
 struct GPUCullingInput
 {
 	const Camera*           camera;
-	// #wip: Only need camera frustum (4 * 6 floats); replace with root constants?
-	// Also it can be acquired by just calling camera->getFrustum().
-	ConstantBufferView*     sceneUniform;
 	GPUScene*               gpuScene;
 	uint32                  maxDrawCommands;
 	Buffer*                 indirectDrawBuffer;

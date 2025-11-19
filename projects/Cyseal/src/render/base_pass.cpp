@@ -293,7 +293,6 @@ void BasePass::renderForPipeline(RenderCommandList* commandList, uint32 swapchai
 		{
 			GPUCullingInput cullingPassInput{
 				.camera                      = camera,
-				.sceneUniform                = sceneUniformBuffer,
 				.gpuScene                    = gpuScene,
 				.maxDrawCommands             = maxIndirectDraws,
 				.indirectDrawBuffer          = currentArgumentBuffer,

@@ -4,9 +4,16 @@
 #include "rhi/render_command.h"
 #include "rhi/swap_chain.h"
 #include "rhi/gpu_resource_binding.h"
+#include "world/camera.h"
 #include "util/logging.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUCulling);
+
+struct GPUCullingPushConstants
+{
+	CameraFrustum cameraFrustum;
+	uint32 numDrawCommands;
+};
 
 void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxBasePassPermutation)
 {
@@ -18,7 +25,7 @@ void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxBasePassPe
 
 	// Shader
 	ShaderStage* gpuCullingShader = inRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUCullingCS");
-	gpuCullingShader->declarePushConstants({ { "pushConstants", 1} });
+	gpuCullingShader->declarePushConstants({ { "pushConstants", (int32)(sizeof(GPUCullingPushConstants) / sizeof(uint32))} });
 	gpuCullingShader->loadFromFile(L"gpu_culling.hlsl", "mainCS");
 
 	pipelineState = UniquePtr<ComputePipelineState>(inRenderDevice->createComputePipelineState(
@@ -37,7 +44,6 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 {
 	SCOPED_DRAW_EVENT(commandList, GPUCulling);
 
-	auto sceneUniform                = passInput.sceneUniform;
 	auto camera                      = passInput.camera;
 	auto gpuScene                    = passInput.gpuScene;
 	uint32 maxDrawCommands           = passInput.maxDrawCommands;
@@ -58,9 +64,13 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 	};
 	commandList->barrierAuto(_countof(barriersBefore), barriersBefore, 0, nullptr, 0, nullptr);
 
+	GPUCullingPushConstants pushConst{
+		.cameraFrustum   = camera->getFrustum(),
+		.numDrawCommands = maxDrawCommands,
+	};
+
 	ShaderParameterTable SPT{};
-	SPT.pushConstant("pushConstants", maxDrawCommands);
-	SPT.constantBuffer("sceneUniform", sceneUniform);
+	SPT.pushConstants("pushConstants", &pushConst, sizeof(pushConst));
 	SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 	SPT.structuredBuffer("drawCommandBuffer", indirectDrawBufferSRV);
 	SPT.rwStructuredBuffer("culledDrawCommandBuffer", culledIndirectDrawBufferUAV);
