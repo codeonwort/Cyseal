@@ -131,6 +131,7 @@
     <ClInclude Include="src\render\renderer_options.h" />
     <ClInclude Include="src\render\scene_render_pass.h" />
     <ClInclude Include="src\render\sky_pass.h" />
+    <ClInclude Include="src\render\static_mesh_rendering.h" />
     <ClInclude Include="src\render\store_history_pass.h" />
     <ClInclude Include="src\render\util\texture_sequence.h" />
     <ClInclude Include="src\render\util\volatile_descriptor.h" />
@@ -242,6 +243,7 @@
     <ClCompile Include="src\render\raytracing\indirect_diffuse_pass.cpp" />
     <ClCompile Include="src\render\raytracing\ray_traced_shadows.cpp" />
     <ClCompile Include="src\render\sky_pass.cpp" />
+    <ClCompile Include="src\render\static_mesh_rendering.cpp" />
     <ClCompile Include="src\render\store_history_pass.cpp" />
     <ClCompile Include="src\render\util\texture_sequence.cpp" />
     <ClCompile Include="src\render\util\volatile_descriptor.cpp" />

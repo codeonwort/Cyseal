@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scene_render_pass.h"
+#include "static_mesh_rendering.h"
 #include "renderer_options.h"
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
@@ -22,64 +23,6 @@ class GPUScene;
 class GPUCulling;
 struct StaticMeshSection;
 
-// -----------------------------------------
-// PSO permutation
-
-using GraphicsPipelineKey = uint32;
-
-struct IndirectDrawHelper
-{
-	IndirectDrawHelper(RenderDevice* inRenderDevice, GraphicsPipelineKey inPipelineKey)
-		: device(inRenderDevice)
-		, pipelineKey(inPipelineKey)
-	{
-	}
-
-	void resizeResources(uint32 swapchainIndex, uint32 maxDrawCount);
-
-	RenderDevice* device = nullptr;
-	GraphicsPipelineKey pipelineKey;
-
-	UniquePtr<CommandSignature> commandSignature;
-	UniquePtr<IndirectCommandGenerator> argumentBufferGenerator;
-
-	BufferedUniquePtr<Buffer> argumentBuffer;
-	BufferedUniquePtr<Buffer> culledArgumentBuffer;
-	BufferedUniquePtr<Buffer> drawCounterBuffer;
-
-	BufferedUniquePtr<ShaderResourceView> argumentBufferSRV;
-	BufferedUniquePtr<UnorderedAccessView> culledArgumentBufferUAV;
-	BufferedUniquePtr<UnorderedAccessView> drawCounterBufferUAV;
-};
-
-// Can't think of better name
-struct GraphicsPipelineItem
-{
-	GraphicsPipelineState* pipelineState;
-	IndirectDrawHelper* indirectDrawHelper;
-};
-
-class GraphicsPipelineStatePermutation
-{
-public:
-	~GraphicsPipelineStatePermutation();
-
-	GraphicsPipelineItem findPipeline(GraphicsPipelineKey key) const;
-
-	void insertPipeline(GraphicsPipelineKey key, GraphicsPipelineItem item);
-
-private:
-	std::map<GraphicsPipelineKey, GraphicsPipelineItem> pipelines;
-};
-
-struct GraphicsPipelineKeyDesc
-{
-	ECullMode cullMode;
-};
-
-// -----------------------------------------
-// BasePass
-
 struct BasePassInput
 {
 	const SceneProxy*      scene;
@@ -93,6 +36,7 @@ struct BasePassInput
 	ShaderResourceView*    shadowMaskSRV;
 };
 
+// #wip: Generalize a bit and move to static_mesh_rendering.h
 // #todo-basepass: Temp struct for pipeline permutation support
 struct BasePassDrawList
 {
