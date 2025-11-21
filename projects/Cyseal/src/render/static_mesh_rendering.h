@@ -8,6 +8,8 @@
 #include <vector>
 
 struct StaticMeshSection;
+class SceneProxy;
+class GPUCulling;
 
 // -----------------------------------------
 // PSO permutation
@@ -84,16 +86,21 @@ struct StaticMeshDrawList
 	}
 };
 
+struct StaticMeshRenderingInput
+{
+	const SceneProxy*                       scene;
+	const GraphicsPipelineStatePermutation* psoPermutation;
+	GPUCulling*                             gpuCullingPass;
+	bool                                    bGpuCulling;
+};
+
 class StaticMeshRendering final
 {
 public:
-	void initialize(IndirectDrawHelper* inIndirectDrawHelper);
+	static void renderStaticMeshes(const StaticMeshRenderingInput& input);
 
 private:
-	void fillIndirectDrawBuffer();
-	void performGpuCulling();
-	void submitIndirectDraws();
-
-private:
-	IndirectDrawHelper* indirectDrawHelper = nullptr;
+	static void fillIndirectDrawBuffer();
+	static void performGpuCulling();
+	static void submitIndirectDraws();
 };

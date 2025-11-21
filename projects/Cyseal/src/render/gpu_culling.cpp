@@ -15,9 +15,9 @@ struct GPUCullingPushConstants
 	uint32 numDrawCommands;
 };
 
-void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxBasePassPermutation)
+void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxCullOperationsPerFrame)
 {
-	maxBasePassPermutation = inMaxBasePassPermutation;
+	maxCullOperationsPerFrame = inMaxCullOperationsPerFrame;
 
 	const uint32 swapchainCount = inRenderDevice->getSwapChain()->getBufferCount();
 
@@ -38,11 +38,15 @@ void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxBasePassPe
 void GPUCulling::resetCullingResources()
 {
 	descriptorIndexTracker.lastIndex = 0;
+	currentCullOperations = 0;
 }
 
 void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapchainIndex, const GPUCullingInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, GPUCulling);
+
+	CHECK(currentCullOperations < maxCullOperationsPerFrame);
+	currentCullOperations += 1;
 
 	auto camera                      = passInput.camera;
 	auto gpuScene                    = passInput.gpuScene;
@@ -77,7 +81,7 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 	SPT.rwBuffer("drawCounterBuffer", drawCounterBufferUAV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	requiredVolatiles *= maxBasePassPermutation; // #todo-gpuscene: Optimize if permutation blows up
+	requiredVolatiles *= maxCullOperationsPerFrame; // #todo-gpuscene: Optimize if permutation blows up
 	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
 

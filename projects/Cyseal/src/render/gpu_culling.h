@@ -28,7 +28,7 @@ struct GPUCullingInput
 class GPUCulling final : public SceneRenderPass
 {
 public:
-	void initialize(RenderDevice* inRenderDevice, uint32 inMaxBasePassPermutation);
+	void initialize(RenderDevice* inRenderDevice, uint32 inMaxCullOperationsPerFrame);
 
 	// Invoke every frame before calling cullDrawCommands().
 	void resetCullingResources();
@@ -42,5 +42,6 @@ private:
 	UniquePtr<ComputePipelineState> pipelineState;
 	VolatileDescriptorHelper        passDescriptor;
 	DescriptorIndexTracker          descriptorIndexTracker;
-	uint32                          maxBasePassPermutation = 1;
+	uint32                          maxCullOperationsPerFrame = 1;
+	uint32                          currentCullOperations = 0xffffffff;
 };

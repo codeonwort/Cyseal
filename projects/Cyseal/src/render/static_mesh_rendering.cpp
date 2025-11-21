@@ -1,6 +1,8 @@
 #include "static_mesh_rendering.h"
+#include "render/static_mesh.h"
 #include "rhi/render_device.h"
 #include "rhi/swap_chain.h"
+#include "world/scene_proxy.h"
 
 #define kMaxIndirectDrawCommandCount 256
 
@@ -199,4 +201,42 @@ void GraphicsPipelineStatePermutation::insertPipeline(GraphicsPipelineKey key, G
 {
 	CHECK(false == pipelines.contains(key));
 	pipelines.insert(std::make_pair(key, item));
+}
+
+// -----------------------------------------
+// StaticMeshRendering
+
+void StaticMeshRendering::renderStaticMeshes(const StaticMeshRenderingInput& input)
+{
+	// 1. Build draw list per pipeline.
+	
+	// #todo-renderer: Need smarter way to generate drawlists per pipeline if permutation blows up.
+	StaticMeshDrawList drawsForDefaultPipelines;
+	StaticMeshDrawList drawsForNoCullPipelines;
+	drawsForDefaultPipelines.reserve(input.scene->totalMeshSectionsLOD0);
+	drawsForNoCullPipelines.reserve(input.scene->totalMeshSectionsLOD0);
+	{
+		uint32 objectID = 0;
+		for (const StaticMeshProxy* mesh : input.scene->staticMeshes)
+		{
+			for (const StaticMeshSection& section : mesh->getSections())
+			{
+				bool bDoubleSided = section.material->bDoubleSided;
+				if (bDoubleSided)
+				{
+					drawsForNoCullPipelines.meshes.push_back(&section);
+					drawsForNoCullPipelines.objectIDs.push_back(objectID);
+				}
+				else
+				{
+					drawsForDefaultPipelines.meshes.push_back(&section);
+					drawsForDefaultPipelines.objectIDs.push_back(objectID);
+				}
+				++objectID;
+			}
+		}
+	}
+
+	// #wip: Move mesh rendering from base pass to here
+	// ...
 }

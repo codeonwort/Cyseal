@@ -34,6 +34,7 @@
 #include "util/profiling.h"
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
+#define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
 
 static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
 static const EPixelFormat PF_velocityMap = EPixelFormat::R16G16_FLOAT;
@@ -130,7 +131,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(storeHistoryPass = new(EMemoryTag::Renderer) StoreHistoryPass);
 
 		gpuScene->initialize();
-		gpuCulling->initialize(renderDevice, kMaxBasePassPermutation);
+		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
 		depthPrepass->initialize(renderDevice);
@@ -259,6 +260,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.bRenderAnyRaytracingPass = bRenderAnyRaytracingPass,
 		};
 		gpuScene->renderGPUScene(commandList, swapchainIndex, passInput);
+	}
+
+	if (renderOptions.bEnableGPUCulling)
+	{
+		gpuCulling->resetCullingResources();
 	}
 
 	if (bSupportsRaytracing && scene->bRebuildRaytracingScene)

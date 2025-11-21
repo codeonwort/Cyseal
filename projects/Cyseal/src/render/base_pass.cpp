@@ -104,11 +104,6 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		}
 	}
 
-	if (passInput.bGPUCulling)
-	{
-		passInput.gpuCulling->resetCullingResources();
-	}
-
 	// Bind shader parameters except for root constants.
 	// #note: Assumes all permutation share the same root signature.
 	{
