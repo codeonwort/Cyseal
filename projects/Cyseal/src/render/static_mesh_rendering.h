@@ -5,6 +5,10 @@
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
 
+#include <vector>
+
+struct StaticMeshSection;
+
 // -----------------------------------------
 // PSO permutation
 
@@ -67,7 +71,29 @@ private:
 // -----------------------------------------
 // Mesh rendering
 
+// Per-pipeline draw list.
+struct StaticMeshDrawList
+{
+	std::vector<const StaticMeshSection*> meshes;
+	std::vector<uint32> objectIDs;
+
+	void reserve(size_t n)
+	{
+		meshes.reserve(n);
+		objectIDs.reserve(n);
+	}
+};
+
 class StaticMeshRendering final
 {
-	//
+public:
+	void initialize(IndirectDrawHelper* inIndirectDrawHelper);
+
+private:
+	void fillIndirectDrawBuffer();
+	void performGpuCulling();
+	void submitIndirectDraws();
+
+private:
+	IndirectDrawHelper* indirectDrawHelper = nullptr;
 };

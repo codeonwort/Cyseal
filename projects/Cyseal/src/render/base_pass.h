@@ -36,20 +36,6 @@ struct BasePassInput
 	ShaderResourceView*    shadowMaskSRV;
 };
 
-// #wip: Generalize a bit and move to static_mesh_rendering.h
-// #todo-basepass: Temp struct for pipeline permutation support
-struct BasePassDrawList
-{
-	std::vector<const StaticMeshSection*> meshes;
-	std::vector<uint32> objectIDs;
-
-	void reserve(size_t n)
-	{
-		meshes.reserve(n);
-		objectIDs.reserve(n);
-	}
-};
-
 // Render direct lighting + gbuffers.
 class BasePass final : public SceneRenderPass
 {
@@ -61,7 +47,7 @@ public:
 	void renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput);
 
 private:
-	void renderForPipeline(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput, GraphicsPipelineKey pipelineKey, const BasePassDrawList& drawList);
+	void renderForPipeline(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput, GraphicsPipelineKey pipelineKey, const StaticMeshDrawList& drawList);
 
 	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc);
 

@@ -78,8 +78,8 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 	// #todo-basepass: Need smarter way to generate drawlists per pipeline if permutation blows up.
-	BasePassDrawList drawsForDefaultPipelines;
-	BasePassDrawList drawsForNoCullPipelines;
+	StaticMeshDrawList drawsForDefaultPipelines;
+	StaticMeshDrawList drawsForNoCullPipelines;
 	drawsForDefaultPipelines.reserve(scene->totalMeshSectionsLOD0);
 	drawsForNoCullPipelines.reserve(scene->totalMeshSectionsLOD0);
 	{
@@ -135,7 +135,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	renderForPipeline(commandList, swapchainIndex, passInput, noCullPipelineKey, drawsForNoCullPipelines);
 }
 
-void BasePass::renderForPipeline(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput, GraphicsPipelineKey pipelineKey, const BasePassDrawList& drawList)
+void BasePass::renderForPipeline(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput, GraphicsPipelineKey pipelineKey, const StaticMeshDrawList& drawList)
 {
 	auto scene              = passInput.scene;
 	auto camera             = passInput.camera;
