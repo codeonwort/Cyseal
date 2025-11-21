@@ -1,4 +1,4 @@
-#include "base_pass.h"
+#include "depth_prepass.h"
 #include "material.h"
 #include "static_mesh.h"
 #include "gpu_scene.h"
@@ -14,31 +14,28 @@
 #include "rhi/texture_manager.h"
 #include "rhi/vertex_buffer_pool.h"
 
-BasePass::~BasePass()
+DepthPrepass::~DepthPrepass()
 {
 	delete shaderVS;
 	delete shaderPS;
 }
 
-void BasePass::initialize(RenderDevice* inRenderDevice, EPixelFormat inSceneColorFormat, const EPixelFormat inGbufferFormats[], uint32 numGBuffers, EPixelFormat inVelocityMapFormat)
+void DepthPrepass::initialize(RenderDevice* inRenderDevice)
 {
 	device = inRenderDevice;
-	sceneColorFormat = inSceneColorFormat;
-	gbufferFormats.assign(inGbufferFormats, inGbufferFormats + numGBuffers);
-	velocityMapFormat = inVelocityMapFormat;
 
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
-	passDescriptor.initialize(L"BasePass", swapchainCount, 0);
+	passDescriptor.initialize(L"DepthPrepass", swapchainCount, 0);
 
 	// Shader stages
-	shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BasePassVS");
-	shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BasePassPS");
+	shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "DepthPrepassVS");
+	shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "DepthPrepassPS");
 	shaderVS->declarePushConstants({ { "pushConstants", 1} });
 	shaderPS->declarePushConstants({ { "pushConstants", 1} });
-	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS");
-	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS");
+	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS", { L"DEPTH_PREPASS" });
+	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS", { L"DEPTH_PREPASS" });
 
 	for (size_t i = 0; i < GraphicsPipelineKeyDesc::numPipelineKeyDescs(); ++i)
 	{
@@ -46,13 +43,13 @@ void BasePass::initialize(RenderDevice* inRenderDevice, EPixelFormat inSceneColo
 		auto pipelineState = createPipeline(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i]);
 
 		IndirectDrawHelper* indirectDrawHelper = new(EMemoryTag::Renderer) IndirectDrawHelper;
-		indirectDrawHelper->initialize(device, pipelineState, pipelineKey, L"BasePass");
+		indirectDrawHelper->initialize(device, pipelineState, pipelineKey, L"DepthPrepass");
 
 		pipelinePermutation.insertPipeline(pipelineKey, GraphicsPipelineItem{ pipelineState, indirectDrawHelper });
 	}
 }
 
-void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput)
+void DepthPrepass::renderDepthPrepass(RenderCommandList* commandList, uint32 swapchainIndex, const DepthPrepassInput& passInput)
 {
 	auto scene    = passInput.scene;
 	auto gpuScene = passInput.gpuScene;
@@ -74,9 +71,6 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
-		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
-		SPT.texture("shadowMask", passInput.shadowMaskSRV);
-		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
 		passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
@@ -97,7 +91,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	StaticMeshRendering::renderStaticMeshes(commandList, swapchainIndex, meshDrawInput);
 }
 
-GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc)
+GraphicsPipelineState* DepthPrepass::createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc)
 {
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
@@ -107,61 +101,24 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 
 	VertexInputLayout inputLayout = StaticMeshRendering::createVertexInputLayout();
 
-	std::vector<StaticSamplerDesc> staticSamplers = {
-		StaticSamplerDesc{
-			.name             = "albedoSampler",
-			.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
-			.addressU         = ETextureAddressMode::Wrap,
-			.addressV         = ETextureAddressMode::Wrap,
-			.addressW         = ETextureAddressMode::Wrap,
-			.mipLODBias       = 0.0f,
-			.maxAnisotropy    = 0,
-			.comparisonFunc   = EComparisonFunc::Always,
-			.borderColor      = EStaticBorderColor::TransparentBlack,
-			.minLOD           = 0.0f,
-			.maxLOD           = FLT_MAX,
-			.shaderVisibility = EShaderVisibility::All,
-		},
-	};
-
-	const uint32 numRTVs = (uint32)(1 + gbufferFormats.size() + 1); // sceneColor + gbuffers + velocityMap
-
-	constexpr bool bReverseZ = getReverseZPolicy() == EReverseZPolicy::Reverse;
-	DepthstencilDesc depthStencilDesc = bReverseZ
-		? DepthstencilDesc::ReverseZSceneDepth()
-		: DepthstencilDesc::StandardSceneDepth();
-	
-	// Change comparison func for depth prepass.
-	depthStencilDesc.depthFunc = bReverseZ
-		? EComparisonFunc::GreaterEqual
-		: EComparisonFunc::LessEqual;
-
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = shaderVS,
 		.ps                     = shaderPS,
 		.blendDesc              = BlendDesc(),
 		.sampleMask             = 0xffffffff,
 		.rasterizerDesc         = std::move(rasterizerDesc),
-		.depthstencilDesc       = std::move(depthStencilDesc),
+		.depthstencilDesc       = getReverseZPolicy() == EReverseZPolicy::Reverse ? DepthstencilDesc::ReverseZSceneDepth() : DepthstencilDesc::StandardSceneDepth(),
 		.inputLayout            = inputLayout,
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
-		.numRenderTargets       = numRTVs,
-		.rtvFormats             = { EPixelFormat::UNKNOWN, }, // Fill later
+		.numRenderTargets       = 0,
+		.rtvFormats             = {},
 		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
 		.sampleDesc = SampleDesc{
 			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
 			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
 		},
-		.staticSamplers         = std::move(staticSamplers),
+		.staticSamplers         = {},
 	};
-	uint32 rtvIndex = 0;
-	pipelineDesc.rtvFormats[rtvIndex++] = sceneColorFormat;
-	for (size_t i = 0; i < gbufferFormats.size(); ++i)
-	{
-		pipelineDesc.rtvFormats[rtvIndex++] = gbufferFormats[i];
-	}
-	pipelineDesc.rtvFormats[rtvIndex++] = velocityMapFormat;
-	CHECK(rtvIndex == numRTVs);
 
 	GraphicsPipelineKey pipelineKey = GraphicsPipelineKeyDesc::assemblePipelineKey(pipelineKeyDesc);
 	GraphicsPipelineState* pipelineState = device->createGraphicsPipelineState(pipelineDesc);

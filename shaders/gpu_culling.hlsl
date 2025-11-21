@@ -6,6 +6,7 @@
 
 struct PushConstants
 {
+	Frustum3D cameraFrustum;
 	uint numDrawCommands;
 };
 
@@ -20,13 +21,12 @@ struct IDrawCommand
 };
 
 [[vk::push_constant]]
-ConstantBuffer<PushConstants> pushConstants;
+ConstantBuffer<PushConstants>    pushConstants;
 
-ConstantBuffer<SceneUniform> sceneUniform;
-StructuredBuffer<GPUSceneItem> gpuSceneBuffer;
-StructuredBuffer<IDrawCommand> drawCommandBuffer;
+StructuredBuffer<GPUSceneItem>   gpuSceneBuffer;
+StructuredBuffer<IDrawCommand>   drawCommandBuffer;
 RWStructuredBuffer<IDrawCommand> culledDrawCommandBuffer;
-RWBuffer<uint> drawCounterBuffer;
+RWBuffer<uint>                   drawCounterBuffer;
 
 // ------------------------------------------------------------------------
 // Compute shader
@@ -96,7 +96,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		sceneItem.localMaxBounds,
 		sceneItem.localToWorld);
 	
-	bool bInFrustum = hitTest_AABB_frustum(worldBounds, sceneUniform.cameraFrustum);
+	bool bInFrustum = hitTest_AABB_frustum(worldBounds, pushConstants.cameraFrustum);
 
 	if (bInFrustum)
 	{

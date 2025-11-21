@@ -363,6 +363,12 @@
     <ClInclude Include="src\render\store_history_pass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\depth_prepass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\static_mesh_rendering.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -597,6 +603,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\rhi\vulkan\vk_descriptor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\depth_prepass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\static_mesh_rendering.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

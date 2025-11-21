@@ -127,6 +127,7 @@ private:
 	class GPUCulling*           gpuCulling            = nullptr;
 	class BilateralBlur*        bilateralBlur         = nullptr;
 	class RayTracedShadowsPass* rayTracedShadowsPass  = nullptr;
+	class DepthPrepass*         depthPrepass          = nullptr;
 	class BasePass*             basePass              = nullptr;
 	class HiZPass*              hizPass               = nullptr;
 	class SkyPass*              skyPass               = nullptr;

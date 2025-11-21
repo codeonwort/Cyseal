@@ -4,13 +4,20 @@
 #include "rhi/render_command.h"
 #include "rhi/swap_chain.h"
 #include "rhi/gpu_resource_binding.h"
+#include "world/camera.h"
 #include "util/logging.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUCulling);
 
-void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxBasePassPermutation)
+struct GPUCullingPushConstants
 {
-	maxBasePassPermutation = inMaxBasePassPermutation;
+	CameraFrustum cameraFrustum;
+	uint32 numDrawCommands;
+};
+
+void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxCullOperationsPerFrame)
+{
+	maxCullOperationsPerFrame = inMaxCullOperationsPerFrame;
 
 	const uint32 swapchainCount = inRenderDevice->getSwapChain()->getBufferCount();
 
@@ -18,14 +25,11 @@ void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxBasePassPe
 
 	// Shader
 	ShaderStage* gpuCullingShader = inRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUCullingCS");
-	gpuCullingShader->declarePushConstants({ { "pushConstants", 1} });
+	gpuCullingShader->declarePushConstants({ { "pushConstants", (int32)(sizeof(GPUCullingPushConstants) / sizeof(uint32))} });
 	gpuCullingShader->loadFromFile(L"gpu_culling.hlsl", "mainCS");
 
 	pipelineState = UniquePtr<ComputePipelineState>(inRenderDevice->createComputePipelineState(
-		ComputePipelineDesc{
-			.cs = gpuCullingShader,
-			.nodeMask = 0,
-		}
+		ComputePipelineDesc{ .cs = gpuCullingShader, .nodeMask = 0, }
 	));
 
 	delete gpuCullingShader; // No use after PSO creation.
@@ -34,13 +38,16 @@ void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxBasePassPe
 void GPUCulling::resetCullingResources()
 {
 	descriptorIndexTracker.lastIndex = 0;
+	currentCullOperations = 0;
 }
 
 void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapchainIndex, const GPUCullingInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, GPUCulling);
 
-	auto sceneUniform                = passInput.sceneUniform;
+	CHECK(currentCullOperations < maxCullOperationsPerFrame);
+	currentCullOperations += 1;
+
 	auto camera                      = passInput.camera;
 	auto gpuScene                    = passInput.gpuScene;
 	uint32 maxDrawCommands           = passInput.maxDrawCommands;
@@ -61,16 +68,20 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 	};
 	commandList->barrierAuto(_countof(barriersBefore), barriersBefore, 0, nullptr, 0, nullptr);
 
+	GPUCullingPushConstants pushConst{
+		.cameraFrustum   = camera->getFrustum(),
+		.numDrawCommands = maxDrawCommands,
+	};
+
 	ShaderParameterTable SPT{};
-	SPT.pushConstant("pushConstants", maxDrawCommands);
-	SPT.constantBuffer("sceneUniform", sceneUniform);
+	SPT.pushConstants("pushConstants", &pushConst, sizeof(pushConst));
 	SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 	SPT.structuredBuffer("drawCommandBuffer", indirectDrawBufferSRV);
 	SPT.rwStructuredBuffer("culledDrawCommandBuffer", culledIndirectDrawBufferUAV);
 	SPT.rwBuffer("drawCounterBuffer", drawCounterBufferUAV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	requiredVolatiles *= maxBasePassPermutation; // #todo-gpuscene: Optimize if permutation blows up
+	requiredVolatiles *= maxCullOperationsPerFrame; // #todo-gpuscene: Optimize if permutation blows up
 	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
 

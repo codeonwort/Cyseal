@@ -14,7 +14,6 @@ class Camera;
 struct GPUCullingInput
 {
 	const Camera*           camera;
-	ConstantBufferView*     sceneUniform;
 	GPUScene*               gpuScene;
 	uint32                  maxDrawCommands;
 	Buffer*                 indirectDrawBuffer;
@@ -29,15 +28,20 @@ struct GPUCullingInput
 class GPUCulling final : public SceneRenderPass
 {
 public:
-	void initialize(RenderDevice* inRenderDevice, uint32 inMaxBasePassPermutation);
+	void initialize(RenderDevice* inRenderDevice, uint32 inMaxCullOperationsPerFrame);
 
+	// Invoke every frame before calling cullDrawCommands().
 	void resetCullingResources();
 
+	// Can be invoked multiple times within a frame.
+	// Draw commands are accumulated from the start of passInput.culledIndirectDrawBuffer,
+	// so you need to provide different culledIndirectDrawBuffer and drawCounterBuffer in passInput for each invocation.
 	void cullDrawCommands(RenderCommandList* commandList, uint32 swapchainIndex, const GPUCullingInput& passInput);
 
 private:
 	UniquePtr<ComputePipelineState> pipelineState;
 	VolatileDescriptorHelper        passDescriptor;
 	DescriptorIndexTracker          descriptorIndexTracker;
-	uint32                          maxBasePassPermutation = 1;
+	uint32                          maxCullOperationsPerFrame = 1;
+	uint32                          currentCullOperations = 0xffffffff;
 };
