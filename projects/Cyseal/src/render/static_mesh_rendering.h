@@ -106,6 +106,8 @@ struct StaticMeshRenderingInput
 class StaticMeshRendering final
 {
 public:
+	static VertexInputLayout createVertexInputLayout();
+
 	static void renderStaticMeshes(
 		RenderCommandList* commandList,
 		uint32 swapchainIndex,

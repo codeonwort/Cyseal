@@ -319,13 +319,19 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 	}
 
-	// #wip: Depth PrePass
 	{
 		SCOPED_DRAW_EVENT(commandList, DepthPrepass);
+
+		// #wip: Set render target
 
 		DepthPrepassInput passInput{
 			.scene              = scene,
 			.camera             = camera,
+			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
+			.bGPUCulling        = renderOptions.bEnableGPUCulling,
+			.sceneUniformBuffer = sceneUniformCBV,
+			.gpuScene           = gpuScene,
+			.gpuCulling         = gpuCulling,
 		};
 		depthPrepass->renderDepthPrepass(commandList, swapchainIndex, passInput);
 	}

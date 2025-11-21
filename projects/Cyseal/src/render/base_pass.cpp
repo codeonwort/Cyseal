@@ -105,13 +105,7 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 	RasterizerDesc rasterizerDesc = RasterizerDesc();
 	rasterizerDesc.cullMode = pipelineKeyDesc.cullMode;
 
-	// Input layout
-	// #todo-basepass: Should be variant per vertex factory
-	VertexInputLayout inputLayout = {
-			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
-			{"NORMAL", 0, EPixelFormat::R32G32B32_FLOAT, 1, 0, EVertexInputClassification::PerVertex, 0},
-			{"TEXCOORD", 0, EPixelFormat::R32G32_FLOAT, 1, sizeof(float) * 3, EVertexInputClassification::PerVertex, 0}
-	};
+	VertexInputLayout inputLayout = StaticMeshRendering::createVertexInputLayout();
 
 	std::vector<StaticSamplerDesc> staticSamplers = {
 		StaticSamplerDesc{
