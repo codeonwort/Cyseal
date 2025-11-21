@@ -198,6 +198,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	const uint32 sceneWidth = swapChain->getBackbufferWidth();
 	const uint32 sceneHeight = swapChain->getBackbufferHeight();
 
+	const bool bRenderDepthPrepass = renderOptions.bEnableDepthPrepass;
+
 	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
 	const bool bRenderPathTracing = bSupportsRaytracing && (renderOptions.pathTracing != EPathTracingMode::Disabled);
 	
@@ -319,10 +321,20 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 	}
 
+	if (bRenderDepthPrepass)
 	{
 		SCOPED_DRAW_EVENT(commandList, DepthPrepass);
 
-		// #wip: Set render target
+		TextureBarrierAuto barriers[] = {
+			{
+				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_WRITE, EBarrierLayout::DepthStencilWrite,
+				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+		};
+		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
+
+		commandList->omSetRenderTargets(0, nullptr, sceneDepthDSV.get());
+		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
 
 		DepthPrepassInput passInput{
 			.scene              = scene,
@@ -417,7 +429,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			commandList->clearRenderTargetView(gbufferRTVs[i].get(), clearColor);
 		}
 		commandList->clearRenderTargetView(velocityMapRTV.get(), clearColor);
-		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
+
+		if (!bRenderDepthPrepass)
+		{
+			commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
+		}
 
 		BasePassInput passInput{
 			.scene              = scene,

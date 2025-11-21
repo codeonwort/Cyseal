@@ -157,6 +157,7 @@ struct RendererOptions
 {
 	bool bEnableIndirectDraw = true;
 	bool bEnableGPUCulling = true;
+	bool bEnableDepthPrepass = true;
 
 	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
 

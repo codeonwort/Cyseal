@@ -8,6 +8,10 @@
 // tables can be enabled using the compiler using switch: /enable_unbounded_descriptor_tables
 #define TEMP_MAX_SRVS 1024
 
+#ifndef DEPTH_PREPASS
+	#define DEPTH_PREPASS 0
+#endif
+
 // ------------------------------------------------------------------------
 // Resource bindings (common)
 
@@ -22,7 +26,9 @@ ConstantBuffer<PushConstants>  pushConstants  : register(b0);
 ConstantBuffer<SceneUniform>   sceneUniform   : register(b1);
 StructuredBuffer<GPUSceneItem> gpuSceneBuffer : register(t0);
 StructuredBuffer<Material>     materials      : register(t1);
+#if !DEPTH_PREPASS
 Texture2D                      shadowMask     : register(t2);
+#endif
 
 uint getObjectId() { return pushConstants.objectId; }
 GPUSceneItem getGPUSceneItem() { return gpuSceneBuffer[pushConstants.objectId]; }
@@ -81,6 +87,12 @@ Interpolants mainVS(VertexInput input)
 
 // ------------------------------------------------------------------------
 // Pixel shader
+
+#if DEPTH_PREPASS
+
+void mainPS(Interpolants interpolants) {}
+
+#else
 
 struct PixelOutput
 {
@@ -150,3 +162,5 @@ PixelOutput mainPS(Interpolants interpolants)
     output.velocityMap = uv0 - uv1;
     return output;
 }
+
+#endif
