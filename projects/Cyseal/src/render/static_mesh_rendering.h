@@ -9,7 +9,12 @@
 
 struct StaticMeshSection;
 class SceneProxy;
+class Camera;
+class GPUScene;
 class GPUCulling;
+
+// #todo-renderer: Support other topologies
+#define kPrimitiveTopology           EPrimitiveTopology::TRIANGLELIST
 
 // -----------------------------------------
 // PSO permutation
@@ -89,18 +94,28 @@ struct StaticMeshDrawList
 struct StaticMeshRenderingInput
 {
 	const SceneProxy*                       scene;
-	const GraphicsPipelineStatePermutation* psoPermutation;
-	GPUCulling*                             gpuCullingPass;
+	const Camera*                           camera;
+	bool                                    bIndirectDraw;
 	bool                                    bGpuCulling;
+
+	GPUScene*                               gpuScene;
+	GPUCulling*                             gpuCulling;
+	const GraphicsPipelineStatePermutation* psoPermutation;
 };
 
 class StaticMeshRendering final
 {
 public:
-	static void renderStaticMeshes(const StaticMeshRenderingInput& input);
+	static void renderStaticMeshes(
+		RenderCommandList* commandList,
+		uint32 swapchainIndex,
+		const StaticMeshRenderingInput& input);
 
 private:
-	static void fillIndirectDrawBuffer();
-	static void performGpuCulling();
-	static void submitIndirectDraws();
+	static void renderForPipeline(
+		RenderCommandList* commandList,
+		uint32 swapchainIndex,
+		const StaticMeshRenderingInput& input,
+		GraphicsPipelineKey pipelineKey,
+		const StaticMeshDrawList& drawList);
 };
