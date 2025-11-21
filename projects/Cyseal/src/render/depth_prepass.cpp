@@ -51,7 +51,44 @@ void DepthPrepass::initialize(RenderDevice* inRenderDevice)
 
 void DepthPrepass::renderDepthPrepass(RenderCommandList* commandList, uint32 swapchainIndex, const DepthPrepassInput& passInput)
 {
-	// #wip: Issue drawcall
+	auto scene    = passInput.scene;
+	auto gpuScene = passInput.gpuScene;
+
+	if (gpuScene->getGPUSceneItemMaxCount() == 0)
+	{
+		// #todo-zero-size: Release resources if any.
+		return;
+	}
+
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+
+	// Bind shader parameters except for root constants.
+	// #note: Assumes all permutation share the same root signature.
+	{
+		auto key = GraphicsPipelineKeyDesc::assemblePipelineKey(GraphicsPipelineKeyDesc::kDefaultPipelineKeyDesc);
+		auto defaultPipeline = pipelinePermutation.findPipeline(key).pipelineState;
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
+		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
+
+		uint32 requiredVolatiles = SPT.totalDescriptors();
+		passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+
+		DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+		commandList->bindGraphicsShaderParameters(defaultPipeline, &SPT, volatileHeap);
+	}
+
+	StaticMeshRenderingInput meshDrawInput{
+		.scene          = passInput.scene,
+		.camera         = passInput.camera,
+		.bIndirectDraw  = passInput.bIndirectDraw,
+		.bGpuCulling    = passInput.bGPUCulling,
+		.gpuScene       = passInput.gpuScene,
+		.gpuCulling     = passInput.gpuCulling,
+		.psoPermutation = &pipelinePermutation,
+	};
+	StaticMeshRendering::renderStaticMeshes(commandList, swapchainIndex, meshDrawInput);
 }
 
 GraphicsPipelineState* DepthPrepass::createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc)
@@ -63,23 +100,6 @@ GraphicsPipelineState* DepthPrepass::createPipeline(const GraphicsPipelineKeyDes
 	rasterizerDesc.cullMode = pipelineKeyDesc.cullMode;
 
 	VertexInputLayout inputLayout = StaticMeshRendering::createVertexInputLayout();
-
-	std::vector<StaticSamplerDesc> staticSamplers = {
-		StaticSamplerDesc{
-			.name             = "albedoSampler",
-			.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
-			.addressU         = ETextureAddressMode::Wrap,
-			.addressV         = ETextureAddressMode::Wrap,
-			.addressW         = ETextureAddressMode::Wrap,
-			.mipLODBias       = 0.0f,
-			.maxAnisotropy    = 0,
-			.comparisonFunc   = EComparisonFunc::Always,
-			.borderColor      = EStaticBorderColor::TransparentBlack,
-			.minLOD           = 0.0f,
-			.maxLOD           = FLT_MAX,
-			.shaderVisibility = EShaderVisibility::All,
-		},
-	};
 
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = shaderVS,
@@ -97,7 +117,7 @@ GraphicsPipelineState* DepthPrepass::createPipeline(const GraphicsPipelineKeyDes
 			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
 			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
 		},
-		.staticSamplers         = std::move(staticSamplers),
+		.staticSamplers         = {},
 	};
 
 	GraphicsPipelineKey pipelineKey = GraphicsPipelineKeyDesc::assemblePipelineKey(pipelineKeyDesc);

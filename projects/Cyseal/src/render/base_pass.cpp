@@ -125,13 +125,24 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 	};
 
 	const uint32 numRTVs = (uint32)(1 + gbufferFormats.size() + 1); // sceneColor + gbuffers + velocityMap
+
+	constexpr bool bReverseZ = getReverseZPolicy() == EReverseZPolicy::Reverse;
+	DepthstencilDesc depthStencilDesc = bReverseZ
+		? DepthstencilDesc::ReverseZSceneDepth()
+		: DepthstencilDesc::StandardSceneDepth();
+	
+	// Change comparison func for depth prepass.
+	depthStencilDesc.depthFunc = bReverseZ
+		? EComparisonFunc::GreaterEqual
+		: EComparisonFunc::LessEqual;
+
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = shaderVS,
 		.ps                     = shaderPS,
 		.blendDesc              = BlendDesc(),
 		.sampleMask             = 0xffffffff,
 		.rasterizerDesc         = std::move(rasterizerDesc),
-		.depthstencilDesc       = getReverseZPolicy() == EReverseZPolicy::Reverse ? DepthstencilDesc::ReverseZSceneDepth() : DepthstencilDesc::StandardSceneDepth(),
+		.depthstencilDesc       = std::move(depthStencilDesc),
 		.inputLayout            = inputLayout,
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = numRTVs,

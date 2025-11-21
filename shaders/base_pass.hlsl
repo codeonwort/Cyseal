@@ -25,8 +25,8 @@ ConstantBuffer<PushConstants>  pushConstants  : register(b0);
 
 ConstantBuffer<SceneUniform>   sceneUniform   : register(b1);
 StructuredBuffer<GPUSceneItem> gpuSceneBuffer : register(t0);
-StructuredBuffer<Material>     materials      : register(t1);
 #if !DEPTH_PREPASS
+StructuredBuffer<Material>     materials      : register(t1);
 Texture2D                      shadowMask     : register(t2);
 #endif
 
@@ -36,10 +36,12 @@ GPUSceneItem getGPUSceneItem() { return gpuSceneBuffer[pushConstants.objectId]; 
 // ------------------------------------------------------------------------
 // Resource bindings (material-specific)
 
+#if !DEPTH_PREPASS
 Texture2D albedoTextures[TEMP_MAX_SRVS]       : register(t0, space1); // bindless in another space
 SamplerState albedoSampler                    : register(s0);
 
 Material getMaterial() { return materials[getObjectId()]; }
+#endif
 
 // ------------------------------------------------------------------------
 // Vertex shader
