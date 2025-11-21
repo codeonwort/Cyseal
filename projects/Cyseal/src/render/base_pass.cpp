@@ -3,7 +3,6 @@
 #include "static_mesh.h"
 #include "gpu_scene.h"
 #include "gpu_culling.h"
-#include "util/logging.h"
 
 #include "rhi/render_device.h"
 #include "rhi/rhi_policy.h"
@@ -14,8 +13,6 @@
 #include "rhi/render_command.h"
 #include "rhi/texture_manager.h"
 #include "rhi/vertex_buffer_pool.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
 
 BasePass::~BasePass()
 {

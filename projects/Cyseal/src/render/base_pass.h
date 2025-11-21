@@ -2,26 +2,17 @@
 
 #include "scene_render_pass.h"
 #include "static_mesh_rendering.h"
-#include "renderer_options.h"
-#include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
-#include "rhi/pipeline_state.h"
-#include "rhi/gpu_resource_binding.h"
-#include "rhi/gpu_resource.h"
-#include "rhi/gpu_resource_view.h"
+#include "core/smart_pointer.h"
 #include "util/volatile_descriptor.h"
-
-#include <map>
 
 // #todo-basepass: kMaxBasePassPermutation
 #define kMaxBasePassPermutation 2
 
-class MaterialAsset;
 class SceneProxy;
 class Camera;
 class GPUScene;
 class GPUCulling;
-struct StaticMeshSection;
 
 struct BasePassInput
 {
