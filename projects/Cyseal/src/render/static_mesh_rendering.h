@@ -25,11 +25,7 @@ struct GraphicsPipelineKeyDesc
 
 struct IndirectDrawHelper
 {
-	IndirectDrawHelper(RenderDevice* inRenderDevice, GraphicsPipelineKey inPipelineKey)
-		: device(inRenderDevice)
-		, pipelineKey(inPipelineKey)
-	{
-	}
+	void initialize(RenderDevice* inRenderDevice, GraphicsPipelineState* pipelineState, GraphicsPipelineKey inPipelineKey);
 
 	void resizeResources(uint32 swapchainIndex, uint32 maxDrawCount);
 

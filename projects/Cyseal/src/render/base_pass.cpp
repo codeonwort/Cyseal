@@ -24,7 +24,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogBasePass);
   - Need vs/ps for pipeline creation.
 */
 
-#define kMaxIndirectDrawCommandCount 256
 // #todo-renderer: Support other topologies
 #define kPrimitiveTopology           EPrimitiveTopology::TRIANGLELIST
 
@@ -58,7 +57,10 @@ void BasePass::initialize(RenderDevice* inRenderDevice, EPixelFormat inSceneColo
 	{
 		auto pipelineKey = GraphicsPipelineKeyDesc::assemblePipelineKey(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i]);
 		auto pipelineState = createPipeline(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i]);
-		auto indirectDrawHelper = createIndirectDrawHelper(pipelineState, pipelineKey);
+
+		IndirectDrawHelper* indirectDrawHelper = new(EMemoryTag::Renderer) IndirectDrawHelper;
+		indirectDrawHelper->initialize(device, pipelineState, pipelineKey);
+
 		pipelinePermutation.insertPipeline(pipelineKey, GraphicsPipelineItem{ pipelineState, indirectDrawHelper });
 	}
 }
@@ -311,86 +313,4 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 	GraphicsPipelineState* pipelineState = device->createGraphicsPipelineState(pipelineDesc);
 
 	return pipelineState;
-}
-
-IndirectDrawHelper* BasePass::createIndirectDrawHelper(GraphicsPipelineState* pipelineState, GraphicsPipelineKey pipelineKey)
-{
-	SwapChain* swapchain = device->getSwapChain();
-	const uint32 swapchainCount = swapchain->getBufferCount();
-
-	IndirectDrawHelper* helper = new(EMemoryTag::Renderer) IndirectDrawHelper(device, pipelineKey);
-	helper->argumentBuffer.initialize(swapchainCount);
-	helper->argumentBufferSRV.initialize(swapchainCount);
-	helper->culledArgumentBuffer.initialize(swapchainCount);
-	helper->culledArgumentBufferUAV.initialize(swapchainCount);
-	helper->drawCounterBuffer.initialize(swapchainCount);
-	helper->drawCounterBufferUAV.initialize(swapchainCount);
-
-	// Hmm... C++20 designated initializers looks ugly in this case :(
-	CommandSignatureDesc commandSignatureDesc{
-		.argumentDescs = {
-			IndirectArgumentDesc{
-				.type = EIndirectArgumentType::CONSTANT,
-				.name = "pushConstants",
-				.constant = {
-					.destOffsetIn32BitValues = 0,
-					.num32BitValuesToSet = 1,
-				},
-			},
-			IndirectArgumentDesc{
-				.type = EIndirectArgumentType::VERTEX_BUFFER_VIEW,
-				.vertexBuffer = {
-					.slot = 0, // position buffer slot
-				},
-			},
-			IndirectArgumentDesc{
-				.type = EIndirectArgumentType::VERTEX_BUFFER_VIEW,
-				.vertexBuffer = {
-					.slot = 1, // non-position buffer slot
-				},
-			},
-			IndirectArgumentDesc{
-				.type = EIndirectArgumentType::INDEX_BUFFER_VIEW,
-			},
-			IndirectArgumentDesc{
-				.type = EIndirectArgumentType::DRAW_INDEXED,
-			},
-		},
-		.nodeMask = 0,
-	};
-	helper->commandSignature = UniquePtr<CommandSignature>(
-		device->createCommandSignature(commandSignatureDesc, pipelineState));
-
-	helper->argumentBufferGenerator = UniquePtr<IndirectCommandGenerator>(
-		device->createIndirectCommandGenerator(commandSignatureDesc, kMaxIndirectDrawCommandCount));
-
-	// Fixed size. Create here.
-	for (uint32 i = 0; i < swapchainCount; ++i)
-	{
-		helper->drawCounterBuffer[i] = UniquePtr<Buffer>(device->createBuffer(
-			BufferCreateParams{
-				.sizeInBytes = sizeof(uint32),
-				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
-			}
-		));
-
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"Buffer_IndirectDrawCounterBuffer_%u_%u", pipelineKey, i);
-		helper->drawCounterBuffer[i]->setDebugName(debugName);
-
-		UnorderedAccessViewDesc uavDesc{};
-		uavDesc.format                      = EPixelFormat::UNKNOWN;
-		uavDesc.viewDimension               = EUAVDimension::Buffer;
-		uavDesc.buffer.firstElement         = 0;
-		uavDesc.buffer.numElements          = 1;
-		uavDesc.buffer.structureByteStride  = sizeof(uint32);
-		uavDesc.buffer.counterOffsetInBytes = 0;
-		uavDesc.buffer.flags                = EBufferUAVFlags::None;
-
-		helper->drawCounterBufferUAV[i] = UniquePtr<UnorderedAccessView>(
-			device->createUAV(helper->drawCounterBuffer[i].get(), uavDesc));
-	}
-
-	return helper;
 }
