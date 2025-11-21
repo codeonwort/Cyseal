@@ -6,6 +6,7 @@
 #include "rhi/gpu_resource_view.h"
 
 #include <vector>
+#include <string>
 
 struct StaticMeshSection;
 class SceneProxy;
@@ -25,7 +26,7 @@ struct GraphicsPipelineKeyDesc
 {
 	static GraphicsPipelineKey assemblePipelineKey(const GraphicsPipelineKeyDesc& desc);
 
-	// #wip: Hard-coded for now
+	// #todo-renderer: Hard-coded for now
 	static const GraphicsPipelineKeyDesc kDefaultPipelineKeyDesc;
 	static const GraphicsPipelineKeyDesc kNoCullPipelineKeyDesc;
 	static const GraphicsPipelineKeyDesc kPipelineKeyDescs[];
@@ -36,7 +37,11 @@ struct GraphicsPipelineKeyDesc
 
 struct IndirectDrawHelper
 {
-	void initialize(RenderDevice* inRenderDevice, GraphicsPipelineState* pipelineState, GraphicsPipelineKey inPipelineKey);
+	void initialize(
+		RenderDevice* inRenderDevice,
+		GraphicsPipelineState* pipelineState,
+		GraphicsPipelineKey inPipelineKey,
+		const wchar_t* inDebugName);
 
 	void resizeResources(uint32 swapchainIndex, uint32 maxDrawCount);
 
@@ -53,6 +58,8 @@ struct IndirectDrawHelper
 	BufferedUniquePtr<ShaderResourceView>  argumentBufferSRV;
 	BufferedUniquePtr<UnorderedAccessView> culledArgumentBufferUAV;
 	BufferedUniquePtr<UnorderedAccessView> drawCounterBufferUAV;
+
+	std::wstring                           debugName;
 };
 
 // Can't think of better name

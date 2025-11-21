@@ -32,10 +32,16 @@ GraphicsPipelineKey GraphicsPipelineKeyDesc::assemblePipelineKey(const GraphicsP
 // -----------------------------------------
 // IndirectDrawHelper
 
-void IndirectDrawHelper::initialize(RenderDevice* inRenderDevice, GraphicsPipelineState* pipelineState, GraphicsPipelineKey inPipelineKey)
+void IndirectDrawHelper::initialize(
+	RenderDevice* inRenderDevice,
+	GraphicsPipelineState* pipelineState,
+	GraphicsPipelineKey inPipelineKey,
+	const wchar_t* inDebugName)
 {
 	device = inRenderDevice;
 	pipelineKey = inPipelineKey;
+	CHECK(inDebugName != nullptr);
+	debugName = inDebugName;
 
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
@@ -95,9 +101,9 @@ void IndirectDrawHelper::initialize(RenderDevice* inRenderDevice, GraphicsPipeli
 			}
 		));
 
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"Buffer_IndirectDrawCounterBuffer_%u_%u", pipelineKey, i);
-		drawCounterBuffer[i]->setDebugName(debugName);
+		wchar_t bufferDebugName[256];
+		swprintf_s(bufferDebugName, L"Buffer_IndirectDrawCounterBuffer_%s_%u_%u", debugName.c_str(), pipelineKey, i);
+		drawCounterBuffer[i]->setDebugName(bufferDebugName);
 
 		UnorderedAccessViewDesc uavDesc{};
 		uavDesc.format                      = EPixelFormat::UNKNOWN;
@@ -134,10 +140,9 @@ void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCo
 			}
 		));
 
-		// #wip: Parameterize debug name
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"Buffer_IndirectDrawBuffer_%u_%u", pipelineKey, swapchainIndex);
-		argumentBuffer[swapchainIndex]->setDebugName(debugName);
+		wchar_t bufferDebugName[256];
+		swprintf_s(bufferDebugName, L"Buffer_IndirectDrawBuffer_%s_%u_%u", debugName.c_str(), pipelineKey, swapchainIndex);
+		argumentBuffer[swapchainIndex]->setDebugName(bufferDebugName);
 
 		ShaderResourceViewDesc srvDesc{};
 		srvDesc.format                     = EPixelFormat::UNKNOWN;
@@ -160,10 +165,9 @@ void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCo
 			}
 		));
 
-		// #wip: Parameterize debug name
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"Buffer_CulledIndirectDrawBuffer_%u_%u", pipelineKey, swapchainIndex);
-		culledArgumentBuffer[swapchainIndex]->setDebugName(debugName);
+		wchar_t bufferDebugName[256];
+		swprintf_s(bufferDebugName, L"Buffer_CulledIndirectDrawBuffer_%s_%u_%u", debugName.c_str(), pipelineKey, swapchainIndex);
+		culledArgumentBuffer[swapchainIndex]->setDebugName(bufferDebugName);
 
 		UnorderedAccessViewDesc uavDesc{};
 		uavDesc.format                      = EPixelFormat::UNKNOWN;

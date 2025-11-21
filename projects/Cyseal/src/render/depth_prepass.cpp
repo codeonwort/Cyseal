@@ -43,7 +43,7 @@ void DepthPrepass::initialize(RenderDevice* inRenderDevice)
 		auto pipelineState = createPipeline(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i]);
 
 		IndirectDrawHelper* indirectDrawHelper = new(EMemoryTag::Renderer) IndirectDrawHelper;
-		indirectDrawHelper->initialize(device, pipelineState, pipelineKey);
+		indirectDrawHelper->initialize(device, pipelineState, pipelineKey, L"DepthPrepass");
 
 		pipelinePermutation.insertPipeline(pipelineKey, GraphicsPipelineItem{ pipelineState, indirectDrawHelper });
 	}

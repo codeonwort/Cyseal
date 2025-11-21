@@ -46,7 +46,7 @@ void BasePass::initialize(RenderDevice* inRenderDevice, EPixelFormat inSceneColo
 		auto pipelineState = createPipeline(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i]);
 
 		IndirectDrawHelper* indirectDrawHelper = new(EMemoryTag::Renderer) IndirectDrawHelper;
-		indirectDrawHelper->initialize(device, pipelineState, pipelineKey);
+		indirectDrawHelper->initialize(device, pipelineState, pipelineKey, L"BasePass");
 
 		pipelinePermutation.insertPipeline(pipelineKey, GraphicsPipelineItem{ pipelineState, indirectDrawHelper });
 	}
