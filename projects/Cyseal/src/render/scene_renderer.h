@@ -62,6 +62,10 @@ private:
 
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.
+	UniquePtr<Texture>                     RT_visibilityBuffer;
+	UniquePtr<ShaderResourceView>          visibilityBufferSRV;
+	UniquePtr<RenderTargetView>            visibilityBufferRTV;
+
 	UniquePtr<Texture>                     RT_sceneColor;
 	UniquePtr<ShaderResourceView>          sceneColorSRV;
 	UniquePtr<RenderTargetView>            sceneColorRTV;

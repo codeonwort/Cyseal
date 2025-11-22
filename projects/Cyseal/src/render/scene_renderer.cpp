@@ -36,6 +36,7 @@
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
 
+static const EPixelFormat PF_visibilityBuffer = EPixelFormat::R32_UINT;
 static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
 static const EPixelFormat PF_velocityMap = EPixelFormat::R16G16_FLOAT;
 static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
@@ -150,6 +151,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 void SceneRenderer::destroy()
 {
+	RT_visibilityBuffer.reset();
 	RT_sceneColor.reset();
 	RT_sceneDepth.reset();
 	RT_prevSceneDepth.reset();
@@ -834,6 +836,36 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			cleanupList.push_back({ resource });
 		}
 	};
+
+	cleanup(RT_visibilityBuffer.release());
+	RT_visibilityBuffer = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_visibilityBuffer,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
+			sceneWidth, sceneHeight, 1, 1, 0)));
+	RT_visibilityBuffer->setDebugName(L"RT_VisibilityBuffer");
+	visibilityBufferSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_visibilityBuffer.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_visibilityBuffer->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_visibilityBuffer->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	visibilityBufferRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_visibilityBuffer.get(),
+		RenderTargetViewDesc{
+			.format            = RT_visibilityBuffer->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
+		}
+	));
 
 	cleanup(RT_sceneColor.release());
 	RT_sceneColor = UniquePtr<Texture>(device->createTexture(
