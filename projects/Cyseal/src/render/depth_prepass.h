@@ -35,12 +35,18 @@ public:
 	void renderDepthPrepass(RenderCommandList* commandList, uint32 swapchainIndex, const DepthPrepassInput& passInput);
 
 private:
-	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc);
+	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc, ShaderStage* vs, ShaderStage* ps);
 
 private:
 	RenderDevice*                    device = nullptr;
+
 	GraphicsPipelineStatePermutation pipelinePermutation;
 	ShaderStage*                     shaderVS = nullptr;
 	ShaderStage*                     shaderPS = nullptr;
+
+	GraphicsPipelineStatePermutation visPipelinePermutation;
+	ShaderStage*                     visShaderVS = nullptr;
+	ShaderStage*                     visShaderPS = nullptr;
+
 	VolatileDescriptorHelper         passDescriptor;
 };
