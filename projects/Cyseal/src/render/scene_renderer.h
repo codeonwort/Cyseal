@@ -62,64 +62,64 @@ private:
 
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.
-	UniquePtr<Texture> RT_sceneColor;
-	UniquePtr<ShaderResourceView> sceneColorSRV;
-	UniquePtr<RenderTargetView> sceneColorRTV;
+	UniquePtr<Texture>                     RT_sceneColor;
+	UniquePtr<ShaderResourceView>          sceneColorSRV;
+	UniquePtr<RenderTargetView>            sceneColorRTV;
 
-	TextureCreateParams sceneDepthDesc;
-	UniquePtr<Texture> RT_sceneDepth;
-	UniquePtr<DepthStencilView> sceneDepthDSV;
-	UniquePtr<ShaderResourceView> sceneDepthSRV;
+	TextureCreateParams                    sceneDepthDesc;
+	UniquePtr<Texture>                     RT_sceneDepth;
+	UniquePtr<DepthStencilView>            sceneDepthDSV;
+	UniquePtr<ShaderResourceView>          sceneDepthSRV;
 
-	UniquePtr<Texture> RT_prevSceneDepth;
-	UniquePtr<ShaderResourceView> prevSceneDepthSRV;
+	UniquePtr<Texture>                     RT_prevSceneDepth;
+	UniquePtr<ShaderResourceView>          prevSceneDepthSRV;
 
-	UniquePtr<Texture> RT_hiz;
-	UniquePtr<ShaderResourceView> hizSRV;
+	UniquePtr<Texture>                     RT_hiz;
+	UniquePtr<ShaderResourceView>          hizSRV;
 	BufferedUniquePtr<UnorderedAccessView> hizUAVs;
 
-	UniquePtr<Texture> RT_velocityMap;
-	UniquePtr<ShaderResourceView> velocityMapSRV;
-	UniquePtr<RenderTargetView> velocityMapRTV;
+	UniquePtr<Texture>                     RT_velocityMap;
+	UniquePtr<ShaderResourceView>          velocityMapSRV;
+	UniquePtr<RenderTargetView>            velocityMapRTV;
 
 	// Render gbuffers for hybrid raytracing.
-	UniquePtr<Texture> RT_gbuffers[NUM_GBUFFERS];
-	UniquePtr<RenderTargetView> gbufferRTVs[NUM_GBUFFERS];
-	UniquePtr<ShaderResourceView> gbufferSRVs[NUM_GBUFFERS];
-	UniquePtr<UnorderedAccessView> gbufferUAVs[NUM_GBUFFERS];
+	UniquePtr<Texture>                     RT_gbuffers[NUM_GBUFFERS];
+	UniquePtr<RenderTargetView>            gbufferRTVs[NUM_GBUFFERS];
+	UniquePtr<ShaderResourceView>          gbufferSRVs[NUM_GBUFFERS];
+	UniquePtr<UnorderedAccessView>         gbufferUAVs[NUM_GBUFFERS];
 
-	UniquePtr<Texture> RT_shadowMask;
-	UniquePtr<RenderTargetView> shadowMaskRTV;
-	UniquePtr<ShaderResourceView> shadowMaskSRV;
-	UniquePtr<UnorderedAccessView> shadowMaskUAV;
+	UniquePtr<Texture>                     RT_shadowMask;
+	UniquePtr<RenderTargetView>            shadowMaskRTV;
+	UniquePtr<ShaderResourceView>          shadowMaskSRV;
+	UniquePtr<UnorderedAccessView>         shadowMaskUAV;
 
-	UniquePtr<Texture> RT_indirectDiffuse;
-	UniquePtr<ShaderResourceView> indirectDiffuseSRV;
-	UniquePtr<RenderTargetView> indirectDiffuseRTV;
-	UniquePtr<UnorderedAccessView> indirectDiffuseUAV;
+	UniquePtr<Texture>                     RT_indirectDiffuse;
+	UniquePtr<ShaderResourceView>          indirectDiffuseSRV;
+	UniquePtr<RenderTargetView>            indirectDiffuseRTV;
+	UniquePtr<UnorderedAccessView>         indirectDiffuseUAV;
 
-	UniquePtr<Texture> RT_indirectSpecular;
-	UniquePtr<ShaderResourceView> indirectSpecularSRV;
-	UniquePtr<RenderTargetView> indirectSpecularRTV;
-	UniquePtr<UnorderedAccessView> indirectSpecularUAV;
-	UniquePtr<Buffer> indirectSpecularTileCoordBuffer;
-	UniquePtr<UnorderedAccessView> indirectSpecularTileCoordBufferUAV;
-	UniquePtr<Buffer> indirectSpecularTileCounterBuffer;
-	UniquePtr<UnorderedAccessView> indirectSpecularTileCounterBufferUAV;
+	UniquePtr<Texture>                     RT_indirectSpecular;
+	UniquePtr<ShaderResourceView>          indirectSpecularSRV;
+	UniquePtr<RenderTargetView>            indirectSpecularRTV;
+	UniquePtr<UnorderedAccessView>         indirectSpecularUAV;
+	UniquePtr<Buffer>                      indirectSpecularTileCoordBuffer;
+	UniquePtr<UnorderedAccessView>         indirectSpecularTileCoordBufferUAV;
+	UniquePtr<Buffer>                      indirectSpecularTileCounterBuffer;
+	UniquePtr<UnorderedAccessView>         indirectSpecularTileCounterBufferUAV;
 
-	UniquePtr<Texture> RT_pathTracing;
-	UniquePtr<ShaderResourceView> pathTracingSRV;
-	UniquePtr<UnorderedAccessView> pathTracingUAV;
+	UniquePtr<Texture>                     RT_pathTracing;
+	UniquePtr<ShaderResourceView>          pathTracingSRV;
+	UniquePtr<UnorderedAccessView>         pathTracingUAV;
 
 	// #todo-renderer: Temp dedicated memory and desc heap for scene uniforms
-	UniquePtr<Buffer> sceneUniformMemory;
-	UniquePtr<DescriptorHeap> sceneUniformDescriptorHeap;
-	BufferedUniquePtr<ConstantBufferView> sceneUniformCBVs;
+	UniquePtr<Buffer>                      sceneUniformMemory;
+	UniquePtr<DescriptorHeap>              sceneUniformDescriptorHeap;
+	BufferedUniquePtr<ConstantBufferView>  sceneUniformCBVs;
 
-	UniquePtr<AccelerationStructure> accelStructure;
+	UniquePtr<AccelerationStructure>       accelStructure;
 
-	UniquePtr<ShaderResourceView> grey2DSRV; // SRV for fallback texture
-	UniquePtr<ShaderResourceView> skyboxSRV;
+	UniquePtr<ShaderResourceView>          grey2DSRV; // SRV for fallback texture
+	UniquePtr<ShaderResourceView>          skyboxSRV;
 
 	// ------------------------------------------------------------------------
 	// Render passes
