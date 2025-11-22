@@ -201,6 +201,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	const uint32 sceneHeight = swapChain->getBackbufferHeight();
 
 	const bool bRenderDepthPrepass = renderOptions.bEnableDepthPrepass;
+	const bool bRenderVisibilityBuffer = renderOptions.bEnableVisibilityBuffer;
 
 	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
 	const bool bRenderPathTracing = bSupportsRaytracing && (renderOptions.pathTracing != EPathTracingMode::Disabled);
@@ -329,20 +330,36 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		TextureBarrierAuto barriers[] = {
 			{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				RT_visibilityBuffer.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+			{
 				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_WRITE, EBarrierLayout::DepthStencilWrite,
 				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
 			},
 		};
 		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
 
-		commandList->omSetRenderTargets(0, nullptr, sceneDepthDSV.get());
-		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
+		if (bRenderVisibilityBuffer)
+		{
+			float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f }; // #wip: RT format is R32_UINT but we can pass only floats.
+			RenderTargetView* RTVs[] = { visibilityBufferRTV.get() };
+			commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
+			commandList->clearRenderTargetView(RTVs[0], clearColor);
+			commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
+		}
+		else
+		{
+			commandList->omSetRenderTargets(0, nullptr, sceneDepthDSV.get());
+			commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
+		}
 
 		DepthPrepassInput passInput{
 			.scene              = scene,
 			.camera             = camera,
 			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
 			.bGPUCulling        = renderOptions.bEnableGPUCulling,
+			.bVisibilityBuffer  = bRenderVisibilityBuffer,
 			.sceneUniformBuffer = sceneUniformCBV,
 			.gpuScene           = gpuScene,
 			.gpuCulling         = gpuCulling,

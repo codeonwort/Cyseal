@@ -192,7 +192,17 @@ void TestApplication::onTick(float deltaSeconds)
 			{
 				ImGui::EndDisabled();
 			}
+
 			ImGui::Checkbox("Depth Prepass", &appState.rendererOptions.bEnableDepthPrepass);
+			if (!appState.rendererOptions.bEnableDepthPrepass)
+			{
+				ImGui::BeginDisabled();
+			}
+			ImGui::Checkbox("Depth Prepass - Visibility Buffer", &appState.rendererOptions.bEnableVisibilityBuffer);
+			if (!appState.rendererOptions.bEnableDepthPrepass)
+			{
+				ImGui::EndDisabled();
+			}
 
 			ImGui::SeparatorText("Debug Visualization");
 			if (ImGui::BeginTable("##Debug Visualization", 2))

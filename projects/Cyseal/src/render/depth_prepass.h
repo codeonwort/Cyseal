@@ -17,6 +17,7 @@ struct DepthPrepassInput
 	const Camera*          camera;
 	bool                   bIndirectDraw;
 	bool                   bGPUCulling;
+	bool                   bVisibilityBuffer;
 
 	ConstantBufferView*    sceneUniformBuffer;
 	GPUScene*              gpuScene;
