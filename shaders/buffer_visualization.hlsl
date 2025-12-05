@@ -12,6 +12,7 @@
 #define MODE_INDIRECT_DIFFUSE   8
 #define MODE_INDIRECT_SPECULAR  9
 #define MODE_VELOCITY_MAP       10
+#define MODE_VISIBILITY_BUFFER  11
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -19,6 +20,8 @@
 struct PushConstants
 {
     uint modeEnum;
+	uint width;
+	uint height;
 };
 
 [[vk::push_constant]]
@@ -31,6 +34,8 @@ Texture2D shadowMask                        : register(t3, space0);
 Texture2D indirectDiffuse                   : register(t4, space0);
 Texture2D indirectSpecular                  : register(t5, space0);
 Texture2D velocityMap                       : register(t6, space0);
+Texture2D<uint> visibilityBuffer            : register(t7, space0);
+
 SamplerState textureSampler                 : register(s0, space0);
 
 // ------------------------------------------------------------------------
@@ -113,10 +118,20 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
         float2 vel = velocityMap.SampleLevel(textureSampler, screenUV, 0.0).rg;
         color.rg = 50.0 * abs(vel);
     }
+	else if (modeEnum == MODE_VISIBILITY_BUFFER)
+	{
+		int2 coord = int2(screenUV * float2(pushConstants.width, pushConstants.height));
+		uint vis = visibilityBuffer.Load(int3(coord, 0)).r;
+		// My no brainer hash function
+		uint R = (((vis << 2) + 71) ^ 306) & 0xff;
+		uint G = (((vis << 3) * 31) + 141) & 0xff;
+		uint B = ((0xff - R) ^ (0xff - G)) & 0xff;
+		color.rgb = float3(R, G, B) / 255.0;
+	}
 
     // Gamma correction
     //float gamma = 1.0 / GAMMA_CORRECTION;
     //color.rgb = pow(color.rgb, float3(gamma, gamma, gamma));
 
-    return color;
+	return color;
 }

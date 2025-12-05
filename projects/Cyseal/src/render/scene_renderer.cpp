@@ -765,8 +765,46 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, BufferVisualization);
 
+		TextureBarrierAuto textureBarriers[] = {
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_gbuffers[0].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_gbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_sceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_shadowMask.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_indirectDiffuse.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_indirectSpecular.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_velocityMap.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_visibilityBuffer.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
 		BufferVisualizationInput sources{
 			.mode                = renderOptions.bufferVisualization,
+			.textureWidth        = sceneWidth,
+			.textureHeight       = sceneHeight,
 			.gbuffer0SRV         = gbufferSRVs[0].get(),
 			.gbuffer1SRV         = gbufferSRVs[1].get(),
 			.sceneColorSRV       = sceneColorSRV.get(),
@@ -774,6 +812,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.indirectDiffuseSRV  = bRenderIndirectDiffuse ? indirectDiffuseSRV.get() : grey2DSRV.get(),
 			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
 			.velocityMapSRV      = velocityMapSRV.get(),
+			.visibilityBufferSRV = visibilityBufferSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
