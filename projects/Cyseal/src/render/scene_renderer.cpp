@@ -342,7 +342,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		if (bRenderVisibilityBuffer)
 		{
-			float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f }; // #wip: RT format is R32_UINT but we can pass only floats.
+			float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f }; // RT format is R32_UINT but we can pass only floats. It's zero so no problem here.
 			RenderTargetView* RTVs[] = { visibilityBufferRTV.get() };
 			commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
 			commandList->clearRenderTargetView(RTVs[0], clearColor);
