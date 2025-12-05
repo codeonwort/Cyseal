@@ -135,7 +135,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
-		depthPrepass->initialize(renderDevice);
+		depthPrepass->initialize(renderDevice, PF_visibilityBuffer);
 		basePass->initialize(renderDevice, PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
 		hizPass->initialize();
 		skyPass->initialize(PF_sceneColor);

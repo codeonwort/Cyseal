@@ -12,6 +12,10 @@
 	#define DEPTH_PREPASS 0
 #endif
 
+#ifndef VISIBILITY_BUFFER
+	#define VISIBILITY_BUFFER 0
+#endif
+
 // ------------------------------------------------------------------------
 // Resource bindings (common)
 
@@ -90,9 +94,23 @@ Interpolants mainVS(VertexInput input)
 // ------------------------------------------------------------------------
 // Pixel shader
 
-#if DEPTH_PREPASS
+#if DEPTH_PREPASS && !VISIBILITY_BUFFER
 
 void mainPS(Interpolants interpolants) {}
+
+#elif DEPTH_PREPASS && VISIBILITY_BUFFER
+
+struct PixelOutput
+{
+    uint visibility : SV_TARGET0;
+};
+
+PixelOutput mainPS(Interpolants interpolants, uint primID : SV_PrimitiveId)
+{
+	PixelOutput output;
+	output.visibility = primID;
+	return output;
+}
 
 #else
 

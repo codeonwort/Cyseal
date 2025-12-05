@@ -30,12 +30,12 @@ class DepthPrepass final : public SceneRenderPass
 public:
 	~DepthPrepass();
 
-	void initialize(RenderDevice* inRenderDevice);
+	void initialize(RenderDevice* inRenderDevice, EPixelFormat inVisBufferFormat);
 
 	void renderDepthPrepass(RenderCommandList* commandList, uint32 swapchainIndex, const DepthPrepassInput& passInput);
 
 private:
-	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc, ShaderStage* vs, ShaderStage* ps);
+	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc, ShaderStage* vs, ShaderStage* ps, bool bUseVisibilityBuffer);
 
 private:
 	RenderDevice*                    device = nullptr;
@@ -47,6 +47,7 @@ private:
 	GraphicsPipelineStatePermutation visPipelinePermutation;
 	ShaderStage*                     visShaderVS = nullptr;
 	ShaderStage*                     visShaderPS = nullptr;
+	EPixelFormat                     visBufferFormat;
 
 	VolatileDescriptorHelper         passDescriptor;
 };
