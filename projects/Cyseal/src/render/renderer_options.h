@@ -19,6 +19,7 @@ enum class EBufferVisualizationMode : uint32
 	IndirectDiffuse  = 8,
 	IndirectSpecular = 9,
 	VelocityMap      = 10,
+	VisibilityBuffer = 11,
 
 	Count,
 };
@@ -89,6 +90,7 @@ inline const char** getBufferVisualizationModeNames()
 		"IndirectDiffuse",
 		"IndirectSpecular",
 		"VelocityMap",
+		"VisibilityBuffer",
 	};
 	static_assert(_countof(strings) == (int)EBufferVisualizationMode::Count);
 	return strings;
@@ -158,6 +160,7 @@ struct RendererOptions
 	bool bEnableIndirectDraw = true;
 	bool bEnableGPUCulling = true;
 	bool bEnableDepthPrepass = true;
+	bool bEnableVisibilityBuffer = true;
 
 	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
 

@@ -36,6 +36,7 @@
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
 
+static const EPixelFormat PF_visibilityBuffer = EPixelFormat::R32_UINT;
 static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
 static const EPixelFormat PF_velocityMap = EPixelFormat::R16G16_FLOAT;
 static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
@@ -134,7 +135,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
-		depthPrepass->initialize(renderDevice);
+		depthPrepass->initialize(renderDevice, PF_visibilityBuffer);
 		basePass->initialize(renderDevice, PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
 		hizPass->initialize();
 		skyPass->initialize(PF_sceneColor);
@@ -150,6 +151,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 void SceneRenderer::destroy()
 {
+	RT_visibilityBuffer.reset();
 	RT_sceneColor.reset();
 	RT_sceneDepth.reset();
 	RT_prevSceneDepth.reset();
@@ -199,6 +201,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	const uint32 sceneHeight = swapChain->getBackbufferHeight();
 
 	const bool bRenderDepthPrepass = renderOptions.bEnableDepthPrepass;
+	const bool bRenderVisibilityBuffer = renderOptions.bEnableVisibilityBuffer;
 
 	const bool bSupportsRaytracing = (device->getRaytracingTier() != ERaytracingTier::NotSupported);
 	const bool bRenderPathTracing = bSupportsRaytracing && (renderOptions.pathTracing != EPathTracingMode::Disabled);
@@ -327,20 +330,36 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		TextureBarrierAuto barriers[] = {
 			{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				RT_visibilityBuffer.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+			{
 				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_WRITE, EBarrierLayout::DepthStencilWrite,
 				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
 			},
 		};
 		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
 
-		commandList->omSetRenderTargets(0, nullptr, sceneDepthDSV.get());
-		commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
+		if (bRenderVisibilityBuffer)
+		{
+			float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f }; // RT format is R32_UINT but we can pass only floats. It's zero so no problem here.
+			RenderTargetView* RTVs[] = { visibilityBufferRTV.get() };
+			commandList->omSetRenderTargets(_countof(RTVs), RTVs, sceneDepthDSV.get());
+			commandList->clearRenderTargetView(RTVs[0], clearColor);
+			commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
+		}
+		else
+		{
+			commandList->omSetRenderTargets(0, nullptr, sceneDepthDSV.get());
+			commandList->clearDepthStencilView(sceneDepthDSV.get(), EDepthClearFlags::DEPTH_STENCIL, getDeviceFarDepth(), 0);
+		}
 
 		DepthPrepassInput passInput{
 			.scene              = scene,
 			.camera             = camera,
 			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
 			.bGPUCulling        = renderOptions.bEnableGPUCulling,
+			.bVisibilityBuffer  = bRenderVisibilityBuffer,
 			.sceneUniformBuffer = sceneUniformCBV,
 			.gpuScene           = gpuScene,
 			.gpuCulling         = gpuCulling,
@@ -746,8 +765,46 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, BufferVisualization);
 
+		TextureBarrierAuto textureBarriers[] = {
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_gbuffers[0].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_gbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_sceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_shadowMask.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_indirectDiffuse.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_indirectSpecular.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_velocityMap.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_visibilityBuffer.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
 		BufferVisualizationInput sources{
 			.mode                = renderOptions.bufferVisualization,
+			.textureWidth        = sceneWidth,
+			.textureHeight       = sceneHeight,
 			.gbuffer0SRV         = gbufferSRVs[0].get(),
 			.gbuffer1SRV         = gbufferSRVs[1].get(),
 			.sceneColorSRV       = sceneColorSRV.get(),
@@ -755,6 +812,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.indirectDiffuseSRV  = bRenderIndirectDiffuse ? indirectDiffuseSRV.get() : grey2DSRV.get(),
 			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
 			.velocityMapSRV      = velocityMapSRV.get(),
+			.visibilityBufferSRV = visibilityBufferSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
@@ -834,6 +892,36 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			cleanupList.push_back({ resource });
 		}
 	};
+
+	cleanup(RT_visibilityBuffer.release());
+	RT_visibilityBuffer = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_visibilityBuffer,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::SRV,
+			sceneWidth, sceneHeight, 1, 1, 0)));
+	RT_visibilityBuffer->setDebugName(L"RT_VisibilityBuffer");
+	visibilityBufferSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_visibilityBuffer.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_visibilityBuffer->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_visibilityBuffer->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	visibilityBufferRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_visibilityBuffer.get(),
+		RenderTargetViewDesc{
+			.format            = RT_visibilityBuffer->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
+		}
+	));
 
 	cleanup(RT_sceneColor.release());
 	RT_sceneColor = UniquePtr<Texture>(device->createTexture(

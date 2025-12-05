@@ -13,14 +13,17 @@ class ShaderResourceView;
 
 struct BufferVisualizationInput
 {
-	EBufferVisualizationMode mode           = EBufferVisualizationMode::None;
-	ShaderResourceView* gbuffer0SRV         = nullptr;
-	ShaderResourceView* gbuffer1SRV         = nullptr;
-	ShaderResourceView* sceneColorSRV       = nullptr;
-	ShaderResourceView* shadowMaskSRV       = nullptr;
-	ShaderResourceView* indirectDiffuseSRV  = nullptr;
-	ShaderResourceView* indirectSpecularSRV = nullptr;
-	ShaderResourceView* velocityMapSRV      = nullptr;
+	EBufferVisualizationMode mode                = EBufferVisualizationMode::None;
+	uint32                   textureWidth        = 0;
+	uint32                   textureHeight       = 0;
+	ShaderResourceView*      gbuffer0SRV         = nullptr;
+	ShaderResourceView*      gbuffer1SRV         = nullptr;
+	ShaderResourceView*      sceneColorSRV       = nullptr;
+	ShaderResourceView*      shadowMaskSRV       = nullptr;
+	ShaderResourceView*      indirectDiffuseSRV  = nullptr;
+	ShaderResourceView*      indirectSpecularSRV = nullptr;
+	ShaderResourceView*      velocityMapSRV      = nullptr;
+	ShaderResourceView*      visibilityBufferSRV = nullptr;
 };
 
 // Visualize intermediate rendering data during frame rendering.

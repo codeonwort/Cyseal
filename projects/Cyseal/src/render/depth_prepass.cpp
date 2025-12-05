@@ -18,59 +18,83 @@ DepthPrepass::~DepthPrepass()
 {
 	delete shaderVS;
 	delete shaderPS;
+	delete visShaderVS;
+	delete visShaderPS;
 }
 
-void DepthPrepass::initialize(RenderDevice* inRenderDevice)
+void DepthPrepass::initialize(RenderDevice* inRenderDevice, EPixelFormat inVisBufferFormat)
 {
 	device = inRenderDevice;
+	visBufferFormat = inVisBufferFormat;
 
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
 
 	passDescriptor.initialize(L"DepthPrepass", swapchainCount, 0);
 
-	// Shader stages
-	shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "DepthPrepassVS");
-	shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "DepthPrepassPS");
-	shaderVS->declarePushConstants({ { "pushConstants", 1} });
-	shaderPS->declarePushConstants({ { "pushConstants", 1} });
-	shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS", { L"DEPTH_PREPASS" });
-	shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS", { L"DEPTH_PREPASS" });
-
-	for (size_t i = 0; i < GraphicsPipelineKeyDesc::numPipelineKeyDescs(); ++i)
+	// Standard pipeline
 	{
-		auto pipelineKey = GraphicsPipelineKeyDesc::assemblePipelineKey(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i]);
-		auto pipelineState = createPipeline(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i]);
+		shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "DepthPrepassVS");
+		shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "DepthPrepassPS");
+		shaderVS->declarePushConstants({ { "pushConstants", 1} });
+		shaderPS->declarePushConstants({ { "pushConstants", 1} });
+		shaderVS->loadFromFile(L"base_pass.hlsl", "mainVS", { L"DEPTH_PREPASS" });
+		shaderPS->loadFromFile(L"base_pass.hlsl", "mainPS", { L"DEPTH_PREPASS" });
 
-		IndirectDrawHelper* indirectDrawHelper = new(EMemoryTag::Renderer) IndirectDrawHelper;
-		indirectDrawHelper->initialize(device, pipelineState, pipelineKey, L"DepthPrepass");
+		for (size_t i = 0; i < GraphicsPipelineKeyDesc::numPipelineKeyDescs(); ++i)
+		{
+			auto pipelineKey = GraphicsPipelineKeyDesc::assemblePipelineKey(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i]);
+			auto pipelineState = createPipeline(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i], shaderVS, shaderPS, false);
 
-		pipelinePermutation.insertPipeline(pipelineKey, GraphicsPipelineItem{ pipelineState, indirectDrawHelper });
+			IndirectDrawHelper* indirectDrawHelper = new(EMemoryTag::Renderer) IndirectDrawHelper;
+			indirectDrawHelper->initialize(device, pipelineState, pipelineKey, L"DepthPrepass");
+
+			pipelinePermutation.insertPipeline(pipelineKey, GraphicsPipelineItem{ pipelineState, indirectDrawHelper });
+		}
+	}
+	// Visibility buffer pipeline
+	{
+		visShaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "DepthPrepassWithVisVS");
+		visShaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "DepthPrepassWithVisPS");
+		visShaderVS->declarePushConstants({ { "pushConstants", 1} });
+		visShaderPS->declarePushConstants({ { "pushConstants", 1} });
+		visShaderVS->loadFromFile(L"base_pass.hlsl", "mainVS", { L"DEPTH_PREPASS", L"VISIBILITY_BUFFER" });
+		visShaderPS->loadFromFile(L"base_pass.hlsl", "mainPS", { L"DEPTH_PREPASS", L"VISIBILITY_BUFFER" });
+
+		for (size_t i = 0; i < GraphicsPipelineKeyDesc::numPipelineKeyDescs(); ++i)
+		{
+			auto pipelineKey = GraphicsPipelineKeyDesc::assemblePipelineKey(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i]);
+			auto pipelineState = createPipeline(GraphicsPipelineKeyDesc::kPipelineKeyDescs[i], visShaderVS, visShaderPS, true);
+
+			IndirectDrawHelper* indirectDrawHelper = new(EMemoryTag::Renderer) IndirectDrawHelper;
+			indirectDrawHelper->initialize(device, pipelineState, pipelineKey, L"DepthPrepassWithVis");
+
+			visPipelinePermutation.insertPipeline(pipelineKey, GraphicsPipelineItem{ pipelineState, indirectDrawHelper });
+		}
 	}
 }
 
 void DepthPrepass::renderDepthPrepass(RenderCommandList* commandList, uint32 swapchainIndex, const DepthPrepassInput& passInput)
 {
-	auto scene    = passInput.scene;
-	auto gpuScene = passInput.gpuScene;
-
-	if (gpuScene->getGPUSceneItemMaxCount() == 0)
+	if (passInput.gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
 		// #todo-zero-size: Release resources if any.
 		return;
 	}
 
-	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = passInput.gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 	// Bind shader parameters except for root constants.
 	// #note: Assumes all permutation share the same root signature.
 	{
 		auto key = GraphicsPipelineKeyDesc::assemblePipelineKey(GraphicsPipelineKeyDesc::kDefaultPipelineKeyDesc);
-		auto defaultPipeline = pipelinePermutation.findPipeline(key).pipelineState;
+		auto defaultPipeline = passInput.bVisibilityBuffer
+			? visPipelinePermutation.findPipeline(key).pipelineState
+			: pipelinePermutation.findPipeline(key).pipelineState;
 
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
-		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
+		SPT.structuredBuffer("gpuSceneBuffer", passInput.gpuScene->getGPUSceneBufferSRV());
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
 		passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
@@ -86,12 +110,12 @@ void DepthPrepass::renderDepthPrepass(RenderCommandList* commandList, uint32 swa
 		.bGpuCulling    = passInput.bGPUCulling,
 		.gpuScene       = passInput.gpuScene,
 		.gpuCulling     = passInput.gpuCulling,
-		.psoPermutation = &pipelinePermutation,
+		.psoPermutation = passInput.bVisibilityBuffer ? &visPipelinePermutation : &pipelinePermutation,
 	};
 	StaticMeshRendering::renderStaticMeshes(commandList, swapchainIndex, meshDrawInput);
 }
 
-GraphicsPipelineState* DepthPrepass::createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc)
+GraphicsPipelineState* DepthPrepass::createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc, ShaderStage* vs, ShaderStage* ps, bool bUseVisibilityBuffer)
 {
 	SwapChain* swapchain = device->getSwapChain();
 	const uint32 swapchainCount = swapchain->getBufferCount();
@@ -99,19 +123,23 @@ GraphicsPipelineState* DepthPrepass::createPipeline(const GraphicsPipelineKeyDes
 	RasterizerDesc rasterizerDesc = RasterizerDesc();
 	rasterizerDesc.cullMode = pipelineKeyDesc.cullMode;
 
+	DepthstencilDesc depthStencilDesc = getReverseZPolicy() == EReverseZPolicy::Reverse
+		? DepthstencilDesc::ReverseZSceneDepth()
+		: DepthstencilDesc::StandardSceneDepth();
+
 	VertexInputLayout inputLayout = StaticMeshRendering::createVertexInputLayout();
 
 	GraphicsPipelineDesc pipelineDesc{
-		.vs                     = shaderVS,
-		.ps                     = shaderPS,
+		.vs                     = vs,
+		.ps                     = ps,
 		.blendDesc              = BlendDesc(),
 		.sampleMask             = 0xffffffff,
 		.rasterizerDesc         = std::move(rasterizerDesc),
-		.depthstencilDesc       = getReverseZPolicy() == EReverseZPolicy::Reverse ? DepthstencilDesc::ReverseZSceneDepth() : DepthstencilDesc::StandardSceneDepth(),
+		.depthstencilDesc       = std::move(depthStencilDesc),
 		.inputLayout            = inputLayout,
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
-		.numRenderTargets       = 0,
-		.rtvFormats             = {},
+		.numRenderTargets       = bUseVisibilityBuffer ? 1u : 0u,
+		.rtvFormats             = { bUseVisibilityBuffer ? visBufferFormat : EPixelFormat::UNKNOWN },
 		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
 		.sampleDesc = SampleDesc{
 			.count              = swapchain->supports4xMSAA() ? 4u : 1u,

@@ -22,7 +22,7 @@ void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BufferVisualizationVS");
 	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BufferVisualizationPS");
 	shaderVS->declarePushConstants();
-	shaderPS->declarePushConstants({ { "pushConstants", 1} });
+	shaderPS->declarePushConstants({ { "pushConstants", 3} });
 	shaderVS->loadFromFile(L"buffer_visualization.hlsl", "mainVS");
 	shaderPS->loadFromFile(L"buffer_visualization.hlsl", "mainPS");
 
@@ -56,7 +56,7 @@ void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 void BufferVisualization::renderVisualization(RenderCommandList* commandList, uint32 swapchainIndex, const BufferVisualizationInput& passInput)
 {
 	ShaderParameterTable SPT{};
-	SPT.pushConstant("pushConstants", (uint32)passInput.mode);
+	SPT.pushConstants("pushConstants", { (uint32)passInput.mode, passInput.textureWidth, passInput.textureHeight });
 	SPT.texture("gbuffer0", passInput.gbuffer0SRV);
 	SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 	SPT.texture("sceneColor", passInput.sceneColorSRV);
@@ -64,6 +64,7 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 	SPT.texture("indirectDiffuse", passInput.indirectDiffuseSRV);
 	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
 	SPT.texture("velocityMap", passInput.velocityMapSRV);
+	SPT.texture("visibilityBuffer", passInput.visibilityBufferSRV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
 	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
