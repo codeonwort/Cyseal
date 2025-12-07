@@ -19,6 +19,7 @@
 #include "render/gpu_culling.h"
 #include "render/bilateral_blur.h"
 #include "render/depth_prepass.h"
+#include "render/decode_vis_buffer_pass.h"
 #include "render/base_pass.h"
 #include "render/hiz_pass.h"
 #include "render/sky_pass.h"
@@ -121,6 +122,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(bilateralBlur = new(EMemoryTag::Renderer) BilateralBlur);
 		sceneRenderPasses.push_back(rayTracedShadowsPass = new(EMemoryTag::Renderer) RayTracedShadowsPass);
 		sceneRenderPasses.push_back(depthPrepass = new(EMemoryTag::Renderer) DepthPrepass);
+		sceneRenderPasses.push_back(decodeVisBufferPass = new(EMemoryTag::Renderer) DecodeVisBufferPass);
 		sceneRenderPasses.push_back(basePass = new(EMemoryTag::Renderer) BasePass);
 		sceneRenderPasses.push_back(hizPass = new(EMemoryTag::Renderer) HiZPass);
 		sceneRenderPasses.push_back(skyPass = new(EMemoryTag::Renderer) SkyPass);
@@ -137,6 +139,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
 		depthPrepass->initialize(renderDevice, PF_visibilityBuffer);
+		decodeVisBufferPass->initialize(renderDevice);
 		basePass->initialize(renderDevice, PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
 		hizPass->initialize();
 		skyPass->initialize(PF_sceneColor);
@@ -366,6 +369,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gpuCulling         = gpuCulling,
 		};
 		depthPrepass->renderDepthPrepass(commandList, swapchainIndex, passInput);
+	}
+
+	if (bRenderVisibilityBuffer)
+	{
+		SCOPED_DRAW_EVENT(commandList, DecodeVisibilityBuffer);
+
+		// #wip: run decode vbuffer pass
 	}
 
 	// Ray Traced Shadows
