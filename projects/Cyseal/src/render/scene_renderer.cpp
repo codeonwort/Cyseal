@@ -37,6 +37,7 @@
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
 
 static const EPixelFormat PF_visibilityBuffer = EPixelFormat::R32_UINT;
+static const EPixelFormat PF_barycentric = EPixelFormat::R16G16_FLOAT;
 static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
 static const EPixelFormat PF_velocityMap = EPixelFormat::R16G16_FLOAT;
 static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
@@ -920,6 +921,33 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 				.mipSlice      = 0,
 				.planeSlice    = 0,
 			},
+		}
+	));
+
+	cleanup(RT_barycentricCoord.release());
+	RT_barycentricCoord = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_barycentric,
+			ETextureAccessFlags::UAV | ETextureAccessFlags::SRV,
+			sceneWidth, sceneHeight, 1, 1, 0)));
+	RT_barycentricCoord->setDebugName(L"RT_BarycentricCoord");
+	barycentricCoordSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_barycentricCoord.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_barycentricCoord->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_barycentricCoord->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	barycentricCoordUAV = UniquePtr<UnorderedAccessView>(device->createUAV(RT_barycentricCoord.get(),
+		UnorderedAccessViewDesc{
+			.format         = RT_barycentricCoord->getCreateParams().format,
+			.viewDimension  = EUAVDimension::Texture2D,
+			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
 

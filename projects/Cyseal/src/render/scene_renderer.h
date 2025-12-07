@@ -66,6 +66,10 @@ private:
 	UniquePtr<ShaderResourceView>          visibilityBufferSRV;
 	UniquePtr<RenderTargetView>            visibilityBufferRTV;
 
+	UniquePtr<Texture>                     RT_barycentricCoord;
+	UniquePtr<ShaderResourceView>          barycentricCoordSRV;
+	UniquePtr<UnorderedAccessView>         barycentricCoordUAV;
+
 	UniquePtr<Texture>                     RT_sceneColor;
 	UniquePtr<ShaderResourceView>          sceneColorSRV;
 	UniquePtr<RenderTargetView>            sceneColorRTV;
