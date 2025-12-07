@@ -103,13 +103,13 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
 			sceneUniformCBVs[i] = UniquePtr<ConstantBufferView>(
-				gRenderDevice->createCBV(
+				device->createCBV(
 					sceneUniformMemory.get(),
 					sceneUniformDescriptorHeap.get(),
 					sizeof(SceneUniform),
 					bufferOffset));
 
-			uint32 alignment = gRenderDevice->getConstantBufferDataAlignment();
+			uint32 alignment = device->getConstantBufferDataAlignment();
 			bufferOffset += Cymath::alignBytes(sizeof(SceneUniform), alignment);
 		}
 	}
@@ -884,7 +884,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 {
-	gRenderDevice->getDenoiserDevice()->recreateResources(sceneWidth, sceneHeight);
+	device->getDenoiserDevice()->recreateResources(sceneWidth, sceneHeight);
 
 	auto& cleanupList = this->deferredCleanupList;
 	auto cleanup = [&cleanupList](GPUResource* resource) {
@@ -1050,7 +1050,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	hizUAVs.initialize(hizDesc.mipLevels);
 	for (uint16 mipLevel = 0; mipLevel < hizDesc.mipLevels; ++mipLevel)
 	{
-		hizUAVs[mipLevel] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_hiz.get(),
+		hizUAVs[mipLevel] = UniquePtr<UnorderedAccessView>(device->createUAV(RT_hiz.get(),
 			UnorderedAccessViewDesc{
 				.format         = hizDesc.format,
 				.viewDimension  = EUAVDimension::Texture2D,
@@ -1120,7 +1120,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 				},
 			}
 		));
-		gbufferUAVs[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_gbuffers[i].get(),
+		gbufferUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(RT_gbuffers[i].get(),
 			UnorderedAccessViewDesc{
 				.format         = PF_gbuffers[i],
 				.viewDimension  = EUAVDimension::Texture2D,
@@ -1160,7 +1160,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			},
 		}
 	));
-	shadowMaskUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_shadowMask.get(),
+	shadowMaskUAV = UniquePtr<UnorderedAccessView>(device->createUAV(RT_shadowMask.get(),
 		UnorderedAccessViewDesc{
 			.format         = RT_shadowMask->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
@@ -1195,7 +1195,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			.texture2D      = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
-	indirectDiffuseUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_indirectDiffuse.get(),
+	indirectDiffuseUAV = UniquePtr<UnorderedAccessView>(device->createUAV(RT_indirectDiffuse.get(),
 		UnorderedAccessViewDesc{
 			.format         = RT_indirectDiffuse->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
@@ -1301,7 +1301,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			},
 		}
 	));
-	pathTracingUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_pathTracing.get(),
+	pathTracingUAV = UniquePtr<UnorderedAccessView>(device->createUAV(RT_pathTracing.get(),
 		UnorderedAccessViewDesc{
 			.format         = RT_pathTracing->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
@@ -1348,8 +1348,8 @@ void SceneRenderer::updateSceneUniform(
 	const SceneProxy* scene,
 	const Camera* camera)
 {
-	const float sceneWidth = (float)gRenderDevice->getSwapChain()->getBackbufferWidth();
-	const float sceneHeight = (float)gRenderDevice->getSwapChain()->getBackbufferHeight();
+	const float sceneWidth = (float)device->getSwapChain()->getBackbufferWidth();
+	const float sceneHeight = (float)device->getSwapChain()->getBackbufferHeight();
 
 	sceneUniformData.viewMatrix            = camera->getViewMatrix();
 	sceneUniformData.projMatrix            = camera->getProjMatrix();
@@ -1388,7 +1388,7 @@ void SceneRenderer::rebuildFrameResources(RenderCommandList* commandList, const 
 	{
 		commandList->enqueueDeferredDealloc(skyboxSRV.release());
 	}
-	skyboxSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(skyboxWithFallback,
+	skyboxSRV = UniquePtr<ShaderResourceView>(device->createSRV(skyboxWithFallback,
 		ShaderResourceViewDesc{
 			.format              = EPixelFormat::R8G8B8A8_UNORM,
 			.viewDimension       = ESRVDimension::TextureCube,
