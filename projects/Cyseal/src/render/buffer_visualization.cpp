@@ -65,6 +65,7 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
 	SPT.texture("velocityMap", passInput.velocityMapSRV);
 	SPT.texture("visibilityBuffer", passInput.visibilityBufferSRV);
+	SPT.texture("barycentricCoord", passInput.barycentricCoordSRV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
 	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);

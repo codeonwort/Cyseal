@@ -6,20 +6,24 @@ enum class ERendererType
 	Null,
 };
 
+// Also modify:
+// - getBufferVisualizationModeNames()
+// - buffer_visualization.hlsl
 enum class EBufferVisualizationMode : uint32
 {
-	None             = 0,
-	MaterialId       = 1,
-	Albedo           = 2,
-	Roughness        = 3,
-	MetalMask        = 4,
-	Normal           = 5,
-	DirectLighting   = 6,
-	RayTracedShadows = 7,
-	IndirectDiffuse  = 8,
-	IndirectSpecular = 9,
-	VelocityMap      = 10,
-	VisibilityBuffer = 11,
+	None                          = 0,
+	MaterialId                    = 1,
+	Albedo                        = 2,
+	Roughness                     = 3,
+	MetalMask                     = 4,
+	Normal                        = 5,
+	DirectLighting                = 6,
+	RayTracedShadows              = 7,
+	IndirectDiffuse               = 8,
+	IndirectSpecular              = 9,
+	VelocityMap                   = 10,
+	VisibilityBufferPrimitiveID   = 11,
+	VisibilityBufferBarycentricUV = 12,
 
 	Count,
 };
@@ -90,7 +94,8 @@ inline const char** getBufferVisualizationModeNames()
 		"IndirectDiffuse",
 		"IndirectSpecular",
 		"VelocityMap",
-		"VisibilityBuffer",
+		"VisibilityBufferPrimitiveId",
+		"VisibilityBufferBarycentricUV",
 	};
 	static_assert(_countof(strings) == (int)EBufferVisualizationMode::Count);
 	return strings;

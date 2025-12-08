@@ -24,6 +24,7 @@ struct BufferVisualizationInput
 	ShaderResourceView*      indirectSpecularSRV = nullptr;
 	ShaderResourceView*      velocityMapSRV      = nullptr;
 	ShaderResourceView*      visibilityBufferSRV = nullptr;
+	ShaderResourceView*      barycentricCoordSRV = nullptr;
 };
 
 // Visualize intermediate rendering data during frame rendering.
