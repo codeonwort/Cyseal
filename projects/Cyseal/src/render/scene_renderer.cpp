@@ -375,7 +375,18 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, DecodeVisibilityBuffer);
 
-		// #wip: run decode vbuffer pass
+		DecodeVisBufferPassInput passInput{
+			.textureWidth       = sceneWidth,
+			.textureHeight      = sceneHeight,
+			.sceneDepthTexture  = RT_sceneDepth.get(),
+			.sceneDepthSRV      = sceneDepthSRV.get(),
+			.visBufferTexture   = RT_visibilityBuffer.get(),
+			.visBufferSRV       = visibilityBufferSRV.get(),
+			.barycentricTexture = RT_barycentricCoord.get(),
+			.barycentricUAV     = barycentricCoordUAV.get(),
+		};
+
+		decodeVisBufferPass->decodeVisBuffer(commandList, swapchainIndex, passInput);
 	}
 
 	// Ray Traced Shadows

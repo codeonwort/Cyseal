@@ -10,6 +10,10 @@ struct DecodeVisBufferPassInput
 {
 	uint32                  textureWidth;
 	uint32                  textureHeight;
+	Texture*                sceneDepthTexture;
+	ShaderResourceView*     sceneDepthSRV;
+	Texture*                visBufferTexture;
+	ShaderResourceView*     visBufferSRV;
 	Texture*                barycentricTexture;
 	UnorderedAccessView*    barycentricUAV;
 };
@@ -23,4 +27,7 @@ public:
 
 private:
 	RenderDevice* device = nullptr;
+
+	UniquePtr<ComputePipelineState> decodePipeline;
+	VolatileDescriptorHelper        decodePassDescriptor;
 };
