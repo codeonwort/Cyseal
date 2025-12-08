@@ -1,6 +1,7 @@
 #include "decode_vis_buffer_pass.h"
 #include "rhi/render_device.h"
 #include "rhi/swap_chain.h"
+#include "rhi/vertex_buffer_pool.h"
 #include "rhi/barrier_tracker.h"
 
 void DecodeVisBufferPass::initialize(RenderDevice* inRenderDevice)
@@ -46,6 +47,9 @@ void DecodeVisBufferPass::decodeVisBuffer(
 
 	ShaderParameterTable SPT{};
 	SPT.pushConstant("pushConstants", packedSize);
+	SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
+	SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
+	SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
 	SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 	SPT.texture("visBufferTexture", passInput.visBufferSRV);
 	SPT.rwTexture("rwOutputTexture", passInput.barycentricUAV);

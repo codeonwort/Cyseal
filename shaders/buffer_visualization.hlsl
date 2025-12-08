@@ -123,10 +123,11 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	else if (modeEnum == MODE_VISIBILITY_BUFFER)
 	{
 		int2 coord = int2(screenUV * float2(pushConstants.width, pushConstants.height));
-		uint vis = visibilityBuffer.Load(int3(coord, 0)).r;
+		uint visPacked = visibilityBuffer.Load(int3(coord, 0)).r;
+		VisibilityBufferData vdata = decodeVisibilityBuffer(visPacked);
 		// My no brainer hash function
-		uint R = (((vis << 2) + 71) ^ 306) & 0xff;
-		uint G = (((vis << 3) * 31) + 141) & 0xff;
+		uint R = (((vdata.primitiveID << 2) + 71) ^ 306) & 0xff;
+		uint G = (((vdata.primitiveID << 3) * 31) + 141) & 0xff;
 		uint B = ((0xff - R) ^ (0xff - G)) & 0xff;
 		color.rgb = float3(R, G, B) / 255.0;
 	}

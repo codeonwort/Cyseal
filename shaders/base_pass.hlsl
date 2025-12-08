@@ -107,8 +107,13 @@ struct PixelOutput
 
 PixelOutput mainPS(Interpolants interpolants, uint primID : SV_PrimitiveId)
 {
+	VisibilityBufferData unpacked;
+	unpacked.objectID = getObjectId();
+	unpacked.primitiveID = primID;
+	uint packed = encodeVisibilityBuffer(unpacked);
+
 	PixelOutput output;
-	output.visibility = primID;
+	output.visibility = packed;
 	return output;
 }
 

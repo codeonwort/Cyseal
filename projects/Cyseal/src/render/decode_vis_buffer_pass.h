@@ -10,6 +10,7 @@ struct DecodeVisBufferPassInput
 {
 	uint32                  textureWidth;
 	uint32                  textureHeight;
+	ConstantBufferView*     sceneUniformBuffer;
 	Texture*                sceneDepthTexture;
 	ShaderResourceView*     sceneDepthSRV;
 	Texture*                visBufferTexture;
