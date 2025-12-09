@@ -378,6 +378,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		DecodeVisBufferPassInput passInput{
 			.textureWidth       = sceneWidth,
 			.textureHeight      = sceneHeight,
+			.gpuScene           = gpuScene,
 			.sceneUniformBuffer = sceneUniformCBV,
 			.sceneDepthTexture  = RT_sceneDepth.get(),
 			.sceneDepthSRV      = sceneDepthSRV.get(),

@@ -6,10 +6,13 @@
 #include "rhi/pipeline_state.h"
 #include "util/volatile_descriptor.h"
 
+class GPUScene;
+
 struct DecodeVisBufferPassInput
 {
 	uint32                  textureWidth;
 	uint32                  textureHeight;
+	GPUScene*               gpuScene;
 	ConstantBufferView*     sceneUniformBuffer;
 	Texture*                sceneDepthTexture;
 	ShaderResourceView*     sceneDepthSRV;

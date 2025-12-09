@@ -1,4 +1,5 @@
 #include "decode_vis_buffer_pass.h"
+#include "gpu_scene.h"
 #include "rhi/render_device.h"
 #include "rhi/swap_chain.h"
 #include "rhi/vertex_buffer_pool.h"
@@ -50,6 +51,7 @@ void DecodeVisBufferPass::decodeVisBuffer(
 	SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
 	SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 	SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
+	SPT.structuredBuffer("gpuSceneBuffer", passInput.gpuScene->getGPUSceneBufferSRV());
 	SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 	SPT.texture("visBufferTexture", passInput.visBufferSRV);
 	SPT.rwTexture("rwOutputTexture", passInput.barycentricUAV);
