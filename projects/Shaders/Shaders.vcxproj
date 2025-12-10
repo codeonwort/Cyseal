@@ -89,6 +89,7 @@
     <FxCompile Include="..\..\shaders\bsdf.hlsl" />
     <FxCompile Include="..\..\shaders\buffer_visualization.hlsl" />
     <FxCompile Include="..\..\shaders\common.hlsl" />
+    <FxCompile Include="..\..\shaders\decode_vis_buffer.hlsl" />
     <FxCompile Include="..\..\shaders\gpu_culling.hlsl" />
     <FxCompile Include="..\..\shaders\gpu_scene.hlsl" />
     <FxCompile Include="..\..\shaders\hiz.hlsl" />

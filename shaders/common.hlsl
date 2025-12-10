@@ -154,6 +154,29 @@ struct SceneUniform
 };
 
 // ---------------------------------------------------------
+// Visibility buffer
+
+struct VisibilityBufferData
+{
+	uint objectID;
+	uint primitiveID;
+};
+
+// Assumes that primitiveID < 65536.
+uint encodeVisibilityBuffer(VisibilityBufferData data)
+{
+	return (data.objectID << 16) | (data.primitiveID & 0xffff);
+}
+
+VisibilityBufferData decodeVisibilityBuffer(uint packed)
+{
+	VisibilityBufferData unpacked;
+	unpacked.objectID = packed >> 16;
+	unpacked.primitiveID = packed & 0xffff;
+	return unpacked;
+}
+
+// ---------------------------------------------------------
 // GBuffer
 
 #define GBUFFER0_DATATYPE uint4

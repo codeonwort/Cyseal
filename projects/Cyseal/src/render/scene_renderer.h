@@ -66,6 +66,10 @@ private:
 	UniquePtr<ShaderResourceView>          visibilityBufferSRV;
 	UniquePtr<RenderTargetView>            visibilityBufferRTV;
 
+	UniquePtr<Texture>                     RT_barycentricCoord;
+	UniquePtr<ShaderResourceView>          barycentricCoordSRV;
+	UniquePtr<UnorderedAccessView>         barycentricCoordUAV;
+
 	UniquePtr<Texture>                     RT_sceneColor;
 	UniquePtr<ShaderResourceView>          sceneColorSRV;
 	UniquePtr<RenderTargetView>            sceneColorRTV;
@@ -132,6 +136,7 @@ private:
 	class BilateralBlur*        bilateralBlur         = nullptr;
 	class RayTracedShadowsPass* rayTracedShadowsPass  = nullptr;
 	class DepthPrepass*         depthPrepass          = nullptr;
+	class DecodeVisBufferPass*  decodeVisBufferPass   = nullptr;
 	class BasePass*             basePass              = nullptr;
 	class HiZPass*              hizPass               = nullptr;
 	class SkyPass*              skyPass               = nullptr;

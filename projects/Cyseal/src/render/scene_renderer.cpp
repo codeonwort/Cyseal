@@ -19,6 +19,7 @@
 #include "render/gpu_culling.h"
 #include "render/bilateral_blur.h"
 #include "render/depth_prepass.h"
+#include "render/decode_vis_buffer_pass.h"
 #include "render/base_pass.h"
 #include "render/hiz_pass.h"
 #include "render/sky_pass.h"
@@ -37,6 +38,7 @@
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
 
 static const EPixelFormat PF_visibilityBuffer = EPixelFormat::R32_UINT;
+static const EPixelFormat PF_barycentric = EPixelFormat::R16G16_FLOAT;
 static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
 static const EPixelFormat PF_velocityMap = EPixelFormat::R16G16_FLOAT;
 static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
@@ -102,13 +104,13 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
 			sceneUniformCBVs[i] = UniquePtr<ConstantBufferView>(
-				gRenderDevice->createCBV(
+				device->createCBV(
 					sceneUniformMemory.get(),
 					sceneUniformDescriptorHeap.get(),
 					sizeof(SceneUniform),
 					bufferOffset));
 
-			uint32 alignment = gRenderDevice->getConstantBufferDataAlignment();
+			uint32 alignment = device->getConstantBufferDataAlignment();
 			bufferOffset += Cymath::alignBytes(sizeof(SceneUniform), alignment);
 		}
 	}
@@ -120,6 +122,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(bilateralBlur = new(EMemoryTag::Renderer) BilateralBlur);
 		sceneRenderPasses.push_back(rayTracedShadowsPass = new(EMemoryTag::Renderer) RayTracedShadowsPass);
 		sceneRenderPasses.push_back(depthPrepass = new(EMemoryTag::Renderer) DepthPrepass);
+		sceneRenderPasses.push_back(decodeVisBufferPass = new(EMemoryTag::Renderer) DecodeVisBufferPass);
 		sceneRenderPasses.push_back(basePass = new(EMemoryTag::Renderer) BasePass);
 		sceneRenderPasses.push_back(hizPass = new(EMemoryTag::Renderer) HiZPass);
 		sceneRenderPasses.push_back(skyPass = new(EMemoryTag::Renderer) SkyPass);
@@ -136,6 +139,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();
 		depthPrepass->initialize(renderDevice, PF_visibilityBuffer);
+		decodeVisBufferPass->initialize(renderDevice);
 		basePass->initialize(renderDevice, PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
 		hizPass->initialize();
 		skyPass->initialize(PF_sceneColor);
@@ -365,6 +369,26 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gpuCulling         = gpuCulling,
 		};
 		depthPrepass->renderDepthPrepass(commandList, swapchainIndex, passInput);
+	}
+
+	if (bRenderVisibilityBuffer)
+	{
+		SCOPED_DRAW_EVENT(commandList, DecodeVisibilityBuffer);
+
+		DecodeVisBufferPassInput passInput{
+			.textureWidth       = sceneWidth,
+			.textureHeight      = sceneHeight,
+			.gpuScene           = gpuScene,
+			.sceneUniformBuffer = sceneUniformCBV,
+			.sceneDepthTexture  = RT_sceneDepth.get(),
+			.sceneDepthSRV      = sceneDepthSRV.get(),
+			.visBufferTexture   = RT_visibilityBuffer.get(),
+			.visBufferSRV       = visibilityBufferSRV.get(),
+			.barycentricTexture = RT_barycentricCoord.get(),
+			.barycentricUAV     = barycentricCoordUAV.get(),
+		};
+
+		decodeVisBufferPass->decodeVisBuffer(commandList, swapchainIndex, passInput);
 	}
 
 	// Ray Traced Shadows
@@ -798,6 +822,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				RT_visibilityBuffer.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_barycentricCoord.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
@@ -813,6 +841,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
 			.velocityMapSRV      = velocityMapSRV.get(),
 			.visibilityBufferSRV = visibilityBufferSRV.get(),
+			.barycentricCoordSRV = barycentricCoordSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
@@ -883,7 +912,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 {
-	gRenderDevice->getDenoiserDevice()->recreateResources(sceneWidth, sceneHeight);
+	device->getDenoiserDevice()->recreateResources(sceneWidth, sceneHeight);
 
 	auto& cleanupList = this->deferredCleanupList;
 	auto cleanup = [&cleanupList](GPUResource* resource) {
@@ -920,6 +949,33 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 				.mipSlice      = 0,
 				.planeSlice    = 0,
 			},
+		}
+	));
+
+	cleanup(RT_barycentricCoord.release());
+	RT_barycentricCoord = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_barycentric,
+			ETextureAccessFlags::UAV | ETextureAccessFlags::SRV,
+			sceneWidth, sceneHeight, 1, 1, 0)));
+	RT_barycentricCoord->setDebugName(L"RT_BarycentricCoord");
+	barycentricCoordSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_barycentricCoord.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_barycentricCoord->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_barycentricCoord->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	barycentricCoordUAV = UniquePtr<UnorderedAccessView>(device->createUAV(RT_barycentricCoord.get(),
+		UnorderedAccessViewDesc{
+			.format         = RT_barycentricCoord->getCreateParams().format,
+			.viewDimension  = EUAVDimension::Texture2D,
+			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
 
@@ -1022,7 +1078,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	hizUAVs.initialize(hizDesc.mipLevels);
 	for (uint16 mipLevel = 0; mipLevel < hizDesc.mipLevels; ++mipLevel)
 	{
-		hizUAVs[mipLevel] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_hiz.get(),
+		hizUAVs[mipLevel] = UniquePtr<UnorderedAccessView>(device->createUAV(RT_hiz.get(),
 			UnorderedAccessViewDesc{
 				.format         = hizDesc.format,
 				.viewDimension  = EUAVDimension::Texture2D,
@@ -1092,7 +1148,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 				},
 			}
 		));
-		gbufferUAVs[i] = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_gbuffers[i].get(),
+		gbufferUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(RT_gbuffers[i].get(),
 			UnorderedAccessViewDesc{
 				.format         = PF_gbuffers[i],
 				.viewDimension  = EUAVDimension::Texture2D,
@@ -1132,7 +1188,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			},
 		}
 	));
-	shadowMaskUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_shadowMask.get(),
+	shadowMaskUAV = UniquePtr<UnorderedAccessView>(device->createUAV(RT_shadowMask.get(),
 		UnorderedAccessViewDesc{
 			.format         = RT_shadowMask->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
@@ -1167,7 +1223,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			.texture2D      = Texture2DRTVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
-	indirectDiffuseUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_indirectDiffuse.get(),
+	indirectDiffuseUAV = UniquePtr<UnorderedAccessView>(device->createUAV(RT_indirectDiffuse.get(),
 		UnorderedAccessViewDesc{
 			.format         = RT_indirectDiffuse->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
@@ -1273,7 +1329,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			},
 		}
 	));
-	pathTracingUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(RT_pathTracing.get(),
+	pathTracingUAV = UniquePtr<UnorderedAccessView>(device->createUAV(RT_pathTracing.get(),
 		UnorderedAccessViewDesc{
 			.format         = RT_pathTracing->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
@@ -1320,8 +1376,8 @@ void SceneRenderer::updateSceneUniform(
 	const SceneProxy* scene,
 	const Camera* camera)
 {
-	const float sceneWidth = (float)gRenderDevice->getSwapChain()->getBackbufferWidth();
-	const float sceneHeight = (float)gRenderDevice->getSwapChain()->getBackbufferHeight();
+	const float sceneWidth = (float)device->getSwapChain()->getBackbufferWidth();
+	const float sceneHeight = (float)device->getSwapChain()->getBackbufferHeight();
 
 	sceneUniformData.viewMatrix            = camera->getViewMatrix();
 	sceneUniformData.projMatrix            = camera->getProjMatrix();
@@ -1360,7 +1416,7 @@ void SceneRenderer::rebuildFrameResources(RenderCommandList* commandList, const 
 	{
 		commandList->enqueueDeferredDealloc(skyboxSRV.release());
 	}
-	skyboxSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(skyboxWithFallback,
+	skyboxSRV = UniquePtr<ShaderResourceView>(device->createSRV(skyboxWithFallback,
 		ShaderResourceViewDesc{
 			.format              = EPixelFormat::R8G8B8A8_UNORM,
 			.viewDimension       = ESRVDimension::TextureCube,

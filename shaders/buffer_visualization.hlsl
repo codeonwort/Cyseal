@@ -13,6 +13,7 @@
 #define MODE_INDIRECT_SPECULAR  9
 #define MODE_VELOCITY_MAP       10
 #define MODE_VISIBILITY_BUFFER  11
+#define MODE_BARYCENTRIC_COORD  12
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -35,6 +36,7 @@ Texture2D indirectDiffuse                   : register(t4, space0);
 Texture2D indirectSpecular                  : register(t5, space0);
 Texture2D velocityMap                       : register(t6, space0);
 Texture2D<uint> visibilityBuffer            : register(t7, space0);
+Texture2D barycentricCoord                  : register(t8, space0);
 
 SamplerState textureSampler                 : register(s0, space0);
 
@@ -121,12 +123,17 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	else if (modeEnum == MODE_VISIBILITY_BUFFER)
 	{
 		int2 coord = int2(screenUV * float2(pushConstants.width, pushConstants.height));
-		uint vis = visibilityBuffer.Load(int3(coord, 0)).r;
+		uint visPacked = visibilityBuffer.Load(int3(coord, 0)).r;
+		VisibilityBufferData vdata = decodeVisibilityBuffer(visPacked);
 		// My no brainer hash function
-		uint R = (((vis << 2) + 71) ^ 306) & 0xff;
-		uint G = (((vis << 3) * 31) + 141) & 0xff;
+		uint R = (((vdata.primitiveID << 2) + 71) ^ 306) & 0xff;
+		uint G = (((vdata.primitiveID << 3) * 31) + 141) & 0xff;
 		uint B = ((0xff - R) ^ (0xff - G)) & 0xff;
 		color.rgb = float3(R, G, B) / 255.0;
+	}
+	else if (modeEnum == MODE_BARYCENTRIC_COORD)
+	{
+		color.rgb = barycentricCoord.SampleLevel(textureSampler, screenUV, 0.0).rgb;
 	}
 
 	// Gamma correction
