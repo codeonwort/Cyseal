@@ -131,19 +131,6 @@ void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList
 	// -------------------------------------------------------------------
 	// Phase: Raytracing
 
-	// Resize volatile heaps if needed.
-	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // gIndexBuffer
-		requiredVolatiles += 1; // gVertexBuffer
-		requiredVolatiles += 1; // gpuSceneBuffer
-		requiredVolatiles += 1; // rtScene
-		requiredVolatiles += 1; // renderTarget
-
-		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	}
-
 	// Resize hit group shader table if needed.
 	{
 		// #todo-lod: Raytracing does not support LOD...
@@ -158,8 +145,6 @@ void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList
 
 	// Bind global shader parameters.
 	{
-		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
-
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
 		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
@@ -168,6 +153,10 @@ void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList
 		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 		SPT.rwTexture("renderTarget", passInput.shadowMaskUAV);
 
+		uint32 requiredVolatiles = SPT.totalDescriptors();
+		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+
+		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
 	}
 

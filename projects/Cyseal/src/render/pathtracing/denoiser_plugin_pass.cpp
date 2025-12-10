@@ -53,21 +53,6 @@ void DenoiserPluginPass::blitTextures(RenderCommandList* commandList, uint32 swa
 
 	resizeTextures(width, height);
 
-	// Resize volatile heaps if needed.
-	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // pushConstants
-		requiredVolatiles += 1; // inSceneColor
-		requiredVolatiles += 1; // inGBuffer0
-		requiredVolatiles += 1; // inGBuffer1
-		requiredVolatiles += 1; // outColor
-		requiredVolatiles += 1; // outAlbedo
-		requiredVolatiles += 1; // outNormal
-
-		blitPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	}
-	DescriptorHeap* descriptorHeap = blitPassDescriptor.getDescriptorHeap(swapchainIndex);
-
 	ShaderParameterTable SPT{};
 	SPT.pushConstant("pushConstants", packedWidthHeight);
 	SPT.texture("inSceneColor", passInput.sceneColorSRV);
@@ -77,10 +62,15 @@ void DenoiserPluginPass::blitTextures(RenderCommandList* commandList, uint32 swa
 	SPT.rwTexture("outAlbedo", albedoUAV.get());
 	SPT.rwTexture("outNormal", normalUAV.get());
 
-	const uint32 dispatchX = (width + 7) / 8, dispatchY = (height + 7) / 8;
+	uint32 requiredVolatiles = SPT.totalDescriptors();
+	blitPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 
 	commandList->setComputePipelineState(blitPipelineState.get());
+
+	DescriptorHeap* descriptorHeap = blitPassDescriptor.getDescriptorHeap(swapchainIndex);
 	commandList->bindComputeShaderParameters(blitPipelineState.get(), &SPT, descriptorHeap);
+
+	const uint32 dispatchX = (width + 7) / 8, dispatchY = (height + 7) / 8;
 	commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
 	colorTexture->prepareReadback(commandList);

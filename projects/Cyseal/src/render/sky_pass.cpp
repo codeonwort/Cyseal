@@ -97,18 +97,12 @@ void SkyPass::initialize(EPixelFormat sceneColorFormat)
 
 void SkyPass::renderSky(RenderCommandList* commandList, uint32 swapchainIndex, const SkyPassInput& passInput)
 {
-	// Resize volatile heaps if needed.
-	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // skybox
-
-		volatileDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	}
-
 	ShaderParameterTable SPT{};
 	SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
 	SPT.texture("skybox", passInput.skyboxSRV);
+
+	uint32 requiredVolatiles = SPT.totalDescriptors();
+	volatileDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 
 	auto descriptorHeap = volatileDescriptor.getDescriptorHeap(swapchainIndex);
 
