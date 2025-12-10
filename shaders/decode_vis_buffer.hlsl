@@ -41,6 +41,13 @@ struct PrimData
 {
 	float3 p0, p1, p2; // vertex positions
 	float3 n0, n1, n2; // vertex normals
+	float4x4 localToWorld;
+};
+
+struct RayHitResult
+{
+	bool bHit;
+	float2 barycentricUV;
 };
 
 PrimData fetchPrimitive(VisibilityBufferData visData)
@@ -76,7 +83,60 @@ PrimData fetchPrimitive(VisibilityBufferData visData)
 	primData.n0 = v0.normal;
 	primData.n1 = v1.normal;
 	primData.n2 = v2.normal;
+	primData.localToWorld = sceneItem.localToWorld;
 	return primData;
+}
+
+// v0, v1, v2: triangle vertex positions
+// n0, n1, n2: triangle vertex normals
+// o, d: ray origin and direction
+RayHitResult intersectRayTriangle(
+	float3 v0, float3 v1, float3 v2,
+	float3 n0, float3 n1, float3 n2,
+	float3 o, float3 d, float t_min = 0.0, float t_max = FLT_MAX)
+{
+	RayHitResult ret;
+	ret.bHit = false;
+	ret.barycentricUV = float2(0, 0);
+	
+	float3 n = normalize(cross(v1 - v0, v2 - v0));
+	float t = dot((v0 - o), n) / dot(d, n);
+	float3 p = o + t * d;
+
+	if (t < t_min || t > t_max)
+	{
+		return ret;
+	}
+
+	float3 u = v1 - v0;
+	float3 v = v2 - v0;
+	float3 w = p - v0;
+
+	float uv = dot(u, v);
+	float wv = dot(w, v);
+	float uu = dot(u, u);
+	float vv = dot(v, v);
+	float wu = dot(w, u);
+	float uvuv = uv * uv;
+	float uuvv = uu * vv;
+
+	float paramU = (uv * wv - vv * wu) / (uvuv - uuvv);
+	float paramV = (uv * wu - uu * wv) / (uvuv - uuvv);
+
+	if (0.0f <= paramU && 0.0f <= paramV && paramU + paramV <= 1.0f)
+	{
+		// #wip: interpolate vertex attributes
+		// s0, t0 : texcoord of vertex 0.
+		//ret.t = t;
+		//ret.p = p;
+		//ret.n = normalize((1 - paramU - paramV) * n0 + paramU * n1 + paramV * n2);
+		//ret.texcoord.x = (1 - paramU - paramV) * s0 + paramU * s1 + paramV * s2;
+		//ret.texcoord.y = (1 - paramU - paramV) * t0 + paramU * t1 + paramV * t2;
+		ret.bHit = true;
+		ret.barycentricUV = float2(paramU, paramV);
+	}
+	
+	return ret;
 }
 
 [numthreads(8, 8, 1)]
@@ -104,7 +164,24 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 	
 	PrimData primData = fetchPrimitive(visUnpacked);
 	
-	// #wip: Need to calculate barycentric UV
-	// shoot ray from camera to posWS, intersect with triangle, ...
-	rwOutputTexture[tid.xy] = float4(0.5 + 0.5 * primData.n0, 0);
+	float3 cameraPos = sceneUniform.cameraPosition.xyz;
+	float3 cameraDir = normalize(posWS - cameraPos);
+	
+	float3 p0 = mul(float4(primData.p0, 1.0), primData.localToWorld).xyz;
+	float3 p1 = mul(float4(primData.p1, 1.0), primData.localToWorld).xyz;
+	float3 p2 = mul(float4(primData.p2, 1.0), primData.localToWorld).xyz;
+	float3 n0 = mul(float4(primData.n0, 0.0), primData.localToWorld).xyz;
+	float3 n1 = mul(float4(primData.n1, 0.0), primData.localToWorld).xyz;
+	float3 n2 = mul(float4(primData.n2, 0.0), primData.localToWorld).xyz;
+	
+	RayHitResult hitResult = intersectRayTriangle(p0, p1, p2, n0, n1, n2, cameraPos, cameraDir);
+	if (hitResult.bHit)
+	{
+		rwOutputTexture[tid.xy] = float4(hitResult.barycentricUV, 0, 0);
+	}
+	else
+	{
+		// #wip: Actually should not happen
+		rwOutputTexture[tid.xy] = float4(1, 0, 0, 0);
+	}
 }
