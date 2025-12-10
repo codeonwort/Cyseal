@@ -67,11 +67,4 @@ void DecodeVisBufferPass::decodeVisBuffer(
 	uint32 dispatchX = (passInput.textureWidth + 7) / 8;
 	uint32 dispatchY = (passInput.textureHeight + 7) / 8;
 	commandList->dispatchCompute(dispatchX, dispatchY, 1);
-
-	// #wip: Global barrier if needed
-	//GlobalBarrier globalBarrier{
-	//	EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
-	//	EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS
-	//};
-	//commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 }

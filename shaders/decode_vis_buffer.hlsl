@@ -41,6 +41,7 @@ struct PrimData
 {
 	float3 p0, p1, p2; // vertex positions
 	float3 n0, n1, n2; // vertex normals
+	float2 uv0, uv1, uv2; // texcoords at vertices
 	float4x4 localToWorld;
 };
 
@@ -48,6 +49,9 @@ struct RayHitResult
 {
 	bool bHit;
 	float2 barycentricUV;
+	float3 posWS; // hit position
+	float3 normalWS;// interpolated normal at the hit position
+	float2 texcoord;// interpolated texcoord at the hit position
 };
 
 PrimData fetchPrimitive(VisibilityBufferData visData)
@@ -83,21 +87,25 @@ PrimData fetchPrimitive(VisibilityBufferData visData)
 	primData.n0 = v0.normal;
 	primData.n1 = v1.normal;
 	primData.n2 = v2.normal;
+	primData.uv0 = v0.texcoord;
+	primData.uv1 = v1.texcoord;
+	primData.uv2 = v2.texcoord;
 	primData.localToWorld = sceneItem.localToWorld;
 	return primData;
 }
 
 // v0, v1, v2: triangle vertex positions
-// n0, n1, n2: triangle vertex normals
+// n0, n1, n2: normals at vertices
+// uv0, uv1, uv2: texcoord at vertices
 // o, d: ray origin and direction
 RayHitResult intersectRayTriangle(
 	float3 v0, float3 v1, float3 v2,
 	float3 n0, float3 n1, float3 n2,
+	float2 uv0, float2 uv1, float2 uv2,
 	float3 o, float3 d, float t_min = 0.0, float t_max = FLT_MAX)
 {
 	RayHitResult ret;
 	ret.bHit = false;
-	ret.barycentricUV = float2(0, 0);
 	
 	float3 n = normalize(cross(v1 - v0, v2 - v0));
 	float t = dot((v0 - o), n) / dot(d, n);
@@ -123,17 +131,15 @@ RayHitResult intersectRayTriangle(
 	float paramU = (uv * wv - vv * wu) / (uvuv - uuvv);
 	float paramV = (uv * wu - uu * wv) / (uvuv - uuvv);
 
+	// #todo-visibility: Failing for furs on the carpet in pbrt4_bedroom...
 	if (0.0f <= paramU && 0.0f <= paramV && paramU + paramV <= 1.0f)
 	{
-		// #wip: interpolate vertex attributes
-		// s0, t0 : texcoord of vertex 0.
-		//ret.t = t;
-		//ret.p = p;
-		//ret.n = normalize((1 - paramU - paramV) * n0 + paramU * n1 + paramV * n2);
-		//ret.texcoord.x = (1 - paramU - paramV) * s0 + paramU * s1 + paramV * s2;
-		//ret.texcoord.y = (1 - paramU - paramV) * t0 + paramU * t1 + paramV * t2;
 		ret.bHit = true;
 		ret.barycentricUV = float2(paramU, paramV);
+		//ret.hitT = t;
+		ret.posWS = p;
+		ret.normalWS = normalize((1 - paramU - paramV) * n0 + paramU * n1 + paramV * n2);
+		ret.texcoord = (1 - paramU - paramV) * uv0 + paramU * uv1 + paramV * uv2;
 	}
 	
 	return ret;
@@ -174,14 +180,19 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 	float3 n1 = mul(float4(primData.n1, 0.0), primData.localToWorld).xyz;
 	float3 n2 = mul(float4(primData.n2, 0.0), primData.localToWorld).xyz;
 	
-	RayHitResult hitResult = intersectRayTriangle(p0, p1, p2, n0, n1, n2, cameraPos, cameraDir);
+	RayHitResult hitResult = intersectRayTriangle(
+		p0, p1, p2,
+		n0, n1, n2,
+		primData.uv0, primData.uv1, primData.uv2,
+		cameraPos, cameraDir);
+	
 	if (hitResult.bHit)
 	{
 		rwOutputTexture[tid.xy] = float4(hitResult.barycentricUV, 0, 0);
 	}
 	else
 	{
-		// #wip: Actually should not happen
-		rwOutputTexture[tid.xy] = float4(1, 0, 0, 0);
+		// #todo-visibility: Actually should not happen
+		rwOutputTexture[tid.xy] = float4(0.5, 0.5, 0, 0);
 	}
 }
