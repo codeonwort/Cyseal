@@ -16,8 +16,29 @@ void DecodeVisBufferPass::initialize(RenderDevice* inRenderDevice)
 	shader->declarePushConstants({ { "pushConstants", 1 } });
 	shader->loadFromFile(L"decode_vis_buffer.hlsl", "mainCS");
 
+	std::vector<StaticSamplerDesc> staticSamplers = {
+		StaticSamplerDesc{
+			.name             = "albedoSampler",
+			.filter           = ETextureFilter::MIN_MAG_MIP_LINEAR,
+			.addressU         = ETextureAddressMode::Wrap,
+			.addressV         = ETextureAddressMode::Wrap,
+			.addressW         = ETextureAddressMode::Wrap,
+			.mipLODBias       = 0.0f,
+			.maxAnisotropy    = 0,
+			.comparisonFunc   = EComparisonFunc::Always,
+			.borderColor      = EStaticBorderColor::TransparentBlack,
+			.minLOD           = 0.0f,
+			.maxLOD           = FLT_MAX,
+			.shaderVisibility = EShaderVisibility::All,
+		},
+	};
+
 	decodePipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
-		ComputePipelineDesc{ .cs = shader, .nodeMask = 0, }
+		ComputePipelineDesc{
+			.cs             = shader,
+			.nodeMask       = 0,
+			.staticSamplers = std::move(staticSamplers)
+		}
 	));
 
 	delete shader;
@@ -53,6 +74,7 @@ void DecodeVisBufferPass::decodeVisBuffer(
 	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 	const uint32 packedSize = Cymath::packUint16x2(passInput.textureWidth, passInput.textureHeight);
+	GPUScene::MaterialDescriptorsDesc materialDesc = passInput.gpuScene->queryMaterialDescriptors(swapchainIndex);
 
 	ShaderParameterTable SPT{};
 	SPT.pushConstant("pushConstants", packedSize);
@@ -60,8 +82,10 @@ void DecodeVisBufferPass::decodeVisBuffer(
 	SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 	SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
 	SPT.structuredBuffer("gpuSceneBuffer", passInput.gpuScene->getGPUSceneBufferSRV());
+	SPT.structuredBuffer("materialBuffer", materialDesc.constantsBufferSRV);
 	SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 	SPT.texture("visBufferTexture", passInput.visBufferSRV);
+	SPT.texture("albedoTextures", materialDesc.srvHeap, 0, materialDesc.srvCount);
 	SPT.rwTexture("rwBarycentricTexture", passInput.barycentricUAV);
 	SPT.rwTexture("rwVisGBuffer0Texture", passInput.visGBuffer0UAV);
 	SPT.rwTexture("rwVisGBuffer1Texture", passInput.visGBuffer1UAV);

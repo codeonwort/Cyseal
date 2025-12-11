@@ -1,5 +1,8 @@
 #include "common.hlsl"
 
+// #todo-visibility: Same hack as base_pass.hlsl
+#define TEMP_MAX_SRVS 1024
+
 // ------------------------------------------------------------------------
 // Resource bindings
 
@@ -15,12 +18,16 @@ ConstantBuffer<SceneUniform>   sceneUniform;
 ByteAddressBuffer              gIndexBuffer;
 ByteAddressBuffer              gVertexBuffer;
 StructuredBuffer<GPUSceneItem> gpuSceneBuffer;
+StructuredBuffer<Material>     materialBuffer;
 
 Texture2D                      sceneDepthTexture;
 Texture2D<uint>                visBufferTexture;
 RWTexture2D<float4>            rwBarycentricTexture;
 RWTexture2D<GBUFFER0_DATATYPE> rwVisGBuffer0Texture;
 RWTexture2D<GBUFFER1_DATATYPE> rwVisGBuffer1Texture;
+
+Texture2D albedoTextures[TEMP_MAX_SRVS] : register(t0, space1); // bindless in another space
+SamplerState albedoSampler;
 
 uint2 unpackTextureSize()
 {
@@ -188,14 +195,19 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 		primData.uv0, primData.uv1, primData.uv2,
 		cameraPos, cameraDir);
 	
-	// #wip: Construct gbuffer data
+	// Material properties
+	Material material = materialBuffer.Load(visUnpacked.objectID);
+	Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
+	float3 albedo = albedoTex.SampleLevel(albedoSampler, hitResult.texcoord, 0.0).rgb;
+	albedo *= material.albedoMultiplier.rgb;
+	
 	GBufferData gbufferData;
-	gbufferData.albedo            = float3(0, 0, 0);
-	gbufferData.roughness         = 1.0f;
-	gbufferData.normalWS          = float3(0, 1, 0);
-	gbufferData.metalMask         = 0.0;
-	gbufferData.materialID        = MATERIAL_ID_DEFAULT_LIT;
-	gbufferData.indexOfRefraction = 1.0f;
+	gbufferData.albedo            = albedo;
+	gbufferData.roughness         = material.roughness;
+	gbufferData.normalWS          = hitResult.normalWS;
+	gbufferData.metalMask         = material.metalMask;
+	gbufferData.materialID        = material.materialID;
+	gbufferData.indexOfRefraction = material.indexOfRefraction;
 	
 	GBUFFER0_DATATYPE gbuffer0;
 	GBUFFER1_DATATYPE gbuffer1;
