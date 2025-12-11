@@ -70,6 +70,12 @@ private:
 	UniquePtr<ShaderResourceView>          barycentricCoordSRV;
 	UniquePtr<UnorderedAccessView>         barycentricCoordUAV;
 
+	// gbuffers constructed from visibility buffer.
+	UniquePtr<Texture>                     RT_visGbuffers[NUM_GBUFFERS];
+	UniquePtr<RenderTargetView>            visGbufferRTVs[NUM_GBUFFERS];
+	UniquePtr<ShaderResourceView>          visGbufferSRVs[NUM_GBUFFERS];
+	UniquePtr<UnorderedAccessView>         visGbufferUAVs[NUM_GBUFFERS];
+
 	UniquePtr<Texture>                     RT_sceneColor;
 	UniquePtr<ShaderResourceView>          sceneColorSRV;
 	UniquePtr<RenderTargetView>            sceneColorRTV;

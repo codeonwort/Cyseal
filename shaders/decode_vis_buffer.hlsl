@@ -18,7 +18,9 @@ StructuredBuffer<GPUSceneItem> gpuSceneBuffer;
 
 Texture2D                      sceneDepthTexture;
 Texture2D<uint>                visBufferTexture;
-RWTexture2D<float4>            rwOutputTexture;
+RWTexture2D<float4>            rwBarycentricTexture;
+RWTexture2D<GBUFFER0_DATATYPE> rwVisGBuffer0Texture;
+RWTexture2D<GBUFFER1_DATATYPE> rwVisGBuffer1Texture;
 
 uint2 unpackTextureSize()
 {
@@ -158,7 +160,7 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 	
 	if (deviceZ == DEVICE_Z_FAR)
 	{
-		rwOutputTexture[tid.xy] = float4(0, 0, 0, 0);
+		rwBarycentricTexture[tid.xy] = float4(0, 0, 0, 0);
 		return;
 	}
 	
@@ -186,13 +188,30 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 		primData.uv0, primData.uv1, primData.uv2,
 		cameraPos, cameraDir);
 	
+	// #wip: Construct gbuffer data
+	GBufferData gbufferData;
+	gbufferData.albedo            = float3(0, 0, 0);
+	gbufferData.roughness         = 1.0f;
+	gbufferData.normalWS          = float3(0, 1, 0);
+	gbufferData.metalMask         = 0.0;
+	gbufferData.materialID        = MATERIAL_ID_DEFAULT_LIT;
+	gbufferData.indexOfRefraction = 1.0f;
+	
+	GBUFFER0_DATATYPE gbuffer0;
+	GBUFFER1_DATATYPE gbuffer1;
+	encodeGBuffers(gbufferData, gbuffer0, gbuffer1);
+	
 	if (hitResult.bHit)
 	{
-		rwOutputTexture[tid.xy] = float4(hitResult.barycentricUV, 0, 0);
+		rwBarycentricTexture[tid.xy] = float4(hitResult.barycentricUV, 0, 0);
+		rwVisGBuffer0Texture[tid.xy] = gbuffer0;
+		rwVisGBuffer1Texture[tid.xy] = gbuffer1;
 	}
 	else
 	{
 		// #todo-visibility: Actually should not happen
-		rwOutputTexture[tid.xy] = float4(0.5, 0.5, 0, 0);
+		rwBarycentricTexture[tid.xy] = float4(-1, -1, 0, 0);
+		rwVisGBuffer0Texture[tid.xy] = 0;
+		rwVisGBuffer1Texture[tid.xy] = 0;
 	}
 }

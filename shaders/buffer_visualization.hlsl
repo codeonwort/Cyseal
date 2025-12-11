@@ -133,7 +133,15 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	}
 	else if (modeEnum == MODE_BARYCENTRIC_COORD)
 	{
-		color.rgb = barycentricCoord.SampleLevel(textureSampler, screenUV, 0.0).rgb;
+		float2 bary = barycentricCoord.SampleLevel(textureSampler, screenUV, 0.0).rg;
+		if (bary.x < 0 || bary.y < 0)
+		{
+			color.rgb = float3(255, 194, 205) / 255.0;
+		}
+		else
+		{
+			color.rg = bary;
+		}
 	}
 
 	// Gamma correction

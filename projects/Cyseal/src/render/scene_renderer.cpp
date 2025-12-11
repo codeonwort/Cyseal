@@ -156,12 +156,14 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 void SceneRenderer::destroy()
 {
 	RT_visibilityBuffer.reset();
+	RT_barycentricCoord.reset();
+	for (uint32 i = 0; i < NUM_GBUFFERS; ++i) RT_visGbuffers[i].reset();
 	RT_sceneColor.reset();
 	RT_sceneDepth.reset();
 	RT_prevSceneDepth.reset();
 	RT_hiz.reset();
 	RT_velocityMap.reset();
-	for (uint32 i=0; i<NUM_GBUFFERS; ++i) RT_gbuffers[i].reset();
+	for (uint32 i = 0; i < NUM_GBUFFERS; ++i) RT_gbuffers[i].reset();
 	RT_shadowMask.reset();
 	RT_indirectDiffuse.reset();
 	RT_indirectSpecular.reset();
@@ -386,6 +388,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.visBufferSRV       = visibilityBufferSRV.get(),
 			.barycentricTexture = RT_barycentricCoord.get(),
 			.barycentricUAV     = barycentricCoordUAV.get(),
+			.visGBuffer0        = RT_visGbuffers[0].get(),
+			.visGBuffer1        = RT_visGbuffers[1].get(),
+			.visGBuffer0UAV     = visGbufferUAVs[0].get(),
+			.visGBuffer1UAV     = visGbufferUAVs[1].get(),
 		};
 
 		decodeVisBufferPass->decodeVisBuffer(commandList, swapchainIndex, passInput);
@@ -978,6 +984,51 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 		}
 	));
+
+	for (uint32 i = 0; i < NUM_GBUFFERS; ++i)
+	{
+		cleanup(RT_visGbuffers[i].release());
+		RT_visGbuffers[i] = UniquePtr<Texture>(device->createTexture(
+			TextureCreateParams::texture2D(
+				PF_gbuffers[i],
+				ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+				sceneWidth, sceneHeight, 1, 1, 0)));
+		std::wstring debugName = L"RT_VisGBuffer" + std::to_wstring(i);
+		RT_visGbuffers[i]->setDebugName(debugName.c_str());
+
+		visGbufferRTVs[i] = UniquePtr<RenderTargetView>(device->createRTV(RT_visGbuffers[i].get(),
+			RenderTargetViewDesc{
+				.format            = PF_gbuffers[i],
+				.viewDimension     = ERTVDimension::Texture2D,
+				.texture2D         = Texture2DRTVDesc{
+					.mipSlice      = 0,
+					.planeSlice    = 0,
+				},
+			}
+		));
+		visGbufferSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(RT_visGbuffers[i].get(),
+			ShaderResourceViewDesc{
+				.format              = PF_gbuffers[i],
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = RT_visGbuffers[i]->getCreateParams().mipLevels,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				},
+			}
+		));
+		visGbufferUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(RT_visGbuffers[i].get(),
+			UnorderedAccessViewDesc{
+				.format         = PF_gbuffers[i],
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{
+					.mipSlice   = 0,
+					.planeSlice = 0,
+				},
+			}
+		));
+	}
 
 	cleanup(RT_sceneColor.release());
 	RT_sceneColor = UniquePtr<Texture>(device->createTexture(

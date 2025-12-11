@@ -41,6 +41,14 @@ void DecodeVisBufferPass::decodeVisBuffer(
 			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
 			passInput.barycentricTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			passInput.visGBuffer0, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
+		{
+			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			passInput.visGBuffer1, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+		},
 	};
 	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
@@ -54,7 +62,9 @@ void DecodeVisBufferPass::decodeVisBuffer(
 	SPT.structuredBuffer("gpuSceneBuffer", passInput.gpuScene->getGPUSceneBufferSRV());
 	SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 	SPT.texture("visBufferTexture", passInput.visBufferSRV);
-	SPT.rwTexture("rwOutputTexture", passInput.barycentricUAV);
+	SPT.rwTexture("rwBarycentricTexture", passInput.barycentricUAV);
+	SPT.rwTexture("rwVisGBuffer0Texture", passInput.visGBuffer0UAV);
+	SPT.rwTexture("rwVisGBuffer1Texture", passInput.visGBuffer1UAV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
 	decodePassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
