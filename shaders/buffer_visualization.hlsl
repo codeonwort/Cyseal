@@ -14,6 +14,10 @@
 #define MODE_VELOCITY_MAP       10
 #define MODE_VISIBILITY_BUFFER  11
 #define MODE_BARYCENTRIC_COORD  12
+#define MODE_VIS_MATERIAL_ID    13
+#define MODE_VIS_ALBEDO         14
+#define MODE_VIS_ROUGHNESS      15
+#define MODE_VIS_METAL_MASK     16
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -37,6 +41,8 @@ Texture2D indirectSpecular                  : register(t5, space0);
 Texture2D velocityMap                       : register(t6, space0);
 Texture2D<uint> visibilityBuffer            : register(t7, space0);
 Texture2D barycentricCoord                  : register(t8, space0);
+Texture2D<GBUFFER0_DATATYPE> visGBuffer0    : register(t9, space0);
+Texture2D<GBUFFER1_DATATYPE> visGBuffer1    : register(t10, space0);
 
 SamplerState textureSampler                 : register(s0, space0);
 
@@ -63,6 +69,14 @@ Interpolants mainVS(uint vertexID: SV_VertexID)
 // ------------------------------------------------------------------------
 // Pixel shader
 
+float3 materialIdToRandomColor(uint id)
+{
+	float x = float((id * (id + 17) * (id + 15)) & 0xFF) / 255.0;
+	float y = float(((id + 4) * (id + 13) * (id + 11)) & 0xFF) / 255.0;
+	float z = float(((id * 5) * (id + 21) * (id + 19)) & 0xFF) / 255.0;
+	return float3(x, y, z);
+}
+
 float4 mainPS(Interpolants interpolants) : SV_TARGET
 {
 	float2 screenUV = interpolants.uv;
@@ -74,14 +88,18 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	GBUFFER0_DATATYPE encodedGBuffer0 = gbuffer0.Load(int3(interpolants.posH.xy, 0));
 	GBUFFER1_DATATYPE encodedGBuffer1 = gbuffer1.Load(int3(interpolants.posH.xy, 0));
 	GBufferData gbufferData = decodeGBuffers(encodedGBuffer0, encodedGBuffer1);
+	
+	float2 bary = barycentricCoord.Load(int3(interpolants.posH.xy, 0)).xy;
+	bool bInvalidBary = (bary.x < 0 || bary.y < 0);
+	const float3 PINK = float3(255, 194, 205) / 255.0;
+	
+	GBUFFER0_DATATYPE encodedVisGBuffer0 = visGBuffer0.Load(int3(interpolants.posH.xy, 0));
+	GBUFFER1_DATATYPE encodedVisGBuffer1 = visGBuffer1.Load(int3(interpolants.posH.xy, 0));
+	GBufferData visGBufferData = decodeGBuffers(encodedVisGBuffer0, encodedVisGBuffer1);
 
 	if (modeEnum == MODE_MATERIAL_ID)
 	{
-		uint id = gbufferData.materialID;
-		float x = float((id * (id + 17) * (id + 15)) & 0xFF) / 255.0;
-		float y = float(((id + 4) * (id + 13) * (id + 11)) & 0xFF) / 255.0;
-		float z = float(((id * 5) * (id + 21) * (id + 19)) & 0xFF) / 255.0;
-		color.rgb = float3(x, y, z);
+		color.rgb = materialIdToRandomColor(gbufferData.materialID);
 	}
 	else if (modeEnum == MODE_ALBEDO)
 	{
@@ -133,7 +151,23 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	}
 	else if (modeEnum == MODE_BARYCENTRIC_COORD)
 	{
-		color.rgb = barycentricCoord.SampleLevel(textureSampler, screenUV, 0.0).rgb;
+		color.rgb = bInvalidBary ? PINK : float3(bary, 0);
+	}
+	else if (modeEnum == MODE_VIS_MATERIAL_ID)
+	{
+		color.rgb = bInvalidBary ? PINK : materialIdToRandomColor(visGBufferData.materialID);
+	}
+	else if (modeEnum == MODE_VIS_ALBEDO)
+	{
+		color.rgb = bInvalidBary ? PINK : visGBufferData.albedo;
+	}
+	else if (modeEnum == MODE_VIS_ROUGHNESS)
+	{
+		color.rgb = bInvalidBary ? PINK : visGBufferData.roughness.rrr;
+	}
+	else if (modeEnum == MODE_VIS_METAL_MASK)
+	{
+		color.rgb = bInvalidBary ? PINK : visGBufferData.metalMask.rrr;
 	}
 
 	// Gamma correction

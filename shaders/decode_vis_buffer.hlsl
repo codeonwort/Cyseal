@@ -1,5 +1,8 @@
 #include "common.hlsl"
 
+// #todo-visibility: Same hack as base_pass.hlsl
+#define TEMP_MAX_SRVS 1024
+
 // ------------------------------------------------------------------------
 // Resource bindings
 
@@ -15,10 +18,16 @@ ConstantBuffer<SceneUniform>   sceneUniform;
 ByteAddressBuffer              gIndexBuffer;
 ByteAddressBuffer              gVertexBuffer;
 StructuredBuffer<GPUSceneItem> gpuSceneBuffer;
+StructuredBuffer<Material>     materialBuffer;
 
 Texture2D                      sceneDepthTexture;
 Texture2D<uint>                visBufferTexture;
-RWTexture2D<float4>            rwOutputTexture;
+RWTexture2D<float4>            rwBarycentricTexture;
+RWTexture2D<GBUFFER0_DATATYPE> rwVisGBuffer0Texture;
+RWTexture2D<GBUFFER1_DATATYPE> rwVisGBuffer1Texture;
+
+Texture2D albedoTextures[TEMP_MAX_SRVS] : register(t0, space1); // bindless in another space
+SamplerState albedoSampler;
 
 uint2 unpackTextureSize()
 {
@@ -110,11 +119,22 @@ RayHitResult intersectRayTriangle(
 	float3 n = normalize(cross(v1 - v0, v2 - v0));
 	float t = dot((v0 - o), n) / dot(d, n);
 	float3 p = o + t * d;
-
-	if (t < t_min || t > t_max)
+	
+	// Just in case
+	if (any(isnan(n)) || isnan(t))
 	{
+		ret.bHit = true;
+		ret.barycentricUV = float2(0, 0);
+		ret.posWS = v0;
+		ret.normalWS = n0;
+		ret.texcoord = uv0;
 		return ret;
 	}
+
+	//if (t < t_min || t > t_max)
+	//{
+	//	return ret;
+	//}
 
 	float3 u = v1 - v0;
 	float3 v = v2 - v0;
@@ -130,16 +150,22 @@ RayHitResult intersectRayTriangle(
 
 	float paramU = (uv * wv - vv * wu) / (uvuv - uuvv);
 	float paramV = (uv * wu - uu * wv) / (uvuv - uuvv);
+	
+	// #todo-visibility: I dunno but it happens... let's force barycentric UV range.
+	paramU = saturate(paramU);
+	paramV = min(saturate(paramV), 1.0 - paramU);
+	float paramW = 1 - paramU - paramV;
+	//if (isnan(paramU)) paramU = 0;
+	//if (isnan(paramV)) paramV = 0;
 
-	// #todo-visibility: Failing for furs on the carpet in pbrt4_bedroom...
-	if (0.0f <= paramU && 0.0f <= paramV && paramU + paramV <= 1.0f)
+	//if (0.0f <= paramU && 0.0f <= paramV && paramU + paramV <= 1.0f)
 	{
 		ret.bHit = true;
 		ret.barycentricUV = float2(paramU, paramV);
 		//ret.hitT = t;
 		ret.posWS = p;
-		ret.normalWS = normalize((1 - paramU - paramV) * n0 + paramU * n1 + paramV * n2);
-		ret.texcoord = (1 - paramU - paramV) * uv0 + paramU * uv1 + paramV * uv2;
+		ret.normalWS = normalize(paramW * n0 + paramU * n1 + paramV * n2);
+		ret.texcoord = paramW * uv0 + paramU * uv1 + paramV * uv2;
 	}
 	
 	return ret;
@@ -158,7 +184,21 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 	
 	if (deviceZ == DEVICE_Z_FAR)
 	{
-		rwOutputTexture[tid.xy] = float4(0, 0, 0, 0);
+		GBufferData gbufferData;
+		gbufferData.albedo            = 0;
+		gbufferData.roughness         = 0;
+		gbufferData.normalWS          = 0;
+		gbufferData.metalMask         = 0;
+		gbufferData.materialID        = MATERIAL_ID_NONE;
+		gbufferData.indexOfRefraction = 1.0f;
+		
+		GBUFFER0_DATATYPE gbuffer0;
+		GBUFFER1_DATATYPE gbuffer1;
+		encodeGBuffers(gbufferData, gbuffer0, gbuffer1);
+		
+		rwBarycentricTexture[tid.xy] = float4(0, 0, 0, 0);
+		rwVisGBuffer0Texture[tid.xy] = gbuffer0;
+		rwVisGBuffer1Texture[tid.xy] = gbuffer1;
 		return;
 	}
 	
@@ -186,13 +226,37 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 		primData.uv0, primData.uv1, primData.uv2,
 		cameraPos, cameraDir);
 	
+	// #todo-visibility: Redundant with base_pass.hlsl
+	// Material properties
+	Material material = materialBuffer.Load(visUnpacked.objectID);
+	Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
+	float3 albedo = albedoTex.SampleLevel(albedoSampler, hitResult.texcoord, 0.0).rgb;
+	albedo *= material.albedoMultiplier.rgb;
+	
+	GBufferData gbufferData;
+	gbufferData.albedo            = albedo;
+	gbufferData.roughness         = material.roughness;
+	gbufferData.normalWS          = hitResult.normalWS;
+	gbufferData.metalMask         = material.metalMask;
+	gbufferData.materialID        = material.materialID;
+	gbufferData.indexOfRefraction = material.indexOfRefraction;
+	
+	GBUFFER0_DATATYPE gbuffer0;
+	GBUFFER1_DATATYPE gbuffer1;
+	encodeGBuffers(gbufferData, gbuffer0, gbuffer1);
+	
+	// #todo-visibility: Currently always true as intersectRayTriangle() auto-correct UV ranges.
 	if (hitResult.bHit)
 	{
-		rwOutputTexture[tid.xy] = float4(hitResult.barycentricUV, 0, 0);
+		rwBarycentricTexture[tid.xy] = float4(hitResult.barycentricUV, 0, 0);
+		rwVisGBuffer0Texture[tid.xy] = gbuffer0;
+		rwVisGBuffer1Texture[tid.xy] = gbuffer1;
 	}
 	else
 	{
-		// #todo-visibility: Actually should not happen
-		rwOutputTexture[tid.xy] = float4(0.5, 0.5, 0, 0);
+		// This caes should not happen.
+		rwBarycentricTexture[tid.xy] = float4(-1, -1, 0, 0);
+		rwVisGBuffer0Texture[tid.xy] = 0;
+		rwVisGBuffer1Texture[tid.xy] = 0;
 	}
 }

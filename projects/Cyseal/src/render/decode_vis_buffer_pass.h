@@ -20,6 +20,10 @@ struct DecodeVisBufferPassInput
 	ShaderResourceView*     visBufferSRV;
 	Texture*                barycentricTexture;
 	UnorderedAccessView*    barycentricUAV;
+	Texture*                visGBuffer0;
+	Texture*                visGBuffer1;
+	UnorderedAccessView*    visGBuffer0UAV;
+	UnorderedAccessView*    visGBuffer1UAV;
 };
 
 class DecodeVisBufferPass final : public SceneRenderPass
