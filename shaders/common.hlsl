@@ -156,6 +156,9 @@ struct SceneUniform
 // ---------------------------------------------------------
 // Visibility buffer
 
+#define VISIBILITY_BUFFER_PRIMITIVE_ID_BITS 22
+#define VISIBILITY_BUFFER_PRIMITIVE_ID_MASK ((1 << VISIBILITY_BUFFER_PRIMITIVE_ID_BITS) - 1)
+
 struct VisibilityBufferData
 {
 	uint objectID;
@@ -166,14 +169,14 @@ struct VisibilityBufferData
 uint encodeVisibilityBuffer(VisibilityBufferData data)
 {
 	// #todo-visibility: primitiveID goes too large because I don't have meshlet yet :(
-	return (data.objectID << 22) | (data.primitiveID & ((1 << 22) - 1));
+	return (data.objectID << VISIBILITY_BUFFER_PRIMITIVE_ID_BITS) | (data.primitiveID & VISIBILITY_BUFFER_PRIMITIVE_ID_MASK);
 }
 
 VisibilityBufferData decodeVisibilityBuffer(uint packed)
 {
 	VisibilityBufferData unpacked;
-	unpacked.objectID = packed >> 22;
-	unpacked.primitiveID = packed & ((1 << 22) - 1);
+	unpacked.objectID = packed >> VISIBILITY_BUFFER_PRIMITIVE_ID_BITS;
+	unpacked.primitiveID = packed & VISIBILITY_BUFFER_PRIMITIVE_ID_MASK;
 	return unpacked;
 }
 
