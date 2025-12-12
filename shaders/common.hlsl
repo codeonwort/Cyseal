@@ -165,14 +165,15 @@ struct VisibilityBufferData
 // Assumes that primitiveID < 65536.
 uint encodeVisibilityBuffer(VisibilityBufferData data)
 {
-	return (data.objectID << 16) | (data.primitiveID & 0xffff);
+	// #todo-visibility: primitiveID goes too large because I don't have meshlet yet :(
+	return (data.objectID << 22) | (data.primitiveID & ((1 << 22) - 1));
 }
 
 VisibilityBufferData decodeVisibilityBuffer(uint packed)
 {
 	VisibilityBufferData unpacked;
-	unpacked.objectID = packed >> 16;
-	unpacked.primitiveID = packed & 0xffff;
+	unpacked.objectID = packed >> 22;
+	unpacked.primitiveID = packed & ((1 << 22) - 1);
 	return unpacked;
 }
 

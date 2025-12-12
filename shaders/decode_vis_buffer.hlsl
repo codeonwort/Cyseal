@@ -119,11 +119,22 @@ RayHitResult intersectRayTriangle(
 	float3 n = normalize(cross(v1 - v0, v2 - v0));
 	float t = dot((v0 - o), n) / dot(d, n);
 	float3 p = o + t * d;
-
-	if (t < t_min || t > t_max)
+	
+	// Just in case
+	if (any(isnan(n)) || isnan(t))
 	{
+		ret.bHit = true;
+		ret.barycentricUV = float2(0, 0);
+		ret.posWS = v0;
+		ret.normalWS = n0;
+		ret.texcoord = uv0;
 		return ret;
 	}
+
+	//if (t < t_min || t > t_max)
+	//{
+	//	return ret;
+	//}
 
 	float3 u = v1 - v0;
 	float3 v = v2 - v0;
