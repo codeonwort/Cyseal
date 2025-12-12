@@ -1001,21 +1001,11 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 		RT_visGbuffers[i] = UniquePtr<Texture>(device->createTexture(
 			TextureCreateParams::texture2D(
 				PF_gbuffers[i],
-				ETextureAccessFlags::RTV | ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+				ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 				sceneWidth, sceneHeight, 1, 1, 0)));
 		std::wstring debugName = L"RT_VisGBuffer" + std::to_wstring(i);
 		RT_visGbuffers[i]->setDebugName(debugName.c_str());
 
-		visGbufferRTVs[i] = UniquePtr<RenderTargetView>(device->createRTV(RT_visGbuffers[i].get(),
-			RenderTargetViewDesc{
-				.format            = PF_gbuffers[i],
-				.viewDimension     = ERTVDimension::Texture2D,
-				.texture2D         = Texture2DRTVDesc{
-					.mipSlice      = 0,
-					.planeSlice    = 0,
-				},
-			}
-		));
 		visGbufferSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(RT_visGbuffers[i].get(),
 			ShaderResourceViewDesc{
 				.format              = PF_gbuffers[i],

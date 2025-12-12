@@ -72,7 +72,6 @@ private:
 
 	// gbuffers constructed from visibility buffer.
 	UniquePtr<Texture>                     RT_visGbuffers[NUM_GBUFFERS];
-	UniquePtr<RenderTargetView>            visGbufferRTVs[NUM_GBUFFERS];
 	UniquePtr<ShaderResourceView>          visGbufferSRVs[NUM_GBUFFERS];
 	UniquePtr<UnorderedAccessView>         visGbufferUAVs[NUM_GBUFFERS];
 
