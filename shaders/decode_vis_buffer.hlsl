@@ -150,16 +150,22 @@ RayHitResult intersectRayTriangle(
 
 	float paramU = (uv * wv - vv * wu) / (uvuv - uuvv);
 	float paramV = (uv * wu - uu * wv) / (uvuv - uuvv);
+	
+	// #todo-visibility: I dunno but it happens... let's force barycentric UV range.
+	paramU = saturate(paramU);
+	paramV = min(saturate(paramV), 1.0 - paramU);
+	float paramW = 1 - paramU - paramV;
+	//if (isnan(paramU)) paramU = 0;
+	//if (isnan(paramV)) paramV = 0;
 
-	// #todo-visibility: Failing for furs on the carpet in pbrt4_bedroom...
-	if (0.0f <= paramU && 0.0f <= paramV && paramU + paramV <= 1.0f)
+	//if (0.0f <= paramU && 0.0f <= paramV && paramU + paramV <= 1.0f)
 	{
 		ret.bHit = true;
 		ret.barycentricUV = float2(paramU, paramV);
 		//ret.hitT = t;
 		ret.posWS = p;
-		ret.normalWS = normalize((1 - paramU - paramV) * n0 + paramU * n1 + paramV * n2);
-		ret.texcoord = (1 - paramU - paramV) * uv0 + paramU * uv1 + paramV * uv2;
+		ret.normalWS = normalize(paramW * n0 + paramU * n1 + paramV * n2);
+		ret.texcoord = paramW * uv0 + paramU * uv1 + paramV * uv2;
 	}
 	
 	return ret;
