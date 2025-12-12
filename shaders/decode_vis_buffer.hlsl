@@ -226,6 +226,7 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 		primData.uv0, primData.uv1, primData.uv2,
 		cameraPos, cameraDir);
 	
+	// #todo-visibility: Redundant with base_pass.hlsl
 	// Material properties
 	Material material = materialBuffer.Load(visUnpacked.objectID);
 	Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
@@ -244,6 +245,7 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 	GBUFFER1_DATATYPE gbuffer1;
 	encodeGBuffers(gbufferData, gbuffer0, gbuffer1);
 	
+	// #todo-visibility: Currently always true as intersectRayTriangle() auto-correct UV ranges.
 	if (hitResult.bHit)
 	{
 		rwBarycentricTexture[tid.xy] = float4(hitResult.barycentricUV, 0, 0);
@@ -252,7 +254,7 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 	}
 	else
 	{
-		// #todo-visibility: Actually should not happen
+		// This caes should not happen.
 		rwBarycentricTexture[tid.xy] = float4(-1, -1, 0, 0);
 		rwVisGBuffer0Texture[tid.xy] = 0;
 		rwVisGBuffer1Texture[tid.xy] = 0;
