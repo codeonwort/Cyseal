@@ -24,6 +24,10 @@ enum class EBufferVisualizationMode : uint32
 	VelocityMap                   = 10,
 	VisibilityBufferPrimitiveID   = 11,
 	VisibilityBufferBarycentricUV = 12,
+	VisibilityBufferMaterialId    = 13,
+	VisibilityBufferAlbedo        = 14,
+	VisibilityBufferRoughness     = 15,
+	VisibilityBufferMetalMask     = 16,
 
 	Count,
 };
@@ -96,6 +100,10 @@ inline const char** getBufferVisualizationModeNames()
 		"VelocityMap",
 		"VisibilityBufferPrimitiveId",
 		"VisibilityBufferBarycentricUV",
+		"VisibilityBufferMaterialId",
+		"VisibilityBufferAlbedo",
+		"VisibilityBufferRoughness",
+		"VisibilityBufferMetalMask",
 	};
 	static_assert(_countof(strings) == (int)EBufferVisualizationMode::Count);
 	return strings;

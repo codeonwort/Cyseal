@@ -832,6 +832,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				RT_barycentricCoord.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_visGbuffers[0].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_visGbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
@@ -848,6 +856,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.velocityMapSRV      = velocityMapSRV.get(),
 			.visibilityBufferSRV = visibilityBufferSRV.get(),
 			.barycentricCoordSRV = barycentricCoordSRV.get(),
+			.visGbuffer0SRV      = visGbufferSRVs[0].get(),
+			.visGbuffer1SRV      = visGbufferSRVs[1].get(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);

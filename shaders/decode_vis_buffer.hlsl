@@ -167,7 +167,21 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 	
 	if (deviceZ == DEVICE_Z_FAR)
 	{
+		GBufferData gbufferData;
+		gbufferData.albedo            = 0;
+		gbufferData.roughness         = 0;
+		gbufferData.normalWS          = 0;
+		gbufferData.metalMask         = 0;
+		gbufferData.materialID        = MATERIAL_ID_NONE;
+		gbufferData.indexOfRefraction = 1.0f;
+		
+		GBUFFER0_DATATYPE gbuffer0;
+		GBUFFER1_DATATYPE gbuffer1;
+		encodeGBuffers(gbufferData, gbuffer0, gbuffer1);
+		
 		rwBarycentricTexture[tid.xy] = float4(0, 0, 0, 0);
+		rwVisGBuffer0Texture[tid.xy] = gbuffer0;
+		rwVisGBuffer1Texture[tid.xy] = gbuffer1;
 		return;
 	}
 	
