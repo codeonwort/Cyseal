@@ -51,5 +51,5 @@ struct MesoGeometryAssets
 
 	static MesoGeometryAssets createFrom(const Geometry* G);
 
-	static void addStaticMeshSections(StaticMesh* mesh, const MesoGeometryAssets& assets, SharedPtr<MaterialAsset> material);
+	static void addStaticMeshSections(StaticMesh* mesh, uint32 lod, const MesoGeometryAssets& assets, SharedPtr<MaterialAsset> material);
 };

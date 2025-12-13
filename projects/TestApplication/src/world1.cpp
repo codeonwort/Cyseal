@@ -168,7 +168,7 @@ void World1::createTestMeshes()
 
 		ground = new StaticMesh;
 		ground->setPosition(vec3(0.0f, -10.0f, 0.0f));
-		MesoGeometryAssets::addStaticMeshSections(ground, geomAssets, material);
+		MesoGeometryAssets::addStaticMeshSections(ground, 0, geomAssets, material);
 
 		scene->addStaticMesh(ground);
 	}
@@ -197,7 +197,7 @@ void World1::createTestMeshes()
 		wallA = new StaticMesh;
 		wallA->setPosition(vec3(-25.0f, 0.0f, 0.0f));
 		wallA->setRotation(vec3(0.0f, 0.0f, 1.0f), -10.0f);
-		MesoGeometryAssets::addStaticMeshSections(wallA, geomAssets, material);
+		MesoGeometryAssets::addStaticMeshSections(wallA, 0, geomAssets, material);
 
 		scene->addStaticMesh(wallA);
 	}
@@ -219,7 +219,7 @@ void World1::createTestMeshes()
 
 		glassBox = new StaticMesh;
 		glassBox->setScale(10.0f);
-		MesoGeometryAssets::addStaticMeshSections(glassBox, geomAssets, material);
+		MesoGeometryAssets::addStaticMeshSections(glassBox, 0, geomAssets, material);
 
 		scene->addStaticMesh(glassBox);
 	}
@@ -341,7 +341,7 @@ void World1::createPbrtResources()
 		{
 			auto material = (subMaterials[i] != nullptr) ? subMaterials[i] : fallbackMaterial;
 			MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(pbrtGeometries[i]);
-			MesoGeometryAssets::addStaticMeshSections(pbrtMesh, geomAssets, material);
+			MesoGeometryAssets::addStaticMeshSections(pbrtMesh, 0, geomAssets, material);
 		}
 		pbrtMesh->setPosition(vec3(50.0f, -5.0f, 0.0f));
 		pbrtMesh->setScale(10.0f);

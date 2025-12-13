@@ -136,11 +136,11 @@ MesoGeometryAssets MesoGeometryAssets::createFrom(const Geometry* G)
 	return assets;
 }
 
-void MesoGeometryAssets::addStaticMeshSections(StaticMesh* mesh, const MesoGeometryAssets& assets, SharedPtr<MaterialAsset> material)
+void MesoGeometryAssets::addStaticMeshSections(StaticMesh* mesh, uint32 lod, const MesoGeometryAssets& assets, SharedPtr<MaterialAsset> material)
 {
 	for (size_t i = 0; i < assets.numMeso(); ++i)
 	{
-		mesh->addSection(0,
+		mesh->addSection(lod,
 			assets.positionBufferAsset,
 			assets.nonPositionBufferAsset,
 			assets.indexBufferAsset[i],
