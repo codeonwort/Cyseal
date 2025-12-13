@@ -7,6 +7,7 @@
 #include "render/static_mesh.h"
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
+#include "geometry/meso_geometry.h"
 
 void MeshSplatting::createResources(const CreateParams& createParams)
 {
@@ -41,36 +42,10 @@ void MeshSplatting::createResources(const CreateParams& createParams)
 			{
 				ProceduralGeometry::cube(*geom, 1.0f, 1.0f, 1.0f);
 			}
-			AABB localBounds = geom->localBounds;
-
-			auto positionBufferAsset = makeShared<VertexBufferAsset>();
-			auto nonPositionBufferAsset = makeShared<VertexBufferAsset>();
-			auto indexBufferAsset = makeShared<IndexBufferAsset>();
-
-			ENQUEUE_RENDER_COMMAND(UploadMeshBuffers)(
-				[positionBufferAsset,
-				nonPositionBufferAsset,
-				indexBufferAsset,
-				geom](RenderCommandList& commandList)
-				{
-					auto positionBuffer = gVertexBufferPool->suballocate(geom->getPositionBufferTotalBytes());
-					auto nonPositionBuffer = gVertexBufferPool->suballocate(geom->getNonPositionBufferTotalBytes());
-					auto indexBuffer = gIndexBufferPool->suballocate(geom->getIndexBufferTotalBytes(), geom->getIndexFormat());
-
-					positionBuffer->updateData(&commandList, geom->getPositionBlob(), geom->getPositionStride());
-					nonPositionBuffer->updateData(&commandList, geom->getNonPositionBlob(), geom->getNonPositionStride());
-					indexBuffer->updateData(&commandList, geom->getIndexBlob(), geom->getIndexFormat());
-
-					positionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
-					nonPositionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
-					indexBufferAsset->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
-
-					commandList.enqueueDeferredDealloc(geom);
-				}
-			);
 
 			auto material = baseMaterials[meshIx % baseMaterials.size()];
-			staticMesh->addSection(lod, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
+			MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(geom);
+			MesoGeometryAssets::addStaticMeshSections(staticMesh, lod, geomAssets, material);
 		}
 
 		float theta = (float)createParams.numLoop * (2.0f * Cymath::PI) * (meshIx / (float)createParams.numMeshes);

@@ -5,6 +5,7 @@
 #include "render/static_mesh.h"
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
+#include "geometry/meso_geometry.h"
 
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
@@ -19,31 +20,6 @@
 #define BALL_COLS            6
 #define BALL_NUM_LOD         3
 
-static void uploadMeshGeometry(Geometry* G,
-	SharedPtr<VertexBufferAsset> positionBufferAsset,
-	SharedPtr<VertexBufferAsset> nonPositionBufferAsset,
-	SharedPtr<IndexBufferAsset> indexBufferAsset)
-{
-	ENQUEUE_RENDER_COMMAND(UploadMeshGeometry)(
-		[G, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset](RenderCommandList& commandList)
-		{
-			auto positionBuffer = gVertexBufferPool->suballocate(G->getPositionBufferTotalBytes());
-			auto nonPositionBuffer = gVertexBufferPool->suballocate(G->getNonPositionBufferTotalBytes());
-			auto indexBuffer = gIndexBufferPool->suballocate(G->getIndexBufferTotalBytes(), G->getIndexFormat());
-
-			positionBuffer->updateData(&commandList, G->getPositionBlob(), G->getPositionStride());
-			nonPositionBuffer->updateData(&commandList, G->getNonPositionBlob(), G->getNonPositionStride());
-			indexBuffer->updateData(&commandList, G->getIndexBlob(), G->getIndexFormat());
-
-			positionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
-			nonPositionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
-			indexBufferAsset->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
-
-			commandList.enqueueDeferredDealloc(G);
-		}
-	);
-}
-
 void World2::onInitialize()
 {
 	camera->lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
@@ -53,12 +29,8 @@ void World2::onInitialize()
 		Geometry* planeGeometry = new Geometry;
 		ProceduralGeometry::plane(*planeGeometry,
 			100.0f, 100.0f, 2, 2, ProceduralGeometry::EPlaneNormal::Y);
-		AABB localBounds = planeGeometry->localBounds;
 
-		SharedPtr<VertexBufferAsset> positionBufferAsset = makeShared<VertexBufferAsset>();
-		SharedPtr<VertexBufferAsset> nonPositionBufferAsset = makeShared<VertexBufferAsset>();
-		SharedPtr<IndexBufferAsset> indexBufferAsset = makeShared<IndexBufferAsset>();
-		uploadMeshGeometry(planeGeometry, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset);
+		MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(planeGeometry);
 
 		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
@@ -66,8 +38,8 @@ void World2::onInitialize()
 		material->roughness = 1.0f;
 
 		ground = new StaticMesh;
-		ground->addSection(0, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset, material, localBounds);
 		ground->setPosition(vec3(0.0f, -10.0f, 0.0f));
+		MesoGeometryAssets::addStaticMeshSections(ground, 0, geomAssets, material);
 
 		scene->addStaticMesh(ground);
 	}
@@ -110,16 +82,11 @@ void World2::onInitialize()
 				{
 					Geometry* G = new Geometry;
 					ProceduralGeometry::icosphere(*G, 2 - lod);
-					AABB localBounds = G->localBounds;
 
-					auto posBuffer = makeShared<VertexBufferAsset>();
-					auto nonPosBuffer = makeShared<VertexBufferAsset>();
-					auto iBuffer = makeShared<IndexBufferAsset>();
-					uploadMeshGeometry(G, posBuffer, nonPosBuffer, iBuffer);
-
+					MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(G);
 					auto material = baseMaterials[(row ^ col) % baseMaterials.size()];
 
-					ball->addSection(lod, posBuffer, nonPosBuffer, iBuffer, material, localBounds);
+					MesoGeometryAssets::addStaticMeshSections(ball, lod, geomAssets, material);
 				}
 			}
 		}

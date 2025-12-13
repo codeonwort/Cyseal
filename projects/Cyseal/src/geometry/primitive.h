@@ -8,6 +8,9 @@
 
 struct Geometry
 {
+	friend struct MesoGeometry;
+
+public:
 	std::vector<vec3> positions;
 	std::vector<vec3> normals;
 	std::vector<vec2> texcoords;
@@ -15,6 +18,12 @@ struct Geometry
 
 	AABB localBounds;
 
+public:
+	// Don't wanna include std::vector in aabb.h...
+	// This header is already polluted so let's put it here :p
+	static AABB calculateAABB(const std::vector<vec3>& positions);
+
+public:
 	void resizeNumVertices(size_t num); // CAUTION: Don't use push_back()
 	void resizeNumIndices(size_t num);  // CAUTION: Don't use push_back()
 
@@ -25,6 +34,7 @@ struct Geometry
 
 	void calculateLocalBounds();
 
+	// Geometry should be finalized before uploading to GPU.
 	void finalize();
 
 	inline uint32 getPositionStride() const
