@@ -298,9 +298,6 @@ void World1::createPbrtResources()
 		const size_t numPbrtMeshes = pbrtScene->plyMeshes.size();
 		const size_t totalSubMeshes = numTriangleMeshes + numPbrtMeshes;
 		std::vector<Geometry*> pbrtGeometries(totalSubMeshes, nullptr);
-		std::vector<SharedPtr<VertexBufferAsset>> positionBufferAssets(totalSubMeshes, nullptr);
-		std::vector<SharedPtr<VertexBufferAsset>> nonPositionBufferAssets(totalSubMeshes, nullptr);
-		std::vector<SharedPtr<IndexBufferAsset>> indexBufferAssets(totalSubMeshes, nullptr);
 		std::vector<SharedPtr<MaterialAsset>> subMaterials(totalSubMeshes, nullptr);
 		for (size_t i = 0; i < totalSubMeshes; ++i)
 		{
@@ -332,10 +329,6 @@ void World1::createPbrtResources()
 
 				subMaterials[i] = plyMesh->material;
 			}
-
-			positionBufferAssets[i] = makeShared<VertexBufferAsset>();
-			nonPositionBufferAssets[i] = makeShared<VertexBufferAsset>();
-			indexBufferAssets[i] = makeShared<IndexBufferAsset>();
 		}
 
 		auto fallbackMaterial = makeShared<MaterialAsset>();
