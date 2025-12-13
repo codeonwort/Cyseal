@@ -7,6 +7,7 @@
 #include "render/material.h"
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
+#include "geometry/meso_geometry.h"
 #include "world/gpu_resource_asset.h"
 #include "loader/image_loader.h"
 #include "loader/pbrt_loader.h"
@@ -30,109 +31,6 @@
 #define PBRT_FILEPATH        PBRT_FILEPATH_01
 
 #define CRUMPLED_MESHES      0
-
-struct MesoGeometryAssets
-{
-	SharedPtr<VertexBufferAsset> positionBufferAsset;
-	SharedPtr<VertexBufferAsset> nonPositionBufferAsset;
-
-	std::vector<SharedPtr<IndexBufferAsset>> indexBufferAsset;
-	std::vector<AABB> localBounds;
-};
-
-// #wip: Apply this to all geometry uploads... how?
-static MesoGeometryAssets uploadMeshGeometry(Geometry* G)
-{
-	MesoGeometryAssets assets;
-
-	if (Geometry::needsToPartition(*G, 0xffff))
-	{
-		std::vector<MesoGeometry>* mesoList = Geometry::partitionByTriangleCount(*G, 0xffff);
-		const size_t numMeso = mesoList->size();
-
-		assets.positionBufferAsset = makeShared<VertexBufferAsset>();
-		assets.nonPositionBufferAsset = makeShared<VertexBufferAsset>();
-		assets.indexBufferAsset.resize(numMeso);
-		assets.localBounds.resize(numMeso);
-		for (size_t i = 0; i < numMeso; ++i)
-		{
-			assets.indexBufferAsset[i] = makeShared<IndexBufferAsset>();
-			assets.localBounds[i] = (*mesoList)[i].localBounds;
-		}
-
-		ENQUEUE_RENDER_COMMAND(UploadMeshGeometry)(
-			[G, mesoList, posAsset = assets.positionBufferAsset,
-			nonposAsset = assets.nonPositionBufferAsset, idxAsset = &(assets.indexBufferAsset)]
-			(RenderCommandList& commandList)
-			{
-				auto positionBuffer = gVertexBufferPool->suballocate(G->getPositionBufferTotalBytes());
-				positionBuffer->updateData(&commandList, G->getPositionBlob(), G->getPositionStride());
-				posAsset->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
-
-				auto nonPositionBuffer = gVertexBufferPool->suballocate(G->getNonPositionBufferTotalBytes());
-				nonPositionBuffer->updateData(&commandList, G->getNonPositionBlob(), G->getNonPositionStride());
-				nonposAsset->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
-
-				for (size_t i = 0; i < mesoList->size(); ++i)
-				{
-					const MesoGeometry& meso = mesoList->at(i);
-					auto indexBuffer = gIndexBufferPool->suballocate(meso.getIndexBufferTotalBytes(), G->getIndexFormat());
-					indexBuffer->updateData(&commandList, meso.getIndexBlob(), G->getIndexFormat());
-					idxAsset->at(i)->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
-				}
-
-				commandList.enqueueDeferredDealloc(G);
-				commandList.enqueueDeferredDealloc(mesoList);
-			}
-		);
-	}
-	else
-	{
-		SharedPtr<VertexBufferAsset> positionBufferAsset = makeShared<VertexBufferAsset>();
-		SharedPtr<VertexBufferAsset> nonPositionBufferAsset = makeShared<VertexBufferAsset>();
-		SharedPtr<IndexBufferAsset> indexBufferAsset = makeShared<IndexBufferAsset>();
-		AABB localBounds = G->localBounds;
-
-		ENQUEUE_RENDER_COMMAND(UploadMeshGeometry)(
-			[G, positionBufferAsset, nonPositionBufferAsset, indexBufferAsset](RenderCommandList& commandList)
-			{
-				auto positionBuffer = gVertexBufferPool->suballocate(G->getPositionBufferTotalBytes());
-				auto nonPositionBuffer = gVertexBufferPool->suballocate(G->getNonPositionBufferTotalBytes());
-				auto indexBuffer = gIndexBufferPool->suballocate(G->getIndexBufferTotalBytes(), G->getIndexFormat());
-
-				positionBuffer->updateData(&commandList, G->getPositionBlob(), G->getPositionStride());
-				nonPositionBuffer->updateData(&commandList, G->getNonPositionBlob(), G->getNonPositionStride());
-				indexBuffer->updateData(&commandList, G->getIndexBlob(), G->getIndexFormat());
-
-				positionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
-				nonPositionBufferAsset->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
-				indexBufferAsset->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
-
-				commandList.enqueueDeferredDealloc(G);
-			}
-		);
-
-		assets.positionBufferAsset = positionBufferAsset;
-		assets.nonPositionBufferAsset = nonPositionBufferAsset;
-		assets.indexBufferAsset.push_back(indexBufferAsset);
-		assets.localBounds.push_back(localBounds);
-	}
-
-	return assets;
-}
-
-static void addStaticMeshSections(StaticMesh* mesh, const MesoGeometryAssets& geomAssets, SharedPtr<MaterialAsset> material)
-{
-	for (size_t i = 0; i < geomAssets.indexBufferAsset.size(); ++i)
-	{
-		mesh->addSection(0,
-			geomAssets.positionBufferAsset,
-			geomAssets.nonPositionBufferAsset,
-			geomAssets.indexBufferAsset[i],
-			material,
-			geomAssets.localBounds[i]);
-	}
-}
 
 void World1::onInitialize()
 {
@@ -260,7 +158,7 @@ void World1::createTestMeshes()
 			100.0f, 100.0f, 2, 2,
 			ProceduralGeometry::EPlaneNormal::Y);
 #endif
-		MesoGeometryAssets geomAssets = uploadMeshGeometry(planeGeometry);
+		MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(planeGeometry);
 
 		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(0.1f);
@@ -270,7 +168,7 @@ void World1::createTestMeshes()
 
 		ground = new StaticMesh;
 		ground->setPosition(vec3(0.0f, -10.0f, 0.0f));
-		addStaticMeshSections(ground, geomAssets, material);
+		MesoGeometryAssets::addStaticMeshSections(ground, geomAssets, material);
 
 		scene->addStaticMesh(ground);
 	}
@@ -288,7 +186,7 @@ void World1::createTestMeshes()
 			50.0f, 50.0f, 2, 2,
 			ProceduralGeometry::EPlaneNormal::X);
 #endif
-		MesoGeometryAssets geomAssets = uploadMeshGeometry(planeGeometry);
+		MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(planeGeometry);
 
 		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(0.1f);
@@ -299,7 +197,7 @@ void World1::createTestMeshes()
 		wallA = new StaticMesh;
 		wallA->setPosition(vec3(-25.0f, 0.0f, 0.0f));
 		wallA->setRotation(vec3(0.0f, 0.0f, 1.0f), -10.0f);
-		addStaticMeshSections(wallA, geomAssets, material);
+		MesoGeometryAssets::addStaticMeshSections(wallA, geomAssets, material);
 
 		scene->addStaticMesh(wallA);
 	}
@@ -317,11 +215,11 @@ void World1::createTestMeshes()
 		material->roughness = 0.1f;
 		material->indexOfRefraction = IoR::CrownGlass;
 
-		MesoGeometryAssets geomAssets = uploadMeshGeometry(geometry);
+		MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(geometry);
 
 		glassBox = new StaticMesh;
 		glassBox->setScale(10.0f);
-		addStaticMeshSections(glassBox, geomAssets, material);
+		MesoGeometryAssets::addStaticMeshSections(glassBox, geomAssets, material);
 
 		scene->addStaticMesh(glassBox);
 	}
@@ -440,31 +338,6 @@ void World1::createPbrtResources()
 			indexBufferAssets[i] = makeShared<IndexBufferAsset>();
 		}
 
-		// #todo: Make upload util
-		ENQUEUE_RENDER_COMMAND(UploadPBRTSubMeshes)(
-			[pbrtScene, pbrtGeometries, positionBufferAssets, nonPositionBufferAssets, indexBufferAssets](RenderCommandList& commandList)
-			{
-				for (size_t i = 0; i < pbrtGeometries.size(); ++i)
-				{
-					Geometry* geom = pbrtGeometries[i];
-					auto positionBuffer = gVertexBufferPool->suballocate(geom->getPositionBufferTotalBytes());
-					auto nonPositionBuffer = gVertexBufferPool->suballocate(geom->getNonPositionBufferTotalBytes());
-					auto indexBuffer = gIndexBufferPool->suballocate(geom->getIndexBufferTotalBytes(), geom->getIndexFormat());
-
-					positionBuffer->updateData(&commandList, geom->getPositionBlob(), geom->getPositionStride());
-					nonPositionBuffer->updateData(&commandList, geom->getNonPositionBlob(), geom->getNonPositionStride());
-					indexBuffer->updateData(&commandList, geom->getIndexBlob(), geom->getIndexFormat());
-
-					positionBufferAssets[i]->setGPUResource(SharedPtr<VertexBuffer>(positionBuffer));
-					nonPositionBufferAssets[i]->setGPUResource(SharedPtr<VertexBuffer>(nonPositionBuffer));
-					indexBufferAssets[i]->setGPUResource(SharedPtr<IndexBuffer>(indexBuffer));
-
-					commandList.enqueueDeferredDealloc(geom);
-				}
-				commandList.enqueueDeferredDealloc(pbrtScene);
-			}
-		);
-
 		auto fallbackMaterial = makeShared<MaterialAsset>();
 		fallbackMaterial->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 		fallbackMaterial->albedoTexture = gTextureManager->getSystemTextureGrey2D();
@@ -473,15 +346,9 @@ void World1::createPbrtResources()
 		pbrtMesh = new StaticMesh;
 		for (size_t i = 0; i < totalSubMeshes; ++i)
 		{
-			AABB localBounds = pbrtGeometries[i]->localBounds;
 			auto material = (subMaterials[i] != nullptr) ? subMaterials[i] : fallbackMaterial;
-			pbrtMesh->addSection(
-				0,
-				positionBufferAssets[i],
-				nonPositionBufferAssets[i],
-				indexBufferAssets[i],
-				material,
-				localBounds);
+			MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(pbrtGeometries[i]);
+			MesoGeometryAssets::addStaticMeshSections(pbrtMesh, geomAssets, material);
 		}
 		pbrtMesh->setPosition(vec3(50.0f, -5.0f, 0.0f));
 		pbrtMesh->setScale(10.0f);

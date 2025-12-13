@@ -1,8 +1,9 @@
 #include "primitive.h"
+#include "rhi/render_command.h"
 
 #include <algorithm>
 
-static AABB calculateAABB(const std::vector<vec3>& positions)
+AABB Geometry::calculateAABB(const std::vector<vec3>& positions)
 {
 	vec3 minV(0.0f, 0.0f, 0.0f), maxV(0.0f, 0.0f, 0.0f);
 	if (positions.size() > 0)
@@ -16,56 +17,6 @@ static AABB calculateAABB(const std::vector<vec3>& positions)
 		}
 	}
 	return AABB::fromMinMax(minV, maxV);
-}
-
-bool Geometry::needsToPartition(const Geometry& G, uint32 maxTriangleCount)
-{
-	const size_t totalTriangles = G.indices.size() / 3;
-	return totalTriangles > maxTriangleCount;
-}
-
-std::vector<MesoGeometry>* Geometry::partitionByTriangleCount(const Geometry& G, uint32 maxTriangleCount)
-{
-	const size_t totalTriangles = G.indices.size() / 3;
-	const size_t numGeometries = (totalTriangles + maxTriangleCount - 1) / maxTriangleCount;
-	
-	std::vector<MesoGeometry>* mesoList = new std::vector<MesoGeometry>(numGeometries);
-
-	uint32 firstTriangle = 0;
-	uint32 remainingTriangles = (uint32)totalTriangles;
-	for (size_t i = 0; i < numGeometries; ++i)
-	{
-		uint32 numTriangles = (std::min)(maxTriangleCount, remainingTriangles);
-
-		MesoGeometry meso;
-		meso.indices.reserve(numTriangles);
-
-		std::vector<vec3> mesoPositions; // For local bounds
-		mesoPositions.reserve(numTriangles * 3);
-
-		for (uint32 i = firstTriangle; i < firstTriangle + numTriangles; ++i)
-		{
-			uint32 i0 = G.indices[i * 3 + 0];
-			uint32 i1 = G.indices[i * 3 + 1];
-			uint32 i2 = G.indices[i * 3 + 2];
-			meso.indices.push_back(i0);
-			meso.indices.push_back(i1);
-			meso.indices.push_back(i2);
-
-			mesoPositions.push_back(G.positions[i0]);
-			mesoPositions.push_back(G.positions[i1]);
-			mesoPositions.push_back(G.positions[i2]);
-		}
-
-		meso.localBounds = calculateAABB(mesoPositions);
-
-		mesoList->emplace_back(meso);
-
-		firstTriangle += maxTriangleCount;
-		remainingTriangles -= maxTriangleCount;
-	}
-
-	return mesoList;
 }
 
 void Geometry::resizeNumVertices(size_t num)
@@ -124,7 +75,7 @@ void Geometry::recalculateNormals()
 
 void Geometry::calculateLocalBounds()
 {
-	localBounds = calculateAABB(positions);
+	localBounds = Geometry::calculateAABB(positions);
 }
 
 void Geometry::finalize()
