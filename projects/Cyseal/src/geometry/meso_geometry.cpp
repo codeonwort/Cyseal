@@ -6,6 +6,9 @@
 #include "render/static_mesh.h"
 #include "world/gpu_resource_asset.h"
 
+// See VISIBILITY_BUFFER_PRIMITIVE_ID_BITS.
+#define MAX_TRIANGLE_COUNT 0xffff
+
 bool MesoGeometry::needsToPartition(const Geometry* G, uint32 maxTriangleCount)
 {
 	const size_t totalTriangles = G->indices.size() / 3;
@@ -60,9 +63,9 @@ MesoGeometryAssets MesoGeometryAssets::createFrom(const Geometry* G)
 {
 	MesoGeometryAssets assets;
 
-	if (MesoGeometry::needsToPartition(G, 0xffff))
+	if (MesoGeometry::needsToPartition(G, MAX_TRIANGLE_COUNT))
 	{
-		std::vector<MesoGeometry>* mesoList = MesoGeometry::partitionByTriangleCount(G, 0xffff);
+		std::vector<MesoGeometry>* mesoList = MesoGeometry::partitionByTriangleCount(G, MAX_TRIANGLE_COUNT);
 		const size_t numMeso = mesoList->size();
 
 		assets.positionBufferAsset = makeShared<VertexBufferAsset>();
