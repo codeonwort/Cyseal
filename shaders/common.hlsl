@@ -156,8 +156,7 @@ struct SceneUniform
 // ---------------------------------------------------------
 // Visibility buffer
 
-// #wip: reduce to 16
-#define VISIBILITY_BUFFER_PRIMITIVE_ID_BITS 22
+#define VISIBILITY_BUFFER_PRIMITIVE_ID_BITS 16
 #define VISIBILITY_BUFFER_PRIMITIVE_ID_MASK ((1 << VISIBILITY_BUFFER_PRIMITIVE_ID_BITS) - 1)
 
 struct VisibilityBufferData
