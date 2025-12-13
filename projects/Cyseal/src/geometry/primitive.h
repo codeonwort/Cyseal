@@ -6,6 +6,22 @@
 #include "rhi/pixel_format.h"
 #include <vector>
 
+struct MesoGeometry
+{
+	std::vector<uint32> indices;
+	AABB localBounds;
+
+	inline uint32 getIndexBufferTotalBytes() const
+	{
+		return (uint32)(indices.size() * sizeof(uint32));
+	}
+
+	inline void* getIndexBlob() const
+	{
+		return (void*)indices.data();
+	}
+};
+
 struct Geometry
 {
 	std::vector<vec3> positions;
@@ -15,6 +31,20 @@ struct Geometry
 
 	AABB localBounds;
 
+// Utils for visibility buffer.
+public:
+	static bool needsToPartition(const Geometry& G, uint32 maxTriangleCount);
+
+	/// <summary>
+	/// Divide a Geometry into multiple MesoGeometry instances so that each one's triangle count does not exceed the threshold.
+	/// They all share the same vertex buffer data. Only their index buffer data + local bounds differ.
+	/// </summary>
+	/// <param name="G">The geomety to divide.</param>
+	/// <param name="maxTriangleCount">Max triangle count for each Geometry.</param>
+	/// <returns>A vector of MesoGeometry. CAUTION: The caller must deallocate the vector manually.</returns>
+	static std::vector<MesoGeometry>* partitionByTriangleCount(const Geometry& G, uint32 maxTriangleCount);
+
+public:
 	void resizeNumVertices(size_t num); // CAUTION: Don't use push_back()
 	void resizeNumIndices(size_t num);  // CAUTION: Don't use push_back()
 
@@ -25,6 +55,7 @@ struct Geometry
 
 	void calculateLocalBounds();
 
+	// Geometry should be finalized before uploading to GPU.
 	void finalize();
 
 	inline uint32 getPositionStride() const
