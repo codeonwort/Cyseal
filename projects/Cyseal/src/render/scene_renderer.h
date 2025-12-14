@@ -71,6 +71,8 @@ private:
 	UniquePtr<UnorderedAccessView>         barycentricCoordUAV;
 
 	// gbuffers constructed from visibility buffer.
+	// #todo-visibility: Could just use RT_gbuffers when vis buffer is enabled,
+	// but keep as separate resources for easy comparison in case something goes wrong.
 	UniquePtr<Texture>                     RT_visGbuffers[NUM_GBUFFERS];
 	UniquePtr<ShaderResourceView>          visGbufferSRVs[NUM_GBUFFERS];
 	UniquePtr<UnorderedAccessView>         visGbufferUAVs[NUM_GBUFFERS];

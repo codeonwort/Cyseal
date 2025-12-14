@@ -497,6 +497,25 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		basePass->renderBasePass(commandList, swapchainIndex, passInput);
 	}
 
+	Texture* currentGBufferTexture0 = nullptr;
+	Texture* currentGBufferTexture1 = nullptr;
+	ShaderResourceView* currentGBufferSRV0 = nullptr;
+	ShaderResourceView* currentGBufferSRV1 = nullptr;
+	if (bRenderVisibilityBuffer)
+	{
+		currentGBufferTexture0 = RT_visGbuffers[0].get();
+		currentGBufferTexture1 = RT_visGbuffers[1].get();
+		currentGBufferSRV0 = visGbufferSRVs[0].get();
+		currentGBufferSRV1 = visGbufferSRVs[1].get();
+	}
+	else
+	{
+		currentGBufferTexture0 = RT_gbuffers[0].get();
+		currentGBufferTexture1 = RT_gbuffers[1].get();
+		currentGBufferSRV0 = gbufferSRVs[0].get();
+		currentGBufferSRV1 = gbufferSRVs[1].get();
+	}
+
 	// Store history pass (step 1. There's step 2 below)
 	{
 		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Current);
@@ -504,10 +523,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		StoreHistoryPassInput passInput{
 			.textureWidth         = sceneWidth,
 			.textureHeight        = sceneHeight,
-			.gbuffer0             = RT_gbuffers[0].get(),
-			.gbuffer1             = RT_gbuffers[1].get(),
-			.gbuffer0SRV          = gbufferSRVs[0].get(),
-			.gbuffer1SRV          = gbufferSRVs[1].get(),
+			.gbuffer0             = currentGBufferTexture0,
+			.gbuffer1             = currentGBufferTexture1,
+			.gbuffer0SRV          = currentGBufferSRV0,
+			.gbuffer1SRV          = currentGBufferSRV1,
 		};
 		storeHistoryPass->extractCurrent(commandList, swapchainIndex, passInput);
 	}
@@ -575,8 +594,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.sceneDepthSRV         = sceneDepthSRV.get(),
 				.prevSceneDepthSRV     = prevSceneDepthSRV.get(),
 				.velocityMapSRV        = velocityMapSRV.get(),
-				.gbuffer0SRV           = gbufferSRVs[0].get(),
-				.gbuffer1SRV           = gbufferSRVs[1].get(),
+				.gbuffer0SRV           = currentGBufferSRV0,
+				.gbuffer1SRV           = currentGBufferSRV1,
 				.skyboxSRV             = skyboxSRV.get(),
 			};
 			pathTracingPass->renderPathTracing(commandList, swapchainIndex, passInput);
@@ -600,11 +619,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				commandList->barrierAuto(0, nullptr, _countof(barriers1), barriers1, 0, nullptr);
 
 				DenoiserPluginInput passInput{
-					.imageWidth = sceneWidth,
-					.imageHeight = sceneHeight,
+					.imageWidth    = sceneWidth,
+					.imageHeight   = sceneHeight,
 					.sceneColorSRV = pathTracingSRV.get(),
-					.gbuffer0SRV = gbufferSRVs[0].get(),
-					.gbuffer1SRV = gbufferSRVs[1].get()
+					.gbuffer0SRV   = currentGBufferSRV0,
+					.gbuffer1SRV   = currentGBufferSRV1,
 				};
 				denoiserPluginPass->blitTextures(commandList, swapchainIndex, passInput);
 			}
@@ -662,8 +681,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneUniformBuffer     = sceneUniformCBV,
 			.raytracingScene        = accelStructure.get(),
 			.skyboxSRV              = skyboxSRV.get(),
-			.gbuffer0SRV            = gbufferSRVs[0].get(),
-			.gbuffer1SRV            = gbufferSRVs[1].get(),
+			.gbuffer0SRV            = currentGBufferSRV0,
+			.gbuffer1SRV            = currentGBufferSRV1,
 			.sceneDepthSRV          = sceneDepthSRV.get(),
 			.prevSceneDepthSRV      = prevSceneDepthSRV.get(),
 			.velocityMapSRV         = velocityMapSRV.get(),
@@ -708,10 +727,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gpuScene                = gpuScene,
 			.raytracingScene         = accelStructure.get(),
 			.skyboxSRV               = skyboxSRV.get(),
-			.gbuffer0Texture         = RT_gbuffers[0].get(),
-			.gbuffer1Texture         = RT_gbuffers[1].get(),
-			.gbuffer0SRV             = gbufferSRVs[0].get(),
-			.gbuffer1SRV             = gbufferSRVs[1].get(),
+			.gbuffer0Texture         = currentGBufferTexture0,
+			.gbuffer1Texture         = currentGBufferTexture1,
+			.gbuffer0SRV             = currentGBufferSRV0,
+			.gbuffer1SRV             = currentGBufferSRV0,
 			.normalTexture           = historyResources.currNormal,
 			.normalSRV               = historyResources.currNormalSRV,
 			.roughnessTexture        = historyResources.currRoughness,
@@ -781,8 +800,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneUniformCBV     = sceneUniformCBV,
 			.sceneColorSRV       = alternateSceneColorSRV,
 			.sceneDepthSRV       = sceneDepthSRV.get(),
-			.gbuffer0SRV         = gbufferSRVs[0].get(),
-			.gbuffer1SRV         = gbufferSRVs[1].get(),
+			.gbuffer0SRV         = currentGBufferSRV0,
+			.gbuffer1SRV         = currentGBufferSRV1,
 			.indirectDiffuseSRV  = indirectDiffuseSRV.get(),
 			.indirectSpecularSRV = indirectSpecularSRV.get(),
 		};

@@ -347,5 +347,11 @@ void World1::createPbrtResources()
 		pbrtMesh->setScale(10.0f);
 
 		scene->addStaticMesh(pbrtMesh);
+
+		ENQUEUE_RENDER_COMMAND(DeallocPbrtScene)(
+			[pbrtScene](RenderCommandList& commandList) {
+				commandList.enqueueDeferredDealloc(pbrtScene);
+			}
+		);
 	}
 }
