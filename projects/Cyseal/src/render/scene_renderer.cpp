@@ -31,6 +31,7 @@
 #include "render/raytracing/indirect_specular_pass.h"
 #include "render/pathtracing/path_tracing_pass.h"
 #include "render/pathtracing/denoiser_plugin_pass.h"
+#include "render/frame_gen_pass.h"
 
 #include "util/profiling.h"
 
@@ -133,6 +134,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(pathTracingPass = new(EMemoryTag::Renderer) PathTracingPass);
 		sceneRenderPasses.push_back(denoiserPluginPass = new(EMemoryTag::Renderer) DenoiserPluginPass);
 		sceneRenderPasses.push_back(storeHistoryPass = new(EMemoryTag::Renderer) StoreHistoryPass);
+		sceneRenderPasses.push_back(frameGenPass = new(EMemoryTag::Renderer) FrameGenPass);
 
 		gpuScene->initialize();
 		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
@@ -150,6 +152,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		pathTracingPass->initialize();
 		denoiserPluginPass->initialize();
 		storeHistoryPass->initialize(renderDevice);
+		frameGenPass->initialize(renderDevice);
 	}
 }
 

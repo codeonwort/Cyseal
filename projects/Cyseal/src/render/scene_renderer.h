@@ -154,6 +154,7 @@ private:
 	class PathTracingPass*      pathTracingPass       = nullptr;
 	class DenoiserPluginPass*   denoiserPluginPass    = nullptr;
 	class StoreHistoryPass*     storeHistoryPass      = nullptr;
+	class FrameGenPass*         frameGenPass          = nullptr;
 
 	std::vector<class SceneRenderPass*> sceneRenderPasses;
 };
