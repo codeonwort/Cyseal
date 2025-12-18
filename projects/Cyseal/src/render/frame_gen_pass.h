@@ -19,8 +19,22 @@ public:
 	void runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
 
 private:
-	void initializeFSR3();
+	void initializePipelines();
 
 private:
 	RenderDevice* device = nullptr;
+
+	// #wip: <FidelityFX_SDK>\sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp
+	// FfxFrameInterpolationPass
+	UniquePtr<ComputePipelineState> reconstructAndDilatePipeline;
+	UniquePtr<ComputePipelineState> setupPipeline;
+	UniquePtr<ComputePipelineState> reconstructPrevDepthPipeline;
+	UniquePtr<ComputePipelineState> gameMotionVectorFieldPipeline;
+	UniquePtr<ComputePipelineState> opticalFlowVectorFieldPipeline;
+	UniquePtr<ComputePipelineState> disocclusionMaskPipeline;
+	UniquePtr<ComputePipelineState> interpolationPipeline;
+	UniquePtr<ComputePipelineState> inpaintingPyramidPipeline;
+	UniquePtr<ComputePipelineState> inpaintingPipeline;
+	UniquePtr<ComputePipelineState> gameVectorFieldInpaintingPyramidPipeline;
+	UniquePtr<ComputePipelineState> debugViewPipeline;
 };
