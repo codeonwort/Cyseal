@@ -24,8 +24,8 @@ private:
 private:
 	RenderDevice* device = nullptr;
 
-	// #wip: <FidelityFX_SDK>\sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp
-	// FfxFrameInterpolationPass
+	// #todo-fsr3: See FfxFrameInterpolationPass enum in
+	// <FidelityFX_SDK>\sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp
 	UniquePtr<ComputePipelineState> reconstructAndDilatePipeline;
 	UniquePtr<ComputePipelineState> setupPipeline;
 	UniquePtr<ComputePipelineState> reconstructPrevDepthPipeline;

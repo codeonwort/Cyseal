@@ -18,6 +18,10 @@ void FrameGenPass::initializePipelines()
 {
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
+	// #todo-fsr3: VolatileDescriptorHelperfor for cbuffers:
+	// FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION)
+	// FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_INPAINTING_PYRAMID)
+
 	// reconstructAndDilatePipeline
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "FSR3ReconstructAndDilateCS");
