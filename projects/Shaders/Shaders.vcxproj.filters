@@ -34,6 +34,39 @@
     </FxCompile>
     <FxCompile Include="..\..\shaders\indirect_specular_amd_temp_finalize.hlsl" />
     <FxCompile Include="..\..\shaders\decode_vis_buffer.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_compute_game_vector_field_inpainting_pyramid_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_compute_inpainting_pyramid_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_debug_view_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_disocclusion_mask_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_game_motion_vector_field_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_inpainting_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_optical_flow_vector_field_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_reconstruct_and_dilate_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_reconstruct_previous_depth_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_setup_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">
@@ -41,6 +74,9 @@
     </Filter>
     <Filter Include="amd\denoiser">
       <UniqueIdentifier>{1410f651-5b78-48f0-93a3-a49bd3bdd3c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="amd\frameinterpolation">
+      <UniqueIdentifier>{c3177977-771d-4282-ad0f-f3dc9cec6b84}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -79,6 +115,51 @@
     </ClInclude>
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_resolve_temporal.h">
       <Filter>amd\denoiser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_callbacks_glsl.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_callbacks_hlsl.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_common.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_compute_game_vector_field_inpainting_pyramid.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_compute_inpainting_pyramid.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_debug_view.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_disocclusion_mask.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_game_motion_vector_field.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_inpainting.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_optical_flow_vector_field.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_reconstruct_dilated_velocity_and_previous_depth.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_reconstruct_previous_depth.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_resources.h">
+      <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_setup.h">
+      <Filter>amd\frameinterpolation</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
