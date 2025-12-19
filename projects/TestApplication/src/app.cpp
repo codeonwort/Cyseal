@@ -40,6 +40,7 @@
 #define CAMERA_Z_FAR         10000.0f
 // Per second
 #define CAMERA_SPEED_FORWARD 20.0f
+#define CAMERA_SPEED_UP      20.0f
 #define CAMERA_SPEED_RIGHT   20.0f
 
 // #todo-world: Select world
@@ -102,16 +103,29 @@ void TestApplication::onTick(float deltaSeconds)
 		// Control camera by user input.
 		bool bCameraHasMoved = false;
 		{
-			float moveX = ImGui::IsKeyDown(ImGuiKey_A) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_D) ? 1.0f : 0.0f;
-			float moveZ = ImGui::IsKeyDown(ImGuiKey_W) ? 1.0f : ImGui::IsKeyDown(ImGuiKey_S) ? -1.0f : 0.0f;
-			float rotateY = ImGui::IsKeyDown(ImGuiKey_Q) ? -1.0f : ImGui::IsKeyDown(ImGuiKey_E) ? 1.0f : 0.0f;
-			float rotateX = ImGui::IsKeyDown(ImGuiKey_Z) ? 1.0f : ImGui::IsKeyDown(ImGuiKey_C) ? -1.0f : 0.0f;
+			const bool bInputLeft = ImGui::IsKeyDown(ImGuiKey_A) || ImGui::IsKeyDown(ImGuiKey_GamepadLStickLeft);
+			const bool bInputRight = ImGui::IsKeyDown(ImGuiKey_D) || ImGui::IsKeyDown(ImGuiKey_GamepadLStickRight);
+			const bool bInputFront = ImGui::IsKeyDown(ImGuiKey_W) || ImGui::IsKeyDown(ImGuiKey_GamepadLStickUp);
+			const bool bInputBack = ImGui::IsKeyDown(ImGuiKey_S) || ImGui::IsKeyDown(ImGuiKey_GamepadLStickDown);
+			const bool bInputRotateLeft = ImGui::IsKeyDown(ImGuiKey_Q) || ImGui::IsKeyDown(ImGuiKey_GamepadRStickLeft);
+			const bool bInputRotateRight = ImGui::IsKeyDown(ImGuiKey_E) || ImGui::IsKeyDown(ImGuiKey_GamepadRStickRight);
+			const bool bInputRotateUp = ImGui::IsKeyDown(ImGuiKey_Z) || ImGui::IsKeyDown(ImGuiKey_GamepadRStickUp);
+			const bool bInputRotateDown = ImGui::IsKeyDown(ImGuiKey_C) || ImGui::IsKeyDown(ImGuiKey_GamepadRStickDown);
+			const bool bInputUp = ImGui::IsKeyDown(ImGuiKey_GamepadR2);
+			const bool bInputDown = ImGui::IsKeyDown(ImGuiKey_GamepadL2);
+
+			float moveX = bInputLeft ? -1.0f : bInputRight ? 1.0f : 0.0f;
+			float moveY = bInputUp ? 1.0f : bInputDown ? -1.0f : 0.0f;
+			float moveZ = bInputFront ? 1.0f : bInputBack ? -1.0f : 0.0f;
+			float rotateY = bInputRotateLeft ? -1.0f : bInputRotateRight ? 1.0f : 0.0f;
+			float rotateX = bInputRotateUp ? 1.0f : bInputRotateDown ? -1.0f : 0.0f;
 
 			bCameraHasMoved = (moveX != 0.0f || moveZ != 0.0f || rotateY != 0.0f || rotateX != 0.0f);
 
 			camera.rotatePitch(rotateX * deltaSeconds * 45.0f);
 			camera.rotateYaw(rotateY * deltaSeconds * 45.0f);
 			camera.moveForward(moveZ * deltaSeconds * CAMERA_SPEED_FORWARD);
+			camera.moveUp(moveY * deltaSeconds * CAMERA_SPEED_UP);
 			camera.moveRight(moveX * deltaSeconds * CAMERA_SPEED_RIGHT);
 		}
 		appState.rendererOptions.bCameraHasMoved = bCameraHasMoved;

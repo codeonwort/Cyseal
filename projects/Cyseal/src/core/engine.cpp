@@ -222,7 +222,7 @@ void CysealEngine::createDearImgui(void* nativeWindowHandle)
 	ImGuiIO& dearIO = ImGui::GetIO();
 	dearIO.IniFilename = NULL;
 	//dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	//dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+	dearIO.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; // #note-imgui: Allow navigating GUI via X and B buttons on Xbox gamepad.
 
 	//ImGui::StyleColorsDark();
 	ImGui::StyleColorsLight();
