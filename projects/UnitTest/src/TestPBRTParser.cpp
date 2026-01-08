@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "CppUnitTest.h"
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
+using UnitLogger = Microsoft::VisualStudio::CppUnitTestFramework::Logger;
 
 #include "loader/pbrt_scanner.h"
 #include "loader/pbrt_parser.h"
@@ -187,6 +188,12 @@ namespace UnitTest
 
 			pbrt::PBRT4Parser parser;
 			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
+
+			for (const std::wstring& msg : parserOutput.errorMessages)
+			{
+				UnitLogger::WriteMessage(msg.c_str());
+			}
+
 			Assert::IsTrue(parserOutput.bValid, L"Parser reported errors");
 		}
 	};
