@@ -72,7 +72,10 @@ protected:
 			SceneProxy* sceneProxy = scene.createProxy();
 			RendererOptions rendererOptions{};
 
-			// #todo-test: Crashes due to no ImGui operations
+			// Needed even though we render no GUI because NullRenderer invokes device->renderDearImgui().
+			cysealEngine->beginImguiNewFrame();
+			cysealEngine->renderImgui();
+
 			cysealEngine->renderScene(sceneProxy, &camera, rendererOptions);
 
 			delete sceneProxy;
@@ -98,7 +101,6 @@ namespace UnitTest
 	TEST_CLASS(TestProcessCrash)
 	{
 	public:
-		// #todo-fatal: Unit test passes even if the process crashes :(
 		TEST_METHOD(EngineStartupNoCrash)
 		{
 			HWND nativeWindowHandle = NULL;
