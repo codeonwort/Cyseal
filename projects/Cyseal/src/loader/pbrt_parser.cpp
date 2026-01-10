@@ -522,7 +522,17 @@ namespace pbrt
 
 		++it;
 		auto params = parameters(it);
-		// #todo-pbrt-parser: Emit parsed Material
+
+		// Add to the list to make compileMaterial() consistent.
+		params.push_back(PBRT4Parameter{ PBRT4ParameterType::String, "type", materialType });
+
+		uint32 unnamedId = graphicsState.setUnnamedMaterial();
+		
+		MaterialDesc materialDesc{
+			.name       = { unnamedId, "" },
+			.parameters = std::move(params),
+		};
+		compileMaterial(materialDesc, output);
 	}
 
 	void PBRT4Parser::namedMaterial(TokenIter& it, PBRT4ParserOutput& output)
@@ -532,7 +542,7 @@ namespace pbrt
 		const std::string materialName(it->value);
 		++it;
 
-		graphicsState.namedMaterial = materialName;
+		graphicsState.setNamedMaterial(materialName);
 	}
 
 	void PBRT4Parser::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
@@ -543,13 +553,13 @@ namespace pbrt
 		++it;
 		auto params = parameters(it);
 
+		// MakeNamedMaterial directive does not change 'currently active' material.
+
 		MaterialDesc materialDesc{
-			.name       = std::move(materialName),
+			.name       = { PBRT4MaterialRef::INVALID_UNNAMED_MATERIAL_ID, std::move(materialName) },
 			.parameters = std::move(params),
 		};
 		compileMaterial(materialDesc, output);
-
-		// MakeNamedMaterial directive does not change 'currently active' material.
 	}
 
 	void PBRT4Parser::shape(TokenIter& it, PBRT4ParserOutput& output)
@@ -570,7 +580,7 @@ namespace pbrt
 
 		ShapeDesc shapeDesc{
 			.name               = std::move(shapeName),
-			.namedMaterial      = graphicsState.namedMaterial,
+			.materialName       = graphicsState.getActiveMaterialName(),
 			.transform          = graphicsState.transform,
 			.bIdentityTransform = graphicsState.bTransformIsIdentity,
 			.parameters         = std::move(params),
@@ -842,7 +852,7 @@ namespace pbrt
 
 			PBRT4ParserOutput::PLYShapeDesc outDesc{
 				.filename           = wPlyFilename,
-				.namedMaterial      = inDesc.namedMaterial,
+				.materialName       = inDesc.materialName,
 				.transform          = inDesc.transform,
 				.bIdentityTransform = inDesc.bIdentityTransform,
 			};
@@ -931,8 +941,8 @@ namespace pbrt
 			rgbK = (pK->datatype == PBRT4ParameterType::Float) ? vec3(pK->asFloat) : pK->asFloat3;
 		}
 
-		PBRT4ParserOutput::NamedMaterialDesc outDesc{
-			.materialName             = std::move(inDesc.name),
+		PBRT4ParserOutput::MaterialDesc outDesc{
+			.materialName             = inDesc.name,
 			.materialType             = std::move(pType->asString),
 			.bUseRgbReflectance       = bUseRgbReflectance,
 			.rgbReflectance           = rgbReflectance,
@@ -950,7 +960,15 @@ namespace pbrt
 			.spectrumEta              = (bUseRgbEtaAndK || pEta == nullptr) ? "" : std::move(pEta->asString),
 			.spectrumK                = (bUseRgbEtaAndK || pK == nullptr) ? "" : std::move(pK->asString),
 		};
-		output.namedMaterialDescs.emplace_back(outDesc);
+
+		if (inDesc.name.isUnnamed())
+		{
+			output.unnamedMaterialDescs.emplace_back(outDesc);
+		}
+		else
+		{
+			output.namedMaterialDescs.emplace_back(outDesc);
+		}
 	}
 
 	void PBRT4Parser::compileTexture(TextureDesc& inDesc, PBRT4ParserOutput& output)

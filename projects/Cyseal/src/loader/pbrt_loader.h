@@ -33,9 +33,12 @@ public:
 	// @return Parsed scene. Should dealloc yourself. Null if load has failed.
 	PBRT4Scene* loadFromFile(const std::wstring& filepath);
 
-	MaterialAsset* findLoadedMaterial(const char* name) const;
+	MaterialAsset* findNamedMaterial(const char* name) const;
 
 private:
+	SharedPtr<MaterialAsset> findMaterialByRef(const pbrt::PBRT4MaterialRef& ref) const;
+
 	std::map<std::string, SharedPtr<TextureAsset>> textureAssetDatabase;
-	std::map<std::string, SharedPtr<MaterialAsset>> materialDatabase;
+	std::map<std::string, SharedPtr<MaterialAsset>> namedMaterialDatabase;
+	std::vector<SharedPtr<MaterialAsset>> unnamedMaterialDatabase;
 };

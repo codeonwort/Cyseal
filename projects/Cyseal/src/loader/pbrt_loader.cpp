@@ -77,7 +77,8 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	PBRT4Scene* pbrtScene = new PBRT4Scene;
 
 	textureAssetDatabase.clear();
-	materialDatabase.clear();
+	namedMaterialDatabase.clear();
+	unnamedMaterialDatabase.clear();
 
 	// Load texture files
 	ImageLoader imageLoader;
@@ -131,9 +132,10 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	}
 
 	// Create material assets
-	for (const auto& desc : parserOutput.namedMaterialDescs)
-	{
+	auto createMaterialAsset = [&](const pbrt::PBRT4ParserOutput::MaterialDesc& desc, size_t ix) {
 		auto material = makeShared<MaterialAsset>();
+
+		const std::string debugName = desc.materialName.isUnnamed() ? "__unnamed" + std::to_string(ix) : desc.materialName.name;
 
 		material->albedoMultiplier.x = desc.rgbReflectance.x;
 		material->albedoMultiplier.y = desc.rgbReflectance.y;
@@ -148,7 +150,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			else
 			{
 				CYLOG(LogPBRT, Error, L"Material '%S' uses textureReflectance '%S' but couldn't find it",
-					desc.materialName.c_str(), desc.textureReflectance.c_str());
+					debugName.c_str(), desc.textureReflectance.c_str());
 			}
 		}
 		if (material->albedoTexture == nullptr)
@@ -159,7 +161,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 		if (desc.bUseAnisotropicRoughness)
 		{
 			material->roughness = 0.5f * (desc.uroughness + desc.vroughness);
-			CYLOG(LogPBRT, Error, L"Material '%S' uses anisotropic roughness but not supported", desc.materialName.c_str());
+			CYLOG(LogPBRT, Error, L"Material '%S' uses anisotropic roughness but not supported", debugName.c_str());
 		}
 		else
 		{
@@ -173,9 +175,25 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 		//	material->transmittance = desc.transmittance;
 		//}
 
-		// #todo-pbrt: Other NamedMaterialDesc properties
+		// #todo-pbrt: Other MaterialDesc properties
 
-		materialDatabase.insert(std::make_pair(desc.materialName, material));
+		if (desc.materialName.isUnnamed())
+		{
+			unnamedMaterialDatabase.push_back(material);
+		}
+		else
+		{
+			namedMaterialDatabase.insert(std::make_pair(desc.materialName.name, material));
+		}
+	};
+
+	for (size_t i = 0; i < parserOutput.namedMaterialDescs.size(); ++i)
+	{
+		createMaterialAsset(parserOutput.namedMaterialDescs[i], i);
+	}
+	for (size_t i = 0; i < parserOutput.unnamedMaterialDescs.size(); ++i)
+	{
+		createMaterialAsset(parserOutput.unnamedMaterialDescs[i], i);
 	}
 
 	pbrtScene->triangleMeshes = std::move(parserOutput.triangleShapeDescs);
@@ -198,11 +216,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			}
 			else
 			{
-				auto it = materialDatabase.find(desc.namedMaterial);
-				if (it != materialDatabase.end())
-				{
-					plyMesh->material = it->second;
-				}
+				plyMesh->material = findMaterialByRef(desc.materialName);
 				if (!desc.bIdentityTransform)
 				{
 					plyMesh->applyTransform(desc.transform);
@@ -215,8 +229,19 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	return pbrtScene;
 }
 
-MaterialAsset* PBRT4Loader::findLoadedMaterial(const char* name) const
+MaterialAsset* PBRT4Loader::findNamedMaterial(const char* name) const
 {
-	auto it = materialDatabase.find(name);
-	return it == materialDatabase.end() ? nullptr : it->second.get();
+	auto it = namedMaterialDatabase.find(name);
+	return it == namedMaterialDatabase.end() ? nullptr : it->second.get();
+}
+
+SharedPtr<MaterialAsset> PBRT4Loader::findMaterialByRef(const pbrt::PBRT4MaterialRef& ref) const
+{
+	if (ref.isUnnamed())
+	{
+		CHECK(0 <= ref.unnamedId && ref.unnamedId < unnamedMaterialDatabase.size());
+		return unnamedMaterialDatabase[ref.unnamedId];
+	}
+	auto it = namedMaterialDatabase.find(ref.name);
+	return it == namedMaterialDatabase.end() ? nullptr : it->second;
 }

@@ -44,6 +44,16 @@ namespace pbrt
 		std::vector<int32> asIntArray;               // IntArray
 	};
 
+	struct PBRT4MaterialRef
+	{
+		static const uint32 INVALID_UNNAMED_MATERIAL_ID = 0xffffffff;
+
+		uint32      unnamedId; // Used if unnamed material. INVALID_UNNAMED_MATERIAL_ID otherwise.
+		std::string name;      // Used if named material. Empty string otherwise.
+
+		inline bool isUnnamed() const { return unnamedId != INVALID_UNNAMED_MATERIAL_ID; }
+	};
+
 	struct PBRT4ParserOutput
 	{
 		struct TextureFileDesc
@@ -53,25 +63,25 @@ namespace pbrt
 			std::wstring   filename;
 			int32          numChannels; // 1 or 3
 		};
-		struct NamedMaterialDesc
+		struct MaterialDesc
 		{
-			std::string    materialName;
-			std::string    materialType;
-			bool           bUseRgbReflectance       = false;
-			vec3           rgbReflectance           = vec3(1.0f);
-			std::string    textureReflectance;
-			bool           bUseAnisotropicRoughness = false;
-			bool           bRemapRoughness          = false;
-			float          roughness                = 1.0f;
-			float          vroughness               = 1.0f;
-			float          uroughness               = 1.0f;
-			bool           bTransmissive            = false;
-			vec3           transmittance            = vec3(0.0f);
-			bool           bUseRgbEtaAndK           = false;
-			vec3           rgbEta;
-			vec3           rgbK;
-			std::string    spectrumEta;
-			std::string    spectrumK;
+			PBRT4MaterialRef materialName;
+			std::string      materialType;
+			bool             bUseRgbReflectance       = false;
+			vec3             rgbReflectance           = vec3(1.0f);
+			std::string      textureReflectance;
+			bool             bUseAnisotropicRoughness = false;
+			bool             bRemapRoughness          = false;
+			float            roughness                = 1.0f;
+			float            vroughness               = 1.0f;
+			float            uroughness               = 1.0f;
+			bool             bTransmissive            = false;
+			vec3             transmittance            = vec3(0.0f);
+			bool             bUseRgbEtaAndK           = false;
+			vec3             rgbEta;
+			vec3             rgbK;
+			std::string      spectrumEta;
+			std::string      spectrumK;
 		};
 		struct TriangleMeshDesc
 		{
@@ -83,10 +93,10 @@ namespace pbrt
 		};
 		struct PLYShapeDesc
 		{
-			std::wstring   filename;
-			std::string    namedMaterial;
-			Matrix         transform;
-			bool           bIdentityTransform;
+			std::wstring     filename;
+			PBRT4MaterialRef materialName;
+			Matrix           transform;
+			bool             bIdentityTransform;
 		};
 
 	public:
@@ -95,7 +105,8 @@ namespace pbrt
 
 		Matrix                         sceneTransform;
 		std::vector<TextureFileDesc>   textureFileDescs;
-		std::vector<NamedMaterialDesc> namedMaterialDescs;
+		std::vector<MaterialDesc>      namedMaterialDescs;
+		std::vector<MaterialDesc>      unnamedMaterialDescs;
 		std::vector<TriangleMeshDesc>  triangleShapeDescs;
 		std::vector<PLYShapeDesc>      plyShapeDescs;
 	};
@@ -163,6 +174,8 @@ namespace pbrt
 		{
 			Matrix                transform;
 			bool                  bTransformIsIdentity;
+			bool                  bMaterialIsUnnamed;
+			uint32                unnamedMaterialId;
 			std::string           namedMaterial;
 			vec3                  emission;
 
@@ -170,8 +183,39 @@ namespace pbrt
 			{
 				transform.identity();
 				bTransformIsIdentity = true;
+				bMaterialIsUnnamed = true;
+				unnamedMaterialId = PBRT4MaterialRef::INVALID_UNNAMED_MATERIAL_ID;
 				namedMaterial = "";
 				emission = vec3(0.0f);
+			}
+
+			uint32 setUnnamedMaterial()
+			{
+				bMaterialIsUnnamed = true;
+				if (unnamedMaterialId == PBRT4MaterialRef::INVALID_UNNAMED_MATERIAL_ID)
+				{
+					unnamedMaterialId = 0;
+				}
+				else
+				{
+					unnamedMaterialId += 1;
+				}
+				return unnamedMaterialId;
+			}
+
+			void setNamedMaterial(const std::string& name)
+			{
+				bMaterialIsUnnamed = false;
+				namedMaterial = name;
+			}
+
+			PBRT4MaterialRef getActiveMaterialName()
+			{
+				if (bMaterialIsUnnamed)
+				{
+					return PBRT4MaterialRef{ unnamedMaterialId, "" };
+				}
+				return PBRT4MaterialRef{ PBRT4MaterialRef::INVALID_UNNAMED_MATERIAL_ID, namedMaterial };
 			}
 
 			void copyTransformFrom(const GraphicsState& other) // For TransformBegin and TransformEnd directives.
@@ -188,23 +232,23 @@ namespace pbrt
 		using ParameterList = std::vector<PBRT4Parameter>;
 		struct ShapeDesc
 		{
-			std::string   name;
-			std::string   namedMaterial;
-			Matrix        transform;
-			bool          bIdentityTransform;
-			ParameterList parameters;
+			std::string      name;
+			PBRT4MaterialRef materialName;
+			Matrix           transform;
+			bool             bIdentityTransform;
+			ParameterList    parameters;
 		};
 		struct MaterialDesc
 		{
-			std::string   name;
-			ParameterList parameters;
+			PBRT4MaterialRef name;
+			ParameterList    parameters;
 		};
 		struct TextureDesc
 		{
-			std::string   name;
-			std::string   textureType;
-			std::string   textureClass;
-			ParameterList parameters;
+			std::string      name;
+			std::string      textureType;
+			std::string      textureClass;
+			ParameterList    parameters;
 		};
 
 		PBRT4Parameter* findParameter(ParameterList& params, const char* pname) const;

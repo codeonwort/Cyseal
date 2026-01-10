@@ -286,7 +286,7 @@ void World1::createPbrtResources()
 	PBRT4Loader pbrtLoader;
 	PBRT4Scene* pbrtScene = pbrtLoader.loadFromFile(PBRT_FILEPATH);
 	
-	MaterialAsset* M_curtains = pbrtLoader.findLoadedMaterial("Curtains");
+	MaterialAsset* M_curtains = pbrtLoader.findNamedMaterial("Curtains");
 	if (M_curtains != nullptr)
 	{
 		M_curtains->bDoubleSided = true;
