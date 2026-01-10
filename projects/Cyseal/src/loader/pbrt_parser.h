@@ -122,7 +122,7 @@ namespace pbrt
 		void transformEnd(TokenIter& it, PBRT4ParserOutput& output);
 		void attributeBegin(TokenIter& it, PBRT4ParserOutput& output);
 		void attributeEnd(TokenIter& it, PBRT4ParserOutput& output);
-		
+
 		void integrator(TokenIter& it, PBRT4ParserOutput& output);
 		void sampler(TokenIter& it, PBRT4ParserOutput& output);
 		void pixelFilter(TokenIter& it, PBRT4ParserOutput& output);
@@ -153,15 +153,35 @@ namespace pbrt
 		DirectiveTable directiveTable;
 		TokenIter      eofTokenIt;
 
-		// States
+		// Parser states
 		bool                      bValid = true;
 		std::vector<std::wstring> errorMessages;
 		PBRT4ParsePhase           parsePhase = PBRT4ParsePhase::RenderingOptions;
-		Matrix                    currentTransform;
-		Matrix                    currentTransformBackup;
-		bool                      bCurrentTransformIsIdentity = true;
-		std::string               currentNamedMaterial;
-		vec3                      currentEmission;
+
+		// Graphics states
+		struct GraphicsState
+		{
+			Matrix                transform;
+			bool                  bTransformIsIdentity;
+			std::string           namedMaterial;
+			vec3                  emission;
+
+			void initStates()
+			{
+				transform.identity();
+				bTransformIsIdentity = true;
+				namedMaterial = "";
+				emission = vec3(0.0f);
+			}
+
+			void copyTransformFrom(const GraphicsState& other) // For TransformBegin and TransformEnd directives.
+			{
+				transform = other.transform;
+				bTransformIsIdentity = other.bTransformIsIdentity;
+			}
+		};
+		GraphicsState graphicsState;
+		GraphicsState graphicsStateBackup;
 
 	// Compiler part. Wanna separate parser and compiler but the file format is kinda state machine.
 	private:

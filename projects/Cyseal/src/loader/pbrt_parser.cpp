@@ -141,11 +141,8 @@ namespace pbrt
 		bValid = true;
 		errorMessages.clear();
 		parsePhase = PBRT4ParsePhase::RenderingOptions;
-		currentTransform.identity();
-		currentTransformBackup.identity();
-		bCurrentTransformIsIdentity = true;
-		currentNamedMaterial = "";
-		currentEmission = vec3(0.0f);
+
+		graphicsState.initStates();
 	}
 
 	void PBRT4Parser::parserError(TokenIter& it, const wchar_t* msg, ...)
@@ -203,10 +200,9 @@ namespace pbrt
 
 		parsePhase = PBRT4ParsePhase::SceneElements;
 
-		output.sceneTransform = currentTransform;
+		output.sceneTransform = graphicsState.transform;
 
-		currentTransform.identity();
-		currentTransformBackup.identity();
+		graphicsState.transform.identity();
 	}
 
 	void PBRT4Parser::transformBegin(TokenIter& it, PBRT4ParserOutput& output)
@@ -218,7 +214,7 @@ namespace pbrt
 		}
 
 		parsePhase = PBRT4ParsePhase::InsideAttribute;
-		currentTransformBackup = currentTransform;
+		graphicsStateBackup.copyTransformFrom(graphicsState);
 	}
 
 	void PBRT4Parser::transformEnd(TokenIter& it, PBRT4ParserOutput& output)
@@ -230,7 +226,7 @@ namespace pbrt
 		}
 
 		parsePhase = PBRT4ParsePhase::SceneElements;
-		currentTransform = currentTransformBackup;
+		graphicsState.copyTransformFrom(graphicsStateBackup);
 	}
 
 	void PBRT4Parser::attributeBegin(TokenIter& it, PBRT4ParserOutput& output)
@@ -242,7 +238,7 @@ namespace pbrt
 		}
 
 		parsePhase = PBRT4ParsePhase::InsideAttribute;
-		currentTransformBackup = currentTransform;
+		graphicsStateBackup = graphicsState;
 	}
 
 	void PBRT4Parser::attributeEnd(TokenIter& it, PBRT4ParserOutput& output)
@@ -254,8 +250,7 @@ namespace pbrt
 		}
 
 		parsePhase = PBRT4ParsePhase::SceneElements;
-		currentTransform = currentTransformBackup;
-		currentEmission = vec3(0.0f);
+		graphicsState = graphicsStateBackup;
 	}
 
 	void PBRT4Parser::integrator(TokenIter& it, PBRT4ParserOutput& output)
@@ -387,8 +382,8 @@ namespace pbrt
 			parserError(it, L"Transform directive in wrong place");
 			return;
 		}
-		currentTransform = mat;
-		bCurrentTransformIsIdentity = false;
+		graphicsState.transform = mat;
+		graphicsState.bTransformIsIdentity = false;
 	}
 
 	void PBRT4Parser::rotate(TokenIter& it, PBRT4ParserOutput& output)
@@ -434,7 +429,7 @@ namespace pbrt
 		Matrix S;
 		S.scale(x, y, z);
 
-		currentTransform = S * currentTransform;
+		graphicsState.transform = S * graphicsState.transform;
 	}
 
 	void PBRT4Parser::lookAt(TokenIter& it, PBRT4ParserOutput& output)
@@ -471,7 +466,7 @@ namespace pbrt
 		};
 		//~
 
-		currentTransform.copyFrom(M);
+		graphicsState.transform.copyFrom(M);
 	}
 
 	void PBRT4Parser::concatTransform(TokenIter& it, PBRT4ParserOutput& output)
@@ -490,7 +485,7 @@ namespace pbrt
 		if (parserWrongToken(it, TokenType::RightBracket)) return;
 		++it;
 
-		currentTransform = M * currentTransform;
+		graphicsState.transform = M * graphicsState.transform;
 	}
 
 	void PBRT4Parser::texture(TokenIter& it, PBRT4ParserOutput& output)
@@ -537,7 +532,7 @@ namespace pbrt
 		const std::string materialName(it->value);
 		++it;
 
-		currentNamedMaterial = materialName;
+		graphicsState.namedMaterial = materialName;
 	}
 
 	void PBRT4Parser::makeNamedMaterial(TokenIter& it, PBRT4ParserOutput& output)
@@ -553,6 +548,8 @@ namespace pbrt
 			.parameters = std::move(params),
 		};
 		compileMaterial(materialDesc, output);
+
+		// MakeNamedMaterial directive does not change 'currently active' material.
 	}
 
 	void PBRT4Parser::shape(TokenIter& it, PBRT4ParserOutput& output)
@@ -573,9 +570,9 @@ namespace pbrt
 
 		ShapeDesc shapeDesc{
 			.name               = std::move(shapeName),
-			.namedMaterial      = currentNamedMaterial,
-			.transform          = currentTransform,
-			.bIdentityTransform = bCurrentTransformIsIdentity,
+			.namedMaterial      = graphicsState.namedMaterial,
+			.transform          = graphicsState.transform,
+			.bIdentityTransform = graphicsState.bTransformIsIdentity,
 			.parameters         = std::move(params),
 		};
 		compileShape(shapeDesc, output);
@@ -607,7 +604,7 @@ namespace pbrt
 			auto pL = findParameter(params, "L");
 			COMPILER_CHECK_PARAMETER(pL, PBRT4ParameterType::Float3);
 
-			currentEmission = pL->asFloat3;
+			graphicsState.emission = pL->asFloat3;
 		}
 		else
 		{
@@ -863,7 +860,7 @@ namespace pbrt
 			COMPILER_CHECK_PARAMETER(pIndices, PBRT4ParameterType::IntArray);
 
 			SharedPtr<MaterialAsset> material = makeShared<MaterialAsset>();
-			material->emission = currentEmission;
+			material->emission = graphicsState.emission;
 
 			PBRT4ParserOutput::TriangleMeshDesc outDesc{
 				.positionBuffer = toFloat3Array(std::move(pPositions->asFloatArray)),
