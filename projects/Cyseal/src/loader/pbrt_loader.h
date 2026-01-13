@@ -13,6 +13,16 @@
 
 class PLYMesh;
 
+struct PBRT4ObjectInstances
+{
+	// Object decl
+	std::string objectName;
+	std::vector<pbrt::PBRT4ParserOutput::TriangleMeshDesc> triangleMeshes;
+	std::vector<PLYMesh*> plyMeshes;
+	// Instances
+	std::vector<Matrix> instanceTransforms;
+};
+
 struct PBRT4Scene
 {
 	// Camera
@@ -22,6 +32,7 @@ struct PBRT4Scene
 
 	std::vector<pbrt::PBRT4ParserOutput::TriangleMeshDesc> triangleMeshes;
 	std::vector<PLYMesh*> plyMeshes;
+	std::vector<PBRT4ObjectInstances> objectInstances;
 
 public:
 	virtual ~PBRT4Scene();
@@ -41,6 +52,7 @@ private:
 	void loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT4ParserOutput& parserOutput);
 	void loadMaterials(const pbrt::PBRT4ParserOutput& parserOutput);
 	void loadPLYMeshes(const std::wstring& baseDir, const std::vector<pbrt::PBRT4ParserOutput::PLYShapeDesc>& descs, std::vector<PLYMesh*>& outMeshes);
+	void loadObjects(const std::wstring& baseDir, pbrt::PBRT4ParserOutput& parserOutput, std::vector<PBRT4ObjectInstances>& outInstances);
 
 	SharedPtr<MaterialAsset> findMaterialByRef(const pbrt::PBRT4MaterialRef& ref) const;
 

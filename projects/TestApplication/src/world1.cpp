@@ -292,6 +292,7 @@ void World1::createPbrtResources()
 		M_curtains->bDoubleSided = true;
 	}
 
+	// #todo-pbrt-object: Instantiate ObjectInstance directives.
 	if (pbrtScene != nullptr)
 	{
 		const size_t numTriangleMeshes = pbrtScene->triangleMeshes.size();

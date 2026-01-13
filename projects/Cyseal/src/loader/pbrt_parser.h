@@ -103,6 +103,7 @@ namespace pbrt
 		};
 		struct ObjectDeclDesc
 		{
+			std::string                   name;
 			std::vector<TriangleMeshDesc> triangleShapeDescs;
 			std::vector<PLYShapeDesc>     plyShapeDescs;
 		};

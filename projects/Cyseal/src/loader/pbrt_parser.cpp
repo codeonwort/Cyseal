@@ -320,6 +320,7 @@ namespace pbrt
 		}
 
 		PBRT4ParserOutput::ObjectDeclDesc desc{
+			.name               = activeObjectName,
 			.triangleShapeDescs = std::move(objectState.triangleShapeDescs),
 			.plyShapeDescs      = std::move(objectState.plyShapeDescs),
 		};

@@ -80,8 +80,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	loadMaterials(parserOutput);
 	pbrtScene->triangleMeshes = std::move(parserOutput.triangleShapeDescs);
 	loadPLYMeshes(baseDir, parserOutput.plyShapeDescs, pbrtScene->plyMeshes);
-
-	// #todo-pbrt-object: 1) Process object decls. 2) Create object instances.
+	loadObjects(baseDir, parserOutput, pbrtScene->objectInstances);
 	
 	return pbrtScene;
 }
@@ -246,6 +245,36 @@ void PBRT4Loader::loadPLYMeshes(const std::wstring& baseDir, const std::vector<p
 				outMeshes.push_back(plyMesh);
 			}
 		}
+	}
+}
+
+void PBRT4Loader::loadObjects(const std::wstring& baseDir, pbrt::PBRT4ParserOutput& parserOutput, std::vector<PBRT4ObjectInstances>& outInstances)
+{
+	std::map<std::string, PBRT4ObjectInstances> objectInstancesMap;
+	for (pbrt::PBRT4ParserOutput::ObjectDeclDesc& desc : parserOutput.objectDeclDescs)
+	{
+		PBRT4ObjectInstances obj;
+		obj.objectName = desc.name;
+		obj.triangleMeshes = std::move(desc.triangleShapeDescs);
+		loadPLYMeshes(baseDir, desc.plyShapeDescs, obj.plyMeshes);
+
+		objectInstancesMap.insert({ desc.name, std::move(obj) });
+	}
+	for (pbrt::PBRT4ParserOutput::ObjectInstanceDesc& desc : parserOutput.objectInstanceDescs)
+	{
+		auto it = objectInstancesMap.find(desc.name);
+		if (it != objectInstancesMap.end())
+		{
+			it->second.instanceTransforms.push_back(desc.instanceTransform);
+		}
+		else
+		{
+			CYLOG(LogPBRT, Error, L"Can't find object decl: %S", desc.name.data());
+		}
+	}
+	for (const auto& it : objectInstancesMap)
+	{
+		outInstances.push_back(it.second);
 	}
 }
 
