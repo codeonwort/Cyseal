@@ -76,12 +76,28 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 
 	PBRT4Scene* pbrtScene = new PBRT4Scene;
 
-	textureAssetDatabase.clear();
-	namedMaterialDatabase.clear();
-	unnamedMaterialDatabase.clear();
+	loadTextureFiles(baseDir, parserOutput);
+	loadMaterials(parserOutput);
+	pbrtScene->triangleMeshes = std::move(parserOutput.triangleShapeDescs);
+	loadPLYMeshes(baseDir, parserOutput.plyShapeDescs, pbrtScene->plyMeshes);
 
-	// Load texture files
+	// #todo-pbrt-object: 1) Process object decls. 2) Create object instances.
+	
+	return pbrtScene;
+}
+
+MaterialAsset* PBRT4Loader::findNamedMaterial(const char* name) const
+{
+	auto it = namedMaterialDatabase.find(name);
+	return it == namedMaterialDatabase.end() ? nullptr : it->second.get();
+}
+
+void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT4ParserOutput& parserOutput)
+{
 	ImageLoader imageLoader;
+
+	textureAssetDatabase.clear();
+
 	for (const auto& desc : parserOutput.textureFileDescs)
 	{
 		ImageLoadData* imageBlob = nullptr;
@@ -127,9 +143,14 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			);
 		}
 
-		//imageDatabase.insert(std::make_pair(desc.textureName, imageBlob));
 		textureAssetDatabase.insert(std::make_pair(desc.textureName, textureAsset));
 	}
+}
+
+void PBRT4Loader::loadMaterials(const pbrt::PBRT4ParserOutput& parserOutput)
+{
+	namedMaterialDatabase.clear();
+	unnamedMaterialDatabase.clear();
 
 	// Create material assets
 	auto createMaterialAsset = [&](const pbrt::PBRT4ParserOutput::MaterialDesc& desc, size_t ix) {
@@ -195,11 +216,12 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 	{
 		createMaterialAsset(parserOutput.unnamedMaterialDescs[i], i);
 	}
+}
 
-	pbrtScene->triangleMeshes = std::move(parserOutput.triangleShapeDescs);
-
+void PBRT4Loader::loadPLYMeshes(const std::wstring& baseDir, const std::vector<pbrt::PBRT4ParserOutput::PLYShapeDesc>& descs, std::vector<PLYMesh*>& outMeshes)
+{
 	PLYLoader plyLoader;
-	for (const auto& desc : parserOutput.plyShapeDescs)
+	for (const pbrt::PBRT4ParserOutput::PLYShapeDesc& desc : descs)
 	{
 		std::wstring plyFilepath = baseDir + desc.filename;
 		std::wstring plyFullpath = ResourceFinder::get().find(plyFilepath);
@@ -221,20 +243,10 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 				{
 					plyMesh->applyTransform(desc.transform);
 				}
-				pbrtScene->plyMeshes.push_back(plyMesh);
+				outMeshes.push_back(plyMesh);
 			}
 		}
 	}
-
-	// #todo-pbrt-object: 1) Process object decls. 2) Create object instances.
-	
-	return pbrtScene;
-}
-
-MaterialAsset* PBRT4Loader::findNamedMaterial(const char* name) const
-{
-	auto it = namedMaterialDatabase.find(name);
-	return it == namedMaterialDatabase.end() ? nullptr : it->second.get();
 }
 
 SharedPtr<MaterialAsset> PBRT4Loader::findMaterialByRef(const pbrt::PBRT4MaterialRef& ref) const

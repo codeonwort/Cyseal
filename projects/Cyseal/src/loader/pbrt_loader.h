@@ -11,6 +11,8 @@
 #include <vector>
 #include <map>
 
+class PLYMesh;
+
 struct PBRT4Scene
 {
 	// Camera
@@ -19,7 +21,7 @@ struct PBRT4Scene
 	vec3 upVector;
 
 	std::vector<pbrt::PBRT4ParserOutput::TriangleMeshDesc> triangleMeshes;
-	std::vector<class PLYMesh*> plyMeshes;
+	std::vector<PLYMesh*> plyMeshes;
 
 public:
 	virtual ~PBRT4Scene();
@@ -36,6 +38,10 @@ public:
 	MaterialAsset* findNamedMaterial(const char* name) const;
 
 private:
+	void loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT4ParserOutput& parserOutput);
+	void loadMaterials(const pbrt::PBRT4ParserOutput& parserOutput);
+	void loadPLYMeshes(const std::wstring& baseDir, const std::vector<pbrt::PBRT4ParserOutput::PLYShapeDesc>& descs, std::vector<PLYMesh*>& outMeshes);
+
 	SharedPtr<MaterialAsset> findMaterialByRef(const pbrt::PBRT4MaterialRef& ref) const;
 
 	std::map<std::string, SharedPtr<TextureAsset>> textureAssetDatabase;
