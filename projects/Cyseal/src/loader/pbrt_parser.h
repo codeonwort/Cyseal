@@ -4,6 +4,7 @@
 #include "core/matrix.h"
 #include "core/vec2.h"
 #include "core/smart_pointer.h"
+#include "core/assertion.h"
 
 #include <string>
 #include <map>
@@ -20,6 +21,7 @@ namespace pbrt
 		RenderingOptions = 0,
 		SceneElements    = 1,
 		InsideAttribute  = 2,
+		InsideObject     = 3,
 	};
 
 	enum class PBRT4ParameterType
@@ -76,7 +78,8 @@ namespace pbrt
 			float            vroughness               = 1.0f;
 			float            uroughness               = 1.0f;
 			bool             bTransmissive            = false;
-			vec3             transmittance            = vec3(0.0f);
+			vec3             rgbTransmittance         = vec3(0.0f);
+			std::string      textureTransmittance;
 			bool             bUseRgbEtaAndK           = false;
 			vec3             rgbEta;
 			vec3             rgbK;
@@ -98,17 +101,29 @@ namespace pbrt
 			Matrix           transform;
 			bool             bIdentityTransform;
 		};
+		struct ObjectDeclDesc
+		{
+			std::vector<TriangleMeshDesc> triangleShapeDescs;
+			std::vector<PLYShapeDesc>     plyShapeDescs;
+		};
+		struct ObjectInstanceDesc
+		{
+			std::string      name;
+			Matrix           instanceTransform;
+		};
 
 	public:
-		bool                           bValid = true;
-		std::vector<std::wstring>      errorMessages;
+		bool                            bValid = true;
+		std::vector<std::wstring>       errorMessages;
 
-		Matrix                         sceneTransform;
-		std::vector<TextureFileDesc>   textureFileDescs;
-		std::vector<MaterialDesc>      namedMaterialDescs;
-		std::vector<MaterialDesc>      unnamedMaterialDescs;
-		std::vector<TriangleMeshDesc>  triangleShapeDescs;
-		std::vector<PLYShapeDesc>      plyShapeDescs;
+		Matrix                          sceneTransform;
+		std::vector<TextureFileDesc>    textureFileDescs;
+		std::vector<MaterialDesc>       namedMaterialDescs;
+		std::vector<MaterialDesc>       unnamedMaterialDescs;
+		std::vector<TriangleMeshDesc>   triangleShapeDescs;
+		std::vector<PLYShapeDesc>       plyShapeDescs;
+		std::vector<ObjectDeclDesc>     objectDeclDescs;
+		std::vector<ObjectInstanceDesc> objectInstanceDescs;
 	};
 
 	// Parses tokens and produces model data suitable for renderer.
@@ -133,6 +148,9 @@ namespace pbrt
 		void transformEnd(TokenIter& it, PBRT4ParserOutput& output);
 		void attributeBegin(TokenIter& it, PBRT4ParserOutput& output);
 		void attributeEnd(TokenIter& it, PBRT4ParserOutput& output);
+		void objectBegin(TokenIter& it, PBRT4ParserOutput& output);
+		void objectEnd(TokenIter& it, PBRT4ParserOutput& output);
+		void objectInstance(TokenIter& it, PBRT4ParserOutput& output);
 
 		void integrator(TokenIter& it, PBRT4ParserOutput& output);
 		void sampler(TokenIter& it, PBRT4ParserOutput& output);
@@ -168,12 +186,24 @@ namespace pbrt
 		bool                      bValid = true;
 		std::vector<std::wstring> errorMessages;
 		PBRT4ParsePhase           parsePhase = PBRT4ParsePhase::RenderingOptions;
+		uint32                    nextUnnamedMaterialId = 0; // This should keep increasing regardless of graphics state save/restore.
+
+		std::vector<PBRT4ParsePhase> parsePhaseStack;
+		void setParsePhase(PBRT4ParsePhase newPhase) { parsePhase = newPhase; }
+		void pushParsePhase() { parsePhaseStack.push_back(parsePhase); }
+		void popParsePhase()
+		{
+			const size_t n = parsePhaseStack.size();
+			CHECK(n > 0);
+			parsePhase = parsePhaseStack[n - 1];
+			parsePhaseStack.pop_back();
+		}
 
 		// Graphics states
 		struct GraphicsState
 		{
 			Matrix                transform;
-			bool                  bTransformIsIdentity;
+			bool                  bTransformIsIdentity; // #todo-pbrt-object: Do I need this?
 			bool                  bMaterialIsUnnamed;
 			uint32                unnamedMaterialId;
 			std::string           namedMaterial;
@@ -189,17 +219,10 @@ namespace pbrt
 				emission = vec3(0.0f);
 			}
 
-			uint32 setUnnamedMaterial()
+			uint32 setUnnamedMaterial(uint32 nextId)
 			{
 				bMaterialIsUnnamed = true;
-				if (unnamedMaterialId == PBRT4MaterialRef::INVALID_UNNAMED_MATERIAL_ID)
-				{
-					unnamedMaterialId = 0;
-				}
-				else
-				{
-					unnamedMaterialId += 1;
-				}
+				unnamedMaterialId = nextId;
 				return unnamedMaterialId;
 			}
 
@@ -225,7 +248,58 @@ namespace pbrt
 			}
 		};
 		GraphicsState graphicsState;
-		GraphicsState graphicsStateBackup;
+
+		std::vector<GraphicsState> graphicsStateStack;
+		void pushGraphicsState()
+		{
+			graphicsStateStack.push_back(graphicsState);
+		}
+		void popGraphicsState(bool restoreOnlyTransform = false)
+		{
+			const size_t n = graphicsStateStack.size();
+			CHECK(n > 0);
+			const GraphicsState& backup = graphicsStateStack[n - 1];
+			if (restoreOnlyTransform)
+			{
+				graphicsState = backup;
+			}
+			else
+			{
+				graphicsState.copyTransformFrom(backup);
+			}
+			graphicsStateStack.pop_back();
+		}
+
+		struct ObjectState
+		{
+			Matrix                                           transform;
+			std::vector<PBRT4ParserOutput::TriangleMeshDesc> triangleShapeDescs;
+			std::vector<PBRT4ParserOutput::PLYShapeDesc>     plyShapeDescs;
+
+			void initStates(const Matrix& currentTransform)
+			{
+				transform = currentTransform;
+				triangleShapeDescs = {};
+				plyShapeDescs = {};
+			}
+
+			bool isEmpty() const
+			{
+				return triangleShapeDescs.size() == 0
+					&& plyShapeDescs.size() == 0;
+			}
+		};
+		ObjectState objectState;
+		std::vector<std::string> objectNames;
+		std::string activeObjectName; // empty = no active object
+		bool anyActiveObject() const {
+			// Not (parsePhase == PBRT4ParsePhase::InsideObject)
+			// because AttributeBegin/End can be nested within ObjectBegin/End.
+			return activeObjectName.empty() == false;
+		}
+
+		void setCurrentTransform(const Matrix& M);
+		void appendCurrentTransform(const Matrix& M);
 
 	// Compiler part. Wanna separate parser and compiler but the file format is kinda state machine.
 	private:
@@ -249,6 +323,11 @@ namespace pbrt
 			std::string      textureType;
 			std::string      textureClass;
 			ParameterList    parameters;
+		};
+		struct ObjectDesc
+		{
+			std::string            name;
+			std::vector<ShapeDesc> shapes;
 		};
 
 		PBRT4Parameter* findParameter(ParameterList& params, const char* pname) const;

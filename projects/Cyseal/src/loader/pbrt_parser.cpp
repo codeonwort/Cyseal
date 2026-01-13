@@ -31,6 +31,12 @@
 #define DIRECTIVE_CONCAT_TRANSFORM       "ConcatTransform"
 #define DIRECTIVE_AREA_LIGHT_SOURCE      "AreaLightSource"
 
+// Object instancing
+// - Transform = CTM at definition * CTM at instantiation
+#define DIRECTIVE_OBJECT_BEGIN           "ObjectBegin"
+#define DIRECTIVE_OBJECT_END             "ObjectEnd"
+#define DIRECTIVE_OBJECT_INSTANCE        "ObjectInstance"
+
 // Legacy tokens (pbrt-v3)
 #define DIRECTIVE_TRANSFORM_BEGIN        "TransformBegin"
 #define DIRECTIVE_TRANSFORM_END          "TransformEnd"
@@ -91,6 +97,9 @@ namespace pbrt
 			{DIRECTIVE_TRANSFORM_END,       std::bind(&PBRT4Parser::transformEnd,      this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_ATTRIBUTE_BEGIN,     std::bind(&PBRT4Parser::attributeBegin,    this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_ATTRIBUTE_END,       std::bind(&PBRT4Parser::attributeEnd,      this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_OBJECT_BEGIN,        std::bind(&PBRT4Parser::objectBegin,       this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_OBJECT_END,          std::bind(&PBRT4Parser::objectEnd,         this, std::placeholders::_1, std::placeholders::_2)},
+			{DIRECTIVE_OBJECT_INSTANCE,     std::bind(&PBRT4Parser::objectInstance,    this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_INTEGRATOR,          std::bind(&PBRT4Parser::integrator,        this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_TRANSFORM,           std::bind(&PBRT4Parser::transform,         this, std::placeholders::_1, std::placeholders::_2)},
 			{DIRECTIVE_SAMPLER,             std::bind(&PBRT4Parser::sampler,           this, std::placeholders::_1, std::placeholders::_2)},
@@ -140,20 +149,22 @@ namespace pbrt
 	{
 		bValid = true;
 		errorMessages.clear();
-		parsePhase = PBRT4ParsePhase::RenderingOptions;
-
+		setParsePhase(PBRT4ParsePhase::RenderingOptions);
 		graphicsState.initStates();
 	}
 
 	void PBRT4Parser::parserError(TokenIter& it, const wchar_t* msg, ...)
 	{
-		wchar_t fmtBuffer[4096];
+		std::vector<wchar_t> fmtBuffer(4096);
 		va_list argptr;
 		va_start(argptr, msg);
-		std::vswprintf(fmtBuffer, 4096, msg, argptr);
+		std::vswprintf(fmtBuffer.data(), 4096, msg, argptr);
 		va_end(argptr);
 
-		errorMessages.emplace_back(fmtBuffer);
+		std::vector<wchar_t> fmtBufferEx(4096);
+		std::swprintf(fmtBufferEx.data(), fmtBufferEx.size(), L"line %d: %s", it->line, fmtBuffer.data());
+
+		errorMessages.emplace_back(fmtBufferEx.data());
 
 		// #todo-pbrt-parser: Stop immediately or synchronize to next directive?
 		it = eofTokenIt;
@@ -198,7 +209,7 @@ namespace pbrt
 			return;
 		}
 
-		parsePhase = PBRT4ParsePhase::SceneElements;
+		setParsePhase(PBRT4ParsePhase::SceneElements);
 
 		output.sceneTransform = graphicsState.transform;
 
@@ -213,8 +224,9 @@ namespace pbrt
 			return;
 		}
 
-		parsePhase = PBRT4ParsePhase::InsideAttribute;
-		graphicsStateBackup.copyTransformFrom(graphicsState);
+		pushParsePhase();
+		setParsePhase(PBRT4ParsePhase::InsideAttribute);
+		pushGraphicsState();
 	}
 
 	void PBRT4Parser::transformEnd(TokenIter& it, PBRT4ParserOutput& output)
@@ -225,20 +237,23 @@ namespace pbrt
 			return;
 		}
 
-		parsePhase = PBRT4ParsePhase::SceneElements;
-		graphicsState.copyTransformFrom(graphicsStateBackup);
+		popParsePhase();
+		popGraphicsState(true);
 	}
 
 	void PBRT4Parser::attributeBegin(TokenIter& it, PBRT4ParserOutput& output)
 	{
-		if (parsePhase != PBRT4ParsePhase::SceneElements)
+		if (parsePhase != PBRT4ParsePhase::SceneElements
+			&& parsePhase != PBRT4ParsePhase::InsideAttribute
+			&& parsePhase != PBRT4ParsePhase::InsideObject)
 		{
 			parserError(it, L"AttributeBegin directive in wrong place");
 			return;
 		}
 
-		parsePhase = PBRT4ParsePhase::InsideAttribute;
-		graphicsStateBackup = graphicsState;
+		pushParsePhase();
+		setParsePhase(PBRT4ParsePhase::InsideAttribute);
+		pushGraphicsState();
 	}
 
 	void PBRT4Parser::attributeEnd(TokenIter& it, PBRT4ParserOutput& output)
@@ -249,8 +264,101 @@ namespace pbrt
 			return;
 		}
 
-		parsePhase = PBRT4ParsePhase::SceneElements;
-		graphicsState = graphicsStateBackup;
+		popParsePhase();
+		popGraphicsState();
+	}
+
+	void PBRT4Parser::objectBegin(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		if (parsePhase != PBRT4ParsePhase::SceneElements && parsePhase != PBRT4ParsePhase::InsideAttribute)
+		{
+			parserError(it, L"ObjectBegin directive in wrong place");
+			return;
+		}
+
+		pushParsePhase();
+		setParsePhase(PBRT4ParsePhase::InsideObject);
+		
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
+		const std::string name(it->value);
+		++it;
+
+		if (name.size() == 0)
+		{
+			parserError(it, L"Object name is empty");
+			return;
+		}
+
+		auto nameIt = std::find(objectNames.begin(), objectNames.end(), name);
+		if (nameIt != objectNames.end())
+		{
+			parserError(it, L"Object name %S is already taken", name.c_str());
+			return;
+		}
+
+		objectState.initStates(graphicsState.transform);
+
+		objectNames.push_back(name);
+		activeObjectName = name;
+		pushGraphicsState();
+	}
+
+	void PBRT4Parser::objectEnd(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		if (parsePhase != PBRT4ParsePhase::InsideObject)
+		{
+			parserError(it, L"ObjectEnd directive in wrong place");
+			return;
+		}
+
+		popParsePhase();
+
+		if (objectState.isEmpty())
+		{
+			parserError(it, L"Object declaration has no shapes in it");
+			return;
+		}
+
+		PBRT4ParserOutput::ObjectDeclDesc desc{
+			.triangleShapeDescs = std::move(objectState.triangleShapeDescs),
+			.plyShapeDescs      = std::move(objectState.plyShapeDescs),
+		};
+		output.objectDeclDescs.emplace_back(desc);
+
+		activeObjectName = "";
+		popGraphicsState();
+	}
+
+	void PBRT4Parser::objectInstance(TokenIter& it, PBRT4ParserOutput& output)
+	{
+		if (parsePhase != PBRT4ParsePhase::SceneElements && parsePhase != PBRT4ParsePhase::InsideAttribute)
+		{
+			parserError(it, L"ObjectInstance directive in wrong place");
+			return;
+		}
+		
+		if (parserWrongToken(it, TokenType::QuoteString)) return;
+		const std::string name(it->value);
+		++it;
+
+		if (name.size() == 0)
+		{
+			parserError(it, L"Object instance name is empty");
+			return;
+		}
+
+		auto nameIt = std::find(objectNames.begin(), objectNames.end(), name);
+		if (nameIt == objectNames.end())
+		{
+			parserError(it, L"Object name %S was not declared", name.c_str());
+			return;
+		}
+
+		PBRT4ParserOutput::ObjectInstanceDesc desc{
+			.name              = name,
+			.instanceTransform = graphicsState.transform,
+		};
+		output.objectInstanceDescs.emplace_back(desc);
 	}
 
 	void PBRT4Parser::integrator(TokenIter& it, PBRT4ParserOutput& output)
@@ -312,6 +420,8 @@ namespace pbrt
 			parserError(it, L"Invalid integrator name: %S", invalidName.data());
 			return;
 		}
+
+		// #todo-pbrt-parser: Emit parsed integrator
 	}
 
 	void PBRT4Parser::sampler(TokenIter& it, PBRT4ParserOutput& output)
@@ -382,8 +492,9 @@ namespace pbrt
 			parserError(it, L"Transform directive in wrong place");
 			return;
 		}
-		graphicsState.transform = mat;
-		graphicsState.bTransformIsIdentity = false;
+
+		// #todo-pbrt-object: Is Transform directive allowed inside object decl?
+		setCurrentTransform(mat);
 	}
 
 	void PBRT4Parser::rotate(TokenIter& it, PBRT4ParserOutput& output)
@@ -429,7 +540,7 @@ namespace pbrt
 		Matrix S;
 		S.scale(x, y, z);
 
-		graphicsState.transform = S * graphicsState.transform;
+		appendCurrentTransform(S);
 	}
 
 	void PBRT4Parser::lookAt(TokenIter& it, PBRT4ParserOutput& output)
@@ -485,7 +596,7 @@ namespace pbrt
 		if (parserWrongToken(it, TokenType::RightBracket)) return;
 		++it;
 
-		graphicsState.transform = M * graphicsState.transform;
+		appendCurrentTransform(M);
 	}
 
 	void PBRT4Parser::texture(TokenIter& it, PBRT4ParserOutput& output)
@@ -526,7 +637,8 @@ namespace pbrt
 		// Add to the list to make compileMaterial() consistent.
 		params.push_back(PBRT4Parameter{ PBRT4ParameterType::String, "type", materialType });
 
-		uint32 unnamedId = graphicsState.setUnnamedMaterial();
+		uint32 unnamedId = graphicsState.setUnnamedMaterial(nextUnnamedMaterialId);
+		nextUnnamedMaterialId += 1;
 		
 		MaterialDesc materialDesc{
 			.name       = { unnamedId, "" },
@@ -581,7 +693,7 @@ namespace pbrt
 		ShapeDesc shapeDesc{
 			.name               = std::move(shapeName),
 			.materialName       = graphicsState.getActiveMaterialName(),
-			.transform          = graphicsState.transform,
+			.transform          = graphicsState.transform, // #todo-pbrt-object: Need to use objectState.transform if inside object decl.
 			.bIdentityTransform = graphicsState.bTransformIsIdentity,
 			.parameters         = std::move(params),
 		};
@@ -830,6 +942,31 @@ namespace pbrt
 		return params;
 	}
 
+	void PBRT4Parser::setCurrentTransform(const Matrix& M)
+	{
+		if (parsePhase == PBRT4ParsePhase::InsideObject)
+		{
+			objectState.transform = M;
+		}
+		else
+		{
+			graphicsState.transform = M;
+			graphicsState.bTransformIsIdentity = false;
+		}
+	}
+
+	void PBRT4Parser::appendCurrentTransform(const Matrix& M)
+	{
+		if (parsePhase == PBRT4ParsePhase::InsideObject)
+		{
+			objectState.transform = M * objectState.transform;
+		}
+		else
+		{
+			graphicsState.transform = M * graphicsState.transform;
+		}
+	}
+
 	pbrt::PBRT4Parameter* PBRT4Parser::findParameter(ParameterList& params, const char* pname) const
 	{
 		for (auto& param : params)
@@ -856,7 +993,14 @@ namespace pbrt
 				.transform          = inDesc.transform,
 				.bIdentityTransform = inDesc.bIdentityTransform,
 			};
-			output.plyShapeDescs.emplace_back(outDesc);
+			if (anyActiveObject())
+			{
+				objectState.plyShapeDescs.emplace_back(outDesc);
+			}
+			else
+			{
+				output.plyShapeDescs.emplace_back(outDesc);
+			}
 		}
 		else if (inDesc.name == "trianglemesh")
 		{
@@ -879,7 +1023,14 @@ namespace pbrt
 				.indexBuffer    = toUIntArray(std::move(pIndices->asIntArray)),
 				.material       = material,
 			};
-			output.triangleShapeDescs.emplace_back(outDesc);
+			if (anyActiveObject())
+			{
+				objectState.triangleShapeDescs.emplace_back(outDesc);
+			}
+			else
+			{
+				output.triangleShapeDescs.emplace_back(outDesc);
+			}
 		}
 	}
 
@@ -900,13 +1051,14 @@ namespace pbrt
 		COMPILER_OPTIONAL_PARAMETER2(pRoughness, PBRT4ParameterType::Float, PBRT4ParameterType::Texture);
 		COMPILER_OPTIONAL_PARAMETER(pVRoughness, PBRT4ParameterType::Float);
 		COMPILER_OPTIONAL_PARAMETER(pURoughness, PBRT4ParameterType::Float);
-		COMPILER_OPTIONAL_PARAMETER(pTransmittance, PBRT4ParameterType::Float3);
+		COMPILER_OPTIONAL_PARAMETER2(pTransmittance, PBRT4ParameterType::Float3, PBRT4ParameterType::Texture);
 		COMPILER_OPTIONAL_PARAMETER3(pEta, PBRT4ParameterType::Spectrum, PBRT4ParameterType::Float, PBRT4ParameterType::Float3);
 		COMPILER_OPTIONAL_PARAMETER2(pK, PBRT4ParameterType::Spectrum, PBRT4ParameterType::Float3);
 
 		bool bUseRgbReflectance = pReflectrance != nullptr && pReflectrance->datatype == PBRT4ParameterType::Float3;
 		bool bUseAnisotrophicRoughness = pVRoughness != nullptr && pURoughness != nullptr;
-		bool bTransmissive = pTransmittance != nullptr && allLessThan(pTransmittance->asFloat3, vec3(1.0f));
+		bool bUseRgbTransmissive = (pTransmittance != nullptr) && (pTransmittance->datatype == PBRT4ParameterType::Float3) && allGreaterThan(pTransmittance->asFloat3, vec3(0.0f));
+		bool bUseTexTransmissive = (pTransmittance != nullptr) && (pTransmittance->datatype == PBRT4ParameterType::Texture); // Just assumes transmissive.
 		bool bUseRgbEtaAndK = pEta != nullptr && pK != nullptr && pEta->datatype != PBRT4ParameterType::Spectrum && pK->datatype != PBRT4ParameterType::Spectrum;
 
 		vec3 rgbReflectance(1.0f); std::string textureReflectance;
@@ -928,11 +1080,9 @@ namespace pbrt
 			roughness = (pRoughness != nullptr && pRoughness->datatype == PBRT4ParameterType::Float) ? pRoughness->asFloat : 1.0f;
 		}
 
-		vec3 transmittance(0.0f);
-		if (bTransmissive)
-		{
-			transmittance = pTransmittance->asFloat3;
-		}
+		vec3 rgbTransmittance(0.0f); std::string texTransmittance;
+		if (bUseRgbTransmissive) rgbTransmittance = pTransmittance->asFloat3;
+		else if (bUseTexTransmissive) texTransmittance = pTransmittance->asString;
 
 		vec3 rgbEta(0.0f), rgbK(0.0f);
 		if (bUseRgbEtaAndK && pEta != nullptr && pK != nullptr)
@@ -952,8 +1102,9 @@ namespace pbrt
 			.roughness                = roughness,
 			.vroughness               = vroughness,
 			.uroughness               = uroughness,
-			.bTransmissive            = bTransmissive,
-			.transmittance            = transmittance,
+			.bTransmissive            = bUseRgbTransmissive || bUseTexTransmissive,
+			.rgbTransmittance         = rgbTransmittance,
+			.textureTransmittance     = texTransmittance,
 			.bUseRgbEtaAndK           = bUseRgbEtaAndK,
 			.rgbEta                   = rgbEta,
 			.rgbK                     = rgbK,
@@ -961,6 +1112,7 @@ namespace pbrt
 			.spectrumK                = (bUseRgbEtaAndK || pK == nullptr) ? "" : std::move(pK->asString),
 		};
 
+		// #todo-pbrt-object: Materials are stored globally regardless of object directives.
 		if (inDesc.name.isUnnamed())
 		{
 			output.unnamedMaterialDescs.emplace_back(outDesc);
@@ -994,6 +1146,7 @@ namespace pbrt
 				.filename      = std::move(wTextureFilename),
 				.numChannels   = bRGB ? 3 : 1, // #todo-pbrt: Actually use it? But ImageLoader will handle file loading anyway...
 			};
+			// #todo-pbrt-object: Textures are stored globally regardless of object directives.
 			output.textureFileDescs.emplace_back(outDesc);
 		}
 		else if ((bRGB || bGrey) && inDesc.textureClass == "scale")

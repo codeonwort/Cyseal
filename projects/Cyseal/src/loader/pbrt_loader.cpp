@@ -172,7 +172,7 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 		//if (desc.bTransmissive)
 		//{
 		//	material->materialID = EMaterialId::Transparent;
-		//	material->transmittance = desc.transmittance;
+		//	material->transmittance = desc.rgbTransmittance; (need to support texureTransmittance also)
 		//}
 
 		// #todo-pbrt: Other MaterialDesc properties
@@ -225,6 +225,8 @@ PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 			}
 		}
 	}
+
+	// #todo-pbrt-object: 1) Process object decls. 2) Create object instances.
 	
 	return pbrtScene;
 }
