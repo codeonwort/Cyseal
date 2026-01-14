@@ -124,8 +124,15 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 			textureAsset = makeShared<TextureAsset>();
 
 			ENQUEUE_RENDER_COMMAND(CreateTextureAsset)(
-				[textureAsset, imageBlob, wFilename](RenderCommandList& commandList)
+				[texWeak = WeakPtr<TextureAsset>(textureAsset), imageBlob, wFilename](RenderCommandList& commandList)
 				{
+					SharedPtr<TextureAsset> texShared = texWeak.lock();
+					if (texShared == nullptr)
+					{
+						CYLOG(LogPBRT, Error, L"TextureAsset is already deallocated for: %s", wFilename.c_str());
+						return;
+					}
+
 					TextureCreateParams createParams = TextureCreateParams::texture2D(
 						EPixelFormat::R8G8B8A8_UNORM,
 						ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
@@ -138,7 +145,7 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 						imageBlob->getSlicePitch());
 					texture->setDebugName(wFilename.c_str());
 
-					textureAsset->setGPUResource(SharedPtr<Texture>(texture));
+					texShared->setGPUResource(SharedPtr<Texture>(texture));
 
 					commandList.enqueueDeferredDealloc(imageBlob);
 				}
