@@ -287,8 +287,13 @@ void StaticMeshRendering::renderForPipeline(
 	indirectDrawHelper->resizeResources(swapchainIndex, gpuScene->getGPUSceneItemMaxCount());
 	auto argumentBufferGenerator = indirectDrawHelper->argumentBufferGenerator.get();
 
+	uint32 maxIndirectDraws = (uint32)drawList.meshes.size();
+	if (maxIndirectDraws == 0)
+	{
+		return;
+	}
+
 	// Fill the indirect draw buffer and perform GPU culling.
-	uint32 maxIndirectDraws = 0;
 	if (bIndirectDraw)
 	{
 		uint32 indirectCommandID = 0;
@@ -314,7 +319,6 @@ void StaticMeshRendering::renderForPipeline(
 			++indirectCommandID;
 		}
 
-		maxIndirectDraws = indirectCommandID;
 		Buffer* currentArgumentBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
 		argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, currentArgumentBuffer, 0);
 
