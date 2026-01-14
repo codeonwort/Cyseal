@@ -211,7 +211,7 @@ namespace pbrt
 
 		setParsePhase(PBRT4ParsePhase::SceneElements);
 
-		output.sceneTransform = graphicsState.transform;
+		output.cameraTransform = graphicsState.transform;
 
 		graphicsState.transform.identity();
 	}
@@ -494,7 +494,7 @@ namespace pbrt
 			return;
 		}
 
-		// #todo-pbrt-object: Is Transform directive allowed inside object decl?
+		// #todo-pbrt-object: Transform directive appears inside object decl
 		setCurrentTransform(mat);
 	}
 
@@ -547,6 +547,12 @@ namespace pbrt
 	void PBRT4Parser::lookAt(TokenIter& it, PBRT4ParserOutput& output)
 	{
 		// LookAt eye_x eye_y eye_z look_x look_y look_z up_x up_y up_z
+
+		if (parsePhase != PBRT4ParsePhase::RenderingOptions)
+		{
+			parserError(it, L"LookAt directive after WorldBegin?");
+			return;
+		}
 
 		auto readFloat = [&it, this](float& outValue) {
 			if (parserWrongToken(it, TokenType::Number)) return true;
@@ -694,8 +700,8 @@ namespace pbrt
 		ShapeDesc shapeDesc{
 			.name               = std::move(shapeName),
 			.materialName       = graphicsState.getActiveMaterialName(),
-			.transform          = graphicsState.transform, // #todo-pbrt-object: Need to use objectState.transform if inside object decl.
-			.bIdentityTransform = graphicsState.bTransformIsIdentity,
+			.transform          = anyActiveObject() ? objectState.transform : graphicsState.transform,
+			.bIdentityTransform = anyActiveObject() ? false : graphicsState.bTransformIsIdentity,
 			.parameters         = std::move(params),
 		};
 		compileShape(shapeDesc, output);
@@ -945,7 +951,7 @@ namespace pbrt
 
 	void PBRT4Parser::setCurrentTransform(const Matrix& M)
 	{
-		if (parsePhase == PBRT4ParsePhase::InsideObject)
+		if (anyActiveObject())
 		{
 			objectState.transform = M;
 		}
@@ -958,13 +964,14 @@ namespace pbrt
 
 	void PBRT4Parser::appendCurrentTransform(const Matrix& M)
 	{
-		if (parsePhase == PBRT4ParsePhase::InsideObject)
+		if (anyActiveObject())
 		{
 			objectState.transform = M * objectState.transform;
 		}
 		else
 		{
 			graphicsState.transform = M * graphicsState.transform;
+			graphicsState.bTransformIsIdentity = false;
 		}
 	}
 
@@ -1113,7 +1120,7 @@ namespace pbrt
 			.spectrumK                = (bUseRgbEtaAndK || pK == nullptr) ? "" : std::move(pK->asString),
 		};
 
-		// #todo-pbrt-object: Materials are stored globally regardless of object directives.
+		// Materials are stored globally regardless of object directives.
 		if (inDesc.name.isUnnamed())
 		{
 			output.unnamedMaterialDescs.emplace_back(outDesc);

@@ -118,7 +118,7 @@ namespace pbrt
 		bool                             bValid = true;
 		std::vector<std::wstring>        errorMessages;
 
-		Matrix                           sceneTransform;
+		Matrix                           cameraTransform;
 		std::unordered_set<std::wstring> textureFileDescSet;
 		std::vector<TextureDesc>         textureDescs;
 		std::vector<MaterialDesc>        namedMaterialDescs;
@@ -264,11 +264,11 @@ namespace pbrt
 			const GraphicsState& backup = graphicsStateStack[n - 1];
 			if (restoreOnlyTransform)
 			{
-				graphicsState = backup;
+				graphicsState.copyTransformFrom(backup);
 			}
 			else
 			{
-				graphicsState.copyTransformFrom(backup);
+				graphicsState = backup;
 			}
 			graphicsStateStack.pop_back();
 		}
