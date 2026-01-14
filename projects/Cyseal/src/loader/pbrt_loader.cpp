@@ -129,6 +129,9 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 					SharedPtr<TextureAsset> texShared = texWeak.lock();
 					if (texShared == nullptr)
 					{
+						// #todo-pbrt-parser: Maybe don't load unused texture files in the first place?
+						// Texture file was declared in a pbrt file, but actually not used by any material,
+						// so related TextureAsset was already deallocated.
 						CYLOG(LogPBRT, Error, L"TextureAsset is already deallocated for: %s", wFilename.c_str());
 						return;
 					}

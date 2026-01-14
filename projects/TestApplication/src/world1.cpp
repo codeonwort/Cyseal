@@ -18,7 +18,6 @@
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
-// #todo: DX12 + Null renderer -> SystemTexture2DWhite not free'd?
 #define LOAD_PBRT_FILE       1
 #define CREATE_TEST_MESHES   1
 
@@ -114,8 +113,11 @@ void World1::createTestMeshes()
 
 	SharedPtr<TextureAsset> albedoTexture = makeShared<TextureAsset>();
 	ENQUEUE_RENDER_COMMAND(CreateTexture)(
-		[albedoTexture, imageBlob](RenderCommandList& commandList)
+		[texWeak = WeakPtr<TextureAsset>(albedoTexture), imageBlob](RenderCommandList& commandList)
 		{
+			SharedPtr<TextureAsset> tex = texWeak.lock();
+			CHECK(tex != nullptr);
+
 			TextureCreateParams params = TextureCreateParams::texture2D(
 				EPixelFormat::R8G8B8A8_UNORM,
 				ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
@@ -125,7 +127,7 @@ void World1::createTestMeshes()
 			texture->uploadData(commandList, imageBlob->buffer, imageBlob->getRowPitch(), imageBlob->getSlicePitch());
 			texture->setDebugName(TEXT("Texture_albedoTest"));
 
-			albedoTexture->setGPUResource(SharedPtr<Texture>(texture));
+			tex->setGPUResource(SharedPtr<Texture>(texture));
 
 			commandList.enqueueDeferredDealloc(imageBlob);
 		}
@@ -249,7 +251,10 @@ void World1::createSkybox()
 	{
 		SharedPtr<TextureAsset> skyboxTexture = makeShared<TextureAsset>();
 		ENQUEUE_RENDER_COMMAND(CreateSkybox)(
-			[skyboxTexture, skyboxBlobs](RenderCommandList& commandList) {
+			[texWeak = WeakPtr<TextureAsset>(skyboxTexture), skyboxBlobs](RenderCommandList& commandList) {
+				SharedPtr<TextureAsset> tex = texWeak.lock();
+				CHECK(tex != nullptr);
+
 				TextureCreateParams params = TextureCreateParams::textureCube(
 					EPixelFormat::R8G8B8A8_UNORM,
 					ETextureAccessFlags::SRV | ETextureAccessFlags::CPU_WRITE,
@@ -266,7 +271,7 @@ void World1::createSkybox()
 				}
 				texture->setDebugName(TEXT("Texture_skybox"));
 
-				skyboxTexture->setGPUResource(SharedPtr<Texture>(texture));
+				tex->setGPUResource(SharedPtr<Texture>(texture));
 
 				for (ImageLoadData* imageBlob : skyboxBlobs)
 				{
