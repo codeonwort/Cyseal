@@ -184,7 +184,7 @@ PLYMesh* PLYLoader::loadFromFile(const std::wstring& filepath)
 		uint32 numFaceVertices = readAsUint32(fs, sizeOfNumFaceVertices);
 		if (numFaceVertices == 3)
 		{
-			// #todo-pbrt: Fixup winding
+			// #todo-pbrt-geom: Fixup winding
 			uint32 i0 = readAsUint32(fs, sizeOfVertexIndex);
 			uint32 i1 = readAsUint32(fs, sizeOfVertexIndex);
 			uint32 i2 = readAsUint32(fs, sizeOfVertexIndex);

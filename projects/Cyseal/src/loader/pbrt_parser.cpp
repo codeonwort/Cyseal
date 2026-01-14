@@ -519,7 +519,7 @@ namespace pbrt
 		float z = std::stof(it->value.data());
 		++it;
 
-		// #todo-pbrt-parser: Concat with current transform
+		// #todo-pbrt-transform: Concat with current transform
 	}
 
 	void PBRT4Parser::scale(TokenIter& it, PBRT4ParserOutput& output)
@@ -1084,7 +1084,7 @@ namespace pbrt
 		}
 		else
 		{
-			// #todo-pbrt-parser: Support roughness texture
+			// #todo-pbrt-material: Support roughness texture
 			roughness = (pRoughness != nullptr && pRoughness->datatype == PBRT4ParameterType::Float) ? pRoughness->asFloat : 1.0f;
 		}
 
@@ -1136,7 +1136,7 @@ namespace pbrt
 		const bool bRGB = inDesc.textureType == "spectrum";
 		const bool bGrey = inDesc.textureType == "float";
 
-		// #todo-pbrt-parser: Parse all texture params and expand PBRT4ParserOutput::TextureDesc.
+		// #todo-pbrt-material: Parse all texture params and expand PBRT4ParserOutput::TextureDesc.
 		// https://pbrt.org/fileformat-v4#textures
 
 		if ((bRGB || bGrey) && inDesc.textureClass == "imagemap")
@@ -1159,7 +1159,7 @@ namespace pbrt
 				.textureName   = std::move(inDesc.name),
 				.textureFilter = std::move(filter),
 				.filename      = wTextureFilename,
-				.numChannels   = bRGB ? 3 : 1, // #todo-pbrt: Actually use it? But ImageLoader will handle file loading anyway...
+				.numChannels   = bRGB ? 3 : 1, // #todo-pbrt-material: Actually use it? But ImageLoader will handle file loading anyway...
 			};
 			output.textureDescs.emplace_back(outDesc);
 		}

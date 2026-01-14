@@ -129,7 +129,7 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 					SharedPtr<TextureAsset> texShared = texWeak.lock();
 					if (texShared == nullptr)
 					{
-						// #todo-pbrt-parser: Maybe don't load unused texture files in the first place?
+						// #todo-pbrt-material: Maybe don't load unused texture files in the first place?
 						// Texture file was declared in a pbrt file, but actually not used by any material,
 						// so related TextureAsset was already deallocated.
 						CYLOG(LogPBRT, Error, L"TextureAsset is already deallocated for: %s", wFilename.c_str());
@@ -159,7 +159,7 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 	}
 
 	// Map Texture directive to image file.
-	// #todo-pbrt-parser: Parse parameters in PBRT4Parser::compileTexture() and somehow apply them.
+	// #todo-pbrt-material: Parse parameters in PBRT4Parser::compileTexture() and somehow apply them.
 	for (const auto& desc : parserOutput.textureDescs)
 	{
 		auto it = textureAssetDatabase.find(desc.filename);
@@ -216,14 +216,14 @@ void PBRT4Loader::loadMaterials(const pbrt::PBRT4ParserOutput& parserOutput)
 			material->roughness = desc.roughness;
 		}
 
-		// #todo-pbrt: diffusetransmission material needs different materialID
+		// #todo-pbrt-material: diffusetransmission material needs different materialID
 		//if (desc.bTransmissive)
 		//{
 		//	material->materialID = EMaterialId::Transparent;
 		//	material->transmittance = desc.rgbTransmittance; (need to support texureTransmittance also)
 		//}
 
-		// #todo-pbrt: Other MaterialDesc properties
+		// #todo-pbrt-material: Other MaterialDesc properties
 
 		if (desc.materialName.isUnnamed())
 		{
