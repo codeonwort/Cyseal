@@ -23,11 +23,23 @@
 
 // living-room contains an invalid leaf texture only for pbrt format :/
 // It's tungsten and mitsuba versions are fine.
-#define PBRT_FILEPATH_00     L"external/pbrt4/living-room/scene-v4.pbrt"
-#define PBRT_FILEPATH_01     L"external/pbrt4_bedroom/bedroom/scene-v4.pbrt"
-#define PBRT_FILEPATH_02     L"external/pbrt4_house/house/scene-v4.pbrt"
-#define PBRT_FILEPATH_03     L"external/pbrt4_dining_room/dining-room/scene-v4.pbrt"
-#define PBRT_FILEPATH        PBRT_FILEPATH_01
+struct PBRTLoadDesc
+{
+	std::wstring filename;
+	vec3         position  = vec3(0, 0, 0);
+	vec3         scale     = vec3(1, 1, 1);
+	vec3         axis      = vec3(0, 1, 0); // For rotation
+	float        angle     = 0.0f;          // For rotation
+};
+#define PBRT_LOAD_DESC_00    PBRTLoadDesc{ L"external/pbrt4/living-room/scene-v4.pbrt",             vec3(50.0f, -5.0f, 0.0f), vec3(10.0f) }
+#define PBRT_LOAD_DESC_01    PBRTLoadDesc{ L"external/pbrt4_bedroom/bedroom/scene-v4.pbrt",         vec3(50.0f, -5.0f, 0.0f), vec3(10.0f) }
+#define PBRT_LOAD_DESC_02    PBRTLoadDesc{ L"external/pbrt4_house/house/scene-v4.pbrt",             vec3(50.0f, -5.0f, 0.0f), vec3(10.0f) }
+#define PBRT_LOAD_DESC_03    PBRTLoadDesc{ L"external/pbrt4_dining_room/dining-room/scene-v4.pbrt", vec3(50.0f, -5.0f, 0.0f), vec3(10.0f) }
+// #todo-pbrt-parser: Need to increase VERTEX_BUFFER_POOL_SIZE and INDEX_BUFFER_POOL_SIZE (like 640 MiB each)
+// #todo-pbrt-parser: Wrong transforms...
+#define PBRT_LOAD_DESC_04    PBRTLoadDesc{ L"external/pbrt4_sanmiguel/sanmiguel-entry.pbrt",        vec3(50.0f, -5.0f, 0.0f), vec3(1.0f), vec3(1, 1, 1), 90 }
+#define PBRT_LOAD_DESC       PBRT_LOAD_DESC_01
+PBRTLoadDesc pbrtLoadDesc  = PBRT_LOAD_DESC;
 
 #define CRUMPLED_MESHES      0
 
@@ -288,7 +300,7 @@ void World1::createPbrtResources()
 	// Currently only pbrt mesh contains multiple mesh sections.
 	// It's highly suspicious that mesh index, gpu scene item index, and material index are out of sync.
 	PBRT4Loader pbrtLoader;
-	PBRT4Scene* pbrtScene = pbrtLoader.loadFromFile(PBRT_FILEPATH);
+	PBRT4Scene* pbrtScene = pbrtLoader.loadFromFile(pbrtLoadDesc.filename);
 	
 	MaterialAsset* M_curtains = pbrtLoader.findNamedMaterial("Curtains");
 	if (M_curtains != nullptr)
@@ -348,8 +360,9 @@ void World1::createPbrtResources()
 			MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(pbrtGeometries[i]);
 			MesoGeometryAssets::addStaticMeshSections(pbrtMesh, 0, geomAssets, material);
 		}
-		pbrtMesh->setPosition(vec3(50.0f, -5.0f, 0.0f));
-		pbrtMesh->setScale(10.0f);
+		pbrtMesh->setPosition(pbrtLoadDesc.position);
+		pbrtMesh->setScale(pbrtLoadDesc.scale);
+		pbrtMesh->setRotation(pbrtLoadDesc.axis, pbrtLoadDesc.angle);
 
 		scene->addStaticMesh(pbrtMesh);
 
