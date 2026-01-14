@@ -55,7 +55,6 @@ void World1::onTick(float deltaSeconds)
 	}
 }
 
-// #todo-fatal: Crash on terminate
 void World1::onTerminate()
 {
 	if (CREATE_TEST_MESHES)
