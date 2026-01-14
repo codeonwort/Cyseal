@@ -8,6 +8,7 @@
 
 #include <string>
 #include <map>
+#include <unordered_set>
 #include <functional>
 
 class MaterialAsset;
@@ -58,7 +59,7 @@ namespace pbrt
 
 	struct PBRT4ParserOutput
 	{
-		struct TextureFileDesc
+		struct TextureDesc
 		{
 			std::string    textureName;
 			std::string    textureFilter;
@@ -114,17 +115,18 @@ namespace pbrt
 		};
 
 	public:
-		bool                            bValid = true;
-		std::vector<std::wstring>       errorMessages;
+		bool                             bValid = true;
+		std::vector<std::wstring>        errorMessages;
 
-		Matrix                          sceneTransform;
-		std::vector<TextureFileDesc>    textureFileDescs;
-		std::vector<MaterialDesc>       namedMaterialDescs;
-		std::vector<MaterialDesc>       unnamedMaterialDescs;
-		std::vector<TriangleMeshDesc>   triangleShapeDescs;
-		std::vector<PLYShapeDesc>       plyShapeDescs;
-		std::vector<ObjectDeclDesc>     objectDeclDescs;
-		std::vector<ObjectInstanceDesc> objectInstanceDescs;
+		Matrix                           sceneTransform;
+		std::unordered_set<std::wstring> textureFileDescSet;
+		std::vector<TextureDesc>         textureDescs;
+		std::vector<MaterialDesc>        namedMaterialDescs;
+		std::vector<MaterialDesc>        unnamedMaterialDescs;
+		std::vector<TriangleMeshDesc>    triangleShapeDescs;
+		std::vector<PLYShapeDesc>        plyShapeDescs;
+		std::vector<ObjectDeclDesc>      objectDeclDescs;
+		std::vector<ObjectInstanceDesc>  objectInstanceDescs;
 	};
 
 	// Parses tokens and produces model data suitable for renderer.

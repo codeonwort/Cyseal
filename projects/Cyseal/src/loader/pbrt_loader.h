@@ -56,7 +56,8 @@ private:
 
 	SharedPtr<MaterialAsset> findMaterialByRef(const pbrt::PBRT4MaterialRef& ref) const;
 
-	std::map<std::string, SharedPtr<TextureAsset>> textureAssetDatabase;
+	std::map<std::wstring, SharedPtr<TextureAsset>> textureAssetDatabase; // filename -> texture asset
+	std::map<std::string, SharedPtr<TextureAsset>> textureDirectiveDatabase; // texture name -> texture asset
 	std::map<std::string, SharedPtr<MaterialAsset>> namedMaterialDatabase;
 	std::vector<SharedPtr<MaterialAsset>> unnamedMaterialDatabase;
 };

@@ -96,16 +96,22 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 	ImageLoader imageLoader;
 
 	textureAssetDatabase.clear();
+	textureDirectiveDatabase.clear();
 
-	for (const auto& desc : parserOutput.textureFileDescs)
+	// Load image files used by Texture directives.
+	for (const std::wstring& wFilename : parserOutput.textureFileDescSet)
 	{
 		ImageLoadData* imageBlob = nullptr;
 
-		std::wstring textureFilepath = baseDir + desc.filename;
+		std::wstring textureFilepath = baseDir + wFilename;
 		textureFilepath = ResourceFinder::get().find(textureFilepath);
 		if (textureFilepath.size() > 0)
 		{
 			imageBlob = imageLoader.load(textureFilepath);
+		}
+		else
+		{
+			CYLOG(LogPBRT, Error, L"Failed to open: %s", wFilename.c_str());
 		}
 
 		SharedPtr<TextureAsset> textureAsset;
@@ -117,11 +123,8 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 		{
 			textureAsset = makeShared<TextureAsset>();
 
-			std::wstring wTextureName;
-			str_to_wstr(desc.textureName, wTextureName);
-
 			ENQUEUE_RENDER_COMMAND(CreateTextureAsset)(
-				[textureAsset, imageBlob, wTextureName](RenderCommandList& commandList)
+				[textureAsset, imageBlob, wFilename](RenderCommandList& commandList)
 				{
 					TextureCreateParams createParams = TextureCreateParams::texture2D(
 						EPixelFormat::R8G8B8A8_UNORM,
@@ -133,7 +136,7 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 						imageBlob->buffer,
 						imageBlob->getRowPitch(),
 						imageBlob->getSlicePitch());
-					texture->setDebugName(wTextureName.c_str());
+					texture->setDebugName(wFilename.c_str());
 
 					textureAsset->setGPUResource(SharedPtr<Texture>(texture));
 
@@ -142,7 +145,22 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 			);
 		}
 
-		textureAssetDatabase.insert(std::make_pair(desc.textureName, textureAsset));
+		textureAssetDatabase.insert({ wFilename, textureAsset });
+	}
+
+	// Map Texture directive to image file.
+	// #todo-pbrt-parser: Parse parameters in PBRT4Parser::compileTexture() and somehow apply them.
+	for (const auto& desc : parserOutput.textureDescs)
+	{
+		auto it = textureAssetDatabase.find(desc.filename);
+		if (it != textureAssetDatabase.end())
+		{
+			textureDirectiveDatabase.insert({ desc.textureName, it->second });
+		}
+		else
+		{
+			CYLOG(LogPBRT, Error, L"Texture filename not found: %s", desc.filename.c_str());
+		}
 	}
 }
 
@@ -162,8 +180,8 @@ void PBRT4Loader::loadMaterials(const pbrt::PBRT4ParserOutput& parserOutput)
 		material->albedoMultiplier.z = desc.rgbReflectance.z;
 		if (desc.textureReflectance.size() > 0)
 		{
-			auto it = textureAssetDatabase.find(desc.textureReflectance);
-			if (it != textureAssetDatabase.end())
+			auto it = textureDirectiveDatabase.find(desc.textureReflectance);
+			if (it != textureDirectiveDatabase.end())
 			{
 				material->albedoTexture = it->second;
 			}

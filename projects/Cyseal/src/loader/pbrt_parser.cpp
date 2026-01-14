@@ -1129,6 +1129,9 @@ namespace pbrt
 		const bool bRGB = inDesc.textureType == "spectrum";
 		const bool bGrey = inDesc.textureType == "float";
 
+		// #todo-pbrt-parser: Parse all texture params and expand PBRT4ParserOutput::TextureDesc.
+		// https://pbrt.org/fileformat-v4#textures
+
 		if ((bRGB || bGrey) && inDesc.textureClass == "imagemap")
 		{
 			auto pFilter   = findParameter(inDesc.parameters, "filter");
@@ -1141,14 +1144,17 @@ namespace pbrt
 			std::wstring wTextureFilename;
 			str_to_wstr(pFilename->asString, wTextureFilename);
 
-			PBRT4ParserOutput::TextureFileDesc outDesc{
+			// Multiple Texture directives may use the same texture file.
+			output.textureFileDescSet.insert(wTextureFilename);
+
+			// Each desc corresponds to a Texture directive.
+			PBRT4ParserOutput::TextureDesc outDesc{
 				.textureName   = std::move(inDesc.name),
 				.textureFilter = std::move(filter),
-				.filename      = std::move(wTextureFilename),
+				.filename      = wTextureFilename,
 				.numChannels   = bRGB ? 3 : 1, // #todo-pbrt: Actually use it? But ImageLoader will handle file loading anyway...
 			};
-			// #todo-pbrt-object: Textures are stored globally regardless of object directives.
-			output.textureFileDescs.emplace_back(outDesc);
+			output.textureDescs.emplace_back(outDesc);
 		}
 		else if ((bRGB || bGrey) && inDesc.textureClass == "scale")
 		{
