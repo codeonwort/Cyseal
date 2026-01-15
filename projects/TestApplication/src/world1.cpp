@@ -37,7 +37,7 @@ struct PBRTLoadDesc
 #define PBRT_LOAD_DESC_03    PBRTLoadDesc{ L"external/pbrt4_dining_room/dining-room/scene-v4.pbrt", vec3(50.0f, -5.0f, 0.0f), vec3(10.0f) }
 // #todo-pbrt-parser: Need to increase VERTEX_BUFFER_POOL_SIZE and INDEX_BUFFER_POOL_SIZE (like 640 MiB each)
 #define PBRT_LOAD_DESC_04    PBRTLoadDesc{ L"external/pbrt4_sanmiguel/sanmiguel-entry.pbrt",        vec3(50.0f, -5.0f, 0.0f), vec3(1.0f), vec3(1, 0, 0), 90 }
-#define PBRT_LOAD_DESC       PBRT_LOAD_DESC_04
+#define PBRT_LOAD_DESC       PBRT_LOAD_DESC_01
 PBRTLoadDesc pbrtLoadDesc  = PBRT_LOAD_DESC;
 
 #define CRUMPLED_MESHES      0
