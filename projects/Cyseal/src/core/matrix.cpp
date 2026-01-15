@@ -1,4 +1,5 @@
 #include "matrix.h"
+#include "quaternion.h"
 
 // #todo-matrix: Abuse DirectXMath for inverse matrix
 #include <DirectXMath.h>
@@ -25,6 +26,13 @@ Matrix& Matrix::operator*=(const Matrix& other)
 {
 	*this = (*this) * other;
 	return *this;
+}
+
+void Matrix::rotate(const vec3& axis, float angleInRadians)
+{
+	float t = 0.5f * angleInRadians;
+	quaternion q(axis * Cymath::sin(t), Cymath::cos(t));
+	*this = q.toMatrix();
 }
 
 Matrix Matrix::inverse() const

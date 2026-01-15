@@ -504,7 +504,7 @@ namespace pbrt
 		// where angle is in degrees and (x, y, z) = axis
 
 		if (parserWrongToken(it, TokenType::Number)) return;
-		float angle = std::stof(it->value.data());
+		float angleInDegrees = std::stof(it->value.data());
 		++it;
 
 		if (parserWrongToken(it, TokenType::Number)) return;
@@ -519,7 +519,11 @@ namespace pbrt
 		float z = std::stof(it->value.data());
 		++it;
 
-		// #todo-pbrt-transform: Concat with current transform
+		float angleInRadians = Cymath::radians(angleInDegrees);
+		Matrix R;
+		R.rotate(vec3(x, y, z), angleInRadians);
+
+		appendCurrentTransform(R);
 	}
 
 	void PBRT4Parser::scale(TokenIter& it, PBRT4ParserOutput& output)

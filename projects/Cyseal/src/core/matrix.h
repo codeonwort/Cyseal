@@ -27,11 +27,15 @@ public:
 		memcpy_s(m, sizeof(m), I, sizeof(I));
 	}
 
+	// Construct scale matrix.
 	inline void scale(float x, float y, float z)
 	{
 		static float S[4][4] = { {x,0,0,0},{0,y,0,0},{0,0,z,0},{0,0,0,1} };
 		memcpy_s(m, sizeof(m), S, sizeof(S));
 	}
+
+	// Construct rotation matrix.
+	void rotate(const vec3& axis, float angleInRadians);
 
 	Matrix inverse() const;
 
