@@ -494,7 +494,6 @@ namespace pbrt
 			return;
 		}
 
-		// #todo-pbrt-object: Transform directive appears inside object decl
 		setCurrentTransform(mat);
 	}
 

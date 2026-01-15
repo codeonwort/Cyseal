@@ -12,6 +12,7 @@
 #include <map>
 
 class PLYMesh;
+class StaticMesh;
 
 struct PBRT4ObjectInstances
 {
@@ -38,6 +39,15 @@ public:
 	virtual ~PBRT4Scene();
 
 	void deallocate();
+
+	// CAUTION: Deallocate static meshes yourself.
+	struct ToCyseal
+	{
+		std::vector<StaticMesh*> rootObjects;
+		std::vector<StaticMesh*> instancedObjects;
+	};
+	static ToCyseal toCyseal(PBRT4Scene* inoutPbrtScene);
+	static StaticMesh* toStaticMesh(std::vector<pbrt::PBRT4ParserOutput::TriangleMeshDesc>& inoutTriangleMeshes, std::vector<PLYMesh*>& inoutPlyMeshes, const SharedPtr<MaterialAsset>& fallbackMaterial);
 };
 
 class PBRT4Loader

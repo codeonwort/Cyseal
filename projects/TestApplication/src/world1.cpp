@@ -77,7 +77,16 @@ void World1::onTerminate()
 	}
 
 #if LOAD_PBRT_FILE
-	if (pbrtMesh != nullptr) delete pbrtMesh;
+	for (StaticMesh* pbrtMesh : pbrtMeshes)
+	{
+		delete pbrtMesh;
+	}
+	for (StaticMesh* pbrtInst : pbrtInstancedMeshes)
+	{
+		delete pbrtInst;
+	}
+	pbrtMeshes.clear();
+	pbrtInstancedMeshes.clear();
 #endif
 
 	scene->skyboxTexture.reset();
@@ -307,63 +316,29 @@ void World1::createPbrtResources()
 		M_curtains->bDoubleSided = true;
 	}
 
-	// #todo-pbrt-object: Instantiate ObjectInstance directives.
 	if (pbrtScene != nullptr)
 	{
-		const size_t numTriangleMeshes = pbrtScene->triangleMeshes.size();
-		const size_t numPbrtMeshes = pbrtScene->plyMeshes.size();
-		const size_t totalSubMeshes = numTriangleMeshes + numPbrtMeshes;
-		std::vector<Geometry*> pbrtGeometries(totalSubMeshes, nullptr);
-		std::vector<SharedPtr<MaterialAsset>> subMaterials(totalSubMeshes, nullptr);
-		for (size_t i = 0; i < totalSubMeshes; ++i)
+		PBRT4Scene::ToCyseal ret = PBRT4Scene::toCyseal(pbrtScene);
+
+		pbrtMeshes = std::move(ret.rootObjects);
+		for (StaticMesh* pbrtMesh : pbrtMeshes)
 		{
-			Geometry* pbrtGeometry = pbrtGeometries[i] = new Geometry;
+			pbrtMesh->setPosition(pbrtLoadDesc.position);
+			pbrtMesh->setScale(pbrtLoadDesc.scale);
+			pbrtMesh->setRotation(pbrtLoadDesc.axis, pbrtLoadDesc.angle);
 
-			if (i < numTriangleMeshes)
-			{
-				auto& triMesh = pbrtScene->triangleMeshes[i];
-
-				pbrtGeometry->positions = std::move(triMesh.positionBuffer);
-				pbrtGeometry->normals = std::move(triMesh.normalBuffer);
-				pbrtGeometry->texcoords = std::move(triMesh.texcoordBuffer);
-				pbrtGeometry->indices = std::move(triMesh.indexBuffer);
-				pbrtGeometry->recalculateNormals();
-				pbrtGeometry->finalize();
-
-				subMaterials[i] = triMesh.material;
-			}
-			else
-			{
-				PLYMesh* plyMesh = pbrtScene->plyMeshes[i - numTriangleMeshes];
-
-				pbrtGeometry->positions = std::move(plyMesh->positionBuffer);
-				pbrtGeometry->normals = std::move(plyMesh->normalBuffer);
-				pbrtGeometry->texcoords = std::move(plyMesh->texcoordBuffer);
-				pbrtGeometry->indices = std::move(plyMesh->indexBuffer);
-				pbrtGeometry->recalculateNormals();
-				pbrtGeometry->finalize();
-
-				subMaterials[i] = plyMesh->material;
-			}
+			scene->addStaticMesh(pbrtMesh);
 		}
 
-		auto fallbackMaterial = makeShared<MaterialAsset>();
-		fallbackMaterial->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
-		fallbackMaterial->albedoTexture = gTextureManager->getSystemTextureGrey2D();
-		fallbackMaterial->roughness = 1.0f;
-
-		pbrtMesh = new StaticMesh;
-		for (size_t i = 0; i < totalSubMeshes; ++i)
+		pbrtInstancedMeshes = std::move(ret.instancedObjects);
+		for (StaticMesh* pbrtInst : pbrtInstancedMeshes)
 		{
-			auto material = (subMaterials[i] != nullptr) ? subMaterials[i] : fallbackMaterial;
-			MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(pbrtGeometries[i]);
-			MesoGeometryAssets::addStaticMeshSections(pbrtMesh, 0, geomAssets, material);
-		}
-		pbrtMesh->setPosition(pbrtLoadDesc.position);
-		pbrtMesh->setScale(pbrtLoadDesc.scale);
-		pbrtMesh->setRotation(pbrtLoadDesc.axis, pbrtLoadDesc.angle);
+			pbrtInst->setPosition(pbrtLoadDesc.position);
+			pbrtInst->setScale(pbrtLoadDesc.scale);
+			pbrtInst->setRotation(pbrtLoadDesc.axis, pbrtLoadDesc.angle);
 
-		scene->addStaticMesh(pbrtMesh);
+			scene->addStaticMesh(pbrtInst);
+		}
 
 		ENQUEUE_RENDER_COMMAND(DeallocPbrtScene)(
 			[pbrtScene](RenderCommandList& commandList) {

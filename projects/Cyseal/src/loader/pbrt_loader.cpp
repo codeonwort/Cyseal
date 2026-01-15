@@ -9,6 +9,9 @@
 #include "rhi/gpu_resource.h"
 #include "rhi/texture_manager.h"
 #include "render/material.h"
+#include "render/static_mesh.h"
+#include "geometry/primitive.h"
+#include "geometry/meso_geometry.h"
 #include "world/gpu_resource_asset.h"
 #include "util/resource_finder.h"
 #include "util/string_conversion.h"
@@ -19,6 +22,10 @@
 #include <filesystem>
 
 DEFINE_LOG_CATEGORY_STATIC(LogPBRT);
+
+// #todo-pbrt-object: Support instanced static mesh.
+// I don't have it, so creating one StaticMesh for each inst desc, but it causes abysmal performance drop for sanmiguel scene.
+#define ENABLE_PBRT_OBJECT_INSTANCE 0
 
 // -------------------------------------
 // PBRT4Scene
@@ -45,6 +52,104 @@ void PBRT4Scene::deallocate()
 	}
 	objectInstances.clear();
 }
+
+PBRT4Scene::ToCyseal PBRT4Scene::toCyseal(PBRT4Scene* pbrtScene)
+{
+	auto fallbackMaterial = makeShared<MaterialAsset>();
+	fallbackMaterial->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
+	fallbackMaterial->albedoTexture = gTextureManager->getSystemTextureGrey2D();
+	fallbackMaterial->roughness = 1.0f;
+
+	ToCyseal ret;
+
+	// #todo-pbrt: A single StaticMesh for all root objects or one StaticMesh for each root object?
+	StaticMesh* pbrtMesh = toStaticMesh(pbrtScene->triangleMeshes, pbrtScene->plyMeshes, fallbackMaterial);
+	ret.rootObjects.push_back(pbrtMesh);
+
+#if ENABLE_PBRT_OBJECT_INSTANCE
+	for (auto& obj : pbrtScene->objectInstances)
+	{
+		if (obj.instanceTransforms.size() == 0)
+		{
+			CYLOG(LogPBRT, Error, L"Object %S was declared but never instantiated", obj.objectName.c_str());
+			continue;
+		}
+		StaticMesh* proto = nullptr;
+		for (size_t i = 0; i < obj.instanceTransforms.size(); ++i)
+		{
+			if (i == 0)
+			{
+				proto = toStaticMesh(obj.triangleMeshes, obj.plyMeshes, fallbackMaterial);
+				ret.instancedObjects.push_back(proto);
+			}
+			else
+			{
+				StaticMesh* inst = new StaticMesh;
+				for (const auto& section : proto->getSections(0 /*LOD*/))
+				{
+					inst->addSection(0, section.positionBuffer, section.nonPositionBuffer, section.indexBuffer, section.material, section.localBounds);
+				}
+				ret.instancedObjects.push_back(inst);
+			}
+		}
+	}
+#endif
+
+	return ret;
+}
+
+StaticMesh* PBRT4Scene::toStaticMesh(std::vector<pbrt::PBRT4ParserOutput::TriangleMeshDesc>& triangleMeshes, std::vector<PLYMesh*>& plyMeshes, const SharedPtr<MaterialAsset>& fallbackMaterial)
+{
+	const size_t numTriangleMeshes = triangleMeshes.size();
+	const size_t numPbrtMeshes = plyMeshes.size();
+	const size_t totalSubMeshes = numTriangleMeshes + numPbrtMeshes;
+	std::vector<Geometry*> pbrtGeometries(totalSubMeshes, nullptr);
+	std::vector<SharedPtr<MaterialAsset>> subMaterials(totalSubMeshes, nullptr);
+	for (size_t i = 0; i < totalSubMeshes; ++i)
+	{
+		Geometry* pbrtGeometry = pbrtGeometries[i] = new Geometry;
+
+		if (i < numTriangleMeshes)
+		{
+			auto& triMesh = triangleMeshes[i];
+
+			pbrtGeometry->positions = std::move(triMesh.positionBuffer);
+			pbrtGeometry->normals = std::move(triMesh.normalBuffer);
+			pbrtGeometry->texcoords = std::move(triMesh.texcoordBuffer);
+			pbrtGeometry->indices = std::move(triMesh.indexBuffer);
+			pbrtGeometry->recalculateNormals();
+			pbrtGeometry->finalize();
+
+			subMaterials[i] = triMesh.material;
+		}
+		else
+		{
+			PLYMesh* plyMesh = plyMeshes[i - numTriangleMeshes];
+
+			pbrtGeometry->positions = std::move(plyMesh->positionBuffer);
+			pbrtGeometry->normals = std::move(plyMesh->normalBuffer);
+			pbrtGeometry->texcoords = std::move(plyMesh->texcoordBuffer);
+			pbrtGeometry->indices = std::move(plyMesh->indexBuffer);
+			pbrtGeometry->recalculateNormals();
+			pbrtGeometry->finalize();
+
+			subMaterials[i] = plyMesh->material;
+		}
+	}
+
+	StaticMesh* staticMesh = new StaticMesh;
+	for (size_t i = 0; i < totalSubMeshes; ++i)
+	{
+		auto material = (subMaterials[i] != nullptr) ? subMaterials[i] : fallbackMaterial;
+		MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(pbrtGeometries[i]);
+		MesoGeometryAssets::addStaticMeshSections(staticMesh, 0, geomAssets, material);
+	}
+
+	return staticMesh;
+}
+
+// -------------------------------------
+// PBRT4Loader
 
 PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
 {

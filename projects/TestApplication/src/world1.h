@@ -23,5 +23,6 @@ private:
 	StaticMesh* wallA = nullptr;
 	StaticMesh* glassBox = nullptr;
 
-	StaticMesh* pbrtMesh = nullptr;
+	std::vector<StaticMesh*> pbrtMeshes;
+	std::vector<StaticMesh*> pbrtInstancedMeshes;
 };
