@@ -107,7 +107,8 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 		textureFilepath = ResourceFinder::get().find(textureFilepath);
 		if (textureFilepath.size() > 0)
 		{
-			imageBlob = imageLoader.load(textureFilepath);
+			constexpr bool bFlipY = true;
+			imageBlob = imageLoader.load(textureFilepath, bFlipY);
 		}
 		else
 		{

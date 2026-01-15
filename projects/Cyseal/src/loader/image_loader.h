@@ -28,7 +28,7 @@ class ImageLoader
 {
 public:
 	// Returns null if failed. You need to free the memory manually.
-	ImageLoadData* load(const std::wstring& path);
+	ImageLoadData* load(const std::wstring& path, bool flipY = false);
 
 private:
 	//

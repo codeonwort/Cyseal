@@ -7,12 +7,15 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-ImageLoadData* loadImage_internal(char const* filename)
+ImageLoadData* loadImage_internal(char const* filename, bool flipY)
 {
 	const int numRequiredComps = 4; // RGB-only data cannot be directly uploaded for RGBA8 formats.
 	int width, height, numActualComponents;
-	unsigned char* buffer = ::stbi_load(filename, &width, &height, &numActualComponents, numRequiredComps);
 
+	if (flipY) stbi_set_flip_vertically_on_load(true);
+	unsigned char* buffer = ::stbi_load(filename, &width, &height, &numActualComponents, numRequiredComps);
+	if (flipY) stbi_set_flip_vertically_on_load(false);
+	
 	uint32 numComponents = (std::max)(numRequiredComps, numActualComponents);
 
 	if (buffer == nullptr)
@@ -34,10 +37,10 @@ ImageLoadData* loadImage_internal(char const* filename)
 // ------------------------------------------------
 // ImageLoader
 
-ImageLoadData* ImageLoader::load(const std::wstring& path)
+ImageLoadData* ImageLoader::load(const std::wstring& path, bool flipY)
 {
 	std::wstring wsPath = ResourceFinder::get().find(path);
 	std::string sPath;
 	wstr_to_str(wsPath, sPath);
-	return loadImage_internal(sPath.c_str());
+	return loadImage_internal(sPath.c_str(), flipY);
 }
