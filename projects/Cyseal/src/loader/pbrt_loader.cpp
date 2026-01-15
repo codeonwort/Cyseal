@@ -35,6 +35,15 @@ void PBRT4Scene::deallocate()
 		delete mesh;
 	}
 	plyMeshes.clear();
+
+	for (const auto& obj : objectInstances)
+	{
+		for (PLYMesh* mesh : obj.plyMeshes)
+		{
+			delete mesh;
+		}
+	}
+	objectInstances.clear();
 }
 
 PBRT4Scene* PBRT4Loader::loadFromFile(const std::wstring& filepath)
