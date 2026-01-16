@@ -23,6 +23,7 @@ public:
 public:
 	DirectionalLight sun;
 	SharedPtr<TextureAsset> skyboxTexture;
+
 private:
 	std::vector<StaticMesh*> staticMeshes;
 	bool bRebuildGPUScene = false;

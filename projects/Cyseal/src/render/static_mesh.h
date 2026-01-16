@@ -108,4 +108,11 @@ private:
 	Matrix prevModelMatrix;
 	int32 transformDirtyCounter = 0; // Was a boolean, but modified to update prev model matrix.
 	bool bLodDirty = false;
+
+private:
+	struct GPUSceneResidency
+	{
+		// #wip: Track residency here?
+	};
+	GPUSceneResidency gpuSceneResidency;
 };

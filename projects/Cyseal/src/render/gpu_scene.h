@@ -45,6 +45,9 @@ private:
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
 
+	void updateMaterialBuffer();
+	void updateGPUSceneBuffer();
+
 private:
 	UniquePtr<ComputePipelineState> pipelineState;
 
@@ -63,7 +66,7 @@ private:
 	UniquePtr<UnorderedAccessView> gpuSceneBufferUAV;
 
 	// Bindless materials (per swapchain)
-	// #todo-gpuscene: Maybe I don't need to separate max count and actual count?
+	// #wip-material: Maybe I don't need to separate max count and actual count?
 	// Currently constants count = srv count as there are only albedo textures, but srv count will increase.
 	std::vector<uint32> materialConstantsMaxCounts;
 	std::vector<uint32> materialSRVMaxCounts;

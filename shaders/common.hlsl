@@ -121,6 +121,7 @@ float getLinearDepth(float2 screenUV, float sceneDepth, float4x4 projInv)
 // GPUScene
 
 // Should match with GPUSceneItem in gpu_scene.cpp
+#define GPU_SCENE_ITEM_FLAG_BIT_IS_VALID (1 << 0)
 struct GPUSceneItem
 {
     float4x4 localToWorld;
@@ -130,7 +131,8 @@ struct GPUSceneItem
     float3   localMaxBounds;
     uint     nonPositionBufferOffset;
     uint     indexBufferOffset;
-    float3   _pad0;
+    float2   _pad0;
+    uint     flags; // Bitflags of GPU_SCENE_ITEM_FLAG_BIT_...
 };
 
 struct SceneUniform

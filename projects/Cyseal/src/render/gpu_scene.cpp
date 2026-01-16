@@ -17,6 +17,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
 // Should match with GPUSceneItem in common.hlsl
 struct GPUSceneItem
 {
+	enum class FlagBits : uint32
+	{
+		IsValid = 1 << 0, // #wip: Use this to skip invalid items in the gpu scene shader.
+	};
+
 	Float4x4 localToWorld;
 	Float4x4 prevLocalToWorld;
 
@@ -27,8 +32,10 @@ struct GPUSceneItem
 	uint32   nonPositionBufferOffset;
 
 	uint32   indexBufferOffset;
-	vec3     _pad0;
+	vec2     _pad0;
+	FlagBits flags;
 };
+ENUM_CLASS_FLAGS(GPUSceneItem::FlagBits);
 
 enum EGPUSceneCommandType : uint32
 {
@@ -120,7 +127,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	{
 		resizeGPUSceneCommandBuffer(swapchainIndex, numGPUSceneCommands);
 	}
-	// #todo-gpuscene: Don't assume material_max_count == mesh_section_total_count.
+	// #wip-material: Don't assume material_max_count == mesh_section_total_count.
 	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
 
 	uint32 requiredVolatiles = 0;
@@ -129,7 +136,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	requiredVolatiles += 1; // commandBuffer
 	resizeVolatileHeaps(swapchainIndex, requiredVolatiles);
 
-	// #todo-gpuscene: Don't upload unchanged materials. Also don't copy one by one.
+	// #wip-material: Don't upload unchanged materials. Also don't copy one by one.
 	// Prepare bindless materials.
 	uint32& currentConstantsCount = materialConstantsActualCounts[swapchainIndex];
 	uint32& currentMaterialSRVCount = materialSRVActualCounts[swapchainIndex];
@@ -143,8 +150,8 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		auto& SRVs = materialSRVs[swapchainIndex];
 		DescriptorHeap* srvHeap = materialSRVHeap.at(swapchainIndex);
 
-		// #todo-gpuscene: Can't do this in resizeMaterialBuffers()
-		// #todo-gpuscene: Destructors are slow here, when we can just wipe out them.
+		// #wip-material: Can't do this in resizeMaterialBuffers()
+		// #wip-material: Destructors are slow here, when we can just wipe out them.
 		SRVs.clear();
 		SRVs.reserve(numMeshSections);
 		srvHeap->resetAllDescriptors(); // Need to clear SRVs first.
@@ -196,7 +203,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 
 				materialConstantsData[currentConstantsCount] = std::move(constants);
 
-				// #todo-gpuscene: Currently always increment even if duplicate items are generated.
+				// #wip: Currently always increment even if duplicate items are generated.
 				++currentMaterialSRVCount;
 				++currentConstantsCount;
 			}
@@ -206,7 +213,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		materialConstantsMemory[swapchainIndex]->singleWriteToGPU(commandList, materialConstantsData.data(), materialDataSize, 0);
 	}
 	
-	// #todo-gpuscene: Avoid recreation of buffers when bRebuildGPUScene == true.
+	// #wip: Avoid recreation of buffers when bRebuildGPUScene == true.
 	// There are various cases:
 	// [ ] A new object is added to the scene.
 	// [ ] An object is removed from the scene.
@@ -231,16 +238,18 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		for (uint32 j = 0; j < smSections; ++j)
 		{
 			const StaticMeshSection& section = sm->getSections()[j];
-			sceneCommands[sceneCommandIx].commandType                       = (uint32)EGPUSceneCommandType::Update;
-			sceneCommands[sceneCommandIx].sceneItemIndex                    = sceneItemIx;
-			sceneCommands[sceneCommandIx].sceneItem.localToWorld            = localToWorld;
-			sceneCommands[sceneCommandIx].sceneItem.prevLocalToWorld        = prevLocalToWorld;
-			sceneCommands[sceneCommandIx].sceneItem.localMinBounds          = section.localBounds.minBounds;
-			// #todo-gpuscene: uint64 offset
-			sceneCommands[sceneCommandIx].sceneItem.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes();
-			sceneCommands[sceneCommandIx].sceneItem.localMaxBounds          = section.localBounds.maxBounds;
-			sceneCommands[sceneCommandIx].sceneItem.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes();
-			sceneCommands[sceneCommandIx].sceneItem.indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes();
+			sceneCommands[sceneCommandIx].commandType    = (uint32)EGPUSceneCommandType::Update;
+			sceneCommands[sceneCommandIx].sceneItemIndex = sceneItemIx;
+			sceneCommands[sceneCommandIx].sceneItem      = GPUSceneItem{
+				.localToWorld            = localToWorld,
+				.prevLocalToWorld        = prevLocalToWorld,
+				.localMinBounds          = section.localBounds.minBounds,
+				.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes(), // #todo-gpuscene: uint64 offset
+				.localMaxBounds          = section.localBounds.maxBounds,
+				.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes(),
+				.indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes(),
+				.flags                   = GPUSceneItem::FlagBits::IsValid,
+			};
 			++sceneCommandIx;
 			++sceneItemIx;
 		}
@@ -474,4 +483,14 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 			}
 		));
 	}
+}
+
+void GPUScene::updateMaterialBuffer()
+{
+	// #wip: Move material buffer logic to here.
+}
+
+void GPUScene::updateGPUSceneBuffer()
+{
+	// #wip: Move gpu scene buffer logic to here.
 }
