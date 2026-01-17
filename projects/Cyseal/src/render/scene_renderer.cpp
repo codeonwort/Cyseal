@@ -136,7 +136,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(storeHistoryPass = new(EMemoryTag::Renderer) StoreHistoryPass);
 		sceneRenderPasses.push_back(frameGenPass = new(EMemoryTag::Renderer) FrameGenPass);
 
-		gpuScene->initialize();
+		gpuScene->initialize(renderDevice);
 		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
 		bilateralBlur->initialize();
 		rayTracedShadowsPass->initialize();

@@ -28,7 +28,7 @@ public:
 	};
 
 public:
-	void initialize();
+	void initialize(RenderDevice* renderDevice);
 
 	// Update GPU scene buffer.
 	void renderGPUScene(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput);
@@ -45,18 +45,29 @@ private:
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
 
+	void resizeGPUSceneCommandBuffers(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
 	void executeGPUSceneCommands();
 
 private:
+	RenderDevice* device = nullptr;
+
 	UniquePtr<ComputePipelineState> pipelineState;
 
 	std::vector<uint32> totalVolatileDescriptors;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
 
+	// #wip: Delete old impl
 	// GPU scene command buffers (per swapchain)
 	std::vector<uint32> gpuSceneCommandBufferMaxElements;
 	BufferedUniquePtr<Buffer> gpuSceneCommandBuffer;
 	BufferedUniquePtr<ShaderResourceView> gpuSceneCommandBufferSRV;
+
+	BufferedUniquePtr<Buffer> gpuSceneEvictCommandBuffer;
+	BufferedUniquePtr<Buffer> gpuSceneAllocCommandBuffer;
+	BufferedUniquePtr<Buffer> gpuSceneUpdateCommandBuffer;
+	BufferedUniquePtr<ShaderResourceView> gpuSceneEvictCommandBufferSRV;
+	BufferedUniquePtr<ShaderResourceView> gpuSceneAllocCommandBufferSRV;
+	BufferedUniquePtr<ShaderResourceView> gpuSceneUpdateCommandBufferSRV;
 
 	// GPU scene buffer (NOT per swapchain)
 	uint32 gpuSceneMaxElements = 0;

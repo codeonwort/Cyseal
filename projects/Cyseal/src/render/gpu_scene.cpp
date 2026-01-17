@@ -15,13 +15,21 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
 
-void GPUScene::initialize()
+void GPUScene::initialize(RenderDevice* renderDevice)
 {
-	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+	device = renderDevice;
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
 	gpuSceneCommandBufferMaxElements.resize(swapchainCount);
 	gpuSceneCommandBuffer.initialize(swapchainCount);
 	gpuSceneCommandBufferSRV.initialize(swapchainCount);
+
+	gpuSceneEvictCommandBuffer.initialize(swapchainCount);
+	gpuSceneAllocCommandBuffer.initialize(swapchainCount);
+	gpuSceneUpdateCommandBuffer.initialize(swapchainCount);
+	gpuSceneEvictCommandBufferSRV.initialize(swapchainCount);
+	gpuSceneAllocCommandBufferSRV.initialize(swapchainCount);
+	gpuSceneUpdateCommandBufferSRV.initialize(swapchainCount);
 
 	totalVolatileDescriptors.resize(swapchainCount, 0);
 	volatileViewHeap.initialize(swapchainCount);
@@ -38,11 +46,11 @@ void GPUScene::initialize()
 	materialConstantsSRV.initialize(swapchainCount);
 
 	// Shader
-	ShaderStage* gpuSceneShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
+	ShaderStage* gpuSceneShader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
 	gpuSceneShader->declarePushConstants({ { "pushConstants", 1} });
 	gpuSceneShader->loadFromFile(L"gpu_scene.hlsl", "mainCS");
 
-	pipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+	pipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 		ComputePipelineDesc{
 			.cs = gpuSceneShader,
 			.nodeMask = 0,
@@ -92,6 +100,8 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	}
 	// #wip-material: Don't assume material_max_count == mesh_section_total_count.
 	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
+
+	resizeGPUSceneCommandBuffers(commandList, swapchainIndex, scene);
 
 	uint32 requiredVolatiles = 0;
 	requiredVolatiles += 1; // sceneUniform
@@ -147,7 +157,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 						.minLODClamp     = 0.0f,
 					}
 				};
-				auto albedoSRV = gRenderDevice->createSRV(albedo.get(), srvHeap, srvDesc);
+				auto albedoSRV = device->createSRV(albedo.get(), srvHeap, srvDesc);
 				SRVs.emplace_back(UniquePtr<ShaderResourceView>(albedoSRV));
 
 				// Constants
@@ -280,7 +290,7 @@ void GPUScene::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)
 	{
 		totalVolatileDescriptors[swapchainIndex] = maxDescriptors;
 
-		volatileViewHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		volatileViewHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::CBV_SRV_UAV,
 				.numDescriptors = maxDescriptors,
@@ -305,7 +315,7 @@ void GPUScene::resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElem
 		gpuSceneCommandBufferMaxElements[swapchainIndex] = maxElements;
 		const uint32 viewStride = sizeof(GPUSceneCommand);
 
-		gpuSceneCommandBuffer[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+		gpuSceneCommandBuffer[swapchainIndex] = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = viewStride * maxElements,
 				.alignment   = 0,
@@ -324,7 +334,7 @@ void GPUScene::resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElem
 		srvDesc.buffer.structureByteStride = viewStride;
 		srvDesc.buffer.flags               = EBufferSRVFlags::None;
 		gpuSceneCommandBufferSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(
-			gRenderDevice->createSRV(gpuSceneCommandBuffer.at(swapchainIndex), srvDesc));
+			device->createSRV(gpuSceneCommandBuffer.at(swapchainIndex), srvDesc));
 	}
 }
 
@@ -344,7 +354,7 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 		commandList->enqueueDeferredDealloc(oldUAV);
 	}
 
-	gpuSceneBuffer = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+	gpuSceneBuffer = UniquePtr<Buffer>(device->createBuffer(
 		BufferCreateParams{
 			.sizeInBytes = viewStride * gpuSceneMaxElements,
 			.alignment   = 0,
@@ -366,7 +376,7 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 		srvDesc.buffer.structureByteStride = viewStride;
 		srvDesc.buffer.flags               = EBufferSRVFlags::None;
 		gpuSceneBufferSRV = UniquePtr<ShaderResourceView>(
-			gRenderDevice->createSRV(gpuSceneBuffer.get(), srvDesc));
+			device->createSRV(gpuSceneBuffer.get(), srvDesc));
 	}
 	{
 		UnorderedAccessViewDesc uavDesc{};
@@ -378,7 +388,7 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 		uavDesc.buffer.counterOffsetInBytes = 0;
 		uavDesc.buffer.flags                = EBufferUAVFlags::None;
 		gpuSceneBufferUAV = UniquePtr<UnorderedAccessView>(
-			gRenderDevice->createUAV(gpuSceneBuffer.get(), uavDesc));
+			device->createUAV(gpuSceneBuffer.get(), uavDesc));
 	}
 }
 
@@ -400,14 +410,14 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 		CYLOG(LogGPUScene, Log, L"Resize material constants memory [%u]: %u bytes (%.3f MiB)",
 			swapchainIndex, materialMemorySize, (float)materialMemorySize / (1024.0f * 1024.0f));
 
-		materialConstantsMemory[swapchainIndex] = UniquePtr<Buffer>(gRenderDevice->createBuffer(
+		materialConstantsMemory[swapchainIndex] = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = materialMemorySize,
 				.alignment   = 0,
 				.accessFlags = EBufferAccessFlags::COPY_SRC,
 			}
 		));
-		materialConstantsHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		materialConstantsHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::SRV,
 				.numDescriptors = maxConstantsCount,
@@ -416,7 +426,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 				.purpose        = EDescriptorHeapPurpose::Volatile,
 			}
 		));
-		materialConstantsSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(
+		materialConstantsSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(device->createSRV(
 			materialConstantsMemory.at(swapchainIndex),
 			materialConstantsHeap.at(swapchainIndex),
 			ShaderResourceViewDesc{
@@ -436,7 +446,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 	{
 		materialSRVMaxCounts[swapchainIndex] = maxSRVCount;
 
-		materialSRVHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(gRenderDevice->createDescriptorHeap(
+		materialSRVHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::SRV,
 				.numDescriptors = maxSRVCount,
@@ -446,6 +456,58 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 			}
 		));
 	}
+}
+
+void GPUScene::resizeGPUSceneCommandBuffers(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene)
+{
+	auto fn = [device = this->device](UniquePtr<Buffer>& buffer, UniquePtr<ShaderResourceView>& srv,
+		size_t stride, size_t count, const wchar_t* debugName)
+	{
+		if (count == 0)
+		{
+			buffer = nullptr;
+			srv = nullptr;
+		}
+		else if (buffer == nullptr
+			|| (buffer->getCreateParams().sizeInBytes / stride) < count
+			|| (buffer->getCreateParams().sizeInBytes / stride) > (count * 2))
+		{
+			buffer = UniquePtr<Buffer>(device->createBuffer(
+				BufferCreateParams{
+					.sizeInBytes = stride * count,
+					.alignment   = 0,
+					.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::SRV
+				}
+			));
+			buffer->setDebugName(debugName);
+
+			ShaderResourceViewDesc srvDesc{
+				.format        = EPixelFormat::UNKNOWN,
+				.viewDimension = ESRVDimension::Buffer,
+				.buffer        = BufferSRVDesc{
+					.firstElement        = 0,
+					.numElements         = (uint32)count,
+					.structureByteStride = (uint32)stride,
+					.flags               = EBufferSRVFlags::None,
+				}
+			};
+			srv = UniquePtr<ShaderResourceView>(device->createSRV(buffer.get(), srvDesc));
+		}
+	};
+
+	wchar_t debugName[256];
+
+	swprintf_s(debugName, L"Buffer_GPUSceneEvictCommand_%u", swapchainIndex);
+	fn(gpuSceneEvictCommandBuffer[swapchainIndex], gpuSceneEvictCommandBufferSRV[swapchainIndex],
+		sizeof(GPUSceneEvictCommand), scene->gpuSceneEvictCommands.size(), debugName);
+
+	swprintf_s(debugName, L"Buffer_GPUSceneAllocCommand_%u", swapchainIndex);
+	fn(gpuSceneAllocCommandBuffer[swapchainIndex], gpuSceneAllocCommandBufferSRV[swapchainIndex],
+		sizeof(GPUSceneAllocCommand), scene->gpuSceneAllocCommands.size(), debugName);
+
+	swprintf_s(debugName, L"Buffer_GPUSceneUpdateCommand_%u", swapchainIndex);
+	fn(gpuSceneUpdateCommandBuffer[swapchainIndex], gpuSceneUpdateCommandBufferSRV[swapchainIndex],
+		sizeof(GPUSceneUpdateCommand), scene->gpuSceneUpdateCommands.size(), debugName);
 }
 
 void GPUScene::executeGPUSceneCommands()
