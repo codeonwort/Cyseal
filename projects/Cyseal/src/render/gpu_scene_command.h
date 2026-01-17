@@ -36,6 +36,11 @@ struct GPUSceneCommand
 	GPUSceneItem sceneItem;
 };
 
+// Should match with definitions in gpu_scene.hlsl
+struct GPUSceneEvictCommand
+{
+	uint32       sceneItemIndex;
+};
 struct GPUSceneAllocCommand
 {
 	uint32       sceneItemIndex;
@@ -43,10 +48,6 @@ struct GPUSceneAllocCommand
 	uint32       _pad1;
 	uint32       _pad2;
 	GPUSceneItem sceneItem;
-};
-struct GPUSceneEvictCommand
-{
-	uint32       sceneItemIndex;
 };
 struct GPUSceneUpdateCommand
 {

@@ -46,7 +46,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList*
 				for (size_t i = 0; i < numSections; ++i)
 				{
 					const StaticMeshSection& section = LODs[activeLOD].sections[i];
-					const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
+					const uint32 itemIx = gpuSceneItemIndexAllocator->allocate() - 1;
 					gpuSceneResidency.itemIndices[i] = itemIx;
 
 					GPUSceneAllocCommand cmd{
@@ -74,7 +74,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList*
 			for (size_t i = 0; i < numSections; ++i)
 			{
 				const uint32 itemIx = gpuSceneResidency.itemIndices[i];
-				gpuSceneItemIndexAllocator->deallocate(itemIx);
+				gpuSceneItemIndexAllocator->deallocate(itemIx + 1);
 
 				GPUSceneEvictCommand cmd{
 					.sceneItemIndex = itemIx
@@ -88,7 +88,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList*
 			for (size_t i = 0; i < gpuSceneResidency.itemIndices.size(); ++i)
 			{
 				const uint32 itemIx = gpuSceneResidency.itemIndices[i];
-				gpuSceneItemIndexAllocator->deallocate(itemIx);
+				gpuSceneItemIndexAllocator->deallocate(itemIx + 1);
 
 				GPUSceneEvictCommand cmd{
 					.sceneItemIndex = itemIx
@@ -99,7 +99,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList*
 			for (size_t i = 0; i < numSections; ++i)
 			{
 				const StaticMeshSection& section = LODs[activeLOD].sections[i];
-				const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
+				const uint32 itemIx = gpuSceneItemIndexAllocator->allocate() - 1;
 				gpuSceneResidency.itemIndices[i] = itemIx;
 
 				GPUSceneAllocCommand cmd{

@@ -1,8 +1,8 @@
 #include "common.hlsl"
 
-#define COMMAND_TYPE_UPDATE 0
-//#define COMMAND_TYPE_ADD    1
-//#define COMMAND_TYPE_REMOVE 2
+#define COMMAND_TYPE_EVICT  0
+#define COMMAND_TYPE_ALLOC  1
+#define COMMAND_TYPE_UPDATE 2
 
 struct GPUSceneCommand
 {
@@ -13,6 +13,38 @@ struct GPUSceneCommand
     GPUSceneItem sceneItem;
 };
 
+struct GPUSceneAllocCommand
+{
+	uint         sceneItemIndex;
+	uint         _pad0;
+	uint         _pad1;
+	uint         _pad2;
+	GPUSceneItem sceneItem;
+};
+struct GPUSceneEvictCommand
+{
+	uint         sceneItemIndex;
+};
+struct GPUSceneUpdateCommand
+{
+	uint         sceneItemIndex;
+	uint         _pad0;
+	uint         _pad1;
+	uint         _pad2;
+	float4x4     localToWorld;
+	float4x4     prevLocalToWorld;
+};
+
+#if !defined(COMMAND_TYPE)
+	#define COMMAND_STRUCT GPUSceneCommand
+#elif COMMAND_TYPE == COMMAND_TYPE_EVICT
+	#define COMMAND_STRUCT GPUSceneEvictCommand
+#elif COMMAND_TYPE == COMMAND_TYPE_ALLOC
+	#define COMMAND_STRUCT GPUSceneAllocCommand
+#elif COMMAND_TYPE == COMMAND_TYPE_UPDATE
+	#define COMMAND_STRUCT GPUSceneUpdateCommand
+#endif
+
 // ------------------------------------------------------------------------
 // Resource bindings
 
@@ -22,11 +54,11 @@ struct PushConstants
 };
 
 [[vk::push_constant]]
-ConstantBuffer<PushConstants> pushConstants;
+ConstantBuffer<PushConstants>    pushConstants;
 
-ConstantBuffer<SceneUniform> sceneUniform;
+ConstantBuffer<SceneUniform>     sceneUniform;
 RWStructuredBuffer<GPUSceneItem> gpuSceneBuffer;
-StructuredBuffer<GPUSceneCommand> commandBuffer;
+StructuredBuffer<COMMAND_STRUCT> commandBuffer;
 
 // ------------------------------------------------------------------------
 // Compute shader
@@ -40,9 +72,25 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
         return;
     }
 
+#if !defined(COMMAND_TYPE)
     GPUSceneCommand cmd = commandBuffer[commandID];
-    if (cmd.commandType == COMMAND_TYPE_UPDATE)
-    {
-        gpuSceneBuffer[cmd.sceneItemIndex] = cmd.sceneItem;
-    }
+    gpuSceneBuffer[cmd.sceneItemIndex] = cmd.sceneItem;
+	
+#elif COMMAND_TYPE == COMMAND_TYPE_EVICT
+	GPUSceneEvictCommand cmd = commandBuffer.Load(commandID);
+	GPUSceneItem item = gpuSceneBuffer[cmd.sceneItemIndex];
+	item.flags = item.flags & (~GPU_SCENE_ITEM_FLAG_BIT_IS_VALID);
+	gpuSceneBuffer[cmd.sceneItemIndex] = item;
+	
+#elif COMMAND_TYPE == COMMAND_TYPE_ALLOC
+	GPUSceneAllocCommand cmd = commandBuffer.Load(commandID);
+    gpuSceneBuffer[cmd.sceneItemIndex] = cmd.sceneItem;
+	
+#elif COMMAND_TYPE == COMMAND_TYPE_UPDATE
+	GPUSceneUpdateCommand cmd = commandBuffer.Load(commandID);
+	GPUSceneItem item = gpuSceneBuffer[cmd.sceneItemIndex];
+	item.localToWorld = cmd.localToWorld;
+	item.prevLocalToWorld = cmd.prevLocalToWorld;
+    gpuSceneBuffer[cmd.sceneItemIndex] = item;
+#endif
 }

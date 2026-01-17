@@ -5,6 +5,7 @@
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_view.h"
+#include "util/volatile_descriptor.h"
 
 class SceneProxy;
 class Camera;
@@ -46,21 +47,24 @@ private:
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
 
 	void resizeGPUSceneCommandBuffers(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
-	void executeGPUSceneCommands();
+	void executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
 
 private:
 	RenderDevice* device = nullptr;
 
+	// #wip: Delete old impl
 	UniquePtr<ComputePipelineState> pipelineState;
-
 	std::vector<uint32> totalVolatileDescriptors;
 	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
-
-	// #wip: Delete old impl
 	// GPU scene command buffers (per swapchain)
 	std::vector<uint32> gpuSceneCommandBufferMaxElements;
 	BufferedUniquePtr<Buffer> gpuSceneCommandBuffer;
 	BufferedUniquePtr<ShaderResourceView> gpuSceneCommandBufferSRV;
+
+	UniquePtr<ComputePipelineState> evictPipelineState;
+	UniquePtr<ComputePipelineState> allocPipelineState;
+	UniquePtr<ComputePipelineState> updatePipelineState;
+	VolatileDescriptorHelper passDescriptor; // For all 3 pipelines above
 
 	BufferedUniquePtr<Buffer> gpuSceneEvictCommandBuffer;
 	BufferedUniquePtr<Buffer> gpuSceneAllocCommandBuffer;
