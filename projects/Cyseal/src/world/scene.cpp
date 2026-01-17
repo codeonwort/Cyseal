@@ -16,11 +16,6 @@ static uint32 calculateLOD(const StaticMesh* mesh, const Camera& camera)
 	return lod;
 }
 
-Scene::Scene()
-	: gpuSceneItemIndexAllocator(0xffffffff, EMemoryTag::World)
-{
-}
-
 void Scene::updateMeshLODs(const Camera& camera, const RendererOptions& rendererOptions)
 {
 	size_t numStaticMeshes = staticMeshes.size();
@@ -49,12 +44,14 @@ SceneProxy* Scene::createProxy()
 		sm->savePrevTransform();
 	}
 
-	proxy->sun                     = sun;
-	proxy->skyboxTexture           = skyboxTexture ? skyboxTexture->getGPUResource() : nullptr;
-	proxy->staticMeshes            = std::move(staticMeshProxyList);
-	proxy->bRebuildGPUScene        = bRebuildGPUScene;
-	proxy->bRebuildRaytracingScene = bRebuildRaytracingScene;
-	proxy->totalMeshSectionsLOD0   = totalMeshSectionsLOD0;
+	proxy->sun                       = sun;
+	proxy->skyboxTexture             = skyboxTexture ? skyboxTexture->getGPUResource() : nullptr;
+	proxy->staticMeshes              = std::move(staticMeshProxyList);
+	proxy->bRebuildGPUScene          = bRebuildGPUScene;
+	proxy->bRebuildRaytracingScene   = bRebuildRaytracingScene;
+	proxy->totalMeshSectionsLOD0     = totalMeshSectionsLOD0;
+	proxy->gpuSceneItemMinValidIndex = gpuSceneItemIndexAllocator.getMinValidIndex();
+	proxy->gpuSceneItemMaxValidIndex = gpuSceneItemIndexAllocator.getMaxValidIndex();
 
 	// Clear flags
 	bRebuildGPUScene = false;

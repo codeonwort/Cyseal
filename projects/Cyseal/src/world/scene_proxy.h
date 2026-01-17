@@ -22,7 +22,10 @@ public:
 
 	bool   bRebuildGPUScene        = false;
 	bool   bRebuildRaytracingScene = false;
-	uint32 totalMeshSectionsLOD0 = 0; // All LOD0 mesh sections of all static meshes in the scene.
+	uint32 totalMeshSectionsLOD0   = 0; // All LOD0 mesh sections of all static meshes in the scene.
+
+	uint32 gpuSceneItemMinValidIndex = 0xffffffff;
+	uint32 gpuSceneItemMaxValidIndex = 0xffffffff;
 
 public:
 	std::vector<GPUSceneEvictCommand> gpuSceneEvictCommands;

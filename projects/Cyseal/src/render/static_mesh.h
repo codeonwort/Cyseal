@@ -9,7 +9,7 @@
 #include <vector>
 
 class SceneProxy;
-class FreeNumberList;
+class GPUSceneItemIndexAllocator;
 
 struct StaticMeshSection
 {
@@ -43,7 +43,7 @@ struct StaticMeshProxy
 class StaticMesh
 {
 public:
-	void updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList* gpuSceneItemIndexAllocator);
+	void updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemIndexAllocator* gpuSceneItemIndexAllocator);
 	StaticMeshProxy* createStaticMeshProxy() const;
 
 	void addSection(

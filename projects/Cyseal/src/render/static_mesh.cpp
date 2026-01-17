@@ -1,9 +1,10 @@
 #include "static_mesh.h"
 #include "rhi/gpu_resource.h"
+#include "world/scene.h"
 #include "world/scene_proxy.h"
 #include "memory/custom_new_delete.h"
 
-void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList* gpuSceneItemIndexAllocator)
+void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemIndexAllocator* gpuSceneItemIndexAllocator)
 {
 	// NOTE: activeLOD should have been updated already.
 
@@ -46,7 +47,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList*
 				for (size_t i = 0; i < numSections; ++i)
 				{
 					const StaticMeshSection& section = LODs[activeLOD].sections[i];
-					const uint32 itemIx = gpuSceneItemIndexAllocator->allocate() - 1;
+					const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
 					gpuSceneResidency.itemIndices[i] = itemIx;
 
 					GPUSceneAllocCommand cmd{
@@ -74,7 +75,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList*
 			for (size_t i = 0; i < numSections; ++i)
 			{
 				const uint32 itemIx = gpuSceneResidency.itemIndices[i];
-				gpuSceneItemIndexAllocator->deallocate(itemIx + 1);
+				gpuSceneItemIndexAllocator->deallocate(itemIx);
 
 				GPUSceneEvictCommand cmd{
 					.sceneItemIndex = itemIx
@@ -88,7 +89,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList*
 			for (size_t i = 0; i < gpuSceneResidency.itemIndices.size(); ++i)
 			{
 				const uint32 itemIx = gpuSceneResidency.itemIndices[i];
-				gpuSceneItemIndexAllocator->deallocate(itemIx + 1);
+				gpuSceneItemIndexAllocator->deallocate(itemIx);
 
 				GPUSceneEvictCommand cmd{
 					.sceneItemIndex = itemIx
@@ -99,7 +100,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList*
 			for (size_t i = 0; i < numSections; ++i)
 			{
 				const StaticMeshSection& section = LODs[activeLOD].sections[i];
-				const uint32 itemIx = gpuSceneItemIndexAllocator->allocate() - 1;
+				const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
 				gpuSceneResidency.itemIndices[i] = itemIx;
 
 				GPUSceneAllocCommand cmd{

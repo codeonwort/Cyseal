@@ -42,10 +42,11 @@ public:
 
 private:
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
-	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
 
 	void resizeGPUSceneCommandBuffers(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
 	void executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
+
+	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
 
 private:
 	RenderDevice* device = nullptr;

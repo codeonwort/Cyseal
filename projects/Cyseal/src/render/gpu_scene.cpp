@@ -104,13 +104,15 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		return;
 	}
 
-	const bool bRebuildGPUScene = scene->bRebuildGPUScene;
-	uint32 numGPUSceneCommands = bRebuildGPUScene ? numMeshSections : numDirtyMeshSections;
-	if (numGPUSceneCommands > gpuSceneMaxElements)
+	uint32 maxElements = numMeshSections;
+	if (scene->gpuSceneItemMaxValidIndex != 0xffffffff && scene->gpuSceneItemMaxValidIndex + 1 > maxElements)
 	{
-		resizeGPUSceneBuffer(commandList, numMeshSections);
+		maxElements = scene->gpuSceneItemMaxValidIndex + 1;
 	}
+	resizeGPUSceneBuffer(commandList, maxElements);
+
 	resizeGPUSceneCommandBuffers(commandList, swapchainIndex, scene);
+
 	// #wip-material: Don't assume material_max_count == mesh_section_total_count.
 	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
 
@@ -210,15 +212,17 @@ GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swap
 
 void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements)
 {
+	if (gpuSceneMaxElements >= maxElements)
+	{
+		return;
+	}
 	gpuSceneMaxElements = maxElements;
 	const uint32 viewStride = sizeof(GPUSceneItem);
 
-	// #wip: Copy old buffer to new buffer as now gpu scene buffer is delta-updated.
-	// #wip: Not maxElements but should be max item index as item indices now can be sparse.
-
-	if (commandList != nullptr && gpuSceneBuffer != nullptr)
+	Buffer* oldBuffer = nullptr;
+	if (gpuSceneBuffer != nullptr)
 	{
-		auto oldBuffer = gpuSceneBuffer.release();
+		oldBuffer = gpuSceneBuffer.release();
 		auto oldSRV = gpuSceneBufferSRV.release();
 		auto oldUAV = gpuSceneBufferUAV.release();
 		oldBuffer->setDebugName(L"Buffer_GPUScene_MarkedForDeath");
@@ -239,30 +243,33 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 	uint64 bufferSize = gpuSceneBuffer->getCreateParams().sizeInBytes;
 	CYLOG(LogGPUScene, Log, L"Resize GPUScene buffer: %llu bytes (%.3f MiB)",
 		bufferSize, (double)bufferSize / (1024.0f * 1024.0f));
+
+	if (oldBuffer != nullptr)
+	{
+		// #wip: Copy old buffer to new buffer as now gpu scene buffer is delta-updated.
+	}
 	
-	{
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                     = EPixelFormat::UNKNOWN;
-		srvDesc.viewDimension              = ESRVDimension::Buffer;
-		srvDesc.buffer.firstElement        = 0;
-		srvDesc.buffer.numElements         = gpuSceneMaxElements;
-		srvDesc.buffer.structureByteStride = viewStride;
-		srvDesc.buffer.flags               = EBufferSRVFlags::None;
-		gpuSceneBufferSRV = UniquePtr<ShaderResourceView>(
-			device->createSRV(gpuSceneBuffer.get(), srvDesc));
-	}
-	{
-		UnorderedAccessViewDesc uavDesc{};
-		uavDesc.format                      = EPixelFormat::UNKNOWN;
-		uavDesc.viewDimension               = EUAVDimension::Buffer;
-		uavDesc.buffer.firstElement         = 0;
-		uavDesc.buffer.numElements          = gpuSceneMaxElements;
-		uavDesc.buffer.structureByteStride  = viewStride;
-		uavDesc.buffer.counterOffsetInBytes = 0;
-		uavDesc.buffer.flags                = EBufferUAVFlags::None;
-		gpuSceneBufferUAV = UniquePtr<UnorderedAccessView>(
-			device->createUAV(gpuSceneBuffer.get(), uavDesc));
-	}
+	ShaderResourceViewDesc srvDesc{};
+	srvDesc.format                     = EPixelFormat::UNKNOWN;
+	srvDesc.viewDimension              = ESRVDimension::Buffer;
+	srvDesc.buffer.firstElement        = 0;
+	srvDesc.buffer.numElements         = gpuSceneMaxElements;
+	srvDesc.buffer.structureByteStride = viewStride;
+	srvDesc.buffer.flags               = EBufferSRVFlags::None;
+	gpuSceneBufferSRV = UniquePtr<ShaderResourceView>(
+		device->createSRV(gpuSceneBuffer.get(), srvDesc));
+	
+	UnorderedAccessViewDesc uavDesc{};
+	uavDesc.format                      = EPixelFormat::UNKNOWN;
+	uavDesc.viewDimension               = EUAVDimension::Buffer;
+	uavDesc.buffer.firstElement         = 0;
+	uavDesc.buffer.numElements          = gpuSceneMaxElements;
+	uavDesc.buffer.structureByteStride  = viewStride;
+	uavDesc.buffer.counterOffsetInBytes = 0;
+	uavDesc.buffer.flags                = EBufferUAVFlags::None;
+	gpuSceneBufferUAV = UniquePtr<UnorderedAccessView>(
+		device->createUAV(gpuSceneBuffer.get(), uavDesc));
+	
 }
 
 void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount)
