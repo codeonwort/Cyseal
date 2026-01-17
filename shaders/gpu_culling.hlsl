@@ -90,6 +90,11 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 {
 	uint objectID = drawCommandBuffer[tid.x].sceneItemIndex;
 	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
+	
+	if ((sceneItem.flags & GPU_SCENE_ITEM_FLAG_BIT_IS_VALID) == 0)
+	{
+		return;
+	}
 
 	AABB worldBounds = calculateWorldBounds(
 		sceneItem.localMinBounds,

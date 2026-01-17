@@ -5,7 +5,7 @@ struct GPUSceneItem
 {
 	enum class FlagBits : uint32
 	{
-		IsValid = 1 << 0, // #wip: Use this to skip invalid items in the gpu scene shader.
+		IsValid = 1 << 0, // If false, this item should be ignored when accessed from gpu scene buffer on GPU.
 	};
 
 	Float4x4 localToWorld;
