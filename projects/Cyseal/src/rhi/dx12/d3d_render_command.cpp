@@ -261,6 +261,13 @@ void D3DRenderCommandList::clearDepthStencilView(DepthStencilView* DSV, EDepthCl
 		0, nullptr);
 }
 
+void D3DRenderCommandList::copyBufferRegion(Buffer* src, uint64 srcOffset, uint64 numBytes, Buffer* dst, uint64 dstOffset)
+{
+	auto pSrc = into_d3d::id3d12Resource(src);
+	auto pDst = into_d3d::id3d12Resource(dst);
+	commandList->CopyBufferRegion(pDst, dstOffset, pSrc, srcOffset, numBytes);
+}
+
 void D3DRenderCommandList::copyTexture2D(Texture* src, Texture* dst)
 {
 	D3D12_TEXTURE_COPY_LOCATION pDst{

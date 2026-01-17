@@ -246,7 +246,13 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 
 	if (oldBuffer != nullptr)
 	{
-		// #wip: Copy old buffer to new buffer as now gpu scene buffer is delta-updated.
+		BufferBarrierAuto barriers[] = {
+			{ EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, oldBuffer },
+			{ EBarrierSync::COPY, EBarrierAccess::COPY_DEST, gpuSceneBuffer.get() },
+		};
+		commandList->barrierAuto(_countof(barriers), barriers, 0, nullptr, 0, nullptr);
+
+		commandList->copyBufferRegion(oldBuffer, 0, oldBuffer->getCreateParams().sizeInBytes, gpuSceneBuffer.get(), 0);
 	}
 	
 	ShaderResourceViewDesc srvDesc{};
@@ -289,6 +295,9 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 		CYLOG(LogGPUScene, Log, L"Resize material constants memory [%u]: %u bytes (%.3f MiB)",
 			swapchainIndex, materialMemorySize, (float)materialMemorySize / (1024.0f * 1024.0f));
 
+		// Destroy SRV early than its DescriptorHeap.
+		materialConstantsSRV[swapchainIndex] = nullptr;
+
 		materialConstantsMemory[swapchainIndex] = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = materialMemorySize,
@@ -324,6 +333,8 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 	if (materialSRVMaxCounts[swapchainIndex] < maxSRVCount)
 	{
 		materialSRVMaxCounts[swapchainIndex] = maxSRVCount;
+
+		materialSRVs[swapchainIndex].clear();
 
 		materialSRVHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
 			DescriptorHeapDesc{

@@ -67,6 +67,8 @@ public:
 	virtual void clearRenderTargetView(RenderTargetView* RTV, const float* rgba) override;
 	virtual void clearDepthStencilView(DepthStencilView* DSV, EDepthClearFlags clearFlags, float depth, uint8_t stencil) override;
 
+	virtual void copyBufferRegion(Buffer* src, uint64 srcOffset, uint64 numBytes, Buffer* dst, uint64 dstOffset) override;
+
 	virtual void copyTexture2D(Texture* src, Texture* dst) override;
 
 	// ------------------------------------------------------------------------
