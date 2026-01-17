@@ -20,10 +20,6 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 	device = renderDevice;
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
-	gpuSceneCommandBufferMaxElements.resize(swapchainCount);
-	gpuSceneCommandBuffer.initialize(swapchainCount);
-	gpuSceneCommandBufferSRV.initialize(swapchainCount);
-
 	gpuSceneEvictCommandBuffer.initialize(swapchainCount);
 	gpuSceneAllocCommandBuffer.initialize(swapchainCount);
 	gpuSceneUpdateCommandBuffer.initialize(swapchainCount);
@@ -32,9 +28,6 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 	gpuSceneUpdateCommandBufferSRV.initialize(swapchainCount);
 
 	passDescriptor.initialize(L"GPUScene", swapchainCount, 0);
-
-	totalVolatileDescriptors.resize(swapchainCount, 0);
-	volatileViewHeap.initialize(swapchainCount);
 
 	materialConstantsMaxCounts.resize(swapchainCount, 0);
 	materialSRVMaxCounts.resize(swapchainCount, 0);
@@ -47,18 +40,7 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 	materialConstantsHeap.initialize(swapchainCount);
 	materialConstantsSRV.initialize(swapchainCount);
 
-	// Shader
-	{
-		ShaderStage* gpuSceneShader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneCS");
-		gpuSceneShader->declarePushConstants({ { "pushConstants", 1} });
-		gpuSceneShader->loadFromFile(L"gpu_scene.hlsl", "mainCS");
-
-		pipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
-			ComputePipelineDesc{ .cs = gpuSceneShader, .nodeMask = 0, }
-		));
-
-		delete gpuSceneShader; // No use after PSO creation.
-	}
+	// Shaders
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneEvictCS");
 		shader->declarePushConstants({ { "pushConstants", 1} });
@@ -128,20 +110,9 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	{
 		resizeGPUSceneBuffer(commandList, numMeshSections);
 	}
-	if (numGPUSceneCommands > 0)
-	{
-		resizeGPUSceneCommandBuffer(swapchainIndex, numGPUSceneCommands);
-	}
+	resizeGPUSceneCommandBuffers(commandList, swapchainIndex, scene);
 	// #wip-material: Don't assume material_max_count == mesh_section_total_count.
 	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
-
-	resizeGPUSceneCommandBuffers(commandList, swapchainIndex, scene);
-
-	uint32 requiredVolatiles = 0;
-	requiredVolatiles += 1; // sceneUniform
-	requiredVolatiles += 1; // gpuSceneBuffer
-	requiredVolatiles += 1; // commandBuffer
-	resizeVolatileHeaps(swapchainIndex, requiredVolatiles);
 
 	// #wip-material: Don't upload unchanged materials. Also don't copy one by one.
 	// Prepare bindless materials.
@@ -220,92 +191,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		materialConstantsMemory[swapchainIndex]->singleWriteToGPU(commandList, materialConstantsData.data(), materialDataSize, 0);
 	}
 	
-#if 0
-	// #wip: Avoid recreation of buffers when bRebuildGPUScene == true.
-	// There are various cases:
-	// [ ] A new object is added to the scene.
-	// [ ] An object is removed from the scene.
-	// [v] No addition or removal but some objects changed their transforms.
-	std::vector<GPUSceneCommand> sceneCommands(numGPUSceneCommands);
-	uint32 sceneItemIx = 0;
-	uint32 sceneCommandIx = 0;
-	for (uint32 i = 0; i < numStaticMeshes; ++i)
-	{
-		StaticMeshProxy* sm = scene->staticMeshes[i];
-		const uint32 smSections = (uint32)(sm->getSections().size());
-
-		if (bRebuildGPUScene == false && sm->isTransformDirty() == false && sm->isLodDirty() == false)
-		{
-			sceneItemIx += smSections;
-			continue;
-		}
-
-		const Float4x4 localToWorld = sm->getLocalToWorld();
-		const Float4x4 prevLocalToWorld = sm->getPrevLocalToWorld();
-		
-		for (uint32 j = 0; j < smSections; ++j)
-		{
-			const StaticMeshSection& section = sm->getSections()[j];
-			sceneCommands[sceneCommandIx].commandType    = (uint32)EGPUSceneCommandType::Update;
-			sceneCommands[sceneCommandIx].sceneItemIndex = sceneItemIx;
-			sceneCommands[sceneCommandIx].sceneItem      = GPUSceneItem{
-				.localToWorld            = localToWorld,
-				.prevLocalToWorld        = prevLocalToWorld,
-				.localMinBounds          = section.localBounds.minBounds,
-				.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes(), // #todo-gpuscene: uint64 offset
-				.localMaxBounds          = section.localBounds.maxBounds,
-				.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes(),
-				.indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes(),
-				.flags                   = GPUSceneItem::FlagBits::IsValid,
-			};
-			++sceneCommandIx;
-			++sceneItemIx;
-		}
-	}
-
-	const uint32 numSceneCommands = (uint32)sceneCommands.size();
-	if (numSceneCommands > 0)
-	{
-		char eventString[128];
-		if (bRebuildGPUScene)
-		{
-			sprintf_s(eventString, "RebuildSceneBuffer (count=%u)", numSceneCommands);
-		}
-		else
-		{
-			sprintf_s(eventString, "UpdateSceneBuffer (%u of %u)", numSceneCommands, numMeshSections);
-		}
-		SCOPED_DRAW_EVENT_STRING(commandList, eventString);
-
-		gpuSceneCommandBuffer[swapchainIndex]->singleWriteToGPU(
-			commandList,
-			sceneCommands.data(),
-			(uint32)(sizeof(GPUSceneCommand) * numSceneCommands),
-			0);
-
-		BufferBarrierAuto barriersBefore[] = {
-			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneCommandBuffer.at(swapchainIndex) },
-			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, gpuSceneBuffer.get() },
-		};
-		commandList->barrierAuto(_countof(barriersBefore), barriersBefore, 0, nullptr, 0, nullptr);
-
-		ShaderParameterTable SPT{};
-		SPT.pushConstant("pushConstants", numSceneCommands);
-		SPT.rwStructuredBuffer("gpuSceneBuffer", gpuSceneBufferUAV.get());
-		SPT.structuredBuffer("commandBuffer", gpuSceneCommandBufferSRV.at(swapchainIndex));
-
-		commandList->setComputePipelineState(pipelineState.get());
-		commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileViewHeap.at(swapchainIndex));
-		commandList->dispatchCompute(numSceneCommands, 1, 1);
-
-		BufferBarrierAuto barriersAfter[] = {
-			{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneBuffer.get() },
-		};
-		commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
-	}
-#else
 	executeGPUSceneCommands(commandList, swapchainIndex, scene);
-#endif
 }
 
 ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
@@ -322,64 +208,13 @@ GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swap
 	};
 }
 
-void GPUScene::resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors)
-{
-	if (volatileViewHeap[swapchainIndex] == nullptr || totalVolatileDescriptors[swapchainIndex] < maxDescriptors)
-	{
-		totalVolatileDescriptors[swapchainIndex] = maxDescriptors;
-
-		volatileViewHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
-			DescriptorHeapDesc{
-				.type           = EDescriptorHeapType::CBV_SRV_UAV,
-				.numDescriptors = maxDescriptors,
-				.flags          = EDescriptorHeapFlags::ShaderVisible,
-				.nodeMask       = 0,
-				.purpose        = EDescriptorHeapPurpose::Volatile,
-			}
-		));
-
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"GPUScene_VolatileViewHeap_%u", swapchainIndex);
-		volatileViewHeap[swapchainIndex]->setDebugName(debugName);
-
-		CYLOG(LogGPUScene, Log, L"Resize volatile heap [%u]: %u descriptors", swapchainIndex, maxDescriptors);
-	}
-}
-
-void GPUScene::resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElements)
-{
-	if (gpuSceneCommandBuffer[swapchainIndex] == nullptr || gpuSceneCommandBufferMaxElements[swapchainIndex] < maxElements)
-	{
-		gpuSceneCommandBufferMaxElements[swapchainIndex] = maxElements;
-		const uint32 viewStride = sizeof(GPUSceneCommand);
-
-		gpuSceneCommandBuffer[swapchainIndex] = UniquePtr<Buffer>(device->createBuffer(
-			BufferCreateParams{
-				.sizeInBytes = viewStride * maxElements,
-				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC
-			}
-		));
-		wchar_t debugName[256];
-		swprintf_s(debugName, L"Buffer_GPUSceneCommand_%u", swapchainIndex);
-		gpuSceneCommandBuffer[swapchainIndex]->setDebugName(debugName);
-
-		ShaderResourceViewDesc srvDesc{};
-		srvDesc.format                     = EPixelFormat::UNKNOWN;
-		srvDesc.viewDimension              = ESRVDimension::Buffer;
-		srvDesc.buffer.firstElement        = 0;
-		srvDesc.buffer.numElements         = maxElements;
-		srvDesc.buffer.structureByteStride = viewStride;
-		srvDesc.buffer.flags               = EBufferSRVFlags::None;
-		gpuSceneCommandBufferSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(
-			device->createSRV(gpuSceneCommandBuffer.at(swapchainIndex), srvDesc));
-	}
-}
-
 void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements)
 {
 	gpuSceneMaxElements = maxElements;
 	const uint32 viewStride = sizeof(GPUSceneItem);
+
+	// #wip: Copy old buffer to new buffer as now gpu scene buffer is delta-updated.
+	// #wip: Not maxElements but should be max item index as item indices now can be sparse.
 
 	if (commandList != nullptr && gpuSceneBuffer != nullptr)
 	{
@@ -430,7 +265,6 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 	}
 }
 
-// Bindless materials
 void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount)
 {
 	auto align = [](uint32 size, uint32 alignment) -> uint32

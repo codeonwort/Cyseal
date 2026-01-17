@@ -4,15 +4,6 @@
 #define COMMAND_TYPE_ALLOC  1
 #define COMMAND_TYPE_UPDATE 2
 
-struct GPUSceneCommand
-{
-    uint commandType;
-    uint sceneItemIndex;
-    uint _pad0;
-    uint _pad1;
-    GPUSceneItem sceneItem;
-};
-
 struct GPUSceneAllocCommand
 {
 	uint         sceneItemIndex;
@@ -36,7 +27,7 @@ struct GPUSceneUpdateCommand
 };
 
 #if !defined(COMMAND_TYPE)
-	#define COMMAND_STRUCT GPUSceneCommand
+	#error COMMAND_TYPE was not defined
 #elif COMMAND_TYPE == COMMAND_TYPE_EVICT
 	#define COMMAND_STRUCT GPUSceneEvictCommand
 #elif COMMAND_TYPE == COMMAND_TYPE_ALLOC
@@ -72,11 +63,7 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
         return;
     }
 
-#if !defined(COMMAND_TYPE)
-    GPUSceneCommand cmd = commandBuffer[commandID];
-    gpuSceneBuffer[cmd.sceneItemIndex] = cmd.sceneItem;
-	
-#elif COMMAND_TYPE == COMMAND_TYPE_EVICT
+#if COMMAND_TYPE == COMMAND_TYPE_EVICT
 	GPUSceneEvictCommand cmd = commandBuffer.Load(commandID);
 	GPUSceneItem item = gpuSceneBuffer[cmd.sceneItemIndex];
 	item.flags = item.flags & (~GPU_SCENE_ITEM_FLAG_BIT_IS_VALID);

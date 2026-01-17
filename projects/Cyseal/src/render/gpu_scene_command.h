@@ -23,19 +23,6 @@ struct GPUSceneItem
 };
 ENUM_CLASS_FLAGS(GPUSceneItem::FlagBits);
 
-enum EGPUSceneCommandType : uint32
-{
-	Update = 0,
-};
-struct GPUSceneCommand
-{
-	uint32 commandType; // EGPUSceneCommandType
-	uint32 sceneItemIndex;
-	uint32 _pad0;
-	uint32 _pad1;
-	GPUSceneItem sceneItem;
-};
-
 // Should match with definitions in gpu_scene.hlsl
 struct GPUSceneEvictCommand
 {

@@ -41,8 +41,6 @@ public:
 	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
 
 private:
-	void resizeVolatileHeaps(uint32 swapchainIndex, uint32 maxDescriptors);
-	void resizeGPUSceneCommandBuffer(uint32 swapchainIndex, uint32 maxElements);
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
 
@@ -52,14 +50,8 @@ private:
 private:
 	RenderDevice* device = nullptr;
 
-	// #wip: Delete old impl
-	UniquePtr<ComputePipelineState> pipelineState;
-	std::vector<uint32> totalVolatileDescriptors;
-	BufferedUniquePtr<DescriptorHeap> volatileViewHeap;
-	// GPU scene command buffers (per swapchain)
-	std::vector<uint32> gpuSceneCommandBufferMaxElements;
-	BufferedUniquePtr<Buffer> gpuSceneCommandBuffer;
-	BufferedUniquePtr<ShaderResourceView> gpuSceneCommandBufferSRV;
+	// ----------------------------------------------
+	// GPU scene commands
 
 	UniquePtr<ComputePipelineState> evictPipelineState;
 	UniquePtr<ComputePipelineState> allocPipelineState;
@@ -73,13 +65,17 @@ private:
 	BufferedUniquePtr<ShaderResourceView> gpuSceneAllocCommandBufferSRV;
 	BufferedUniquePtr<ShaderResourceView> gpuSceneUpdateCommandBufferSRV;
 
+	// ----------------------------------------------
 	// GPU scene buffer (NOT per swapchain)
+
 	uint32 gpuSceneMaxElements = 0;
 	UniquePtr<Buffer> gpuSceneBuffer;
 	UniquePtr<ShaderResourceView> gpuSceneBufferSRV;
 	UniquePtr<UnorderedAccessView> gpuSceneBufferUAV;
 
+	// ----------------------------------------------
 	// Bindless materials (per swapchain)
+	
 	// #wip-material: Maybe I don't need to separate max count and actual count?
 	// Currently constants count = srv count as there are only albedo textures, but srv count will increase.
 	std::vector<uint32> materialConstantsMaxCounts;
