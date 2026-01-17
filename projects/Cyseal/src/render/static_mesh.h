@@ -5,7 +5,10 @@
 #include "geometry/transform.h"
 #include "render/material.h"
 #include "world/gpu_resource_asset.h"
+
 #include <vector>
+
+class FreeNumberList;
 
 struct StaticMeshSection
 {
@@ -39,6 +42,7 @@ struct StaticMeshProxy
 class StaticMesh
 {
 public:
+	void updateGPUSceneResidency(FreeNumberList* gpuSceneItemIndexAllocator);
 	StaticMeshProxy* createStaticMeshProxy() const;
 
 	void addSection(
@@ -110,9 +114,20 @@ private:
 	bool bLodDirty = false;
 
 private:
+	enum class EGPUResidencyPhase : uint32
+	{
+		NotAllocated     = 0,
+		Allocated        = 1,
+		NeedToEvict      = 2, // Allocated but need to evict.
+		NeedToReallocate = 3, // Allocated but need to evict and allocate again. (e.g., LOD change)
+		NeedToUpdate     = 4, // Allocated but need to update in-place. (e.g., transform change)
+	};
 	struct GPUSceneResidency
 	{
-		// #wip: Track residency here?
+		EGPUResidencyPhase phase = EGPUResidencyPhase::NotAllocated;
+		// #wip: Could be just [start,end) if indices are consecutive.
+		// FreeNumberList does not provide such API yet...
+		std::vector<uint32> itemIndices;
 	};
 	GPUSceneResidency gpuSceneResidency;
 };

@@ -16,6 +16,11 @@ static uint32 calculateLOD(const StaticMesh* mesh, const Camera& camera)
 	return lod;
 }
 
+Scene::Scene()
+	: gpuSceneItemIndexAllocator(0xffffffff, EMemoryTag::World)
+{
+}
+
 void Scene::updateMeshLODs(const Camera& camera, const RendererOptions& rendererOptions)
 {
 	size_t numStaticMeshes = staticMeshes.size();
@@ -36,7 +41,9 @@ SceneProxy* Scene::createProxy()
 	uint32 totalMeshSectionsLOD0 = 0;
 	for (StaticMesh* sm : staticMeshes)
 	{
+		sm->updateGPUSceneResidency(&gpuSceneItemIndexAllocator);
 		staticMeshProxyList.push_back(sm->createStaticMeshProxy());
+
 		totalMeshSectionsLOD0 += (uint32)(sm->getSections(0).size());
 
 		sm->savePrevTransform();

@@ -14,6 +14,8 @@ class SceneProxy;
 class Scene
 {
 public:
+	Scene();
+
 	void updateMeshLODs(const Camera& camera, const RendererOptions& rendererOptions);
 
 	SceneProxy* createProxy();
@@ -28,4 +30,6 @@ private:
 	std::vector<StaticMesh*> staticMeshes;
 	bool bRebuildGPUScene = false;
 	bool bRebuildRaytracingScene = false;
+
+	FreeNumberList gpuSceneItemIndexAllocator;
 };

@@ -45,9 +45,6 @@ private:
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
 
-	void updateMaterialBuffer();
-	void updateGPUSceneBuffer();
-
 private:
 	UniquePtr<ComputePipelineState> pipelineState;
 

@@ -203,7 +203,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 
 				materialConstantsData[currentConstantsCount] = std::move(constants);
 
-				// #wip: Currently always increment even if duplicate items are generated.
+				// #wip-material: Currently always increment even if duplicate items are generated.
 				++currentMaterialSRVCount;
 				++currentConstantsCount;
 			}
@@ -483,14 +483,4 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 			}
 		));
 	}
-}
-
-void GPUScene::updateMaterialBuffer()
-{
-	// #wip: Move material buffer logic to here.
-}
-
-void GPUScene::updateGPUSceneBuffer()
-{
-	// #wip: Move gpu scene buffer logic to here.
 }
