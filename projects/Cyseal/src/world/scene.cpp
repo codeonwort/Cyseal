@@ -41,7 +41,7 @@ SceneProxy* Scene::createProxy()
 	uint32 totalMeshSectionsLOD0 = 0;
 	for (StaticMesh* sm : staticMeshes)
 	{
-		sm->updateGPUSceneResidency(&gpuSceneItemIndexAllocator);
+		sm->updateGPUSceneResidency(proxy, &gpuSceneItemIndexAllocator);
 		staticMeshProxyList.push_back(sm->createStaticMeshProxy());
 
 		totalMeshSectionsLOD0 += (uint32)(sm->getSections(0).size());

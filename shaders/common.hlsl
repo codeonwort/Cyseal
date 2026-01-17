@@ -120,7 +120,7 @@ float getLinearDepth(float2 screenUV, float sceneDepth, float4x4 projInv)
 // ---------------------------------------------------------
 // GPUScene
 
-// Should match with GPUSceneItem in gpu_scene.cpp
+// Should match with GPUSceneItem in gpu_scene_command.h
 #define GPU_SCENE_ITEM_FLAG_BIT_IS_VALID (1 << 0)
 struct GPUSceneItem
 {

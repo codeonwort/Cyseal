@@ -126,6 +126,7 @@
     <ClInclude Include="src\render\depth_prepass.h" />
     <ClInclude Include="src\render\frame_gen_pass.h" />
     <ClInclude Include="src\render\gpu_culling.h" />
+    <ClInclude Include="src\render\gpu_scene_command.h" />
     <ClInclude Include="src\render\hiz_pass.h" />
     <ClInclude Include="src\render\pathtracing\denoiser_plugin_pass.h" />
     <ClInclude Include="src\render\pathtracing\path_tracing_pass.h" />

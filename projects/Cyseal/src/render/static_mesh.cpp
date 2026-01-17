@@ -1,8 +1,9 @@
 #include "static_mesh.h"
 #include "rhi/gpu_resource.h"
+#include "world/scene_proxy.h"
 #include "memory/custom_new_delete.h"
 
-void StaticMesh::updateGPUSceneResidency(FreeNumberList* gpuSceneItemIndexAllocator)
+void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, FreeNumberList* gpuSceneItemIndexAllocator)
 {
 	// NOTE: activeLOD should have been updated already.
 
@@ -23,14 +24,48 @@ void StaticMesh::updateGPUSceneResidency(FreeNumberList* gpuSceneItemIndexAlloca
 	switch (gpuSceneResidency.phase)
 	{
 		case EGPUResidencyPhase::NotAllocated:
-			gpuSceneResidency.itemIndices.resize(numSections);
-			for (size_t i = 0; i < numSections; ++i)
 			{
-				const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
-				gpuSceneResidency.itemIndices[i] = itemIx;
-				// #wip: Generate gpu scene command for alloc
+				// Check first if GPU resources are valid.
+				bool bInvalidResources = false;
+				for (size_t i = 0; i < numSections; ++i)
+				{
+					const StaticMeshSection& section = LODs[activeLOD].sections[i];
+					if (section.positionBuffer->getGPUResource() == nullptr
+						|| section.nonPositionBuffer->getGPUResource() == nullptr
+						|| section.indexBuffer->getGPUResource() == nullptr)
+					{
+						bInvalidResources = true;
+						break;
+					}
+				}
+				if (bInvalidResources)
+				{
+					break;
+				}
+				gpuSceneResidency.itemIndices.resize(numSections);
+				for (size_t i = 0; i < numSections; ++i)
+				{
+					const StaticMeshSection& section = LODs[activeLOD].sections[i];
+					const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
+					gpuSceneResidency.itemIndices[i] = itemIx;
+
+					GPUSceneAllocCommand cmd{
+						.sceneItemIndex = itemIx,
+						.sceneItem      = GPUSceneItem{
+							.localToWorld            = transform.getMatrix(),
+							.prevLocalToWorld        = prevModelMatrix,
+							.localMinBounds          = section.localBounds.minBounds,
+							.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes(), // #todo-gpuscene: uint64 offset
+							.localMaxBounds          = section.localBounds.maxBounds,
+							.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes(),
+							.indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes(),
+							.flags                   = GPUSceneItem::FlagBits::IsValid,
+						}
+					};
+					sceneProxy->gpuSceneAllocCommands.emplace_back(cmd);
+				}
+				gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			}
-			gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			break;
 		case EGPUResidencyPhase::Allocated:
 			// Do nothing.
@@ -40,31 +75,62 @@ void StaticMesh::updateGPUSceneResidency(FreeNumberList* gpuSceneItemIndexAlloca
 			{
 				const uint32 itemIx = gpuSceneResidency.itemIndices[i];
 				gpuSceneItemIndexAllocator->deallocate(itemIx);
-				// #wip: Generate gpu scene command for evict
+
+				GPUSceneEvictCommand cmd{
+					.sceneItemIndex = itemIx
+				};
+				sceneProxy->gpuSceneEvictCommands.emplace_back(cmd);
 			}
 			gpuSceneResidency.phase = EGPUResidencyPhase::NotAllocated;
+			gpuSceneResidency.itemIndices.clear();
 			break;
 		case EGPUResidencyPhase::NeedToReallocate:
 			for (size_t i = 0; i < gpuSceneResidency.itemIndices.size(); ++i)
 			{
 				const uint32 itemIx = gpuSceneResidency.itemIndices[i];
 				gpuSceneItemIndexAllocator->deallocate(itemIx);
+
+				GPUSceneEvictCommand cmd{
+					.sceneItemIndex = itemIx
+				};
+				sceneProxy->gpuSceneEvictCommands.emplace_back(cmd);
 			}
 			gpuSceneResidency.itemIndices.resize(numSections);
 			for (size_t i = 0; i < numSections; ++i)
 			{
+				const StaticMeshSection& section = LODs[activeLOD].sections[i];
 				const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
 				gpuSceneResidency.itemIndices[i] = itemIx;
-				// #wip: Generate gpu scene command for realloc
+
+				GPUSceneAllocCommand cmd{
+					.sceneItemIndex = itemIx,
+					.sceneItem      = GPUSceneItem{
+						.localToWorld            = transform.getMatrix(),
+						.prevLocalToWorld        = prevModelMatrix,
+						.localMinBounds          = section.localBounds.minBounds,
+						.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes(), // #todo-gpuscene: uint64 offset
+						.localMaxBounds          = section.localBounds.maxBounds,
+						.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes(),
+						.indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes(),
+						.flags                   = GPUSceneItem::FlagBits::IsValid,
+					}
+				};
+				sceneProxy->gpuSceneAllocCommands.emplace_back(cmd);
 			}
 			gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			break;
 		case EGPUResidencyPhase::NeedToUpdate:
+			// #wip: What if geometry or material changes while the section count remains same?
 			for (size_t i = 0; i < numSections; ++i)
 			{
-				const Matrix& localToWorld = transform.getMatrix();
-				const Matrix& prevLocalToWorld = prevModelMatrix;
-				// #wip: Generate gpu scene command for update
+				const uint32 itemIx = gpuSceneResidency.itemIndices[i];
+
+				GPUSceneUpdateCommand cmd{
+					.sceneItemIndex   = itemIx,
+					.localToWorld     = transform.getMatrix(),
+					.prevLocalToWorld = prevModelMatrix,
+				};
+				sceneProxy->gpuSceneUpdateCommands.emplace_back(cmd);
 			}
 			gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			break;

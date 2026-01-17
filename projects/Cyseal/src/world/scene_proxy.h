@@ -3,6 +3,8 @@
 #include "light.h"
 #include "gpu_resource_asset.h"
 #include "core/smart_pointer.h"
+#include "render/gpu_scene_command.h"
+
 #include <vector>
 
 struct StaticMeshProxy;
@@ -21,4 +23,9 @@ public:
 	bool   bRebuildGPUScene        = false;
 	bool   bRebuildRaytracingScene = false;
 	uint32 totalMeshSectionsLOD0 = 0; // All LOD0 mesh sections of all static meshes in the scene.
+
+public:
+	std::vector<GPUSceneEvictCommand> gpuSceneEvictCommands;
+	std::vector<GPUSceneAllocCommand> gpuSceneAllocCommands;
+	std::vector<GPUSceneUpdateCommand> gpuSceneUpdateCommands;
 };
