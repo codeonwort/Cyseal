@@ -104,10 +104,11 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	}
 	resizeGPUSceneBuffer(commandList, maxElements);
 
-	resizeGPUSceneCommandBuffers(commandList, swapchainIndex, scene);
+	resizeGPUSceneCommandBuffers(swapchainIndex, scene);
 
 	// #wip-material: Don't assume material_max_count == mesh_section_total_count.
 	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
+	resizeMaterialBuffer2(commandList, maxElements);
 
 	// #wip-material: Don't upload unchanged materials. Also don't copy one by one.
 	// Prepare bindless materials.
@@ -245,7 +246,10 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 		};
 		commandList->barrierAuto(_countof(barriers), barriers, 0, nullptr, 0, nullptr);
 
-		commandList->copyBufferRegion(oldBuffer, 0, oldBuffer->getCreateParams().sizeInBytes, gpuSceneBuffer.get(), 0);
+		size_t oldSize = oldBuffer->getCreateParams().sizeInBytes;
+		size_t newSize = gpuSceneBuffer->getCreateParams().sizeInBytes;
+		size_t copySize = std::min(oldSize, newSize);
+		commandList->copyBufferRegion(oldBuffer, 0, copySize, gpuSceneBuffer.get(), 0);
 	}
 	
 	ShaderResourceViewDesc srvDesc{};
@@ -268,7 +272,6 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 	uavDesc.buffer.flags                = EBufferUAVFlags::None;
 	gpuSceneBufferUAV = UniquePtr<UnorderedAccessView>(
 		device->createUAV(gpuSceneBuffer.get(), uavDesc));
-	
 }
 
 void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount)
@@ -341,7 +344,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 	}
 }
 
-void GPUScene::resizeGPUSceneCommandBuffers(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene)
+void GPUScene::resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene)
 {
 	auto fn = [device = this->device](UniquePtr<Buffer>& buffer, UniquePtr<ShaderResourceView>& srv,
 		size_t stride, size_t count, const wchar_t* debugName)
@@ -469,4 +472,64 @@ void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, uint32 sw
 		{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneBuffer.get() },
 	};
 	commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
+}
+
+void GPUScene::resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxElements)
+{
+	if (materialBufferMaxElements >= maxElements)
+	{
+		return;
+	}
+	materialBufferMaxElements = maxElements;
+	const uint32 stride = sizeof(MaterialConstants);
+
+	Buffer* oldBuffer = nullptr;
+	if (materialConstantsBuffer2 != nullptr)
+	{
+		oldBuffer = materialConstantsBuffer2.release();
+		auto oldSRV = materialConstantsSRV2.release();
+		oldBuffer->setDebugName(L"Buffer_MaterialConstants_MarkedForDeath");
+		commandList->enqueueDeferredDealloc(oldBuffer);
+		commandList->enqueueDeferredDealloc(oldSRV);
+	}
+
+	materialConstantsBuffer2 = UniquePtr<Buffer>(device->createBuffer(
+		BufferCreateParams{
+			.sizeInBytes = stride * materialBufferMaxElements,
+			.alignment   = 0,
+			.accessFlags = EBufferAccessFlags::COPY_SRC,
+		}
+	));
+	materialConstantsBuffer2->setDebugName(L"Buffer_MaterialConstants");
+
+	uint64 bufferSize = materialConstantsBuffer2->getCreateParams().sizeInBytes;
+	CYLOG(LogGPUScene, Log, L"Resize MaterialConstants buffer: %llu bytes (%.3f MiB)",
+		bufferSize, (double)bufferSize / (1024.0f * 1024.0f));
+
+	if (oldBuffer != nullptr)
+	{
+		BufferBarrierAuto barriers[] = {
+			{ EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, oldBuffer },
+			{ EBarrierSync::COPY, EBarrierAccess::COPY_DEST, materialConstantsBuffer2.get() },
+		};
+		commandList->barrierAuto(_countof(barriers), barriers, 0, nullptr, 0, nullptr);
+
+		size_t oldSize = oldBuffer->getCreateParams().sizeInBytes;
+		size_t newSize = materialConstantsBuffer2->getCreateParams().sizeInBytes;
+		size_t copySize = std::min(oldSize, newSize);
+		commandList->copyBufferRegion(oldBuffer, 0, copySize, materialConstantsBuffer2.get(), 0);
+	}
+	
+	ShaderResourceViewDesc srvDesc{
+		.format        = EPixelFormat::UNKNOWN,
+		.viewDimension = ESRVDimension::Buffer,
+		.buffer        = BufferSRVDesc{
+			.firstElement        = 0,
+			.numElements         = materialBufferMaxElements,
+			.structureByteStride = stride,
+			.flags               = EBufferSRVFlags::None,
+		}
+	};
+	materialConstantsSRV2 = UniquePtr<ShaderResourceView>(
+		device->createSRV(materialConstantsBuffer2.get(), srvDesc));
 }

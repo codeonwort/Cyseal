@@ -43,16 +43,26 @@ public:
 private:
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
 
-	void resizeGPUSceneCommandBuffers(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
+	void resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene);
 	void executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
 
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
+
+	void resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxElements);
 
 private:
 	RenderDevice* device = nullptr;
 
 	// ----------------------------------------------
-	// GPU scene commands
+	// GPU scene buffer (NOT per swapchain)
+
+	uint32 gpuSceneMaxElements = 0;
+	UniquePtr<Buffer> gpuSceneBuffer;
+	UniquePtr<ShaderResourceView> gpuSceneBufferSRV;
+	UniquePtr<UnorderedAccessView> gpuSceneBufferUAV;
+
+	// ----------------------------------------------
+	// GPU scene commands (per swapchain)
 
 	UniquePtr<ComputePipelineState> evictPipelineState;
 	UniquePtr<ComputePipelineState> allocPipelineState;
@@ -67,15 +77,10 @@ private:
 	BufferedUniquePtr<ShaderResourceView> gpuSceneUpdateCommandBufferSRV;
 
 	// ----------------------------------------------
-	// GPU scene buffer (NOT per swapchain)
-
-	uint32 gpuSceneMaxElements = 0;
-	UniquePtr<Buffer> gpuSceneBuffer;
-	UniquePtr<ShaderResourceView> gpuSceneBufferSRV;
-	UniquePtr<UnorderedAccessView> gpuSceneBufferUAV;
-
-	// ----------------------------------------------
 	// Bindless materials (per swapchain)
+	
+	// #wip-material: Why are they per swapchain?
+	// Make material command buffers per swapchain, not actual material buffer itself.
 	
 	// #wip-material: Maybe I don't need to separate max count and actual count?
 	// Currently constants count = srv count as there are only albedo textures, but srv count will increase.
@@ -89,4 +94,11 @@ private:
 	BufferedUniquePtr<Buffer> materialConstantsMemory;
 	BufferedUniquePtr<DescriptorHeap> materialConstantsHeap;
 	BufferedUniquePtr<ShaderResourceView> materialConstantsSRV;
+
+	// ----------------------------------------------
+	// Bindless materials (rework)
+
+	uint32 materialBufferMaxElements = 0;
+	UniquePtr<Buffer> materialConstantsBuffer2;
+	UniquePtr<ShaderResourceView> materialConstantsSRV2;
 };
