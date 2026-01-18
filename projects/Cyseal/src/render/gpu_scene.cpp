@@ -40,6 +40,8 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 	materialConstantsHeap.initialize(swapchainCount);
 	materialConstantsSRV.initialize(swapchainCount);
 
+	materialPassDescriptor.initialize(L"GPUSceneMaterial", swapchainCount, 0);
+
 	// Shaders
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneEvictCS");
@@ -69,6 +71,17 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 		shader->loadFromFile(L"gpu_scene.hlsl", "mainCS", { L"COMMAND_TYPE=2" });
 
 		updatePipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
+			ComputePipelineDesc{ .cs = shader, .nodeMask = 0, }
+		));
+
+		delete shader; // No use after PSO creation.
+	}
+	{
+		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneMaterialUpdateCS");
+		shader->declarePushConstants({ { "pushConstants", 1} });
+		shader->loadFromFile(L"gpu_scene_material.hlsl", "mainCS");
+
+		materialPipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 			ComputePipelineDesc{ .cs = shader, .nodeMask = 0, }
 		));
 
@@ -488,16 +501,18 @@ void GPUScene::resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxE
 	{
 		oldBuffer = materialConstantsBuffer2.release();
 		auto oldSRV = materialConstantsSRV2.release();
+		auto oldUAV = materialConstantsUAV2.release();
 		oldBuffer->setDebugName(L"Buffer_MaterialConstants_MarkedForDeath");
 		commandList->enqueueDeferredDealloc(oldBuffer);
 		commandList->enqueueDeferredDealloc(oldSRV);
+		commandList->enqueueDeferredDealloc(oldUAV);
 	}
 
 	materialConstantsBuffer2 = UniquePtr<Buffer>(device->createBuffer(
 		BufferCreateParams{
 			.sizeInBytes = stride * materialBufferMaxElements,
 			.alignment   = 0,
-			.accessFlags = EBufferAccessFlags::COPY_SRC,
+			.accessFlags = EBufferAccessFlags::UAV,
 		}
 	));
 	materialConstantsBuffer2->setDebugName(L"Buffer_MaterialConstants");
@@ -532,4 +547,18 @@ void GPUScene::resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxE
 	};
 	materialConstantsSRV2 = UniquePtr<ShaderResourceView>(
 		device->createSRV(materialConstantsBuffer2.get(), srvDesc));
+
+	UnorderedAccessViewDesc uavDesc{
+		.format        = EPixelFormat::UNKNOWN,
+		.viewDimension = EUAVDimension::Buffer,
+		.buffer        = BufferUAVDesc{
+			.firstElement         = 0,
+			.numElements          = materialBufferMaxElements,
+			.structureByteStride  = stride,
+			.counterOffsetInBytes = 0,
+			.flags                = EBufferUAVFlags::None,
+		}
+	};
+	materialConstantsUAV2 = UniquePtr<UnorderedAccessView>(
+		device->createUAV(materialConstantsBuffer2.get(), uavDesc));
 }

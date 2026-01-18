@@ -42,7 +42,6 @@ public:
 
 private:
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
-
 	void resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene);
 	void executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
 
@@ -79,9 +78,6 @@ private:
 	// ----------------------------------------------
 	// Bindless materials (per swapchain)
 	
-	// #wip-material: Why are they per swapchain?
-	// Make material command buffers per swapchain, not actual material buffer itself.
-	
 	// #wip-material: Maybe I don't need to separate max count and actual count?
 	// Currently constants count = srv count as there are only albedo textures, but srv count will increase.
 	std::vector<uint32> materialConstantsMaxCounts;
@@ -101,4 +97,10 @@ private:
 	uint32 materialBufferMaxElements = 0;
 	UniquePtr<Buffer> materialConstantsBuffer2;
 	UniquePtr<ShaderResourceView> materialConstantsSRV2;
+	UniquePtr<UnorderedAccessView> materialConstantsUAV2;
+
+	UniquePtr<ComputePipelineState> materialPipelineState;
+	VolatileDescriptorHelper materialPassDescriptor;
+	BufferedUniquePtr<Buffer> materialBufferUpdateCommandBuffer;
+	BufferedUniquePtr<ShaderResourceView> materialBufferUpdateCommandSRV;
 };
