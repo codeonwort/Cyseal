@@ -29,6 +29,7 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 
 	passDescriptor.initialize(L"GPUScene", swapchainCount, 0);
 
+#if LEGACY_BINDLESS_TEXTURES
 	materialConstantsMaxCounts.resize(swapchainCount, 0);
 	materialSRVMaxCounts.resize(swapchainCount, 0);
 	materialConstantsActualCounts.resize(swapchainCount, 0);
@@ -39,6 +40,7 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 	materialConstantsMemory.initialize(swapchainCount);
 	materialConstantsHeap.initialize(swapchainCount);
 	materialConstantsSRV.initialize(swapchainCount);
+#endif
 
 	materialPassDescriptor.initialize(L"GPUSceneMaterial", swapchainCount, 0);
 	materialCommandBuffer.initialize(swapchainCount);
@@ -125,6 +127,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	resizeBindlessTextures(commandList, maxElements);
 	resizeMaterialCommandBuffer(swapchainIndex, scene);
 
+#if LEGACY_BINDLESS_TEXTURES
 	// Prepare bindless materials.
 	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
 	uint32& currentConstantsCount = materialConstantsActualCounts[swapchainIndex];
@@ -198,6 +201,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		uint32 materialDataSize = (uint32)(sizeof(MaterialConstants) * materialConstantsData.size());
 		materialConstantsMemory[swapchainIndex]->singleWriteToGPU(commandList, materialConstantsData.data(), materialDataSize, 0);
 	}
+#endif
 	
 	executeGPUSceneCommands(commandList, swapchainIndex, scene);
 	executeMaterialCommands(commandList, swapchainIndex, scene);
@@ -210,11 +214,19 @@ ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
 
 GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swapchainIndex) const
 {
+#if LEGACY_BINDLESS_TEXTURES
 	return MaterialDescriptorsDesc{
 		.constantsBufferSRV = materialConstantsSRV.at(swapchainIndex),
-		.srvHeap = materialSRVHeap.at(swapchainIndex),
-		.srvCount = materialSRVActualCounts[swapchainIndex],
+		.srvHeap            = materialSRVHeap.at(swapchainIndex),
+		.srvCount           = materialSRVActualCounts[swapchainIndex],
 	};
+#else
+	return MaterialDescriptorsDesc{
+		.constantsBufferSRV = materialConstantsSRV2.get(),
+		.srvHeap            = bindlessTextureHeap.get(),
+		.srvCount           = bindlessTextureHeap->getCreateParams().numDescriptors,
+	};
+#endif
 }
 
 void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements)
@@ -287,6 +299,7 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 		device->createUAV(gpuSceneBuffer.get(), uavDesc));
 }
 
+#if LEGACY_BINDLESS_TEXTURES
 void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount)
 {
 	auto align = [](uint32 size, uint32 alignment) -> uint32
@@ -356,6 +369,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 		));
 	}
 }
+#endif
 
 void GPUScene::resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene)
 {
@@ -695,7 +709,9 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		materialCommandSRV.at(swapchainIndex), materialPipelineState.get(),
 		"GPUSceneUpdateMaterials");
 
+	// #wip-material: Need to deal with evictCommand and realloCommand.
 	// Update albedo SRVs.
+#if !LEGACY_BINDLESS_TEXTURES
 	{
 		Texture* fallback = gTextureManager->getSystemTextureGrey2D()->getGPUResource().get();
 		DescriptorHeap* albedoHeap = bindlessTextureHeap.get();
@@ -721,6 +737,7 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 			bindlessSRVs[itemIx] = UniquePtr<ShaderResourceView>(albedoSRV);
 		}
 	}
+#endif
 
 	BufferBarrierAuto barriersAfter[] = {
 		{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, materialConstantsBuffer2.get() },

@@ -7,6 +7,9 @@
 #include "rhi/gpu_resource_view.h"
 #include "util/volatile_descriptor.h"
 
+// #wip-material: Legacy define
+#define LEGACY_BINDLESS_TEXTURES 1
+
 class SceneProxy;
 class Camera;
 
@@ -45,7 +48,9 @@ private:
 	void resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene);
 	void executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
 
+#if LEGACY_BINDLESS_TEXTURES
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
+#endif
 
 	void resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxElements);
 	void resizeBindlessTextures(RenderCommandList* commandList, uint32 maxElements);
@@ -56,7 +61,7 @@ private:
 	RenderDevice* device = nullptr;
 
 	// ----------------------------------------------
-	// GPU scene buffer (NOT per swapchain)
+	// GPU scene buffer
 
 	uint32 gpuSceneMaxElements = 0;
 	UniquePtr<Buffer> gpuSceneBuffer;
@@ -78,6 +83,7 @@ private:
 	BufferedUniquePtr<ShaderResourceView> gpuSceneAllocCommandBufferSRV;
 	BufferedUniquePtr<ShaderResourceView> gpuSceneUpdateCommandBufferSRV;
 
+#if LEGACY_BINDLESS_TEXTURES
 	// ----------------------------------------------
 	// Bindless materials (per swapchain)
 	
@@ -92,6 +98,7 @@ private:
 	BufferedUniquePtr<Buffer> materialConstantsMemory;
 	BufferedUniquePtr<DescriptorHeap> materialConstantsHeap;
 	BufferedUniquePtr<ShaderResourceView> materialConstantsSRV;
+#endif
 
 	// ----------------------------------------------
 	// Bindless materials (rework)
