@@ -83,19 +83,12 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	auto sceneUniform             = passInput.sceneUniform;
 	auto bRenderAnyRaytracingPass = passInput.bRenderAnyRaytracingPass;
 
-	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	uint32 numMeshSections = 0;
-	uint32 numDirtyMeshSections = 0;
-
+	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
 	for (uint32 i = 0; i < numStaticMeshes; ++i)
 	{
 		StaticMeshProxy* sm = scene->staticMeshes[i];
-		uint32 currentSections = (uint32)(sm->getSections().size());
-		numMeshSections += currentSections;
-		if (sm->isTransformDirty() || sm->isLodDirty())
-		{
-			numDirtyMeshSections += currentSections;
-		}
+		numMeshSections += (uint32)(sm->getSections().size());
 	}
 
 	if (numMeshSections == 0)
