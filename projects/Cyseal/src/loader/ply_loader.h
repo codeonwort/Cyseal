@@ -7,7 +7,7 @@
 #include "core/vec2.h"
 #include "core/vec3.h"
 #include "core/smart_pointer.h"
-#include "render/material.h"
+#include "world/material_asset.h"
 
 #include <string>
 #include <vector>

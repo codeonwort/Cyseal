@@ -381,6 +381,9 @@
     <ClInclude Include="src\render\gpu_scene_command.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\world\material_asset.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">

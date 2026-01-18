@@ -1,5 +1,7 @@
 #pragma once
 
+#include "material.h"
+
 // Should match with GPUSceneItem in common.hlsl
 struct GPUSceneItem
 {
@@ -44,4 +46,13 @@ struct GPUSceneUpdateCommand
 	uint32       _pad2;
 	Float4x4     localToWorld;
 	Float4x4     prevLocalToWorld;
+};
+
+struct GPUSceneMaterialCommand
+{
+	uint32            sceneItemIndex;
+	uint32            _pad0;
+	uint32            _pad1;
+	uint32            _pad2;
+	MaterialConstants materialData;
 };

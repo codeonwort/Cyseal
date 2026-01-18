@@ -3,8 +3,8 @@
 #include "core/core_minimal.h"
 #include "core/smart_pointer.h"
 #include "geometry/transform.h"
-#include "render/material.h"
 #include "world/gpu_resource_asset.h"
+#include "world/material_asset.h"
 
 #include <vector>
 

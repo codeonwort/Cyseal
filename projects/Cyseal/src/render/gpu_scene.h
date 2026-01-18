@@ -48,6 +48,8 @@ private:
 	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
 
 	void resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxElements);
+	void resizeMaterialCommandBuffer(uint32 swapchainIndex, const SceneProxy* scene);
+	void executeMaterialCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
 
 private:
 	RenderDevice* device = nullptr;
@@ -101,6 +103,6 @@ private:
 
 	UniquePtr<ComputePipelineState> materialPipelineState;
 	VolatileDescriptorHelper materialPassDescriptor;
-	BufferedUniquePtr<Buffer> materialBufferUpdateCommandBuffer;
-	BufferedUniquePtr<ShaderResourceView> materialBufferUpdateCommandSRV;
+	BufferedUniquePtr<Buffer> materialCommandBuffer;
+	BufferedUniquePtr<ShaderResourceView> materialCommandSRV;
 };

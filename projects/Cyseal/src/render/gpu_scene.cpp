@@ -41,6 +41,8 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 	materialConstantsSRV.initialize(swapchainCount);
 
 	materialPassDescriptor.initialize(L"GPUSceneMaterial", swapchainCount, 0);
+	materialCommandBuffer.initialize(swapchainCount);
+	materialCommandSRV.initialize(swapchainCount);
 
 	// Shaders
 	{
@@ -115,16 +117,16 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	{
 		maxElements = scene->gpuSceneItemMaxValidIndex + 1;
 	}
-	resizeGPUSceneBuffer(commandList, maxElements);
 
+	resizeGPUSceneBuffer(commandList, maxElements);
 	resizeGPUSceneCommandBuffers(swapchainIndex, scene);
 
-	// #wip-material: Don't assume material_max_count == mesh_section_total_count.
-	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
 	resizeMaterialBuffer2(commandList, maxElements);
+	resizeMaterialCommandBuffer(swapchainIndex, scene);
 
 	// #wip-material: Don't upload unchanged materials. Also don't copy one by one.
 	// Prepare bindless materials.
+	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
 	uint32& currentConstantsCount = materialConstantsActualCounts[swapchainIndex];
 	uint32& currentMaterialSRVCount = materialSRVActualCounts[swapchainIndex];
 	currentConstantsCount = 0;
@@ -201,6 +203,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	}
 	
 	executeGPUSceneCommands(commandList, swapchainIndex, scene);
+	executeMaterialCommands(commandList, swapchainIndex, scene);
 }
 
 ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
@@ -561,4 +564,117 @@ void GPUScene::resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxE
 	};
 	materialConstantsUAV2 = UniquePtr<UnorderedAccessView>(
 		device->createUAV(materialConstantsBuffer2.get(), uavDesc));
+}
+
+void GPUScene::resizeMaterialCommandBuffer(uint32 swapchainIndex, const SceneProxy* scene)
+{
+	auto fn = [device = this->device](UniquePtr<Buffer>& buffer, UniquePtr<ShaderResourceView>& srv,
+		size_t stride, size_t count, const wchar_t* debugName)
+	{
+		if (count == 0)
+		{
+			buffer = nullptr;
+			srv = nullptr;
+		}
+		else if (buffer == nullptr
+			|| (buffer->getCreateParams().sizeInBytes / stride) < count
+			|| (buffer->getCreateParams().sizeInBytes / stride) > (count * 2))
+		{
+			buffer = UniquePtr<Buffer>(device->createBuffer(
+				BufferCreateParams{
+					.sizeInBytes = stride * count,
+					.alignment   = 0,
+					.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::SRV
+				}
+			));
+			buffer->setDebugName(debugName);
+
+			ShaderResourceViewDesc srvDesc{
+				.format        = EPixelFormat::UNKNOWN,
+				.viewDimension = ESRVDimension::Buffer,
+				.buffer        = BufferSRVDesc{
+					.firstElement        = 0,
+					.numElements         = (uint32)count,
+					.structureByteStride = (uint32)stride,
+					.flags               = EBufferSRVFlags::None,
+				}
+			};
+			srv = UniquePtr<ShaderResourceView>(device->createSRV(buffer.get(), srvDesc));
+		}
+	};
+
+	wchar_t debugName[256];
+	swprintf_s(debugName, L"Buffer_GPUSceneMaterialCommand_%u", swapchainIndex);
+	fn(materialCommandBuffer[swapchainIndex], materialCommandSRV[swapchainIndex],
+		sizeof(GPUSceneMaterialCommand), scene->gpuSceneMaterialCommands.size(), debugName);
+}
+
+void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene)
+{
+	SCOPED_DRAW_EVENT(commandList, ExecuteGPUSceneMaterialCommands);
+
+	std::vector<BufferBarrierAuto> barriersBefore = {
+		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, materialConstantsBuffer2.get() },
+	};
+	Buffer* buffers[] = {
+		materialCommandBuffer.at(swapchainIndex),
+	};
+	for (size_t i = 0; i < _countof(buffers); ++i)
+	{
+		if (buffers[i] == nullptr) continue;
+		barriersBefore.push_back({ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, buffers[i] });
+	}
+	commandList->barrierAuto((uint32)barriersBefore.size(), barriersBefore.data(), 0, nullptr, 0, nullptr);
+
+	{
+		uint32 requiredVolatiles = 0;
+		requiredVolatiles += 1; // material buffer
+		requiredVolatiles += 1; // command buffer
+		materialPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	}
+
+	auto materialBufferUAV = materialConstantsUAV2.get();
+	auto descriptorHeap = materialPassDescriptor.getDescriptorHeap(swapchainIndex);
+
+	auto fn = [commandList, descriptorHeap, materialBufferUAV]<typename TCommandType>(
+		const std::vector<TCommandType>& sceneCommands,
+		Buffer*                          sceneCommandBuffer,
+		ShaderResourceView*              sceneCommandSRV,
+		ComputePipelineState*            pipelineState,
+		const char*                      drawEventName)
+	{
+		const uint32 count = (uint32)sceneCommands.size();
+		if (count > 0)
+		{
+			char eventString[128];
+			sprintf_s(eventString, "%s (count=%u)", drawEventName, count);
+			SCOPED_DRAW_EVENT_STRING(commandList, eventString);
+
+			sceneCommandBuffer->singleWriteToGPU(
+				commandList,
+				(void*)sceneCommands.data(),
+				(uint32)(sizeof(sceneCommands[0]) * count),
+				0);
+
+			ShaderParameterTable SPT{};
+			SPT.pushConstant("pushConstants", count);
+			SPT.rwStructuredBuffer("materialBuffer", materialBufferUAV);
+			SPT.structuredBuffer("commandBuffer", sceneCommandSRV);
+
+			commandList->setComputePipelineState(pipelineState);
+			commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap);
+			commandList->dispatchCompute(count, 1, 1);
+		}
+	};
+
+	fn(scene->gpuSceneMaterialCommands, materialCommandBuffer.at(swapchainIndex),
+		materialCommandSRV.at(swapchainIndex), materialPipelineState.get(),
+		"GPUSceneUpdateMaterials");
+
+	// #wip-material: Delta-update albedo SRVs here?
+
+	BufferBarrierAuto barriersAfter[] = {
+		{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, materialConstantsBuffer2.get() },
+	};
+	commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
 }

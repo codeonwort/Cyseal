@@ -1,6 +1,6 @@
 #include "pbrt_parser.h"
 #include "core/assertion.h"
-#include "render/material.h"
+#include "world/material_asset.h"
 #include "util/string_conversion.h"
 
 #include <sstream>

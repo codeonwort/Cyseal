@@ -5,7 +5,7 @@
 
 #include "pbrt_parser.h"
 #include "core/smart_pointer.h"
-#include "render/material.h"
+#include "world/material_asset.h"
 
 #include <string>
 #include <vector>

@@ -4,6 +4,38 @@
 #include "world/scene_proxy.h"
 #include "memory/custom_new_delete.h"
 
+static GPUSceneItem createGPUSceneItem(const StaticMeshSection& section, const Matrix& localToWorld, const Matrix& prevLocalToWorld)
+{
+	return GPUSceneItem{
+		.localToWorld            = localToWorld,
+		.prevLocalToWorld        = prevLocalToWorld,
+		.localMinBounds          = section.localBounds.minBounds,
+		.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes(), // #todo-gpuscene: uint64 offset
+		.localMaxBounds          = section.localBounds.maxBounds,
+		.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes(),
+		.indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes(),
+		.flags                   = GPUSceneItem::FlagBits::IsValid,
+	};
+}
+
+static MaterialConstants createMaterialConstants(MaterialAsset* material, uint32 gpuSceneItemIx)
+{
+	MaterialConstants constants{};
+	if (material != nullptr)
+	{
+		constants.albedoMultiplier  = material->albedoMultiplier;
+		constants.roughness         = material->roughness;
+		constants.emission          = material->emission;
+		constants.metalMask         = material->metalMask;
+		constants.materialID        = (uint32)material->materialID;
+		constants.indexOfRefraction = material->indexOfRefraction;
+		constants.transmittance     = material->transmittance;
+	}
+	constants.albedoTextureIndex    = gpuSceneItemIx; // #wip-material: How to deal with this value?
+
+	return constants;
+}
+
 void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemIndexAllocator* gpuSceneItemIndexAllocator)
 {
 	// NOTE: activeLOD should have been updated already.
@@ -50,20 +82,17 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 					const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
 					gpuSceneResidency.itemIndices[i] = itemIx;
 
-					GPUSceneAllocCommand cmd{
+					GPUSceneAllocCommand allocCmd{
 						.sceneItemIndex = itemIx,
-						.sceneItem      = GPUSceneItem{
-							.localToWorld            = transform.getMatrix(),
-							.prevLocalToWorld        = prevModelMatrix,
-							.localMinBounds          = section.localBounds.minBounds,
-							.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes(), // #todo-gpuscene: uint64 offset
-							.localMaxBounds          = section.localBounds.maxBounds,
-							.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes(),
-							.indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes(),
-							.flags                   = GPUSceneItem::FlagBits::IsValid,
-						}
+						.sceneItem      = createGPUSceneItem(section, transform.getMatrix(), prevModelMatrix),
 					};
-					sceneProxy->gpuSceneAllocCommands.emplace_back(cmd);
+					sceneProxy->gpuSceneAllocCommands.emplace_back(allocCmd);
+
+					GPUSceneMaterialCommand materialCmd{
+						.sceneItemIndex = itemIx,
+						.materialData   = createMaterialConstants(section.material.get(), itemIx),
+					};
+					sceneProxy->gpuSceneMaterialCommands.emplace_back(materialCmd);
 				}
 				gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			}
@@ -103,20 +132,17 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 				const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
 				gpuSceneResidency.itemIndices[i] = itemIx;
 
-				GPUSceneAllocCommand cmd{
+				GPUSceneAllocCommand allocCmd{
 					.sceneItemIndex = itemIx,
-					.sceneItem      = GPUSceneItem{
-						.localToWorld            = transform.getMatrix(),
-						.prevLocalToWorld        = prevModelMatrix,
-						.localMinBounds          = section.localBounds.minBounds,
-						.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes(), // #todo-gpuscene: uint64 offset
-						.localMaxBounds          = section.localBounds.maxBounds,
-						.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes(),
-						.indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes(),
-						.flags                   = GPUSceneItem::FlagBits::IsValid,
-					}
+					.sceneItem      = createGPUSceneItem(section, transform.getMatrix(), prevModelMatrix),
 				};
-				sceneProxy->gpuSceneAllocCommands.emplace_back(cmd);
+				sceneProxy->gpuSceneAllocCommands.emplace_back(allocCmd);
+
+				GPUSceneMaterialCommand materialCmd{
+					.sceneItemIndex = itemIx,
+					.materialData   = createMaterialConstants(section.material.get(), itemIx)
+				};
+				sceneProxy->gpuSceneMaterialCommands.emplace_back(materialCmd);
 			}
 			gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			break;
