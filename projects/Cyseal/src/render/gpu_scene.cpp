@@ -122,9 +122,9 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	resizeGPUSceneCommandBuffers(swapchainIndex, scene);
 
 	resizeMaterialBuffer2(commandList, maxElements);
+	resizeBindlessTextures(commandList, maxElements);
 	resizeMaterialCommandBuffer(swapchainIndex, scene);
 
-	// #wip-material: Don't upload unchanged materials. Also don't copy one by one.
 	// Prepare bindless materials.
 	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
 	uint32& currentConstantsCount = materialConstantsActualCounts[swapchainIndex];
@@ -139,8 +139,6 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		auto& SRVs = materialSRVs[swapchainIndex];
 		DescriptorHeap* srvHeap = materialSRVHeap.at(swapchainIndex);
 
-		// #wip-material: Can't do this in resizeMaterialBuffers()
-		// #wip-material: Destructors are slow here, when we can just wipe out them.
 		SRVs.clear();
 		SRVs.reserve(numMeshSections);
 		srvHeap->resetAllDescriptors(); // Need to clear SRVs first.
@@ -192,7 +190,6 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 
 				materialConstantsData[currentConstantsCount] = std::move(constants);
 
-				// #wip-material: Currently always increment even if duplicate items are generated.
 				++currentMaterialSRVCount;
 				++currentConstantsCount;
 			}
@@ -566,6 +563,33 @@ void GPUScene::resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxE
 		device->createUAV(materialConstantsBuffer2.get(), uavDesc));
 }
 
+void GPUScene::resizeBindlessTextures(RenderCommandList* commandList, uint32 maxElements)
+{
+	if (bindlessTextureHeap == nullptr
+		|| bindlessTextureHeap->getCreateParams().numDescriptors < maxElements)
+	{
+		DescriptorHeap* oldHeap = bindlessTextureHeap.release();
+		if (oldHeap != nullptr)
+		{
+			commandList->enqueueDeferredDealloc(oldHeap);
+		}
+
+		// #wip-material: Copy old heap and SRVs
+
+		bindlessTextureHeap = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
+			DescriptorHeapDesc{
+				.type           = EDescriptorHeapType::SRV,
+				.numDescriptors = maxElements,
+				.flags          = EDescriptorHeapFlags::None,
+				.nodeMask       = 0,
+				.purpose        = EDescriptorHeapPurpose::Volatile,
+			}
+		));
+
+		bindlessSRVs.resize(maxElements);
+	}
+}
+
 void GPUScene::resizeMaterialCommandBuffer(uint32 swapchainIndex, const SceneProxy* scene)
 {
 	auto fn = [device = this->device](UniquePtr<Buffer>& buffer, UniquePtr<ShaderResourceView>& srv,
@@ -671,7 +695,32 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		materialCommandSRV.at(swapchainIndex), materialPipelineState.get(),
 		"GPUSceneUpdateMaterials");
 
-	// #wip-material: Delta-update albedo SRVs here?
+	// Update albedo SRVs.
+	{
+		Texture* fallback = gTextureManager->getSystemTextureGrey2D()->getGPUResource().get();
+		DescriptorHeap* albedoHeap = bindlessTextureHeap.get();
+
+		for (size_t i = 0; i < scene->gpuSceneMaterialCommands.size(); ++i)
+		{
+			Texture* albedo = scene->gpuSceneAlbedoTextures[i];
+			if (albedo == nullptr) albedo = fallback;
+
+			const uint32 itemIx = scene->gpuSceneMaterialCommands[i].sceneItemIndex;
+
+			ShaderResourceViewDesc srvDesc{
+				.format              = albedo->getCreateParams().format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = albedo->getCreateParams().mipLevels,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				}
+			};
+			auto albedoSRV = device->createSRV(albedo, albedoHeap, srvDesc);
+			bindlessSRVs[itemIx] = UniquePtr<ShaderResourceView>(albedoSRV);
+		}
+	}
 
 	BufferBarrierAuto barriersAfter[] = {
 		{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, materialConstantsBuffer2.get() },

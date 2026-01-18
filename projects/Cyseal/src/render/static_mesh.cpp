@@ -31,9 +31,18 @@ static MaterialConstants createMaterialConstants(MaterialAsset* material, uint32
 		constants.indexOfRefraction = material->indexOfRefraction;
 		constants.transmittance     = material->transmittance;
 	}
-	constants.albedoTextureIndex    = gpuSceneItemIx; // #wip-material: How to deal with this value?
+	constants.albedoTextureIndex    = gpuSceneItemIx;
 
 	return constants;
+}
+
+static Texture* getAlbedoTexture(const SharedPtr<MaterialAsset>& material)
+{
+	if (material != nullptr && material->albedoTexture != nullptr)
+	{
+		return material->albedoTexture->getGPUResource().get();
+	}
+	return nullptr;
 }
 
 void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemIndexAllocator* gpuSceneItemIndexAllocator)
@@ -93,6 +102,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 						.materialData   = createMaterialConstants(section.material.get(), itemIx),
 					};
 					sceneProxy->gpuSceneMaterialCommands.emplace_back(materialCmd);
+					sceneProxy->gpuSceneAlbedoTextures.push_back(getAlbedoTexture(section.material));
 				}
 				gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			}
@@ -143,6 +153,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 					.materialData   = createMaterialConstants(section.material.get(), itemIx)
 				};
 				sceneProxy->gpuSceneMaterialCommands.emplace_back(materialCmd);
+				sceneProxy->gpuSceneAlbedoTextures.push_back(getAlbedoTexture(section.material));
 			}
 			gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			break;

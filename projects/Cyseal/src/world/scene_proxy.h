@@ -31,5 +31,7 @@ public:
 	std::vector<GPUSceneEvictCommand>    gpuSceneEvictCommands;
 	std::vector<GPUSceneAllocCommand>    gpuSceneAllocCommands;
 	std::vector<GPUSceneUpdateCommand>   gpuSceneUpdateCommands;
+
 	std::vector<GPUSceneMaterialCommand> gpuSceneMaterialCommands;
+	std::vector<Texture*>                gpuSceneAlbedoTextures; // For each material command
 };
