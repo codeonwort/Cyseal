@@ -82,6 +82,11 @@ public:
 		freeNumberList.clear();
 	}
 
+	void internal_copyAllDescriptorIndicesFrom(const DescriptorHeap* src)
+	{
+		FreeNumberList::clone(src->freeNumberList, freeNumberList);
+	}
+
 	const DescriptorHeapDesc& getCreateParams() const { return createParams; }
 
 private:

@@ -20,6 +20,8 @@
 
 #define LOAD_PBRT_FILE       1
 #define CREATE_TEST_MESHES   1
+#define MESH_SPLATTING_DELAY 0
+#define PBRT_LOAD_DELAY      30
 
 // living-room contains an invalid leaf texture only for pbrt format :/
 // It's tungsten and mitsuba versions are fine.
@@ -44,6 +46,8 @@ PBRTLoadDesc pbrtLoadDesc  = PBRT_LOAD_DESC;
 
 void World1::onInitialize()
 {
+	meshSplattingDelay = MESH_SPLATTING_DELAY;
+	pbrtLoadDelay = PBRT_LOAD_DELAY;
 	prepareScene();
 }
 
@@ -61,7 +65,19 @@ void World1::onTick(float deltaSeconds)
 			ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 15.0f);
 
 			// Animate balls to see if update of BLAS instance transforms is going well.
-			meshSplatting.tick(deltaSeconds);
+			if (meshSplattingDelay == 0) meshSplatting.tick(deltaSeconds);
+			else if (--meshSplattingDelay == 0)
+			{
+				createMeshSplatting();
+			}
+		}
+
+		if (LOAD_PBRT_FILE && pbrtLoadDelay > 0)
+		{
+			if (--pbrtLoadDelay == 0)
+			{
+				createPbrtResources();
+			}
 		}
 	}
 }
@@ -96,7 +112,7 @@ void World1::prepareScene()
 {
 	if (CREATE_TEST_MESHES) createTestMeshes();
 	createSkybox();
-	if (LOAD_PBRT_FILE) createPbrtResources();
+	if (LOAD_PBRT_FILE && pbrtLoadDelay == 0) createPbrtResources();
 
 	scene->sun.direction = SUN_DIRECTION;
 	scene->sun.illuminance = SUN_ILLUMINANCE;
@@ -152,18 +168,9 @@ void World1::createTestMeshes()
 		}
 	);
 
-	meshSplatting.createResources(
-		MeshSplatting::CreateParams{
-			.center = vec3(0.0f, -4.0f, 0.0f),
-			.radius = 16.0f,
-			.height = 20.0f,
-			.numLoop = 2,
-			.numMeshes = 32
-		}
-	);
-	for (StaticMesh* sm : meshSplatting.getStaticMeshes())
+	if (meshSplattingDelay == 0)
 	{
-		scene->addStaticMesh(sm);
+		createMeshSplatting();
 	}
 
 	// Ground
@@ -243,6 +250,23 @@ void World1::createTestMeshes()
 		MesoGeometryAssets::addStaticMeshSections(glassBox, 0, geomAssets, material);
 
 		scene->addStaticMesh(glassBox);
+	}
+}
+
+void World1::createMeshSplatting()
+{
+	meshSplatting.createResources(
+		MeshSplatting::CreateParams{
+			.center = vec3(0.0f, -4.0f, 0.0f),
+			.radius = 16.0f,
+			.height = 20.0f,
+			.numLoop = 2,
+			.numMeshes = 32
+		}
+	);
+	for (StaticMesh* sm : meshSplatting.getStaticMeshes())
+	{
+		scene->addStaticMesh(sm);
 	}
 }
 

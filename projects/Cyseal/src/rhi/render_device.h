@@ -141,6 +141,10 @@ public:
 	virtual RenderTargetView* createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams) = 0;
 	virtual DepthStencilView* createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams) = 0;
 
+	// #wip: Definitely super bad API design :(
+	// Use at your own risk. Assuming copyDescriptors() already copied the real descriptor, create a SRV that has the same owner and descriptorIndex, but has different source heap.
+	virtual ShaderResourceView* cloneSRVWithDifferentHeap(ShaderResourceView* src, DescriptorHeap* anotherHeap) = 0;
+
 	// Indirect draw and dispatch //
 	
 	// Create a command signature that defines indirect commands for the given pipeline.

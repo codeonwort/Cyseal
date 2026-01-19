@@ -275,6 +275,7 @@ public:
 	
 	virtual ~ShaderResourceView();
 
+	GPUResource* getOwnerResource() const { return ownerResource; }
 	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
 	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
 

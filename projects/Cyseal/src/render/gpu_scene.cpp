@@ -224,7 +224,7 @@ GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swap
 	return MaterialDescriptorsDesc{
 		.constantsBufferSRV = materialConstantsSRV2.get(),
 		.srvHeap            = bindlessTextureHeap.get(),
-		.srvCount           = bindlessTextureHeap->getCreateParams().numDescriptors,
+		.srvCount           = bindlessTextureHeap ? bindlessTextureHeap->getCreateParams().numDescriptors : 0,
 	};
 #endif
 }
@@ -583,12 +583,7 @@ void GPUScene::resizeBindlessTextures(RenderCommandList* commandList, uint32 max
 		|| bindlessTextureHeap->getCreateParams().numDescriptors < maxElements)
 	{
 		DescriptorHeap* oldHeap = bindlessTextureHeap.release();
-		if (oldHeap != nullptr)
-		{
-			commandList->enqueueDeferredDealloc(oldHeap);
-		}
-
-		// #wip-material: Copy old heap and SRVs
+		std::vector<UniquePtr<ShaderResourceView>> oldSRVs = std::move(bindlessSRVs);
 
 		bindlessTextureHeap = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
 			DescriptorHeapDesc{
@@ -599,8 +594,24 @@ void GPUScene::resizeBindlessTextures(RenderCommandList* commandList, uint32 max
 				.purpose        = EDescriptorHeapPurpose::Volatile,
 			}
 		));
+		bindlessSRVs = std::vector<UniquePtr<ShaderResourceView>>(maxElements);
 
-		bindlessSRVs.resize(maxElements);
+		if (oldHeap != nullptr)
+		{
+			const uint32 oldDescCount = oldHeap->getCreateParams().numDescriptors;
+			device->copyDescriptors(oldDescCount, bindlessTextureHeap.get(), 0, oldHeap, 0);
+			bindlessTextureHeap->internal_copyAllDescriptorIndicesFrom(oldHeap);
+
+			CHECK(oldSRVs.size() == oldDescCount);
+			for (size_t i = 0; i < oldDescCount; ++i)
+			{
+				ShaderResourceView* oldSRV = oldSRVs[i].release();
+				if (oldSRV == nullptr) continue;
+				bindlessSRVs[i] = UniquePtr<ShaderResourceView>(device->cloneSRVWithDifferentHeap(oldSRV, bindlessTextureHeap.get()));
+				commandList->enqueueDeferredDealloc(oldSRV);
+			}
+			commandList->enqueueDeferredDealloc(oldHeap);
+		}
 	}
 }
 
@@ -745,7 +756,9 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 					.minLODClamp     = 0.0f,
 				}
 			};
+			// #wip-material: Wait... can't guarantee descriptorIx == itemIx
 			auto albedoSRV = device->createSRV(albedo, albedoHeap, srvDesc);
+			//CHECK(albedoSRV->getDescriptorIndexInHeap() == itemIx);
 			bindlessSRVs[itemIx] = UniquePtr<ShaderResourceView>(albedoSRV);
 		}
 	}

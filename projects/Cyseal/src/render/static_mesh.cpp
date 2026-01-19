@@ -31,7 +31,7 @@ static MaterialConstants createMaterialConstants(MaterialAsset* material, uint32
 		constants.indexOfRefraction = material->indexOfRefraction;
 		constants.transmittance     = material->transmittance;
 	}
-	constants.albedoTextureIndex    = gpuSceneItemIx;
+	constants.albedoTextureIndex    = gpuSceneItemIx; // #wip-material: Invalid!!! descriptorIndex is allocated by FreeNumberList
 
 	return constants;
 }
@@ -49,7 +49,8 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 {
 	// NOTE: activeLOD should have been updated already.
 
-	const size_t numSections = LODs[activeLOD].sections.size();
+	const std::vector<StaticMeshSection>& sections = LODs[activeLOD].sections;
+	const size_t numSections = sections.size();
 
 	if (gpuSceneResidency.phase == EGPUResidencyPhase::Allocated)
 	{
@@ -71,7 +72,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 				bool bInvalidResources = false;
 				for (size_t i = 0; i < numSections; ++i)
 				{
-					const StaticMeshSection& section = LODs[activeLOD].sections[i];
+					const StaticMeshSection& section = sections[i];
 					if (section.positionBuffer->getGPUResource() == nullptr
 						|| section.nonPositionBuffer->getGPUResource() == nullptr
 						|| section.indexBuffer->getGPUResource() == nullptr)
@@ -87,7 +88,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 				gpuSceneResidency.itemIndices.resize(numSections);
 				for (size_t i = 0; i < numSections; ++i)
 				{
-					const StaticMeshSection& section = LODs[activeLOD].sections[i];
+					const StaticMeshSection& section = sections[i];
 					const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
 					gpuSceneResidency.itemIndices[i] = itemIx;
 
@@ -148,7 +149,7 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 			gpuSceneResidency.itemIndices.resize(numSections);
 			for (size_t i = 0; i < numSections; ++i)
 			{
-				const StaticMeshSection& section = LODs[activeLOD].sections[i];
+				const StaticMeshSection& section = sections[i];
 				const uint32 itemIx = gpuSceneItemIndexAllocator->allocate();
 				gpuSceneResidency.itemIndices[i] = itemIx;
 

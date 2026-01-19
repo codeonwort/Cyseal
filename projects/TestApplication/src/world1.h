@@ -15,14 +15,18 @@ public:
 private:
 	void prepareScene();
 	void createTestMeshes();
+	void createMeshSplatting();
 	void createSkybox();
 	void createPbrtResources();
 
+	uint32 meshSplattingDelay = 0;
 	MeshSplatting meshSplatting;
+
 	StaticMesh* ground = nullptr;
 	StaticMesh* wallA = nullptr;
 	StaticMesh* glassBox = nullptr;
 
+	uint32 pbrtLoadDelay = 0;
 	std::vector<StaticMesh*> pbrtMeshes;
 	std::vector<StaticMesh*> pbrtInstancedMeshes;
 };
