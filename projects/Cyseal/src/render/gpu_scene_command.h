@@ -56,3 +56,7 @@ struct GPUSceneMaterialCommand
 	uint32            _pad2;
 	MaterialConstants materialData;
 };
+struct GPUSceneEvictMaterialCommand
+{
+	uint32            sceneItemIndex;
+};

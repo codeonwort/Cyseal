@@ -126,8 +126,9 @@ private:
 	struct GPUSceneResidency
 	{
 		EGPUResidencyPhase phase = EGPUResidencyPhase::NotAllocated;
-		// #wip: Could be just [start,end) if indices are consecutive.
-		// FreeNumberList does not provide such API yet...
+		// #todo-gpuscene: Could be just [start,end) if indices are consecutive.
+		// FreeNumberList does not provide such API yet, and it will make (max_item_ix >= element_count).
+		// Currently, residency can be sparse but at least (max_item_ix < element_count) holds.
 		std::vector<uint32> itemIndices;
 	};
 	GPUSceneResidency gpuSceneResidency;

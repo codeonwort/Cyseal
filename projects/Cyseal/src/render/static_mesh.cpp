@@ -120,6 +120,11 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 					.sceneItemIndex = itemIx
 				};
 				sceneProxy->gpuSceneEvictCommands.emplace_back(cmd);
+
+				GPUSceneEvictMaterialCommand materialCmd{
+					.sceneItemIndex = itemIx
+				};
+				sceneProxy->gpuSceneEvictMaterialCommands.emplace_back(materialCmd);
 			}
 			gpuSceneResidency.phase = EGPUResidencyPhase::NotAllocated;
 			gpuSceneResidency.itemIndices.clear();
@@ -134,6 +139,11 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 					.sceneItemIndex = itemIx
 				};
 				sceneProxy->gpuSceneEvictCommands.emplace_back(cmd);
+
+				GPUSceneEvictMaterialCommand materialCmd{
+					.sceneItemIndex = itemIx
+				};
+				sceneProxy->gpuSceneEvictMaterialCommands.emplace_back(materialCmd);
 			}
 			gpuSceneResidency.itemIndices.resize(numSections);
 			for (size_t i = 0; i < numSections; ++i)

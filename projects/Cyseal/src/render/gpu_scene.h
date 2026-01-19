@@ -8,7 +8,7 @@
 #include "util/volatile_descriptor.h"
 
 // #wip-material: Legacy define
-#define LEGACY_BINDLESS_TEXTURES 1
+#define LEGACY_BINDLESS_TEXTURES 0
 
 class SceneProxy;
 class Camera;

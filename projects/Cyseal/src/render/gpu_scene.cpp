@@ -318,7 +318,7 @@ void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsC
 			swapchainIndex, materialMemorySize, (float)materialMemorySize / (1024.0f * 1024.0f));
 
 		// Destroy SRV early than its DescriptorHeap.
-		materialConstantsSRV[swapchainIndex] = nullptr;
+		materialConstantsSRV[swapchainIndex].reset();
 
 		materialConstantsMemory[swapchainIndex] = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
@@ -378,8 +378,8 @@ void GPUScene::resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const ScenePr
 	{
 		if (count == 0)
 		{
-			buffer = nullptr;
-			srv = nullptr;
+			buffer.reset();
+			srv.reset();
 		}
 		else if (buffer == nullptr
 			|| (buffer->getCreateParams().sizeInBytes / stride) < count
@@ -611,8 +611,8 @@ void GPUScene::resizeMaterialCommandBuffer(uint32 swapchainIndex, const ScenePro
 	{
 		if (count == 0)
 		{
-			buffer = nullptr;
-			srv = nullptr;
+			buffer.reset();
+			srv.reset();
 		}
 		else if (buffer == nullptr
 			|| (buffer->getCreateParams().sizeInBytes / stride) < count
@@ -664,6 +664,19 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 	}
 	commandList->barrierAuto((uint32)barriersBefore.size(), barriersBefore.data(), 0, nullptr, 0, nullptr);
 
+	// ---------------------------------------------------------------------
+	// Evict materials. Simply reset SRVs.
+
+	for (size_t i = 0; i < scene->gpuSceneEvictMaterialCommands.size(); ++i)
+	{
+		const GPUSceneEvictMaterialCommand& cmd = scene->gpuSceneEvictMaterialCommands[i];
+		const uint32 itemIx = cmd.sceneItemIndex;
+		bindlessSRVs[itemIx].reset();
+	}
+
+	// ---------------------------------------------------------------------
+	// Update material buffer.
+
 	{
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 1; // material buffer
@@ -709,7 +722,6 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		materialCommandSRV.at(swapchainIndex), materialPipelineState.get(),
 		"GPUSceneUpdateMaterials");
 
-	// #wip-material: Need to deal with evictCommand and realloCommand.
 	// Update albedo SRVs.
 #if !LEGACY_BINDLESS_TEXTURES
 	{

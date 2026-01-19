@@ -28,10 +28,11 @@ public:
 	uint32 gpuSceneItemMaxValidIndex = 0xffffffff;
 
 public:
-	std::vector<GPUSceneEvictCommand>    gpuSceneEvictCommands;
-	std::vector<GPUSceneAllocCommand>    gpuSceneAllocCommands;
-	std::vector<GPUSceneUpdateCommand>   gpuSceneUpdateCommands;
+	std::vector<GPUSceneEvictCommand>         gpuSceneEvictCommands;
+	std::vector<GPUSceneAllocCommand>         gpuSceneAllocCommands;
+	std::vector<GPUSceneUpdateCommand>        gpuSceneUpdateCommands;
 
-	std::vector<GPUSceneMaterialCommand> gpuSceneMaterialCommands;
-	std::vector<Texture*>                gpuSceneAlbedoTextures; // For each material command
+	std::vector<GPUSceneEvictMaterialCommand> gpuSceneEvictMaterialCommands;
+	std::vector<GPUSceneMaterialCommand>      gpuSceneMaterialCommands;
+	std::vector<Texture*>                     gpuSceneAlbedoTextures; // For each material command
 };
