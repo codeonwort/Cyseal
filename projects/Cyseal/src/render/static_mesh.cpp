@@ -3,6 +3,7 @@
 #include "world/scene.h"
 #include "world/scene_proxy.h"
 #include "memory/custom_new_delete.h"
+#include "memory/mem_alloc.h"
 
 static GPUSceneItem createGPUSceneItem(const StaticMeshSection& section, const Matrix& localToWorld, const Matrix& prevLocalToWorld)
 {
@@ -189,15 +190,16 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 	}
 }
 
-StaticMeshProxy* StaticMesh::createStaticMeshProxy() const
+StaticMeshProxy* StaticMesh::createStaticMeshProxy(StackAllocator* allocator) const
 {
-	StaticMeshProxy* proxy = new(EMemoryTag::Renderer) StaticMeshProxy{
-		.lod              = LODs[activeLOD],
-		.localToWorld     = transform.getMatrix(),
-		.prevLocalToWorld = prevModelMatrix,
-		.bTransformDirty  = isTransformDirty(),
-		.bLodDirty        = bLodDirty,
-	};
+	StaticMeshProxy* proxy = static_cast<StaticMeshProxy*>(allocator->alloc(sizeof(StaticMeshProxy)));
+
+	proxy->lod              = &(LODs[activeLOD]);
+	proxy->localToWorld     = transform.getMatrix();
+	proxy->prevLocalToWorld = prevModelMatrix;
+	proxy->bTransformDirty  = isTransformDirty();
+	proxy->bLodDirty        = bLodDirty;
+
 	return proxy;
 }
 

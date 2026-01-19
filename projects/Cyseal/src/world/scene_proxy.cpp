@@ -1,10 +1,8 @@
 #include "scene_proxy.h"
 #include "render/static_mesh.h"
+#include "memory/mem_alloc.h"
 
 SceneProxy::~SceneProxy()
 {
-	for (StaticMeshProxy* sm : staticMeshes)
-	{
-		delete sm;
-	}
+	delete staticMeshProxyAllocator;
 }

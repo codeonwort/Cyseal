@@ -8,6 +8,7 @@
 #include <vector>
 
 struct StaticMeshProxy;
+class StackAllocator;
 
 // Render thread version of scene representation.
 // #todo-renderer: Proxy variants for scene entities.
@@ -26,6 +27,8 @@ public:
 
 	uint32 gpuSceneItemMinValidIndex = 0xffffffff;
 	uint32 gpuSceneItemMaxValidIndex = 0xffffffff;
+
+	StackAllocator* staticMeshProxyAllocator;
 
 public:
 	std::vector<GPUSceneEvictCommand>         gpuSceneEvictCommands;

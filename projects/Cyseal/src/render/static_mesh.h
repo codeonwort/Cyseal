@@ -9,6 +9,7 @@
 #include <vector>
 
 class SceneProxy;
+class StackAllocator;
 class GPUSceneItemIndexAllocator;
 
 struct StaticMeshSection
@@ -27,13 +28,14 @@ struct StaticMeshLOD
 
 struct StaticMeshProxy
 {
-	StaticMeshLOD lod;
-	Matrix        localToWorld;
-	Matrix        prevLocalToWorld;
-	bool          bTransformDirty;
-	bool          bLodDirty;
+	const StaticMeshLOD* lod; // #todo-renderer: Use-after-free hazard when multithreading comes.
+	                          // but must be a pointer for now, as StaticMeshProxy is allocated by StackAllocator so should be a POD.
+	Matrix               localToWorld;
+	Matrix               prevLocalToWorld;
+	bool                 bTransformDirty;
+	bool                 bLodDirty;
 
-	inline const std::vector<StaticMeshSection>& getSections() const { return lod.sections; }
+	inline const std::vector<StaticMeshSection>& getSections() const { return lod->sections; }
 	inline const Matrix& getLocalToWorld() const { return localToWorld; }
 	inline const Matrix& getPrevLocalToWorld() const { return prevLocalToWorld; }
 	inline bool isTransformDirty() const { return bTransformDirty; }
@@ -44,7 +46,7 @@ class StaticMesh
 {
 public:
 	void updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemIndexAllocator* gpuSceneItemIndexAllocator);
-	StaticMeshProxy* createStaticMeshProxy() const;
+	StaticMeshProxy* createStaticMeshProxy(StackAllocator* allocator) const;
 
 	void addSection(
 		uint32 lod,
