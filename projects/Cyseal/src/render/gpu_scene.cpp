@@ -685,6 +685,40 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		bindlessSRVs[itemIx].reset();
 	}
 
+	// Deep copy to modify albedoTextureIndex... Wastful, but don't wanna break constness for now.
+	std::vector<GPUSceneMaterialCommand> materialCommands = scene->gpuSceneMaterialCommands;
+
+	// Update albedo SRVs.
+#if !LEGACY_BINDLESS_TEXTURES
+	{
+		Texture* fallback = gTextureManager->getSystemTextureGrey2D()->getGPUResource().get();
+		DescriptorHeap* albedoHeap = bindlessTextureHeap.get();
+
+		for (size_t i = 0; i < materialCommands.size(); ++i)
+		{
+			Texture* albedo = scene->gpuSceneAlbedoTextures[i];
+			if (albedo == nullptr) albedo = fallback;
+
+			const uint32 itemIx = materialCommands[i].sceneItemIndex;
+
+			ShaderResourceViewDesc srvDesc{
+				.format              = albedo->getCreateParams().format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = albedo->getCreateParams().mipLevels,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				}
+			};
+			auto albedoSRV = device->createSRV(albedo, albedoHeap, srvDesc);
+
+			bindlessSRVs[itemIx] = UniquePtr<ShaderResourceView>(albedoSRV);
+			materialCommands[i].materialData.albedoTextureIndex = albedoSRV->getDescriptorIndexInHeap();
+		}
+	}
+#endif
+
 	// ---------------------------------------------------------------------
 	// Update material buffer.
 
@@ -729,40 +763,9 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		}
 	};
 
-	fn(scene->gpuSceneMaterialCommands, materialCommandBuffer.at(swapchainIndex),
+	fn(materialCommands, materialCommandBuffer.at(swapchainIndex),
 		materialCommandSRV.at(swapchainIndex), materialPipelineState.get(),
 		"GPUSceneUpdateMaterials");
-
-	// Update albedo SRVs.
-#if !LEGACY_BINDLESS_TEXTURES
-	{
-		Texture* fallback = gTextureManager->getSystemTextureGrey2D()->getGPUResource().get();
-		DescriptorHeap* albedoHeap = bindlessTextureHeap.get();
-
-		for (size_t i = 0; i < scene->gpuSceneMaterialCommands.size(); ++i)
-		{
-			Texture* albedo = scene->gpuSceneAlbedoTextures[i];
-			if (albedo == nullptr) albedo = fallback;
-
-			const uint32 itemIx = scene->gpuSceneMaterialCommands[i].sceneItemIndex;
-
-			ShaderResourceViewDesc srvDesc{
-				.format              = albedo->getCreateParams().format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = albedo->getCreateParams().mipLevels,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				}
-			};
-			// #wip-material: Wait... can't guarantee descriptorIx == itemIx
-			auto albedoSRV = device->createSRV(albedo, albedoHeap, srvDesc);
-			//CHECK(albedoSRV->getDescriptorIndexInHeap() == itemIx);
-			bindlessSRVs[itemIx] = UniquePtr<ShaderResourceView>(albedoSRV);
-		}
-	}
-#endif
 
 	BufferBarrierAuto barriersAfter[] = {
 		{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, materialConstantsBuffer2.get() },

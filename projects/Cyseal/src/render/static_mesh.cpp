@@ -32,7 +32,8 @@ static MaterialConstants createMaterialConstants(MaterialAsset* material, uint32
 		constants.indexOfRefraction = material->indexOfRefraction;
 		constants.transmittance     = material->transmittance;
 	}
-	constants.albedoTextureIndex    = gpuSceneItemIx; // #wip-material: Invalid!!! descriptorIndex is allocated by FreeNumberList
+	// Filled by GPUScene when processing gpu scene commands.
+	constants.albedoTextureIndex    = 0xffffffff;
 
 	return constants;
 }
