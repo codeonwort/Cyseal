@@ -7,9 +7,6 @@
 #include "rhi/gpu_resource_view.h"
 #include "util/volatile_descriptor.h"
 
-// #wip-material: Legacy define
-#define LEGACY_BINDLESS_TEXTURES 0
-
 class SceneProxy;
 class Camera;
 
@@ -48,10 +45,6 @@ private:
 	void resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene);
 	void executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
 
-#if LEGACY_BINDLESS_TEXTURES
-	void resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount);
-#endif
-
 	void resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxElements);
 	void resizeBindlessTextures(RenderCommandList* commandList, uint32 maxElements);
 	void resizeMaterialCommandBuffer(uint32 swapchainIndex, const SceneProxy* scene);
@@ -82,23 +75,6 @@ private:
 	BufferedUniquePtr<ShaderResourceView> gpuSceneEvictCommandBufferSRV;
 	BufferedUniquePtr<ShaderResourceView> gpuSceneAllocCommandBufferSRV;
 	BufferedUniquePtr<ShaderResourceView> gpuSceneUpdateCommandBufferSRV;
-
-#if LEGACY_BINDLESS_TEXTURES
-	// ----------------------------------------------
-	// Bindless materials (per swapchain)
-	
-	// Currently constants count = srv count as there are only albedo textures, but srv count will increase.
-	std::vector<uint32> materialConstantsMaxCounts;
-	std::vector<uint32> materialSRVMaxCounts;
-	std::vector<uint32> materialConstantsActualCounts; // Currently same as max count.
-	std::vector<uint32> materialSRVActualCounts; // Currently same as max count.
-	BufferedUniquePtr<DescriptorHeap> materialSRVHeap;
-	BufferedUniquePtrVec<ShaderResourceView> materialSRVs;
-
-	BufferedUniquePtr<Buffer> materialConstantsMemory;
-	BufferedUniquePtr<DescriptorHeap> materialConstantsHeap;
-	BufferedUniquePtr<ShaderResourceView> materialConstantsSRV;
-#endif
 
 	// ----------------------------------------------
 	// Bindless materials (rework)

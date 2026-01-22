@@ -29,19 +29,6 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 
 	passDescriptor.initialize(L"GPUScene", swapchainCount, 0);
 
-#if LEGACY_BINDLESS_TEXTURES
-	materialConstantsMaxCounts.resize(swapchainCount, 0);
-	materialSRVMaxCounts.resize(swapchainCount, 0);
-	materialConstantsActualCounts.resize(swapchainCount, 0);
-	materialSRVActualCounts.resize(swapchainCount, 0);
-	materialSRVHeap.initialize(swapchainCount);
-	materialSRVs.initialize(swapchainCount);
-
-	materialConstantsMemory.initialize(swapchainCount);
-	materialConstantsHeap.initialize(swapchainCount);
-	materialConstantsSRV.initialize(swapchainCount);
-#endif
-
 	materialPassDescriptor.initialize(L"GPUSceneMaterial", swapchainCount, 0);
 	materialCommandBuffer.initialize(swapchainCount);
 	materialCommandSRV.initialize(swapchainCount);
@@ -126,82 +113,6 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	resizeMaterialBuffer2(commandList, maxElements);
 	resizeBindlessTextures(commandList, maxElements);
 	resizeMaterialCommandBuffer(swapchainIndex, scene);
-
-#if LEGACY_BINDLESS_TEXTURES
-	// Prepare bindless materials.
-	resizeMaterialBuffers(swapchainIndex, numMeshSections, numMeshSections);
-	uint32& currentConstantsCount = materialConstantsActualCounts[swapchainIndex];
-	uint32& currentMaterialSRVCount = materialSRVActualCounts[swapchainIndex];
-	currentConstantsCount = 0;
-	currentMaterialSRVCount = 0;
-	{
-		char eventString[128];
-		sprintf_s(eventString, "UpdateMaterialBuffer (count=%u)", numMeshSections);
-		SCOPED_DRAW_EVENT_STRING(commandList, eventString);
-
-		auto& SRVs = materialSRVs[swapchainIndex];
-		DescriptorHeap* srvHeap = materialSRVHeap.at(swapchainIndex);
-
-		SRVs.clear();
-		SRVs.reserve(numMeshSections);
-		srvHeap->resetAllDescriptors(); // Need to clear SRVs first.
-
-		auto albedoFallbackTexture = gTextureManager->getSystemTextureGrey2D()->getGPUResource();
-
-		std::vector<MaterialConstants> materialConstantsData(materialConstantsMaxCounts[swapchainIndex]);
-
-		for (uint32 i = 0; i < numStaticMeshes; ++i)
-		{
-			StaticMeshProxy* staticMesh = scene->staticMeshes[i];
-			for (const StaticMeshSection& section : staticMesh->getSections())
-			{
-				MaterialAsset* const material = section.material.get();
-
-				// Texture SRV
-				auto albedo = albedoFallbackTexture;
-				if (material != nullptr && material->albedoTexture != nullptr)
-				{
-					albedo = material->albedoTexture->getGPUResource();
-				}
-
-				ShaderResourceViewDesc srvDesc{
-					.format              = albedo->getCreateParams().format,
-					.viewDimension       = ESRVDimension::Texture2D,
-					.texture2D           = Texture2DSRVDesc{
-						.mostDetailedMip = 0,
-						.mipLevels       = albedo->getCreateParams().mipLevels,
-						.planeSlice      = 0,
-						.minLODClamp     = 0.0f,
-					}
-				};
-				auto albedoSRV = device->createSRV(albedo.get(), srvHeap, srvDesc);
-				SRVs.emplace_back(UniquePtr<ShaderResourceView>(albedoSRV));
-
-				// Constants
-				MaterialConstants constants;
-				if (material != nullptr)
-				{
-					constants.albedoMultiplier  = material->albedoMultiplier;
-					constants.roughness         = material->roughness;
-					constants.emission          = material->emission;
-					constants.metalMask         = material->metalMask;
-					constants.materialID        = (uint32)material->materialID;
-					constants.indexOfRefraction = material->indexOfRefraction;
-					constants.transmittance     = material->transmittance;
-				}
-				constants.albedoTextureIndex = currentMaterialSRVCount;
-
-				materialConstantsData[currentConstantsCount] = std::move(constants);
-
-				++currentMaterialSRVCount;
-				++currentConstantsCount;
-			}
-		}
-
-		uint32 materialDataSize = (uint32)(sizeof(MaterialConstants) * materialConstantsData.size());
-		materialConstantsMemory[swapchainIndex]->singleWriteToGPU(commandList, materialConstantsData.data(), materialDataSize, 0);
-	}
-#endif
 	
 	executeGPUSceneCommands(commandList, swapchainIndex, scene);
 	executeMaterialCommands(commandList, swapchainIndex, scene);
@@ -214,19 +125,11 @@ ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
 
 GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swapchainIndex) const
 {
-#if LEGACY_BINDLESS_TEXTURES
-	return MaterialDescriptorsDesc{
-		.constantsBufferSRV = materialConstantsSRV.at(swapchainIndex),
-		.srvHeap            = materialSRVHeap.at(swapchainIndex),
-		.srvCount           = materialSRVActualCounts[swapchainIndex],
-	};
-#else
 	return MaterialDescriptorsDesc{
 		.constantsBufferSRV = materialConstantsSRV2.get(),
 		.srvHeap            = bindlessTextureHeap.get(),
 		.srvCount           = bindlessTextureHeap ? bindlessTextureHeap->getCreateParams().numDescriptors : 0,
 	};
-#endif
 }
 
 void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements)
@@ -298,78 +201,6 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 	gpuSceneBufferUAV = UniquePtr<UnorderedAccessView>(
 		device->createUAV(gpuSceneBuffer.get(), uavDesc));
 }
-
-#if LEGACY_BINDLESS_TEXTURES
-void GPUScene::resizeMaterialBuffers(uint32 swapchainIndex, uint32 maxConstantsCount, uint32 maxSRVCount)
-{
-	auto align = [](uint32 size, uint32 alignment) -> uint32
-	{
-		return (size + (alignment - 1)) & ~(alignment - 1);
-	};
-
-	if (materialConstantsMaxCounts[swapchainIndex] < maxConstantsCount)
-	{
-		materialConstantsMaxCounts[swapchainIndex] = maxConstantsCount;
-
-		// Was ConstantBuffer but now StructuredBuffer, so don't need memory alignment.
-		const uint32 materialMemorySize = sizeof(MaterialConstants) * maxConstantsCount;
-
-		CYLOG(LogGPUScene, Log, L"Resize material constants memory [%u]: %u bytes (%.3f MiB)",
-			swapchainIndex, materialMemorySize, (float)materialMemorySize / (1024.0f * 1024.0f));
-
-		// Destroy SRV early than its DescriptorHeap.
-		materialConstantsSRV[swapchainIndex].reset();
-
-		materialConstantsMemory[swapchainIndex] = UniquePtr<Buffer>(device->createBuffer(
-			BufferCreateParams{
-				.sizeInBytes = materialMemorySize,
-				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC,
-			}
-		));
-		materialConstantsHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
-			DescriptorHeapDesc{
-				.type           = EDescriptorHeapType::SRV,
-				.numDescriptors = maxConstantsCount,
-				.flags          = EDescriptorHeapFlags::None,
-				.nodeMask       = 0,
-				.purpose        = EDescriptorHeapPurpose::Volatile,
-			}
-		));
-		materialConstantsSRV[swapchainIndex] = UniquePtr<ShaderResourceView>(device->createSRV(
-			materialConstantsMemory.at(swapchainIndex),
-			materialConstantsHeap.at(swapchainIndex),
-			ShaderResourceViewDesc{
-				.format                  = EPixelFormat::UNKNOWN,
-				.viewDimension           = ESRVDimension::Buffer,
-				.buffer                  = BufferSRVDesc{
-					.firstElement        = 0,
-					.numElements         = maxConstantsCount,
-					.structureByteStride = sizeof(MaterialConstants),
-					.flags               = EBufferSRVFlags::None,
-				}
-			}
-		));
-	}
-
-	if (materialSRVMaxCounts[swapchainIndex] < maxSRVCount)
-	{
-		materialSRVMaxCounts[swapchainIndex] = maxSRVCount;
-
-		materialSRVs[swapchainIndex].clear();
-
-		materialSRVHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(device->createDescriptorHeap(
-			DescriptorHeapDesc{
-				.type           = EDescriptorHeapType::SRV,
-				.numDescriptors = maxSRVCount,
-				.flags          = EDescriptorHeapFlags::None,
-				.nodeMask       = 0,
-				.purpose        = EDescriptorHeapPurpose::Volatile,
-			}
-		));
-	}
-}
-#endif
 
 void GPUScene::resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene)
 {
@@ -689,7 +520,6 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 	std::vector<GPUSceneMaterialCommand> materialCommands = scene->gpuSceneMaterialCommands;
 
 	// Update albedo SRVs.
-#if !LEGACY_BINDLESS_TEXTURES
 	{
 		Texture* fallback = gTextureManager->getSystemTextureGrey2D()->getGPUResource().get();
 		DescriptorHeap* albedoHeap = bindlessTextureHeap.get();
@@ -717,7 +547,6 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 			materialCommands[i].materialData.albedoTextureIndex = albedoSRV->getDescriptorIndexInHeap();
 		}
 	}
-#endif
 
 	// ---------------------------------------------------------------------
 	// Update material buffer.
