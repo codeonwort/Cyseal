@@ -24,8 +24,8 @@ public:
 	struct MaterialDescriptorsDesc
 	{
 		ShaderResourceView* constantsBufferSRV; // Structured buffer that contains all material constants per mesh section.
-		DescriptorHeap* srvHeap; // Descriptor heap that contains all material textures.
-		uint32 srvCount; // Total material texture count.
+		DescriptorHeap*     srvHeap;            // Descriptor heap that contains all material textures.
+		uint32              srvCount;           // Total material texture count.
 	};
 
 public:
@@ -34,6 +34,7 @@ public:
 	// Update GPU scene buffer.
 	void renderGPUScene(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput);
 
+	// Might return null if no gpu scene item was allocated yet.
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 
 	MaterialDescriptorsDesc queryMaterialDescriptors(uint32 swapchainIndex) const;
@@ -45,7 +46,7 @@ private:
 	void resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene);
 	void executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
 
-	void resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxElements);
+	void resizeMaterialBuffer(RenderCommandList* commandList, uint32 maxElements);
 	void resizeBindlessTextures(RenderCommandList* commandList, uint32 maxElements);
 	void resizeMaterialCommandBuffer(uint32 swapchainIndex, const SceneProxy* scene);
 	void executeMaterialCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
@@ -56,39 +57,44 @@ private:
 	// ----------------------------------------------
 	// GPU scene buffer
 
-	uint32 gpuSceneMaxElements = 0;
-	UniquePtr<Buffer> gpuSceneBuffer;
-	UniquePtr<ShaderResourceView> gpuSceneBufferSRV;
-	UniquePtr<UnorderedAccessView> gpuSceneBufferUAV;
+	uint32                                gpuSceneMaxElements = 0;
+	UniquePtr<Buffer>                     gpuSceneBuffer;
+	UniquePtr<ShaderResourceView>         gpuSceneBufferSRV;
+	UniquePtr<UnorderedAccessView>        gpuSceneBufferUAV;
 
 	// ----------------------------------------------
-	// GPU scene commands (per swapchain)
+	// GPU scene commands
 
-	UniquePtr<ComputePipelineState> evictPipelineState;
-	UniquePtr<ComputePipelineState> allocPipelineState;
-	UniquePtr<ComputePipelineState> updatePipelineState;
-	VolatileDescriptorHelper passDescriptor; // For all 3 pipelines above
+	UniquePtr<ComputePipelineState>       evictPipelineState;
+	UniquePtr<ComputePipelineState>       allocPipelineState;
+	UniquePtr<ComputePipelineState>       updatePipelineState;
+	VolatileDescriptorHelper              passDescriptor; // For all 3 pipelines above
 
-	BufferedUniquePtr<Buffer> gpuSceneEvictCommandBuffer;
-	BufferedUniquePtr<Buffer> gpuSceneAllocCommandBuffer;
-	BufferedUniquePtr<Buffer> gpuSceneUpdateCommandBuffer;
+	BufferedUniquePtr<Buffer>             gpuSceneEvictCommandBuffer;
+	BufferedUniquePtr<Buffer>             gpuSceneAllocCommandBuffer;
+	BufferedUniquePtr<Buffer>             gpuSceneUpdateCommandBuffer;
 	BufferedUniquePtr<ShaderResourceView> gpuSceneEvictCommandBufferSRV;
 	BufferedUniquePtr<ShaderResourceView> gpuSceneAllocCommandBufferSRV;
 	BufferedUniquePtr<ShaderResourceView> gpuSceneUpdateCommandBufferSRV;
 
 	// ----------------------------------------------
-	// Bindless materials (rework)
+	// Bindless materials
+	using UniqueSrvVec = std::vector<UniquePtr<ShaderResourceView>>;
 
-	uint32 materialBufferMaxElements = 0;
-	UniquePtr<Buffer> materialConstantsBuffer2;
-	UniquePtr<ShaderResourceView> materialConstantsSRV2;
-	UniquePtr<UnorderedAccessView> materialConstantsUAV2;
+	uint32                                materialBufferMaxElements = 0;
+	UniquePtr<Buffer>                     materialConstantsBuffer;
+	UniquePtr<ShaderResourceView>         materialConstantsSRV;
+	UniquePtr<UnorderedAccessView>        materialConstantsUAV;
 
-	UniquePtr<ComputePipelineState> materialPipelineState;
-	VolatileDescriptorHelper materialPassDescriptor;
-	BufferedUniquePtr<Buffer> materialCommandBuffer;
+	UniquePtr<DescriptorHeap>             bindlessTextureHeap;
+	UniqueSrvVec                          bindlessSRVs;
+
+	// ----------------------------------------------
+	// Bindless material commands
+
+	UniquePtr<ComputePipelineState>       materialPipelineState;
+	VolatileDescriptorHelper              materialPassDescriptor;
+
+	BufferedUniquePtr<Buffer>             materialCommandBuffer;
 	BufferedUniquePtr<ShaderResourceView> materialCommandSRV;
-
-	UniquePtr<DescriptorHeap> bindlessTextureHeap;
-	std::vector<UniquePtr<ShaderResourceView>> bindlessSRVs;
 };

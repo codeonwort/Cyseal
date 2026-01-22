@@ -110,7 +110,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	resizeGPUSceneBuffer(commandList, maxElements);
 	resizeGPUSceneCommandBuffers(swapchainIndex, scene);
 
-	resizeMaterialBuffer2(commandList, maxElements);
+	resizeMaterialBuffer(commandList, maxElements);
 	resizeBindlessTextures(commandList, maxElements);
 	resizeMaterialCommandBuffer(swapchainIndex, scene);
 	
@@ -126,7 +126,7 @@ ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
 GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swapchainIndex) const
 {
 	return MaterialDescriptorsDesc{
-		.constantsBufferSRV = materialConstantsSRV2.get(),
+		.constantsBufferSRV = materialConstantsSRV.get(),
 		.srvHeap            = bindlessTextureHeap.get(),
 		.srvCount           = bindlessTextureHeap ? bindlessTextureHeap->getCreateParams().numDescriptors : 0,
 	};
@@ -332,7 +332,7 @@ void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, uint32 sw
 	commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
 }
 
-void GPUScene::resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxElements)
+void GPUScene::resizeMaterialBuffer(RenderCommandList* commandList, uint32 maxElements)
 {
 	if (materialBufferMaxElements >= maxElements)
 	{
@@ -342,27 +342,27 @@ void GPUScene::resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxE
 	const uint32 stride = sizeof(MaterialConstants);
 
 	Buffer* oldBuffer = nullptr;
-	if (materialConstantsBuffer2 != nullptr)
+	if (materialConstantsBuffer != nullptr)
 	{
-		oldBuffer = materialConstantsBuffer2.release();
-		auto oldSRV = materialConstantsSRV2.release();
-		auto oldUAV = materialConstantsUAV2.release();
+		oldBuffer = materialConstantsBuffer.release();
+		auto oldSRV = materialConstantsSRV.release();
+		auto oldUAV = materialConstantsUAV.release();
 		oldBuffer->setDebugName(L"Buffer_MaterialConstants_MarkedForDeath");
 		commandList->enqueueDeferredDealloc(oldBuffer);
 		commandList->enqueueDeferredDealloc(oldSRV);
 		commandList->enqueueDeferredDealloc(oldUAV);
 	}
 
-	materialConstantsBuffer2 = UniquePtr<Buffer>(device->createBuffer(
+	materialConstantsBuffer = UniquePtr<Buffer>(device->createBuffer(
 		BufferCreateParams{
 			.sizeInBytes = stride * materialBufferMaxElements,
 			.alignment   = 0,
 			.accessFlags = EBufferAccessFlags::UAV,
 		}
 	));
-	materialConstantsBuffer2->setDebugName(L"Buffer_MaterialConstants");
+	materialConstantsBuffer->setDebugName(L"Buffer_MaterialConstants");
 
-	uint64 bufferSize = materialConstantsBuffer2->getCreateParams().sizeInBytes;
+	uint64 bufferSize = materialConstantsBuffer->getCreateParams().sizeInBytes;
 	CYLOG(LogGPUScene, Log, L"Resize MaterialConstants buffer: %llu bytes (%.3f MiB)",
 		bufferSize, (double)bufferSize / (1024.0f * 1024.0f));
 
@@ -370,14 +370,14 @@ void GPUScene::resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxE
 	{
 		BufferBarrierAuto barriers[] = {
 			{ EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, oldBuffer },
-			{ EBarrierSync::COPY, EBarrierAccess::COPY_DEST, materialConstantsBuffer2.get() },
+			{ EBarrierSync::COPY, EBarrierAccess::COPY_DEST, materialConstantsBuffer.get() },
 		};
 		commandList->barrierAuto(_countof(barriers), barriers, 0, nullptr, 0, nullptr);
 
 		size_t oldSize = oldBuffer->getCreateParams().sizeInBytes;
-		size_t newSize = materialConstantsBuffer2->getCreateParams().sizeInBytes;
+		size_t newSize = materialConstantsBuffer->getCreateParams().sizeInBytes;
 		size_t copySize = std::min(oldSize, newSize);
-		commandList->copyBufferRegion(oldBuffer, 0, copySize, materialConstantsBuffer2.get(), 0);
+		commandList->copyBufferRegion(oldBuffer, 0, copySize, materialConstantsBuffer.get(), 0);
 	}
 	
 	ShaderResourceViewDesc srvDesc{
@@ -390,8 +390,8 @@ void GPUScene::resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxE
 			.flags               = EBufferSRVFlags::None,
 		}
 	};
-	materialConstantsSRV2 = UniquePtr<ShaderResourceView>(
-		device->createSRV(materialConstantsBuffer2.get(), srvDesc));
+	materialConstantsSRV = UniquePtr<ShaderResourceView>(
+		device->createSRV(materialConstantsBuffer.get(), srvDesc));
 
 	UnorderedAccessViewDesc uavDesc{
 		.format        = EPixelFormat::UNKNOWN,
@@ -404,8 +404,8 @@ void GPUScene::resizeMaterialBuffer2(RenderCommandList* commandList, uint32 maxE
 			.flags                = EBufferUAVFlags::None,
 		}
 	};
-	materialConstantsUAV2 = UniquePtr<UnorderedAccessView>(
-		device->createUAV(materialConstantsBuffer2.get(), uavDesc));
+	materialConstantsUAV = UniquePtr<UnorderedAccessView>(
+		device->createUAV(materialConstantsBuffer.get(), uavDesc));
 }
 
 void GPUScene::resizeBindlessTextures(RenderCommandList* commandList, uint32 maxElements)
@@ -494,7 +494,7 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 	SCOPED_DRAW_EVENT(commandList, ExecuteGPUSceneMaterialCommands);
 
 	std::vector<BufferBarrierAuto> barriersBefore = {
-		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, materialConstantsBuffer2.get() },
+		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, materialConstantsBuffer.get() },
 	};
 	Buffer* buffers[] = {
 		materialCommandBuffer.at(swapchainIndex),
@@ -558,7 +558,7 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		materialPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	}
 
-	auto materialBufferUAV = materialConstantsUAV2.get();
+	auto materialBufferUAV = materialConstantsUAV.get();
 	auto descriptorHeap = materialPassDescriptor.getDescriptorHeap(swapchainIndex);
 
 	auto fn = [commandList, descriptorHeap, materialBufferUAV]<typename TCommandType>(
@@ -597,7 +597,7 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		"GPUSceneUpdateMaterials");
 
 	BufferBarrierAuto barriersAfter[] = {
-		{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, materialConstantsBuffer2.get() },
+		{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, materialConstantsBuffer.get() },
 	};
 	commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
 }
