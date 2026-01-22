@@ -82,7 +82,7 @@ void DepthPrepass::renderDepthPrepass(RenderCommandList* commandList, uint32 swa
 		return;
 	}
 
-	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = passInput.gpuScene->queryMaterialDescriptors(swapchainIndex);
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = passInput.gpuScene->queryMaterialDescriptors();
 
 	// Bind shader parameters except for root constants.
 	// #note: Assumes all permutation share the same root signature.

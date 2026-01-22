@@ -434,7 +434,7 @@ void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, uint32 s
 	auto scene              = passInput.scene;
 	auto sceneWidth         = passInput.sceneWidth;
 	auto sceneHeight        = passInput.sceneHeight;
-	auto gpuSceneDesc       = passInput.gpuScene->queryMaterialDescriptors(swapchainIndex);
+	auto gpuSceneDesc       = passInput.gpuScene->queryMaterialDescriptors();
 
 	const uint32 currFrame  = swapchainIndex % 2;
 	const uint32 prevFrame  = (swapchainIndex + 1) % 2;

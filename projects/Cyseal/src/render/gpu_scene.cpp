@@ -123,7 +123,7 @@ ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
 	return gpuSceneBufferSRV.get();
 }
 
-GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors(uint32 swapchainIndex) const
+GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors() const
 {
 	return MaterialDescriptorsDesc{
 		.constantsBufferSRV = materialConstantsSRV.get(),

@@ -266,7 +266,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		// #todo-zero-size: Release resources if any.
 		return;
 	}
-	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors();
 
 	// -------------------------------------------------------------------
 	// Phase: Setup

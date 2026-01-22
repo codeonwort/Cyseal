@@ -63,7 +63,7 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		return;
 	}
 
-	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors();
 
 	// Bind shader parameters except for root constants.
 	// #note: Assumes all permutation share the same root signature.

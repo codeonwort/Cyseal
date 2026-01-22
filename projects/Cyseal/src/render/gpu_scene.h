@@ -37,7 +37,7 @@ public:
 	// Might return null if no gpu scene item was allocated yet.
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 
-	MaterialDescriptorsDesc queryMaterialDescriptors(uint32 swapchainIndex) const;
+	MaterialDescriptorsDesc queryMaterialDescriptors() const;
 
 	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
 

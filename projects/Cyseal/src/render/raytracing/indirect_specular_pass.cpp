@@ -834,7 +834,7 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 
 	uint32 sceneWidth = passInput.sceneWidth;
 	uint32 sceneHeight = passInput.sceneHeight;
-	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = passInput.gpuScene->queryMaterialDescriptors(swapchainIndex);
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = passInput.gpuScene->queryMaterialDescriptors();
 
 	// Update uniforms.
 	{

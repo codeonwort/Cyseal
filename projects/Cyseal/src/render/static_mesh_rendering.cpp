@@ -278,7 +278,7 @@ void StaticMeshRendering::renderForPipeline(
 	auto gpuScene           = input.gpuScene;
 	auto gpuCulling         = input.gpuCulling;
 
-	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors();
 
 	auto pipelineItem = input.psoPermutation->findPipeline(pipelineKey);
 	GraphicsPipelineState* pipelineState = pipelineItem.pipelineState;
