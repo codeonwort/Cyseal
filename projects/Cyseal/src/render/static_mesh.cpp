@@ -171,7 +171,9 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 			gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			break;
 		case EGPUResidencyPhase::NeedToUpdate:
-			// #wip: What if geometry or material changes while the section count remains same?
+			// #todo-gpuscene: What if geometry or material changes while the section count remains same?
+			// MaterialAsset needs to hide its public fields and provide public methods for dirty flags.
+			// Same for StaticMeshSection.
 			for (size_t i = 0; i < numSections; ++i)
 			{
 				const uint32 itemIx = gpuSceneResidency.itemIndices[i];

@@ -79,7 +79,7 @@ public:
 	virtual RenderTargetView* createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams) override;
 	virtual DepthStencilView* createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams) override;
 
-	virtual ShaderResourceView* cloneSRVWithDifferentHeap(ShaderResourceView* src, DescriptorHeap* anotherHeap) override;
+	virtual ShaderResourceView* internal_cloneSRVWithDifferentHeap(ShaderResourceView* src, DescriptorHeap* anotherHeap) override;
 
 	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, GraphicsPipelineState* inPipelineState) override;
 	virtual CommandSignature* createCommandSignature(const CommandSignatureDesc& inDesc, ComputePipelineState* inPipelineState) override;

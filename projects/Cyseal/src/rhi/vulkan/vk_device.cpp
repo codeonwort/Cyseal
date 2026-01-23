@@ -1431,7 +1431,7 @@ DepthStencilView* VulkanDevice::createDSV(GPUResource* gpuResource, const DepthS
 	return createDSV(gpuResource, gDescriptorHeaps->getDSVHeap(), createParams);
 }
 
-ShaderResourceView* VulkanDevice::cloneSRVWithDifferentHeap(ShaderResourceView* src, DescriptorHeap* anotherHeap)
+ShaderResourceView* VulkanDevice::internal_cloneSRVWithDifferentHeap(ShaderResourceView* src, DescriptorHeap* anotherHeap)
 {
 	// #todo-vulkan
 	CHECK_NO_ENTRY();

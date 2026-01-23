@@ -82,6 +82,7 @@ public:
 		freeNumberList.clear();
 	}
 
+	// #todo-gpuscene: Super bad API design. See RenderDevice::internal_cloneSRVWithDifferentHeap().
 	void internal_copyAllDescriptorIndicesFrom(const DescriptorHeap* src)
 	{
 		FreeNumberList::clone(src->freeNumberList, freeNumberList);

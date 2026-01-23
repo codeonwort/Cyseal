@@ -438,7 +438,7 @@ void GPUScene::resizeBindlessTextures(RenderCommandList* commandList, uint32 max
 			{
 				ShaderResourceView* oldSRV = oldSRVs[i].release();
 				if (oldSRV == nullptr) continue;
-				bindlessSRVs[i] = UniquePtr<ShaderResourceView>(device->cloneSRVWithDifferentHeap(oldSRV, bindlessTextureHeap.get()));
+				bindlessSRVs[i] = UniquePtr<ShaderResourceView>(device->internal_cloneSRVWithDifferentHeap(oldSRV, bindlessTextureHeap.get()));
 				commandList->enqueueDeferredDealloc(oldSRV);
 			}
 			commandList->enqueueDeferredDealloc(oldHeap);

@@ -658,7 +658,7 @@ DepthStencilView* D3DDevice::createDSV(GPUResource* gpuResource, const DepthSten
 	return createDSV(gpuResource, gDescriptorHeaps->getDSVHeap(), createParams);
 }
 
-ShaderResourceView* D3DDevice::cloneSRVWithDifferentHeap(ShaderResourceView* src, DescriptorHeap* anotherHeap)
+ShaderResourceView* D3DDevice::internal_cloneSRVWithDifferentHeap(ShaderResourceView* src, DescriptorHeap* anotherHeap)
 {
 	const uint32 descriptorIndex = src->getDescriptorIndexInHeap();
 
@@ -666,7 +666,12 @@ ShaderResourceView* D3DDevice::cloneSRVWithDifferentHeap(ShaderResourceView* src
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = d3dHeap->GetCPUDescriptorHandleForHeapStart();
 	cpuHandle.ptr += SIZE_T(descriptorIndex) * SIZE_T(descSizeRTV);
 
-	return new(EMemoryTag::RHI) D3DShaderResourceView(src->getOwnerResource(), anotherHeap, descriptorIndex, cpuHandle);
+	D3DShaderResourceView* newSRV = new(EMemoryTag::RHI) D3DShaderResourceView(src->getOwnerResource(), anotherHeap, descriptorIndex, cpuHandle);
+	if (src->temp_hasNoSourceHeap())
+	{
+		newSRV->temp_markNoSourceHeap();
+	}
+	return newSRV;
 }
 
 CommandSignature* D3DDevice::createCommandSignature(const CommandSignatureDesc& inDesc, GraphicsPipelineState* inPipelineState)
