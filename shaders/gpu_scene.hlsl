@@ -47,7 +47,6 @@ struct PushConstants
 [[vk::push_constant]]
 ConstantBuffer<PushConstants>    pushConstants;
 
-ConstantBuffer<SceneUniform>     sceneUniform;
 RWStructuredBuffer<GPUSceneItem> gpuSceneBuffer;
 StructuredBuffer<COMMAND_STRUCT> commandBuffer;
 

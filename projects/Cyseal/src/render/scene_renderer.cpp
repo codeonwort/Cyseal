@@ -268,10 +268,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
 
 		GPUSceneInput passInput{
-			.scene                    = scene,
-			.camera                   = camera,
-			.sceneUniform             = sceneUniformCBV,
-			.bRenderAnyRaytracingPass = bRenderAnyRaytracingPass,
+			.scene  = scene,
+			.camera = camera,
 		};
 		gpuScene->renderGPUScene(commandList, swapchainIndex, passInput);
 	}

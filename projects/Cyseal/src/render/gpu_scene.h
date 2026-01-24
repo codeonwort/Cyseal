@@ -14,8 +14,6 @@ struct GPUSceneInput
 {
 	const SceneProxy*   scene;
 	const Camera*       camera;
-	ConstantBufferView* sceneUniform;
-	bool                bRenderAnyRaytracingPass;
 };
 
 class GPUScene final : public SceneRenderPass

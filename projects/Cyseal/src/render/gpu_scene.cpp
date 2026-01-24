@@ -82,10 +82,7 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 
 void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput)
 {
-	auto scene                    = passInput.scene;
-	auto camera                   = passInput.camera;
-	auto sceneUniform             = passInput.sceneUniform;
-	auto bRenderAnyRaytracingPass = passInput.bRenderAnyRaytracingPass;
+	const SceneProxy* scene = passInput.scene;
 
 	uint32 numMeshSections = 0;
 	uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();
@@ -275,7 +272,6 @@ void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, uint32 sw
 
 	{
 		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // sceneUniform
 		requiredVolatiles += 1; // gpuSceneBuffer
 		requiredVolatiles += 1; // commandBuffer
 		passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles * 3);
