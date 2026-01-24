@@ -67,6 +67,7 @@
     <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_setup_pass.hlsl">
       <Filter>amd</Filter>
     </FxCompile>
+    <FxCompile Include="..\..\shaders\gpu_scene_material.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">

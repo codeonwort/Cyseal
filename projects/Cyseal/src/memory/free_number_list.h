@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "core/assertion.h"
 #include "memory/custom_new_delete.h"
 
 // Possible improvements
@@ -13,6 +14,28 @@ class FreeNumberList
 {
 	// Represent allocated numbers
 	struct Range { uint32 a, b; Range* next; }; // [a, b]
+
+public:
+	static void clone(const FreeNumberList& src, FreeNumberList& dst)
+	{
+		CHECK(dst.maxNumber >= src.maxNumber);
+
+		dst.clear();
+		Range* srcNode = src.head;
+		Range** dstNode = &dst.head;
+		Range* dstNodePrev = nullptr;
+		while (srcNode != nullptr)
+		{
+			*dstNode = new Range{ srcNode->a, srcNode->b, nullptr };
+			srcNode = srcNode->next;
+			if (dstNodePrev != nullptr)
+			{
+				dstNodePrev->next = *dstNode;
+			}
+			dstNodePrev = *dstNode;
+			dstNode = &((*dstNode)->next);
+		}
+	}
 
 public:
 	FreeNumberList(uint32 inMaxNumber = 0xffffffff, EMemoryTag inMemoryTag = EMemoryTag::Etc)

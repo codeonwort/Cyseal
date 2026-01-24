@@ -74,7 +74,7 @@ void DecodeVisBufferPass::decodeVisBuffer(
 	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 	const uint32 packedSize = Cymath::packUint16x2(passInput.textureWidth, passInput.textureHeight);
-	GPUScene::MaterialDescriptorsDesc materialDesc = passInput.gpuScene->queryMaterialDescriptors(swapchainIndex);
+	GPUScene::MaterialDescriptorsDesc materialDesc = passInput.gpuScene->queryMaterialDescriptors();
 
 	ShaderParameterTable SPT{};
 	SPT.pushConstant("pushConstants", packedSize);

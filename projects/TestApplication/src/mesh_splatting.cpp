@@ -8,6 +8,7 @@
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
 #include "geometry/meso_geometry.h"
+#include "world/material_asset.h"
 
 void MeshSplatting::createResources(const CreateParams& createParams)
 {

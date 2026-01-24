@@ -1431,6 +1431,13 @@ DepthStencilView* VulkanDevice::createDSV(GPUResource* gpuResource, const DepthS
 	return createDSV(gpuResource, gDescriptorHeaps->getDSVHeap(), createParams);
 }
 
+ShaderResourceView* VulkanDevice::internal_cloneSRVWithDifferentHeap(ShaderResourceView* src, DescriptorHeap* anotherHeap)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+	return nullptr;
+}
+
 CommandSignature* VulkanDevice::createCommandSignature(const CommandSignatureDesc& inDesc, GraphicsPipelineState* inPipelineState)
 {
 	// #todo-vulkan

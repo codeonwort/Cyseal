@@ -6,6 +6,7 @@
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
 #include "geometry/meso_geometry.h"
+#include "world/material_asset.h"
 
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))

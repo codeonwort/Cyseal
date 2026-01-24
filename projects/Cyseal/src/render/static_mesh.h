@@ -3,9 +3,14 @@
 #include "core/core_minimal.h"
 #include "core/smart_pointer.h"
 #include "geometry/transform.h"
-#include "render/material.h"
 #include "world/gpu_resource_asset.h"
+#include "world/material_asset.h"
+
 #include <vector>
+
+class SceneProxy;
+class StackAllocator;
+class GPUSceneItemIndexAllocator;
 
 struct StaticMeshSection
 {
@@ -23,13 +28,14 @@ struct StaticMeshLOD
 
 struct StaticMeshProxy
 {
-	StaticMeshLOD lod;
-	Matrix        localToWorld;
-	Matrix        prevLocalToWorld;
-	bool          bTransformDirty;
-	bool          bLodDirty;
+	const StaticMeshLOD* lod; // #todo-renderer: Use-after-free hazard when multithreading comes.
+	                          // but must be a pointer for now, as StaticMeshProxy is allocated by StackAllocator so should be a POD.
+	Matrix               localToWorld;
+	Matrix               prevLocalToWorld;
+	bool                 bTransformDirty;
+	bool                 bLodDirty;
 
-	inline const std::vector<StaticMeshSection>& getSections() const { return lod.sections; }
+	inline const std::vector<StaticMeshSection>& getSections() const { return lod->sections; }
 	inline const Matrix& getLocalToWorld() const { return localToWorld; }
 	inline const Matrix& getPrevLocalToWorld() const { return prevLocalToWorld; }
 	inline bool isTransformDirty() const { return bTransformDirty; }
@@ -39,7 +45,8 @@ struct StaticMeshProxy
 class StaticMesh
 {
 public:
-	StaticMeshProxy* createStaticMeshProxy() const;
+	void updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemIndexAllocator* gpuSceneItemIndexAllocator);
+	StaticMeshProxy* createStaticMeshProxy(StackAllocator* allocator) const;
 
 	void addSection(
 		uint32 lod,
@@ -108,4 +115,23 @@ private:
 	Matrix prevModelMatrix;
 	int32 transformDirtyCounter = 0; // Was a boolean, but modified to update prev model matrix.
 	bool bLodDirty = false;
+
+private:
+	enum class EGPUResidencyPhase : uint32
+	{
+		NotAllocated     = 0,
+		Allocated        = 1,
+		NeedToEvict      = 2, // Allocated but need to evict.
+		NeedToReallocate = 3, // Allocated but need to evict and allocate again. (e.g., LOD change)
+		NeedToUpdate     = 4, // Allocated but need to update in-place. (e.g., transform change)
+	};
+	struct GPUSceneResidency
+	{
+		EGPUResidencyPhase phase = EGPUResidencyPhase::NotAllocated;
+		// #todo-gpuscene: Could be just [start,end) if indices are consecutive.
+		// FreeNumberList does not provide such API yet, and it will make (max_item_ix >= element_count).
+		// Currently, residency can be sparse but at least (max_item_ix < element_count) holds.
+		std::vector<uint32> itemIndices;
+	};
+	GPUSceneResidency gpuSceneResidency;
 };

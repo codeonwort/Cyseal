@@ -141,6 +141,13 @@ public:
 	virtual RenderTargetView* createRTV(GPUResource* gpuResource, const RenderTargetViewDesc& createParams) = 0;
 	virtual DepthStencilView* createDSV(GPUResource* gpuResource, const DepthStencilViewDesc& createParams) = 0;
 
+	// #todo-gpuscene: Definitely super bad API design :( Use at your own risk.
+	// - Used for reconstructing descriptors and SRVs, keeping their allocated indices, in another descriptor heap.
+	// - 1. Use RenderDevice::copyDescriptors() to copy 'real' descriptors between heaps.
+	// - 2. Use DescriptorHeap::internal_copyAllDescriptorIndicesFrom() to copy internal data structure of DescriptorHeap.
+	// - 3. Use this method to create a SRV that has the same owner and descriptorIndex, but different source heap.
+	virtual ShaderResourceView* internal_cloneSRVWithDifferentHeap(ShaderResourceView* src, DescriptorHeap* anotherHeap) = 0;
+
 	// Indirect draw and dispatch //
 	
 	// Create a command signature that defines indirect commands for the given pipeline.

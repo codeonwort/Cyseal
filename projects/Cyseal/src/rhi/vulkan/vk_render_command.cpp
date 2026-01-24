@@ -253,6 +253,12 @@ void VulkanRenderCommandList::clearDepthStencilView(DepthStencilView* DSV, EDept
 	CHECK_NO_ENTRY();
 }
 
+void VulkanRenderCommandList::copyBufferRegion(Buffer* src, uint64 srcOffset, uint64 numBytes, Buffer* dst, uint64 dstOffset)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+}
+
 void VulkanRenderCommandList::copyTexture2D(Texture* src, Texture* dst)
 {
 	// #todo-vulkan

@@ -278,7 +278,7 @@ void StaticMeshRendering::renderForPipeline(
 	auto gpuScene           = input.gpuScene;
 	auto gpuCulling         = input.gpuCulling;
 
-	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors(swapchainIndex);
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors();
 
 	auto pipelineItem = input.psoPermutation->findPipeline(pipelineKey);
 	GraphicsPipelineState* pipelineState = pipelineItem.pipelineState;
@@ -296,6 +296,7 @@ void StaticMeshRendering::renderForPipeline(
 	// Fill the indirect draw buffer and perform GPU culling.
 	if (bIndirectDraw)
 	{
+		// #todo-indirect-draw: Generate on GPU, not on CPU.
 		uint32 indirectCommandID = 0;
 		for (size_t i = 0; i < drawList.meshes.size(); ++i)
 		{

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "world/gpu_resource_asset.h"
-
 enum class EMaterialId : uint32
 {
 	None        = 0,
@@ -45,21 +43,6 @@ namespace IoR
 	constexpr float Rutile                          = 2.907f; // TiO2
 	constexpr float GalliumPhosphide                = 3.5f;
 }
-
-class MaterialAsset
-{
-public:
-	EMaterialId             materialID        = EMaterialId::DefaultLit;
-	SharedPtr<TextureAsset> albedoTexture;
-	vec3                    albedoMultiplier  = vec3(1.0f, 1.0f, 1.0f);
-	float                   roughness         = 0.0f;
-	vec3                    emission          = vec3(0.0f);
-	float                   metalMask         = 0.0f;
-	float                   indexOfRefraction = IoR::Air;
-	vec3                    transmittance     = vec3(0.0f);
-
-	bool                    bDoubleSided      = false;
-};
 
 // Should match with Material in material.hlsl.
 struct MaterialConstants

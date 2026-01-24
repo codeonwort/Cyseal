@@ -275,10 +275,12 @@ public:
 	
 	virtual ~ShaderResourceView();
 
+	GPUResource* getOwnerResource() const { return ownerResource; }
 	DescriptorHeap* getSourceHeap() const { return sourceHeap; }
 	uint32 getDescriptorIndexInHeap() const { return descriptorIndex; }
 
 	inline void temp_markNoSourceHeap() { bNoSourceHeap = true; }
+	inline bool temp_hasNoSourceHeap() const { return bNoSourceHeap; }
 
 protected:
 	GPUResource* ownerResource;

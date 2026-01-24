@@ -1,6 +1,7 @@
 #include "scene.h"
 #include "scene_proxy.h"
 #include "render/static_mesh.h"
+#include "memory/mem_alloc.h"
 
 static uint32 calculateLOD(const StaticMesh* mesh, const Camera& camera)
 {
@@ -32,22 +33,34 @@ SceneProxy* Scene::createProxy()
 {
 	SceneProxy* proxy = new(EMemoryTag::World) SceneProxy;
 
+	size_t totalActiveMeshSections = 0;
+	for (StaticMesh* sm : staticMeshes)
+	{
+		totalActiveMeshSections += sm->getSections(sm->getActiveLOD()).size();
+	}
+	const uint32 stackAllocatorSize = (uint32)(totalActiveMeshSections * sizeof(StaticMeshProxy));
+	proxy->staticMeshProxyAllocator = new(EMemoryTag::Renderer) StackAllocator(stackAllocatorSize);
+
 	std::vector<StaticMeshProxy*> staticMeshProxyList;
 	uint32 totalMeshSectionsLOD0 = 0;
 	for (StaticMesh* sm : staticMeshes)
 	{
-		staticMeshProxyList.push_back(sm->createStaticMeshProxy());
+		sm->updateGPUSceneResidency(proxy, &gpuSceneItemIndexAllocator);
+		staticMeshProxyList.push_back(sm->createStaticMeshProxy(proxy->staticMeshProxyAllocator));
+
 		totalMeshSectionsLOD0 += (uint32)(sm->getSections(0).size());
 
 		sm->savePrevTransform();
 	}
 
-	proxy->sun                     = sun;
-	proxy->skyboxTexture           = skyboxTexture ? skyboxTexture->getGPUResource() : nullptr;
-	proxy->staticMeshes            = std::move(staticMeshProxyList);
-	proxy->bRebuildGPUScene        = bRebuildGPUScene;
-	proxy->bRebuildRaytracingScene = bRebuildRaytracingScene;
-	proxy->totalMeshSectionsLOD0   = totalMeshSectionsLOD0;
+	proxy->sun                       = sun;
+	proxy->skyboxTexture             = skyboxTexture ? skyboxTexture->getGPUResource() : nullptr;
+	proxy->staticMeshes              = std::move(staticMeshProxyList);
+	proxy->bRebuildGPUScene          = bRebuildGPUScene;
+	proxy->bRebuildRaytracingScene   = bRebuildRaytracingScene;
+	proxy->totalMeshSectionsLOD0     = totalMeshSectionsLOD0;
+	proxy->gpuSceneItemMinValidIndex = gpuSceneItemIndexAllocator.getMinValidIndex();
+	proxy->gpuSceneItemMaxValidIndex = gpuSceneItemIndexAllocator.getMaxValidIndex();
 
 	// Clear flags
 	bRebuildGPUScene = false;
