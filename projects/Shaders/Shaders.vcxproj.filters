@@ -68,6 +68,8 @@
       <Filter>amd</Filter>
     </FxCompile>
     <FxCompile Include="..\..\shaders\gpu_scene_material.hlsl" />
+    <FxCompile Include="..\..\shaders\generate_drawcall.hlsl" />
+    <FxCompile Include="..\..\shaders\indirect_arguments.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">
