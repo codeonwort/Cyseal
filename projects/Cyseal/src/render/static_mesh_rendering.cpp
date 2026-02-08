@@ -212,16 +212,6 @@ void GraphicsPipelineStatePermutation::insertPipeline(GraphicsPipelineKey key, G
 // -----------------------------------------
 // StaticMeshRendering
 
-VertexInputLayout StaticMeshRendering::createVertexInputLayout()
-{
-	// #todo-basepass: Should be variant per vertex factory
-	return VertexInputLayout {
-		{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
-		{"NORMAL", 0, EPixelFormat::R32G32B32_FLOAT, 1, 0, EVertexInputClassification::PerVertex, 0},
-		{"TEXCOORD", 0, EPixelFormat::R32G32_FLOAT, 1, sizeof(float) * 3, EVertexInputClassification::PerVertex, 0}
-	};
-}
-
 void StaticMeshRendering::renderStaticMeshes(
 	RenderCommandList* commandList,
 	uint32 swapchainIndex,

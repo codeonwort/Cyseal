@@ -130,6 +130,7 @@
     <ClInclude Include="src\render\hiz_pass.h" />
     <ClInclude Include="src\material\material_shader.h" />
     <ClInclude Include="src\material\material_database.h" />
+    <ClInclude Include="src\render\renderer_constants.h" />
     <ClInclude Include="src\world\material_asset.h" />
     <ClInclude Include="src\render\pathtracing\denoiser_plugin_pass.h" />
     <ClInclude Include="src\render\pathtracing\path_tracing_pass.h" />

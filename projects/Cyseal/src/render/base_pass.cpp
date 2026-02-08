@@ -14,6 +14,17 @@
 #include "rhi/texture_manager.h"
 #include "rhi/vertex_buffer_pool.h"
 
+// #wip: Remove when switching to MaterialShaderDatabase.
+static VertexInputLayout createVertexInputLayout()
+{
+	// #todo-basepass: Should be variant per vertex factory
+	return VertexInputLayout{
+		{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
+		{"NORMAL", 0, EPixelFormat::R32G32B32_FLOAT, 1, 0, EVertexInputClassification::PerVertex, 0},
+		{"TEXCOORD", 0, EPixelFormat::R32G32_FLOAT, 1, sizeof(float) * 3, EVertexInputClassification::PerVertex, 0}
+	};
+}
+
 BasePass::~BasePass()
 {
 	delete shaderVS;
@@ -105,7 +116,7 @@ GraphicsPipelineState* BasePass::createPipeline(const GraphicsPipelineKeyDesc& p
 	RasterizerDesc rasterizerDesc = RasterizerDesc();
 	rasterizerDesc.cullMode = pipelineKeyDesc.cullMode;
 
-	VertexInputLayout inputLayout = StaticMeshRendering::createVertexInputLayout();
+	VertexInputLayout inputLayout = createVertexInputLayout();
 
 	std::vector<StaticSamplerDesc> staticSamplers = {
 		StaticSamplerDesc{

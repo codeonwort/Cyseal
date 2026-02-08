@@ -14,6 +14,7 @@
 #include "rhi/hardware_raytracing.h"
 #include "rhi/denoiser_device.h"
 
+#include "render/renderer_constants.h"
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
 #include "render/gpu_culling.h"
@@ -38,10 +39,6 @@
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
 
-static const EPixelFormat PF_visibilityBuffer = EPixelFormat::R32_UINT;
-static const EPixelFormat PF_barycentric = EPixelFormat::R16G16_FLOAT;
-static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
-static const EPixelFormat PF_velocityMap = EPixelFormat::R16G16_FLOAT;
 static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
 	EPixelFormat::R32G32B32A32_UINT, //EPixelFormat::R16G16B16A16_FLOAT,
 	EPixelFormat::R16G16B16A16_FLOAT,
