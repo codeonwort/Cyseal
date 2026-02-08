@@ -4,6 +4,7 @@
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
+#include "material/material_shader.h"
 
 #include <vector>
 #include <string>
@@ -13,27 +14,6 @@ class SceneProxy;
 class Camera;
 class GPUScene;
 class GPUCulling;
-
-// #todo-renderer: Support other topologies
-#define kPrimitiveTopology           EPrimitiveTopology::TRIANGLELIST
-
-// -----------------------------------------
-// PSO permutation
-
-using GraphicsPipelineKey = uint32;
-
-struct GraphicsPipelineKeyDesc
-{
-	static GraphicsPipelineKey assemblePipelineKey(const GraphicsPipelineKeyDesc& desc);
-
-	// #todo-renderer: Hard-coded for now
-	static const GraphicsPipelineKeyDesc kDefaultPipelineKeyDesc;
-	static const GraphicsPipelineKeyDesc kNoCullPipelineKeyDesc;
-	static const GraphicsPipelineKeyDesc kPipelineKeyDescs[];
-	static size_t numPipelineKeyDescs();
-
-	ECullMode cullMode;
-};
 
 struct IndirectDrawHelper
 {

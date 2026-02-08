@@ -384,6 +384,12 @@
     <ClInclude Include="src\world\material_asset.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\material\material_database.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\material\material_shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -633,6 +639,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\render\frame_gen_pass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\material\material_database.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

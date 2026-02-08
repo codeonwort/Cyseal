@@ -128,6 +128,8 @@
     <ClInclude Include="src\render\gpu_culling.h" />
     <ClInclude Include="src\render\gpu_scene_command.h" />
     <ClInclude Include="src\render\hiz_pass.h" />
+    <ClInclude Include="src\material\material_shader.h" />
+    <ClInclude Include="src\material\material_database.h" />
     <ClInclude Include="src\world\material_asset.h" />
     <ClInclude Include="src\render\pathtracing\denoiser_plugin_pass.h" />
     <ClInclude Include="src\render\pathtracing\path_tracing_pass.h" />
@@ -266,6 +268,7 @@
     <ClCompile Include="src\rhi\dx12\d3d_resource_view.cpp" />
     <ClCompile Include="src\rhi\gpu_resource_view.cpp" />
     <ClCompile Include="src\rhi\shader_codegen.cpp" />
+    <ClCompile Include="src\material\material_database.cpp" />
     <ClCompile Include="src\rhi\shader_dxc_common.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_buffer.cpp" />
     <ClCompile Include="src\rhi\vulkan\vk_descriptor.cpp" />
