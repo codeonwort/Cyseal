@@ -20,6 +20,8 @@ public:
 	void compileMaterials(RenderDevice* device);
 	void destroyMaterials();
 
+	const MaterialShaderPasses* findPasses(GraphicsPipelineKey key) const;
+
 private:
 	GraphicsPipelineState* createDepthPipeline(
 		RenderDevice* device,

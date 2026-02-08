@@ -31,14 +31,9 @@ struct BasePassInput
 class BasePass final : public SceneRenderPass
 {
 public:
-	~BasePass();
-
 	void initialize(RenderDevice* inRenderDevice, EPixelFormat sceneColorFormat, const EPixelFormat gbufferForamts[], uint32 numGBuffers, EPixelFormat velocityMapFormat);
 
 	void renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput);
-
-private:
-	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc);
 
 private:
 	RenderDevice*                    device = nullptr;
@@ -46,7 +41,5 @@ private:
 	EPixelFormat                     sceneColorFormat;
 	std::vector<EPixelFormat>        gbufferFormats;
 	EPixelFormat                     velocityMapFormat;
-	ShaderStage*                     shaderVS = nullptr;
-	ShaderStage*                     shaderPS = nullptr;
 	VolatileDescriptorHelper         passDescriptor;
 };
