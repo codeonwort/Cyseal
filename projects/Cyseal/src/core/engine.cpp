@@ -12,6 +12,7 @@
 #include "rhi/vertex_buffer_pool.h"
 #include "render/null_renderer.h"
 #include "render/scene_renderer.h"
+#include "material/material_database.h"
 
 #include "imgui.h"
 
@@ -53,7 +54,7 @@ void CysealEngine::startup(const CysealEngineCreateParams& inCreateParams)
 	ResourceFinder::get().addBaseDirectory(L"../../external/");
 
 	// Core
-	createRenderDevice(createParams.renderDevice);
+	createRenderDevice(createParams.renderDevice); // gRenderDevice is now available.
 
 	// Subsystems
 	{
@@ -69,6 +70,8 @@ void CysealEngine::startup(const CysealEngineCreateParams& inCreateParams)
 		gTextureManager = new(EMemoryTag::RHI) TextureManager;
 		gTextureManager->initialize();
 	}
+
+	MaterialShaderDatabase::get().compileMaterials(gRenderDevice);
 
 	// Renderer
 	createRenderer(createParams.rendererType);
@@ -125,6 +128,8 @@ void CysealEngine::shutdown()
 	// Rendering
 	renderer->destroy();
 	delete renderer;
+
+	MaterialShaderDatabase::get().destroyMaterials();
 
 	// Subsystems (post)
 	{

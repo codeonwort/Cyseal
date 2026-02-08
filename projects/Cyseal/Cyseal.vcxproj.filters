@@ -390,6 +390,9 @@
     <ClInclude Include="src\material\material_shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\renderer_constants.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
