@@ -28,5 +28,11 @@ private:
 		ShaderStage* ps,
 		bool bUseVisibilityBuffer);
 
+	GraphicsPipelineState* createBasePipeline(
+		RenderDevice* device,
+		const GraphicsPipelineKeyDesc& pipelineKeyDesc,
+		ShaderStage* vs,
+		ShaderStage* ps);
+
 	std::vector<std::pair<GraphicsPipelineKey, MaterialShaderPasses>> database;
 };
