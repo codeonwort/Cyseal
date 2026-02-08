@@ -28,25 +28,16 @@ struct DepthPrepassInput
 class DepthPrepass final : public SceneRenderPass
 {
 public:
-	~DepthPrepass();
-
 	void initialize(RenderDevice* inRenderDevice, EPixelFormat inVisBufferFormat);
 
 	void renderDepthPrepass(RenderCommandList* commandList, uint32 swapchainIndex, const DepthPrepassInput& passInput);
 
 private:
-	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc, ShaderStage* vs, ShaderStage* ps, bool bUseVisibilityBuffer);
-
-private:
 	RenderDevice*                    device = nullptr;
 
 	GraphicsPipelineStatePermutation pipelinePermutation;
-	ShaderStage*                     shaderVS = nullptr;
-	ShaderStage*                     shaderPS = nullptr;
 
 	GraphicsPipelineStatePermutation visPipelinePermutation;
-	ShaderStage*                     visShaderVS = nullptr;
-	ShaderStage*                     visShaderPS = nullptr;
 	EPixelFormat                     visBufferFormat;
 
 	VolatileDescriptorHelper         passDescriptor;

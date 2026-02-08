@@ -191,7 +191,7 @@ GraphicsPipelineStatePermutation::~GraphicsPipelineStatePermutation()
 	for (auto& it : pipelines)
 	{
 		GraphicsPipelineItem item = it.second;
-		delete item.pipelineState;
+		//delete item.pipelineState; // MaterialShaderDatabase owns it
 		delete item.indirectDrawHelper;
 	}
 }

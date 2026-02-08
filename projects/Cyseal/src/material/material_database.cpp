@@ -75,6 +75,15 @@ void MaterialShaderDatabase::destroyMaterials()
 	database.clear();
 }
 
+const MaterialShaderPasses* MaterialShaderDatabase::findPasses(GraphicsPipelineKey key) const
+{
+	for (const auto& kv : database)
+	{
+		if (kv.first == key) return &kv.second;
+	}
+	return nullptr;
+}
+
 GraphicsPipelineState* MaterialShaderDatabase::createDepthPipeline(
 	RenderDevice* device,
 	const GraphicsPipelineKeyDesc& pipelineKeyDesc,
