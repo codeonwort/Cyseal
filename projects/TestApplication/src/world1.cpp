@@ -192,7 +192,7 @@ void World1::createTestMeshes()
 		material->albedoMultiplier = vec3(0.1f);
 		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
 		material->roughness = 0.05f;
-		material->bDoubleSided = true;
+		material->setDoubleSided(true);
 
 		ground = new StaticMesh;
 		ground->setPosition(vec3(0.0f, -10.0f, 0.0f));
@@ -220,7 +220,7 @@ void World1::createTestMeshes()
 		material->albedoMultiplier = vec3(0.1f);
 		material->albedoTexture = albedoTexture;
 		material->roughness = 0.1f;
-		material->bDoubleSided = true;
+		material->setDoubleSided(true);
 
 		wallA = new StaticMesh;
 		wallA->setPosition(vec3(-25.0f, 0.0f, 0.0f));
@@ -337,7 +337,7 @@ void World1::createPbrtResources()
 	MaterialAsset* M_curtains = pbrtLoader.findNamedMaterial("Curtains");
 	if (M_curtains != nullptr)
 	{
-		M_curtains->bDoubleSided = true;
+		M_curtains->setDoubleSided(true);
 	}
 
 	if (pbrtScene != nullptr)
