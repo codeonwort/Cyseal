@@ -230,7 +230,7 @@ void StaticMeshRendering::renderStaticMeshes(
 		{
 			for (const StaticMeshSection& section : mesh->getSections())
 			{
-				bool bDoubleSided = section.material->bDoubleSided;
+				bool bDoubleSided = section.material->getDoubleSided();
 				if (bDoubleSided)
 				{
 					drawsForPipelines[1].meshes.push_back(&section);

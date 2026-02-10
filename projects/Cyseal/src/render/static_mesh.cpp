@@ -31,6 +31,7 @@ static MaterialConstants createMaterialConstants(MaterialAsset* material, uint32
 		constants.materialID        = (uint32)material->materialID;
 		constants.indexOfRefraction = material->indexOfRefraction;
 		constants.transmittance     = material->transmittance;
+		constants.pipelineKey       = material->getPipelineKey();
 	}
 	// Filled by GPUScene when processing gpu scene commands.
 	constants.albedoTextureIndex    = 0xffffffff;

@@ -58,6 +58,6 @@ struct MaterialConstants
 	float  indexOfRefraction  = 1.0f;
 	uint32 _pad0;
 
-	vec3   transmittance       = vec3(0.0f);
-	uint32 _pad1;
+	vec3   transmittance      = vec3(0.0f);
+	uint32 pipelineKey        = 0xffffffff;
 };

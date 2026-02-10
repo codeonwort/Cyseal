@@ -8,7 +8,7 @@
 // See material.h.
 #define IOR_AIR                 1.00029
 
-// Should match with MaterialConstants in gpu_scene.h.
+// Should match with MaterialConstants in material.h.
 struct Material
 {
     float3 albedoMultiplier;
@@ -20,7 +20,7 @@ struct Material
     float  indexOfRefraction;
     uint   _pad0;
     float3 transmittance;
-    uint   _pad1;
+    uint   pipelineKey;
 };
 
 #endif // _MATERIAL_H

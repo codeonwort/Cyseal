@@ -304,6 +304,7 @@
     <ClCompile Include="src\util\string_conversion.cpp" />
     <ClCompile Include="src\util\unit_test.cpp" />
     <ClCompile Include="src\world\camera.cpp" />
+    <ClCompile Include="src\world\material_asset.cpp" />
     <ClCompile Include="src\world\scene.cpp" />
     <ClCompile Include="src\world\scene_proxy.cpp" />
   </ItemGroup>
