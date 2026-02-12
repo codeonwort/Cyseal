@@ -23,12 +23,18 @@ extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = (const char
 #pragma comment(lib, "dxguid.lib")
 
 #define ENABLE_DRED 0
+
 #if _DEBUG
-#define ENABLE_DEBUG_LAYER 1
+	#define ENABLE_DEBUG_LAYER 1
 #endif
 
 #if ENABLE_DEBUG_LAYER
-#include <dxgidebug.h>
+	#include <dxgidebug.h>
+#endif
+
+#if ENABLE_PIX_ATTACH
+	#define USE_PIX
+	#include <pix3.h>
 #endif
 
 // https://github.com/microsoft/DirectXShaderCompiler/wiki/Shader-Model
@@ -103,6 +109,21 @@ D3DDevice::~D3DDevice()
 void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 {
 	UINT dxgiFactoryFlags = 0;
+
+#if ENABLE_PIX_ATTACH
+	if (createParams.bAttachGPUDebugger)
+	{
+		pixHandle = ::PIXLoadLatestWinPixGpuCapturerLibrary();
+		if (pixHandle == NULL)
+		{
+			CYLOG(LogDirectX, Error, L"Failed to load WinPixGpuCapturer.dll");
+		}
+		else
+		{
+			CYLOG(LogDirectX, Log, L"WinPixGpuCapturer.dll has been loaded");
+		}
+	}
+#endif
 
 #if ENABLE_DRED
 	WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings> pDredSettings;
@@ -305,6 +326,14 @@ void D3DDevice::onDestroy()
 		delete commandLists[i];
 	}
 	delete commandQueue;
+
+#if ENABLE_PIX_ATTACH
+	if (pixHandle != NULL)
+	{
+		::FreeLibrary(pixHandle);
+		pixHandle = NULL;
+	}
+#endif
 }
 
 void D3DDevice::initializeDearImgui()
@@ -434,6 +463,43 @@ void D3DDevice::flushCommandQueue()
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
+}
+
+void D3DDevice::beginGPUCapture(const std::wstring& filepath)
+{
+#if ENABLE_PIX_ATTACH
+	if (bPixCaptureStarted)
+	{
+		CYLOG(LogDirectX, Error, L"Can't nest beginGPUCapture() calls");
+		return;
+	}
+	if (pixHandle != NULL)
+	{
+		PIXCaptureParameters params;
+		params.GpuCaptureParameters.FileName = filepath.c_str();
+		bool hr = SUCCEEDED(::PIXBeginCapture(PIX_CAPTURE_GPU, &params));
+		if (!hr)
+		{
+			CYLOG(LogDirectX, Error, L"PIXBeginCapture() has failed");
+		}
+		bPixCaptureStarted = hr;
+	}
+#endif
+}
+
+void D3DDevice::endGPUCapture()
+{
+#if ENABLE_PIX_ATTACH
+	if (bPixCaptureStarted)
+	{
+		bool hr = SUCCEEDED(::PIXEndCapture(false));
+		if (!hr)
+		{
+			CYLOG(LogDirectX, Error, L"PIXEndCapture() has failed");
+		}
+		bPixCaptureStarted = false;
+	}
+#endif
 }
 
 VertexBuffer* D3DDevice::createVertexBuffer(

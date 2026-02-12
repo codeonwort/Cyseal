@@ -6,6 +6,8 @@
 
 #include <dxcapi.h>
 
+#define ENABLE_PIX_ATTACH 1
+
 #define ID3D12DeviceLatest ID3D12Device10
 #define IDXGIFactoryLatest IDXGIFactory7
 
@@ -23,6 +25,12 @@ public:
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) override;
 
 	virtual void flushCommandQueue() override;
+
+	// ------------------------------------------------------------------------
+	// Plugin: GPU debugger
+
+	virtual void beginGPUCapture(const std::wstring& filepath) override;
+	virtual void endGPUCapture() override;
 
 	// ------------------------------------------------------------------------
 	// DearImgui
@@ -141,4 +149,9 @@ private:
 	WRL::ComPtr<IDxcUtils>            dxcUtils;
 	WRL::ComPtr<IDxcCompiler3>        dxcCompiler;
 	WRL::ComPtr<IDxcIncludeHandler>   dxcIncludeHandler;
+
+#if ENABLE_PIX_ATTACH
+	HMODULE                           pixHandle = NULL;
+	bool                              bPixCaptureStarted = false;
+#endif
 };

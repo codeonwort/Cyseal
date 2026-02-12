@@ -55,6 +55,8 @@ struct RenderDeviceCreateParams
 
 	// Enable debug layer (dx) or validation layer (vk)
 	bool                     enableDebugLayer    = true;
+	// Attach GPU debugger, for example PIX for DX12.
+	bool                     bAttachGPUDebugger  = false;
 
 	// true  : Render for current swapchain, record for next swapchain.
 	// false : Record for current swapchain, render for current swapchain.
@@ -79,6 +81,20 @@ public:
 	virtual void recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height) = 0;
 
 	virtual void flushCommandQueue() = 0;
+
+	// ------------------------------------------------------------------------
+	// Plugin: GPU debugger
+
+	/// <summary>
+	/// To use, this device should have been initialized with RenderDeviceCreateParams::bAttachGPUDebugger set to true.
+	// Call after any in-flight GPU commands for prev frame are finished and before executing any GPU commands for current frame.
+	/// </summary>
+	/// <param name="filepath">Path to save the capture.</param>
+	virtual void beginGPUCapture(const std::wstring& filepath) = 0;
+
+	// To use, this device should have been initialized with RenderDeviceCreateParams::bAttachGPUDebugger set to true.
+	// Call after any in-flight GPU commands for current frame are finished.
+	virtual void endGPUCapture() = 0;
 
 	// ------------------------------------------------------------------------
 	// Plugin: DearImgui

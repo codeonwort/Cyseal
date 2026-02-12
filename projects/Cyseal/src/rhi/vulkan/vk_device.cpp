@@ -484,6 +484,18 @@ void VulkanDevice::flushCommandQueue()
 	CHECK(ret == VK_SUCCESS);
 }
 
+void VulkanDevice::beginGPUCapture(const std::wstring& filepath)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+}
+
+void VulkanDevice::endGPUCapture()
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+}
+
 void VulkanDevice::initializeDearImgui()
 {
 	// https://vkguide.dev/docs/extra-chapter/implementing_imgui/

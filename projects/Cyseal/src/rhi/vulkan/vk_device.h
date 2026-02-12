@@ -30,6 +30,12 @@ public:
 	virtual void flushCommandQueue() override;
 
 	// ------------------------------------------------------------------------
+	// Plugin: GPU debugger
+
+	virtual void beginGPUCapture(const std::wstring& filepath) override;
+	virtual void endGPUCapture() override;
+
+	// ------------------------------------------------------------------------
 	// Plugin: DearImgui
 
 	virtual void initializeDearImgui() override;
