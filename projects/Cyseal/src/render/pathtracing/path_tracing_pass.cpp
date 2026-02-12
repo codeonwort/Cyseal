@@ -376,6 +376,7 @@ void PathTracingPass::initializeRaytracingPipeline()
 			.maxPayloadSizeInBytes        = sizeof(RayPayload),
 			.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
 			.maxTraceRecursionDepth       = PATH_TRACING_MAX_RECURSION,
+			.staticSamplers               = std::move(staticSamplers),
 		};
 		RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
 

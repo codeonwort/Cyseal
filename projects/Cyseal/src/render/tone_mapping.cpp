@@ -29,6 +29,22 @@ void ToneMapping::initialize(RenderDevice* device)
 	shaderPS->loadFromFile(L"tone_mapping.hlsl", "mainPS");
 
 	// Create PSO
+	std::vector<StaticSamplerDesc> staticSamplers = {
+		StaticSamplerDesc{
+			.name             = "sceneColorSampler",
+			.filter           = ETextureFilter::MIN_MAG_MIP_POINT,
+			.addressU         = ETextureAddressMode::Clamp,
+			.addressV         = ETextureAddressMode::Clamp,
+			.addressW         = ETextureAddressMode::Clamp,
+			.mipLODBias       = 0.0f,
+			.maxAnisotropy    = 0,
+			.comparisonFunc   = EComparisonFunc::Always,
+			.borderColor      = EStaticBorderColor::OpaqueBlack,
+			.minLOD           = 0.0f,
+			.maxLOD           = FLT_MAX,
+			.shaderVisibility = EShaderVisibility::All,
+		},
+	};
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = shaderVS,
 		.ps                     = shaderPS,
@@ -45,6 +61,7 @@ void ToneMapping::initialize(RenderDevice* device)
 			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
 			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
 		},
+		.staticSamplers         = std::move(staticSamplers),
 	};
 	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
 

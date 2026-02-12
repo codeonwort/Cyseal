@@ -27,6 +27,22 @@ void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 	shaderPS->loadFromFile(L"buffer_visualization.hlsl", "mainPS");
 
 	// Create PSO.
+	std::vector<StaticSamplerDesc> staticSamplers = {
+		StaticSamplerDesc{
+			.name             = "textureSampler",
+			.filter           = ETextureFilter::MIN_MAG_MIP_POINT,
+			.addressU         = ETextureAddressMode::Clamp,
+			.addressV         = ETextureAddressMode::Clamp,
+			.addressW         = ETextureAddressMode::Clamp,
+			.mipLODBias       = 0.0f,
+			.maxAnisotropy    = 0,
+			.comparisonFunc   = EComparisonFunc::Always,
+			.borderColor      = EStaticBorderColor::OpaqueBlack,
+			.minLOD           = 0.0f,
+			.maxLOD           = FLT_MAX,
+			.shaderVisibility = EShaderVisibility::All,
+		},
+	};
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = shaderVS,
 		.ps                     = shaderPS,
@@ -43,6 +59,7 @@ void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 		.rtvFormats             = { swapchain->getBackbufferFormat() },
 		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
 		.sampleDesc             = SampleDesc { .count = 1, .quality = 0 },
+		.staticSamplers         = std::move(staticSamplers),
 	};
 	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
 
