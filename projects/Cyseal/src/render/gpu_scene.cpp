@@ -309,6 +309,13 @@ void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, uint32 sw
 			commandList->setComputePipelineState(pipelineState);
 			commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap, &tracker);
 			commandList->dispatchCompute(count, 1, 1);
+
+			// gpuSceneBuffer is updated in consecutive dispatches.
+			GlobalBarrier globalBarrier{
+				EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+				EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
+			};
+			commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 		}
 	};
 
@@ -585,6 +592,13 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 			commandList->setComputePipelineState(pipelineState);
 			commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap);
 			commandList->dispatchCompute(count, 1, 1);
+
+			// Needed if fn() is called multiple times for different types of commands.
+			//GlobalBarrier globalBarrier{
+			//	EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+			//	EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
+			//};
+			//commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 		}
 	};
 
