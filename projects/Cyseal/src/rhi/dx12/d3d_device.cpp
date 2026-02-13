@@ -13,7 +13,7 @@
 #include "imgui_impl_dx12.h"
 
 // https://devblogs.microsoft.com/directx/directx12agility/
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 616; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = (const char*)(u8".\\D3D12\\"); }
 
 // #todo-crossapi: Dynamic loading (dll in %WINDIR%\System32)
