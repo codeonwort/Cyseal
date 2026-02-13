@@ -21,9 +21,9 @@ $should_download = !($PSBoundParameters.ContainsKey('skipdownload'))
 $zip_list = @(
 	# Format: (url, zip_dir, zip_filename, unzip_dir)
 	@(
-		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505/dxc_2025_05_24.zip',
+		'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505.1/dxc_2025_07_14.zip',
 		'external',
-		'dxc_2025_05_24.zip',
+		'dxc_2025_07_14.zip',
 		'external/dxc'
 	),
 	@(
