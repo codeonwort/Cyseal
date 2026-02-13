@@ -14,8 +14,13 @@
 // https://asawicki.info/news_1719_two_shader_compilers_of_direct3d_12
 // https://simoncoenen.com/blog/programming/graphics/DxcCompiling
 
-// #todo-dx12: DXC options
-#define SKIP_SHADER_OPTIMIZATION (_DEBUG)
+// Generate shader PDB files to the directory <cyseal_solution>/log/shader_pdb/
+// Locate them in PIX to debug shader sources.
+#define GENERATE_PDB_FILE 0
+
+#if GENERATE_PDB_FILE
+#include <fstream>
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogD3DShader);
 
@@ -51,6 +56,19 @@ static std::wstring getShaderDirectory()
 	}
 	return shaderDir;
 }
+
+#if GENERATE_PDB_FILE
+static std::wstring getPDBDirectory()
+{
+	static std::wstring dir;
+	if (dir.size() == 0)
+	{
+		dir = getSolutionDirectory() + L"log/shader_pdb/";
+		dir = std::filesystem::path(dir).make_preferred().wstring();
+	}
+	return dir;
+}
+#endif
 
 void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
 {
@@ -92,8 +110,9 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 		arguments.push_back(L"-D");
 		arguments.push_back(def.c_str());
 	}
-#if SKIP_SHADER_OPTIMIZATION
-	//arguments.push_back(DXC_ARG_DEBUG);
+#if GENERATE_PDB_FILE
+	arguments.push_back(DXC_ARG_DEBUG); // -Zi
+	arguments.push_back(DXC_ARG_DEBUG_NAME_FOR_SOURCE); // -Zss
 #endif
 	
 	DxcBuffer sourceBuffer{
@@ -126,6 +145,34 @@ void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntry
 	}
 
 	HR(compileResult->GetResult(&bytecodeBlob));
+
+#if GENERATE_PDB_FILE
+	WRL::ComPtr<IDxcBlob> pdbBlob;
+	WRL::ComPtr<IDxcBlobUtf16> pdbNameBlob;
+	HR(compileResult->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdbBlob), &pdbNameBlob));
+	std::wstring pdbName = pdbNameBlob->GetStringPointer();
+
+	// No need to extract PDB contents? Just emitting pdbBlob works...
+	//WRL::ComPtr<IDxcBlob> pdbHash;
+	//WRL::ComPtr<IDxcBlob> pdbContents;
+	//HR(utils->GetPDBContents(pdbBlob.Get(), &pdbHash, &pdbContents));
+
+	std::wstring pdbDir = getPDBDirectory();
+	std::filesystem::create_directory(pdbDir);
+
+	std::wstring pdbFullpath = pdbDir + pdbName;
+	std::fstream fs(pdbFullpath, std::ios_base::out | std::ios_base::binary);
+	if (fs.is_open())
+	{
+		//fs.write((const char*)pdbContents->GetBufferPointer(), pdbContents->GetBufferSize());
+		fs.write((const char*)pdbBlob->GetBufferPointer(), pdbBlob->GetBufferSize());
+		fs.close();
+	}
+	else
+	{
+		CYLOG(LogD3DShader, Error, L"Failed to write PDB: %s", pdbFullpath.c_str());
+	}
+#endif
 
 	readShaderReflection(compileResult.Get());
 }
