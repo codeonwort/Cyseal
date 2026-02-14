@@ -49,8 +49,10 @@ extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = (const char
 //         / Derivatives in compute & mesh & amp shaders / Pack & unpack intrinsics
 //         / WaveSize / Raytracing Payload Access Qualifiers
 // SM 6.7: https://devblogs.microsoft.com/directx/shader-model-6-7/
+// SM 6.8: https://microsoft.github.io/DirectX-Specs/d3d/HLSL_ShaderModel6_8.html
+// SM 6.9: https://devblogs.microsoft.com/directx/shader-model-6-9-and-the-future-of-cooperative-vector/
 #define CYSEAL_D3D_SHADER_MODEL_MINIMUM D3D_SHADER_MODEL_6_0 /* Minimum required SM to run Cyseal */
-#define CYSEAL_D3D_SHADER_MODEL_HIGHEST D3D_SHADER_MODEL_6_6 /* Highest SM that Cyseal recognizes */
+#define CYSEAL_D3D_SHADER_MODEL_HIGHEST D3D_SHADER_MODEL_6_8 /* Highest SM that Cyseal recognizes */
 
 DEFINE_LOG_CATEGORY_STATIC(LogDirectX);
 

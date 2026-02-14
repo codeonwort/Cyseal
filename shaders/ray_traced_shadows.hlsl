@@ -51,11 +51,11 @@ ConstantBuffer<ClosestHitPushConstants> g_closestHitCB          : register(b0, s
 // ---------------------------------------------------------
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
-struct RayPayload
+struct [raypayload] RayPayload
 {
-	float3 surfaceNormal;
-	float  hitTime;
-	uint   objectID;
+	float3 surfaceNormal : write(closesthit) : read(caller);
+	float  hitTime       : write(closesthit) : read(caller);
+	uint   objectID      : write(closesthit) : read(caller);
 };
 
 RayPayload createRayPayload()

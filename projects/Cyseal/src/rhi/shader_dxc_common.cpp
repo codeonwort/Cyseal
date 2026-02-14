@@ -12,6 +12,8 @@ const wchar_t* getD3DShaderModelString(D3D_SHADER_MODEL shaderModel)
 		case D3D_SHADER_MODEL_6_5: return L"6_5";
 		case D3D_SHADER_MODEL_6_6: return L"6_6";
 		case D3D_SHADER_MODEL_6_7: return L"6_7";
+		case D3D_SHADER_MODEL_6_8: return L"6_8";
+		case D3D_SHADER_MODEL_6_9: return L"6_9";
 		default: CHECK_NO_ENTRY();
 	}
 	return L"?_?";

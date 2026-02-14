@@ -119,24 +119,24 @@ ConstantBuffer<ClosestHitPushConstants> g_closestHitCB : register(b0, space2);
 // #todo: For triangle primitives only. Need to support user-defined attrib for procedural primitives.
 typedef BuiltInTriangleIntersectionAttributes IntersectionAttributes;
 
-struct RayPayload
+struct [raypayload] RayPayload
 {
-	float3 surfaceNormal;
-	float  roughness;
+	float3 surfaceNormal     : write(closesthit) : read(caller);
+	float  roughness         : write(closesthit) : read(caller);
 
-	float3 albedo;
-	float  hitTime;
+	float3 albedo            : write(closesthit) : read(caller);
+	float  hitTime           : write(closesthit) : read(caller);
 
-	float3 emission;
-	uint   objectID;
+	float3 emission          : write(closesthit) : read(caller);
+	uint   objectID          : write(closesthit) : read(caller);
 
-	float  metalMask;
-	uint   materialID;
-	float  indexOfRefraction;
-	uint   _pad0;
+	float  metalMask         : write(closesthit) : read(caller);
+	uint   materialID        : write(closesthit) : read(caller);
+	float  indexOfRefraction : write(closesthit) : read(caller);
+	uint   _pad0             : write()           : read();
 
-	float3 transmittance;
-	uint   _pad1;
+	float3 transmittance     : write(closesthit) : read(caller);
+	uint   _pad1             : write()           : read();
 };
 
 RayPayload createRayPayload()
