@@ -52,7 +52,7 @@ void MaterialShaderDatabase::compileMaterials(RenderDevice* device)
 
 		MaterialShaderPasses passes{};
 		passes.depthPrepass = createDepthPipeline(device, keyDesc, depthVS, depthPS, false);
-		passes.depthAndVisibility = createDepthPipeline(device, keyDesc, depthVS, depthPS, true);
+		passes.depthAndVisibility = createDepthPipeline(device, keyDesc, visVS, visPS, true);
 		passes.basePass = createBasePipeline(device, keyDesc, baseVS, basePS);
 
 		database.push_back({ pipelineKey, passes });
