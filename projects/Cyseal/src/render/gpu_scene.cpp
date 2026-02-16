@@ -154,7 +154,7 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 		BufferCreateParams{
 			.sizeInBytes = viewStride * gpuSceneMaxElements,
 			.alignment   = 0,
-			.accessFlags = EBufferAccessFlags::UAV,
+			.accessFlags = EBufferAccessFlags::SRV | EBufferAccessFlags::UAV,
 		}
 	));
 	gpuSceneBuffer->setDebugName(L"Buffer_GPUScene");
@@ -301,6 +301,11 @@ void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, uint32 sw
 				(uint32)(sizeof(sceneCommands[0]) * count),
 				0);
 
+			BufferBarrierAuto cpuWriteBarrier{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, sceneCommandBuffer
+			};
+			commandList->barrierAuto(1, &cpuWriteBarrier, 0, nullptr, 0, nullptr);
+
 			ShaderParameterTable SPT{};
 			SPT.pushConstant("pushConstants", count);
 			SPT.rwStructuredBuffer("gpuSceneBuffer", sceneBufferUAV);
@@ -330,7 +335,7 @@ void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, uint32 sw
 		"GPUSceneUpdateItems");
 
 	BufferBarrierAuto barriersAfter[] = {
-		{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneBuffer.get() },
+		{ EBarrierSync::ALL_SHADING, EBarrierAccess::SHADER_RESOURCE, gpuSceneBuffer.get() },
 	};
 	commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
 }
@@ -583,6 +588,11 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 				(void*)sceneCommands.data(),
 				(uint32)(sizeof(sceneCommands[0]) * count),
 				0);
+
+			BufferBarrierAuto cpuWriteBarrier{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, sceneCommandBuffer
+			};
+			commandList->barrierAuto(1, &cpuWriteBarrier, 0, nullptr, 0, nullptr);
 
 			ShaderParameterTable SPT{};
 			SPT.pushConstant("pushConstants", count);

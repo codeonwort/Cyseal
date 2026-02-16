@@ -63,7 +63,7 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 
 	BufferBarrierAuto barriersBefore[] = {
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, indirectDrawBuffer },
-		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, culledIndirectDrawBuffer },
+		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, culledIndirectDrawBuffer },
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, drawCounterBuffer },
 	};
 	commandList->barrierAuto(_countof(barriersBefore), barriersBefore, 0, nullptr, 0, nullptr);
