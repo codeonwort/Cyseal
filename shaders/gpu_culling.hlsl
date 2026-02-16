@@ -88,8 +88,9 @@ bool hitTest_AABB_frustumNoFarPlane(AABB box, Frustum3D frustum)
 [numthreads(1, 1, 1)]
 void mainCS(uint3 tid : SV_DispatchThreadID)
 {
-	uint objectID = drawCommandBuffer[tid.x].sceneItemIndex;
-	GPUSceneItem sceneItem = gpuSceneBuffer[objectID];
+	IDrawCommand drawCmd = drawCommandBuffer.Load(tid.x);
+	uint objectID = drawCmd.sceneItemIndex;
+	GPUSceneItem sceneItem = gpuSceneBuffer.Load(objectID);
 	
 	if ((sceneItem.flags & GPU_SCENE_ITEM_FLAG_BIT_IS_VALID) == 0)
 	{
@@ -102,12 +103,20 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		sceneItem.localToWorld);
 	
 	bool bInFrustum = hitTest_AABB_frustum(worldBounds, pushConstants.cameraFrustum);
+	
+#if 1
+	// #todo-barrier: Without it, gpu culling does not work properly on AMD Radeon RX 6700 XT.
+	// - NVidia RTX 3080Ti and 5080 work fine without this barrier.
+	// - If I don't insert barrier here AND disable optimization when compiling shaders, then it works.
+	// - I'm not sure if I actually made memory hazard here or if AMD driver is wonky...
+	DeviceMemoryBarrier();
+#endif
 
 	if (bInFrustum)
 	{
 		uint nextItemIndex;
 		InterlockedAdd(drawCounterBuffer[0], 1, nextItemIndex);
 
-		culledDrawCommandBuffer[nextItemIndex] = drawCommandBuffer[tid.x];
+		culledDrawCommandBuffer[nextItemIndex] = drawCmd;
 	}
 }
