@@ -617,7 +617,7 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		"GPUSceneUpdateMaterials");
 
 	BufferBarrierAuto barriersAfter[] = {
-		{ EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, materialConstantsBuffer.get() },
+		{ EBarrierSync::ALL_SHADING, EBarrierAccess::SHADER_RESOURCE, materialConstantsBuffer.get() },
 	};
 	commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
 }

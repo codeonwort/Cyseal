@@ -136,7 +136,7 @@ void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCo
 			BufferCreateParams{
 				.sizeInBytes = requiredCapacity,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
+				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::SRV,
 			}
 		));
 

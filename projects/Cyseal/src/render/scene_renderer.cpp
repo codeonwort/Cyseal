@@ -1473,6 +1473,11 @@ void SceneRenderer::updateSceneUniform(
 	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &sceneUniformData, sizeof(sceneUniformData));
 
 	memcpy_s(&prevSceneUniformData, sizeof(SceneUniform), &sceneUniformData, sizeof(SceneUniform));
+
+	BufferBarrierAuto barrier{
+		EBarrierSync::ALL, EBarrierAccess::SHADER_RESOURCE, sceneUniformMemory.get(),
+	};
+	commandList->barrierAuto(1, &barrier, 0, nullptr, 0, nullptr);
 }
 
 void SceneRenderer::rebuildFrameResources(RenderCommandList* commandList, const SceneProxy* scene)
