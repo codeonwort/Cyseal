@@ -17,8 +17,8 @@ struct PassUniform
 	// #wip: Make sure all static meshes share the same vertex/index buffers.
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBufferPoolAddress;
 	D3D12_GPU_VIRTUAL_ADDRESS indexBufferPoolAddress;
-	uint maxDrawCommands;
-	uint pipelineKey; // Target pipeline key
+	uint                      pipelineKey; // Target pipeline key
+	uint3                     _pad0;
 };
 
 ConstantBuffer<PassUniform>      passUniform;

@@ -15,23 +15,36 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUScene);
 
+struct DrawcallPassUniform
+{
+	uint64 vertexBufferPoolAddress;
+	uint64 indexBufferPoolAddress;
+	uint32 pipelineKey;
+	uint32 _pad0[3];
+};
+
 void GPUScene::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
+
+	initializeSceneBufferPipeline();
+	initializeMaterialBufferPipeline();
+	initializeDrawcallPipeline();
+}
+
+void GPUScene::initializeSceneBufferPipeline()
+{
 	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
 
 	gpuSceneEvictCommandBuffer.initialize(swapchainCount);
 	gpuSceneAllocCommandBuffer.initialize(swapchainCount);
 	gpuSceneUpdateCommandBuffer.initialize(swapchainCount);
+
 	gpuSceneEvictCommandBufferSRV.initialize(swapchainCount);
 	gpuSceneAllocCommandBufferSRV.initialize(swapchainCount);
 	gpuSceneUpdateCommandBufferSRV.initialize(swapchainCount);
 
 	passDescriptor.initialize(L"GPUScene", swapchainCount, 0);
-
-	materialPassDescriptor.initialize(L"GPUSceneMaterial", swapchainCount, 0);
-	materialCommandBuffer.initialize(swapchainCount);
-	materialCommandSRV.initialize(swapchainCount);
 
 	// Shaders
 	{
@@ -43,7 +56,7 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 			ComputePipelineDesc{ .cs = shader, .nodeMask = 0, }
 		));
 
-		delete shader; // No use after PSO creation.
+		delete shader;
 	}
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneAllocCS");
@@ -54,7 +67,7 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 			ComputePipelineDesc{ .cs = shader, .nodeMask = 0, }
 		));
 
-		delete shader; // No use after PSO creation.
+		delete shader;
 	}
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneUpdateCS");
@@ -65,8 +78,18 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 			ComputePipelineDesc{ .cs = shader, .nodeMask = 0, }
 		));
 
-		delete shader; // No use after PSO creation.
+		delete shader;
 	}
+}
+
+void GPUScene::initializeMaterialBufferPipeline()
+{
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	materialPassDescriptor.initialize(L"GPUSceneMaterial", swapchainCount, 0);
+	materialCommandBuffer.initialize(swapchainCount);
+	materialCommandSRV.initialize(swapchainCount);
+
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneMaterialUpdateCS");
 		shader->declarePushConstants({ { "pushConstants", 1} });
@@ -77,6 +100,25 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 		));
 
 		delete shader; // No use after PSO creation.
+	}
+}
+
+void GPUScene::initializeDrawcallPipeline()
+{
+	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+
+	drawcallPassDescriptor.initialize(L"DrawcallGen", swapchainCount, sizeof(DrawcallPassUniform));
+
+	{
+		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneDrawcallCS");
+		shader->declarePushConstants();
+		shader->loadFromFile(L"generate_drawcall.hlsl", "mainCS");
+
+		drawcallPipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
+			ComputePipelineDesc{ .cs = shader, .nodeMask = 0, }
+		));
+
+		delete shader;
 	}
 }
 

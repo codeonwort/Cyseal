@@ -40,6 +40,10 @@ public:
 	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
 
 private:
+	void initializeSceneBufferPipeline();
+	void initializeMaterialBufferPipeline();
+	void initializeDrawcallPipeline();
+
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
 	void resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene);
 	void executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
@@ -95,4 +99,10 @@ private:
 
 	BufferedUniquePtr<Buffer>             materialCommandBuffer;
 	BufferedUniquePtr<ShaderResourceView> materialCommandSRV;
+
+	// ----------------------------------------------
+	// Drawcall generation
+
+	UniquePtr<ComputePipelineState>       drawcallPipelineState;
+	VolatileDescriptorHelper              drawcallPassDescriptor;
 };
