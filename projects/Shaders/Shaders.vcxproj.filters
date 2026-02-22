@@ -70,6 +70,7 @@
     <FxCompile Include="..\..\shaders\gpu_scene_material.hlsl" />
     <FxCompile Include="..\..\shaders\generate_drawcall.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_arguments.hlsl" />
+    <FxCompile Include="..\..\shaders\indirect_draw_common.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">

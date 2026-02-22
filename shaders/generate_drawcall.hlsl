@@ -1,5 +1,8 @@
 #include "common.hlsl"
-#include "indirect_arguments.hlsl"
+#include "material.hlsl"
+#include "indirect_draw_common.hlsl"
+
+#define IDrawCommand StaticMeshDrawCommand
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -11,21 +14,12 @@ struct PassUniform
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBufferPoolAddress;
 	D3D12_GPU_VIRTUAL_ADDRESS indexBufferPoolAddress;
 	uint maxDrawCommands;
-	uint pipelineKey;
-};
-
-// #wip: Specific to base pass
-struct StaticMeshDrawCommand
-{
-	uint                         sceneItemIndex; // index in gpu scene buffer
-	D3D12_VERTEX_BUFFER_VIEW     positionBufferView;
-	D3D12_VERTEX_BUFFER_VIEW     nonPositionBufferView;
-	D3D12_INDEX_BUFFER_VIEW      indexBufferView;
-	D3D12_DRAW_INDEXED_ARGUMENTS drawIndexedArguments;
+	uint pipelineKey; // Target pipeline key
 };
 
 ConstantBuffer<PassUniform>      passUniform;
 StructuredBuffer<GPUSceneItem>   gpuSceneBuffer;
+StructuredBuffer<Material>       materialBuffer;
 RWStructuredBuffer<IDrawCommand> drawCommandBuffer;
 RWBuffer<uint>                   drawCounterBuffer;
 
@@ -42,12 +36,27 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		return;
 	}
 	
+	Material material = materialBuffer.Load(tid.x);
+	
+	if (material.pipelineKey != passUniform.pipelineKey)
+	{
+		return;
+	}
+	
 	uint drawID;
 	InterlockedAdd(drawCounterBuffer[0], 1, drawID);
 	
 	IDrawCommand cmd;
 	cmd.sceneItemIndex = tid.x;
-	// #wip: Fill cmd
+	// #wip: Need 'mesh view buffer' to fill vertex/index buffer views
+	//cmd.positionBufferView    = 0;
+	//cmd.nonPositionBufferView = 0;
+	//cmd.indexBufferView       = 0;
+	//cmd.drawIndexedArguments.IndexCountPerInstance = 0;
+	//cmd.drawIndexedArguments.InstanceCount         = 1;
+	//cmd.drawIndexedArguments.StartIndexLocation    = 0;
+	//cmd.drawIndexedArguments.BaseVertexLocation    = 0;
+	//cmd.drawIndexedArguments.StartInstanceLocation = 0;
 
 	drawCommandBuffer[drawID] = cmd;
 }

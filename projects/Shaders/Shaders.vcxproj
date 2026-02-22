@@ -109,6 +109,7 @@
     <FxCompile Include="..\..\shaders\indirect_arguments.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_raytracing.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_diffuse_temporal.hlsl" />
+    <FxCompile Include="..\..\shaders\indirect_draw_common.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_amd_temp_finalize.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_classifier.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_temporal.hlsl" />

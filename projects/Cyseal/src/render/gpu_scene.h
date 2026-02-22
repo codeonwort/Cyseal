@@ -76,6 +76,10 @@ private:
 	BufferedUniquePtr<ShaderResourceView> gpuSceneUpdateCommandBufferSRV;
 
 	// ----------------------------------------------
+	// #wip: Mesh view buffer for vertex/index buffer views
+	// Things going more messy than expected :(
+
+	// ----------------------------------------------
 	// Bindless materials
 	using UniqueSrvVec = std::vector<UniquePtr<ShaderResourceView>>;
 

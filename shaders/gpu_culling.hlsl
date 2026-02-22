@@ -1,5 +1,7 @@
 #include "common.hlsl"
-#include "indirect_arguments.hlsl"
+#include "indirect_draw_common.hlsl"
+
+#define IDrawCommand StaticMeshDrawCommand
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -8,16 +10,6 @@ struct PushConstants
 {
 	Frustum3D cameraFrustum;
 	uint numDrawCommands;
-};
-
-// #todo-cull: Specific to base pass
-struct IDrawCommand
-{
-	uint                         sceneItemIndex; // index in gpu scene buffer
-	D3D12_VERTEX_BUFFER_VIEW     positionBufferView;
-	D3D12_VERTEX_BUFFER_VIEW     nonPositionBufferView;
-	D3D12_INDEX_BUFFER_VIEW      indexBufferView;
-	D3D12_DRAW_INDEXED_ARGUMENTS drawIndexedArguments;
 };
 
 [[vk::push_constant]]

@@ -286,7 +286,7 @@ void StaticMeshRendering::renderForPipeline(
 	// Fill the indirect draw buffer and perform GPU culling.
 	if (bIndirectDraw)
 	{
-		// #todo-indirect-draw: Generate on GPU, not on CPU.
+		// #wip: Generate on GPU, not on CPU.
 		uint32 indirectCommandID = 0;
 		for (size_t i = 0; i < drawList.meshes.size(); ++i)
 		{
