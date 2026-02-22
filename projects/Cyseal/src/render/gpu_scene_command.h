@@ -20,6 +20,11 @@ struct GPUSceneItem
 	uint32   nonPositionBufferOffset;
 
 	uint32   indexBufferOffset;
+	uint32   positionCountAndStridePacked;
+	uint32   nonPositionCountAndStridePacked;
+	uint32   indexSizeAndFormatPacked;
+
+	uint32   indexCount;
 	vec2     _pad0;
 	FlagBits flags;
 };

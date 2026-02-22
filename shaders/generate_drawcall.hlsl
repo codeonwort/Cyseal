@@ -4,6 +4,10 @@
 
 #define IDrawCommand StaticMeshDrawCommand
 
+// #wip: Hard-coded for DirectX
+#define DXGI_FORMAT_R16_UINT 57
+#define DXGI_FORMAT_R32_UINT 42
+
 // ------------------------------------------------------------------------
 // Resource bindings
 
@@ -25,6 +29,48 @@ RWBuffer<uint>                   drawCounterBuffer;
 
 // ------------------------------------------------------------------------
 // Compute shader
+
+D3D12_VERTEX_BUFFER_VIEW createVertexBufferView(uint bufferOffset, uint sizeAndStridePacked)
+{
+	uint2 countAndStride = unpackVertexCountAndStride(sizeAndStridePacked);
+	
+	D3D12_VERTEX_BUFFER_VIEW view;
+	view.BufferLocation = passUniform.vertexBufferPoolAddress;
+	if (view.BufferLocation.y > 0xffffffff - bufferOffset)
+	{
+		view.BufferLocation.x += 1;
+		uint msb = (1 << 31);
+		view.BufferLocation.y = (view.BufferLocation.y & ~msb) + (bufferOffset & ~msb);
+	}
+	else
+	{
+		view.BufferLocation.y += bufferOffset;
+	}
+	view.SizeInBytes = countAndStride.x * countAndStride.y;
+	view.StrideInBytes = countAndStride.y;
+	return view;
+}
+
+D3D12_INDEX_BUFFER_VIEW createIndexBufferView(uint bufferOffset, uint sizeAndFormatPacked)
+{
+	uint2 sizeAndFormat = unpackIndexSizeAndFormat(sizeAndFormatPacked);
+	
+	D3D12_INDEX_BUFFER_VIEW view;
+	view.BufferLocation = passUniform.indexBufferPoolAddress;
+	if (view.BufferLocation.y > 0xffffffff - bufferOffset)
+	{
+		view.BufferLocation.x += 1;
+		uint msb = (1 << 31);
+		view.BufferLocation.y = (view.BufferLocation.y & ~msb) + (bufferOffset & ~msb);
+	}
+	else
+	{
+		view.BufferLocation.y += bufferOffset;
+	}
+	view.SizeInBytes = sizeAndFormat.x;
+	view.Format = (sizeAndFormat.y == 2) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+	return view;
+}
 
 [numthreads(1, 1, 1)]
 void mainCS(uint3 tid : SV_DispatchThreadID)
@@ -48,15 +94,14 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	
 	IDrawCommand cmd;
 	cmd.sceneItemIndex = tid.x;
-	// #wip: Need 'mesh view buffer' to fill vertex/index buffer views
-	//cmd.positionBufferView    = 0;
-	//cmd.nonPositionBufferView = 0;
-	//cmd.indexBufferView       = 0;
-	//cmd.drawIndexedArguments.IndexCountPerInstance = 0;
-	//cmd.drawIndexedArguments.InstanceCount         = 1;
-	//cmd.drawIndexedArguments.StartIndexLocation    = 0;
-	//cmd.drawIndexedArguments.BaseVertexLocation    = 0;
-	//cmd.drawIndexedArguments.StartInstanceLocation = 0;
+	cmd.positionBufferView    = createVertexBufferView(sceneItem.positionBufferOffset, sceneItem.positionSizeAndStridePacked);
+	cmd.nonPositionBufferView = createVertexBufferView(sceneItem.nonPositionBufferOffset, sceneItem.nonPositionSizeAndStridePacked);
+	cmd.indexBufferView       = createIndexBufferView(sceneItem.indexBufferOffset, sceneItem.indexSizeAndFormatPacked);
+	cmd.drawIndexedArguments.IndexCountPerInstance = sceneItem.indexCount;
+	cmd.drawIndexedArguments.InstanceCount         = 1;
+	cmd.drawIndexedArguments.StartIndexLocation    = 0;
+	cmd.drawIndexedArguments.BaseVertexLocation    = 0;
+	cmd.drawIndexedArguments.StartInstanceLocation = 0;
 
 	drawCommandBuffer[drawID] = cmd;
 }

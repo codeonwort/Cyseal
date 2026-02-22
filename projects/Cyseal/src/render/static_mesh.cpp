@@ -5,17 +5,47 @@
 #include "memory/custom_new_delete.h"
 #include "memory/mem_alloc.h"
 
+static uint32 packVertexCountAndStride(uint32 count, uint32 stride)
+{
+	CHECK(count < (1 << 24));
+	CHECK(stride < (1 << 10));
+	return (stride << 24) | count;
+}
+
+static uint32 packIndexSizeAndFormat(uint32 size, EPixelFormat format)
+{
+	CHECK(size < (1 << 30));
+
+	uint32 formatId = 0;
+	switch (format)
+	{
+		case EPixelFormat::R16_UINT: formatId = 0b10; break;
+		case EPixelFormat::R32_UINT: formatId = 0b11; break;
+		default: CHECK_NO_ENTRY();
+	}
+	
+	return (formatId << 30) | size;
+}
+
 static GPUSceneItem createGPUSceneItem(const StaticMeshSection& section, const Matrix& localToWorld, const Matrix& prevLocalToWorld)
 {
+	VertexBuffer* posBuffer = section.positionBuffer->getGPUResource().get();
+	VertexBuffer* nonPosBuffer = section.nonPositionBuffer->getGPUResource().get();
+	IndexBuffer* ixBuffer = section.indexBuffer->getGPUResource().get();
+
 	return GPUSceneItem{
-		.localToWorld            = localToWorld,
-		.prevLocalToWorld        = prevLocalToWorld,
-		.localMinBounds          = section.localBounds.minBounds,
-		.positionBufferOffset    = (uint32)section.positionBuffer->getGPUResource()->getBufferOffsetInBytes(), // #todo-gpuscene: uint64 offset
-		.localMaxBounds          = section.localBounds.maxBounds,
-		.nonPositionBufferOffset = (uint32)section.nonPositionBuffer->getGPUResource()->getBufferOffsetInBytes(),
-		.indexBufferOffset       = (uint32)section.indexBuffer->getGPUResource()->getBufferOffsetInBytes(),
-		.flags                   = GPUSceneItem::FlagBits::IsValid,
+		.localToWorld                    = localToWorld,
+		.prevLocalToWorld                = prevLocalToWorld,
+		.localMinBounds                  = section.localBounds.minBounds,
+		.positionBufferOffset            = (uint32)posBuffer->getBufferOffsetInBytes(), // #todo-gpuscene: uint64 offset
+		.localMaxBounds                  = section.localBounds.maxBounds,
+		.nonPositionBufferOffset         = (uint32)nonPosBuffer->getBufferOffsetInBytes(),
+		.indexBufferOffset               = (uint32)ixBuffer->getBufferOffsetInBytes(),
+		.positionCountAndStridePacked    = packVertexCountAndStride(posBuffer->getVertexCount(), posBuffer->getBufferStrideInBytes()),
+		.nonPositionCountAndStridePacked = packVertexCountAndStride(nonPosBuffer->getVertexCount(), nonPosBuffer->getBufferStrideInBytes()),
+		.indexSizeAndFormatPacked        = packIndexSizeAndFormat(ixBuffer->getBufferSizeInBytes(), ixBuffer->getIndexFormat()),
+		.indexCount                      = ixBuffer->getIndexCount(),
+		.flags                           = GPUSceneItem::FlagBits::IsValid,
 	};
 }
 

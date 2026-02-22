@@ -35,21 +35,23 @@ class D3DVertexBuffer : public VertexBuffer
 public:
 	D3DVertexBuffer(D3DDevice* inDevice) : device(inDevice) {}
 
+	//~ BEGIN GPUResource interface
+	virtual void* getRawResource() const override { return defaultBuffer.Get(); }
+	//~ END GPUResource interface
+
+	//~ BEGIN VertexBuffer interface
 	virtual void initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags) override;
-
 	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
-
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) override;
-
 	virtual uint32 getVertexCount() const override { return vertexCount; };
-
 	virtual uint64 getBufferOffsetInBytes() const override { return offsetInDefaultBuffer; }
+	virtual uint32 getBufferSizeInBytes() const override { return view.SizeInBytes; }
+	virtual uint32 getBufferStrideInBytes() const override { return view.StrideInBytes; }
+	//~ END VertexBuffer interface
 
 	void setDebugName(const wchar_t* inDebugName);
 
 	inline D3D12_VERTEX_BUFFER_VIEW getVertexBufferView() const { return view; }
-
-	virtual void* getRawResource() const override { return defaultBuffer.Get(); }
 
 private:
 	D3DDevice* device = nullptr;
@@ -71,24 +73,24 @@ class D3DIndexBuffer : public IndexBuffer
 public:
 	D3DIndexBuffer(D3DDevice* inDevice) : device(inDevice) {}
 
+	//~ BEGIN GPUResource interface
+	virtual void* getRawResource() const override { return defaultBuffer.Get(); }
+	//~ END GPUResource interface
+
+	//~ BEGIN IndexBuffer interface
 	virtual void initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags) override;
-
 	virtual void initializeWithinPool(IndexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) override;
-
 	virtual void updateData(RenderCommandList* commandList, void* data, EPixelFormat format) override;
-
 	virtual uint32 getIndexCount() const override { return indexCount; }
 	virtual EPixelFormat getIndexFormat() const override { return indexFormat; }
+	virtual uint64 getBufferOffsetInBytes() const override { return offsetInDefaultBuffer; }
+	virtual uint32 getBufferSizeInBytes() const override { return view.SizeInBytes; }
+	//~ END IndexBuffer interface
 
 	void setDebugName(const wchar_t* inDebugName);
 
 	inline D3D12_INDEX_BUFFER_VIEW getIndexBufferView() const { return view; }
 	D3D12_GPU_VIRTUAL_ADDRESS getGPUVirtualAddress() const;
-
-	// offsetInPool
-	virtual uint64 getBufferOffsetInBytes() const { return offsetInDefaultBuffer; }
-
-	virtual void* getRawResource() const override { return defaultBuffer.Get(); }
 
 private:
 	D3DDevice* device = nullptr;

@@ -124,16 +124,33 @@ float getLinearDepth(float2 screenUV, float sceneDepth, float4x4 projInv)
 #define GPU_SCENE_ITEM_FLAG_BIT_IS_VALID (1 << 0)
 struct GPUSceneItem
 {
-    float4x4 localToWorld;
-    float4x4 prevLocalToWorld;
-    float3   localMinBounds;
-    uint     positionBufferOffset;
-    float3   localMaxBounds;
-    uint     nonPositionBufferOffset;
-    uint     indexBufferOffset;
-    float2   _pad0;
-    uint     flags; // Bitflags of GPU_SCENE_ITEM_FLAG_BIT_...
+	float4x4 localToWorld;
+	float4x4 prevLocalToWorld;
+	float3   localMinBounds;
+	uint     positionBufferOffset;
+	float3   localMaxBounds;
+	uint     nonPositionBufferOffset;
+	uint     indexBufferOffset;
+	uint     positionSizeAndStridePacked;
+	uint     nonPositionSizeAndStridePacked;
+	uint     indexSizeAndFormatPacked;
+	uint     indexCount;
+	float2   _pad0;
+	uint     flags; // Bitflags of GPU_SCENE_ITEM_FLAG_BIT_...
 };
+
+uint2 unpackVertexCountAndStride(uint packed)
+{
+	uint count = packed & ((1 << 24) - 1);
+	uint stride = packed >> 24;
+	return uint2(count, stride);
+}
+uint2 unpackIndexSizeAndFormat(uint packed)
+{
+	uint size = packed & ((1 << 30) - 1);
+	uint format = packed >> 30;
+	return uint2(size, format);
+}
 
 struct SceneUniform
 {
