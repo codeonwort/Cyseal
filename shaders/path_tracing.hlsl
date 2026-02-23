@@ -84,22 +84,18 @@ typedef BuiltInTriangleIntersectionAttributes IntersectionAttributes;
 // Should match with path_tracing_pass.cpp
 struct [raypayload] RayPayload
 {
-	float3 surfaceNormal     : write(closesthit) : read(caller);
-	float  roughness         : write(closesthit) : read(caller);
-
-	float3 albedo            : write(closesthit) : read(caller);
-	float  hitTime           : write(closesthit) : read(caller);
-
-	float3 emission          : write(closesthit) : read(caller);
-	uint   objectID          : write(closesthit) : read(caller);
-
-	float  metalMask         : write(closesthit) : read(caller);
-	uint   materialID        : write(closesthit) : read(caller);
-	float  indexOfRefraction : write(closesthit) : read(caller);
-	uint   _pad0             : write()           : read();
-
-	float3 transmittance     : write(closesthit) : read(caller);
-	uint   _pad1             : write()           : read();
+	float3 surfaceNormal     : read(caller) : write(closesthit, miss);
+	float  roughness         : read(caller) : write(closesthit, miss);
+	float3 albedo            : read(caller) : write(closesthit, miss);
+	float  hitTime           : read(caller) : write(closesthit, miss);
+	float3 emission          : read(caller) : write(closesthit, miss);
+	uint   objectID          : read(caller) : write(closesthit, miss);
+	float  metalMask         : read(caller) : write(closesthit, miss);
+	uint   materialID        : read(caller) : write(closesthit, miss);
+	float  indexOfRefraction : read(caller) : write(closesthit, miss);
+	uint   _pad0             : read()       : write();
+	float3 transmittance     : read(caller) : write(closesthit, miss);
+	uint   _pad1             : read()       : write();
 };
 
 RayPayload createRayPayload()

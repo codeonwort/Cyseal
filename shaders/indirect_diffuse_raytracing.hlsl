@@ -87,17 +87,17 @@ typedef BuiltInTriangleIntersectionAttributes IntersectionAttributes;
 
 struct [raypayload] RayPayload
 {
-	float3 surfaceNormal : write(closesthit) : read(caller);
-	float  roughness     : write(closesthit) : read(caller);
+	float3 surfaceNormal : read(caller) : write(closesthit, miss);
+	float  roughness     : read(caller) : write(closesthit, miss);
 
-	float3 albedo        : write(closesthit) : read(caller);
-	float  hitTime       : write(closesthit) : read(caller);
+	float3 albedo        : read(caller) : write(closesthit, miss);
+	float  hitTime       : read(caller) : write(closesthit, miss);
 
-	float3 emission      : write(closesthit) : read(caller);
-	uint   objectID      : write(closesthit) : read(caller);
+	float3 emission      : read(caller) : write(closesthit, miss);
+	uint   objectID      : read(caller) : write(closesthit, miss);
 
-	float  metalMask     : write(closesthit) : read(caller);
-	uint3  _pad0         : write()           : read();
+	float  metalMask     : read(caller) : write(closesthit, miss);
+	uint3  _pad0         : read()       : write();
 };
 
 RayPayload createRayPayload()
