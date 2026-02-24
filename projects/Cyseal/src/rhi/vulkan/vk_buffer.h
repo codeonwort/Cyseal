@@ -47,7 +47,7 @@ public:
 	virtual uint32 getBufferSizeInBytes() const { return (uint32)bufferSize; }
 	virtual uint32 getBufferStrideInBytes() const { return bufferStride; }
 	// #todo-vk: internal_getGPUVirtualAddress()
-	virtual uint64 internal_getGPUVirtualAddress() const override { CHECK_NO_ENTRY(); }
+	virtual uint64 internal_getGPUVirtualAddress() const override { CHECK_NO_ENTRY(); return 0; }
 	//~ END VertexBuffer interface
 
 	VkBuffer getVkBuffer() const;
@@ -84,7 +84,7 @@ public:
 	virtual uint64 getBufferOffsetInBytes() const override { return offsetInParentBuffer; }
 	virtual uint32 getBufferSizeInBytes() const override { return (uint32)vkBufferSize; }
 	// #todo-vk: internal_getGPUVirtualAddress()
-	virtual uint64 internal_getGPUVirtualAddress() const override { CHECK_NO_ENTRY(); }
+	virtual uint64 internal_getGPUVirtualAddress() const override { CHECK_NO_ENTRY(); return 0; }
 	//~ END IndexBuffer interface
 
 	VkBuffer getVkBuffer() const;
