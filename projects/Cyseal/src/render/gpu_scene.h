@@ -32,6 +32,8 @@ public:
 	// Update GPU scene buffer.
 	void renderGPUScene(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput);
 
+	void generateDrawcalls(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput);
+
 	// Might return null if no gpu scene item was allocated yet.
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 
@@ -52,6 +54,8 @@ private:
 	void resizeBindlessTextures(RenderCommandList* commandList, uint32 maxElements);
 	void resizeMaterialCommandBuffer(uint32 swapchainIndex, const SceneProxy* scene);
 	void executeMaterialCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
+
+	void resizeDrawcallBuffer(RenderCommandList* commandList, const SceneProxy* scene);
 
 private:
 	RenderDevice* device = nullptr;
@@ -105,4 +109,10 @@ private:
 
 	UniquePtr<ComputePipelineState>       drawcallPipelineState;
 	VolatileDescriptorHelper              drawcallPassDescriptor;
+
+	UniquePtr<Buffer>                     drawcallBuffer;
+	UniquePtr<Buffer>                     drawcallCounterBuffer;
+	UniquePtr<ShaderResourceView>         drawcallBufferSRV;
+	UniquePtr<UnorderedAccessView>        drawcallBufferUAV;
+	UniquePtr<UnorderedAccessView>        drawcallCounterBufferUAV;
 };

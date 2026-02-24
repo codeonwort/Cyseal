@@ -11,15 +11,20 @@
 // ------------------------------------------------------------------------
 // Resource bindings
 
-// #wip: Add uniform parameters for each pipeline permutation.
+struct PushConstants
+{
+	uint pipelineKey;
+};
+
 struct PassUniform
 {
 	// #wip: Make sure all static meshes share the same vertex/index buffers.
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBufferPoolAddress;
 	D3D12_GPU_VIRTUAL_ADDRESS indexBufferPoolAddress;
-	uint                      pipelineKey; // Target pipeline key
-	uint3                     _pad0;
 };
+
+[[vk::push_constant]]
+ConstantBuffer<PushConstants>    pushConstants;
 
 ConstantBuffer<PassUniform>      passUniform;
 StructuredBuffer<GPUSceneItem>   gpuSceneBuffer;
@@ -84,7 +89,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	
 	Material material = materialBuffer.Load(tid.x);
 	
-	if (material.pipelineKey != passUniform.pipelineKey)
+	if (material.pipelineKey != pushConstants.pipelineKey)
 	{
 		return;
 	}
