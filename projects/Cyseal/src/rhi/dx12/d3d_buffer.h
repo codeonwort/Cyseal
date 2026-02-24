@@ -47,6 +47,7 @@ public:
 	virtual uint64 getBufferOffsetInBytes() const override { return offsetInDefaultBuffer; }
 	virtual uint32 getBufferSizeInBytes() const override { return view.SizeInBytes; }
 	virtual uint32 getBufferStrideInBytes() const override { return view.StrideInBytes; }
+	virtual uint64 internal_getGPUVirtualAddress() const override { return view.BufferLocation; }
 	//~ END VertexBuffer interface
 
 	void setDebugName(const wchar_t* inDebugName);
@@ -85,6 +86,7 @@ public:
 	virtual EPixelFormat getIndexFormat() const override { return indexFormat; }
 	virtual uint64 getBufferOffsetInBytes() const override { return offsetInDefaultBuffer; }
 	virtual uint32 getBufferSizeInBytes() const override { return view.SizeInBytes; }
+	virtual uint64 internal_getGPUVirtualAddress() const override { return view.BufferLocation; }
 	//~ END IndexBuffer interface
 
 	void setDebugName(const wchar_t* inDebugName);
