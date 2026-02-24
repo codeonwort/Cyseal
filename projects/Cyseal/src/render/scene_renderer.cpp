@@ -1467,7 +1467,7 @@ void SceneRenderer::updateSceneUniform(
 	memcpy_s(&prevSceneUniformData, sizeof(SceneUniform), &sceneUniformData, sizeof(SceneUniform));
 
 	BufferBarrierAuto barrier{
-		EBarrierSync::ALL, EBarrierAccess::SHADER_RESOURCE, sceneUniformMemory.get(),
+		EBarrierSync::ALL, EBarrierAccess::CONSTANT_BUFFER, sceneUniformMemory.get(),
 	};
 	commandList->barrierAuto(1, &barrier, 0, nullptr, 0, nullptr);
 }
