@@ -34,6 +34,9 @@ public:
 		return uniformCBVs.at(swapchainIndex);
 	}
 
+	// Exposed for buffer barriers. Note that it's a single buffer containing multiple sections.
+	inline Buffer* getUnifiedUniformBuffer() const { return uniformMemory.get(); }
+
 private:
 	RenderDevice* renderDevice = nullptr;
 	std::wstring passName;
