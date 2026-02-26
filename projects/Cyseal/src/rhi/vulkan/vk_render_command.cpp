@@ -608,6 +608,12 @@ void VulkanRenderCommandList::bindComputeShaderParameters(
 	}
 }
 
+void VulkanRenderCommandList::updateComputeRootConstants(ComputePipelineState* pipelineState, const ShaderParameterTable* parameters)
+{
+	// #todo-vulkan
+	CHECK_NO_ENTRY();
+}
+
 void VulkanRenderCommandList::dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ)
 {
 	CHECK(bInDynamicRendering == false); // #todo-vulkan: Should I end current render pass before compute dispatch?

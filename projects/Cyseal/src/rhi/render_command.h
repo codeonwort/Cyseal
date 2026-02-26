@@ -158,6 +158,11 @@ public:
 
 	virtual void bindComputeShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap, DescriptorIndexTracker* tracker = nullptr) = 0;
 
+	// Given a compute PSO is already bound, only update root constants for fast path.
+	// - pipelineState must have been bound with bindGraphicsShaderParameters().
+	// - parameters may contain only root constants. Other types of parameters are ignored.
+	virtual void updateComputeRootConstants(ComputePipelineState* pipelineState, const ShaderParameterTable* parameters) = 0;
+
 	virtual void dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ) = 0;
 
 	// ------------------------------------------------------------------------
