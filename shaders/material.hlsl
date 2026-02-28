@@ -18,7 +18,7 @@ struct Material
     float  metalMask;
     uint   materialID;
     float  indexOfRefraction;
-    uint   _pad0;
+    uint   pipelineFreeNumber;
     float3 transmittance;
     uint   pipelineKey;
 };

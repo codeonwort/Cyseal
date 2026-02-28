@@ -264,6 +264,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.camera = camera,
 		};
 		gpuScene->renderGPUScene(commandList, swapchainIndex, passInput);
+		gpuScene->generateDrawcalls(commandList, swapchainIndex, passInput);
 	}
 
 	if (renderOptions.bEnableGPUCulling)

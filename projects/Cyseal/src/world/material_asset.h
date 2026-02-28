@@ -10,6 +10,7 @@ public:
 	MaterialAsset();
 
 	uint32 getPipelineKey() const;
+	uint32 getPipelineFreeNumber() const;
 
 	inline bool getDoubleSided() const { return bDoubleSided; }
 	void setDoubleSided(bool value);
@@ -30,4 +31,5 @@ private:
 	bool                    bDoubleSided      = false;
 
 	GraphicsPipelineKey     pipelineKey;
+	uint32                  pipelineFreeNumber;
 };

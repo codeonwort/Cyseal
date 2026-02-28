@@ -112,7 +112,9 @@ private:
 
 	UniquePtr<Buffer>                     drawcallBuffer;
 	UniquePtr<Buffer>                     drawcallCounterBuffer;
+	UniquePtr<Buffer>                     drawcallOffsetBuffer;
 	UniquePtr<ShaderResourceView>         drawcallBufferSRV;
 	UniquePtr<UnorderedAccessView>        drawcallBufferUAV;
 	UniquePtr<UnorderedAccessView>        drawcallCounterBufferUAV;
+	UniquePtr<ShaderResourceView>         drawcallOffsetBufferSRV;
 };

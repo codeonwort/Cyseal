@@ -191,6 +191,8 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 
 void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput)
 {
+	SCOPED_DRAW_EVENT(commandList, GenerateDrawcall);
+
 	const size_t numPermutations = GraphicsPipelineKeyDesc::numPipelineKeyDescs();
 
 	resizeDrawcallBuffer(commandList, passInput.scene);
@@ -205,17 +207,35 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 	std::vector<uint32> zeroCounters(numPermutations, 0);
 	drawcallCounterBuffer->singleWriteToGPU(commandList, zeroCounters.data(), (uint32)(sizeof(uint32) * zeroCounters.size()), 0);
 
+	// Calculate drawID offsets.
+	std::vector<uint32> drawIDOffsets(numPermutations);
+	uint32 currentDrawOffset = 0;
+	for (size_t i = 0; i < numPermutations; ++i)
+	{
+		const GraphicsPipelineKeyDesc& desc = GraphicsPipelineKeyDesc::kPipelineKeyDescs[i];
+		const GraphicsPipelineKey key = GraphicsPipelineKeyDesc::assemblePipelineKey(desc);
+
+		drawIDOffsets[i] = currentDrawOffset;
+
+		const uint32 currentDrawcalls = passInput.scene->sceneItemsPerPipeline.find(key)->second;
+		currentDrawOffset += currentDrawcalls;
+	}
+	drawcallOffsetBuffer->singleWriteToGPU(commandList, drawIDOffsets.data(), (uint32)(sizeof(uint32) * drawIDOffsets.size()), 0);
+
 	BufferBarrierAuto bufferBarriers[] = {
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::CONSTANT_BUFFER, drawcallPassDescriptor.getUnifiedUniformBuffer() },
 		// gpuSceneBuffer and materialBuffer were already handled.
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, drawcallBuffer.get() },
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, drawcallCounterBuffer.get() },
+		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, drawcallOffsetBuffer.get() },
 	};
 	commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, 0, nullptr, 0, nullptr);
 
 	ShaderParameterTable SPT{};
+	SPT.constantBuffer("passUniform", passUniformCBV);
 	SPT.structuredBuffer("gpuSceneBuffer", gpuSceneBufferSRV.get());
 	SPT.structuredBuffer("materialBuffer", materialConstantsSRV.get());
+	SPT.structuredBuffer("drawOffsetBuffer", drawcallOffsetBufferSRV.get());
 	SPT.rwStructuredBuffer("drawCommandBuffer", drawcallBufferUAV.get());
 	SPT.rwStructuredBuffer("drawCounterBuffer", drawcallCounterBufferUAV.get());
 
@@ -223,20 +243,17 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 
 	auto pipelineState = drawcallPipelineState.get();
 	auto descriptorHeap = drawcallPassDescriptor.getDescriptorHeap(swapchainIndex);
+	const uint32 maxDrawcalls = currentDrawOffset;
 
 	commandList->setComputePipelineState(pipelineState);
 	commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap);
+	commandList->dispatchCompute(maxDrawcalls, 1, 1);
 
-	for (size_t i = 0; i < numPermutations; ++i)
-	{
-		const GraphicsPipelineKeyDesc& desc = GraphicsPipelineKeyDesc::kPipelineKeyDescs[i];
-		const GraphicsPipelineKey key = GraphicsPipelineKeyDesc::assemblePipelineKey(desc);
-
-		// #wip:
-		// 1. update pushConstants
-		// 2. dispatch
-		//commandList->dispatchCompute(count, 1, 1);
-	}
+	GlobalBarrier globalBarrier{
+		EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+		EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
+	};
+	commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 }
 
 ShaderResourceView* GPUScene::getGPUSceneBufferSRV() const
@@ -749,12 +766,24 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneProxy* scene)
 {
 	const size_t numPermutations = GraphicsPipelineKeyDesc::numPipelineKeyDescs();
+	const uint32 stride = sizeof(indirectDraw::StaticMeshDrawcall);
+	const uint32 maxDrawcallCount = gpuSceneMaxElements;
 
-	if (drawcallBuffer == nullptr)
+	if (drawcallBuffer == nullptr
+		|| drawcallBuffer->getCreateParams().sizeInBytes / stride < maxDrawcallCount
+		|| drawcallBuffer->getCreateParams().sizeInBytes / stride > (maxDrawcallCount * 2))
 	{
+		if (drawcallBuffer != nullptr)
+		{
+			drawcallBuffer->setDebugName(L"Buffer_Drawcall_MarkedForDeath");
+			commandList->enqueueDeferredDealloc(drawcallBuffer.release());
+			commandList->enqueueDeferredDealloc(drawcallBufferSRV.release());
+			commandList->enqueueDeferredDealloc(drawcallBufferUAV.release());
+		}
+
 		drawcallBuffer = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
-				.sizeInBytes = sizeof(indirectDraw::StaticMeshDrawcall) * numPermutations,
+				.sizeInBytes = stride * maxDrawcallCount,
 				.alignment   = 0,
 				.accessFlags = EBufferAccessFlags::SRV | EBufferAccessFlags::UAV,
 			}
@@ -770,8 +799,8 @@ void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneP
 			.viewDimension              = ESRVDimension::Buffer,
 			.buffer = BufferSRVDesc{
 				.firstElement           = 0,
-				.numElements            = (uint32)numPermutations,
-				.structureByteStride    = sizeof(indirectDraw::StaticMeshDrawcall),
+				.numElements            = maxDrawcallCount,
+				.structureByteStride    = stride,
 				.flags                  = EBufferSRVFlags::None,
 			},
 		};
@@ -783,8 +812,8 @@ void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneP
 			.viewDimension               = EUAVDimension::Buffer,
 			.buffer = BufferUAVDesc{
 				.firstElement            = 0,
-				.numElements             = (uint32)numPermutations,
-				.structureByteStride     = sizeof(indirectDraw::StaticMeshDrawcall),
+				.numElements             = maxDrawcallCount,
+				.structureByteStride     = stride,
 				.counterOffsetInBytes    = 0,
 				.flags                   = EBufferUAVFlags::None,
 			},
@@ -799,7 +828,7 @@ void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneP
 			BufferCreateParams{
 				.sizeInBytes = sizeof(uint32) * numPermutations,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::UAV,
+				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
 			}
 		));
 		drawcallCounterBuffer->setDebugName(L"Buffer_DrawcallCounter");
@@ -817,5 +846,30 @@ void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneP
 		};
 		drawcallCounterBufferUAV = UniquePtr<UnorderedAccessView>(
 			device->createUAV(drawcallCounterBuffer.get(), uavDesc));
+	}
+
+	if (drawcallOffsetBuffer == nullptr)
+	{
+		drawcallOffsetBuffer = UniquePtr<Buffer>(device->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = sizeof(uint32) * numPermutations,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::SRV,
+			}
+		));
+		drawcallOffsetBuffer->setDebugName(L"Buffer_DrawcallOffset");
+
+		ShaderResourceViewDesc srvDesc{
+			.format                     = EPixelFormat::UNKNOWN,
+			.viewDimension              = ESRVDimension::Buffer,
+			.buffer = BufferSRVDesc{
+				.firstElement           = 0,
+				.numElements            = (uint32)numPermutations,
+				.structureByteStride    = sizeof(uint32),
+				.flags                  = EBufferSRVFlags::None,
+			},
+		};
+		drawcallOffsetBufferSRV = UniquePtr<ShaderResourceView>(
+			device->createSRV(drawcallOffsetBuffer.get(), srvDesc));
 	}
 }

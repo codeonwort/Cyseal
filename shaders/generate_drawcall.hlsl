@@ -11,11 +11,6 @@
 // ------------------------------------------------------------------------
 // Resource bindings
 
-struct PushConstants
-{
-	uint pipelineKey;
-};
-
 struct PassUniform
 {
 	// #wip: Make sure all static meshes share the same vertex/index buffers.
@@ -23,12 +18,10 @@ struct PassUniform
 	D3D12_GPU_VIRTUAL_ADDRESS indexBufferPoolAddress;
 };
 
-[[vk::push_constant]]
-ConstantBuffer<PushConstants>    pushConstants;
-
 ConstantBuffer<PassUniform>      passUniform;
 StructuredBuffer<GPUSceneItem>   gpuSceneBuffer;
 StructuredBuffer<Material>       materialBuffer;
+StructuredBuffer<uint>           drawOffsetBuffer;
 RWStructuredBuffer<IDrawCommand> drawCommandBuffer;
 RWBuffer<uint>                   drawCounterBuffer;
 
@@ -89,13 +82,8 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	
 	Material material = materialBuffer.Load(tid.x);
 	
-	if (material.pipelineKey != pushConstants.pipelineKey)
-	{
-		return;
-	}
-	
 	uint drawID;
-	InterlockedAdd(drawCounterBuffer[0], 1, drawID);
+	InterlockedAdd(drawCounterBuffer[material.pipelineFreeNumber], 1, drawID);
 	
 	IDrawCommand cmd;
 	cmd.sceneItemIndex = tid.x;
@@ -108,5 +96,6 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	cmd.drawIndexedArguments.BaseVertexLocation    = 0;
 	cmd.drawIndexedArguments.StartInstanceLocation = 0;
 
-	drawCommandBuffer[drawID] = cmd;
+	uint drawIDOffset = drawOffsetBuffer.Load(material.pipelineFreeNumber);
+	drawCommandBuffer[drawIDOffset + drawID] = cmd;
 }

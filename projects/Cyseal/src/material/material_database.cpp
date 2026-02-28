@@ -56,6 +56,8 @@ void MaterialShaderDatabase::compileMaterials(RenderDevice* device)
 		passes.basePass = createBasePipeline(device, keyDesc, baseVS, basePS);
 
 		database.push_back({ pipelineKey, passes });
+
+		createFreeNumberForPipelineKey(pipelineKey);
 	}
 
 	delete depthVS; delete depthPS;
@@ -82,6 +84,13 @@ const MaterialShaderPasses* MaterialShaderDatabase::findPasses(GraphicsPipelineK
 		if (kv.first == key) return &kv.second;
 	}
 	return nullptr;
+}
+
+uint32 MaterialShaderDatabase::getFreeNumberForPipelineKey(GraphicsPipelineKey key) const
+{
+	auto it = freeNumberTable.find(key);
+	CHECK(it != freeNumberTable.end());
+	return it->second;
 }
 
 GraphicsPipelineState* MaterialShaderDatabase::createDepthPipeline(
@@ -195,4 +204,13 @@ GraphicsPipelineState* MaterialShaderDatabase::createBasePipeline(
 	CHECK(rtvIndex == numRTVs);
 
 	return device->createGraphicsPipelineState(pipelineDesc);
+}
+
+void MaterialShaderDatabase::createFreeNumberForPipelineKey(GraphicsPipelineKey key)
+{
+	uint32 num = (uint32)freeNumberTable.size();
+	auto it = freeNumberTable.insert(std::make_pair(key, num));
+
+	bool success = it.second; // If false, already exists.
+	CHECK(success);
 }

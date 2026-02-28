@@ -1,6 +1,7 @@
 #pragma once
 
 #include "material_shader.h"
+#include <map>
 
 class RenderDevice;
 
@@ -22,6 +23,14 @@ public:
 
 	const MaterialShaderPasses* findPasses(GraphicsPipelineKey key) const;
 
+	/// <summary>
+	/// Returns a non-negative integer for the given key.
+	/// Free numbers are intended to be used as linear indices starting from 0.
+	/// </summary>
+	/// <param name="key">A pipeline key.</param>
+	/// <returns>The corresponding free number.</returns>
+	uint32 getFreeNumberForPipelineKey(GraphicsPipelineKey key) const;
+
 private:
 	GraphicsPipelineState* createDepthPipeline(
 		RenderDevice* device,
@@ -36,5 +45,8 @@ private:
 		ShaderStage* vs,
 		ShaderStage* ps);
 
+	void createFreeNumberForPipelineKey(GraphicsPipelineKey key);
+
 	std::vector<std::pair<GraphicsPipelineKey, MaterialShaderPasses>> database;
+	std::map<GraphicsPipelineKey, uint32> freeNumberTable;
 };

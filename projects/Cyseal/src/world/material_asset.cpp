@@ -1,4 +1,5 @@
 #include "material_asset.h"
+#include "material/material_database.h"
 
 MaterialAsset::MaterialAsset()
 {
@@ -9,6 +10,11 @@ uint32 MaterialAsset::getPipelineKey() const
 {
 	static_assert(sizeof(uint32) == sizeof(GraphicsPipelineKey));
 	return (uint32)pipelineKey;
+}
+
+uint32 MaterialAsset::getPipelineFreeNumber() const
+{
+	return pipelineFreeNumber;
 }
 
 void MaterialAsset::setDoubleSided(bool value)
@@ -25,4 +31,5 @@ void MaterialAsset::setDoubleSided(bool value)
 void MaterialAsset::updatePipelineKey(const GraphicsPipelineKeyDesc& desc)
 {
 	pipelineKey = GraphicsPipelineKeyDesc::assemblePipelineKey(desc);
+	pipelineFreeNumber = MaterialShaderDatabase::get().getFreeNumberForPipelineKey(pipelineKey);
 }
