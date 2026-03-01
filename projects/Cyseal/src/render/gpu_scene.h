@@ -48,6 +48,7 @@ public:
 	ShaderResourceView* getDrawcallCounterBufferSRV() const;
 
 	uint32 getDrawIDOffset(uint32 pipelineFreeNumber) const;
+	uint32 getDrawcallArgumentsStride() const;
 
 private:
 	void initializeSceneBufferPipeline();

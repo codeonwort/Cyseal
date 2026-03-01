@@ -39,6 +39,7 @@ namespace indirectDraw
 		uint32 startInstanceLocation;
 	};
 
+#pragma pack(push, 4)
 	struct StaticMeshDrawcall
 	{
 		uint32               sceneItemIndex;
@@ -47,6 +48,7 @@ namespace indirectDraw
 		IndexBufferView      indexBufferView;
 		DrawIndexedArguments drawIndexedArguments;
 	};
+#pragma pack(pop)
 }
 
 struct DrawcallPassUniform
@@ -293,6 +295,11 @@ ShaderResourceView* GPUScene::getDrawcallCounterBufferSRV() const
 uint32 GPUScene::getDrawIDOffset(uint32 pipelineFreeNumber) const
 {
 	return drawIDOffsets[pipelineFreeNumber];
+}
+
+uint32 GPUScene::getDrawcallArgumentsStride() const
+{
+	return sizeof(indirectDraw::StaticMeshDrawcall);
 }
 
 void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements)

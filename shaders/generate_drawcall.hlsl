@@ -34,15 +34,15 @@ D3D12_VERTEX_BUFFER_VIEW createVertexBufferView(uint bufferOffset, uint sizeAndS
 	
 	D3D12_VERTEX_BUFFER_VIEW view;
 	view.BufferLocation = passUniform.vertexBufferPoolAddress;
-	if (view.BufferLocation.y > 0xffffffff - bufferOffset)
+	if (view.BufferLocation.x > 0xffffffff - bufferOffset)
 	{
-		view.BufferLocation.x += 1;
+		view.BufferLocation.y += 1;
 		uint msb = (1 << 31);
-		view.BufferLocation.y = (view.BufferLocation.y & ~msb) + (bufferOffset & ~msb);
+		view.BufferLocation.x = (view.BufferLocation.x & ~msb) + (bufferOffset & ~msb);
 	}
 	else
 	{
-		view.BufferLocation.y += bufferOffset;
+		view.BufferLocation.x += bufferOffset;
 	}
 	view.SizeInBytes = countAndStride.x * countAndStride.y;
 	view.StrideInBytes = countAndStride.y;
@@ -55,15 +55,15 @@ D3D12_INDEX_BUFFER_VIEW createIndexBufferView(uint bufferOffset, uint sizeAndFor
 	
 	D3D12_INDEX_BUFFER_VIEW view;
 	view.BufferLocation = passUniform.indexBufferPoolAddress;
-	if (view.BufferLocation.y > 0xffffffff - bufferOffset)
+	if (view.BufferLocation.x > 0xffffffff - bufferOffset)
 	{
-		view.BufferLocation.x += 1;
+		view.BufferLocation.y += 1;
 		uint msb = (1 << 31);
-		view.BufferLocation.y = (view.BufferLocation.y & ~msb) + (bufferOffset & ~msb);
+		view.BufferLocation.x = (view.BufferLocation.x & ~msb) + (bufferOffset & ~msb);
 	}
 	else
 	{
-		view.BufferLocation.y += bufferOffset;
+		view.BufferLocation.x += bufferOffset;
 	}
 	view.SizeInBytes = sizeAndFormat.x;
 	view.Format = (sizeAndFormat.y == 2) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;

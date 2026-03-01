@@ -9,7 +9,7 @@
 
 #define kMaxIndirectDrawCommandCount 256
 
-#define GPU_GEN_DRAWCALL 0
+#define GPU_GEN_DRAWCALL 1
 
 // -----------------------------------------
 // GraphicsPipelineKeyDesc
@@ -264,6 +264,8 @@ void StaticMeshRendering::renderForPipeline(
 	GraphicsPipelineKey pipelineKey,
 	const StaticMeshDrawList& drawList)
 {
+	SCOPED_DRAW_EVENT(commandList, DrawStaticMeshes);
+
 	auto scene              = input.scene;
 	auto camera             = input.camera;
 	auto bIndirectDraw      = input.bIndirectDraw;
@@ -389,7 +391,7 @@ void StaticMeshRendering::renderForPipeline(
 			Buffer* argBuffer = argumentBuffer;
 #if GPU_GEN_DRAWCALL
 			commandList->executeIndirect(commandSig, maxIndirectDraws,
-				argBuffer, 0,
+				argBuffer, gpuScene->getDrawcallArgumentsStride() * drawIDOffset,
 				drawCounterBuffer, sizeof(uint32) * pipelineFreeNumber);
 #else
 			commandList->executeIndirect(commandSig, maxIndirectDraws, argBuffer, 0, nullptr, 0);
