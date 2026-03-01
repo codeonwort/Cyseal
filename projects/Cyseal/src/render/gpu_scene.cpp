@@ -208,7 +208,7 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 	drawcallCounterBuffer->singleWriteToGPU(commandList, zeroCounters.data(), (uint32)(sizeof(uint32) * zeroCounters.size()), 0);
 
 	// Calculate drawID offsets.
-	std::vector<uint32> drawIDOffsets(numPermutations);
+	drawIDOffsets.resize(numPermutations, 0);
 	uint32 currentDrawOffset = 0;
 	for (size_t i = 0; i < numPermutations; ++i)
 	{
@@ -268,6 +268,31 @@ GPUScene::MaterialDescriptorsDesc GPUScene::queryMaterialDescriptors() const
 		.srvHeap            = bindlessTextureHeap.get(),
 		.srvCount           = bindlessTextureHeap ? bindlessTextureHeap->getCreateParams().numDescriptors : 0,
 	};
+}
+
+Buffer* GPUScene::getDrawcallBuffer() const
+{
+	return drawcallBuffer.get();
+}
+
+ShaderResourceView* GPUScene::getDrawcallBufferSRV() const
+{
+	return drawcallBufferSRV.get();
+}
+
+Buffer* GPUScene::getDrawcallCounterBuffer() const
+{
+	return drawcallCounterBuffer.get();
+}
+
+ShaderResourceView* GPUScene::getDrawcallCounterBufferSRV() const
+{
+	return drawcallCounterBufferSRV.get();
+}
+
+uint32 GPUScene::getDrawIDOffset(uint32 pipelineFreeNumber) const
+{
+	return drawIDOffsets[pipelineFreeNumber];
 }
 
 void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements)
@@ -824,6 +849,14 @@ void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneP
 
 	if (drawcallCounterBuffer == nullptr)
 	{
+		if (drawcallCounterBuffer != nullptr)
+		{
+			drawcallCounterBuffer->setDebugName(L"Buffer_DrawcallCounter_MarkedForDeath");
+			commandList->enqueueDeferredDealloc(drawcallCounterBuffer.release());
+			commandList->enqueueDeferredDealloc(drawcallCounterBufferSRV.release());
+			commandList->enqueueDeferredDealloc(drawcallCounterBufferUAV.release());
+		}
+
 		drawcallCounterBuffer = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = sizeof(uint32) * numPermutations,
@@ -832,6 +865,19 @@ void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneP
 			}
 		));
 		drawcallCounterBuffer->setDebugName(L"Buffer_DrawcallCounter");
+
+		ShaderResourceViewDesc srvDesc{
+			.format                     = EPixelFormat::UNKNOWN,
+			.viewDimension              = ESRVDimension::Buffer,
+			.buffer = BufferSRVDesc{
+				.firstElement           = 0,
+				.numElements            = (uint32)numPermutations,
+				.structureByteStride    = sizeof(uint32),
+				.flags                  = EBufferSRVFlags::None,
+			},
+		};
+		drawcallCounterBufferSRV = UniquePtr<ShaderResourceView>(
+			device->createSRV(drawcallCounterBuffer.get(), srvDesc));
 
 		UnorderedAccessViewDesc uavDesc{
 			.format                      = EPixelFormat::UNKNOWN,
@@ -850,6 +896,13 @@ void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneP
 
 	if (drawcallOffsetBuffer == nullptr)
 	{
+		if (drawcallOffsetBuffer != nullptr)
+		{
+			drawcallOffsetBuffer->setDebugName(L"Buffer_DrawcallOffset_MarkedForDeath");
+			commandList->enqueueDeferredDealloc(drawcallOffsetBuffer.release());
+			commandList->enqueueDeferredDealloc(drawcallOffsetBufferSRV.release());
+		}
+
 		drawcallOffsetBuffer = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = sizeof(uint32) * numPermutations,

@@ -33,11 +33,11 @@ struct IndirectDrawHelper
 
 	BufferedUniquePtr<Buffer>              argumentBuffer;
 	BufferedUniquePtr<Buffer>              culledArgumentBuffer;
-	BufferedUniquePtr<Buffer>              drawCounterBuffer;
+	BufferedUniquePtr<Buffer>              culledDrawCounterBuffer;
 
 	BufferedUniquePtr<ShaderResourceView>  argumentBufferSRV;
 	BufferedUniquePtr<UnorderedAccessView> culledArgumentBufferUAV;
-	BufferedUniquePtr<UnorderedAccessView> drawCounterBufferUAV;
+	BufferedUniquePtr<UnorderedAccessView> culledDrawCounterBufferUAV;
 
 	std::wstring                           debugName;
 };

@@ -9,7 +9,7 @@
 struct PushConstants
 {
 	Frustum3D cameraFrustum;
-	uint numDrawCommands;
+	uint drawIDOffset;
 };
 
 [[vk::push_constant]]
@@ -18,7 +18,7 @@ ConstantBuffer<PushConstants>    pushConstants;
 StructuredBuffer<GPUSceneItem>   gpuSceneBuffer;
 StructuredBuffer<IDrawCommand>   drawCommandBuffer;
 RWStructuredBuffer<IDrawCommand> culledDrawCommandBuffer;
-RWBuffer<uint>                   drawCounterBuffer;
+RWBuffer<uint>                   culledDrawCounterBuffer;
 
 // ------------------------------------------------------------------------
 // Compute shader
@@ -80,7 +80,7 @@ bool hitTest_AABB_frustumNoFarPlane(AABB box, Frustum3D frustum)
 [numthreads(1, 1, 1)]
 void mainCS(uint3 tid : SV_DispatchThreadID)
 {
-	IDrawCommand drawCmd = drawCommandBuffer.Load(tid.x);
+	IDrawCommand drawCmd = drawCommandBuffer.Load(pushConstants.drawIDOffset + tid.x);
 	uint objectID = drawCmd.sceneItemIndex;
 	GPUSceneItem sceneItem = gpuSceneBuffer.Load(objectID);
 	
@@ -107,7 +107,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	if (bInFrustum)
 	{
 		uint nextItemIndex;
-		InterlockedAdd(drawCounterBuffer[0], 1, nextItemIndex);
+		InterlockedAdd(culledDrawCounterBuffer[0], 1, nextItemIndex);
 
 		culledDrawCommandBuffer[nextItemIndex] = drawCmd;
 	}

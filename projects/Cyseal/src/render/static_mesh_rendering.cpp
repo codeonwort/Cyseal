@@ -5,8 +5,11 @@
 #include "rhi/render_device.h"
 #include "rhi/swap_chain.h"
 #include "world/scene_proxy.h"
+#include "material/material_database.h"
 
 #define kMaxIndirectDrawCommandCount 256
+
+#define GPU_GEN_DRAWCALL 0
 
 // -----------------------------------------
 // GraphicsPipelineKeyDesc
@@ -49,8 +52,8 @@ void IndirectDrawHelper::initialize(
 	argumentBufferSRV.initialize(swapchainCount);
 	culledArgumentBuffer.initialize(swapchainCount);
 	culledArgumentBufferUAV.initialize(swapchainCount);
-	drawCounterBuffer.initialize(swapchainCount);
-	drawCounterBufferUAV.initialize(swapchainCount);
+	culledDrawCounterBuffer.initialize(swapchainCount);
+	culledDrawCounterBufferUAV.initialize(swapchainCount);
 
 	// Hmm... C++20 designated initializers looks ugly in this case :(
 	CommandSignatureDesc commandSignatureDesc{
@@ -93,7 +96,7 @@ void IndirectDrawHelper::initialize(
 	// Create resources of fixed sizes. Other resources might be reallocated in resizeResources().
 	for (uint32 i = 0; i < swapchainCount; ++i)
 	{
-		drawCounterBuffer[i] = UniquePtr<Buffer>(device->createBuffer(
+		culledDrawCounterBuffer[i] = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = sizeof(uint32),
 				.alignment   = 0,
@@ -103,7 +106,7 @@ void IndirectDrawHelper::initialize(
 
 		wchar_t bufferDebugName[256];
 		swprintf_s(bufferDebugName, L"Buffer_IndirectDrawCounterBuffer_%s_%u_%u", debugName.c_str(), pipelineKey, i);
-		drawCounterBuffer[i]->setDebugName(bufferDebugName);
+		culledDrawCounterBuffer[i]->setDebugName(bufferDebugName);
 
 		UnorderedAccessViewDesc uavDesc{};
 		uavDesc.format                      = EPixelFormat::UNKNOWN;
@@ -114,8 +117,8 @@ void IndirectDrawHelper::initialize(
 		uavDesc.buffer.counterOffsetInBytes = 0;
 		uavDesc.buffer.flags                = EBufferUAVFlags::None;
 
-		drawCounterBufferUAV[i] = UniquePtr<UnorderedAccessView>(
-			device->createUAV(drawCounterBuffer[i].get(), uavDesc));
+		culledDrawCounterBufferUAV[i] = UniquePtr<UnorderedAccessView>(
+			device->createUAV(culledDrawCounterBuffer[i].get(), uavDesc));
 	}
 }
 
@@ -274,6 +277,13 @@ void StaticMeshRendering::renderForPipeline(
 	GraphicsPipelineState* pipelineState = pipelineItem.pipelineState;
 	IndirectDrawHelper* indirectDrawHelper = pipelineItem.indirectDrawHelper;
 
+	const uint32 pipelineFreeNumber = MaterialShaderDatabase::get().getFreeNumberForPipelineKey(pipelineKey);
+#if GPU_GEN_DRAWCALL
+	const uint32 drawIDOffset = gpuScene->getDrawIDOffset(pipelineFreeNumber);
+#else
+	const uint32 drawIDOffset = 0;
+#endif
+
 	indirectDrawHelper->resizeResources(swapchainIndex, gpuScene->getGPUSceneItemMaxCount());
 	auto argumentBufferGenerator = indirectDrawHelper->argumentBufferGenerator.get();
 
@@ -283,10 +293,25 @@ void StaticMeshRendering::renderForPipeline(
 		return;
 	}
 
+#if GPU_GEN_DRAWCALL
+	const uint32 numDraws = input.scene->sceneItemsPerPipeline.find(pipelineKey)->second;
+	CHECK(numDraws == maxIndirectDraws);
+#endif
+
+	Buffer* argumentBuffer = nullptr;
+	Buffer* drawCounterBuffer = nullptr;
+	ShaderResourceView* argumentBufferSRV = nullptr;
+	ShaderResourceView* drawCounterBufferSRV = nullptr;
+	
 	// Fill the indirect draw buffer and perform GPU culling.
 	if (bIndirectDraw)
 	{
-		// #wip: Generate on GPU, not on CPU.
+#if GPU_GEN_DRAWCALL
+		argumentBuffer = gpuScene->getDrawcallBuffer();
+		drawCounterBuffer = gpuScene->getDrawcallCounterBuffer();
+		argumentBufferSRV = gpuScene->getDrawcallBufferSRV();
+		drawCounterBufferSRV = gpuScene->getDrawcallCounterBufferSRV();
+#else
 		uint32 indirectCommandID = 0;
 		for (size_t i = 0; i < drawList.meshes.size(); ++i)
 		{
@@ -310,8 +335,12 @@ void StaticMeshRendering::renderForPipeline(
 			++indirectCommandID;
 		}
 
-		Buffer* currentArgumentBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
-		argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, currentArgumentBuffer, 0);
+		argumentBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
+		drawCounterBuffer = nullptr;
+		argumentBufferSRV = indirectDrawHelper->argumentBufferSRV.at(swapchainIndex);
+
+		argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, argumentBuffer, 0);
+#endif
 
 		if (bGpuCulling)
 		{
@@ -319,14 +348,27 @@ void StaticMeshRendering::renderForPipeline(
 				.camera                      = camera,
 				.gpuScene                    = gpuScene,
 				.maxDrawCommands             = maxIndirectDraws,
-				.indirectDrawBuffer          = currentArgumentBuffer,
+				.drawIDOffset                = drawIDOffset,
+				.indirectDrawBuffer          = argumentBuffer,
+				.drawCounterBuffer           = drawCounterBuffer,
 				.culledIndirectDrawBuffer    = indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex),
-				.drawCounterBuffer           = indirectDrawHelper->drawCounterBuffer.at(swapchainIndex),
-				.indirectDrawBufferSRV       = indirectDrawHelper->argumentBufferSRV.at(swapchainIndex),
+				.culledDrawCounterBuffer     = indirectDrawHelper->culledDrawCounterBuffer.at(swapchainIndex),
+				.indirectDrawBufferSRV       = argumentBufferSRV,
+				.drawCounterBufferSRV        = drawCounterBufferSRV,
 				.culledIndirectDrawBufferUAV = indirectDrawHelper->culledArgumentBufferUAV.at(swapchainIndex),
-				.drawCounterBufferUAV        = indirectDrawHelper->drawCounterBufferUAV.at(swapchainIndex),
+				.culledDrawCounterBufferUAV  = indirectDrawHelper->culledDrawCounterBufferUAV.at(swapchainIndex),
 			};
 			gpuCulling->cullDrawCommands(commandList, swapchainIndex, cullingPassInput);
+		}
+		else
+		{
+#if GPU_GEN_DRAWCALL
+			BufferBarrierAuto barriersAfter[] = {
+				{ EBarrierSync::EXECUTE_INDIRECT, EBarrierAccess::INDIRECT_ARGUMENT, argumentBuffer },
+				{ EBarrierSync::EXECUTE_INDIRECT, EBarrierAccess::INDIRECT_ARGUMENT, drawCounterBuffer },
+			};
+			commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
+#endif
 		}
 	}
 
@@ -335,16 +377,23 @@ void StaticMeshRendering::renderForPipeline(
 	
 	if (bIndirectDraw)
 	{
+		auto commandSig = indirectDrawHelper->commandSignature.get();
 		if (bGpuCulling)
 		{
 			Buffer* argBuffer = indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex);
-			Buffer* counterBuffer = indirectDrawHelper->drawCounterBuffer.at(swapchainIndex);
-			commandList->executeIndirect(indirectDrawHelper->commandSignature.get(), maxIndirectDraws, argBuffer, 0, counterBuffer, 0);
+			Buffer* counterBuffer = indirectDrawHelper->culledDrawCounterBuffer.at(swapchainIndex);
+			commandList->executeIndirect(commandSig, maxIndirectDraws, argBuffer, 0, counterBuffer, 0);
 		}
 		else
 		{
-			Buffer* argBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
-			commandList->executeIndirect(indirectDrawHelper->commandSignature.get(), maxIndirectDraws, argBuffer, 0, nullptr, 0);
+			Buffer* argBuffer = argumentBuffer;
+#if GPU_GEN_DRAWCALL
+			commandList->executeIndirect(commandSig, maxIndirectDraws,
+				argBuffer, 0,
+				drawCounterBuffer, sizeof(uint32) * pipelineFreeNumber);
+#else
+			commandList->executeIndirect(commandSig, maxIndirectDraws, argBuffer, 0, nullptr, 0);
+#endif
 		}
 	}
 	else

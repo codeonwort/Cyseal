@@ -12,7 +12,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGPUCulling);
 struct GPUCullingPushConstants
 {
 	CameraFrustum cameraFrustum;
-	uint32 numDrawCommands;
+	uint32 drawIDOffset;
 };
 
 void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxCullOperationsPerFrame)
@@ -53,10 +53,10 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 	uint32 maxDrawCommands           = passInput.maxDrawCommands;
 	Buffer* indirectDrawBuffer       = passInput.indirectDrawBuffer;
 	Buffer* culledIndirectDrawBuffer = passInput.culledIndirectDrawBuffer;
-	Buffer* drawCounterBuffer        = passInput.drawCounterBuffer;
+	Buffer* drawCounterBuffer        = passInput.culledDrawCounterBuffer;
 	auto indirectDrawBufferSRV       = passInput.indirectDrawBufferSRV;
 	auto culledIndirectDrawBufferUAV = passInput.culledIndirectDrawBufferUAV;
-	auto drawCounterBufferUAV        = passInput.drawCounterBufferUAV;
+	auto drawCounterBufferUAV        = passInput.culledDrawCounterBufferUAV;
 
 	uint32 zeroValue = 0;
 	drawCounterBuffer->singleWriteToGPU(commandList, &zeroValue, sizeof(zeroValue), 0);
@@ -69,8 +69,8 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 	commandList->barrierAuto(_countof(barriersBefore), barriersBefore, 0, nullptr, 0, nullptr);
 
 	GPUCullingPushConstants pushConst{
-		.cameraFrustum   = camera->getFrustum(),
-		.numDrawCommands = maxDrawCommands,
+		.cameraFrustum = camera->getFrustum(),
+		.drawIDOffset  = passInput.drawIDOffset,
 	};
 
 	ShaderParameterTable SPT{};
@@ -78,7 +78,7 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 	SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
 	SPT.structuredBuffer("drawCommandBuffer", indirectDrawBufferSRV);
 	SPT.rwStructuredBuffer("culledDrawCommandBuffer", culledIndirectDrawBufferUAV);
-	SPT.rwBuffer("drawCounterBuffer", drawCounterBufferUAV);
+	SPT.rwBuffer("culledDrawCounterBuffer", drawCounterBufferUAV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
 	requiredVolatiles *= maxCullOperationsPerFrame; // #todo-gpuscene: Optimize if permutation blows up

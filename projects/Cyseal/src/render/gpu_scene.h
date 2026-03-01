@@ -41,6 +41,14 @@ public:
 
 	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
 
+	Buffer* getDrawcallBuffer() const;
+	ShaderResourceView* getDrawcallBufferSRV() const;
+
+	Buffer* getDrawcallCounterBuffer() const;
+	ShaderResourceView* getDrawcallCounterBufferSRV() const;
+
+	uint32 getDrawIDOffset(uint32 pipelineFreeNumber) const;
+
 private:
 	void initializeSceneBufferPipeline();
 	void initializeMaterialBufferPipeline();
@@ -115,6 +123,9 @@ private:
 	UniquePtr<Buffer>                     drawcallOffsetBuffer;
 	UniquePtr<ShaderResourceView>         drawcallBufferSRV;
 	UniquePtr<UnorderedAccessView>        drawcallBufferUAV;
+	UniquePtr<ShaderResourceView>         drawcallCounterBufferSRV;
 	UniquePtr<UnorderedAccessView>        drawcallCounterBufferUAV;
 	UniquePtr<ShaderResourceView>         drawcallOffsetBufferSRV;
+
+	std::vector<uint32>                   drawIDOffsets;
 };

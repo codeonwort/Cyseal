@@ -16,12 +16,15 @@ struct GPUCullingInput
 	const Camera*           camera;
 	GPUScene*               gpuScene;
 	uint32                  maxDrawCommands;
+	uint32                  drawIDOffset;
 	Buffer*                 indirectDrawBuffer;
+	Buffer*                 drawCounterBuffer; // null if indirectDrawBuffer was not gpu-generated.
 	Buffer*                 culledIndirectDrawBuffer;
-	Buffer*                 drawCounterBuffer;
+	Buffer*                 culledDrawCounterBuffer;
 	ShaderResourceView*     indirectDrawBufferSRV;
+	ShaderResourceView*     drawCounterBufferSRV; // null if indirectDrawBuffer was not gpu-generated.
 	UnorderedAccessView*    culledIndirectDrawBufferUAV;
-	UnorderedAccessView*    drawCounterBufferUAV;
+	UnorderedAccessView*    culledDrawCounterBufferUAV;
 };
 
 // Cull indirect draw commands using GPU scene.
@@ -35,7 +38,7 @@ public:
 
 	// Can be invoked multiple times within a frame.
 	// Draw commands are accumulated from the start of passInput.culledIndirectDrawBuffer,
-	// so you need to provide different culledIndirectDrawBuffer and drawCounterBuffer in passInput for each invocation.
+	// so you need to provide different culledIndirectDrawBuffer and culledDrawCounterBuffer in passInput for each invocation.
 	void cullDrawCommands(RenderCommandList* commandList, uint32 swapchainIndex, const GPUCullingInput& passInput);
 
 private:
