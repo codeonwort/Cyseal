@@ -55,6 +55,8 @@ struct DrawcallPassUniform
 {
 	uint64 vertexBufferPoolAddress;
 	uint64 indexBufferPoolAddress;
+	uint32 rawDeviceFormatR16UInt;
+	uint32 rawDeviceFormatR32UInt;
 };
 
 void GPUScene::initialize(RenderDevice* renderDevice)
@@ -202,6 +204,8 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 	DrawcallPassUniform passUniformData{
 		.vertexBufferPoolAddress = gVertexBufferPool->internal_getPoolBuffer()->internal_getGPUVirtualAddress(),
 		.indexBufferPoolAddress  = gIndexBufferPool->internal_getPoolBuffer()->internal_getGPUVirtualAddress(),
+		.rawDeviceFormatR16UInt  = device->getRawFormatR16UInt(),
+		.rawDeviceFormatR32UInt  = device->getRawFormatR32UInt(),
 	};
 	ConstantBufferView* passUniformCBV = drawcallPassDescriptor.getUniformCBV(swapchainIndex);
 	passUniformCBV->writeToGPU(commandList, &passUniformData, sizeof(passUniformData));

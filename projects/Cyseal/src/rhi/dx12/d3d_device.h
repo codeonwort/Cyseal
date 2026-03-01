@@ -106,6 +106,9 @@ public:
 	
 	virtual uint32 getConstantBufferDataAlignment() const { return D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT; }
 
+	virtual uint32 getRawFormatR16UInt() const override { return DXGI_FORMAT_R16_UINT; }
+	virtual uint32 getRawFormatR32UInt() const override { return DXGI_FORMAT_R32_UINT; }
+
 	// ------------------------------------------------------------------------
 	// Utils
 

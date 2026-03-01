@@ -4,10 +4,6 @@
 
 #define IDrawCommand StaticMeshDrawCommand
 
-// #wip: Hard-coded for DirectX
-#define DXGI_FORMAT_R16_UINT 57
-#define DXGI_FORMAT_R32_UINT 42
-
 // ------------------------------------------------------------------------
 // Resource bindings
 
@@ -16,6 +12,8 @@ struct PassUniform
 	// #wip: Make sure all static meshes share the same vertex/index buffers.
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBufferPoolAddress;
 	D3D12_GPU_VIRTUAL_ADDRESS indexBufferPoolAddress;
+	uint                      rawDeviceFormatR16UInt;
+	uint                      rawDeviceFormatR32UInt;
 };
 
 ConstantBuffer<PassUniform>      passUniform;
@@ -66,7 +64,8 @@ D3D12_INDEX_BUFFER_VIEW createIndexBufferView(uint bufferOffset, uint sizeAndFor
 		view.BufferLocation.x += bufferOffset;
 	}
 	view.SizeInBytes = sizeAndFormat.x;
-	view.Format = (sizeAndFormat.y == 2) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+	// See packIndexSizeAndFormat()
+	view.Format = (sizeAndFormat.y == 2) ? passUniform.rawDeviceFormatR16UInt : passUniform.rawDeviceFormatR32UInt;
 	return view;
 }
 
