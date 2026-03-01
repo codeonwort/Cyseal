@@ -3,7 +3,7 @@
 
 #include "indirect_arguments.hlsl"
 
-// #wip: Specific to base pass
+// #todo-gpuscene: Specific to base pass
 struct StaticMeshDrawCommand
 {
 	uint                         sceneItemIndex; // index in gpu scene buffer

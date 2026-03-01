@@ -9,7 +9,7 @@
 
 struct PassUniform
 {
-	// #wip: Make sure all static meshes share the same vertex/index buffers.
+	// Assumes all static meshes were allocated from global vertex/index buffer pools.
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBufferPoolAddress;
 	D3D12_GPU_VIRTUAL_ADDRESS indexBufferPoolAddress;
 	uint                      rawDeviceFormatR16UInt;

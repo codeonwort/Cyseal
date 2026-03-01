@@ -9,6 +9,7 @@
 
 #define kMaxIndirectDrawCommandCount 256
 
+// #wip: Parameterize
 #define GPU_GEN_DRAWCALL 1
 
 // -----------------------------------------

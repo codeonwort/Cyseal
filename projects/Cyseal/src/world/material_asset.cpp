@@ -24,7 +24,10 @@ void MaterialAsset::setDoubleSided(bool value)
 		: GraphicsPipelineKeyDesc::kDefaultPipelineKeyDesc;
 	updatePipelineKey(desc);
 
-	// #wip: Need to update material data buffer if it's changed after first upload.
+	// #todo-gpuscene: Need to update material data buffer if it's changed after first upload.
+	// Not fixed yet because material buffer management could be refactored.
+	// Currently gpu scene item and material data item has 1:1 mapping,
+	// but material buffer could be deduplicated in future.
 	bDoubleSided = value;
 }
 
