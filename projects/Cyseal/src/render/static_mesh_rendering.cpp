@@ -269,7 +269,7 @@ void StaticMeshRendering::renderForPipeline(
 
 	auto scene              = input.scene;
 	auto camera             = input.camera;
-	auto bIndirectDraw      = input.bIndirectDraw;
+	auto indirectDrawMode   = input.indirectDrawMode;
 	auto bGpuCulling        = input.bGpuCulling;
 	auto gpuScene           = input.gpuScene;
 	auto gpuCulling         = input.gpuCulling;
@@ -307,7 +307,7 @@ void StaticMeshRendering::renderForPipeline(
 	ShaderResourceView* drawCounterBufferSRV = nullptr;
 	
 	// Fill the indirect draw buffer and perform GPU culling.
-	if (bIndirectDraw)
+	if (indirectDrawMode != EIndirectDrawMode::Disabled)
 	{
 #if GPU_GEN_DRAWCALL
 		argumentBuffer = gpuScene->getDrawcallBuffer();
@@ -378,7 +378,7 @@ void StaticMeshRendering::renderForPipeline(
 	commandList->setGraphicsPipelineState(pipelineState);
 	commandList->iaSetPrimitiveTopology(kPrimitiveTopology);
 	
-	if (bIndirectDraw)
+	if (indirectDrawMode != EIndirectDrawMode::Disabled)
 	{
 		auto commandSig = indirectDrawHelper->commandSignature.get();
 		if (bGpuCulling)

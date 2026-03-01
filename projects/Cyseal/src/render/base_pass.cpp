@@ -73,13 +73,13 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 	}
 
 	StaticMeshRenderingInput meshDrawInput{
-		.scene          = passInput.scene,
-		.camera         = passInput.camera,
-		.bIndirectDraw  = passInput.bIndirectDraw,
-		.bGpuCulling    = passInput.bGPUCulling,
-		.gpuScene       = passInput.gpuScene,
-		.gpuCulling     = passInput.gpuCulling,
-		.psoPermutation = &pipelinePermutation,
+		.scene            = passInput.scene,
+		.camera           = passInput.camera,
+		.indirectDrawMode = passInput.indirectDrawMode,
+		.bGpuCulling      = passInput.bGPUCulling,
+		.gpuScene         = passInput.gpuScene,
+		.gpuCulling       = passInput.gpuCulling,
+		.psoPermutation   = &pipelinePermutation,
 	};
 	StaticMeshRendering::renderStaticMeshes(commandList, swapchainIndex, meshDrawInput);
 }

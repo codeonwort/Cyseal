@@ -357,7 +357,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		DepthPrepassInput passInput{
 			.scene              = scene,
 			.camera             = camera,
-			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
+			.indirectDrawMode   = renderOptions.indirectDrawMode,
 			.bGPUCulling        = renderOptions.bEnableGPUCulling,
 			.bVisibilityBuffer  = bRenderVisibilityBuffer,
 			.sceneUniformBuffer = sceneUniformCBV,
@@ -481,7 +481,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		BasePassInput passInput{
 			.scene              = scene,
 			.camera             = camera,
-			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
+			.indirectDrawMode   = renderOptions.indirectDrawMode,
 			.bGPUCulling        = renderOptions.bEnableGPUCulling,
 			.sceneUniformBuffer = sceneUniformCBV,
 			.gpuScene           = gpuScene,

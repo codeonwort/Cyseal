@@ -79,13 +79,13 @@ void DepthPrepass::renderDepthPrepass(RenderCommandList* commandList, uint32 swa
 	}
 
 	StaticMeshRenderingInput meshDrawInput{
-		.scene          = passInput.scene,
-		.camera         = passInput.camera,
-		.bIndirectDraw  = passInput.bIndirectDraw,
-		.bGpuCulling    = passInput.bGPUCulling,
-		.gpuScene       = passInput.gpuScene,
-		.gpuCulling     = passInput.gpuCulling,
-		.psoPermutation = passInput.bVisibilityBuffer ? &visPipelinePermutation : &pipelinePermutation,
+		.scene            = passInput.scene,
+		.camera           = passInput.camera,
+		.indirectDrawMode = passInput.indirectDrawMode,
+		.bGpuCulling      = passInput.bGPUCulling,
+		.gpuScene         = passInput.gpuScene,
+		.gpuCulling       = passInput.gpuCulling,
+		.psoPermutation   = passInput.bVisibilityBuffer ? &visPipelinePermutation : &pipelinePermutation,
 	};
 	StaticMeshRendering::renderStaticMeshes(commandList, swapchainIndex, meshDrawInput);
 }

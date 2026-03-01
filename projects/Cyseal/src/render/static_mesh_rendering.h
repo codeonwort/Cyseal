@@ -1,5 +1,6 @@
 #pragma once
 
+#include "renderer_options.h"
 #include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource.h"
@@ -82,7 +83,7 @@ struct StaticMeshRenderingInput
 {
 	const SceneProxy*                       scene;
 	const Camera*                           camera;
-	bool                                    bIndirectDraw;
+	EIndirectDrawMode                       indirectDrawMode;
 	bool                                    bGpuCulling;
 
 	GPUScene*                               gpuScene;

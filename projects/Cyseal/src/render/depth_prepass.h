@@ -2,6 +2,7 @@
 
 #include "scene_render_pass.h"
 #include "static_mesh_rendering.h"
+#include "renderer_options.h"
 #include "rhi/rhi_forward.h"
 #include "core/smart_pointer.h"
 #include "util/volatile_descriptor.h"
@@ -15,7 +16,7 @@ struct DepthPrepassInput
 {
 	const SceneProxy*      scene;
 	const Camera*          camera;
-	bool                   bIndirectDraw;
+	EIndirectDrawMode      indirectDrawMode;
 	bool                   bGPUCulling;
 	bool                   bVisibilityBuffer;
 

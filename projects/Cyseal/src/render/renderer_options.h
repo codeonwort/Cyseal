@@ -32,6 +32,15 @@ enum class EBufferVisualizationMode : uint32
 	Count,
 };
 
+enum class EIndirectDrawMode : uint32
+{
+	Disabled      = 0,
+	PopulateOnCPU = 1, // Populate indirect draw arguments buffer on CPU and write to GPU.
+	PopulateOnGPU = 2, // Populate indirect draw arguments buffer on GPU.
+
+	Count,
+};
+
 enum class ERayTracedShadowsMode : uint32
 {
 	Disabled         = 0,
@@ -109,6 +118,18 @@ inline const char** getBufferVisualizationModeNames()
 	return strings;
 }
 
+inline const char** getIndirectDrawModeNames()
+{
+	static const char* strings[] =
+	{
+		"Disabled",
+		"PopulateOnCPU",
+		"PopulateOnGPU",
+	};
+	static_assert(_countof(strings) == (int)EIndirectDrawMode::Count);
+	return strings;
+}
+
 inline const char** getRayTracedShadowsModeNames()
 {
 	static const char* strings[] =
@@ -170,8 +191,9 @@ inline const char** getPathTracingKernelNames()
 
 struct RendererOptions
 {
-	bool bEnableIndirectDraw = true;
+	EIndirectDrawMode indirectDrawMode = EIndirectDrawMode::PopulateOnGPU;
 	bool bEnableGPUCulling = true;
+
 	bool bEnableDepthPrepass = true;
 	bool bEnableVisibilityBuffer = true;
 

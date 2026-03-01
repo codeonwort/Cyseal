@@ -195,17 +195,27 @@ void TestApplication::onTick(float deltaSeconds)
 
 			ImGui::Begin("Cyseal");
 
-			ImGui::SeparatorText("Rendering options");
-			ImGui::Checkbox("Base Pass - Indirect Draw", &appState.rendererOptions.bEnableIndirectDraw);
-			if (!appState.rendererOptions.bEnableIndirectDraw)
+			ImGui::SeparatorText("Indirect Draw");
+			if (ImGui::BeginTable("##Indirect Draw", 2))
+			{
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn(); ImGui::Text("Indirect Draw Mode");
+				ImGui::TableNextColumn(); ImGui::Combo("##Indirect Draw Mode", &appState.selectedIndirectDrawMode, getIndirectDrawModeNames(), (int32)EIndirectDrawMode::Count);
+				ImGui::EndTable();
+			}
+			appState.rendererOptions.indirectDrawMode = (EIndirectDrawMode)appState.selectedIndirectDrawMode;
+
+			if (appState.rendererOptions.indirectDrawMode == EIndirectDrawMode::Disabled)
 			{
 				ImGui::BeginDisabled();
 			}
-			ImGui::Checkbox("Base Pass - GPU Culling", &appState.rendererOptions.bEnableGPUCulling);
-			if (!appState.rendererOptions.bEnableIndirectDraw)
+			ImGui::Checkbox("GPU Culling", &appState.rendererOptions.bEnableGPUCulling);
+			if (appState.rendererOptions.indirectDrawMode == EIndirectDrawMode::Disabled)
 			{
 				ImGui::EndDisabled();
 			}
+
+			ImGui::SeparatorText("Depth and Visibility");
 
 			ImGui::Checkbox("Depth Prepass", &appState.rendererOptions.bEnableDepthPrepass);
 			if (!appState.rendererOptions.bEnableDepthPrepass)
