@@ -45,7 +45,6 @@ public:
 	ShaderResourceView* getDrawcallBufferSRV() const;
 
 	Buffer* getDrawcallCounterBuffer() const;
-	ShaderResourceView* getDrawcallCounterBufferSRV() const;
 
 	uint32 getDrawIDOffset(uint32 pipelineFreeNumber) const;
 	uint32 getDrawcallArgumentsStride() const;
@@ -124,7 +123,6 @@ private:
 	UniquePtr<Buffer>                     drawcallOffsetBuffer;
 	UniquePtr<ShaderResourceView>         drawcallBufferSRV;
 	UniquePtr<UnorderedAccessView>        drawcallBufferUAV;
-	UniquePtr<ShaderResourceView>         drawcallCounterBufferSRV;
 	UniquePtr<UnorderedAccessView>        drawcallCounterBufferUAV;
 	UniquePtr<ShaderResourceView>         drawcallOffsetBufferSRV;
 

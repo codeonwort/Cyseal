@@ -298,7 +298,6 @@ void StaticMeshRendering::renderForPipeline(
 	Buffer* argumentBuffer = nullptr;
 	Buffer* drawCounterBuffer = nullptr;
 	ShaderResourceView* argumentBufferSRV = nullptr;
-	ShaderResourceView* drawCounterBufferSRV = nullptr;
 	
 	// Fill the indirect draw buffer and perform GPU culling.
 	if (indirectDrawMode != EIndirectDrawMode::Disabled)
@@ -308,7 +307,6 @@ void StaticMeshRendering::renderForPipeline(
 			argumentBuffer = gpuScene->getDrawcallBuffer();
 			drawCounterBuffer = gpuScene->getDrawcallCounterBuffer();
 			argumentBufferSRV = gpuScene->getDrawcallBufferSRV();
-			drawCounterBufferSRV = gpuScene->getDrawcallCounterBufferSRV();
 		}
 		else if (indirectDrawMode == EIndirectDrawMode::PopulateOnCPU)
 		{
@@ -338,7 +336,6 @@ void StaticMeshRendering::renderForPipeline(
 			argumentBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
 			drawCounterBuffer = nullptr;
 			argumentBufferSRV = indirectDrawHelper->argumentBufferSRV.at(swapchainIndex);
-			drawCounterBufferSRV = nullptr;
 
 			argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, argumentBuffer, 0);
 		}
@@ -355,11 +352,9 @@ void StaticMeshRendering::renderForPipeline(
 				.maxDrawCommands             = maxIndirectDraws,
 				.drawIDOffset                = drawIDOffset,
 				.indirectDrawBuffer          = argumentBuffer,
-				.drawCounterBuffer           = drawCounterBuffer,
 				.culledIndirectDrawBuffer    = indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex),
 				.culledDrawCounterBuffer     = indirectDrawHelper->culledDrawCounterBuffer.at(swapchainIndex),
 				.indirectDrawBufferSRV       = argumentBufferSRV,
-				.drawCounterBufferSRV        = drawCounterBufferSRV,
 				.culledIndirectDrawBufferUAV = indirectDrawHelper->culledArgumentBufferUAV.at(swapchainIndex),
 				.culledDrawCounterBufferUAV  = indirectDrawHelper->culledDrawCounterBufferUAV.at(swapchainIndex),
 			};

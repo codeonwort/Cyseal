@@ -18,11 +18,9 @@ struct GPUCullingInput
 	uint32                  maxDrawCommands;
 	uint32                  drawIDOffset;
 	Buffer*                 indirectDrawBuffer;
-	Buffer*                 drawCounterBuffer; // null if indirectDrawBuffer was not gpu-generated.
 	Buffer*                 culledIndirectDrawBuffer;
 	Buffer*                 culledDrawCounterBuffer;
 	ShaderResourceView*     indirectDrawBufferSRV;
-	ShaderResourceView*     drawCounterBufferSRV; // null if indirectDrawBuffer was not gpu-generated.
 	UnorderedAccessView*    culledIndirectDrawBufferUAV;
 	UnorderedAccessView*    culledDrawCounterBufferUAV;
 };
