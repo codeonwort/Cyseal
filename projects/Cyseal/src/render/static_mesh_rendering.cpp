@@ -224,9 +224,10 @@ void StaticMeshRendering::renderStaticMeshes(
 
 	if (input.indirectDrawMode != EIndirectDrawMode::PopulateOnGPU)
 	{
-		for (size_t i = 0; i < kNumKeys; ++i)
+		for (size_t pipelineFN = 0; pipelineFN < kNumKeys; ++pipelineFN)
 		{
-			drawsForPipelines[i].reserve(input.scene->totalMeshSectionsLOD0);
+			const uint32 maxDraws = input.scene->sceneItemsPerPipeline[pipelineFN];
+			drawsForPipelines[pipelineFN].reserve(maxDraws);
 		}
 		{
 			uint32 objectID = 0;
@@ -234,9 +235,9 @@ void StaticMeshRendering::renderStaticMeshes(
 			{
 				for (const StaticMeshSection& section : mesh->getSections())
 				{
-					uint32 pipelineLinearID = section.material->getPipelineFreeNumber();
-					drawsForPipelines[pipelineLinearID].meshes.push_back(&section);
-					drawsForPipelines[pipelineLinearID].objectIDs.push_back(objectID);
+					uint32 pipelineFN = section.material->getPipelineFreeNumber();
+					drawsForPipelines[pipelineFN].meshes.push_back(&section);
+					drawsForPipelines[pipelineFN].objectIDs.push_back(objectID);
 					++objectID;
 				}
 			}
@@ -283,7 +284,7 @@ void StaticMeshRendering::renderForPipeline(
 	}
 	else
 	{
-		maxIndirectDraws = input.scene->sceneItemsPerPipeline.find(pipelineKey)->second;
+		maxIndirectDraws = input.scene->sceneItemsPerPipeline[pipelineFreeNumber];
 		drawIDOffset = gpuScene->getDrawIDOffset(pipelineFreeNumber);
 	}
 

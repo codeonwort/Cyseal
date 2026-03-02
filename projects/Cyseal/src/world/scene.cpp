@@ -34,7 +34,7 @@ SceneProxy* Scene::createProxy()
 	SceneProxy* proxy = new(EMemoryTag::World) SceneProxy;
 
 	size_t totalActiveMeshSections = 0;
-	std::map<GraphicsPipelineKey, uint32> sceneItemsPerPipeline;
+	std::vector<uint32> sceneItemsPerPipeline(GraphicsPipelineKeyDesc::numPipelineKeyDescs(), 0);
 	for (StaticMesh* sm : staticMeshes)
 	{
 		const std::vector<StaticMeshSection>& sections = sm->getSections(sm->getActiveLOD());
@@ -42,7 +42,8 @@ SceneProxy* Scene::createProxy()
 		for (const StaticMeshSection section : sections)
 		{
 			uint32 pipelineKey = section.material->getPipelineKey();
-			sceneItemsPerPipeline[pipelineKey] += 1;
+			uint32 pipelineFN = section.material->getPipelineFreeNumber();
+			sceneItemsPerPipeline[pipelineFN] += 1;
 		}
 	}
 

@@ -26,7 +26,7 @@ public:
 	bool   bRebuildRaytracingScene = false;
 
 	uint32 totalMeshSectionsLOD0   = 0; // All LOD0 mesh sections of all static meshes in the scene.
-	std::map<GraphicsPipelineKey, uint32> sceneItemsPerPipeline;
+	std::vector<uint32> sceneItemsPerPipeline; // index = pipeline free number
 
 	uint32 gpuSceneItemMinValidIndex = 0xffffffff;
 	uint32 gpuSceneItemMaxValidIndex = 0xffffffff;

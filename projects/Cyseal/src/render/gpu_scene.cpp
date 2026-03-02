@@ -216,15 +216,10 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 	// Calculate drawID offsets.
 	drawIDOffsets.resize(numPermutations, 0);
 	uint32 currentDrawOffset = 0;
-	for (size_t i = 0; i < numPermutations; ++i)
+	for (size_t pipelineFN = 0; pipelineFN < numPermutations; ++pipelineFN)
 	{
-		const GraphicsPipelineKeyDesc& desc = GraphicsPipelineKeyDesc::kPipelineKeyDescs[i];
-		const GraphicsPipelineKey key = GraphicsPipelineKeyDesc::assemblePipelineKey(desc);
-
-		drawIDOffsets[i] = currentDrawOffset;
-
-		const uint32 currentDrawcalls = passInput.scene->sceneItemsPerPipeline.find(key)->second;
-		currentDrawOffset += currentDrawcalls;
+		drawIDOffsets[pipelineFN] = currentDrawOffset;
+		currentDrawOffset += passInput.scene->sceneItemsPerPipeline[pipelineFN];
 	}
 	drawcallOffsetBuffer->singleWriteToGPU(commandList, drawIDOffsets.data(), (uint32)(sizeof(uint32) * drawIDOffsets.size()), 0);
 
