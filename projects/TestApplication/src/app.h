@@ -8,14 +8,15 @@
 struct AppState
 {
 	RendererOptions rendererOptions;
+	int32 selectedIndirectDrawMode        = (int32)EIndirectDrawMode::PopulateOnGPU;
 	int32 selectedBufferVisualizationMode = 0;
-	int32 selectedRayTracedShadowsMode = 0;
-	int32 selectedIndirectDiffuseMode = 0;
-	int32 selectedIndirectSpecularMode = 0;
-	int32 selectedPathTracingMode = 0;
-	int32 selectedPathTracingKernel = 0;
-	uint32 pathTracingNumFrames = 0;
-	int32 pathTracingMaxFrames = 64;
+	int32 selectedRayTracedShadowsMode    = 0;
+	int32 selectedIndirectDiffuseMode     = 0;
+	int32 selectedIndirectSpecularMode    = 0;
+	int32 selectedPathTracingMode         = 0;
+	int32 selectedPathTracingKernel       = 0;
+	uint32 pathTracingNumFrames           = 0;
+	int32 pathTracingMaxFrames            = 64;
 };
 
 class TestApplication : public WindowsApplication

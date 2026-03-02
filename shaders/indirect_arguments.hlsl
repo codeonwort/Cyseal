@@ -1,3 +1,6 @@
+#ifndef _INDIRECT_ARGUMENTS_H
+#define _INDIRECT_ARGUMENTS_H
+
 #include "common.hlsl"
 
 // Indirect draw definitions
@@ -83,3 +86,5 @@ struct D3D12_DISPATCH_RAYS_DESC
     UINT Height;
     UINT Depth;
 };
+
+#endif

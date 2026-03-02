@@ -34,10 +34,19 @@ SceneProxy* Scene::createProxy()
 	SceneProxy* proxy = new(EMemoryTag::World) SceneProxy;
 
 	size_t totalActiveMeshSections = 0;
+	std::vector<uint32> sceneItemsPerPipeline(GraphicsPipelineKeyDesc::numPipelineKeyDescs(), 0);
 	for (StaticMesh* sm : staticMeshes)
 	{
-		totalActiveMeshSections += sm->getSections(sm->getActiveLOD()).size();
+		const std::vector<StaticMeshSection>& sections = sm->getSections(sm->getActiveLOD());
+		totalActiveMeshSections += sections.size();
+		for (const StaticMeshSection section : sections)
+		{
+			uint32 pipelineKey = section.material->getPipelineKey();
+			uint32 pipelineFN = section.material->getPipelineFreeNumber();
+			sceneItemsPerPipeline[pipelineFN] += 1;
+		}
 	}
+
 	const uint32 stackAllocatorSize = (uint32)(totalActiveMeshSections * sizeof(StaticMeshProxy));
 	proxy->staticMeshProxyAllocator = new(EMemoryTag::Renderer) StackAllocator(stackAllocatorSize);
 
@@ -59,6 +68,7 @@ SceneProxy* Scene::createProxy()
 	proxy->bRebuildGPUScene          = bRebuildGPUScene;
 	proxy->bRebuildRaytracingScene   = bRebuildRaytracingScene;
 	proxy->totalMeshSectionsLOD0     = totalMeshSectionsLOD0;
+	proxy->sceneItemsPerPipeline     = std::move(sceneItemsPerPipeline);
 	proxy->gpuSceneItemMinValidIndex = gpuSceneItemIndexAllocator.getMinValidIndex();
 	proxy->gpuSceneItemMaxValidIndex = gpuSceneItemIndexAllocator.getMaxValidIndex();
 

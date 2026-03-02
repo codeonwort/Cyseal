@@ -5,6 +5,7 @@
 #include "rhi/render_device.h"
 #include "rhi/swap_chain.h"
 #include "world/scene_proxy.h"
+#include "material/material_database.h"
 
 #define kMaxIndirectDrawCommandCount 256
 
@@ -49,8 +50,8 @@ void IndirectDrawHelper::initialize(
 	argumentBufferSRV.initialize(swapchainCount);
 	culledArgumentBuffer.initialize(swapchainCount);
 	culledArgumentBufferUAV.initialize(swapchainCount);
-	drawCounterBuffer.initialize(swapchainCount);
-	drawCounterBufferUAV.initialize(swapchainCount);
+	culledDrawCounterBuffer.initialize(swapchainCount);
+	culledDrawCounterBufferUAV.initialize(swapchainCount);
 
 	// Hmm... C++20 designated initializers looks ugly in this case :(
 	CommandSignatureDesc commandSignatureDesc{
@@ -93,7 +94,7 @@ void IndirectDrawHelper::initialize(
 	// Create resources of fixed sizes. Other resources might be reallocated in resizeResources().
 	for (uint32 i = 0; i < swapchainCount; ++i)
 	{
-		drawCounterBuffer[i] = UniquePtr<Buffer>(device->createBuffer(
+		culledDrawCounterBuffer[i] = UniquePtr<Buffer>(device->createBuffer(
 			BufferCreateParams{
 				.sizeInBytes = sizeof(uint32),
 				.alignment   = 0,
@@ -103,7 +104,7 @@ void IndirectDrawHelper::initialize(
 
 		wchar_t bufferDebugName[256];
 		swprintf_s(bufferDebugName, L"Buffer_IndirectDrawCounterBuffer_%s_%u_%u", debugName.c_str(), pipelineKey, i);
-		drawCounterBuffer[i]->setDebugName(bufferDebugName);
+		culledDrawCounterBuffer[i]->setDebugName(bufferDebugName);
 
 		UnorderedAccessViewDesc uavDesc{};
 		uavDesc.format                      = EPixelFormat::UNKNOWN;
@@ -114,8 +115,8 @@ void IndirectDrawHelper::initialize(
 		uavDesc.buffer.counterOffsetInBytes = 0;
 		uavDesc.buffer.flags                = EBufferUAVFlags::None;
 
-		drawCounterBufferUAV[i] = UniquePtr<UnorderedAccessView>(
-			device->createUAV(drawCounterBuffer[i].get(), uavDesc));
+		culledDrawCounterBufferUAV[i] = UniquePtr<UnorderedAccessView>(
+			device->createUAV(culledDrawCounterBuffer[i].get(), uavDesc));
 	}
 }
 
@@ -191,7 +192,7 @@ GraphicsPipelineStatePermutation::~GraphicsPipelineStatePermutation()
 	for (auto& it : pipelines)
 	{
 		GraphicsPipelineItem item = it.second;
-		delete item.pipelineState;
+		//delete item.pipelineState; // MaterialShaderDatabase owns it
 		delete item.indirectDrawHelper;
 	}
 }
@@ -212,16 +213,6 @@ void GraphicsPipelineStatePermutation::insertPipeline(GraphicsPipelineKey key, G
 // -----------------------------------------
 // StaticMeshRendering
 
-VertexInputLayout StaticMeshRendering::createVertexInputLayout()
-{
-	// #todo-basepass: Should be variant per vertex factory
-	return VertexInputLayout {
-		{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0},
-		{"NORMAL", 0, EPixelFormat::R32G32B32_FLOAT, 1, 0, EVertexInputClassification::PerVertex, 0},
-		{"TEXCOORD", 0, EPixelFormat::R32G32_FLOAT, 1, sizeof(float) * 3, EVertexInputClassification::PerVertex, 0}
-	};
-}
-
 void StaticMeshRendering::renderStaticMeshes(
 	RenderCommandList* commandList,
 	uint32 swapchainIndex,
@@ -230,28 +221,25 @@ void StaticMeshRendering::renderStaticMeshes(
 	// #todo-renderer: Need smarter way to generate drawlists per pipeline if permutation blows up.
 	size_t kNumKeys = GraphicsPipelineKeyDesc::numPipelineKeyDescs();
 	std::vector<StaticMeshDrawList> drawsForPipelines(kNumKeys);
-	for (size_t i = 0; i < kNumKeys; ++i)
+
+	if (input.indirectDrawMode != EIndirectDrawMode::PopulateOnGPU)
 	{
-		drawsForPipelines[i].reserve(input.scene->totalMeshSectionsLOD0);
-	}
-	{
-		uint32 objectID = 0;
-		for (const StaticMeshProxy* mesh : input.scene->staticMeshes)
+		for (size_t pipelineFN = 0; pipelineFN < kNumKeys; ++pipelineFN)
 		{
-			for (const StaticMeshSection& section : mesh->getSections())
+			const uint32 maxDraws = input.scene->sceneItemsPerPipeline[pipelineFN];
+			drawsForPipelines[pipelineFN].reserve(maxDraws);
+		}
+		{
+			uint32 objectID = 0;
+			for (const StaticMeshProxy* mesh : input.scene->staticMeshes)
 			{
-				bool bDoubleSided = section.material->bDoubleSided;
-				if (bDoubleSided)
+				for (const StaticMeshSection& section : mesh->getSections())
 				{
-					drawsForPipelines[1].meshes.push_back(&section);
-					drawsForPipelines[1].objectIDs.push_back(objectID);
+					uint32 pipelineFN = section.material->getPipelineFreeNumber();
+					drawsForPipelines[pipelineFN].meshes.push_back(&section);
+					drawsForPipelines[pipelineFN].objectIDs.push_back(objectID);
+					++objectID;
 				}
-				else
-				{
-					drawsForPipelines[0].meshes.push_back(&section);
-					drawsForPipelines[0].objectIDs.push_back(objectID);
-				}
-				++objectID;
 			}
 		}
 	}
@@ -271,9 +259,11 @@ void StaticMeshRendering::renderForPipeline(
 	GraphicsPipelineKey pipelineKey,
 	const StaticMeshDrawList& drawList)
 {
+	SCOPED_DRAW_EVENT(commandList, DrawStaticMeshes);
+
 	auto scene              = input.scene;
 	auto camera             = input.camera;
-	auto bIndirectDraw      = input.bIndirectDraw;
+	auto indirectDrawMode   = input.indirectDrawMode;
 	auto bGpuCulling        = input.bGpuCulling;
 	auto gpuScene           = input.gpuScene;
 	auto gpuCulling         = input.gpuCulling;
@@ -284,44 +274,76 @@ void StaticMeshRendering::renderForPipeline(
 	GraphicsPipelineState* pipelineState = pipelineItem.pipelineState;
 	IndirectDrawHelper* indirectDrawHelper = pipelineItem.indirectDrawHelper;
 
+	const uint32 pipelineFreeNumber = MaterialShaderDatabase::get().getFreeNumberForPipelineKey(pipelineKey);
+
+	uint32 maxIndirectDraws, drawIDOffset;
+	if (indirectDrawMode == EIndirectDrawMode::PopulateOnCPU)
+	{
+		maxIndirectDraws = (uint32)drawList.meshes.size();
+		drawIDOffset = 0;
+	}
+	else
+	{
+		maxIndirectDraws = input.scene->sceneItemsPerPipeline[pipelineFreeNumber];
+		drawIDOffset = gpuScene->getDrawIDOffset(pipelineFreeNumber);
+	}
+
 	indirectDrawHelper->resizeResources(swapchainIndex, gpuScene->getGPUSceneItemMaxCount());
 	auto argumentBufferGenerator = indirectDrawHelper->argumentBufferGenerator.get();
 
-	uint32 maxIndirectDraws = (uint32)drawList.meshes.size();
 	if (maxIndirectDraws == 0)
 	{
 		return;
 	}
 
+	Buffer* argumentBuffer = nullptr;
+	Buffer* drawCounterBuffer = nullptr;
+	ShaderResourceView* argumentBufferSRV = nullptr;
+	
 	// Fill the indirect draw buffer and perform GPU culling.
-	if (bIndirectDraw)
+	if (indirectDrawMode != EIndirectDrawMode::Disabled)
 	{
-		// #todo-indirect-draw: Generate on GPU, not on CPU.
-		uint32 indirectCommandID = 0;
-		for (size_t i = 0; i < drawList.meshes.size(); ++i)
+		if (indirectDrawMode == EIndirectDrawMode::PopulateOnGPU)
 		{
-			const StaticMeshSection* section = drawList.meshes[i];
-			const uint32 objectID = drawList.objectIDs[i];
-
-			VertexBuffer* positionBuffer = section->positionBuffer->getGPUResource().get();
-			VertexBuffer* nonPositionBuffer = section->nonPositionBuffer->getGPUResource().get();
-			IndexBuffer* indexBuffer = section->indexBuffer->getGPUResource().get();
-
-			argumentBufferGenerator->beginCommand(indirectCommandID);
-
-			argumentBufferGenerator->writeConstant32(objectID);
-			argumentBufferGenerator->writeVertexBufferView(positionBuffer);
-			argumentBufferGenerator->writeVertexBufferView(nonPositionBuffer);
-			argumentBufferGenerator->writeIndexBufferView(indexBuffer);
-			argumentBufferGenerator->writeDrawIndexedArguments(indexBuffer->getIndexCount(), 1, 0, 0, 0);
-
-			argumentBufferGenerator->endCommand();
-
-			++indirectCommandID;
+			argumentBuffer = gpuScene->getDrawcallBuffer();
+			drawCounterBuffer = gpuScene->getDrawcallCounterBuffer();
+			argumentBufferSRV = gpuScene->getDrawcallBufferSRV();
 		}
+		else if (indirectDrawMode == EIndirectDrawMode::PopulateOnCPU)
+		{
+			uint32 indirectCommandID = 0;
+			for (size_t i = 0; i < drawList.meshes.size(); ++i)
+			{
+				const StaticMeshSection* section = drawList.meshes[i];
+				const uint32 objectID = drawList.objectIDs[i];
 
-		Buffer* currentArgumentBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
-		argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, currentArgumentBuffer, 0);
+				VertexBuffer* positionBuffer = section->positionBuffer->getGPUResource().get();
+				VertexBuffer* nonPositionBuffer = section->nonPositionBuffer->getGPUResource().get();
+				IndexBuffer* indexBuffer = section->indexBuffer->getGPUResource().get();
+
+				argumentBufferGenerator->beginCommand(indirectCommandID);
+
+				argumentBufferGenerator->writeConstant32(objectID);
+				argumentBufferGenerator->writeVertexBufferView(positionBuffer);
+				argumentBufferGenerator->writeVertexBufferView(nonPositionBuffer);
+				argumentBufferGenerator->writeIndexBufferView(indexBuffer);
+				argumentBufferGenerator->writeDrawIndexedArguments(indexBuffer->getIndexCount(), 1, 0, 0, 0);
+
+				argumentBufferGenerator->endCommand();
+
+				++indirectCommandID;
+			}
+
+			argumentBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
+			drawCounterBuffer = nullptr;
+			argumentBufferSRV = indirectDrawHelper->argumentBufferSRV.at(swapchainIndex);
+
+			argumentBufferGenerator->copyToBuffer(commandList, maxIndirectDraws, argumentBuffer, 0);
+		}
+		else
+		{
+			CHECK_NO_ENTRY();
+		}
 
 		if (bGpuCulling)
 		{
@@ -329,32 +351,55 @@ void StaticMeshRendering::renderForPipeline(
 				.camera                      = camera,
 				.gpuScene                    = gpuScene,
 				.maxDrawCommands             = maxIndirectDraws,
-				.indirectDrawBuffer          = currentArgumentBuffer,
+				.drawIDOffset                = drawIDOffset,
+				.indirectDrawBuffer          = argumentBuffer,
 				.culledIndirectDrawBuffer    = indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex),
-				.drawCounterBuffer           = indirectDrawHelper->drawCounterBuffer.at(swapchainIndex),
-				.indirectDrawBufferSRV       = indirectDrawHelper->argumentBufferSRV.at(swapchainIndex),
+				.culledDrawCounterBuffer     = indirectDrawHelper->culledDrawCounterBuffer.at(swapchainIndex),
+				.indirectDrawBufferSRV       = argumentBufferSRV,
 				.culledIndirectDrawBufferUAV = indirectDrawHelper->culledArgumentBufferUAV.at(swapchainIndex),
-				.drawCounterBufferUAV        = indirectDrawHelper->drawCounterBufferUAV.at(swapchainIndex),
+				.culledDrawCounterBufferUAV  = indirectDrawHelper->culledDrawCounterBufferUAV.at(swapchainIndex),
 			};
 			gpuCulling->cullDrawCommands(commandList, swapchainIndex, cullingPassInput);
+		}
+		else
+		{
+			// gpuCulling internally issues barriers, so no-culling path should handle it manually.
+			if (indirectDrawMode == EIndirectDrawMode::PopulateOnGPU)
+			{
+				BufferBarrierAuto barriersAfter[] = {
+					{ EBarrierSync::EXECUTE_INDIRECT, EBarrierAccess::INDIRECT_ARGUMENT, argumentBuffer },
+					{ EBarrierSync::EXECUTE_INDIRECT, EBarrierAccess::INDIRECT_ARGUMENT, drawCounterBuffer },
+				};
+				commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
+			}
 		}
 	}
 
 	commandList->setGraphicsPipelineState(pipelineState);
 	commandList->iaSetPrimitiveTopology(kPrimitiveTopology);
 	
-	if (bIndirectDraw)
+	if (indirectDrawMode != EIndirectDrawMode::Disabled)
 	{
+		auto commandSig = indirectDrawHelper->commandSignature.get();
 		if (bGpuCulling)
 		{
 			Buffer* argBuffer = indirectDrawHelper->culledArgumentBuffer.at(swapchainIndex);
-			Buffer* counterBuffer = indirectDrawHelper->drawCounterBuffer.at(swapchainIndex);
-			commandList->executeIndirect(indirectDrawHelper->commandSignature.get(), maxIndirectDraws, argBuffer, 0, counterBuffer, 0);
+			Buffer* counterBuffer = indirectDrawHelper->culledDrawCounterBuffer.at(swapchainIndex);
+			commandList->executeIndirect(commandSig, maxIndirectDraws, argBuffer, 0, counterBuffer, 0);
 		}
 		else
 		{
-			Buffer* argBuffer = indirectDrawHelper->argumentBuffer.at(swapchainIndex);
-			commandList->executeIndirect(indirectDrawHelper->commandSignature.get(), maxIndirectDraws, argBuffer, 0, nullptr, 0);
+			Buffer* argBuffer = argumentBuffer;
+			if (indirectDrawMode == EIndirectDrawMode::PopulateOnGPU)
+			{
+				commandList->executeIndirect(commandSig, maxIndirectDraws,
+					argBuffer, gpuScene->getDrawcallArgumentsStride() * drawIDOffset,
+					drawCounterBuffer, sizeof(uint32) * pipelineFreeNumber);
+			}
+			else
+			{
+				commandList->executeIndirect(commandSig, maxIndirectDraws, argBuffer, 0, nullptr, 0);
+			}
 		}
 	}
 	else

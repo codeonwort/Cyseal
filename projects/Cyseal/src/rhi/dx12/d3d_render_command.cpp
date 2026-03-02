@@ -549,6 +549,31 @@ void D3DRenderCommandList::bindComputeShaderParameters(
 	if (tracker != nullptr) tracker->lastIndex = descriptorIx;
 }
 
+void D3DRenderCommandList::updateComputeRootConstants(
+	ComputePipelineState* pipelineState,
+	const ShaderParameterTable* inParameters)
+{
+	D3DComputePipelineState* d3dPipelineState = static_cast<D3DComputePipelineState*>(pipelineState);
+
+	for (const auto& inParam : inParameters->_pushConstants)
+	{
+		const D3DShaderParameter* param = d3dPipelineState->findShaderParameter(inParam.name);
+		if (param == nullptr)
+		{
+			reportUndeclaredShaderParameter(inParam.name.c_str());
+			continue;
+		}
+		if (inParam.values.size() == 1)
+		{
+			commandList->SetComputeRoot32BitConstant(param->rootParameterIndex, inParam.values[0], inParam.destOffsetIn32BitValues);
+		}
+		else
+		{
+			commandList->SetComputeRoot32BitConstants(param->rootParameterIndex, (UINT)inParam.values.size(), inParam.values.data(), inParam.destOffsetIn32BitValues);
+		}
+	}
+}
+
 void D3DRenderCommandList::drawIndexedInstanced(
 	uint32 indexCountPerInstance,
 	uint32 instanceCount,

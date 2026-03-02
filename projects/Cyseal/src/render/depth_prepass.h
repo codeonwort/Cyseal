@@ -2,6 +2,7 @@
 
 #include "scene_render_pass.h"
 #include "static_mesh_rendering.h"
+#include "renderer_options.h"
 #include "rhi/rhi_forward.h"
 #include "core/smart_pointer.h"
 #include "util/volatile_descriptor.h"
@@ -15,7 +16,7 @@ struct DepthPrepassInput
 {
 	const SceneProxy*      scene;
 	const Camera*          camera;
-	bool                   bIndirectDraw;
+	EIndirectDrawMode      indirectDrawMode;
 	bool                   bGPUCulling;
 	bool                   bVisibilityBuffer;
 
@@ -28,25 +29,16 @@ struct DepthPrepassInput
 class DepthPrepass final : public SceneRenderPass
 {
 public:
-	~DepthPrepass();
-
 	void initialize(RenderDevice* inRenderDevice, EPixelFormat inVisBufferFormat);
 
 	void renderDepthPrepass(RenderCommandList* commandList, uint32 swapchainIndex, const DepthPrepassInput& passInput);
 
 private:
-	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc, ShaderStage* vs, ShaderStage* ps, bool bUseVisibilityBuffer);
-
-private:
 	RenderDevice*                    device = nullptr;
 
 	GraphicsPipelineStatePermutation pipelinePermutation;
-	ShaderStage*                     shaderVS = nullptr;
-	ShaderStage*                     shaderPS = nullptr;
 
 	GraphicsPipelineStatePermutation visPipelinePermutation;
-	ShaderStage*                     visShaderVS = nullptr;
-	ShaderStage*                     visShaderPS = nullptr;
 	EPixelFormat                     visBufferFormat;
 
 	VolatileDescriptorHelper         passDescriptor;

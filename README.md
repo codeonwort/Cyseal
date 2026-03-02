@@ -39,7 +39,7 @@ Generate rays starting from camera for full path tracing. Run offline denoiser.
 * GPU-driven rendering
   * Bindless textures
   * GPU scene management
-  * GPU culling and indirect draw
+  * Indirect draw (populate drawcalls on GPU -> cull drawcalls via compute shader -> issue indirect draw)
   * Visibility buffer
 * Hardware Raytracing
   * Ray Traced Shadows

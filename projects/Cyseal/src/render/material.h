@@ -56,8 +56,8 @@ struct MaterialConstants
 	float  metalMask          = 0.0f;
 	uint32 materialID         = (uint32)EMaterialId::DefaultLit;
 	float  indexOfRefraction  = 1.0f;
-	uint32 _pad0;
+	uint32 pipelineFreeNumber = 0xffffffff; // MaterialShaderDatabase::getFreeNumberForPipelineKey
 
-	vec3   transmittance       = vec3(0.0f);
-	uint32 _pad1;
+	vec3   transmittance      = vec3(0.0f);
+	uint32 pipelineKey        = 0xffffffff;
 };

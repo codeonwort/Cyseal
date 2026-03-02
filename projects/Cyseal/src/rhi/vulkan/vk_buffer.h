@@ -44,6 +44,10 @@ public:
 	virtual void updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes) override;
 	virtual uint32 getVertexCount() const override { return vertexCount; };
 	virtual uint64 getBufferOffsetInBytes() const override { return offsetInParentBuffer; }
+	virtual uint32 getBufferSizeInBytes() const { return (uint32)bufferSize; }
+	virtual uint32 getBufferStrideInBytes() const { return bufferStride; }
+	// #todo-vk: internal_getGPUVirtualAddress()
+	virtual uint64 internal_getGPUVirtualAddress() const override { CHECK_NO_ENTRY(); return 0; }
 	//~ END VertexBuffer interface
 
 	VkBuffer getVkBuffer() const;
@@ -56,6 +60,7 @@ private:
 
 	uint32 vertexCount = 0;
 	uint64 bufferSize = 0;
+	uint32 bufferStride = 0;
 	uint64 offsetInParentBuffer = 0;
 };
 
@@ -77,6 +82,9 @@ public:
 	virtual uint32 getIndexCount() const override { return indexCount; }
 	virtual EPixelFormat getIndexFormat() const override { return indexFormat; }
 	virtual uint64 getBufferOffsetInBytes() const override { return offsetInParentBuffer; }
+	virtual uint32 getBufferSizeInBytes() const override { return (uint32)vkBufferSize; }
+	// #todo-vk: internal_getGPUVirtualAddress()
+	virtual uint64 internal_getGPUVirtualAddress() const override { CHECK_NO_ENTRY(); return 0; }
 	//~ END IndexBuffer interface
 
 	VkBuffer getVkBuffer() const;

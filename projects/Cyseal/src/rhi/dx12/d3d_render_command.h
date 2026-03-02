@@ -125,6 +125,8 @@ public:
 
 	virtual void bindComputeShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap, DescriptorIndexTracker* tracker) override;
 
+	virtual void updateComputeRootConstants(ComputePipelineState* pipelineState, const ShaderParameterTable* parameters) override;
+
 	virtual void dispatchCompute(uint32 threadGroupX, uint32 threadGroupY, uint32 threadGroupZ) override;
 
 	// ------------------------------------------------------------------------

@@ -32,6 +32,8 @@ public:
 	// Update GPU scene buffer.
 	void renderGPUScene(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput);
 
+	void generateDrawcalls(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput);
+
 	// Might return null if no gpu scene item was allocated yet.
 	ShaderResourceView* getGPUSceneBufferSRV() const;
 
@@ -39,7 +41,19 @@ public:
 
 	inline uint32 getGPUSceneItemMaxCount() const { return gpuSceneMaxElements; }
 
+	Buffer* getDrawcallBuffer() const;
+	ShaderResourceView* getDrawcallBufferSRV() const;
+
+	Buffer* getDrawcallCounterBuffer() const;
+
+	uint32 getDrawIDOffset(uint32 pipelineFreeNumber) const;
+	uint32 getDrawcallArgumentsStride() const;
+
 private:
+	void initializeSceneBufferPipeline();
+	void initializeMaterialBufferPipeline();
+	void initializeDrawcallPipeline();
+
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
 	void resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene);
 	void executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
@@ -48,6 +62,8 @@ private:
 	void resizeBindlessTextures(RenderCommandList* commandList, uint32 maxElements);
 	void resizeMaterialCommandBuffer(uint32 swapchainIndex, const SceneProxy* scene);
 	void executeMaterialCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
+
+	void resizeDrawcallBuffer(RenderCommandList* commandList, const SceneProxy* scene);
 
 private:
 	RenderDevice* device = nullptr;
@@ -95,4 +111,20 @@ private:
 
 	BufferedUniquePtr<Buffer>             materialCommandBuffer;
 	BufferedUniquePtr<ShaderResourceView> materialCommandSRV;
+
+	// ----------------------------------------------
+	// Drawcall generation
+
+	UniquePtr<ComputePipelineState>       drawcallPipelineState;
+	VolatileDescriptorHelper              drawcallPassDescriptor;
+
+	UniquePtr<Buffer>                     drawcallBuffer;
+	UniquePtr<Buffer>                     drawcallCounterBuffer;
+	UniquePtr<Buffer>                     drawcallOffsetBuffer;
+	UniquePtr<ShaderResourceView>         drawcallBufferSRV;
+	UniquePtr<UnorderedAccessView>        drawcallBufferUAV;
+	UniquePtr<UnorderedAccessView>        drawcallCounterBufferUAV;
+	UniquePtr<ShaderResourceView>         drawcallOffsetBufferSRV;
+
+	std::vector<uint32>                   drawIDOffsets;
 };

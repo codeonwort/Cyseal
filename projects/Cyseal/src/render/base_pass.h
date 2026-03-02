@@ -2,6 +2,7 @@
 
 #include "scene_render_pass.h"
 #include "static_mesh_rendering.h"
+#include "renderer_options.h"
 #include "rhi/rhi_forward.h"
 #include "core/smart_pointer.h"
 #include "util/volatile_descriptor.h"
@@ -18,7 +19,7 @@ struct BasePassInput
 {
 	const SceneProxy*      scene;
 	const Camera*          camera;
-	bool                   bIndirectDraw;
+	EIndirectDrawMode      indirectDrawMode;
 	bool                   bGPUCulling;
 
 	ConstantBufferView*    sceneUniformBuffer;
@@ -31,14 +32,9 @@ struct BasePassInput
 class BasePass final : public SceneRenderPass
 {
 public:
-	~BasePass();
-
 	void initialize(RenderDevice* inRenderDevice, EPixelFormat sceneColorFormat, const EPixelFormat gbufferForamts[], uint32 numGBuffers, EPixelFormat velocityMapFormat);
 
 	void renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput);
-
-private:
-	GraphicsPipelineState* createPipeline(const GraphicsPipelineKeyDesc& pipelineKeyDesc);
 
 private:
 	RenderDevice*                    device = nullptr;
@@ -46,7 +42,5 @@ private:
 	EPixelFormat                     sceneColorFormat;
 	std::vector<EPixelFormat>        gbufferFormats;
 	EPixelFormat                     velocityMapFormat;
-	ShaderStage*                     shaderVS = nullptr;
-	ShaderStage*                     shaderPS = nullptr;
 	VolatileDescriptorHelper         passDescriptor;
 };

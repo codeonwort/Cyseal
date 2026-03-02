@@ -14,6 +14,7 @@
 #include "rhi/hardware_raytracing.h"
 #include "rhi/denoiser_device.h"
 
+#include "render/renderer_constants.h"
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
 #include "render/gpu_culling.h"
@@ -37,15 +38,6 @@
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
-
-static const EPixelFormat PF_visibilityBuffer = EPixelFormat::R32_UINT;
-static const EPixelFormat PF_barycentric = EPixelFormat::R16G16_FLOAT;
-static const EPixelFormat PF_sceneColor = EPixelFormat::R32G32B32A32_FLOAT;
-static const EPixelFormat PF_velocityMap = EPixelFormat::R16G16_FLOAT;
-static const EPixelFormat PF_gbuffers[SceneRenderer::NUM_GBUFFERS] = {
-	EPixelFormat::R32G32B32A32_UINT, //EPixelFormat::R16G16B16A16_FLOAT,
-	EPixelFormat::R16G16B16A16_FLOAT,
-};
 
 // https://github.com/microsoft/DirectX-Specs/blob/master/d3d/PlanarDepthStencilDDISpec.md
 // NOTE: Also need to change backbufferDepthFormat in render_device.h
@@ -272,6 +264,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.camera = camera,
 		};
 		gpuScene->renderGPUScene(commandList, swapchainIndex, passInput);
+		gpuScene->generateDrawcalls(commandList, swapchainIndex, passInput);
 	}
 
 	if (renderOptions.bEnableGPUCulling)
@@ -364,7 +357,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		DepthPrepassInput passInput{
 			.scene              = scene,
 			.camera             = camera,
-			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
+			.indirectDrawMode   = renderOptions.indirectDrawMode,
 			.bGPUCulling        = renderOptions.bEnableGPUCulling,
 			.bVisibilityBuffer  = bRenderVisibilityBuffer,
 			.sceneUniformBuffer = sceneUniformCBV,
@@ -488,7 +481,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		BasePassInput passInput{
 			.scene              = scene,
 			.camera             = camera,
-			.bIndirectDraw      = renderOptions.bEnableIndirectDraw,
+			.indirectDrawMode   = renderOptions.indirectDrawMode,
 			.bGPUCulling        = renderOptions.bEnableGPUCulling,
 			.sceneUniformBuffer = sceneUniformCBV,
 			.gpuScene           = gpuScene,
@@ -1475,7 +1468,7 @@ void SceneRenderer::updateSceneUniform(
 	memcpy_s(&prevSceneUniformData, sizeof(SceneUniform), &sceneUniformData, sizeof(SceneUniform));
 
 	BufferBarrierAuto barrier{
-		EBarrierSync::ALL, EBarrierAccess::SHADER_RESOURCE, sceneUniformMemory.get(),
+		EBarrierSync::ALL, EBarrierAccess::CONSTANT_BUFFER, sceneUniformMemory.get(),
 	};
 	commandList->barrierAuto(1, &barrier, 0, nullptr, 0, nullptr);
 }

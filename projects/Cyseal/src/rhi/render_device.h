@@ -215,6 +215,9 @@ public:
 
 	virtual uint32 getConstantBufferDataAlignment() const = 0;
 
+	virtual uint32 getRawFormatR16UInt() const = 0;
+	virtual uint32 getRawFormatR32UInt() const = 0;
+
 protected:
 	RenderDeviceCreateParams createParams;
 
