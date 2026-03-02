@@ -57,6 +57,7 @@ struct DrawcallPassUniform
 	uint64 indexBufferPoolAddress;
 	uint32 rawDeviceFormatR16UInt;
 	uint32 rawDeviceFormatR32UInt;
+	uint32 maxDrawcalls;
 };
 
 void GPUScene::initialize(RenderDevice* renderDevice)
@@ -201,15 +202,6 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 
 	resizeDrawcallBuffer(commandList, passInput.scene);
 
-	DrawcallPassUniform passUniformData{
-		.vertexBufferPoolAddress = gVertexBufferPool->internal_getPoolBuffer()->internal_getGPUVirtualAddress(),
-		.indexBufferPoolAddress  = gIndexBufferPool->internal_getPoolBuffer()->internal_getGPUVirtualAddress(),
-		.rawDeviceFormatR16UInt  = device->getRawFormatR16UInt(),
-		.rawDeviceFormatR32UInt  = device->getRawFormatR32UInt(),
-	};
-	ConstantBufferView* passUniformCBV = drawcallPassDescriptor.getUniformCBV(swapchainIndex);
-	passUniformCBV->writeToGPU(commandList, &passUniformData, sizeof(passUniformData));
-
 	std::vector<uint32> zeroCounters(numPermutations, 0);
 	drawcallCounterBuffer->singleWriteToGPU(commandList, zeroCounters.data(), (uint32)(sizeof(uint32) * zeroCounters.size()), 0);
 
@@ -221,7 +213,19 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 		drawIDOffsets[pipelineFN] = currentDrawOffset;
 		currentDrawOffset += passInput.scene->sceneItemsPerPipeline[pipelineFN];
 	}
+	const uint32 maxDrawcalls = currentDrawOffset;
+
 	drawcallOffsetBuffer->singleWriteToGPU(commandList, drawIDOffsets.data(), (uint32)(sizeof(uint32) * drawIDOffsets.size()), 0);
+
+	DrawcallPassUniform passUniformData{
+		.vertexBufferPoolAddress = gVertexBufferPool->internal_getPoolBuffer()->internal_getGPUVirtualAddress(),
+		.indexBufferPoolAddress  = gIndexBufferPool->internal_getPoolBuffer()->internal_getGPUVirtualAddress(),
+		.rawDeviceFormatR16UInt  = device->getRawFormatR16UInt(),
+		.rawDeviceFormatR32UInt  = device->getRawFormatR32UInt(),
+		.maxDrawcalls            = maxDrawcalls,
+	};
+	ConstantBufferView* passUniformCBV = drawcallPassDescriptor.getUniformCBV(swapchainIndex);
+	passUniformCBV->writeToGPU(commandList, &passUniformData, sizeof(passUniformData));
 
 	BufferBarrierAuto bufferBarriers[] = {
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::CONSTANT_BUFFER, drawcallPassDescriptor.getUnifiedUniformBuffer() },
@@ -244,11 +248,11 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 
 	auto pipelineState = drawcallPipelineState.get();
 	auto descriptorHeap = drawcallPassDescriptor.getDescriptorHeap(swapchainIndex);
-	const uint32 maxDrawcalls = currentDrawOffset;
 
+	const uint32 dispatchX = (maxDrawcalls + 1023) / 1024;
 	commandList->setComputePipelineState(pipelineState);
 	commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap);
-	commandList->dispatchCompute(maxDrawcalls, 1, 1);
+	commandList->dispatchCompute(dispatchX, 1, 1);
 
 	GlobalBarrier globalBarrier{
 		EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,

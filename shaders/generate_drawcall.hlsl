@@ -14,6 +14,7 @@ struct PassUniform
 	D3D12_GPU_VIRTUAL_ADDRESS indexBufferPoolAddress;
 	uint                      rawDeviceFormatR16UInt;
 	uint                      rawDeviceFormatR32UInt;
+	uint                      maxDrawcalls;
 };
 
 ConstantBuffer<PassUniform>      passUniform;
@@ -69,23 +70,22 @@ D3D12_INDEX_BUFFER_VIEW createIndexBufferView(uint bufferOffset, uint sizeAndFor
 	return view;
 }
 
-[numthreads(1, 1, 1)]
-void mainCS(uint3 tid : SV_DispatchThreadID)
+void writeDrawcall(uint sceneItemIx)
 {
-	GPUSceneItem sceneItem = gpuSceneBuffer.Load(tid.x);
+	GPUSceneItem sceneItem = gpuSceneBuffer.Load(sceneItemIx);
 	
 	if ((sceneItem.flags & GPU_SCENE_ITEM_FLAG_BIT_IS_VALID) == 0)
 	{
 		return;
 	}
 	
-	Material material = materialBuffer.Load(tid.x);
+	Material material = materialBuffer.Load(sceneItemIx);
 	
 	uint drawID;
 	InterlockedAdd(drawCounterBuffer[material.pipelineFreeNumber], 1, drawID);
 	
 	IDrawCommand cmd;
-	cmd.sceneItemIndex = tid.x;
+	cmd.sceneItemIndex        = sceneItemIx;
 	cmd.positionBufferView    = createVertexBufferView(sceneItem.positionBufferOffset, sceneItem.positionSizeAndStridePacked);
 	cmd.nonPositionBufferView = createVertexBufferView(sceneItem.nonPositionBufferOffset, sceneItem.nonPositionSizeAndStridePacked);
 	cmd.indexBufferView       = createIndexBufferView(sceneItem.indexBufferOffset, sceneItem.indexSizeAndFormatPacked);
@@ -97,4 +97,13 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 
 	uint drawIDOffset = drawOffsetBuffer.Load(material.pipelineFreeNumber);
 	drawCommandBuffer[drawIDOffset + drawID] = cmd;
+}
+
+[numthreads(1024, 1, 1)]
+void mainCS(uint3 tid : SV_DispatchThreadID)
+{
+	for (uint ix = tid.x; ix < passUniform.maxDrawcalls; ix += 1024)
+	{
+		writeDrawcall(tid.x);
+	}
 }
