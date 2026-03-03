@@ -249,7 +249,7 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 	auto pipelineState = drawcallPipelineState.get();
 	auto descriptorHeap = drawcallPassDescriptor.getDescriptorHeap(swapchainIndex);
 
-	const uint32 dispatchX = (maxDrawcalls + 1023) / 1024;
+	const uint32 dispatchX = std::min(maxDrawcalls, 1024u);
 	commandList->setComputePipelineState(pipelineState);
 	commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap);
 	commandList->dispatchCompute(dispatchX, 1, 1);
