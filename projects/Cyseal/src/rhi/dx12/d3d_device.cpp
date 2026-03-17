@@ -843,9 +843,11 @@ void D3DDevice::copyDescriptors(
 
 RenderCommandList* D3DDevice::getCommandListForCustomCommand() const
 {
-	uint32 swapchainIx = getCreateParams().bDoubleBuffering
-		? getSwapChain()->getNextBackbufferIndex()
-		: getSwapChain()->getCurrentBackbufferIndex();
+	uint32 swapchainIx = getCreateParams().swapChainParams.bHeadless
+		? 0
+		: getCreateParams().bDoubleBuffering
+			? getSwapChain()->getNextBackbufferIndex()
+			: getSwapChain()->getCurrentBackbufferIndex();
 
 	RenderCommandList* commandList = getCommandList(swapchainIx);
 	return commandList;
