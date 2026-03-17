@@ -1487,11 +1487,15 @@ void VulkanDevice::copyDescriptors(
 
 RenderCommandList* VulkanDevice::getCommandListForCustomCommand() const
 {
-	uint32 swapchainIx = getCreateParams().bDoubleBuffering
-		? getSwapChain()->getNextBackbufferIndex()
-		: getSwapChain()->getCurrentBackbufferIndex();
+	const bool bHeadless = getCreateParams().swapChainParams.bHeadless;
 
-	if (getSwapChain()->getCurrentBackbufferIndex() == 0xffffffff)
+	uint32 swapchainIx = bHeadless
+		? 0
+		: getCreateParams().bDoubleBuffering
+			? getSwapChain()->getNextBackbufferIndex()
+			: getSwapChain()->getCurrentBackbufferIndex();
+
+	if (!bHeadless && getSwapChain()->getCurrentBackbufferIndex() == 0xffffffff)
 	{
 		swapchainIx = getCreateParams().bDoubleBuffering
 			? 1
