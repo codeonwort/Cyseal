@@ -312,7 +312,7 @@ bool D3DTexture::prepareReadback(RenderCommandList* commandList)
 		.front  = 0,
 		.right  = createParams.width,
 		.bottom = createParams.height,
-		.back   = 1,
+		.back   = createParams.depth,
 	};
 	d3dCommandList->CopyTextureRegion(&readbackFootprintDesc, 0, 0, 0, &pSrc, &srcRegion);
 
