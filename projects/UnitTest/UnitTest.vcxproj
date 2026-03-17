@@ -145,6 +145,7 @@
     <ClCompile Include="src\TestSTBN.cpp" />
     <ClCompile Include="src\TestSTL.cpp" />
     <ClCompile Include="src\TestVector.cpp" />
+    <ClCompile Include="src\texture\TestTextureUpload.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
