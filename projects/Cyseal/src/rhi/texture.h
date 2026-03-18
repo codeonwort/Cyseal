@@ -63,6 +63,27 @@ struct TextureCreateParams
 		return *this;
 	}
 
+	static TextureCreateParams texture1D(
+		EPixelFormat inFormat,
+		ETextureAccessFlags inAccessFlags,
+		uint32 inWidth,
+		uint16 inMipLevels = 1,
+		uint32 inSampleCount = 1,
+		uint32 inSampleQuality = 0)
+	{
+		return TextureCreateParams{
+            ETextureDimension::TEXTURE2D,
+            inFormat,
+            inAccessFlags,
+            inWidth,
+            1,
+            1,
+            inMipLevels,
+            inSampleCount,
+            inSampleQuality
+        };
+	}
+
     static TextureCreateParams texture2D(
         EPixelFormat inFormat,
         ETextureAccessFlags inAccessFlags,

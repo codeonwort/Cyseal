@@ -16,23 +16,21 @@ namespace UnitTest
 		{
 			RenderDevice* renderDevice = createRenderDevice();
 
+			// width should be at least D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
+			// to gracefully reuse texData. (row pitch alignment issue)
 			TextureCreateParams texParams[] = {
-				// #wip: texture1D()
-				TextureCreateParams{
-					.dimension = ETextureDimension::TEXTURE1D,
-					.format = EPixelFormat::R32_UINT,
-					.accessFlags = ETextureAccessFlags::CPU_WRITE | ETextureAccessFlags::CPU_READBACK,
-					.width = 256, .height = 1, .depth = 1, .mipLevels = 1,
-					.sampleCount = 1, .sampleQuality = 0, .numLayers = 1,
-				},
+				TextureCreateParams::texture1D(
+					EPixelFormat::R32_UINT,
+					ETextureAccessFlags::CPU_WRITE | ETextureAccessFlags::CPU_READBACK,
+					256),
 				TextureCreateParams::texture2D(
 					EPixelFormat::R32_UINT,
 					ETextureAccessFlags::CPU_WRITE | ETextureAccessFlags::CPU_READBACK,
-					64, 4), // width should be at least D3D12_TEXTURE_DATA_PITCH_ALIGNMENT to gracefully reuse std::vector() ...
+					64, 4),
 				TextureCreateParams::texture3D(
 					EPixelFormat::R32_UINT,
 					ETextureAccessFlags::CPU_WRITE | ETextureAccessFlags::CPU_READBACK,
-					64, 4, 4), // width should be at least D3D12_TEXTURE_DATA_PITCH_ALIGNMENT to gracefully reuse std::vector() ...
+					64, 4, 4),
 			};
 			uint32 kData[] = { 0xdeadbeef, 0x10203040,0x12345678 };
 			std::vector<uint32> texData[] = {
