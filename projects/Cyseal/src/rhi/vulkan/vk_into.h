@@ -547,9 +547,8 @@ namespace into_vk
 		return VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM;
 	}
 
-	inline VkImageCreateInfo textureDesc(const TextureCreateParams& params)
+	inline VkImageCreateInfo textureDesc(const TextureCreateParams& params, bool skipReadbackFlag)
 	{
-		// #todo-vulkan: Other allow flags
 		VkImageUsageFlags usage = 0;
 		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::SRV))
 		{
@@ -566,6 +565,14 @@ namespace into_vk
 		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::DSV))
 		{
 			usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		}
+		if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::CPU_WRITE))
+		{
+			usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		}
+		if (!skipReadbackFlag && ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::CPU_READBACK))
+		{
+			usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 		}
 
 		return VkImageCreateInfo{
