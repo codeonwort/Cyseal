@@ -72,7 +72,7 @@ struct TextureCreateParams
 		uint32 inSampleQuality = 0)
 	{
 		return TextureCreateParams{
-            ETextureDimension::TEXTURE2D,
+            ETextureDimension::TEXTURE1D,
             inFormat,
             inAccessFlags,
             inWidth,
