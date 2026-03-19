@@ -55,6 +55,7 @@ private:
 	VkDeviceMemory vkReadbackMemory = VK_NULL_HANDLE;
 
 	TextureCreateParams createParams;
+	VkDeviceSize allocSize = 0;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

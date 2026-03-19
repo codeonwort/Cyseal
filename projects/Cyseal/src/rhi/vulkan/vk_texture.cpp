@@ -3,6 +3,7 @@
 #if COMPILE_BACKEND_VULKAN
 
 #include "vk_device.h"
+#include "vk_render_command.h"
 #include "vk_into.h"
 #include "util/string_conversion.h"
 
@@ -25,8 +26,6 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 
 	VkDevice vkDevice = device->getRaw();
 	VkPhysicalDevice vkPhysicalDevice = device->getVkPhysicalDevice();
-
-	VkDeviceSize allocSize = 0;
 
 	// Create image.
 	{
@@ -128,6 +127,7 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 	}
 }
 
+// #wip: uploadData not verified yet.
 void VulkanTexture::uploadData(
 	RenderCommandList& commandList,
 	const void* buffer,
@@ -135,8 +135,39 @@ void VulkanTexture::uploadData(
 	uint64 slicePitch,
 	uint32 subresourceIndex)
 {
-	// #wip: VulkanTexture::uploadData
-	CHECK_NO_ENTRY();
+	CHECK(rowPitch >= allocSize);
+
+	VkDevice vkDevice = device->getRaw();
+	VkCommandBuffer cmd = static_cast<VulkanRenderCommandList*>(&commandList)->internal_getVkCommandBuffer();
+
+	void* pData = nullptr;
+	vkMapMemory(vkDevice, vkUploadMemory, 0, allocSize, (VkMemoryMapFlags)0, &pData);
+	std::memcpy(pData, buffer, allocSize);
+	vkUnmapMemory(vkDevice, vkUploadMemory);
+
+	VkImageAspectFlags aspectMask = isDepthStencilFormat(createParams.format)
+		? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+		: VK_IMAGE_ASPECT_COLOR_BIT;
+	
+	// https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferImageCopy.html
+	VkBufferImageCopy region{
+		.bufferOffset       = 0,
+		.bufferRowLength    = (uint32)rowPitch,
+		.bufferImageHeight  = (uint32)(slicePitch / rowPitch),
+		.imageSubresource   = VkImageSubresourceLayers{
+			.aspectMask     = aspectMask,
+			.mipLevel       = subresourceIndex,
+			.baseArrayLayer = 0,
+			.layerCount     = 1,
+		},
+		.imageOffset        = VkOffset3D { 0, 0, 0 },
+		.imageExtent        = VkExtent3D { createParams.width, createParams.height, createParams.depth },
+	};
+
+	TextureBarrierAuto texBarrier = TextureBarrierAuto::toCopyDest(this);
+	commandList.barrierAuto(0, nullptr, 1, &texBarrier, 0, nullptr);
+
+	vkCmdCopyBufferToImage(cmd, vkUploadBuffer, vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
 void VulkanTexture::setDebugName(const wchar_t* debugNameW)
