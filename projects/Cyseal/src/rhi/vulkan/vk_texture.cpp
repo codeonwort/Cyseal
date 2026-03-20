@@ -8,6 +8,16 @@
 #include "util/string_conversion.h"
 
 
+VulkanTexture::VulkanTexture(VulkanDevice* inDevice)
+	: device(inDevice)
+{
+	// TextureKind sets EBarrierLayout::Common as default value,
+	// but initialLayout for VkImageCreateInfo is VK_IMAGE_LAYOUT_UNDEFINED.
+	auto state = internal_getLastBarrierState();
+	state.globalState.layoutBefore = EBarrierLayout::Undefined;
+	internal_setLastBarrierState(state);
+}
+
 VulkanTexture::~VulkanTexture()
 {
 	VkDevice vkDevice = device->getRaw();
@@ -26,6 +36,9 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 
 	VkDevice vkDevice = device->getRaw();
 	VkPhysicalDevice vkPhysicalDevice = device->getVkPhysicalDevice();
+
+	// #wip: row pitch alignment
+	VkDeviceSize rowPitchAlignment = device->getVkPhysicalDeviceLimits().optimalBufferCopyRowPitchAlignment;
 
 	// Create image.
 	{
@@ -47,6 +60,7 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 			.memoryTypeIndex = memoryTypeIndex,
 		};
 		allocSize = req.size;
+		rowPitch = req.alignment;
 
 		vkRet = vkAllocateMemory(vkDevice, &allocInfo, nullptr, &vkImageMemory);
 		CHECK(vkRet == VK_SUCCESS);
@@ -135,7 +149,7 @@ void VulkanTexture::uploadData(
 	uint64 slicePitch,
 	uint32 subresourceIndex)
 {
-	CHECK(rowPitch >= allocSize);
+	CHECK(rowPitch * createParams.depth <= allocSize);
 
 	VkDevice vkDevice = device->getRaw();
 	VkCommandBuffer cmd = static_cast<VulkanRenderCommandList*>(&commandList)->internal_getVkCommandBuffer();
@@ -152,8 +166,9 @@ void VulkanTexture::uploadData(
 	// https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferImageCopy.html
 	VkBufferImageCopy region{
 		.bufferOffset       = 0,
-		.bufferRowLength    = (uint32)rowPitch,
-		.bufferImageHeight  = (uint32)(slicePitch / rowPitch),
+		// Hmm I don't understand the doc :( let's just make it use imageExtent.
+		.bufferRowLength    = 0,//(uint32)rowPitch,
+		.bufferImageHeight  = 0,//(uint32)(slicePitch / rowPitch),
 		.imageSubresource   = VkImageSubresourceLayers{
 			.aspectMask     = aspectMask,
 			.mipLevel       = subresourceIndex,
@@ -176,6 +191,25 @@ void VulkanTexture::setDebugName(const wchar_t* debugNameW)
 	wstr_to_str(debugNameW, debugNameA);
 
 	device->setObjectDebugName(VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, (uint64)vkImage, debugNameA.c_str());
+}
+
+bool VulkanTexture::prepareReadback(RenderCommandList* commandList)
+{
+	// #wip: prepareReadback
+	return true;
+}
+
+bool VulkanTexture::readbackData(void* dst)
+{
+	VkDevice vkDevice = device->getRaw();
+
+	// #wip: no host visible flag in image. Need to copy to readback buffer first.
+	void* pData = nullptr;
+	vkMapMemory(vkDevice, vkImageMemory, 0, VK_WHOLE_SIZE, 0, &pData);
+	std::memcpy(dst, pData, allocSize);
+	vkUnmapMemory(vkDevice, vkImageMemory);
+
+	return true;
 }
 
 #endif // COMPILE_BACKEND_VULKAN

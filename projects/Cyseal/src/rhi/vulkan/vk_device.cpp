@@ -320,6 +320,10 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		vkPhysicalDeviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 		vkPhysicalDeviceProperties2.pNext = nullptr;
 		vkGetPhysicalDeviceProperties2(vkPhysicalDevice, &vkPhysicalDeviceProperties2);
+
+		VkPhysicalDeviceProperties deviceProperties;
+		vkGetPhysicalDeviceProperties(vkPhysicalDevice, &deviceProperties);
+		vkPhysicalDeviceLimits = deviceProperties.limits;
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create a logical device"));

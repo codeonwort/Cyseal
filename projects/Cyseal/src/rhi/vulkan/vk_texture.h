@@ -13,13 +13,18 @@ class VulkanDevice;
 class VulkanTexture : public Texture
 {
 public:
-	VulkanTexture(VulkanDevice* inDevice) : device(inDevice) {}
+	VulkanTexture(VulkanDevice* inDevice);
 	~VulkanTexture();
 
 	void initialize(const TextureCreateParams& params);
 
-	virtual void* getRawResource() const override { return vkImage; }
+	//~ BEGIN GPUResource
+	virtual void setDebugName(const wchar_t* debugName) override;
 
+	virtual void* getRawResource() const override { return vkImage; }
+	//~ END GPUResource
+
+	//~ BEGIN Texture
 	virtual const TextureCreateParams& getCreateParams() const override { return createParams; }
 
 	virtual void uploadData(
@@ -29,18 +34,14 @@ public:
 		uint64 slicePitch,
 		uint32 subresourceIndex = 0) override;
 
-	virtual void setDebugName(const wchar_t* debugName) override;
-
-	// #wip: Support vulkan texture readback.
-#if 0
 	virtual uint64 getRowPitch() const override { return rowPitch; }
 
-	virtual uint64 getReadbackBufferSize() const override { return readbackBufferSize; }
+	virtual uint64 getReadbackBufferSize() const override { return allocSize; }
 
 	virtual bool prepareReadback(RenderCommandList* commandList) override;
 
 	virtual bool readbackData(void* dst) override;
-#endif
+	//~ END Texture
 
 private:
 	VulkanDevice* device = nullptr;
@@ -56,6 +57,7 @@ private:
 
 	TextureCreateParams createParams;
 	VkDeviceSize allocSize = 0;
+	uint64 rowPitch = 0;
 };
 
 #endif // COMPILE_BACKEND_VULKAN
