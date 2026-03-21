@@ -188,6 +188,7 @@ public:
 	// createParams should have CPU_READBACK flag.
 	virtual uint64 getReadbackBufferSize() const { return 0; }
 
+	// #wip: Should parameterize target mipLevel and array layer.
 	// Invoke while constructing command list.
 	// @return false if failed.
 	virtual bool prepareReadback(RenderCommandList* commandList) { return false; }

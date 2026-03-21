@@ -154,7 +154,6 @@ namespace UnitTest
 	public:
 		TEST_METHOD(UploadTextureDataFromCPU)
 		{
-			// #wip: Fails
 			TestTextureUploadBase::UploadTextureDataFromCPU();
 		}
 	};

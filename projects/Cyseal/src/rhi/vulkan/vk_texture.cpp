@@ -42,7 +42,7 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 
 	// Create image.
 	{
-		constexpr bool bSkipReadbackFlag = true;
+		constexpr bool bSkipReadbackFlag = false;
 		VkImageCreateInfo textureDesc = into_vk::textureDesc(inParams, bSkipReadbackFlag);
 
 		VkResult vkRet = vkCreateImage(vkDevice, &textureDesc, nullptr, &vkImage);
@@ -87,6 +87,7 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 
 		VkMemoryRequirements req;
 		vkGetBufferMemoryRequirements(vkDevice, vkUploadBuffer, &req);
+		CHECK(req.size >= allocSize);
 
 		VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 		uint32_t memoryTypeIndex = findMemoryType(vkPhysicalDevice, req.memoryTypeBits, memProps);
@@ -123,6 +124,7 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 
 		VkMemoryRequirements req;
 		vkGetBufferMemoryRequirements(vkDevice, vkReadbackBuffer, &req);
+		CHECK(req.size >= allocSize);
 
 		VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 		uint32_t memoryTypeIndex = findMemoryType(vkPhysicalDevice, req.memoryTypeBits, memProps);
@@ -141,7 +143,6 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 	}
 }
 
-// #wip: uploadData not verified yet.
 void VulkanTexture::uploadData(
 	RenderCommandList& commandList,
 	const void* buffer,
@@ -149,14 +150,17 @@ void VulkanTexture::uploadData(
 	uint64 slicePitch,
 	uint32 subresourceIndex)
 {
-	CHECK(rowPitch * createParams.depth <= allocSize);
+	const uint64 uploadSize = slicePitch * createParams.depth;
+	CHECK(uploadSize <= allocSize);
+
+	readbackSize = uploadSize; // #wip: temp readback size
 
 	VkDevice vkDevice = device->getRaw();
 	VkCommandBuffer cmd = static_cast<VulkanRenderCommandList*>(&commandList)->internal_getVkCommandBuffer();
 
 	void* pData = nullptr;
-	vkMapMemory(vkDevice, vkUploadMemory, 0, allocSize, (VkMemoryMapFlags)0, &pData);
-	std::memcpy(pData, buffer, allocSize);
+	vkMapMemory(vkDevice, vkUploadMemory, 0, uploadSize, (VkMemoryMapFlags)0, &pData);
+	std::memcpy(pData, buffer, uploadSize);
 	vkUnmapMemory(vkDevice, vkUploadMemory);
 
 	VkImageAspectFlags aspectMask = isDepthStencilFormat(createParams.format)
@@ -195,19 +199,56 @@ void VulkanTexture::setDebugName(const wchar_t* debugNameW)
 
 bool VulkanTexture::prepareReadback(RenderCommandList* commandList)
 {
-	// #wip: prepareReadback
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, ETextureAccessFlags::CPU_READBACK));
+
+	VkDevice vkDevice = device->getRaw();
+	VkCommandBuffer cmd = static_cast<VulkanRenderCommandList*>(commandList)->internal_getVkCommandBuffer();
+
+	VkImageAspectFlags aspectMask = isDepthStencilFormat(createParams.format)
+		? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+		: VK_IMAGE_ASPECT_COLOR_BIT;
+	
+	// https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferImageCopy.html
+	VkBufferImageCopy region{
+		.bufferOffset       = 0,
+		// Hmm I don't understand the doc :( let's just make it use imageExtent.
+		.bufferRowLength    = 0,//(uint32)rowPitch,
+		.bufferImageHeight  = 0,//(uint32)(slicePitch / rowPitch),
+		.imageSubresource   = VkImageSubresourceLayers{
+			.aspectMask     = aspectMask,
+			.mipLevel       = 0,
+			.baseArrayLayer = 0,
+			.layerCount     = 1,
+		},
+		.imageOffset        = VkOffset3D { 0, 0, 0 },
+		.imageExtent        = VkExtent3D { createParams.width, createParams.height, createParams.depth },
+	};
+
+	TextureBarrierAuto texBarrier = TextureBarrierAuto::toCopySource(this);
+	commandList->barrierAuto(0, nullptr, 1, &texBarrier, 0, nullptr);
+
+	vkCmdCopyImageToBuffer(cmd, vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkReadbackBuffer, 1, &region);
+
+	bReadbackPrepared = true;
+
 	return true;
 }
 
 bool VulkanTexture::readbackData(void* dst)
 {
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, ETextureAccessFlags::CPU_READBACK));
+
+	if (!bReadbackPrepared)
+	{
+		return false;
+	}
+
 	VkDevice vkDevice = device->getRaw();
 
-	// #wip: no host visible flag in image. Need to copy to readback buffer first.
 	void* pData = nullptr;
-	vkMapMemory(vkDevice, vkImageMemory, 0, VK_WHOLE_SIZE, 0, &pData);
-	std::memcpy(dst, pData, allocSize);
-	vkUnmapMemory(vkDevice, vkImageMemory);
+	vkMapMemory(vkDevice, vkReadbackMemory, 0, VK_WHOLE_SIZE, 0, &pData);
+	std::memcpy(dst, pData, readbackSize);
+	vkUnmapMemory(vkDevice, vkReadbackMemory);
 
 	return true;
 }

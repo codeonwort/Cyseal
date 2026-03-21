@@ -36,7 +36,7 @@ public:
 
 	virtual uint64 getRowPitch() const override { return rowPitch; }
 
-	virtual uint64 getReadbackBufferSize() const override { return allocSize; }
+	virtual uint64 getReadbackBufferSize() const override { return readbackSize; }
 
 	virtual bool prepareReadback(RenderCommandList* commandList) override;
 
@@ -58,6 +58,8 @@ private:
 	TextureCreateParams createParams;
 	VkDeviceSize allocSize = 0;
 	uint64 rowPitch = 0;
+	bool bReadbackPrepared = false;
+	VkDeviceSize readbackSize = 0;
 };
 
 #endif // COMPILE_BACKEND_VULKAN
