@@ -5,6 +5,7 @@
 #include "barrier_tracker.h"
 #include "pixel_format.h"
 #include "util/enum_util.h"
+#include "core/smart_pointer.h"
 
 class RenderCommandList;
 
@@ -13,11 +14,12 @@ class RenderCommandList;
 enum class EBufferAccessFlags : uint32
 {
 	NONE          = 0,
+	// #wip: Wrong semantic... cpu-write involves COPY_DST.
 	COPY_SRC      = 1 << 0, // Can be a source of copy operation (CPU can write data to the buffer)
 	COPY_DST      = 1 << 1, // Can be a destination of copy operation
 	VERTEX_BUFFER = 1 << 2, // Can be bound as vertex buffer
 	INDEX_BUFFER  = 1 << 3, // Can be bound as index buffer
-	CBV           = 1 << 4, // Can be bound as SRV
+	CBV           = 1 << 4, // Can be bound as CBV
 	SRV           = 1 << 5, // Can be bound as SRV
 	UAV           = 1 << 6, // Can be bound as UAV
 };
@@ -130,6 +132,15 @@ public:
 		uint32 sizeInBytes;
 		uint64 destOffsetInBytes;
 	};
+	struct ReadbackHandle
+	{
+		// Do not modify members but only read them.
+		bool    bAvailable   = false;
+		void*   readbackData = nullptr;
+		uint64  readbackSize = 0;
+		Buffer* owner        = nullptr;
+	};
+	static const uint64 READBACK_SIZE_ALL = 0xffffffff;
 
 	virtual void initialize(const BufferCreateParams& inCreateParams)
 	{
@@ -155,6 +166,17 @@ public:
 		UploadDesc desc{ srcData, sizeInBytes, destOffsetInBytes };
 		writeToGPU(commandList, 1, &desc);
 	}
+
+	/// <summary>
+	/// Create a request to readback data from GPU.
+	/// The data is available when a render device executes the command list and the command queue in the device is flushed.
+	/// The returned request could be null if the request failed for somehow.
+	/// </summary>
+	/// <param name="commandList">Command list in which the request will be processed.</param>
+	/// <param name="offset">Offset in bytes to start readback.</param>
+	/// <param name="size">Size in bytes to read. Default value means reading from offset to the end.</param>
+	/// <returns>Handle to readback request.</returns>
+	virtual SharedPtr<ReadbackHandle> requestReadback(RenderCommandList* commandList, uint64 offset = 0, uint64 size = READBACK_SIZE_ALL) { return nullptr; }
 
 	inline const BufferCreateParams& getCreateParams() const { return createParams; }
 

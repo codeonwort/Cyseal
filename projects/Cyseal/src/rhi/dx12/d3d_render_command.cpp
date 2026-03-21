@@ -43,6 +43,16 @@ void D3DRenderCommandQueue::executeCommandList(class RenderCommandList* commandL
 	queue->ExecuteCommandLists(1, lists);
 
 	static_cast<void>(swapChain); // Only Vulkan uses this parameter for now.
+	activeCommandLists.push_back(rawList);
+}
+
+void D3DRenderCommandQueue::internal_onFlush()
+{
+	for (D3DRenderCommandList* cmd : activeCommandLists)
+	{
+		cmd->notifyReadbackAvailable();
+	}
+	activeCommandLists.clear();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -787,4 +797,19 @@ void D3DRenderCommandList::beginEventMarker(const char* eventName)
 void D3DRenderCommandList::endEventMarker()
 {
 	::PIXEndEvent(commandList.Get());
+}
+
+void D3DRenderCommandList::addReadbackHandle(SharedPtr<Buffer::ReadbackHandle> handle)
+{
+	readbackHandles.push_back(handle);
+}
+
+void D3DRenderCommandList::notifyReadbackAvailable()
+{
+	for (auto& req : readbackHandles)
+	{
+		auto buffer = static_cast<D3DBuffer*>(req->owner);
+		buffer->internal_finalizeReadbackBuffer();
+	}
+	readbackHandles.clear();
 }

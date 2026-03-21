@@ -465,6 +465,8 @@ void D3DDevice::flushCommandQueue()
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
+
+	commandQueue->internal_onFlush();
 }
 
 void D3DDevice::beginGPUCapture(const std::wstring& filepath)

@@ -3,6 +3,7 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "test_rhi_utils.h"
+#include "rhi/buffer.h"
 #include "rhi/dx12/d3d_device.h"
 #include "rhi/vulkan/vk_device.h"
 
@@ -31,8 +32,43 @@ namespace UnitTest
 				renderDevice->flushCommandQueue();
 			};
 
-			// #wip: Write buffer test.
-			// ...
+			std::vector<uint32> uploadData(4096, 0);
+			const size_t uploadSize = sizeof(uploadData[0]) * uploadData.size();
+			for (size_t i = 0; i < uploadData.size(); ++i)
+			{
+				uploadData[i] = (uint32)i;
+			}
+
+			BufferCreateParams bufferParams{
+				.sizeInBytes = uploadSize,
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::COPY_DST,
+			};
+			Buffer* buffer = renderDevice->createBuffer(bufferParams);
+
+			beginRendering();
+			Buffer::UploadDesc uploadDesc{
+				.srcData           = uploadData.data(),
+				.sizeInBytes       = (uint32)uploadSize,
+				.destOffsetInBytes = 0,
+			};
+			buffer->writeToGPU(commandList, 1, &uploadDesc);
+			finishRendering();
+
+			beginRendering();
+			auto request = buffer->requestReadback(commandList, 0, Buffer::READBACK_SIZE_ALL);
+			CHECK(request != nullptr);
+			finishRendering();
+
+			Assert::IsTrue(request->bAvailable);
+			Assert::IsTrue(request->readbackSize == uploadSize);
+			uint32 numFailed = 0;
+			uint32* readbackData = reinterpret_cast<uint32*>(request->readbackData);
+			for (size_t i = 0; i < uploadData.size(); ++i)
+			{
+				if (readbackData[i] != uploadData[i]) numFailed += 1;
+			}
+			Assert::IsTrue(numFailed == 0);
 
 			renderDevice->destroy();
 			delete renderDevice;

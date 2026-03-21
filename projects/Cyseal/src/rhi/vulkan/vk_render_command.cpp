@@ -67,6 +67,12 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 	CHECK(ret == VK_SUCCESS);
 }
 
+void VulkanRenderCommandQueue::internal_onFlush()
+{
+	// #wip: VulkanRenderCommandQueue::internal_onFlush
+	CHECK_NO_ENTRY();
+}
+
 //////////////////////////////////////////////////////////////////////////
 // VulkanRenderCommandAllocator
 

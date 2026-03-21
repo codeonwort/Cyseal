@@ -21,6 +21,8 @@ public:
 
 	virtual void executeCommandList(RenderCommandList* commandList, SwapChain* swapChain) override;
 
+	virtual void internal_onFlush() override;
+
 private:
 	VulkanDevice* deviceWrapper = nullptr;
 	VkQueue vkGraphicsQueue = VK_NULL_HANDLE;
