@@ -62,19 +62,19 @@
     <ClCompile Include="src\TestProcessCrash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TestRenderDevice.cpp">
+    <ClCompile Include="src\rhi\TestRenderDevice.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_vulkan.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\barrier\TestBarrier.cpp">
+    <ClCompile Include="src\rhi\TestBarrier.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\shader\TestShaderCodegen.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\texture\TestTextureUpload.cpp">
+    <ClCompile Include="src\rhi\TestTextureUpload.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
