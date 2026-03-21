@@ -2,6 +2,7 @@
 #include "CppUnitTest.h"
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
+#include "test_rhi_utils.h"
 #include "rhi/dx12/d3d_device.h"
 #include "rhi/vulkan/vk_device.h"
 
@@ -10,11 +11,10 @@ namespace UnitTest
 	template<ERenderDeviceRawAPI graphicsAPI>
 	class TestTextureUploadBase
 	{
-	// Test methods
 	protected:
-		void UploadTextureDataFromCPU()
+		void TextureUploadAndReadback()
 		{
-			RenderDevice* renderDevice = createRenderDevice();
+			RenderDevice* renderDevice = rhi_test::createHeadlessDevice(graphicsAPI);
 
 			// width should be at least D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
 			// to gracefully reuse texData. (row pitch alignment issue)
@@ -110,51 +110,23 @@ namespace UnitTest
 			renderDevice->destroy();
 			delete renderDevice;
 		}
-
-	// Utils
-	protected:
-		RenderDevice* createRenderDevice()
-		{
-			RenderDeviceCreateParams createParams{
-				.swapChainParams     = SwapChainCreateParams::noSwapChain(),
-				.rawAPI              = graphicsAPI,
-				.raytracingTier      = ERaytracingTier::MaxTier,
-				.vrsTier             = EVariableShadingRateTier::MaxTier,
-				.meshShaderTier      = EMeshShaderTier::MaxTier,
-				.samplerFeedbackTier = ESamplerFeedbackTier::MaxTier,
-				.enableDebugLayer    = true,
-				.bDoubleBuffering    = false,
-			};
-
-			RenderDevice* device = nullptr;
-			switch (graphicsAPI)
-			{
-				case ERenderDeviceRawAPI::DirectX12: device = new D3DDevice; break;
-				case ERenderDeviceRawAPI::Vulkan: device = new VulkanDevice; break;
-				default: CHECK_NO_ENTRY();
-			}
-
-			device->initialize(createParams);
-
-			return device;
-		}
 	};
 
 	TEST_CLASS(TestTextureUploadD3D12), TestTextureUploadBase<ERenderDeviceRawAPI::DirectX12>
 	{
 	public:
-		TEST_METHOD(UploadTextureDataFromCPU)
+		TEST_METHOD(TextureUploadAndReadback)
 		{
-			TestTextureUploadBase::UploadTextureDataFromCPU();
+			TestTextureUploadBase::TextureUploadAndReadback();
 		}
 	};
 
 	TEST_CLASS(TestTextureUploadVulkan), TestTextureUploadBase<ERenderDeviceRawAPI::Vulkan>
 	{
 	public:
-		TEST_METHOD(UploadTextureDataFromCPU)
+		TEST_METHOD(TextureUploadAndReadback)
 		{
-			TestTextureUploadBase::UploadTextureDataFromCPU();
+			TestTextureUploadBase::TextureUploadAndReadback();
 		}
 	};
 }

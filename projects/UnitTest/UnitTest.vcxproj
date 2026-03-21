@@ -134,6 +134,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\rhi\TestBarrier.cpp" />
+    <ClCompile Include="src\rhi\TestBufferUpload.cpp" />
+    <ClCompile Include="src\rhi\test_rhi_utils.cpp" />
     <ClCompile Include="src\shader\TestShaderCodegen.cpp" />
     <ClCompile Include="src\render\TestBxDF.cpp" />
     <ClCompile Include="src\render\TestCamera.cpp" />
@@ -149,6 +151,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="src\rhi\test_rhi_utils.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Cyseal\Cyseal.vcxproj">

@@ -77,9 +77,18 @@
     <ClCompile Include="src\rhi\TestTextureUpload.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\rhi\TestBufferUpload.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rhi\test_rhi_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rhi\test_rhi_utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
