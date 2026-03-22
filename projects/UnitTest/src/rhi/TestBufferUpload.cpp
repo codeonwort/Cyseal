@@ -47,29 +47,56 @@ namespace UnitTest
 			};
 			Buffer* buffer = renderDevice->createBuffer(bufferParams);
 
-			beginRendering();
-			Buffer::UploadDesc uploadDesc{
-				.srcData           = uploadData.data(),
-				.sizeInBytes       = (uint32)uploadSize,
-				.destOffsetInBytes = 0,
-			};
-			buffer->writeToGPU(commandList, 1, &uploadDesc);
-			finishRendering();
-
-			beginRendering();
-			auto request = buffer->requestReadback(commandList, 0, Buffer::READBACK_SIZE_ALL);
-			CHECK(request != nullptr);
-			finishRendering();
-
-			Assert::IsTrue(request->bAvailable);
-			Assert::IsTrue(request->readbackSize == uploadSize);
-			uint32 numFailed = 0;
-			uint32* readbackData = reinterpret_cast<uint32*>(request->readbackData);
-			for (size_t i = 0; i < uploadData.size(); ++i)
+			// Upload.
 			{
-				if (readbackData[i] != uploadData[i]) numFailed += 1;
+				beginRendering();
+				Buffer::UploadDesc uploadDesc{
+					.srcData           = uploadData.data(),
+					.sizeInBytes       = (uint32)uploadSize,
+					.destOffsetInBytes = 0,
+				};
+				buffer->writeToGPU(commandList, 1, &uploadDesc);
+				finishRendering();
 			}
-			Assert::IsTrue(numFailed == 0);
+
+			// Read full range.
+			{
+				beginRendering();
+				auto request = buffer->requestReadback(commandList, 0, Buffer::READBACK_SIZE_ALL);
+				CHECK(request != nullptr);
+				finishRendering();
+
+				Assert::IsTrue(request->bAvailable);
+				Assert::IsTrue(request->readbackSize == uploadSize);
+				uint32 numFailed = 0;
+				uint32* readbackData = reinterpret_cast<uint32*>(request->readbackData);
+				for (size_t i = 0; i < uploadData.size(); ++i)
+				{
+					if (readbackData[i] != uploadData[i]) numFailed += 1;
+				}
+				Assert::AreEqual(0u, numFailed);
+			}
+
+			// Read sub range.
+			{
+				const uint32 subStartIx = 57, subEndIx = 1725; // inclusive, exclusive
+				const uint64 requestSize = sizeof(uint32) * (subEndIx - subStartIx);
+
+				beginRendering();
+				auto request = buffer->requestReadback(commandList, sizeof(uint32) * subStartIx, requestSize);
+				CHECK(request != nullptr);
+				finishRendering();
+
+				Assert::IsTrue(request->bAvailable);
+				Assert::IsTrue(request->readbackSize == requestSize);
+				uint32 numFailed = 0;
+				uint32* readbackData = reinterpret_cast<uint32*>(request->readbackData);
+				for (size_t i = subStartIx; i < subEndIx; ++i)
+				{
+					if (readbackData[i - subStartIx] != uploadData[i]) numFailed += 1;
+				}
+				Assert::AreEqual(0u, numFailed);
+			}
 
 			renderDevice->destroy();
 			delete renderDevice;
