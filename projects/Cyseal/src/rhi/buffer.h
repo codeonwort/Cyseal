@@ -13,8 +13,7 @@ class RenderCommandList;
 // VkBufferUsageFlags
 enum class EBufferAccessFlags : uint32
 {
-	NONE          = 0,
-	// #wip: Wrong semantic... cpu-write involves COPY_DST.
+	NONE          = 0,      // A resource without any flags is no meaningful in any way. Some platform APIs will even report an error.
 	COPY_SRC      = 1 << 0, // Can be a source of copy operation (CPU can write data to the buffer)
 	COPY_DST      = 1 << 1, // Can be a destination of copy operation
 	VERTEX_BUFFER = 1 << 2, // Can be bound as vertex buffer
@@ -22,6 +21,8 @@ enum class EBufferAccessFlags : uint32
 	CBV           = 1 << 4, // Can be bound as CBV
 	SRV           = 1 << 5, // Can be bound as SRV
 	UAV           = 1 << 6, // Can be bound as UAV
+	CPU_WRITE     = 1 << 7, // If set, COPY_DST flag is automatically set.
+	CPU_READBACK  = 1 << 8, // If set, COPY_SRC flag is automatically set.
 };
 ENUM_CLASS_FLAGS(EBufferAccessFlags);
 
@@ -142,19 +143,28 @@ public:
 	};
 	static const uint64 READBACK_SIZE_ALL = 0xffffffff;
 
-	virtual void initialize(const BufferCreateParams& inCreateParams)
+	void initialize(const BufferCreateParams& inCreateParams)
 	{
 		createParams = inCreateParams;
 		CHECK(createParams.sizeInBytes > 0);
 
+		if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_WRITE))
+		{
+			createParams.accessFlags |= EBufferAccessFlags::COPY_DST;
+		}
+		if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_READBACK))
+		{
+			createParams.accessFlags |= EBufferAccessFlags::COPY_SRC;
+		}
+
 		lastBarrier = BarrierTracker::BufferState::createUnused();
 
-		// ... subclasses do remaining work
+		onInitialize();
 	}
 
 	/// <summary>
 	/// Upload data to the internal GPU buffer resource.
-	/// This is allowed only if the buffer was initialized with EBufferAccessFlags::COPY_SRC flag.
+	/// This is allowed only if the buffer was initialized with EBufferAccessFlags::CPU_WRITE flag.
 	/// </summary>
 	/// <param name="commandList"></param>
 	/// <param name="numUploads"></param>
@@ -169,6 +179,7 @@ public:
 
 	/// <summary>
 	/// Create a request to readback data from GPU.
+	/// This is allowed only if the buffer was initialized with EBufferAccessFlags::CPU_READBACK flag.
 	/// The data is available when a render device executes the command list and the command queue in the device is flushed.
 	/// The returned request could be null if the request failed for somehow.
 	/// </summary>
@@ -184,6 +195,9 @@ public:
 	inline const BarrierTracker::BufferState& internal_getLastBarrierState() const { return lastBarrier; }
 	// Use only when a command list is closed.
 	inline void internal_setLastBarrierState(const BarrierTracker::BufferState& newState) { lastBarrier = newState; }
+
+protected:
+	virtual void onInitialize() = 0;
 
 protected:
 	BufferCreateParams createParams;

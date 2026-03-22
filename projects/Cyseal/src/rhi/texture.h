@@ -15,6 +15,7 @@ enum class ETextureDimension : uint8
 // D3D12_RESOURCE_FLAGS (my texture variant)
 enum class ETextureAccessFlags : uint32
 {
+	NONE         = 0, // A resource without any flags is no meaningful in any way. Some platform APIs will even report an error.
     SRV          = 1 << 0,
     RTV          = 1 << 1,
     UAV          = 1 << 2,

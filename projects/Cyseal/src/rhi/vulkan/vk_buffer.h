@@ -17,7 +17,6 @@ public:
 	VulkanBuffer(VulkanDevice* inDevice) : device(inDevice) {}
 	virtual ~VulkanBuffer();
 
-	virtual void initialize(const BufferCreateParams& inCreateParams) override;
 	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) override;
 	virtual SharedPtr<ReadbackHandle> requestReadback(RenderCommandList* commandList, uint64 offset, uint64 size) override;
 
@@ -25,6 +24,9 @@ public:
 	virtual void setDebugName(const wchar_t* inDebugName) override;
 
 	void internal_finalizeReadbackBuffer();
+
+protected:
+	virtual void onInitialize() override;
 
 private:
 	VulkanDevice* device = nullptr;

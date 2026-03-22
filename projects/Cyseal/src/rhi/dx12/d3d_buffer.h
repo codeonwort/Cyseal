@@ -13,7 +13,6 @@ public:
 	D3DBuffer(D3DDevice* inDevice) : device(inDevice) {}
 	virtual ~D3DBuffer();
 
-	virtual void initialize(const BufferCreateParams& inCreateParams) override;
 	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) override;
 	virtual SharedPtr<ReadbackHandle> requestReadback(RenderCommandList* commandList, uint64 offset, uint64 size) override;
 
@@ -21,6 +20,9 @@ public:
 	virtual void setDebugName(const wchar_t* inDebugName) override;
 
 	void internal_finalizeReadbackBuffer();
+
+protected:
+	virtual void onInitialize() override;
 
 private:
 	D3DDevice* device = nullptr;

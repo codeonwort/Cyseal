@@ -388,7 +388,7 @@ void GPUScene::resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const ScenePr
 				BufferCreateParams{
 					.sizeInBytes = stride * count,
 					.alignment   = 0,
-					.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::SRV
+					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::SRV
 				}
 			));
 			buffer->setDebugName(debugName);
@@ -643,7 +643,7 @@ void GPUScene::resizeMaterialCommandBuffer(uint32 swapchainIndex, const ScenePro
 				BufferCreateParams{
 					.sizeInBytes = stride * count,
 					.alignment   = 0,
-					.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::SRV
+					.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::SRV
 				}
 			));
 			buffer->setDebugName(debugName);
@@ -865,7 +865,7 @@ void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneP
 			BufferCreateParams{
 				.sizeInBytes = sizeof(uint32) * numPermutations,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
 			}
 		));
 		drawcallCounterBuffer->setDebugName(L"Buffer_DrawcallCounter");
@@ -898,7 +898,7 @@ void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneP
 			BufferCreateParams{
 				.sizeInBytes = sizeof(uint32) * numPermutations,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::SRV,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::SRV,
 			}
 		));
 		drawcallOffsetBuffer->setDebugName(L"Buffer_DrawcallOffset");

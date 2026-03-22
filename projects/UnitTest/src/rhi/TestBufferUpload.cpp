@@ -42,7 +42,7 @@ namespace UnitTest
 			BufferCreateParams bufferParams{
 				.sizeInBytes = uploadSize,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::COPY_DST,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::CPU_READBACK,
 			};
 			Buffer* buffer = renderDevice->createBuffer(bufferParams);
 

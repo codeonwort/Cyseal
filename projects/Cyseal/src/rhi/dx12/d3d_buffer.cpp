@@ -208,10 +208,8 @@ D3DBuffer::~D3DBuffer()
 	CHECK(readbackHandle.expired());
 }
 
-void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
+void D3DBuffer::onInitialize()
 {
-	Buffer::initialize(inCreateParams);
-
 	auto rawDevice = device->getRawDevice();
 
 	// NOTE: alignment should be 0 or 65536 for buffers.
@@ -230,8 +228,9 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 			IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
 	}
 	// upload buffer (if requested)
-	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC))
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_WRITE))
 	{
+		CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_DST));
 		auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes, D3D12_RESOURCE_FLAG_NONE, createParams.alignment);
 		HR(rawDevice->CreateCommittedResource(
@@ -247,8 +246,9 @@ void D3DBuffer::initialize(const BufferCreateParams& inCreateParams)
 		CHECK(uploadMapPtr != nullptr);
 	}
 	// readback buffer (if requested)
-	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC))
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_READBACK))
 	{
+		CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
 		auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
 		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(createParams.sizeInBytes, D3D12_RESOURCE_FLAG_NONE, createParams.alignment);
 		HR(rawDevice->CreateCommittedResource(
@@ -268,7 +268,7 @@ void D3DBuffer::setDebugName(const wchar_t* inDebugName)
 
 void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs)
 {
-	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_WRITE));
 	for (uint32 i = 0; i < numUploads; ++i)
 	{
 		CHECK((createParams.alignment == 0) || (uploadDescs[i].destOffsetInBytes % createParams.alignment == 0));
@@ -343,7 +343,7 @@ void D3DBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Bu
 SharedPtr<Buffer::ReadbackHandle> D3DBuffer::requestReadback(
 	RenderCommandList* commandList, uint64 offset, uint64 size)
 {
-	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_READBACK));
 
 	// If previous readback request is alive, then reject the request.
 	// Multiple readbacks are possible in theory, but let's keep it simple for now.
@@ -373,7 +373,7 @@ SharedPtr<Buffer::ReadbackHandle> D3DBuffer::requestReadback(
 
 void D3DBuffer::internal_finalizeReadbackBuffer()
 {
-	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_READBACK));
 	CHECK(readbackHandle.expired() == false);
 
 	auto req = readbackHandle.lock();

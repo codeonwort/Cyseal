@@ -21,7 +21,7 @@ void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wc
 			BufferCreateParams{
 				.sizeInBytes = UNIFORM_MEMORY_POOL_SIZE,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE,
 			}
 		));
 

@@ -105,48 +105,48 @@ VulkanBuffer::~VulkanBuffer()
 	vkFreeMemory(vkDevice, vkReadbackMemory, nullptr);
 }
 
-void VulkanBuffer::initialize(const BufferCreateParams& inCreateParams)
+void VulkanBuffer::onInitialize()
 {
-	Buffer::initialize(inCreateParams);
-
 	VkDevice vkDevice = device->getRaw();
 	VkPhysicalDevice vkPhysicalDevice = device->getVkPhysicalDevice();
 
 	VkBufferUsageFlags usage = 0;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::COPY_SRC)) usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::COPY_DST)) usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::VERTEX_BUFFER)) usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::INDEX_BUFFER)) usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::CBV)) usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::SRV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Both SRV and UAV are SSBO in Vulkan
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::UAV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC)) usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_DST)) usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::VERTEX_BUFFER)) usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::INDEX_BUFFER)) usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CBV)) usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::SRV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Both SRV and UAV are SSBO in Vulkan
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::UAV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
 	{
 		VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 		createBufferUtil(
 			vkDevice,
 			vkPhysicalDevice,
-			(VkDeviceSize)inCreateParams.sizeInBytes,
+			(VkDeviceSize)createParams.sizeInBytes,
 			usage,
 			memoryProps,
 			vkBuffer, vkBufferMemory);
 	}
 	// Upload buffer
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::COPY_DST))
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_WRITE))
 	{
+		CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_DST));
 		VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 		createBufferUtil(
-			vkDevice, vkPhysicalDevice, (VkDeviceSize)inCreateParams.sizeInBytes,
+			vkDevice, vkPhysicalDevice, (VkDeviceSize)createParams.sizeInBytes,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			memoryProps,
 			vkUploadBuffer, vkUploadMemory);
 	}
 	// Readback buffer
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::COPY_SRC))
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_READBACK))
 	{
+		CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
 		VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 		createBufferUtil(
-			vkDevice, vkPhysicalDevice, (VkDeviceSize)inCreateParams.sizeInBytes,
+			vkDevice, vkPhysicalDevice, (VkDeviceSize)createParams.sizeInBytes,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 			memoryProps,
 			vkReadbackBuffer, vkReadbackMemory);
@@ -155,7 +155,7 @@ void VulkanBuffer::initialize(const BufferCreateParams& inCreateParams)
 
 void VulkanBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs)
 {
-	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_DST));
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_WRITE));
 	for (uint32 i = 0; i < numUploads; ++i)
 	{
 		CHECK((createParams.alignment == 0) || (uploadDescs[i].destOffsetInBytes % createParams.alignment == 0));
@@ -193,7 +193,7 @@ void VulkanBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads,
 SharedPtr<Buffer::ReadbackHandle> VulkanBuffer::requestReadback(
 	RenderCommandList* commandList, uint64 offset, uint64 size)
 {
-	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_READBACK));
 
 	// If previous readback request is alive, then reject the request.
 	// Multiple readbacks are possible in theory, but let's keep it simple for now.
@@ -238,7 +238,7 @@ void VulkanBuffer::setDebugName(const wchar_t* inDebugNameW)
 
 void VulkanBuffer::internal_finalizeReadbackBuffer()
 {
-	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_READBACK));
 	CHECK(readbackHandle.expired() == false);
 
 	auto req = readbackHandle.lock();
