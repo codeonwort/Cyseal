@@ -204,6 +204,7 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 			case D3D12_RAYTRACING_TIER_NOT_SUPPORTED: raytracingTier = ERaytracingTier::NotSupported; break;
 			case D3D12_RAYTRACING_TIER_1_0: raytracingTier = ERaytracingTier::Tier_1_0; break;
 			case D3D12_RAYTRACING_TIER_1_1: raytracingTier = ERaytracingTier::Tier_1_1; break;
+			case D3D12_RAYTRACING_TIER_1_2: raytracingTier = ERaytracingTier::Tier_1_2; break;
 			default: CHECK_NO_ENTRY();
 		}
 		switch (caps6.VariableShadingRateTier)
