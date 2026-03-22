@@ -26,6 +26,7 @@ public:
 private:
 	VulkanDevice* deviceWrapper = nullptr;
 	VkQueue vkGraphicsQueue = VK_NULL_HANDLE;
+	std::vector<class VulkanRenderCommandList*> activeCommandLists;
 };
 
 class VulkanRenderCommandAllocator : public RenderCommandAllocator
@@ -153,6 +154,9 @@ public:
 	// Unwanted hack due to implicit layout conversion by Vulkan API or third party modules. Outside of my control :(
 	void internal_overrideLastImageLayout(TextureKind* textureKind, EBarrierLayout layout);
 
+	void addReadbackHandle(SharedPtr<Buffer::ReadbackHandle> handle);
+	void notifyReadbackAvailable();
+
 private:
 	VulkanDevice* device = nullptr;
 	BarrierTracker barrierTracker;
@@ -163,6 +167,8 @@ private:
 	bool bInDynamicRendering = false;
 	std::vector<RenderTargetView*> currentRTVs;
 	DepthStencilView* currentDSV = nullptr;
+
+	std::vector<SharedPtr<Buffer::ReadbackHandle>> readbackHandles;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

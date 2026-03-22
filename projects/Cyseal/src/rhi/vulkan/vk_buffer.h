@@ -3,6 +3,7 @@
 #if COMPILE_BACKEND_VULKAN
 
 #include "rhi/buffer.h"
+#include "core/smart_pointer.h"
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
@@ -15,16 +16,27 @@ class VulkanBuffer : public Buffer
 public:
 	VulkanBuffer(VulkanDevice* inDevice) : device(inDevice) {}
 	virtual ~VulkanBuffer();
+
 	virtual void initialize(const BufferCreateParams& inCreateParams) override;
 	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) override;
+	virtual SharedPtr<ReadbackHandle> requestReadback(RenderCommandList* commandList, uint64 offset, uint64 size) override;
 
 	virtual void* getRawResource() const { return vkBuffer; }
 	virtual void setDebugName(const wchar_t* inDebugName) override;
+
+	void internal_finalizeReadbackBuffer();
 
 private:
 	VulkanDevice* device = nullptr;
 	VkDeviceMemory vkBufferMemory = VK_NULL_HANDLE;
 	VkBuffer vkBuffer = VK_NULL_HANDLE;
+
+	VkDeviceMemory vkUploadMemory = VK_NULL_HANDLE;
+	VkBuffer vkUploadBuffer = VK_NULL_HANDLE;
+
+	VkDeviceMemory vkReadbackMemory = VK_NULL_HANDLE;
+	VkBuffer vkReadbackBuffer = VK_NULL_HANDLE;
+	WeakPtr<Buffer::ReadbackHandle> readbackHandle;
 };
 
 // Specialized wrapper for vertex buffer.

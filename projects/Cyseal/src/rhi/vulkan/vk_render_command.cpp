@@ -30,7 +30,8 @@ void VulkanRenderCommandQueue::initialize(RenderDevice* renderDevice)
 void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList, SwapChain* swapChain)
 {
 	VulkanSwapchain* vulkanSwapChain = static_cast<VulkanSwapchain*>(swapChain);
-	VkCommandBuffer vkCommandBuffer = static_cast<VulkanRenderCommandList*>(commandList)->internal_getVkCommandBuffer();
+	VulkanRenderCommandList* vkCmdList = static_cast<VulkanRenderCommandList*>(commandList);
+	VkCommandBuffer vkCommandBuffer = vkCmdList->internal_getVkCommandBuffer();
 
 	// - If commandList contains commands that access a swap chain image in swapChain,
 	//   then commandList needs to wait for 'imageAvailableSemaphore' before being executed.
@@ -65,12 +66,17 @@ void VulkanRenderCommandQueue::executeCommandList(RenderCommandList* commandList
 
 	VkResult ret = vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 	CHECK(ret == VK_SUCCESS);
+
+	activeCommandLists.push_back(vkCmdList);
 }
 
 void VulkanRenderCommandQueue::internal_onFlush()
 {
-	// #wip: VulkanRenderCommandQueue::internal_onFlush
-	CHECK_NO_ENTRY();
+	for (VulkanRenderCommandList* cmd : activeCommandLists)
+	{
+		cmd->notifyReadbackAvailable();
+	}
+	activeCommandLists.clear();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -659,6 +665,21 @@ void VulkanRenderCommandList::endEventMarker()
 void VulkanRenderCommandList::internal_overrideLastImageLayout(TextureKind* textureKind, EBarrierLayout layout)
 {
 	barrierTracker.internal_overrideLastImageLayout(textureKind, layout);
+}
+
+void VulkanRenderCommandList::addReadbackHandle(SharedPtr<Buffer::ReadbackHandle> handle)
+{
+	readbackHandles.push_back(handle);
+}
+
+void VulkanRenderCommandList::notifyReadbackAvailable()
+{
+	for (auto& req : readbackHandles)
+	{
+		auto buffer = static_cast<VulkanBuffer*>(req->owner);
+		buffer->internal_finalizeReadbackBuffer();
+	}
+	readbackHandles.clear();
 }
 
 #endif

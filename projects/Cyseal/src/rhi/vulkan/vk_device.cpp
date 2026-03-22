@@ -486,6 +486,8 @@ void VulkanDevice::flushCommandQueue()
 {
 	VkResult ret = vkQueueWaitIdle(vkGraphicsQueue);
 	CHECK(ret == VK_SUCCESS);
+
+	commandQueue->internal_onFlush();
 }
 
 void VulkanDevice::beginGPUCapture(const std::wstring& filepath)
