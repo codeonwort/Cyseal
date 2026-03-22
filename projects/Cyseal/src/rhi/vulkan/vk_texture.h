@@ -4,6 +4,7 @@
 
 #include "vk_resource_view.h"
 #include "rhi/texture.h"
+#include "core/smart_pointer.h"
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
@@ -36,11 +37,9 @@ public:
 
 	virtual uint64 getRowPitch() const override { return rowPitch; }
 
-	virtual uint64 getReadbackBufferSize() const override { return readbackSize; }
+	virtual SharedPtr<ReadbackHandle> requestReadback(RenderCommandList* commandList, const ReadbackRegion& region) override;
 
-	virtual bool prepareReadback(RenderCommandList* commandList) override;
-
-	virtual bool readbackData(void* dst) override;
+	void internal_finalizeReadbackBuffer();
 	//~ END Texture
 
 private:
@@ -58,8 +57,9 @@ private:
 	TextureCreateParams createParams;
 	VkDeviceSize allocSize = 0;
 	uint64 rowPitch = 0;
-	bool bReadbackPrepared = false;
-	VkDeviceSize readbackSize = 0;
+	VkDeviceSize rowPitchAlignment = 1;
+
+	WeakPtr<Texture::ReadbackHandle> readbackHandle;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

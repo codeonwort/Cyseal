@@ -801,15 +801,26 @@ void D3DRenderCommandList::endEventMarker()
 
 void D3DRenderCommandList::addReadbackHandle(SharedPtr<Buffer::ReadbackHandle> handle)
 {
-	readbackHandles.push_back(handle);
+	bufferReadbackHandles.push_back(handle);
+}
+
+void D3DRenderCommandList::addReadbackHandle(SharedPtr<Texture::ReadbackHandle> handle)
+{
+	textureReadbackHandles.push_back(handle);
 }
 
 void D3DRenderCommandList::notifyReadbackAvailable()
 {
-	for (auto& req : readbackHandles)
+	for (auto& req : bufferReadbackHandles)
 	{
 		auto buffer = static_cast<D3DBuffer*>(req->owner);
 		buffer->internal_finalizeReadbackBuffer();
 	}
-	readbackHandles.clear();
+	for (auto& req : textureReadbackHandles)
+	{
+		auto texture = static_cast<D3DTexture*>(req->owner);
+		texture->internal_finalizeReadbackBuffer();
+	}
+	bufferReadbackHandles.clear();
+	textureReadbackHandles.clear();
 }

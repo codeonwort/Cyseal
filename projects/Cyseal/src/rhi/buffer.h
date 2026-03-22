@@ -186,7 +186,7 @@ public:
 	/// <param name="commandList">Command list in which the request will be processed.</param>
 	/// <param name="offset">Offset in bytes to start readback.</param>
 	/// <param name="size">Size in bytes to read. Default value means reading from offset to the end.</param>
-	/// <returns>Handle to readback request.</returns>
+	/// <returns>Handle to the readback request.</returns>
 	virtual SharedPtr<ReadbackHandle> requestReadback(RenderCommandList* commandList, uint64 offset = 0, uint64 size = READBACK_SIZE_ALL) { return nullptr; }
 
 	inline const BufferCreateParams& getCreateParams() const { return createParams; }

@@ -4,6 +4,7 @@
 
 #include "vk_utils.h"
 #include "vk_buffer.h"
+#include "vk_texture.h"
 #include "vk_pipeline_state.h"
 #include "vk_descriptor.h"
 #include "vk_resource_view.h"
@@ -669,17 +670,28 @@ void VulkanRenderCommandList::internal_overrideLastImageLayout(TextureKind* text
 
 void VulkanRenderCommandList::addReadbackHandle(SharedPtr<Buffer::ReadbackHandle> handle)
 {
-	readbackHandles.push_back(handle);
+	bufferReadbackHandles.push_back(handle);
+}
+
+void VulkanRenderCommandList::addReadbackHandle(SharedPtr<Texture::ReadbackHandle> handle)
+{
+	textureReadbackHandles.push_back(handle);
 }
 
 void VulkanRenderCommandList::notifyReadbackAvailable()
 {
-	for (auto& req : readbackHandles)
+	for (auto& req : bufferReadbackHandles)
 	{
 		auto buffer = static_cast<VulkanBuffer*>(req->owner);
 		buffer->internal_finalizeReadbackBuffer();
 	}
-	readbackHandles.clear();
+	for (auto& req : textureReadbackHandles)
+	{
+		auto texture = static_cast<VulkanTexture*>(req->owner);
+		texture->internal_finalizeReadbackBuffer();
+	}
+	bufferReadbackHandles.clear();
+	textureReadbackHandles.clear();
 }
 
 #endif

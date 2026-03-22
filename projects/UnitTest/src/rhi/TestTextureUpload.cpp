@@ -3,6 +3,7 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "test_rhi_utils.h"
+#include "rhi/render_command.h"
 #include "rhi/dx12/d3d_device.h"
 #include "rhi/vulkan/vk_device.h"
 
@@ -78,30 +79,34 @@ namespace UnitTest
 			finishRendering();
 
 			// 2. Readback texture data.
+			std::vector<SharedPtr<Texture::ReadbackHandle>> readbackHandles;
 			beginRendering();
 			for (int32 i = 0; i < numTextures; ++i)
 			{
-				bool bRet = textures[i]->prepareReadback(commandList);
-				Assert::IsTrue(bRet);
+				Texture* tex = textures[i];
+				Texture::ReadbackRegion region = Texture::ReadbackRegion::mip0(tex);
+				auto handle = tex->requestReadback(commandList, region);
+				Assert::IsTrue(handle != nullptr);
+				readbackHandles.emplace_back(handle);
 			}
 			finishRendering();
 			for (int32 i = 0; i < numTextures; ++i)
 			{
-				texData[i].resize(texData[i].size(), 0xffffffff);
-				bool bRet = textures[i]->readbackData(texData[i].data());
-				Assert::IsTrue(bRet);
+				Assert::IsTrue(readbackHandles[i]->bAvailable);
 			}
 
 			// 3. Assert.
 			for (int32 i = 0; i < numTextures; ++i)
 			{
+				uint32* readbackData = reinterpret_cast<uint32*>(readbackHandles[i]->readbackData);
 				for (size_t j = 0; j < texData[i].size(); ++j)
 				{
-					Assert::AreEqual(kData[i], texData[i][j]);
+					Assert::AreEqual(kData[i], readbackData[j]);
 				}
 			}
 
 			// 4. Cleanup.
+			readbackHandles.clear();
 			for (int32 i = 0; i < numTextures; ++i)
 			{
 				delete textures[i];

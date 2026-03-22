@@ -32,6 +32,7 @@ public:
 	static inline float randFloatRange(float minValue, float maxValue);
 
 	static inline uint32 alignBytes(uint32 size, uint32 alignment);
+	static inline uint64 alignBytes64(uint64 size, uint64 alignment);
 
 	// Assumes x < 65536 and y < 65536. x is stored in low bits and y in high bits.
 	static inline uint32 packUint16x2(uint32 x, uint32 y);
@@ -111,6 +112,11 @@ float Cymath::randFloatRange(float minValue, float maxValue)
 }
 
 uint32 Cymath::alignBytes(uint32 size, uint32 alignment)
+{
+	return (size + (alignment - 1)) & ~(alignment - 1);
+}
+
+uint64 Cymath::alignBytes64(uint64 size, uint64 alignment)
 {
 	return (size + (alignment - 1)) & ~(alignment - 1);
 }

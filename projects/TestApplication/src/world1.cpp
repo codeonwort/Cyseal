@@ -1,6 +1,7 @@
 #include "world1.h"
 
 #include "rhi/render_device.h"
+#include "rhi/render_command.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/texture_manager.h"
 #include "render/static_mesh.h"

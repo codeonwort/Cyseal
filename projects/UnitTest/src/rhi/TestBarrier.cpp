@@ -2,6 +2,7 @@
 #include "CppUnitTest.h"
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
+#include "rhi/render_command.h"
 #include "rhi/dx12/d3d_device.h"
 #include "rhi/vulkan/vk_device.h"
 #include "render/util/volatile_descriptor.h"

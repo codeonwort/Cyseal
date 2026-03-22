@@ -13,6 +13,7 @@ public:
 
 	void initialize(const TextureCreateParams& params);
 
+	virtual void* getRawResource() const override { return rawResource.Get(); }
 	virtual void setDebugName(const wchar_t* debugName) override;
 
 	virtual const TextureCreateParams& getCreateParams() const override { return createParams; }
@@ -26,13 +27,9 @@ public:
 
 	virtual uint64 getRowPitch() const override { return rowPitch; }
 
-	virtual uint64 getReadbackBufferSize() const override { return readbackBufferSize; }
+	virtual SharedPtr<ReadbackHandle> requestReadback(RenderCommandList* commandList, const ReadbackRegion& region) override;
 
-	virtual bool prepareReadback(RenderCommandList* commandList) override;
-
-	virtual bool readbackData(void* dst) override;
-
-	virtual void* getRawResource() const override { return rawResource.Get(); }
+	void internal_finalizeReadbackBuffer();
 
 private:
 	D3DDevice* device = nullptr;
@@ -46,10 +43,10 @@ private:
 	// prematurely destroyed.
 	WRL::ComPtr<ID3D12Resource> textureUploadHeap;
 
+	size_t bytesPerPixel = 0;
 	uint64 rowPitch = 0;
 
 	WRL::ComPtr<ID3D12Resource> readbackBuffer;
 	D3D12_TEXTURE_COPY_LOCATION readbackFootprintDesc;
-	uint64 readbackBufferSize = 0;
-	bool bReadbackPrepared = false;
+	WeakPtr<Texture::ReadbackHandle> readbackHandle;
 };

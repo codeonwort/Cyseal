@@ -3,6 +3,7 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "test_rhi_utils.h"
+#include "rhi/render_command.h"
 #include "rhi/buffer.h"
 #include "rhi/dx12/d3d_device.h"
 #include "rhi/vulkan/vk_device.h"

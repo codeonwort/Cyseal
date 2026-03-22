@@ -37,8 +37,7 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 	VkDevice vkDevice = device->getRaw();
 	VkPhysicalDevice vkPhysicalDevice = device->getVkPhysicalDevice();
 
-	// #wip: row pitch alignment
-	VkDeviceSize rowPitchAlignment = device->getVkPhysicalDeviceLimits().optimalBufferCopyRowPitchAlignment;
+	rowPitchAlignment = device->getVkPhysicalDeviceLimits().optimalBufferCopyRowPitchAlignment;
 
 	// Create image.
 	{
@@ -153,8 +152,6 @@ void VulkanTexture::uploadData(
 	const uint64 uploadSize = slicePitch * createParams.depth;
 	CHECK(uploadSize <= allocSize);
 
-	readbackSize = uploadSize; // #wip: temp readback size
-
 	VkDevice vkDevice = device->getRaw();
 	VkCommandBuffer cmd = static_cast<VulkanRenderCommandList*>(commandList)->internal_getVkCommandBuffer();
 
@@ -189,68 +186,94 @@ void VulkanTexture::uploadData(
 	vkCmdCopyBufferToImage(cmd, vkUploadBuffer, vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
-void VulkanTexture::setDebugName(const wchar_t* debugNameW)
-{
-	std::string debugNameA;
-	wstr_to_str(debugNameW, debugNameA);
-
-	device->setObjectDebugName(VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, (uint64)vkImage, debugNameA.c_str());
-}
-
-bool VulkanTexture::prepareReadback(RenderCommandList* commandList)
+SharedPtr<Texture::ReadbackHandle> VulkanTexture::requestReadback(
+	RenderCommandList* commandList, const ReadbackRegion& region)
 {
 	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, ETextureAccessFlags::CPU_READBACK));
 
-	VkDevice vkDevice = device->getRaw();
-	VkCommandBuffer cmd = static_cast<VulkanRenderCommandList*>(commandList)->internal_getVkCommandBuffer();
+	// If previous readback request is alive, then reject the request.
+	// Multiple readbacks are possible in theory, but let's keep it simple for now.
+	if (readbackHandle.expired() == false)
+	{
+		return nullptr;
+	}
+
+	auto vulkanCmdList = static_cast<VulkanRenderCommandList*>(commandList);
+	auto vkCmdBuffer = vulkanCmdList->internal_getVkCommandBuffer();
+
+	// #wip: Figure out proper values
+	BarrierSubresourceRange subresourceRange{
+		.indexOrFirstMipLevel = region.mipLevel,
+		.numMipLevels         = 1,
+		.firstArraySlice      = region.baseArrayLayer,
+		.numArraySlices       = region.layerCount,
+		.firstPlane           = 0,
+		.numPlanes            = 1,
+	};
+	TextureBarrierAuto texBarrier{
+		EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+		this, subresourceRange, ETextureBarrierFlags::None
+	};
+	commandList->barrierAuto(0, nullptr, 1, &texBarrier, 0, nullptr);
 
 	VkImageAspectFlags aspectMask = isDepthStencilFormat(createParams.format)
 		? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
 		: VK_IMAGE_ASPECT_COLOR_BIT;
 	
 	// https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferImageCopy.html
-	VkBufferImageCopy region{
+	VkBufferImageCopy copyRegion{
 		.bufferOffset       = 0,
 		// Hmm I don't understand the doc :( let's just make it use imageExtent.
 		.bufferRowLength    = 0,//(uint32)rowPitch,
 		.bufferImageHeight  = 0,//(uint32)(slicePitch / rowPitch),
 		.imageSubresource   = VkImageSubresourceLayers{
 			.aspectMask     = aspectMask,
-			.mipLevel       = 0,
-			.baseArrayLayer = 0,
-			.layerCount     = 1,
+			.mipLevel       = region.mipLevel,
+			.baseArrayLayer = region.baseArrayLayer,
+			.layerCount     = region.layerCount,
 		},
-		.imageOffset        = VkOffset3D { 0, 0, 0 },
-		.imageExtent        = VkExtent3D { createParams.width, createParams.height, createParams.depth },
+		.imageOffset        = VkOffset3D { (int32)region.offsetX, (int32)region.offsetY, (int32)region.offsetZ },
+		.imageExtent        = VkExtent3D { region.sizeX, region.sizeY, region.sizeZ },
 	};
+	vkCmdCopyImageToBuffer(vkCmdBuffer, vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkReadbackBuffer, 1, &copyRegion);
 
-	TextureBarrierAuto texBarrier = TextureBarrierAuto::toCopySource(this);
-	commandList->barrierAuto(0, nullptr, 1, &texBarrier, 0, nullptr);
+	auto newHandle = makeShared<Texture::ReadbackHandle>();
+	newHandle->owner = this;
+	newHandle->rowPitch = Cymath::alignBytes64(region.sizeX * getPixelFormatBytes(createParams.format), rowPitchAlignment);
+	newHandle->slicePitch = newHandle->rowPitch * region.sizeY;
+	newHandle->totalBytes = newHandle->slicePitch * region.sizeZ;
 
-	vkCmdCopyImageToBuffer(cmd, vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkReadbackBuffer, 1, &region);
+	vulkanCmdList->addReadbackHandle(newHandle);
 
-	bReadbackPrepared = true;
-
-	return true;
+	readbackHandle = newHandle;
+	return newHandle;
 }
 
-bool VulkanTexture::readbackData(void* dst)
+void VulkanTexture::internal_finalizeReadbackBuffer()
 {
 	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, ETextureAccessFlags::CPU_READBACK));
-
-	if (!bReadbackPrepared)
-	{
-		return false;
-	}
+	CHECK(readbackHandle.expired() == false);
 
 	VkDevice vkDevice = device->getRaw();
+	auto req = readbackHandle.lock();
+
+	const size_t readbackBufferSize = req->totalBytes;
+	req->readbackData = new uint8[readbackBufferSize];
 
 	void* pData = nullptr;
-	vkMapMemory(vkDevice, vkReadbackMemory, 0, VK_WHOLE_SIZE, 0, &pData);
-	std::memcpy(dst, pData, readbackSize);
+	vkMapMemory(vkDevice, vkReadbackMemory, 0, readbackBufferSize, 0, &pData);
+	std::memcpy(req->readbackData, pData, readbackBufferSize);
 	vkUnmapMemory(vkDevice, vkReadbackMemory);
 
-	return true;
+	req->bAvailable = true;
+}
+
+void VulkanTexture::setDebugName(const wchar_t* debugNameW)
+{
+	std::string debugNameA;
+	wstr_to_str(debugNameW, debugNameA);
+
+	device->setObjectDebugName(VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, (uint64)vkImage, debugNameA.c_str());
 }
 
 #endif // COMPILE_BACKEND_VULKAN

@@ -4,6 +4,7 @@
 #include "render/static_mesh.h"
 #include "rhi/render_device.h"
 #include "rhi/swap_chain.h"
+#include "rhi/render_command.h"
 #include "world/scene_proxy.h"
 #include "material/material_database.h"
 

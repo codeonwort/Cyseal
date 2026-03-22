@@ -21,7 +21,7 @@ public:
 	// @param inNormal Clean surface normal image.
 	// @param outResult Raw buffer that contains denoised result.
 	// @return false if unable to denoise.
-	bool denoise(Texture* inColor, Texture* inAlbedo, Texture* inNormal, std::vector<uint8>& outResult);
+	bool denoise(void* inColor, void* inAlbedo, void* inNormal, std::vector<uint8>& outResult);
 
 	bool isValid() const;
 

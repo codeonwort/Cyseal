@@ -98,27 +98,16 @@ void DenoiserDevice::recreateResources(uint32 imageWidth, uint32 imageHeight)
 	checkNoDeviceError();
 }
 
-bool DenoiserDevice::denoise(Texture* noisy, Texture* albedo, Texture* normal, std::vector<uint8>& outResult)
+bool DenoiserDevice::denoise(void* noisy, void* albedo, void* normal, std::vector<uint8>& outResult)
 {
 	if (!isValid())
 	{
 		return false;
 	}
 
-	CHECK(oidnBufferSize == noisy->getReadbackBufferSize());
-	CHECK(oidnBufferSize == albedo->getReadbackBufferSize());
-	CHECK(oidnBufferSize == normal->getReadbackBufferSize());
-	
-	std::vector<uint8> noisyReadback(oidnBufferSize);
-	std::vector<uint8> albedoReadback(oidnBufferSize);
-	std::vector<uint8> normalReadback(oidnBufferSize);
-	noisy->readbackData(noisyReadback.data());
-	albedo->readbackData(albedoReadback.data());
-	normal->readbackData(normalReadback.data());
-
-	oidnWriteBuffer(oidnColorBuffer, 0, oidnBufferSize, noisyReadback.data());
-	oidnWriteBuffer(oidnAlbedoBuffer, 0, oidnBufferSize, albedoReadback.data());
-	oidnWriteBuffer(oidnNormalBuffer, 0, oidnBufferSize, normalReadback.data());
+	oidnWriteBuffer(oidnColorBuffer, 0, oidnBufferSize, noisy);
+	oidnWriteBuffer(oidnAlbedoBuffer, 0, oidnBufferSize, albedo);
+	oidnWriteBuffer(oidnNormalBuffer, 0, oidnBufferSize, normal);
 
 	CHECK(checkNoDeviceError());
 

@@ -152,6 +152,7 @@ public:
 
 	inline ID3D12GraphicsCommandListLatest* getRaw() const { return commandList.Get(); }
 	void addReadbackHandle(SharedPtr<Buffer::ReadbackHandle> handle);
+	void addReadbackHandle(SharedPtr<Texture::ReadbackHandle> handle);
 	void notifyReadbackAvailable();
 
 private:
@@ -163,5 +164,6 @@ private:
 	// Raster context
 	bool bInRenderPass = false;
 
-	std::vector<SharedPtr<Buffer::ReadbackHandle>> readbackHandles;
+	std::vector<SharedPtr<Buffer::ReadbackHandle>> bufferReadbackHandles;
+	std::vector<SharedPtr<Texture::ReadbackHandle>> textureReadbackHandles;
 };

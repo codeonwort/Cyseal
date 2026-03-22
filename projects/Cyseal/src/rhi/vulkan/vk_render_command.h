@@ -155,6 +155,7 @@ public:
 	void internal_overrideLastImageLayout(TextureKind* textureKind, EBarrierLayout layout);
 
 	void addReadbackHandle(SharedPtr<Buffer::ReadbackHandle> handle);
+	void addReadbackHandle(SharedPtr<Texture::ReadbackHandle> handle);
 	void notifyReadbackAvailable();
 
 private:
@@ -168,7 +169,8 @@ private:
 	std::vector<RenderTargetView*> currentRTVs;
 	DepthStencilView* currentDSV = nullptr;
 
-	std::vector<SharedPtr<Buffer::ReadbackHandle>> readbackHandles;
+	std::vector<SharedPtr<Buffer::ReadbackHandle>> bufferReadbackHandles;
+	std::vector<SharedPtr<Texture::ReadbackHandle>> textureReadbackHandles;
 };
 
 #endif // COMPILE_BACKEND_VULKAN

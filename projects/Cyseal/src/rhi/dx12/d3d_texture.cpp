@@ -144,8 +144,8 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 	auto rawDevice = device->getRawDevice();
 	D3D12_RESOURCE_DESC1 textureDesc = into_d3d::textureDesc1(params);
 
-	const size_t bytesPerPixel = bitsPerPixel(textureDesc.Format) / 8;
-	rowPitch = (textureDesc.Width * bytesPerPixel + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+	bytesPerPixel = bitsPerPixel(textureDesc.Format) / 8;
+	rowPitch = Cymath::alignBytes64(textureDesc.Width * bytesPerPixel, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	
 	// Validate desc
 	const bool isColorTarget = ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::COLOR_ALL);
@@ -206,7 +206,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		numSubresources = 1;
 	}
 	const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, numSubresources);
-	readbackBufferSize = uploadBufferSize;
+	const UINT64 readbackBufferSize = uploadBufferSize;
 
 	// Create optional resources if this texture supports upload and/or readback.
 	if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::CPU_WRITE))
@@ -289,57 +289,82 @@ void D3DTexture::uploadData(
 	CHECK(ret != 0);
 }
 
-bool D3DTexture::prepareReadback(RenderCommandList* commandList)
+SharedPtr<Texture::ReadbackHandle> D3DTexture::requestReadback(
+	RenderCommandList* commandList, const ReadbackRegion& region)
 {
 	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, ETextureAccessFlags::CPU_READBACK));
 
-	TextureBarrierAuto barrierBefore{
-		EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
-		this, BarrierSubresourceRange { 0, 1, 0, 0, 0, 0 }, ETextureBarrierFlags::None
-	};
-	commandList->barrierAuto(0, nullptr, 1, &barrierBefore, 0, nullptr);
+	// If previous readback request is alive, then reject the request.
+	// Multiple readbacks are possible in theory, but let's keep it simple for now.
+	if (readbackHandle.expired() == false)
+	{
+		return nullptr;
+	}
 
-	ID3D12GraphicsCommandList4* d3dCommandList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
+	auto d3dCmdList = static_cast<D3DRenderCommandList*>(commandList);
+	auto rawCmdList = d3dCmdList->getRaw();
+
+	// #wip: Figure out proper values
+	BarrierSubresourceRange subresourceRange{
+		.indexOrFirstMipLevel = region.mipLevel,
+		.numMipLevels         = 1,
+		.firstArraySlice      = region.baseArrayLayer,
+		.numArraySlices       = region.layerCount,
+		.firstPlane           = 0,
+		.numPlanes            = 1,
+	};
+	TextureBarrierAuto texBarrier{
+		EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+		this, subresourceRange, ETextureBarrierFlags::None
+	};
+	d3dCmdList->barrierAuto(0, nullptr, 1, &texBarrier, 0, nullptr);
 
 	D3D12_TEXTURE_COPY_LOCATION pSrc{
 		.pResource        = rawResource.Get(),
 		.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-		.SubresourceIndex = 0,
+		.SubresourceIndex = region.mipLevel,
 	};
 	D3D12_BOX srcRegion{
-		.left   = 0,
-		.top    = 0,
-		.front  = 0,
-		.right  = createParams.width,
-		.bottom = createParams.height,
-		.back   = createParams.depth,
+		.left   = region.offsetX,
+		.top    = region.offsetY,
+		.front  = region.offsetZ,
+		.right  = region.sizeX,
+		.bottom = region.sizeY,
+		.back   = region.sizeZ,
 	};
-	d3dCommandList->CopyTextureRegion(&readbackFootprintDesc, 0, 0, 0, &pSrc, &srcRegion);
+	rawCmdList->CopyTextureRegion(&readbackFootprintDesc, 0, 0, 0, &pSrc, &srcRegion);
 
-	bReadbackPrepared = true;
+	auto newHandle = makeShared<Texture::ReadbackHandle>();
+	newHandle->owner = this;
+	newHandle->rowPitch = Cymath::alignBytes64(region.sizeX * bytesPerPixel, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);;
+	newHandle->slicePitch = newHandle->rowPitch * region.sizeY;
+	newHandle->totalBytes = newHandle->slicePitch * region.sizeZ;
 
-	return true;
+	d3dCmdList->addReadbackHandle(newHandle);
+
+	readbackHandle = newHandle;
+	return newHandle;
 }
 
-bool D3DTexture::readbackData(void* dst)
+void D3DTexture::internal_finalizeReadbackBuffer()
 {
 	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, ETextureAccessFlags::CPU_READBACK));
+	CHECK(readbackHandle.expired() == false);
 
-	if (!bReadbackPrepared)
-	{
-		return false;
-	}
+	auto req = readbackHandle.lock();
 
-	D3D12_RANGE readbackBufferRange{ 0, readbackBufferSize };
+	req->readbackData = new uint8[req->totalBytes];
+
+	D3D12_RANGE readbackBufferRange{ 0, req->totalBytes };
 	void* src = nullptr;
 	readbackBuffer->Map(0, &readbackBufferRange, &src);
 
-	memcpy_s(dst, readbackBufferSize, src, readbackBufferSize);
+	std::memcpy(req->readbackData, src, req->totalBytes);
 
 	D3D12_RANGE emptyRange{ 0, 0 };
 	readbackBuffer->Unmap(0, &emptyRange);
 
-	return true;
+	req->bAvailable = true;
 }
 
 void D3DTexture::setDebugName(const wchar_t* debugName)
