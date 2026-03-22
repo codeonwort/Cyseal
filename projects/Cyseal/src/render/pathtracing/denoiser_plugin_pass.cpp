@@ -90,7 +90,7 @@ void DenoiserPluginPass::executeDenoiser(RenderCommandList* commandList, Texture
 	const uint64 rowPitch = denoisedTexture->getRowPitch();
 	const uint64 slicePitch = rowPitch * height;
 
-	denoisedTexture->uploadData(*commandList, denoisedBuffer.data(), rowPitch, slicePitch, 0);
+	denoisedTexture->uploadData(commandList, denoisedBuffer.data(), rowPitch, slicePitch, 0);
 
 	TextureBarrierAuto barrier{
 		EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,

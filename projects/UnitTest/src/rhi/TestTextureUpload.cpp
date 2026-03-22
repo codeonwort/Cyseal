@@ -70,7 +70,7 @@ namespace UnitTest
 				}
 				else
 				{
-					textures[i]->uploadData(*commandList, texData[i].data(),
+					textures[i]->uploadData(commandList, texData[i].data(),
 						(uint64)(sizeof(uint32) * texParams[i].width),
 						(uint64)(sizeof(uint32) * texParams[i].width * texParams[i].height));
 				}

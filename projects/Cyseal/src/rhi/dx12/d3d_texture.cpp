@@ -257,7 +257,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 }
 
 void D3DTexture::uploadData(
-	RenderCommandList& commandList,
+	RenderCommandList* commandList,
 	const void* buffer,
 	uint64 rowPitch,
 	uint64 slicePitch,
@@ -275,14 +275,14 @@ void D3DTexture::uploadData(
 		EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
 		this, BarrierSubresourceRange { subresourceIndex, 0, 0, 0, 0, 0 }, ETextureBarrierFlags::None
 	};
-	commandList.barrierAuto(0, nullptr, 1, &barrierBefore, 0, nullptr);
+	commandList->barrierAuto(0, nullptr, 1, &barrierBefore, 0, nullptr);
 
 	// [ RESOURCE_MANIPULATION ERROR #864: COPYTEXTUREREGION_INVALIDSRCOFFSET ]
 	// Offset must be a multiple of 512.
 	uint64 slicePitchAligned = (slicePitch + 511) & ~511;
 
 	UINT64 ret = ::UpdateSubresources(
-		static_cast<D3DRenderCommandList*>(&commandList)->getRaw(),
+		static_cast<D3DRenderCommandList*>(commandList)->getRaw(),
 		rawResource.Get(),
 		textureUploadHeap.Get(), slicePitchAligned * subresourceIndex,
 		subresourceIndex, 1, &textureData);

@@ -144,7 +144,7 @@ void VulkanTexture::initialize(const TextureCreateParams& inParams)
 }
 
 void VulkanTexture::uploadData(
-	RenderCommandList& commandList,
+	RenderCommandList* commandList,
 	const void* buffer,
 	uint64 rowPitch,
 	uint64 slicePitch,
@@ -156,7 +156,7 @@ void VulkanTexture::uploadData(
 	readbackSize = uploadSize; // #wip: temp readback size
 
 	VkDevice vkDevice = device->getRaw();
-	VkCommandBuffer cmd = static_cast<VulkanRenderCommandList*>(&commandList)->internal_getVkCommandBuffer();
+	VkCommandBuffer cmd = static_cast<VulkanRenderCommandList*>(commandList)->internal_getVkCommandBuffer();
 
 	void* pData = nullptr;
 	vkMapMemory(vkDevice, vkUploadMemory, 0, uploadSize, (VkMemoryMapFlags)0, &pData);
@@ -184,7 +184,7 @@ void VulkanTexture::uploadData(
 	};
 
 	TextureBarrierAuto texBarrier = TextureBarrierAuto::toCopyDest(this);
-	commandList.barrierAuto(0, nullptr, 1, &texBarrier, 0, nullptr);
+	commandList->barrierAuto(0, nullptr, 1, &texBarrier, 0, nullptr);
 
 	vkCmdCopyBufferToImage(cmd, vkUploadBuffer, vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }

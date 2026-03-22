@@ -257,7 +257,7 @@ void PBRT4Loader::loadTextureFiles(const std::wstring& baseDir, const pbrt::PBRT
 						imageBlob->width, imageBlob->height);
 					
 					Texture* texture = gRenderDevice->createTexture(createParams);
-					texture->uploadData(commandList,
+					texture->uploadData(&commandList,
 						imageBlob->buffer,
 						imageBlob->getRowPitch(),
 						imageBlob->getSlicePitch());

@@ -28,7 +28,7 @@ public:
 	virtual const TextureCreateParams& getCreateParams() const override { return createParams; }
 
 	virtual void uploadData(
-		RenderCommandList& commandList,
+		RenderCommandList* commandList,
 		const void* buffer,
 		uint64 rowPitch,
 		uint64 slicePitch,

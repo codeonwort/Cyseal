@@ -178,7 +178,7 @@ public:
 	virtual const TextureCreateParams& getCreateParams() const = 0;
 
 	virtual void uploadData(
-		RenderCommandList& commandList,
+		RenderCommandList* commandList,
 		const void* buffer,
 		uint64 rowPitch,
 		uint64 slicePitch,

@@ -110,7 +110,7 @@ void TextureManager::createSystemTextures()
 				uint32 cnt = desc.bIsCube ? 6 : 1;
 				for (uint32 i = 0; i < cnt; ++i)
 				{
-					tex->uploadData(commandList, desc.color, 4, 4, i);
+					tex->uploadData(&commandList, desc.color, 4, 4, i);
 				}
 			}
 			commandList.enqueueDeferredDealloc(initTablePtr);
@@ -154,7 +154,7 @@ void TextureManager::createBlueNoiseTextures()
 	ENQUEUE_RENDER_COMMAND(UploadSTBN)(
 		[totalBlob, rowPitch, slicePitch, tex](RenderCommandList& commandList)
 		{
-			tex->uploadData(commandList, totalBlob, rowPitch, slicePitch, 0);
+			tex->uploadData(&commandList, totalBlob, rowPitch, slicePitch, 0);
 			commandList.enqueueDeferredDealloc(totalBlob);
 		}
 	);
