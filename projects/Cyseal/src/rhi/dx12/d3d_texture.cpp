@@ -328,9 +328,9 @@ SharedPtr<Texture::ReadbackHandle> D3DTexture::requestReadback(
 		.left   = region.offsetX,
 		.top    = region.offsetY,
 		.front  = region.offsetZ,
-		.right  = region.sizeX,
-		.bottom = region.sizeY,
-		.back   = region.sizeZ,
+		.right  = region.offsetX + region.sizeX,
+		.bottom = region.offsetY + region.sizeY,
+		.back   = region.offsetZ + region.sizeZ,
 	};
 	rawCmdList->CopyTextureRegion(&readbackFootprintDesc, 0, 0, 0, &pSrc, &srcRegion);
 
