@@ -12,11 +12,20 @@ namespace UnitTest
 	template<ERenderDeviceRawAPI graphicsAPI>
 	class TestTextureUploadBase
 	{
+	public:
+		TestTextureUploadBase()
+		{
+			renderDevice = rhi_test::createHeadlessDevice(graphicsAPI);
+		}
+		~TestTextureUploadBase()
+		{
+			renderDevice->destroy();
+			delete renderDevice;
+		}
+
 	protected:
 		void TextureUploadAndReadback()
 		{
-			RenderDevice* renderDevice = rhi_test::createHeadlessDevice(graphicsAPI);
-
 			// width should be at least D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
 			// to gracefully reuse texData. (row pitch alignment issue)
 			TextureCreateParams texParams[] = {
@@ -41,20 +50,7 @@ namespace UnitTest
 			};
 			const int32 numTextures = _countof(texParams);
 
-			auto commandList = renderDevice->getCommandListForCustomCommand();
-			auto commandAllocator = renderDevice->getCommandAllocator(0);
-			auto commandQueue = renderDevice->getCommandQueue();
-			SwapChain* nullSwapChain = nullptr;
-
-			auto beginRendering = [&]() {
-				commandList->reset(commandAllocator);
-			};
-			auto finishRendering = [&]() {
-				commandList->close();
-				commandAllocator->markValid();
-				commandQueue->executeCommandList(commandList, nullSwapChain);
-				renderDevice->flushCommandQueue();
-			};
+			auto commandList = getCommandList();
 
 			// 1. Upload texture data.
 			beginRendering();
@@ -111,10 +107,91 @@ namespace UnitTest
 			{
 				delete textures[i];
 			}
-
-			renderDevice->destroy();
-			delete renderDevice;
 		}
+
+		void Texture1DPartialReadback()
+		{
+			TextureCreateParams texParams = TextureCreateParams::texture1D(
+				EPixelFormat::R32_UINT,
+				ETextureAccessFlags::CPU_WRITE | ETextureAccessFlags::CPU_READBACK,
+				256);
+
+			std::vector<uint32> texData = std::vector<uint32>(texParams.width, 0);
+			for (size_t i = 0; i < texData.size(); ++i)
+			{
+				texData[i] = (uint32)(i * 3 + 11);
+			}
+
+			auto commandList = getCommandList();
+
+			// 1. Upload texture data.
+			beginRendering();
+			Texture* texture = renderDevice->createTexture(texParams);
+			Assert::IsNotNull(texture, L"Failed to create a Texture");
+			texture->uploadData(commandList, texData.data(),
+				(uint64)(sizeof(uint32) * texParams.width),
+				(uint64)(sizeof(uint32) * texParams.width * texParams.height));
+			finishRendering();
+
+			// 2. Readback texture data.
+			beginRendering();
+			//uint32 subBeginX = 0, subEndX = texParams.width; // [begin, end)
+			uint32 subBeginX = 27, subEndX = 213; // [begin, end)
+			Texture::ReadbackRegion region{
+				.mipLevel = 0,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+				.offsetX = subBeginX,
+				.offsetY = 0,
+				.offsetZ = 0,
+				.sizeX = subEndX - subBeginX,
+				.sizeY = 1,
+				.sizeZ = 1,
+			};
+			SharedPtr<Texture::ReadbackHandle> readbackHandle = texture->requestReadback(commandList, region);
+			Assert::IsTrue(readbackHandle != nullptr);
+			finishRendering();
+			Assert::IsTrue(readbackHandle->bAvailable);
+
+			// 3. Assert.
+			uint32* readbackData = reinterpret_cast<uint32*>(readbackHandle->readbackData);
+			for (size_t i = subBeginX; i < subEndX; ++i)
+			{
+				Assert::AreEqual(texData[i], readbackData[i - subBeginX]);
+			}
+
+			// 4. Cleanup.
+			readbackHandle.reset();
+			delete texture;
+		}
+
+	private:
+		RenderCommandList* getCommandList()
+		{
+			return renderDevice->getCommandListForCustomCommand();
+		}
+		void beginRendering()
+		{
+			RenderCommandList* commandList = getCommandList();
+			RenderCommandAllocator* commandAllocator = renderDevice->getCommandAllocator(0);
+
+			commandList->reset(commandAllocator);
+		}
+		void finishRendering()
+		{
+			RenderCommandList* commandList = getCommandList();
+			RenderCommandAllocator* commandAllocator = renderDevice->getCommandAllocator(0);
+			RenderCommandQueue* commandQueue = renderDevice->getCommandQueue();
+			SwapChain* nullSwapChain = nullptr;
+
+			commandList->close();
+			commandAllocator->markValid();
+			commandQueue->executeCommandList(commandList, nullSwapChain);
+			renderDevice->flushCommandQueue();
+		}
+
+	private:
+		RenderDevice* renderDevice = nullptr;
 	};
 
 	TEST_CLASS(TestTextureUploadD3D12), TestTextureUploadBase<ERenderDeviceRawAPI::DirectX12>
@@ -124,6 +201,10 @@ namespace UnitTest
 		{
 			TestTextureUploadBase::TextureUploadAndReadback();
 		}
+		TEST_METHOD(Texture1DPartialReadback)
+		{
+			TestTextureUploadBase::Texture1DPartialReadback();
+		}
 	};
 
 	TEST_CLASS(TestTextureUploadVulkan), TestTextureUploadBase<ERenderDeviceRawAPI::Vulkan>
@@ -132,6 +213,10 @@ namespace UnitTest
 		TEST_METHOD(TextureUploadAndReadback)
 		{
 			TestTextureUploadBase::TextureUploadAndReadback();
+		}
+		TEST_METHOD(Texture1DPartialReadback)
+		{
+			TestTextureUploadBase::Texture1DPartialReadback();
 		}
 	};
 }
