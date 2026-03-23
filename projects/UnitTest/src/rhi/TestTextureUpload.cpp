@@ -212,16 +212,22 @@ namespace UnitTest
 
 			// 3. Assert.
 			uint32* readbackData = reinterpret_cast<uint32*>(readbackHandle->readbackData);
-			size_t p = 0;
+			uint32* readbackDataCurrRow = readbackData;
+			uint32 numFailed = 0;
 			for (size_t y = subBeginY; y < subEndY; ++y)
 			{
 				for (size_t x = subBeginX; x < subEndX; ++x)
 				{
 					size_t ix = y * texParams.width + x;
-					Assert::AreEqual(texData[ix], readbackData[p]);
-					++p;
+					if (texData[ix] != readbackDataCurrRow[x - subBeginX])
+					{
+						++numFailed;
+					}
 				}
+				// NOTE: Be careful that rows might not be tightly packed.
+				readbackDataCurrRow += readbackHandle->rowPitch / sizeof(uint32);
 			}
+			Assert::AreEqual(0u, numFailed);
 
 			// 4. Cleanup.
 			readbackHandle.reset();

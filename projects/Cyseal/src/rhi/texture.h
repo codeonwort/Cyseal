@@ -185,7 +185,7 @@ public:
 	{
 		// Do not modify members but only read them.
 		bool     bAvailable   = false;
-		void*    readbackData = nullptr;
+		void*    readbackData = nullptr; // CAUTION: Data might not be tightly packed and you must consider rowPitch when moving to the next row.
 		uint64   rowPitch     = 0;
 		uint64   slicePitch   = 0;
 		uint64   totalBytes   = 0;

@@ -244,6 +244,7 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 			.Type             = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
 			.PlacedFootprint  = D3D12_PLACED_SUBRESOURCE_FOOTPRINT{
 				.Offset       = 0,
+				// Initial values are the entire texture, but can be changed per readback request.
 				.Footprint    = D3D12_SUBRESOURCE_FOOTPRINT{
 					.Format   = textureDesc.Format,
 					.Width    = (UINT)textureDesc.Width,
@@ -319,6 +320,12 @@ SharedPtr<Texture::ReadbackHandle> D3DTexture::requestReadback(
 	};
 	d3dCmdList->barrierAuto(0, nullptr, 1, &texBarrier, 0, nullptr);
 
+	const uint32 copyRowPitch = Cymath::alignBytes((uint32)(region.sizeX * bytesPerPixel), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	readbackFootprintDesc.PlacedFootprint.Footprint.Width = region.sizeX;
+	readbackFootprintDesc.PlacedFootprint.Footprint.Height = region.sizeY;
+	readbackFootprintDesc.PlacedFootprint.Footprint.Depth = region.sizeZ;
+	readbackFootprintDesc.PlacedFootprint.Footprint.RowPitch = copyRowPitch;
+
 	D3D12_TEXTURE_COPY_LOCATION pSrc{
 		.pResource        = rawResource.Get(),
 		.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
@@ -336,7 +343,7 @@ SharedPtr<Texture::ReadbackHandle> D3DTexture::requestReadback(
 
 	auto newHandle = makeShared<Texture::ReadbackHandle>();
 	newHandle->owner = this;
-	newHandle->rowPitch = Cymath::alignBytes64(region.sizeX * bytesPerPixel, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);;
+	newHandle->rowPitch = (uint64)copyRowPitch;
 	newHandle->slicePitch = newHandle->rowPitch * region.sizeY;
 	newHandle->totalBytes = newHandle->slicePitch * region.sizeZ;
 
