@@ -157,7 +157,7 @@ namespace UnitTest
 			pbrt::PBRT4Scanner scanner;
 			scanner.scanTokens(fs);
 
-			// #wip: Now need to call MaterialShaderDatabase::compileMaterials(), but then it requires render device :(
+			// #todo-test: Now need to call MaterialShaderDatabase::compileMaterials(), but then it requires render device :(
 			pbrt::PBRT4Parser parser;
 			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
 			Assert::IsTrue(parserOutput.bValid, L"Parser reported errors");

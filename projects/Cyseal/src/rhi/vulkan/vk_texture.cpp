@@ -201,7 +201,6 @@ SharedPtr<Texture::ReadbackHandle> VulkanTexture::requestReadback(
 	auto vulkanCmdList = static_cast<VulkanRenderCommandList*>(commandList);
 	auto vkCmdBuffer = vulkanCmdList->internal_getVkCommandBuffer();
 
-	// #wip: Figure out proper values
 	BarrierSubresourceRange subresourceRange{
 		.indexOrFirstMipLevel = region.mipLevel,
 		.numMipLevels         = 1,

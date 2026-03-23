@@ -305,7 +305,6 @@ SharedPtr<Texture::ReadbackHandle> D3DTexture::requestReadback(
 	auto d3dCmdList = static_cast<D3DRenderCommandList*>(commandList);
 	auto rawCmdList = d3dCmdList->getRaw();
 
-	// #wip: Figure out proper values
 	BarrierSubresourceRange subresourceRange{
 		.indexOrFirstMipLevel = region.mipLevel,
 		.numMipLevels         = 1,
