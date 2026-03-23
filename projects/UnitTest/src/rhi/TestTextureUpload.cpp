@@ -234,6 +234,80 @@ namespace UnitTest
 			delete texture;
 		}
 
+		void Texture3DPartialReadback()
+		{
+			TextureCreateParams texParams = TextureCreateParams::texture3D(
+				EPixelFormat::R32_UINT,
+				ETextureAccessFlags::CPU_WRITE | ETextureAccessFlags::CPU_READBACK,
+				64, 4, 4);
+
+			const uint32 totalPixels = texParams.width * texParams.height * texParams.depth;
+			std::vector<uint32> texData = std::vector<uint32>(totalPixels, 0);
+			for (size_t i = 0; i < texData.size(); ++i)
+			{
+				texData[i] = (uint32)i + 1;
+			}
+
+			auto commandList = getCommandList();
+
+			// 1. Upload texture data.
+			beginRendering();
+			Texture* texture = renderDevice->createTexture(texParams);
+			Assert::IsNotNull(texture, L"Failed to create a Texture");
+			texture->uploadData(commandList, texData.data(),
+				(uint64)(sizeof(uint32) * texParams.width),
+				(uint64)(sizeof(uint32) * texParams.width * texParams.height));
+			finishRendering();
+
+			// 2. Readback texture data.
+			beginRendering();
+			//uint32 subBeginX = 0, subEndX = texParams.width; // [begin, end)
+			uint32 subBeginX = 27, subEndX = 51; // [begin, end)
+			uint32 subBeginY = 1, subEndY = 3; // [begin, end)
+			uint32 subBeginZ = 1, subEndZ = 3; // [begin, end)
+			Texture::ReadbackRegion region{
+				.mipLevel = 0,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+				.offsetX = subBeginX,
+				.offsetY = subBeginY,
+				.offsetZ = subBeginZ,
+				.sizeX = subEndX - subBeginX,
+				.sizeY = subEndY - subBeginY,
+				.sizeZ = subEndZ - subBeginZ,
+			};
+			SharedPtr<Texture::ReadbackHandle> readbackHandle = texture->requestReadback(commandList, region);
+			Assert::IsTrue(readbackHandle != nullptr);
+			finishRendering();
+			Assert::IsTrue(readbackHandle->bAvailable);
+
+			// 3. Assert.
+			uint32* readbackData = reinterpret_cast<uint32*>(readbackHandle->readbackData);
+			uint32* readbackDataCurrRow = readbackData;
+			uint32 numFailed = 0;
+			for (size_t z = subBeginZ; z < subEndZ; ++z)
+			{
+				for (size_t y = subBeginY; y < subEndY; ++y)
+				{
+					for (size_t x = subBeginX; x < subEndX; ++x)
+					{
+						size_t ix = z * (texParams.width * texParams.height) + y * texParams.width + x;
+						if (texData[ix] != readbackDataCurrRow[x - subBeginX])
+						{
+							++numFailed;
+						}
+					}
+					// NOTE: Be careful that rows might not be tightly packed.
+					readbackDataCurrRow += readbackHandle->rowPitch / sizeof(uint32);
+				}
+			}
+			Assert::AreEqual(0u, numFailed);
+
+			// 4. Cleanup.
+			readbackHandle.reset();
+			delete texture;
+		}
+
 	private:
 		RenderCommandList* getCommandList()
 		{
@@ -278,6 +352,10 @@ namespace UnitTest
 		{
 			TestTextureUploadBase::Texture2DPartialReadback();
 		}
+		TEST_METHOD(Texture3DPartialReadback)
+		{
+			TestTextureUploadBase::Texture3DPartialReadback();
+		}
 	};
 
 	TEST_CLASS(TestTextureUploadVulkan), TestTextureUploadBase<ERenderDeviceRawAPI::Vulkan>
@@ -294,6 +372,10 @@ namespace UnitTest
 		TEST_METHOD(Texture2DPartialReadback)
 		{
 			TestTextureUploadBase::Texture2DPartialReadback();
+		}
+		TEST_METHOD(Texture3DPartialReadback)
+		{
+			TestTextureUploadBase::Texture3DPartialReadback();
 		}
 	};
 }
