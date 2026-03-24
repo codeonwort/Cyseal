@@ -395,7 +395,7 @@ void IndirecSpecularPass::initializeRaytracingPipeline()
 		BufferCreateParams{
 			.sizeInBytes = rayCommandGenerator->getCommandByteStride(),
 			.alignment   = 0,
-			.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
+			.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
 		}
 	));
 	rayCommandBufferUAV = UniquePtr<UnorderedAccessView>(device->createUAV(rayCommandBuffer.get(),

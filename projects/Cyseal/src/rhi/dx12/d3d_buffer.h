@@ -13,11 +13,16 @@ public:
 	D3DBuffer(D3DDevice* inDevice) : device(inDevice) {}
 	virtual ~D3DBuffer();
 
-	virtual void initialize(const BufferCreateParams& inCreateParams) override;
 	virtual void writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs) override;
+	virtual SharedPtr<ReadbackHandle> requestReadback(RenderCommandList* commandList, uint64 offset, uint64 size) override;
 
 	virtual void* getRawResource() const { return defaultBuffer.Get(); }
 	virtual void setDebugName(const wchar_t* inDebugName) override;
+
+	void internal_finalizeReadbackBuffer();
+
+protected:
+	virtual void onInitialize() override;
 
 private:
 	D3DDevice* device = nullptr;
@@ -28,6 +33,9 @@ private:
 	// as the same size as the default buffer is inefficient.
 	WRL::ComPtr<ID3D12Resource> uploadBuffer;
 	uint8* uploadMapPtr = nullptr;
+
+	WRL::ComPtr<ID3D12Resource> readbackBuffer;
+	WeakPtr<Buffer::ReadbackHandle> readbackHandle;
 };
 
 class D3DVertexBuffer : public VertexBuffer

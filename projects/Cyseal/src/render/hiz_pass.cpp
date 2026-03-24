@@ -1,6 +1,8 @@
 #include "hiz_pass.h"
 #include "rhi/render_device.h"
 #include "rhi/swap_chain.h"
+#include "rhi/gpu_resource_binding.h"
+#include "rhi/render_command.h"
 
 void HiZPass::initialize()
 {

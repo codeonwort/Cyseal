@@ -204,6 +204,7 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 			case D3D12_RAYTRACING_TIER_NOT_SUPPORTED: raytracingTier = ERaytracingTier::NotSupported; break;
 			case D3D12_RAYTRACING_TIER_1_0: raytracingTier = ERaytracingTier::Tier_1_0; break;
 			case D3D12_RAYTRACING_TIER_1_1: raytracingTier = ERaytracingTier::Tier_1_1; break;
+			case D3D12_RAYTRACING_TIER_1_2: raytracingTier = ERaytracingTier::Tier_1_2; break;
 			default: CHECK_NO_ENTRY();
 		}
 		switch (caps6.VariableShadingRateTier)
@@ -465,6 +466,8 @@ void D3DDevice::flushCommandQueue()
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
+
+	commandQueue->internal_onFlush();
 }
 
 void D3DDevice::beginGPUCapture(const std::wstring& filepath)
@@ -843,9 +846,11 @@ void D3DDevice::copyDescriptors(
 
 RenderCommandList* D3DDevice::getCommandListForCustomCommand() const
 {
-	uint32 swapchainIx = getCreateParams().bDoubleBuffering
-		? getSwapChain()->getNextBackbufferIndex()
-		: getSwapChain()->getCurrentBackbufferIndex();
+	uint32 swapchainIx = getCreateParams().swapChainParams.bHeadless
+		? 0
+		: getCreateParams().bDoubleBuffering
+			? getSwapChain()->getNextBackbufferIndex()
+			: getSwapChain()->getCurrentBackbufferIndex();
 
 	RenderCommandList* commandList = getCommandList(swapchainIx);
 	return commandList;

@@ -15,11 +15,14 @@ public:
 	virtual void initialize(RenderDevice* renderDevice) override;
 	virtual void executeCommandList(RenderCommandList* commandList, SwapChain* swapChain) override;
 
+	virtual void internal_onFlush() override;
+
 	inline ID3D12CommandQueue* getRaw() const { return queue.Get(); }
 
 private:
 	D3DDevice* device;
 	WRL::ComPtr<ID3D12CommandQueue> queue;
+	std::vector<class D3DRenderCommandList*> activeCommandLists;
 };
 
 class D3DRenderCommandAllocator : public RenderCommandAllocator
@@ -144,7 +147,13 @@ public:
 	virtual void beginEventMarker(const char* eventName) override;
 	virtual void endEventMarker() override;
 
+	// ------------------------------------------------------------------------
+	// !!! Internal use only !!!
+
 	inline ID3D12GraphicsCommandListLatest* getRaw() const { return commandList.Get(); }
+	void addReadbackHandle(SharedPtr<Buffer::ReadbackHandle> handle);
+	void addReadbackHandle(SharedPtr<Texture::ReadbackHandle> handle);
+	void notifyReadbackAvailable();
 
 private:
 	D3DDevice* device;
@@ -154,4 +163,7 @@ private:
 
 	// Raster context
 	bool bInRenderPass = false;
+
+	std::vector<SharedPtr<Buffer::ReadbackHandle>> bufferReadbackHandles;
+	std::vector<SharedPtr<Texture::ReadbackHandle>> textureReadbackHandles;
 };

@@ -40,4 +40,8 @@ private:
 	UniquePtr<UnorderedAccessView> colorUAV;
 	UniquePtr<UnorderedAccessView> albedoUAV;
 	UniquePtr<UnorderedAccessView> normalUAV;
+
+	SharedPtr<Texture::ReadbackHandle> colorReadbackHandle;
+	SharedPtr<Texture::ReadbackHandle> albedoReadbackHandle;
+	SharedPtr<Texture::ReadbackHandle> normalReadbackHandle;
 };

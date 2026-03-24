@@ -78,7 +78,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 			BufferCreateParams{
 				.sizeInBytes = SCENE_UNIFORM_MEMORY_POOL_SIZE,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::CBV,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::CBV,
 			}
 		));
 
@@ -1356,7 +1356,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 		BufferCreateParams{
 			.sizeInBytes = sizeof(uint32),
 			.alignment   = 0,
-			.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
+			.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
 		}
 	));
 	indirectSpecularTileCounterBufferUAV = UniquePtr<UnorderedAccessView>(device->createUAV(indirectSpecularTileCounterBuffer.get(),

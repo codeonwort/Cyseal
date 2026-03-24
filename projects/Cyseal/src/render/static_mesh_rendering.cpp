@@ -4,6 +4,7 @@
 #include "render/static_mesh.h"
 #include "rhi/render_device.h"
 #include "rhi/swap_chain.h"
+#include "rhi/render_command.h"
 #include "world/scene_proxy.h"
 #include "material/material_database.h"
 
@@ -98,7 +99,7 @@ void IndirectDrawHelper::initialize(
 			BufferCreateParams{
 				.sizeInBytes = sizeof(uint32),
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::UAV,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::UAV,
 			}
 		));
 
@@ -137,7 +138,7 @@ void IndirectDrawHelper::resizeResources(uint32 swapchainIndex, uint32 maxDrawCo
 			BufferCreateParams{
 				.sizeInBytes = requiredCapacity,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC | EBufferAccessFlags::SRV,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE | EBufferAccessFlags::SRV,
 			}
 		));
 

@@ -1,6 +1,7 @@
 #include "world1.h"
 
 #include "rhi/render_device.h"
+#include "rhi/render_command.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/texture_manager.h"
 #include "render/static_mesh.h"
@@ -159,7 +160,7 @@ void World1::createTestMeshes()
 				imageBlob->width, imageBlob->height, 1);
 
 			Texture* texture = gRenderDevice->createTexture(params);
-			texture->uploadData(commandList, imageBlob->buffer, imageBlob->getRowPitch(), imageBlob->getSlicePitch());
+			texture->uploadData(&commandList, imageBlob->buffer, imageBlob->getRowPitch(), imageBlob->getSlicePitch());
 			texture->setDebugName(TEXT("Texture_albedoTest"));
 
 			tex->setGPUResource(SharedPtr<Texture>(texture));
@@ -306,7 +307,7 @@ void World1::createSkybox()
 				Texture* texture = gRenderDevice->createTexture(params);
 				for (uint32 i = 0; i < 6; ++i)
 				{
-					texture->uploadData(commandList,
+					texture->uploadData(&commandList,
 						skyboxBlobs[i]->buffer,
 						skyboxBlobs[i]->getRowPitch(),
 						skyboxBlobs[i]->getSlicePitch(),

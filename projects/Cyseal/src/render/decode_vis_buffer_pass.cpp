@@ -4,6 +4,7 @@
 #include "rhi/swap_chain.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/barrier_tracker.h"
+#include "rhi/render_command.h"
 
 void DecodeVisBufferPass::initialize(RenderDevice* inRenderDevice)
 {

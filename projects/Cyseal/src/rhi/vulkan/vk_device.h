@@ -124,6 +124,7 @@ public:
 	inline VkSemaphore getVkSwapchainImageAvailableSemaphore(uint32 swapchainIx) const { return vkSwapchainImageAvailableSemaphores[swapchainIx]; }
 	inline VkSemaphore getVkRenderFinishedSemaphore() const { return vkRenderFinishedSemaphore; }
 
+	inline const VkPhysicalDeviceLimits& getVkPhysicalDeviceLimits() const { return vkPhysicalDeviceLimits; }
 	inline const VkPhysicalDeviceProperties2& getVkPhysicalDeviceProperties2() const { return vkPhysicalDeviceProperties2; }
 
 	void beginVkDebugMarker(VkCommandBuffer& cmdBuffer, const char* debugName, uint32 color = 0x000000);
@@ -152,6 +153,7 @@ private:
 
 	VkSurfaceKHR vkSurface = VK_NULL_HANDLE;
 
+	VkPhysicalDeviceLimits vkPhysicalDeviceLimits;
 	VkPhysicalDeviceProperties2 vkPhysicalDeviceProperties2;
 
 	VkQueue vkGraphicsQueue = VK_NULL_HANDLE;

@@ -133,21 +133,25 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\barrier\TestBarrier.cpp" />
+    <ClCompile Include="src\rhi\TestBarrier.cpp" />
+    <ClCompile Include="src\rhi\TestBufferUpload.cpp" />
+    <ClCompile Include="src\rhi\test_rhi_utils.cpp" />
     <ClCompile Include="src\shader\TestShaderCodegen.cpp" />
-    <ClCompile Include="src\TestBxDF.cpp" />
-    <ClCompile Include="src\TestCamera.cpp" />
-    <ClCompile Include="src\TestFreeNumberList.cpp" />
-    <ClCompile Include="src\TestImageLoader.cpp" />
-    <ClCompile Include="src\TestPBRTParser.cpp" />
+    <ClCompile Include="src\render\TestBxDF.cpp" />
+    <ClCompile Include="src\render\TestCamera.cpp" />
+    <ClCompile Include="src\core\TestFreeNumberList.cpp" />
+    <ClCompile Include="src\loader\TestImageLoader.cpp" />
+    <ClCompile Include="src\loader\TestPBRTParser.cpp" />
     <ClCompile Include="src\TestProcessCrash.cpp" />
-    <ClCompile Include="src\TestRenderDevice.cpp" />
-    <ClCompile Include="src\TestSTBN.cpp" />
-    <ClCompile Include="src\TestSTL.cpp" />
-    <ClCompile Include="src\TestVector.cpp" />
+    <ClCompile Include="src\rhi\TestRenderDevice.cpp" />
+    <ClCompile Include="src\render\TestSTBN.cpp" />
+    <ClCompile Include="src\core\TestSTL.cpp" />
+    <ClCompile Include="src\core\TestVector.cpp" />
+    <ClCompile Include="src\rhi\TestTextureUpload.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="src\rhi\test_rhi_utils.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Cyseal\Cyseal.vcxproj">

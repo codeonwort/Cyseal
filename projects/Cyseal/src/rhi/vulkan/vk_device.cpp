@@ -320,6 +320,10 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		vkPhysicalDeviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 		vkPhysicalDeviceProperties2.pNext = nullptr;
 		vkGetPhysicalDeviceProperties2(vkPhysicalDevice, &vkPhysicalDeviceProperties2);
+
+		VkPhysicalDeviceProperties deviceProperties;
+		vkGetPhysicalDeviceProperties(vkPhysicalDevice, &deviceProperties);
+		vkPhysicalDeviceLimits = deviceProperties.limits;
 	}
 
 	CYLOG(LogVulkan, Log, TEXT("> Create a logical device"));
@@ -482,6 +486,8 @@ void VulkanDevice::flushCommandQueue()
 {
 	VkResult ret = vkQueueWaitIdle(vkGraphicsQueue);
 	CHECK(ret == VK_SUCCESS);
+
+	commandQueue->internal_onFlush();
 }
 
 void VulkanDevice::beginGPUCapture(const std::wstring& filepath)
@@ -1487,11 +1493,15 @@ void VulkanDevice::copyDescriptors(
 
 RenderCommandList* VulkanDevice::getCommandListForCustomCommand() const
 {
-	uint32 swapchainIx = getCreateParams().bDoubleBuffering
-		? getSwapChain()->getNextBackbufferIndex()
-		: getSwapChain()->getCurrentBackbufferIndex();
+	const bool bHeadless = getCreateParams().swapChainParams.bHeadless;
 
-	if (getSwapChain()->getCurrentBackbufferIndex() == 0xffffffff)
+	uint32 swapchainIx = bHeadless
+		? 0
+		: getCreateParams().bDoubleBuffering
+			? getSwapChain()->getNextBackbufferIndex()
+			: getSwapChain()->getCurrentBackbufferIndex();
+
+	if (!bHeadless && getSwapChain()->getCurrentBackbufferIndex() == 0xffffffff)
 	{
 		swapchainIx = getCreateParams().bDoubleBuffering
 			? 1

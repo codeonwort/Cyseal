@@ -1,8 +1,10 @@
 #pragma once
 
 #include "rhi/texture_kind.h"
-#include "rhi/render_command.h"
 #include "util/enum_util.h"
+#include "core/smart_pointer.h"
+
+class RenderCommandList;
 
 enum class ETextureDimension : uint8
 {
@@ -15,6 +17,7 @@ enum class ETextureDimension : uint8
 // D3D12_RESOURCE_FLAGS (my texture variant)
 enum class ETextureAccessFlags : uint32
 {
+	NONE         = 0, // A resource without any flags is no meaningful in any way. Some platform APIs will even report an error.
     SRV          = 1 << 0,
     RTV          = 1 << 1,
     UAV          = 1 << 2,
@@ -61,6 +64,27 @@ struct TextureCreateParams
 	{
 		optimalClearStencil = stencil;
 		return *this;
+	}
+
+	static TextureCreateParams texture1D(
+		EPixelFormat inFormat,
+		ETextureAccessFlags inAccessFlags,
+		uint32 inWidth,
+		uint16 inMipLevels = 1,
+		uint32 inSampleCount = 1,
+		uint32 inSampleQuality = 0)
+	{
+		return TextureCreateParams{
+            ETextureDimension::TEXTURE1D,
+            inFormat,
+            inAccessFlags,
+            inWidth,
+            1,
+            1,
+            inMipLevels,
+            inSampleCount,
+            inSampleQuality
+        };
 	}
 
     static TextureCreateParams texture2D(
@@ -136,6 +160,43 @@ struct TextureCreateParams
 class Texture : public TextureKind
 {
 public:
+	struct ReadbackRegion
+	{
+		uint32 mipLevel       = 0;
+		uint32 baseArrayLayer = 0;
+		uint32 layerCount     = 1;
+		uint32 offsetX        = 0;
+		uint32 offsetY        = 0;
+		uint32 offsetZ        = 0;
+		uint32 sizeX          = 0;
+		uint32 sizeY          = 0;
+		uint32 sizeZ          = 0;
+
+		static ReadbackRegion mip0(Texture* texture)
+		{
+			ReadbackRegion region{};
+			region.sizeX = texture->getCreateParams().width;
+			region.sizeY = texture->getCreateParams().height;
+			region.sizeZ = texture->getCreateParams().depth;
+			return region;
+		}
+	};
+	struct ReadbackHandle
+	{
+		// Do not modify members but only read them.
+		bool     bAvailable   = false;
+		void*    readbackData = nullptr; // CAUTION: Data might not be tightly packed and you must consider rowPitch when moving to the next row.
+		uint64   rowPitch     = 0;
+		uint64   slicePitch   = 0;
+		uint64   totalBytes   = 0;
+		Texture* owner        = nullptr;
+
+		~ReadbackHandle()
+		{
+			if (readbackData != nullptr) delete readbackData;
+		}
+	};
+
 	virtual TextureKindShapeDesc internal_getShapeDesc() override
 	{
 		const TextureCreateParams& params = getCreateParams();
@@ -155,24 +216,35 @@ public:
 
 	virtual const TextureCreateParams& getCreateParams() const = 0;
 
+	/// <summary>
+	/// Upload data to the internal GPU texture resource.
+	/// This is allowed only if the texture was initialized with ETextureAccessFlags::CPU_WRITE flag.
+	/// </summary>
+	/// <param name="commandList"></param>
+	/// <param name="buffer"></param>
+	/// <param name="rowPitch"></param>
+	/// <param name="slicePitch"></param>
+	/// <param name="subresourceIndex"></param>
 	virtual void uploadData(
-		RenderCommandList& commandList,
+		RenderCommandList* commandList,
 		const void* buffer,
 		uint64 rowPitch,
 		uint64 slicePitch,
 		uint32 subresourceIndex = 0) = 0;
 
-	virtual uint64 getRowPitch() const { return 0; }
+	virtual uint64 getRowPitch() const = 0;
 
-	// createParams should have CPU_READBACK flag.
-	virtual uint64 getReadbackBufferSize() const { return 0; }
-
-	// Invoke while constructing command list.
-	// @return false if failed.
-	virtual bool prepareReadback(RenderCommandList* commandList) { return false; }
-
-	// Invoke after flushing command queue.
-	// dst should be a preallocated memory as large as the size returned by getReadbackBufferSize().
-	// @return false if failed.
-	virtual bool readbackData(void* dst) { return false; }
+	/// <summary>
+	/// Create a request to readback data from GPU.
+	/// This is allowed only if the texture was initialized with ETextureAccessFlags::CPU_READBACK flag.
+	/// The data is available when a render device executes the command list and the command queue in the device is flushed.
+	/// The returned request could be null if the request failed for somehow.
+	/// </summary>
+	/// <param name="commandList">Command list in which the request will be processed.</param>
+	/// <param name="region">Subregion of this texture to readback.</param>
+	/// <returns>Handle to the readback request.</returns>
+	virtual SharedPtr<ReadbackHandle> requestReadback(RenderCommandList* commandList, const ReadbackRegion& region)
+	{
+		return nullptr;
+	}
 };

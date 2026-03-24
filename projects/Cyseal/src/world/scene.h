@@ -5,6 +5,8 @@
 #include "gpu_resource_asset.h"
 #include "core/smart_pointer.h"
 #include "render/renderer_options.h"
+#include "memory/memory_tag.h"
+#include "memory/free_number_list.h"
 
 #include <vector>
 #include <set>

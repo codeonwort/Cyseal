@@ -1,5 +1,6 @@
 #include "texture_sequence.h"
 #include "rhi/render_device.h"
+#include "rhi/render_command.h"
 
 static constexpr uint32 HISTORY_COUNT = 2;
 

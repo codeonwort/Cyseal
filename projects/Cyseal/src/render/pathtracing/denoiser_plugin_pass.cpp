@@ -3,9 +3,11 @@
 #include "rhi/render_device.h"
 #include "rhi/denoiser_device.h"
 #include "rhi/swap_chain.h"
+#include "rhi/render_command.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
+#include "rhi/gpu_resource_binding.h"
 #include "rhi/shader.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDenoiserPlugin);
@@ -73,24 +75,33 @@ void DenoiserPluginPass::blitTextures(RenderCommandList* commandList, uint32 swa
 	const uint32 dispatchX = (width + 7) / 8, dispatchY = (height + 7) / 8;
 	commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
-	colorTexture->prepareReadback(commandList);
-	albedoTexture->prepareReadback(commandList);
-	normalTexture->prepareReadback(commandList);
+	Texture::ReadbackRegion region = Texture::ReadbackRegion::mip0(colorTexture.get());
+	colorReadbackHandle = colorTexture->requestReadback(commandList, region);
+	albedoReadbackHandle = albedoTexture->requestReadback(commandList, region);
+	normalReadbackHandle = normalTexture->requestReadback(commandList, region);
 }
 
 void DenoiserPluginPass::executeDenoiser(RenderCommandList* commandList, Texture* dst)
 {
+	CHECK(colorReadbackHandle->bAvailable);
+	CHECK(albedoReadbackHandle->bAvailable);
+	CHECK(normalReadbackHandle->bAvailable);
+
 	DenoiserDevice* denoiserDevice = gRenderDevice->getDenoiserDevice();
 
 	std::vector<uint8> denoisedBuffer;
-	denoiserDevice->denoise(colorTexture.get(), albedoTexture.get(), normalTexture.get(), denoisedBuffer);
+	denoiserDevice->denoise(colorReadbackHandle->readbackData, albedoReadbackHandle->readbackData, normalReadbackHandle->readbackData, denoisedBuffer);
+
+	colorReadbackHandle = nullptr;
+	albedoReadbackHandle = nullptr;
+	normalReadbackHandle = nullptr;
 
 	const uint32 width = denoisedTexture->getCreateParams().width;
 	const uint32 height = denoisedTexture->getCreateParams().height;
 	const uint64 rowPitch = denoisedTexture->getRowPitch();
 	const uint64 slicePitch = rowPitch * height;
 
-	denoisedTexture->uploadData(*commandList, denoisedBuffer.data(), rowPitch, slicePitch, 0);
+	denoisedTexture->uploadData(commandList, denoisedBuffer.data(), rowPitch, slicePitch, 0);
 
 	TextureBarrierAuto barrier{
 		EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,

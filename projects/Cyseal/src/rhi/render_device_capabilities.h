@@ -8,8 +8,9 @@ enum class ERaytracingTier : uint8
 	NotSupported,
 	Tier_1_0,
 	Tier_1_1,
+	Tier_1_2,
 	
-	MaxTier = Tier_1_1
+	MaxTier = Tier_1_2
 };
 
 // D3D12_VARIABLE_SHADING_RATE_TIER
@@ -48,6 +49,7 @@ inline const char* toString(ERaytracingTier tier)
 		case ERaytracingTier::NotSupported: return "NotSupported";
 		case ERaytracingTier::Tier_1_0:     return "Tier_1_0    ";
 		case ERaytracingTier::Tier_1_1:     return "Tier_1_1    ";
+		case ERaytracingTier::Tier_1_2:     return "Tier_1_2    ";
 	}
 	CHECK_NO_ENTRY();
 	return "";

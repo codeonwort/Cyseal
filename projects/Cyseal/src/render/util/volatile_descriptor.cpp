@@ -1,5 +1,6 @@
 #include "volatile_descriptor.h"
 #include "rhi/render_device.h"
+#include "rhi/descriptor_heap.h"
 
 #define UNIFORM_MEMORY_POOL_SIZE (256 * 1024) // 256 KiB
 
@@ -21,7 +22,7 @@ void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wc
 			BufferCreateParams{
 				.sizeInBytes = UNIFORM_MEMORY_POOL_SIZE,
 				.alignment   = 0,
-				.accessFlags = EBufferAccessFlags::COPY_SRC,
+				.accessFlags = EBufferAccessFlags::CPU_WRITE,
 			}
 		));
 

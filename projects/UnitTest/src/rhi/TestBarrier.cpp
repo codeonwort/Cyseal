@@ -2,12 +2,13 @@
 #include "CppUnitTest.h"
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
+#include "rhi/render_command.h"
 #include "rhi/dx12/d3d_device.h"
 #include "rhi/vulkan/vk_device.h"
 #include "render/util/volatile_descriptor.h"
 #include "util/resource_finder.h"
 
-#define TEST_SHADERS_DIR L"../../projects/UnitTest/src/barrier/"
+#define TEST_SHADERS_DIR L"../../projects/UnitTest/src/rhi/"
 
 // #todo-test: Can I define a macro for parameterized test without modifying original headers?
 // ...
@@ -491,7 +492,7 @@ namespace UnitTest
 			{
 				ShaderStage* cs = device->createShader(EShaderStage::COMPUTE_SHADER, "WriteBufferCS");
 				cs->declarePushConstants();
-				cs->loadFromFile(L"buffer_test.hlsl", "mainCS", { L"WRITE_PASS" });
+				cs->loadFromFile(L"TestBarrier_buffer.hlsl", "mainCS", { L"WRITE_PASS" });
 				ComputePipelineDesc pipelineDesc{ .cs = cs, .nodeMask = 0 };
 				ComputePipelineState* pipeline = device->createComputePipelineState(pipelineDesc);
 				CHECK(pipeline != nullptr);
@@ -501,7 +502,7 @@ namespace UnitTest
 			{
 				ShaderStage* cs = device->createShader(EShaderStage::COMPUTE_SHADER, "ReadBufferCS");
 				cs->declarePushConstants();
-				cs->loadFromFile(L"buffer_test.hlsl", "mainCS", { L"READ_PASS" });
+				cs->loadFromFile(L"TestBarrier_buffer.hlsl", "mainCS", { L"READ_PASS" });
 				ComputePipelineDesc pipelineDesc{ .cs = cs, .nodeMask = 0 };
 				ComputePipelineState* pipeline = device->createComputePipelineState(pipelineDesc);
 				CHECK(pipeline != nullptr);
@@ -517,7 +518,7 @@ namespace UnitTest
 			{
 				ShaderStage* cs = device->createShader(EShaderStage::COMPUTE_SHADER, "WriteTextureCS");
 				cs->declarePushConstants({ { "pushConstants", 2 } });
-				cs->loadFromFile(L"texture_test.hlsl", "mainCS", { L"WRITE_PASS" });
+				cs->loadFromFile(L"TestBarrier_texture.hlsl", "mainCS", { L"WRITE_PASS" });
 				ComputePipelineDesc pipelineDesc{ .cs = cs, .nodeMask = 0 };
 				ComputePipelineState* pipeline = device->createComputePipelineState(pipelineDesc);
 				CHECK(pipeline != nullptr);
@@ -527,7 +528,7 @@ namespace UnitTest
 			{
 				ShaderStage* cs = device->createShader(EShaderStage::COMPUTE_SHADER, "ReadTextureCS");
 				cs->declarePushConstants({ { "pushConstants", 2 } });
-				cs->loadFromFile(L"texture_test.hlsl", "mainCS", { L"READ_PASS" });
+				cs->loadFromFile(L"TestBarrier_texture.hlsl", "mainCS", { L"READ_PASS" });
 				ComputePipelineDesc pipelineDesc{ .cs = cs, .nodeMask = 0 };
 				ComputePipelineState* pipeline = device->createComputePipelineState(pipelineDesc);
 				CHECK(pipeline != nullptr);

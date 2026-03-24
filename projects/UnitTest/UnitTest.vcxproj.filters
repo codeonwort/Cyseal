@@ -11,31 +11,31 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\TestVector.cpp">
+    <ClCompile Include="src\core\TestVector.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TestImageLoader.cpp">
+    <ClCompile Include="src\loader\TestImageLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TestFreeNumberList.cpp">
+    <ClCompile Include="src\core\TestFreeNumberList.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TestCamera.cpp">
+    <ClCompile Include="src\render\TestCamera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TestBxDF.cpp">
+    <ClCompile Include="src\render\TestBxDF.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TestSTBN.cpp">
+    <ClCompile Include="src\render\TestSTBN.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TestSTL.cpp">
+    <ClCompile Include="src\core\TestSTL.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TestPBRTParser.cpp">
+    <ClCompile Include="src\loader\TestPBRTParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\imgui.cpp">
@@ -62,21 +62,33 @@
     <ClCompile Include="src\TestProcessCrash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TestRenderDevice.cpp">
+    <ClCompile Include="src\rhi\TestRenderDevice.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\external\dear_imgui\imgui-1.89.3\backends\imgui_impl_vulkan.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\barrier\TestBarrier.cpp">
+    <ClCompile Include="src\rhi\TestBarrier.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\shader\TestShaderCodegen.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\rhi\TestTextureUpload.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rhi\TestBufferUpload.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rhi\test_rhi_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rhi\test_rhi_utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

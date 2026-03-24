@@ -97,41 +97,133 @@ VulkanBuffer::~VulkanBuffer()
 {
 	VkDevice vkDevice = device->getRaw();
 	vkDestroyBuffer(vkDevice, vkBuffer, nullptr);
+	vkDestroyBuffer(vkDevice, vkUploadBuffer, nullptr);
+	vkDestroyBuffer(vkDevice, vkReadbackBuffer, nullptr);
+	CHECK(readbackHandle.expired());
 	vkFreeMemory(vkDevice, vkBufferMemory, nullptr);
+	vkFreeMemory(vkDevice, vkUploadMemory, nullptr);
+	vkFreeMemory(vkDevice, vkReadbackMemory, nullptr);
 }
 
-void VulkanBuffer::initialize(const BufferCreateParams& inCreateParams)
+void VulkanBuffer::onInitialize()
 {
-	Buffer::initialize(inCreateParams);
-
 	VkDevice vkDevice = device->getRaw();
 	VkPhysicalDevice vkPhysicalDevice = device->getVkPhysicalDevice();
 
 	VkBufferUsageFlags usage = 0;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::COPY_SRC)) usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::COPY_DST)) usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::VERTEX_BUFFER)) usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::INDEX_BUFFER)) usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::CBV)) usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::SRV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Both SRV and UAV are SSBO in Vulkan
-	if (ENUM_HAS_FLAG(inCreateParams.accessFlags, EBufferAccessFlags::UAV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC)) usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_DST)) usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::VERTEX_BUFFER)) usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::INDEX_BUFFER)) usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CBV)) usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::SRV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Both SRV and UAV are SSBO in Vulkan
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::UAV)) usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
-	// #todo-vulkan-buffer: VkMemoryPropertyFlags
-	VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-	createBufferUtil(
-		vkDevice,
-		vkPhysicalDevice,
-		(VkDeviceSize)inCreateParams.sizeInBytes,
-		usage,
-		memoryProps,
-		vkBuffer, vkBufferMemory);
+	{
+		VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		createBufferUtil(
+			vkDevice,
+			vkPhysicalDevice,
+			(VkDeviceSize)createParams.sizeInBytes,
+			usage,
+			memoryProps,
+			vkBuffer, vkBufferMemory);
+	}
+	// Upload buffer
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_WRITE))
+	{
+		CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_DST));
+		VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+		createBufferUtil(
+			vkDevice, vkPhysicalDevice, (VkDeviceSize)createParams.sizeInBytes,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			memoryProps,
+			vkUploadBuffer, vkUploadMemory);
+	}
+	// Readback buffer
+	if (ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_READBACK))
+	{
+		CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::COPY_SRC));
+		VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+		createBufferUtil(
+			vkDevice, vkPhysicalDevice, (VkDeviceSize)createParams.sizeInBytes,
+			VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+			memoryProps,
+			vkReadbackBuffer, vkReadbackMemory);
+	}
 }
 
 void VulkanBuffer::writeToGPU(RenderCommandList* commandList, uint32 numUploads, Buffer::UploadDesc* uploadDescs)
 {
-	// #todo-vulkan
-	CHECK_NO_ENTRY();
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_WRITE));
+	for (uint32 i = 0; i < numUploads; ++i)
+	{
+		CHECK((createParams.alignment == 0) || (uploadDescs[i].destOffsetInBytes % createParams.alignment == 0));
+		CHECK(uploadDescs[i].destOffsetInBytes + uploadDescs[i].sizeInBytes <= createParams.sizeInBytes);
+	}
+
+	VkDevice vkDevice = device->getRaw();
+	VulkanRenderCommandList* vkCmdList = static_cast<VulkanRenderCommandList*>(commandList);
+	VkCommandBuffer rawCmd = vkCmdList->internal_getVkCommandBuffer();
+
+	BufferBarrierAuto barrierBefore{ EBarrierSync::COPY, EBarrierAccess::COPY_DEST, this };
+	commandList->barrierAuto(1, &barrierBefore, 0, nullptr, 0, nullptr);
+
+	void* pData = nullptr;
+	vkMapMemory(vkDevice, vkUploadMemory, 0, VK_WHOLE_SIZE, (VkMemoryMapFlags)0, &pData);
+	uint8* uploadMapPtr = reinterpret_cast<uint8*>(pData);
+
+	std::vector<VkBufferCopy> regions(numUploads);
+	for (uint32 i = 0; i < numUploads; ++i)
+	{
+		const UploadDesc& desc = uploadDescs[i];
+		std::memcpy(uploadMapPtr + desc.destOffsetInBytes, desc.srcData, desc.sizeInBytes);
+
+		regions[i] = VkBufferCopy{
+			.srcOffset = desc.destOffsetInBytes,
+			.dstOffset = desc.destOffsetInBytes,
+			.size      = desc.sizeInBytes,
+		};
+	}
+	vkCmdCopyBuffer(rawCmd, vkUploadBuffer, vkBuffer, numUploads, regions.data());
+
+	vkUnmapMemory(vkDevice, vkUploadMemory);
+}
+
+SharedPtr<Buffer::ReadbackHandle> VulkanBuffer::requestReadback(
+	RenderCommandList* commandList, uint64 offset, uint64 size)
+{
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_READBACK));
+
+	// If previous readback request is alive, then reject the request.
+	// Multiple readbacks are possible in theory, but let's keep it simple for now.
+	if (readbackHandle.expired() == false)
+	{
+		return nullptr;
+	}
+
+	auto vulkanCmdList = static_cast<VulkanRenderCommandList*>(commandList);
+	auto vkCmdBuffer = vulkanCmdList->internal_getVkCommandBuffer();
+
+	BufferBarrierAuto barrier{ EBarrierSync::COPY, EBarrierAccess::COPY_DEST, this };
+	vulkanCmdList->barrierAuto(1, &barrier, 0, nullptr, 0, nullptr);
+
+	uint64 bytesToRead = (size == Buffer::READBACK_SIZE_ALL) ? (createParams.sizeInBytes - offset) : size;
+	VkBufferCopy region{
+		.srcOffset = offset,
+		.dstOffset = 0,
+		.size      = bytesToRead,
+	};
+	vkCmdCopyBuffer(vkCmdBuffer, vkBuffer, vkReadbackBuffer, 1, &region);
+
+	auto newHandle = makeShared<Buffer::ReadbackHandle>();
+	newHandle->owner = this;
+	newHandle->readbackSize = bytesToRead;
+
+	vulkanCmdList->addReadbackHandle(newHandle);
+
+	readbackHandle = newHandle;
+	return newHandle;
 }
 
 void VulkanBuffer::setDebugName(const wchar_t* inDebugNameW)
@@ -142,6 +234,24 @@ void VulkanBuffer::setDebugName(const wchar_t* inDebugNameW)
 		VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
 		(uint64)vkBuffer,
 		debugNameA.c_str());
+}
+
+void VulkanBuffer::internal_finalizeReadbackBuffer()
+{
+	CHECK(ENUM_HAS_FLAG(createParams.accessFlags, EBufferAccessFlags::CPU_READBACK));
+	CHECK(readbackHandle.expired() == false);
+
+	auto req = readbackHandle.lock();
+
+	req->readbackData = new uint8[req->readbackSize];
+
+	VkDevice vkDevice = device->getRaw();
+	void* pData = nullptr;
+	vkMapMemory(vkDevice, vkReadbackMemory, 0, VK_WHOLE_SIZE, 0, &pData);
+	std::memcpy(req->readbackData, pData, req->readbackSize);
+	vkUnmapMemory(vkDevice, vkReadbackMemory);
+
+	req->bAvailable = true;
 }
 
 //////////////////////////////////////////////////////////////////////////
