@@ -190,6 +190,11 @@ public:
 		uint64   slicePitch   = 0;
 		uint64   totalBytes   = 0;
 		Texture* owner        = nullptr;
+
+		~ReadbackHandle()
+		{
+			if (readbackData != nullptr) delete readbackData;
+		}
 	};
 
 	virtual TextureKindShapeDesc internal_getShapeDesc() override

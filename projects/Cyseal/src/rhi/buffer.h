@@ -140,6 +140,11 @@ public:
 		void*   readbackData = nullptr;
 		uint64  readbackSize = 0;
 		Buffer* owner        = nullptr;
+
+		~ReadbackHandle()
+		{
+			if (readbackData != nullptr) delete readbackData;
+		}
 	};
 	static const uint64 READBACK_SIZE_ALL = 0xffffffff;
 
