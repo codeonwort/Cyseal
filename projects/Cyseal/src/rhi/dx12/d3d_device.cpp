@@ -205,27 +205,35 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 			case D3D12_RAYTRACING_TIER_1_0: raytracingTier = ERaytracingTier::Tier_1_0; break;
 			case D3D12_RAYTRACING_TIER_1_1: raytracingTier = ERaytracingTier::Tier_1_1; break;
 			case D3D12_RAYTRACING_TIER_1_2: raytracingTier = ERaytracingTier::Tier_1_2; break;
-			default: CHECK_NO_ENTRY();
+			default:
+				CYLOG(LogDirectX, Warning, L"Cyseal can't recognize D3D12_RAYTRACING_TIER (%u). Falling back to TIER_1_2 (%u).", (uint32)caps5.RaytracingTier, D3D12_RAYTRACING_TIER_1_2);
+				raytracingTier = ERaytracingTier::Tier_1_2;
 		}
 		switch (caps6.VariableShadingRateTier)
 		{
 			case D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED: vrsTier = EVariableShadingRateTier::NotSupported; break;
 			case D3D12_VARIABLE_SHADING_RATE_TIER_1: vrsTier = EVariableShadingRateTier::Tier_1; break;
 			case D3D12_VARIABLE_SHADING_RATE_TIER_2: vrsTier = EVariableShadingRateTier::Tier_2; break;
-			default: CHECK_NO_ENTRY();
+			default:
+				CYLOG(LogDirectX, Warning, L"Cyseal can't recognize D3D12_VARIABLE_SHADING_RATE_TIER (%u). Falling back to TIER_2 (%u).", (uint32)caps6.VariableShadingRateTier, D3D12_VARIABLE_SHADING_RATE_TIER_2);
+				vrsTier = EVariableShadingRateTier::Tier_2;
 		}
 		switch (caps7.MeshShaderTier)
 		{
 			case D3D12_MESH_SHADER_TIER_NOT_SUPPORTED: meshShaderTier = EMeshShaderTier::NotSupported; break;
 			case D3D12_MESH_SHADER_TIER_1: meshShaderTier = EMeshShaderTier::Tier_1; break;
-			default: CHECK_NO_ENTRY();
+			default:
+				CYLOG(LogDirectX, Warning, L"Cyseal can't recognize D3D12_MESH_SHADER_TIER (%u). Falling back to TIER_1 (%u).", (uint32)caps7.MeshShaderTier, D3D12_MESH_SHADER_TIER_1);
+				meshShaderTier = EMeshShaderTier::Tier_1;
 		}
 		switch (caps7.SamplerFeedbackTier)
 		{
 			case D3D12_SAMPLER_FEEDBACK_TIER_NOT_SUPPORTED: samplerFeedbackTier = ESamplerFeedbackTier::NotSupported; break;
 			case D3D12_SAMPLER_FEEDBACK_TIER_0_9: samplerFeedbackTier = ESamplerFeedbackTier::Tier_0_9; break;
 			case D3D12_SAMPLER_FEEDBACK_TIER_1_0: samplerFeedbackTier = ESamplerFeedbackTier::Tier_1_0; break;
-			default: CHECK_NO_ENTRY();
+			default:
+				CYLOG(LogDirectX, Warning, L"Cyseal can't recognize D3D12_SAMPLER_FEEDBACK_TIER (%u). Falling back to TIER_1_0 (%u).", (uint32)caps7.SamplerFeedbackTier, D3D12_SAMPLER_FEEDBACK_TIER_1_0);
+				samplerFeedbackTier = ESamplerFeedbackTier::Tier_1_0;
 		}
 
 		CYLOG(LogDirectX, Log, L"=== Hardware capabilities ===");
