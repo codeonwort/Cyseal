@@ -2,10 +2,22 @@
 #include "util/string_conversion.h"
 #include "util/resource_finder.h"
 
+#include <filesystem>
+
+static void ensureDirectory(const std::wstring& path)
+{
+	std::filesystem::path p(path);
+	std::filesystem::create_directories(p.parent_path());
+}
+
 // ------------------------------------------------
 // <stb_image> wrapper
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define __STDC_LIB_EXT1__
+#include <stb_image_write.h>
 
 ImageLoadData* loadImage_internal(char const* filename, bool flipY)
 {
@@ -37,10 +49,22 @@ ImageLoadData* loadImage_internal(char const* filename, bool flipY)
 // ------------------------------------------------
 // ImageLoader
 
-ImageLoadData* ImageLoader::load(const std::wstring& path, bool flipY)
+ImageLoadData* ImageLoader::load(const std::wstring& path, bool flipY, bool useResourceFinder)
 {
-	std::wstring wsPath = ResourceFinder::get().find(path);
+	std::wstring wsPath = useResourceFinder ? ResourceFinder::get().find(path) : path;
 	std::string sPath;
 	wstr_to_str(wsPath, sPath);
 	return loadImage_internal(sPath.c_str(), flipY);
+}
+
+bool ImageLoader::saveAsPng(const std::wstring& wPath, void* rgba8Data, uint32 width, uint32 height, uint64 rowPitch)
+{
+	if (rowPitch == 0) rowPitch = width * 4;
+
+	ensureDirectory(wPath);
+
+	std::string sPath;
+	wstr_to_str(wPath, sPath);
+	int ret = stbi_write_png(sPath.c_str(), (int)width, (int)height, 4, rgba8Data, (int)rowPitch);
+	return ret != 0;
 }
