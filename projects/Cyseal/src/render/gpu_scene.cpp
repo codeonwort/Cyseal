@@ -215,6 +215,11 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 	}
 	const uint32 maxDrawcalls = currentDrawOffset;
 
+	if (maxDrawcalls == 0)
+	{
+		return;
+	}
+
 	drawcallOffsetBuffer->singleWriteToGPU(commandList, drawIDOffsets.data(), (uint32)(sizeof(uint32) * drawIDOffsets.size()), 0);
 
 	DrawcallPassUniform passUniformData{
@@ -799,7 +804,13 @@ void GPUScene::resizeDrawcallBuffer(RenderCommandList* commandList, const SceneP
 	const uint32 stride = sizeof(indirectDraw::StaticMeshDrawcall);
 	const uint32 maxDrawcallCount = gpuSceneMaxElements;
 
-	if (drawcallBuffer == nullptr
+	if (maxDrawcallCount == 0)
+	{
+		drawcallBufferSRV.reset();
+		drawcallBufferUAV.reset();
+		drawcallBuffer.reset();
+	}
+	else if (drawcallBuffer == nullptr
 		|| drawcallBuffer->getCreateParams().sizeInBytes / stride < maxDrawcallCount
 		|| drawcallBuffer->getCreateParams().sizeInBytes / stride > (maxDrawcallCount * 2))
 	{
