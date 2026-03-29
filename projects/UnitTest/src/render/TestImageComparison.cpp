@@ -2,94 +2,12 @@
 #include "CppUnitTest.h"
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
+#include "test_render_utils.h"
 #include "../rhi/test_rhi_utils.h"
 
 #include "rhi/render_command.h"
 #include "rhi/dx12/d3d_device.h"
 #include "rhi/vulkan/vk_device.h"
-#include "loader/image_loader.h"
-
-#include <filesystem>
-
-// #wip: Move to a util header.
-static std::wstring getSolutionDirectory()
-{
-	static std::wstring solutionDir;
-	if (solutionDir.size() == 0)
-	{
-		std::filesystem::path currentDir = std::filesystem::current_path();
-		int count = 64;
-		while (count-- > 0)
-		{
-			auto sln = currentDir;
-			sln.append("CysealSolution.sln");
-			if (std::filesystem::exists(sln))
-			{
-				solutionDir = currentDir.wstring() + L"/";
-				break;
-			}
-			currentDir = currentDir.parent_path();
-		}
-		CHECK(count >= 0); // Couldn't find shader directory
-	}
-	return solutionDir;
-}
-static uint32 compareImages(const wchar_t* refImagePath, void* imageActual)
-{
-	std::wstring solutionDir = getSolutionDirectory();
-	if (solutionDir.size() > 0)
-	{
-		std::wstring fullPath = solutionDir + L"tests/referenceImages/" + refImagePath;
-
-		ImageLoader loader;
-		ImageLoadData* refData = loader.load(fullPath, false, false);
-		if (refData != nullptr)
-		{
-			uint8* p1 = reinterpret_cast<uint8*>(refData->buffer);
-			uint8* p2 = reinterpret_cast<uint8*>(imageActual);
-			int numDiffRows = 0;
-			for (uint32 y = 0; y < refData->height; ++y)
-			{
-				int cmp = std::memcmp(p1, p2, refData->getRowPitch());
-				if (0 != cmp) numDiffRows++;
-				p1 += refData->getRowPitch();
-				p2 += refData->getRowPitch();
-			}
-			return numDiffRows;
-		}
-	}
-	return 0xffffffff;
-}
-static std::vector<uint8> rgba32f_to_rgba8ui(float* src, uint32 width, uint32 height)
-{
-	std::vector<uint8> dst(4 * width * height);
-	uint32 p = 0;
-	for (uint32 y = 0; y < height; ++y)
-	{
-		for (uint32 x = 0; x < width; ++x)
-		{
-			float r = src[p], g = src[p + 1], b = src[p + 2], a = src[p + 3];
-			dst[p] = (uint32)(r * 255.0f) & 0xff;
-			dst[p + 1] = (uint32)(g * 255.0f) & 0xff;
-			dst[p + 2] = (uint32)(b * 255.0f) & 0xff;
-			dst[p + 3] = (uint32)(a * 255.0f) & 0xff;
-			p += 4;
-		}
-	}
-	return dst;
-}
-static bool saveActualImage(const wchar_t* filepath, uint8* data, uint32 width, uint32 height)
-{
-	std::wstring solutionDir = getSolutionDirectory();
-	if (solutionDir.size() > 0)
-	{
-		std::wstring fullPath = solutionDir + L"intermediate/testResults/" + filepath;
-		int rowPitch = width * 4;
-		bool bRet = ImageLoader::saveAsPng(fullPath, data, width, height, rowPitch);
-		return bRet;
-	}
-	return false;
-}
 
 namespace UnitTest
 {
@@ -149,9 +67,9 @@ namespace UnitTest
 			Assert::IsTrue(readbackHandle->bAvailable);
 
 			// 3. Assert.
-			std::vector<uint8> rgba8Data = rgba32f_to_rgba8ui((float*)readbackHandle->readbackData, texParam.width, texParam.height);
-			uint32 numDiff = compareImages(L"TestImageComparison/ref.png", rgba8Data.data());
-			saveActualImage(L"TestImageComparison/actual.png", rgba8Data.data(), texParam.width, texParam.height);
+			auto actualImage = render_test::rgba32f_to_rgba8ui((float*)readbackHandle->readbackData, texParam.width * texParam.height);
+			uint32 numDiff = render_test::compareRefImageToRgba8ui(L"TestImageComparison/ref.png", actualImage.data());
+			render_test::saveRgba8uiImage(L"TestImageComparison/actual.png", actualImage.data(), texParam.width, texParam.height);
 			Assert::AreEqual(0u, numDiff);
 
 			// 4. Cleanup.
