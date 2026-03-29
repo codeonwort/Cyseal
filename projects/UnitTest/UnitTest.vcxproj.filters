@@ -83,12 +83,21 @@
     <ClCompile Include="src\rhi\test_rhi_utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\render\TestImageComparison.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\test_render_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\rhi\test_rhi_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render\test_render_utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -133,6 +133,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="src\render\TestImageComparison.cpp" />
+    <ClCompile Include="src\render\test_render_utils.cpp" />
     <ClCompile Include="src\rhi\TestBarrier.cpp" />
     <ClCompile Include="src\rhi\TestBufferUpload.cpp" />
     <ClCompile Include="src\rhi\test_rhi_utils.cpp" />
@@ -151,6 +153,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="src\render\test_render_utils.h" />
     <ClInclude Include="src\rhi\test_rhi_utils.h" />
   </ItemGroup>
   <ItemGroup>
