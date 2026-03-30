@@ -331,8 +331,8 @@ namespace UnitTest
 			Texture* texture = renderDevice->createTexture(texParams);
 			Assert::IsNotNull(texture, L"Failed to create a Texture");
 			texture->uploadData(commandList, texData.data(),
-				(uint64)(sizeof(uint8) * texParams.width),
-				(uint64)(sizeof(uint8) * texParams.width * texParams.height));
+				(uint64)(sizeof(uint8) * 4 * texParams.width),
+				(uint64)(sizeof(uint8) * 4 * texParams.width * texParams.height));
 			finishRendering();
 
 			// 2. Readback texture data.
@@ -343,7 +343,6 @@ namespace UnitTest
 			finishRendering();
 			Assert::IsTrue(readbackHandle->bAvailable);
 
-			// #wip: dx12 passes, vk fails (only first 256 elements are valid, others are zero)
 			// 3. Assert.
 			uint8* readbackData = reinterpret_cast<uint8*>(readbackHandle->readbackData);
 			uint8* readbackDataCurrRow = readbackData;
