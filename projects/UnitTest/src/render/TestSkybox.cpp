@@ -26,8 +26,8 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define WINDOW_X             200
 #define WINDOW_Y             200
 // #wip: Readback crashes if NPOT.
-#define WINDOW_WIDTH         512
-#define WINDOW_HEIGHT        512
+#define WINDOW_WIDTH         128
+#define WINDOW_HEIGHT        128
 
 struct ActualImage
 {
@@ -65,6 +65,7 @@ protected:
 			.renderDevice = RenderDeviceCreateParams{
 				.swapChainParams  = swapChainParams,
 				.rawAPI           = graphicsAPI,
+				.bDoubleBuffering = false,
 			},
 			.rendererType = ERendererType::Standard,
 		};
@@ -120,20 +121,15 @@ protected:
 
 			delete sceneProxy;
 
-			// #wip: Why all black? :(
 			if (bNeedReadback)
 			{
 				RenderCommandList* commandList = beginRendering();
 				auto handle = cameraColor->requestReadback(commandList, Texture::ReadbackRegion::mip0(cameraColor));
 				finishRendering(commandList);
 				Assert::IsTrue(handle->bAvailable);
-#if 1
+
 				uint8* readbackData = reinterpret_cast<uint8*>(handle->readbackData);
 				actualImage->data.assign(readbackData, readbackData + handle->totalBytes);
-#else
-				float* readbackData = reinterpret_cast<float*>(handle->readbackData);
-				actualImage->data = render_test::rgba32f_to_rgba8ui(readbackData, actualImage->width * actualImage->height);
-#endif
 			}
 		}
 	}

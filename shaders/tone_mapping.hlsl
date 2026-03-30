@@ -117,5 +117,6 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
     float gamma = 1.0 / GAMMA_CORRECTION;
     color.rgb = pow(color.rgb, float3(gamma, gamma, gamma));
 
+    color.a = 1.0;
     return color;
 }
