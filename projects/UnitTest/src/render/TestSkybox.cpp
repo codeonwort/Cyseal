@@ -67,8 +67,6 @@ protected:
 		camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 		camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 
-		exitCounter = 0;
-
 		createResources();
 
 		TextureCreateParams cameraColorParams = TextureCreateParams::texture2D(
@@ -89,7 +87,9 @@ protected:
 
 	virtual void onTick(float deltaSeconds) override
 	{
-		if (exitCounter++ > 10)
+		bool bNeedReadback = imageData->size() == 0;
+
+		if (!bNeedReadback)
 		{
 			terminateApplication();
 		}
@@ -97,7 +97,7 @@ protected:
 		{
 			SceneProxy* sceneProxy = scene.createProxy();
 			RendererOptions rendererOptions{};
-			if (imageData->size() == 0)
+			if (bNeedReadback)
 			{
 				rendererOptions.finalRenderTarget = cameraColor;
 			}
@@ -110,11 +110,11 @@ protected:
 
 			delete sceneProxy;
 
-			if (imageData->size() == 0)
+			if (bNeedReadback)
 			{
 				RenderCommandList* commandList = beginRendering();
 				auto handle = cameraColor->requestReadback(commandList, Texture::ReadbackRegion::mip0(cameraColor));
-				finishRendering();
+				finishRendering(commandList);
 				Assert::IsTrue(handle->bAvailable);
 #if 1
 				uint8* readbackData = reinterpret_cast<uint8*>(handle->readbackData);
@@ -178,21 +178,16 @@ private:
 		scene.skyboxTexture = skyboxTexture;
 	}
 
-	RenderCommandList* getCommandList()
-	{
-		return gRenderDevice->getCommandListForCustomCommand();
-	}
 	RenderCommandList* beginRendering()
 	{
-		RenderCommandList* commandList = getCommandList();
+		RenderCommandList* commandList = gRenderDevice->getCommandListForCustomCommand();
 		RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator(0);
 
 		commandList->reset(commandAllocator);
 		return commandList;
 	}
-	void finishRendering()
+	void finishRendering(RenderCommandList* commandList)
 	{
-		RenderCommandList* commandList = getCommandList();
 		RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator(0);
 		RenderCommandQueue* commandQueue = gRenderDevice->getCommandQueue();
 		SwapChain* nullSwapChain = nullptr;
@@ -209,7 +204,6 @@ private:
 
 	Scene scene;
 	Camera camera;
-	uint32 exitCounter = 0;
 
 	Texture* cameraColor = nullptr;
 	std::vector<uint8>* imageData = nullptr;
