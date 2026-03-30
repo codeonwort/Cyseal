@@ -98,9 +98,10 @@ protected:
 
 	virtual void onTick(float deltaSeconds) override
 	{
-		bool bNeedReadback = (actualImage->data.size() == 0) && (exitCounter == 10);
+		// #todo-test: Need to wait at least 1 frame, otherwise the result is black. Dunno why...
+		bool bNeedReadback = (actualImage->data.size() == 0) && (exitCounter == 1);
 
-		if (exitCounter++ > 10)
+		if (exitCounter++ > 1)
 		{
 			terminateApplication();
 		}
