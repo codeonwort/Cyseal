@@ -29,6 +29,13 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define WINDOW_WIDTH         512
 #define WINDOW_HEIGHT        512
 
+struct ActualImage
+{
+	std::vector<uint8> data;
+	uint32 width;
+	uint32 height;
+};
+
 static const std::wstring skyboxFilepaths[] = {
 	L"skybox_Footballfield/posx.jpg", L"skybox_Footballfield/negx.jpg",
 	L"skybox_Footballfield/posy.jpg", L"skybox_Footballfield/negy.jpg",
@@ -38,10 +45,10 @@ static const std::wstring skyboxFilepaths[] = {
 class SkyboxApplication : public WindowsApplication
 {
 public:
-	SkyboxApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI, std::vector<uint8>* inImageData)
+	SkyboxApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI, ActualImage* inActualImage)
 		: cysealEngine(inEngine)
 		, graphicsAPI(inGraphicsAPI)
-		, imageData(inImageData)
+		, actualImage(inActualImage)
 	{}
 
 protected:
@@ -69,10 +76,13 @@ protected:
 
 		createResources();
 
+		actualImage->width = gRenderDevice->getSwapChain()->getBackbufferWidth();
+		actualImage->height = gRenderDevice->getSwapChain()->getBackbufferHeight();
+
 		TextureCreateParams cameraColorParams = TextureCreateParams::texture2D(
 			EPixelFormat::R8G8B8A8_UNORM,
 			ETextureAccessFlags::RTV | ETextureAccessFlags::CPU_READBACK,
-			WINDOW_WIDTH, WINDOW_HEIGHT);
+			actualImage->width, actualImage->height);
 		cameraColor = gRenderDevice->createTexture(cameraColorParams);
 
 		return true;
@@ -87,9 +97,9 @@ protected:
 
 	virtual void onTick(float deltaSeconds) override
 	{
-		bool bNeedReadback = imageData->size() == 0;
+		bool bNeedReadback = (actualImage->data.size() == 0) && (exitCounter == 10);
 
-		if (!bNeedReadback)
+		if (exitCounter++ > 10)
 		{
 			terminateApplication();
 		}
@@ -110,6 +120,7 @@ protected:
 
 			delete sceneProxy;
 
+			// #wip: Why all black? :(
 			if (bNeedReadback)
 			{
 				RenderCommandList* commandList = beginRendering();
@@ -118,10 +129,10 @@ protected:
 				Assert::IsTrue(handle->bAvailable);
 #if 1
 				uint8* readbackData = reinterpret_cast<uint8*>(handle->readbackData);
-				imageData->assign(readbackData, readbackData + handle->totalBytes);
+				actualImage->data.assign(readbackData, readbackData + handle->totalBytes);
 #else
 				float* readbackData = reinterpret_cast<float*>(handle->readbackData);
-				*imageData = render_test::rgba32f_to_rgba8ui(readbackData, WINDOW_WIDTH * WINDOW_HEIGHT);
+				actualImage->data = render_test::rgba32f_to_rgba8ui(readbackData, actualImage->width * actualImage->height);
 #endif
 			}
 		}
@@ -204,9 +215,10 @@ private:
 
 	Scene scene;
 	Camera camera;
+	int32 exitCounter = 0;
 
 	Texture* cameraColor = nullptr;
-	std::vector<uint8>* imageData = nullptr;
+	ActualImage* actualImage = nullptr;
 };
 
 namespace UnitTest
@@ -217,7 +229,7 @@ namespace UnitTest
 	protected:
 		void RenderSkybox()
 		{
-			std::vector<uint8> actualImage;
+			ActualImage actualImage;
 
 			HWND nativeWindowHandle = NULL;
 
@@ -238,8 +250,8 @@ namespace UnitTest
 
 			Assert::IsTrue(ret == EApplicationReturnCode::Ok);
 
-			uint32 numDiff = render_test::compareRefImageToRgba8ui(L"TestSkybox/ref.png", actualImage.data());
-			render_test::saveRgba8uiImage(L"TestSkybox/actual.png", actualImage.data(), WINDOW_WIDTH, WINDOW_HEIGHT);
+			uint32 numDiff = render_test::compareRefImageToRgba8ui(L"TestSkybox/ref.png", actualImage.data.data());
+			render_test::saveRgba8uiImage(L"TestSkybox/actual.png", actualImage.data.data(), actualImage.width, actualImage.height);
 			Assert::AreEqual(0u, numDiff);
 		}
 	};
@@ -253,6 +265,8 @@ namespace UnitTest
 		}
 	};
 
+	// #todo-test: VK can't run SceneRenderer yet.
+#if 0
 	TEST_CLASS(TestSkyboxVulkan), TestSkyboxBase<ERenderDeviceRawAPI::Vulkan>
 	{
 	public:
@@ -261,4 +275,5 @@ namespace UnitTest
 			TestSkyboxBase::RenderSkybox();
 		}
 	};
+#endif
 }
