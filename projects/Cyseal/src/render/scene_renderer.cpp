@@ -918,7 +918,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		
 		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
 		commandList->setDescriptorHeaps(1, imguiHeaps);
-		// #wip: It's rendered to the final RT anyway. swapchainBuffer is used for layout transition in VK.
+		// #note: GUI is rendered to the final RT anyway. swapchainBuffer is used for layout transition in VK.
 		device->renderDearImgui(commandList, swapchainBuffer);
 	}
 

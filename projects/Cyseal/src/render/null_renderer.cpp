@@ -15,7 +15,7 @@ void NullRenderer::destroy()
 	device = nullptr;
 }
 
-// #wip: [NullRenderer] Support headless.
+// #todo-renderer: Support headless NullRenderer.
 void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
 #if VERIFY_EMPTY_LOOP

@@ -25,7 +25,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #define WINDOW_X             200
 #define WINDOW_Y             200
-// #wip: Readback crashes if NPOT.
+// #todo-test: Readback crashes if NPOT.
 #define WINDOW_WIDTH         128
 #define WINDOW_HEIGHT        128
 
