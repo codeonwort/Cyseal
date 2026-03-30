@@ -25,8 +25,9 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #define WINDOW_X             200
 #define WINDOW_Y             200
-#define WINDOW_WIDTH         400
-#define WINDOW_HEIGHT        300
+// #wip: Readback crashes if NPOT.
+#define WINDOW_WIDTH         512
+#define WINDOW_HEIGHT        512
 
 static const std::wstring skyboxFilepaths[] = {
 	L"skybox_Footballfield/posx.jpg", L"skybox_Footballfield/negx.jpg",
@@ -37,9 +38,10 @@ static const std::wstring skyboxFilepaths[] = {
 class SkyboxApplication : public WindowsApplication
 {
 public:
-	SkyboxApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI)
+	SkyboxApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI, std::vector<uint8>* inImageData)
 		: cysealEngine(inEngine)
 		, graphicsAPI(inGraphicsAPI)
+		, imageData(inImageData)
 	{}
 
 protected:
@@ -69,25 +71,36 @@ protected:
 
 		createResources();
 
+		TextureCreateParams cameraColorParams = TextureCreateParams::texture2D(
+			EPixelFormat::R8G8B8A8_UNORM,
+			ETextureAccessFlags::RTV | ETextureAccessFlags::CPU_READBACK,
+			WINDOW_WIDTH, WINDOW_HEIGHT);
+		cameraColor = gRenderDevice->createTexture(cameraColorParams);
+
 		return true;
 	}
 
 	virtual void onTerminate() override
 	{
+		delete cameraColor;
+		scene.skyboxTexture = nullptr;
 		cysealEngine->shutdown();
 	}
 
 	virtual void onTick(float deltaSeconds) override
 	{
-		if (exitCounter++ > 100)
+		if (exitCounter++ > 10)
 		{
-			// #wip: Somehow need to capture the rendering result.
 			terminateApplication();
 		}
 		else
 		{
 			SceneProxy* sceneProxy = scene.createProxy();
 			RendererOptions rendererOptions{};
+			if (imageData->size() == 0)
+			{
+				rendererOptions.finalRenderTarget = cameraColor;
+			}
 
 			cysealEngine->beginImguiNewFrame();
 			/* It won't intervene the result as there's no GUI if I invoke nothing in ImGui. */
@@ -96,6 +109,21 @@ protected:
 			cysealEngine->renderScene(sceneProxy, &camera, rendererOptions);
 
 			delete sceneProxy;
+
+			if (imageData->size() == 0)
+			{
+				RenderCommandList* commandList = beginRendering();
+				auto handle = cameraColor->requestReadback(commandList, Texture::ReadbackRegion::mip0(cameraColor));
+				finishRendering();
+				Assert::IsTrue(handle->bAvailable);
+#if 1
+				uint8* readbackData = reinterpret_cast<uint8*>(handle->readbackData);
+				imageData->assign(readbackData, readbackData + handle->totalBytes);
+#else
+				float* readbackData = reinterpret_cast<float*>(handle->readbackData);
+				*imageData = render_test::rgba32f_to_rgba8ui(readbackData, WINDOW_WIDTH * WINDOW_HEIGHT);
+#endif
+			}
 		}
 	}
 
@@ -150,6 +178,31 @@ private:
 		scene.skyboxTexture = skyboxTexture;
 	}
 
+	RenderCommandList* getCommandList()
+	{
+		return gRenderDevice->getCommandListForCustomCommand();
+	}
+	RenderCommandList* beginRendering()
+	{
+		RenderCommandList* commandList = getCommandList();
+		RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator(0);
+
+		commandList->reset(commandAllocator);
+		return commandList;
+	}
+	void finishRendering()
+	{
+		RenderCommandList* commandList = getCommandList();
+		RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator(0);
+		RenderCommandQueue* commandQueue = gRenderDevice->getCommandQueue();
+		SwapChain* nullSwapChain = nullptr;
+
+		commandList->close();
+		commandAllocator->markValid();
+		commandQueue->executeCommandList(commandList, nullSwapChain);
+		gRenderDevice->flushCommandQueue();
+	}
+
 private:
 	CysealEngine* cysealEngine = nullptr;
 	ERenderDeviceRawAPI graphicsAPI;
@@ -157,6 +210,9 @@ private:
 	Scene scene;
 	Camera camera;
 	uint32 exitCounter = 0;
+
+	Texture* cameraColor = nullptr;
+	std::vector<uint8>* imageData = nullptr;
 };
 
 namespace UnitTest
@@ -167,11 +223,13 @@ namespace UnitTest
 	protected:
 		void RenderSkybox()
 		{
+			std::vector<uint8> actualImage;
+
 			HWND nativeWindowHandle = NULL;
 
 			CysealEngine cysealEngine;
 
-			WindowsApplication* app = new SkyboxApplication(&cysealEngine, graphicsAPI);
+			WindowsApplication* app = new SkyboxApplication(&cysealEngine, graphicsAPI, &actualImage);
 			app->setWindowTitle(L"Hello world");
 			app->setWindowPosition(WINDOW_X, WINDOW_Y);
 			app->setWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -185,6 +243,10 @@ namespace UnitTest
 			static_cast<void>(ret);
 
 			Assert::IsTrue(ret == EApplicationReturnCode::Ok);
+
+			uint32 numDiff = render_test::compareRefImageToRgba8ui(L"TestSkybox/ref.png", actualImage.data());
+			render_test::saveRgba8uiImage(L"TestSkybox/actual.png", actualImage.data(), WINDOW_WIDTH, WINDOW_HEIGHT);
+			Assert::AreEqual(0u, numDiff);
 		}
 	};
 
