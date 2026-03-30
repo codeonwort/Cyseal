@@ -67,7 +67,6 @@ protected:
 
 		exitCounter = 0;
 
-		// #wip: GPU driven rendering crashes because there's no meshes -> 0 buffer size for some buffer.
 		createResources();
 
 		return true;
@@ -90,8 +89,8 @@ protected:
 			SceneProxy* sceneProxy = scene.createProxy();
 			RendererOptions rendererOptions{};
 
-			// #wip: Allow skipping GUI rendering
 			cysealEngine->beginImguiNewFrame();
+			/* It won't intervene the result as there's no GUI if I invoke nothing in ImGui. */
 			cysealEngine->renderImgui();
 
 			cysealEngine->renderScene(sceneProxy, &camera, rendererOptions);

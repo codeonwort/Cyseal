@@ -208,7 +208,10 @@ struct RendererOptions
 	EPathTracingDenoiserState pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
 	EPathTracingKernel pathTracingKernel = EPathTracingKernel::MegaKernel;
 
-	bool anyRayTracingEnabled() const
+	// If specified, render the result to it. If null, render to backbuffer.
+	class Texture* finalRenderTarget = nullptr;
+
+	inline bool anyRayTracingEnabled() const
 	{
 		bool bShadows = rayTracedShadows != ERayTracedShadowsMode::Disabled;
 		bool bIndirectDiffuse = indirectDiffuse != EIndirectDiffuseMode::Disabled;
@@ -216,4 +219,6 @@ struct RendererOptions
 		bool bPathTracing = pathTracing != EPathTracingMode::Disabled;
 		return bShadows || bIndirectDiffuse || bIndirectSpecular || bPathTracing;
 	}
+
+	inline bool renderToBackbuffer() const { return finalRenderTarget == nullptr; }
 };

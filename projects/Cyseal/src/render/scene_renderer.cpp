@@ -185,6 +185,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	auto commandList          = device->getCommandList(swapchainIndex);
 	auto commandQueue         = device->getCommandQueue();
 
+	createFinalColorRTV(commandList, renderOptions);
+
 	if (bDoubleBuffering)
 	{
 		uint32 ix = swapChain->getCurrentBackbufferIndex();
@@ -750,8 +752,27 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
 	}
 
+	// Set final render target.
+	TextureKind* finalColorTarget = renderOptions.finalRenderTarget;
+	RenderTargetView* finalRTV = finalColorRTV.get();
+	if (renderOptions.renderToBackbuffer())
+	{
+		finalColorTarget = swapchainBuffer;
+		finalRTV = swapchainBufferRTV;
+	}
+	{
+		SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
+
+		TextureBarrierAuto barrier{
+			EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+			finalColorTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+		};
+		commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
+
+		commandList->omSetRenderTarget(finalRTV, nullptr);
+	}
+
 	// Tone mapping
-	// final target: back buffer
 	{
 		SCOPED_DRAW_EVENT(commandList, ToneMapping);
 
@@ -776,15 +797,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				RT_pathTracing.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
-			{
-				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
-				swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			}
 		};
 		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
-
-		// #todo-renderer: Should not be here
-		commandList->omSetRenderTarget(swapchainBufferRTV, nullptr);
 
 		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
@@ -803,7 +817,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 
 	// Buffer visualization
-	// final target: back buffer
 	if (renderOptions.bufferVisualization != EBufferVisualizationMode::None)
 	{
 		SCOPED_DRAW_EVENT(commandList, BufferVisualization);
@@ -902,10 +915,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	{
 		SCOPED_DRAW_EVENT(commandList, DearImgui);
-
+		
 		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
 		commandList->setDescriptorHeaps(1, imguiHeaps);
-		device->renderDearImgui(commandList, swapchainBuffer);
+		device->renderDearImgui(commandList, swapchainBuffer); // #wip: Render DearImgui to finalColorTarget?
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1548,4 +1561,26 @@ void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList,
 	// Build acceleration structure.
 	accelStructure = UniquePtr<AccelerationStructure>(
 		commandList->buildRaytracingAccelerationStructure((uint32)blasDescArray.size(), blasDescArray.data()));
+}
+
+void SceneRenderer::createFinalColorRTV(RenderCommandList* commandList, const RendererOptions& renderOptions)
+{
+	commandList->enqueueDeferredDealloc(finalColorRTV.release(), true);
+
+	if (renderOptions.renderToBackbuffer())
+	{
+		return;
+	}
+	Texture* texture = renderOptions.finalRenderTarget;
+
+	finalColorRTV = UniquePtr<RenderTargetView>(device->createRTV(texture,
+		RenderTargetViewDesc{
+			.format            = texture->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
+		}
+	));
 }
