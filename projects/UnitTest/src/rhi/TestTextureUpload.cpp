@@ -308,6 +308,65 @@ namespace UnitTest
 			delete texture;
 		}
 
+		void Rgba8Readback()
+		{
+			TextureCreateParams texParams = TextureCreateParams::texture2D(
+				EPixelFormat::R8G8B8A8_UNORM,
+				ETextureAccessFlags::CPU_WRITE | ETextureAccessFlags::CPU_READBACK,
+				64, 4);
+
+			std::vector<uint8> texData = std::vector<uint8>(4 * texParams.width * texParams.height, 0);
+			for (size_t i = 0; i < texData.size(); i += 4)
+			{
+				texData[i + 0] = 50;
+				texData[i + 1] = 100;
+				texData[i + 2] = 150;
+				texData[i + 3] = 255;
+			}
+
+			auto commandList = getCommandList();
+
+			// 1. Upload texture data.
+			beginRendering();
+			Texture* texture = renderDevice->createTexture(texParams);
+			Assert::IsNotNull(texture, L"Failed to create a Texture");
+			texture->uploadData(commandList, texData.data(),
+				(uint64)(sizeof(uint8) * 4 * texParams.width),
+				(uint64)(sizeof(uint8) * 4 * texParams.width * texParams.height));
+			finishRendering();
+
+			// 2. Readback texture data.
+			beginRendering();
+			Texture::ReadbackRegion region = Texture::ReadbackRegion::mip0(texture);
+			SharedPtr<Texture::ReadbackHandle> readbackHandle = texture->requestReadback(commandList, region);
+			Assert::IsTrue(readbackHandle != nullptr);
+			finishRendering();
+			Assert::IsTrue(readbackHandle->bAvailable);
+
+			// 3. Assert.
+			uint8* readbackData = reinterpret_cast<uint8*>(readbackHandle->readbackData);
+			uint8* readbackDataCurrRow = readbackData;
+			uint32 numFailed = 0;
+			for (size_t y = 0; y < texParams.height; ++y)
+			{
+				for (size_t x = 0; x < texParams.width; ++x)
+				{
+					size_t ix = y * texParams.width + x;
+					if (texData[ix] != readbackDataCurrRow[x])
+					{
+						++numFailed;
+					}
+				}
+				// NOTE: Be careful that rows might not be tightly packed.
+				readbackDataCurrRow += readbackHandle->rowPitch / sizeof(uint8);
+			}
+			Assert::AreEqual(0u, numFailed);
+
+			// 4. Cleanup.
+			readbackHandle.reset();
+			delete texture;
+		}
+
 	private:
 		RenderCommandList* getCommandList()
 		{
@@ -356,6 +415,10 @@ namespace UnitTest
 		{
 			TestTextureUploadBase::Texture3DPartialReadback();
 		}
+		TEST_METHOD(Rgba8Readback)
+		{
+			TestTextureUploadBase::Rgba8Readback();
+		}
 	};
 
 	TEST_CLASS(TestTextureUploadVulkan), TestTextureUploadBase<ERenderDeviceRawAPI::Vulkan>
@@ -376,6 +439,10 @@ namespace UnitTest
 		TEST_METHOD(Texture3DPartialReadback)
 		{
 			TestTextureUploadBase::Texture3DPartialReadback();
+		}
+		TEST_METHOD(Rgba8Readback)
+		{
+			TestTextureUploadBase::Rgba8Readback();
 		}
 	};
 }

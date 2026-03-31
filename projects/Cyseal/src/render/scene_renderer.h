@@ -51,6 +51,8 @@ private:
 
 	void rebuildAccelerationStructure(RenderCommandList* commandList, const SceneProxy* scene);
 
+	void createFinalColorRTV(RenderCommandList* commandList, const RendererOptions& renderOptions);
+
 private:
 	RenderDevice* device = nullptr;
 
@@ -135,6 +137,8 @@ private:
 
 	UniquePtr<ShaderResourceView>          grey2DSRV; // SRV for fallback texture
 	UniquePtr<ShaderResourceView>          skyboxSRV;
+
+	UniquePtr<RenderTargetView>            finalColorRTV;
 
 	// ------------------------------------------------------------------------
 	// Render passes

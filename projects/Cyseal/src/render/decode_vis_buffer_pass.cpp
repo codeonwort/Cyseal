@@ -50,6 +50,12 @@ void DecodeVisBufferPass::decodeVisBuffer(
 	uint32 swapchainIndex,
 	const DecodeVisBufferPassInput& passInput)
 {
+	// #todo-renderer: Assumes no gpu scene buffer == no meshes to draw.
+	if (passInput.gpuScene->getGPUSceneBufferSRV() == nullptr)
+	{
+		return;
+	}
+
 	TextureBarrierAuto textureBarriers[] = {
 		{
 			EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_READ, EBarrierLayout::DepthStencilRead,
