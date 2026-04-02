@@ -120,6 +120,10 @@ protected:
 
 		SceneProxy* sceneProxy = scene.createProxy();
 		RendererOptions rendererOptions{};
+		rendererOptions.rayTracedShadows = ERayTracedShadowsMode::Disabled;
+		rendererOptions.indirectDiffuse = EIndirectDiffuseMode::Disabled;
+		rendererOptions.indirectSpecular = EIndirectSpecularMode::Disabled;
+		rendererOptions.pathTracing = EPathTracingMode::Disabled;
 		if (bNeedReadback)
 		{
 			rendererOptions.finalRenderTarget = cameraColor;
