@@ -39,15 +39,16 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define WINDOW_WIDTH         256
 #define WINDOW_HEIGHT        256
 
+const int32 nPrepassConfigs = 2;
 const int32 nVisBufferConfigs = 2;
 const int32 nGpuCullingConfigs = 2;
 const int32 nIndirectDrawConfigs = (int32)EIndirectDrawMode::Count;
+const int32 nTotalConfigs = nPrepassConfigs * nVisBufferConfigs * nGpuCullingConfigs * nIndirectDrawConfigs;
 
 struct ActualImage
 {
-	std::vector<uint8> images[nVisBufferConfigs][nGpuCullingConfigs][nIndirectDrawConfigs];
-	std::wstring refTags[nVisBufferConfigs][nGpuCullingConfigs][nIndirectDrawConfigs];
-	std::wstring actualTags[nVisBufferConfigs][nGpuCullingConfigs][nIndirectDrawConfigs];
+	std::vector<uint8> images[nTotalConfigs];
+	std::wstring actualTags[nTotalConfigs];
 	uint32 width;
 	uint32 height;
 };
@@ -114,9 +115,11 @@ protected:
 	{
 		bool bNeedReadback = frameCounter != 0;
 
+		static int32 prepassConfig = 0;
 		static int32 visBufferConfig = 0;
 		static int32 gpuCullingConfig = 0;
 		static int32 indirectDrawConfig = 0;
+		static int32 configIndex = 0;
 
 		SceneProxy* sceneProxy = scene.createProxy();
 		RendererOptions rendererOptions{};
@@ -127,6 +130,7 @@ protected:
 		if (bNeedReadback)
 		{
 			rendererOptions.finalRenderTarget = cameraColor;
+			rendererOptions.bEnableDepthPrepass = (bool)prepassConfig;
 			rendererOptions.bEnableVisibilityBuffer = (bool)visBufferConfig;
 			rendererOptions.bEnableGPUCulling = (bool)gpuCullingConfig;
 			rendererOptions.indirectDrawMode = (EIndirectDrawMode)indirectDrawConfig;
@@ -149,30 +153,24 @@ protected:
 
 			uint8* readbackData = reinterpret_cast<uint8*>(handle->readbackData);
 			
-			std::vector<uint8>& targetImage = actualImage->images[visBufferConfig][gpuCullingConfig][indirectDrawConfig];
-			std::wstring& refTag = actualImage->refTags[visBufferConfig][gpuCullingConfig][indirectDrawConfig];
-			std::wstring& actualTag = actualImage->actualTags[visBufferConfig][gpuCullingConfig][indirectDrawConfig];
+			std::vector<uint8>& targetImage = actualImage->images[configIndex];
+			std::wstring& actualTag = actualImage->actualTags[configIndex];
 			
 			targetImage.assign(readbackData, readbackData + handle->totalBytes);
 
 			const char* sApi = (graphicsAPI == ERenderDeviceRawAPI::DirectX12) ? "d3d" : "vk";
+			const char* sPrepass = (prepassConfig == 0) ? "noprepass" : "prepass";
 			const char* sVisBuffer = (visBufferConfig == 0) ? "novisbuf" : "visbuf";
 			const char* sCulling = (gpuCullingConfig == 0) ? "nocull" : "gpucull";
 			const char* sIndirect = (indirectDrawConfig == 0) ? "direct" : (indirectDrawConfig == 1) ? "cpugen" : "gpugen";
 
 			char msg[256]; std::wstring wMsg;
-			sprintf_s(msg, "TestGpuDriven/%s_%s_%s.png", sVisBuffer, sCulling, sIndirect);
-			str_to_wstr(msg, wMsg);
-			refTag = wMsg;
-			
-			sprintf_s(msg, "TestGpuDriven/%s/%s_%s_%s.png", sApi, sVisBuffer, sCulling, sIndirect);
+			sprintf_s(msg, "TestGpuDriven/%s/%s_%s_%s_%s.png", sApi, sPrepass, sVisBuffer, sCulling, sIndirect);
 			str_to_wstr(msg, wMsg);
 			actualTag = wMsg;
-		}
 
-		++frameCounter;
-		if (bNeedReadback)
-		{
+			++configIndex;
+
 			indirectDrawConfig += 1;
 			if (indirectDrawConfig == (int)EIndirectDrawMode::Count)
 			{
@@ -184,11 +182,19 @@ protected:
 					visBufferConfig += 1;
 					if (visBufferConfig == 2)
 					{
-						terminateApplication();
+						visBufferConfig = 0;
+						prepassConfig += 1;
+						if (prepassConfig == 2)
+						{
+							Assert::IsTrue(configIndex == nTotalConfigs);
+							terminateApplication();
+						}
 					}
 				}
 			}
 		}
+
+		++frameCounter;
 	}
 
 private:
@@ -332,21 +338,14 @@ namespace UnitTest
 			Assert::IsTrue(ret == EApplicationReturnCode::Ok);
 
 			int32 invalidImgCount = 0;
-			for (int32 i = 0; i < nVisBufferConfigs; ++i)
+			for (int32 i = 0; i < nTotalConfigs; ++i)
 			{
-				for (int32 j = 0; j < nGpuCullingConfigs; ++j)
-				{
-					for (int32 k = 0; k < nIndirectDrawConfigs; ++k)
-					{
-						std::vector<uint8>& image = actualImage.images[i][j][k];
-						//const std::wstring& refTag = actualImage.refTags[i][j][k];
-						const std::wstring& actualTag = actualImage.actualTags[i][j][k];
-						uint32 numDiff = render_test::compareRefImageToRgba8ui(L"TestGpuDriven/ref.png", image.data());
-						render_test::saveRgba8uiImage(actualTag.data(), image.data(), actualImage.width, actualImage.height);
-						
-						invalidImgCount += (0 != numDiff) ? 1 : 0;
-					}
-				}
+				std::vector<uint8>& image = actualImage.images[i];
+				const std::wstring& actualTag = actualImage.actualTags[i];
+				uint32 numDiff = render_test::compareRefImageToRgba8ui(L"TestGpuDriven/ref.png", image.data());
+				render_test::saveRgba8uiImage(actualTag.data(), image.data(), actualImage.width, actualImage.height);
+				
+				invalidImgCount += (0 != numDiff) ? 1 : 0;
 			}
 			Assert::AreEqual(0, invalidImgCount);
 		}
