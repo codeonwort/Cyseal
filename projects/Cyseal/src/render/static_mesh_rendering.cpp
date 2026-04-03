@@ -373,6 +373,13 @@ void StaticMeshRendering::renderForPipeline(
 				};
 				commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
 			}
+			else if (indirectDrawMode == EIndirectDrawMode::PopulateOnCPU)
+			{
+				BufferBarrierAuto barriersAfter[] = {
+					{ EBarrierSync::EXECUTE_INDIRECT, EBarrierAccess::INDIRECT_ARGUMENT, argumentBuffer },
+				};
+				commandList->barrierAuto(_countof(barriersAfter), barriersAfter, 0, nullptr, 0, nullptr);
+			}
 		}
 	}
 
