@@ -103,6 +103,9 @@ public:
 	// Getters
 
 	virtual RenderCommandList* getCommandListForCustomCommand() const override;
+
+	virtual uint32 getMultiSampleQuality(EMultiSampleLevel level) const override { return msaaQualityLevels[(uint32)level]; }
+	virtual bool supportsMultiSampleLevel(EMultiSampleLevel level) const override { return msaaQualityLevels[(uint32)level] > 0; }
 	
 	virtual uint32 getConstantBufferDataAlignment() const { return D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT; }
 
@@ -139,7 +142,7 @@ private:
 	UINT                              descSizeDSV = 0;
 	UINT                              descSizeCBV_SRV_UAV = 0;
 	UINT                              descSizeSampler = 0;
-	UINT                              quality4xMSAA = 1;
+	uint32                            msaaQualityLevels[(size_t)EMultiSampleLevel::Count];
 
 	// Raw interfaces
 	ID3D12CommandQueue*               rawCommandQueue = nullptr;

@@ -201,6 +201,9 @@ public:
 
 	virtual RenderCommandList* getCommandListForCustomCommand() const = 0;
 
+	virtual uint32 getMultiSampleQuality(EMultiSampleLevel level) const = 0;
+	virtual bool supportsMultiSampleLevel(EMultiSampleLevel level) const = 0;
+
 	inline ERaytracingTier getRaytracingTier() const { return raytracingTier; }
 	inline EVariableShadingRateTier getVRSTier() const { return vrsTier; }
 	inline EMeshShaderTier getMeshShaderTier() const { return meshShaderTier; }

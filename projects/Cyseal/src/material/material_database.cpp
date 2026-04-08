@@ -111,6 +111,7 @@ GraphicsPipelineState* MaterialShaderDatabase::createDepthPipeline(
 
 	VertexInputLayout inputLayout = createVertexInputLayout();
 
+	const bool bMSAAx4 = device->supportsMultiSampleLevel(EMultiSampleLevel::x4);
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = vs,
 		.ps                     = ps,
@@ -122,10 +123,10 @@ GraphicsPipelineState* MaterialShaderDatabase::createDepthPipeline(
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = bUseVisibilityBuffer ? 1u : 0u,
 		.rtvFormats             = { bUseVisibilityBuffer ? PF_visibilityBuffer : EPixelFormat::UNKNOWN },
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.dsvFormat              = swapchain->getBackbufferDepthFormat(), // #wip: sceneDepth format?
 		.sampleDesc = SampleDesc{
-			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
-			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
+			.count              = bMSAAx4 ? 4u : 1u,
+			.quality            = bMSAAx4 ? (device->getMultiSampleQuality(EMultiSampleLevel::x4) - 1) : 0,
 		},
 		.staticSamplers         = {},
 	};
@@ -176,6 +177,7 @@ GraphicsPipelineState* MaterialShaderDatabase::createBasePipeline(
 		? EComparisonFunc::GreaterEqual
 		: EComparisonFunc::LessEqual;
 
+	const bool bMSAAx4 = device->supportsMultiSampleLevel(EMultiSampleLevel::x4);
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = vs,
 		.ps                     = ps,
@@ -187,10 +189,10 @@ GraphicsPipelineState* MaterialShaderDatabase::createBasePipeline(
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = numRTVs,
 		.rtvFormats             = { EPixelFormat::UNKNOWN, }, // Fill later
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.dsvFormat              = swapchain->getBackbufferDepthFormat(), // #wip: sceneDepth format?
 		.sampleDesc = SampleDesc{
-			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
-			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
+			.count              = bMSAAx4 ? 4u : 1u,
+			.quality            = bMSAAx4 ? (device->getMultiSampleQuality(EMultiSampleLevel::x4) - 1) : 0,
 		},
 		.staticSamplers         = std::move(staticSamplers),
 	};

@@ -45,6 +45,7 @@ void ToneMapping::initialize(RenderDevice* device)
 			.shaderVisibility = EShaderVisibility::All,
 		},
 	};
+	const bool bMSAAx4 = device->supportsMultiSampleLevel(EMultiSampleLevel::x4);
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = shaderVS,
 		.ps                     = shaderPS,
@@ -55,11 +56,11 @@ void ToneMapping::initialize(RenderDevice* device)
 		.inputLayout            = inputLayout,
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = 1,
-		.rtvFormats             = { swapchain->getBackbufferFormat(), },
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.rtvFormats             = { swapchain->getBackbufferFormat(), }, // #wip: Need to consider what final color is.
+		.dsvFormat              = swapchain->getBackbufferDepthFormat(), // #wip: same as above.
 		.sampleDesc = SampleDesc{
-			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
-			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
+			.count              = bMSAAx4 ? 4u : 1u,
+			.quality            = bMSAAx4 ? (device->getMultiSampleQuality(EMultiSampleLevel::x4) - 1) : 0,
 		},
 		.staticSamplers         = std::move(staticSamplers),
 	};

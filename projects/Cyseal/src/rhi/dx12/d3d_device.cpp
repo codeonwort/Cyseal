@@ -260,22 +260,24 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	descSizeCBV_SRV_UAV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	descSizeSampler     = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
-	// 3. Check 4X MSAA support.
+	// 3. Check Multisampling support.
 	// It gives good result and the overload is not so big.
 	// All D3D11 level devices support 4X MSAA for all render target types.
-	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
-	msQualityLevels.Format           = into_d3d::pixelFormat(backbufferFormat);
-	msQualityLevels.SampleCount      = 4;
-	msQualityLevels.Flags            = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
-	msQualityLevels.NumQualityLevels = 0;
-	HR( device->CheckFeatureSupport(
-			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
-			&msQualityLevels,
-			sizeof(msQualityLevels))
-	);
-
-	quality4xMSAA = msQualityLevels.NumQualityLevels;
-	CHECK(quality4xMSAA > 0);
+	for (uint32 i = 0; i < (uint32)EMultiSampleLevel::Count; ++i)
+	{
+		D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS caps{
+			.Format           = into_d3d::pixelFormat(backbufferFormat),
+			.SampleCount      = toSampleCount((EMultiSampleLevel)i),
+			.Flags            = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE,
+			.NumQualityLevels = 0,
+		};
+		HR( device->CheckFeatureSupport(
+				D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
+				&caps,
+				sizeof(caps))
+		);
+		msaaQualityLevels[i] = caps.NumQualityLevels;
+	}
 
 	// 4. Create command queue.
 	commandQueue = new(EMemoryTag::RHI) D3DRenderCommandQueue;

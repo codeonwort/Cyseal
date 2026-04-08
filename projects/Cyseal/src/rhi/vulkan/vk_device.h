@@ -107,6 +107,10 @@ public:
 
 	virtual RenderCommandList* getCommandListForCustomCommand() const override;
 
+	// #wip: Check MSAA quality
+	virtual uint32 getMultiSampleQuality(EMultiSampleLevel level) const override { return 0; }
+	virtual bool supportsMultiSampleLevel(EMultiSampleLevel level) const override { return false; }
+
 	// #todo-vulkan: Correct constant buffer data alignment
 	virtual uint32 getConstantBufferDataAlignment() const { return 256; }
 

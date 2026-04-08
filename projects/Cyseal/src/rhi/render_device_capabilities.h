@@ -1,6 +1,33 @@
 #pragma once
 
+#include "util/enum_util.h"
+#include "core/assertion.h"
+
 // Look for D3D12_FEATURE_DATA_D3D12_OPTIONS[N] in d3d12.h
+
+// D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS
+enum class EMultiSampleLevel : uint32
+{
+	x2    = 0,
+	x4    = 1,
+	x8    = 2,
+	x16   = 3,
+
+	Count,
+};
+
+inline uint32 toSampleCount(EMultiSampleLevel level)
+{
+	switch (level)
+	{
+		case EMultiSampleLevel::x2: return 2;
+		case EMultiSampleLevel::x4: return 4;
+		case EMultiSampleLevel::x8: return 8;
+		case EMultiSampleLevel::x16: return 16;
+		default: CHECK_NO_ENTRY();
+	}
+	return 0xffffffff;
+}
 
 // D3D12_RAYTRACING_TIER
 enum class ERaytracingTier : uint8
