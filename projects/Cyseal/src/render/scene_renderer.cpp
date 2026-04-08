@@ -172,18 +172,44 @@ void SceneRenderer::destroy()
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
-	bool bDoubleBuffering     = device->getCreateParams().bDoubleBuffering;
-	
-	auto swapChain            = device->getSwapChain();
-	swapChain->prepareBackbuffer();
+	bool bDoubleBuffering     = device->getCreateParams().bDoubleBuffering; // #wip: delete this nonsense option
 
-	uint32 swapchainIndex     = bDoubleBuffering ? swapChain->getNextBackbufferIndex() : swapChain->getCurrentBackbufferIndex();
+	bool bRenderToBackbuffer = renderOptions.renderToBackbuffer();
 
-	auto swapchainBuffer      = swapChain->getSwapchainBuffer(swapchainIndex);
-	auto swapchainBufferRTV   = swapChain->getSwapchainBufferRTV(swapchainIndex);
-	auto commandAllocator     = device->getCommandAllocator(swapchainIndex);
-	auto commandList          = device->getCommandList(swapchainIndex);
-	auto commandQueue         = device->getCommandQueue();
+	uint32            swapchainIndex     = 0;
+	SwapChain*        swapChain          = nullptr;
+	SwapChainImage*   swapchainBuffer    = nullptr;
+	RenderTargetView* swapchainBufferRTV = nullptr;
+	TextureKind*      finalColorTarget   = renderOptions.finalRenderTarget;
+	RenderTargetView* finalRTV           = finalColorRTV.get();
+	uint32            sceneWidth         = 0;
+	uint32            sceneHeight        = 0;
+
+	if (bRenderToBackbuffer)
+	{
+		swapChain = device->getSwapChain();
+		CHECK(swapChain != nullptr);
+
+		swapChain->prepareBackbuffer();
+
+		swapchainIndex     = bDoubleBuffering ? swapChain->getNextBackbufferIndex() : swapChain->getCurrentBackbufferIndex();
+		swapchainBuffer    = swapChain->getSwapchainBuffer(swapchainIndex);
+		swapchainBufferRTV = swapChain->getSwapchainBufferRTV(swapchainIndex);
+		sceneWidth         = swapChain->getBackbufferWidth();
+		sceneHeight        = swapChain->getBackbufferHeight();
+		finalColorTarget   = swapchainBuffer;
+		finalRTV           = swapchainBufferRTV;
+	}
+	else
+	{
+		// #wip: Allow custom viewport. Force full viewport for now.
+		sceneWidth         = renderOptions.finalRenderTarget->getCreateParams().width;
+		sceneHeight        = renderOptions.finalRenderTarget->getCreateParams().height;
+	}
+
+	auto commandAllocator  = device->getCommandAllocator(swapchainIndex);
+	auto commandList       = device->getCommandList(swapchainIndex);
+	auto commandQueue      = device->getCommandQueue();
 
 	createFinalColorRTV(commandList, renderOptions);
 
@@ -198,10 +224,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			commandQueue->executeCommandList(cmdList, swapChain);
 		}
 	}
-
-	// #todo-renderer: Can be different due to resolution scaling
-	const uint32 sceneWidth = swapChain->getBackbufferWidth();
-	const uint32 sceneHeight = swapChain->getBackbufferHeight();
 
 	const bool bRenderDepthPrepass = renderOptions.bEnableDepthPrepass;
 	const bool bRenderVisibilityBuffer = renderOptions.bEnableVisibilityBuffer;
@@ -753,13 +775,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 
 	// Set final render target.
-	TextureKind* finalColorTarget = renderOptions.finalRenderTarget;
-	RenderTargetView* finalRTV = finalColorRTV.get();
-	if (renderOptions.renderToBackbuffer())
-	{
-		finalColorTarget = swapchainBuffer;
-		finalRTV = swapchainBufferRTV;
-	}
 	{
 		SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
 
@@ -925,11 +940,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize
 
-	TextureBarrierAuto presentBarrier = {
-		EBarrierSync::DRAW, EBarrierAccess::COMMON, EBarrierLayout::Present,
-		swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-	};
-	commandList->barrierAuto(0, nullptr, 1, &presentBarrier, 0, nullptr);
+	if (bRenderToBackbuffer)
+	{
+		TextureBarrierAuto presentBarrier = {
+			EBarrierSync::DRAW, EBarrierAccess::COMMON, EBarrierLayout::Present,
+			swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+		};
+		commandList->barrierAuto(0, nullptr, 1, &presentBarrier, 0, nullptr);
+	}
 
 	commandList->close();
 	commandAllocator->markValid();
@@ -939,7 +957,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandQueue->executeCommandList(commandList, swapChain);
 	}
 
-	swapChain->present();
+	if (bRenderToBackbuffer)
+	{
+		swapChain->present();
+	}
 
 	{
 		SCOPED_CPU_EVENT(WaitForGPU);
