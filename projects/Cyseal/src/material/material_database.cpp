@@ -5,6 +5,18 @@
 #include "rhi/rhi_policy.h"
 #include "rhi/swap_chain.h"
 
+// #todo-renderer: scneeColor could use MSAA but thin G-buffers can't...
+#define ENABLE_MATERIAL_MSAA 0
+
+static bool check4xMSAA(RenderDevice* device)
+{
+#if ENABLE_MATERIAL_MSAA
+	return device->supportsMultiSampleLevel(EMultiSampleLevel::x4);
+#else
+	return false;
+#endif
+}
+
 static VertexInputLayout createVertexInputLayout()
 {
 	// #todo-basepass: Should be variant per vertex factory
@@ -111,7 +123,7 @@ GraphicsPipelineState* MaterialShaderDatabase::createDepthPipeline(
 
 	VertexInputLayout inputLayout = createVertexInputLayout();
 
-	const bool bMSAAx4 = device->supportsMultiSampleLevel(EMultiSampleLevel::x4);
+	const bool bMSAAx4 = check4xMSAA(device);
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = vs,
 		.ps                     = ps,
@@ -177,7 +189,7 @@ GraphicsPipelineState* MaterialShaderDatabase::createBasePipeline(
 		? EComparisonFunc::GreaterEqual
 		: EComparisonFunc::LessEqual;
 
-	const bool bMSAAx4 = device->supportsMultiSampleLevel(EMultiSampleLevel::x4);
+	const bool bMSAAx4 = check4xMSAA(device);
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = vs,
 		.ps                     = ps,

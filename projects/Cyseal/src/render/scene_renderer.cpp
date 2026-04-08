@@ -794,6 +794,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
 		ToneMappingInput passInput{
+			.renderTarget        = renderOptions.finalRenderTarget,
 			.viewport            = fullscreenViewport,
 			.scissorRect         = fullscreenScissorRect,
 			.sceneUniformCBV     = sceneUniformCBV,
