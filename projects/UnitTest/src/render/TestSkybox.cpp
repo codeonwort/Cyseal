@@ -6,7 +6,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "../rhi/test_rhi_utils.h"
 
 #include "core/engine.h"
-#include "core/win/windows_application.h"
+#include "core/console_application.h"
 #include "world/scene.h"
 #include "world/camera.h"
 #include "loader/image_loader.h"
@@ -28,6 +28,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 // #todo-test: Readback crashes if NPOT.
 #define WINDOW_WIDTH         128
 #define WINDOW_HEIGHT        128
+#define ASPECT_RATIO         ((float)WINDOW_WIDTH / (float)WINDOW_HEIGHT)
 
 struct ActualImage_Skybox
 {
@@ -42,7 +43,8 @@ static const std::wstring skyboxFilepaths[] = {
 	L"skybox_Footballfield/posz.jpg", L"skybox_Footballfield/negz.jpg",
 };
 
-class SkyboxApplication : public WindowsApplication
+// #wip: Crashes because SceneRenderer still access swapchain in various places... fix them all.
+class SkyboxApplication : public ConsoleApplication
 {
 public:
 	SkyboxApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI, ActualImage_Skybox* inActualImage)
@@ -52,18 +54,21 @@ public:
 	{}
 
 protected:
-	virtual bool onInitialize() override
+	virtual void onExecute() override
 	{
-		SwapChainCreateParams swapChainParams{
-			.bHeadless          = false,
-			.nativeWindowHandle = getHWND(),
-			.windowType         = EWindowType::WINDOWED,
-			.windowWidth        = WINDOW_WIDTH,
-			.windowHeight       = WINDOW_HEIGHT,
-		};
+		initialize();
+		while (tick())
+		{
+			//
+		}
+		terminate();
+	}
+
+	void initialize()
+	{
 		CysealEngineCreateParams engineInit{
 			.renderDevice = RenderDeviceCreateParams{
-				.swapChainParams  = swapChainParams,
+				.swapChainParams  = SwapChainCreateParams::noSwapChain(),
 				.rawAPI           = graphicsAPI,
 			},
 			.rendererType = ERendererType::Standard,
@@ -72,7 +77,7 @@ protected:
 		cysealEngine->startup(engineInit);
 
 		camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
-		camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
+		camera.perspective(CAMERA_FOV_Y, ASPECT_RATIO, CAMERA_Z_NEAR, CAMERA_Z_FAR);
 
 		createResources();
 
@@ -84,25 +89,23 @@ protected:
 			ETextureAccessFlags::RTV | ETextureAccessFlags::CPU_READBACK,
 			actualImage->width, actualImage->height);
 		cameraColor = gRenderDevice->createTexture(cameraColorParams);
-
-		return true;
 	}
 
-	virtual void onTerminate() override
+	void terminate()
 	{
 		delete cameraColor;
 		scene.skyboxTexture = nullptr;
 		cysealEngine->shutdown();
 	}
 
-	virtual void onTick(float deltaSeconds) override
+	bool tick()
 	{
 		// #todo-test: Need to wait at least 1 frame, otherwise the result is black. Dunno why...
 		bool bNeedReadback = (actualImage->data.size() == 0) && (exitCounter == 1);
 
 		if (exitCounter++ > 1)
 		{
-			terminateApplication();
+			return false;
 		}
 		else
 		{
@@ -132,6 +135,8 @@ protected:
 				actualImage->data.assign(readbackData, readbackData + handle->totalBytes);
 			}
 		}
+
+		return true;
 	}
 
 private:
@@ -227,18 +232,14 @@ namespace UnitTest
 		{
 			ActualImage_Skybox actualImage;
 
-			HWND nativeWindowHandle = NULL;
-
 			CysealEngine cysealEngine;
 
-			WindowsApplication* app = new SkyboxApplication(&cysealEngine, graphicsAPI, &actualImage);
-			app->setWindowTitle(L"Hello world");
-			app->setWindowPosition(WINDOW_X, WINDOW_Y);
-			app->setWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+			ConsoleApplication* app = new SkyboxApplication(&cysealEngine, graphicsAPI, &actualImage);
 
-			ApplicationCreateParams createParams;
-			createParams.nativeWindowHandle = nativeWindowHandle;
-			createParams.applicationName = L"TestSkybox";
+			ApplicationCreateParams createParams{
+				.nativeWindowHandle = (HWND)NULL,
+				.applicationName = L"TestSkybox",
+			};
 
 			// Enters the main loop.
 			EApplicationReturnCode ret = app->launch(createParams);
