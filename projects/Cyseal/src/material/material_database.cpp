@@ -123,7 +123,7 @@ GraphicsPipelineState* MaterialShaderDatabase::createDepthPipeline(
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = bUseVisibilityBuffer ? 1u : 0u,
 		.rtvFormats             = { bUseVisibilityBuffer ? PF_visibilityBuffer : EPixelFormat::UNKNOWN },
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(), // #wip: sceneDepth format?
+		.dsvFormat              = PF_sceneDepthDSV,
 		.sampleDesc = SampleDesc{
 			.count              = bMSAAx4 ? 4u : 1u,
 			.quality            = bMSAAx4 ? (device->getMultiSampleQuality(EMultiSampleLevel::x4) - 1) : 0,
@@ -189,7 +189,7 @@ GraphicsPipelineState* MaterialShaderDatabase::createBasePipeline(
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = numRTVs,
 		.rtvFormats             = { EPixelFormat::UNKNOWN, }, // Fill later
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(), // #wip: sceneDepth format?
+		.dsvFormat              = PF_sceneDepthDSV,
 		.sampleDesc = SampleDesc{
 			.count              = bMSAAx4 ? 4u : 1u,
 			.quality            = bMSAAx4 ? (device->getMultiSampleQuality(EMultiSampleLevel::x4) - 1) : 0,

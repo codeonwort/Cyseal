@@ -57,7 +57,7 @@ void ToneMapping::initialize(RenderDevice* device)
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = 1,
 		.rtvFormats             = { swapchain->getBackbufferFormat(), }, // #wip: Need to consider what final color is.
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(), // #wip: same as above.
+		.dsvFormat              = EPixelFormat::UNKNOWN, // No depth so don't care
 		.sampleDesc = SampleDesc{
 			.count              = bMSAAx4 ? 4u : 1u,
 			.quality            = bMSAAx4 ? (device->getMultiSampleQuality(EMultiSampleLevel::x4) - 1) : 0,
