@@ -16,7 +16,6 @@ namespace rhi_test
 			.meshShaderTier      = EMeshShaderTier::MaxTier,
 			.samplerFeedbackTier = ESamplerFeedbackTier::MaxTier,
 			.enableDebugLayer    = true,
-			.bDoubleBuffering    = false,
 		};
 
 		RenderDevice* device = nullptr;

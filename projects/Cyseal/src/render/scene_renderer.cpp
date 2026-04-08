@@ -172,18 +172,12 @@ void SceneRenderer::destroy()
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
-	bool bDoubleBuffering     = device->getCreateParams().bDoubleBuffering; // #wip: delete this nonsense option
-
 	bool bRenderToBackbuffer = renderOptions.renderToBackbuffer();
 
 	uint32            swapchainIndex     = 0;
 	SwapChain*        swapChain          = nullptr;
 	SwapChainImage*   swapchainBuffer    = nullptr;
 	RenderTargetView* swapchainBufferRTV = nullptr;
-	TextureKind*      finalColorTarget   = renderOptions.finalRenderTarget;
-	RenderTargetView* finalRTV           = finalColorRTV.get();
-	uint32            sceneWidth         = 0;
-	uint32            sceneHeight        = 0;
 
 	if (bRenderToBackbuffer)
 	{
@@ -192,9 +186,23 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		swapChain->prepareBackbuffer();
 
-		swapchainIndex     = bDoubleBuffering ? swapChain->getNextBackbufferIndex() : swapChain->getCurrentBackbufferIndex();
+		swapchainIndex     = swapChain->getCurrentBackbufferIndex();
 		swapchainBuffer    = swapChain->getSwapchainBuffer(swapchainIndex);
 		swapchainBufferRTV = swapChain->getSwapchainBufferRTV(swapchainIndex);
+	}
+
+	auto commandAllocator  = device->getCommandAllocator(swapchainIndex);
+	auto commandList       = device->getCommandList(swapchainIndex);
+	auto commandQueue      = device->getCommandQueue();
+
+	createFinalColorRTV(commandList, renderOptions);
+
+	TextureKind*      finalColorTarget   = renderOptions.finalRenderTarget;
+	RenderTargetView* finalRTV           = finalColorRTV.get();
+	uint32            sceneWidth         = 0;
+	uint32            sceneHeight        = 0;
+	if (bRenderToBackbuffer)
+	{
 		sceneWidth         = swapChain->getBackbufferWidth();
 		sceneHeight        = swapChain->getBackbufferHeight();
 		finalColorTarget   = swapchainBuffer;
@@ -205,24 +213,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		// #wip: Allow custom viewport. Force full viewport for now.
 		sceneWidth         = renderOptions.finalRenderTarget->getCreateParams().width;
 		sceneHeight        = renderOptions.finalRenderTarget->getCreateParams().height;
-	}
-
-	auto commandAllocator  = device->getCommandAllocator(swapchainIndex);
-	auto commandList       = device->getCommandList(swapchainIndex);
-	auto commandQueue      = device->getCommandQueue();
-
-	createFinalColorRTV(commandList, renderOptions);
-
-	if (bDoubleBuffering)
-	{
-		uint32 ix = swapChain->getCurrentBackbufferIndex();
-		auto cmdAllocator = device->getCommandAllocator(ix);
-		auto cmdList = device->getCommandList(ix);
-
-		if (cmdAllocator->isValid())
-		{
-			commandQueue->executeCommandList(cmdList, swapChain);
-		}
 	}
 
 	const bool bRenderDepthPrepass = renderOptions.bEnableDepthPrepass;
@@ -952,10 +942,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	commandList->close();
 	commandAllocator->markValid();
 
-	if (!bDoubleBuffering)
-	{
-		commandQueue->executeCommandList(commandList, swapChain);
-	}
+	commandQueue->executeCommandList(commandList, swapChain);
 
 	if (bRenderToBackbuffer)
 	{

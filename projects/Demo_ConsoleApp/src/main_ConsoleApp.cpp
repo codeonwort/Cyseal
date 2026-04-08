@@ -19,7 +19,6 @@ protected:
 			.meshShaderTier      = EMeshShaderTier::MaxTier,
 			.samplerFeedbackTier = ESamplerFeedbackTier::MaxTier,
 			.enableDebugLayer    = true,
-			.bDoubleBuffering    = false,
 		};
 
 		RenderDevice* renderDevice = new D3DDevice;

@@ -28,7 +28,6 @@
 #endif
 
 #define WINDOW_TYPE          EWindowType::WINDOWED
-#define DOUBLE_BUFFERING     false
 #define RAYTRACING_TIER      ERaytracingTier::MaxTier
 
 // Camera position and direction can be overriden by world.
@@ -70,7 +69,6 @@ bool TestApplication::onInitialize()
 			.swapChainParams  = swapChainParams,
 			.rawAPI           = RAW_API,
 			.raytracingTier   = RAYTRACING_TIER,
-			.bDoubleBuffering = DOUBLE_BUFFERING,
 		},
 		.rendererType = RENDERER_TYPE,
 	};

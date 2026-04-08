@@ -57,10 +57,6 @@ struct RenderDeviceCreateParams
 	bool                     enableDebugLayer    = true;
 	// Attach GPU debugger, for example PIX for DX12.
 	bool                     bAttachGPUDebugger  = false;
-
-	// true  : Render for current swapchain, record for next swapchain.
-	// false : Record for current swapchain, render for current swapchain.
-	bool                     bDoubleBuffering    = true;
 };
 
 // ID3D12Device

@@ -856,9 +856,7 @@ RenderCommandList* D3DDevice::getCommandListForCustomCommand() const
 {
 	uint32 swapchainIx = getCreateParams().swapChainParams.bHeadless
 		? 0
-		: getCreateParams().bDoubleBuffering
-			? getSwapChain()->getNextBackbufferIndex()
-			: getSwapChain()->getCurrentBackbufferIndex();
+		: getSwapChain()->getCurrentBackbufferIndex();
 
 	RenderCommandList* commandList = getCommandList(swapchainIx);
 	return commandList;

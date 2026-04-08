@@ -29,7 +29,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define WINDOW_WIDTH         128
 #define WINDOW_HEIGHT        128
 
-struct ActualImage
+struct ActualImage_Skybox
 {
 	std::vector<uint8> data;
 	uint32 width;
@@ -45,7 +45,7 @@ static const std::wstring skyboxFilepaths[] = {
 class SkyboxApplication : public WindowsApplication
 {
 public:
-	SkyboxApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI, ActualImage* inActualImage)
+	SkyboxApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI, ActualImage_Skybox* inActualImage)
 		: cysealEngine(inEngine)
 		, graphicsAPI(inGraphicsAPI)
 		, actualImage(inActualImage)
@@ -65,7 +65,6 @@ protected:
 			.renderDevice = RenderDeviceCreateParams{
 				.swapChainParams  = swapChainParams,
 				.rawAPI           = graphicsAPI,
-				.bDoubleBuffering = false,
 			},
 			.rendererType = ERendererType::Standard,
 		};
@@ -215,7 +214,7 @@ private:
 	int32 exitCounter = 0;
 
 	Texture* cameraColor = nullptr;
-	ActualImage* actualImage = nullptr;
+	ActualImage_Skybox* actualImage = nullptr;
 };
 
 namespace UnitTest
@@ -226,7 +225,7 @@ namespace UnitTest
 	protected:
 		void RenderSkybox()
 		{
-			ActualImage actualImage;
+			ActualImage_Skybox actualImage;
 
 			HWND nativeWindowHandle = NULL;
 

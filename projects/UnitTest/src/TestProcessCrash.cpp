@@ -45,7 +45,6 @@ protected:
 				.swapChainParams  = swapChainParams,
 				.rawAPI           = ERenderDeviceRawAPI::DirectX12,
 				.raytracingTier   = ERaytracingTier::MaxTier,
-				.bDoubleBuffering = true,
 			},
 			.rendererType = RENDERER_TYPE,
 		};

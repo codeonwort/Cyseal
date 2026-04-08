@@ -45,7 +45,7 @@ const int32 nGpuCullingConfigs = 2;
 const int32 nIndirectDrawConfigs = (int32)EIndirectDrawMode::Count;
 const int32 nTotalConfigs = nPrepassConfigs * nVisBufferConfigs * nGpuCullingConfigs * nIndirectDrawConfigs;
 
-struct ActualImage
+struct ActualImage_GpuDriven
 {
 	std::vector<uint8> images[nTotalConfigs];
 	std::wstring actualTags[nTotalConfigs];
@@ -56,7 +56,7 @@ struct ActualImage
 class GpuDrivenApplication : public WindowsApplication
 {
 public:
-	GpuDrivenApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI, ActualImage* inActualImage)
+	GpuDrivenApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI, ActualImage_GpuDriven* inActualImage)
 		: cysealEngine(inEngine)
 		, graphicsAPI(inGraphicsAPI)
 		, actualImage(inActualImage)
@@ -76,7 +76,6 @@ protected:
 			.renderDevice = RenderDeviceCreateParams{
 				.swapChainParams  = swapChainParams,
 				.rawAPI           = graphicsAPI,
-				.bDoubleBuffering = false,
 			},
 			.rendererType = ERendererType::Standard,
 		};
@@ -305,7 +304,7 @@ private:
 	int32 frameCounter = 0;
 
 	Texture* cameraColor = nullptr;
-	ActualImage* actualImage = nullptr;
+	ActualImage_GpuDriven* actualImage = nullptr;
 };
 
 namespace UnitTest
@@ -316,7 +315,7 @@ namespace UnitTest
 	protected:
 		void RenderGpuDriven()
 		{
-			ActualImage actualImage;
+			ActualImage_GpuDriven actualImage;
 
 			HWND nativeWindowHandle = NULL;
 

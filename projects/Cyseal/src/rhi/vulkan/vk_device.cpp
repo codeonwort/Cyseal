@@ -1497,15 +1497,11 @@ RenderCommandList* VulkanDevice::getCommandListForCustomCommand() const
 
 	uint32 swapchainIx = bHeadless
 		? 0
-		: getCreateParams().bDoubleBuffering
-			? getSwapChain()->getNextBackbufferIndex()
-			: getSwapChain()->getCurrentBackbufferIndex();
+		: getSwapChain()->getCurrentBackbufferIndex();
 
 	if (!bHeadless && getSwapChain()->getCurrentBackbufferIndex() == 0xffffffff)
 	{
-		swapchainIx = getCreateParams().bDoubleBuffering
-			? 1
-			: 0;
+		swapchainIx = 0;
 	}
 
 	RenderCommandList* commandList = getCommandList(swapchainIx);
