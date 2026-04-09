@@ -43,7 +43,6 @@ static const std::wstring skyboxFilepaths[] = {
 	L"skybox_Footballfield/posz.jpg", L"skybox_Footballfield/negz.jpg",
 };
 
-// #wip: Crashes because SceneRenderer still access swapchain in various places... fix them all.
 class SkyboxApplication : public ConsoleApplication
 {
 public:

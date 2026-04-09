@@ -107,9 +107,8 @@ public:
 
 	virtual RenderCommandList* getCommandListForCustomCommand() const override;
 
-	// #wip: Check MSAA quality
-	virtual uint32 getMultiSampleQuality(EMultiSampleLevel level) const override { return 0; }
-	virtual bool supportsMultiSampleLevel(EMultiSampleLevel level) const override { return false; }
+	virtual uint32 getMultiSampleQuality(EMultiSampleLevel level) const override { return msaaQualityLevels[(uint32)level]; }
+	virtual bool supportsMultiSampleLevel(EMultiSampleLevel level) const override { return msaaQualityLevels[(uint32)level] > 0; }
 
 	// #todo-vulkan: Correct constant buffer data alignment
 	virtual uint32 getConstantBufferDataAlignment() const { return 256; }
@@ -151,28 +150,30 @@ private:
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32 windowWidth, uint32 windowHeight);
 
 private:
-	VkInstance vkInstance = VK_NULL_HANDLE;
-	VkPhysicalDevice vkPhysicalDevice = VK_NULL_HANDLE;
-	VkDevice vkDevice = VK_NULL_HANDLE;
+	VkInstance                  vkInstance = VK_NULL_HANDLE;
+	VkPhysicalDevice            vkPhysicalDevice = VK_NULL_HANDLE;
+	VkDevice                    vkDevice = VK_NULL_HANDLE;
 
-	VkSurfaceKHR vkSurface = VK_NULL_HANDLE;
+	VkSurfaceKHR                vkSurface = VK_NULL_HANDLE;
 
-	VkPhysicalDeviceLimits vkPhysicalDeviceLimits;
+	VkPhysicalDeviceLimits      vkPhysicalDeviceLimits;
 	VkPhysicalDeviceProperties2 vkPhysicalDeviceProperties2;
 
-	VkQueue vkGraphicsQueue = VK_NULL_HANDLE;
-	VkQueue vkPresentQueue = VK_NULL_HANDLE;
+	uint32                      msaaQualityLevels[(size_t)EMultiSampleLevel::Count];
 
-	std::vector<VkSemaphore> vkSwapchainImageAvailableSemaphores; // Swapchain image is available.
-	VkSemaphore vkRenderFinishedSemaphore = VK_NULL_HANDLE; // Graphics queue has finished.
+	VkQueue                     vkGraphicsQueue = VK_NULL_HANDLE;
+	VkQueue                     vkPresentQueue = VK_NULL_HANDLE;
 
-	VkDebugReportCallbackEXT vkDebugCallback = VK_NULL_HANDLE;
-	bool enableDebugLayer = false;
+	std::vector<VkSemaphore>    vkSwapchainImageAvailableSemaphores; // Swapchain image is available.
+	VkSemaphore                 vkRenderFinishedSemaphore = VK_NULL_HANDLE; // Graphics queue has finished.
+
+	VkDebugReportCallbackEXT    vkDebugCallback = VK_NULL_HANDLE;
+	bool                        enableDebugLayer = false;
 
 	// #todo-vulkan: EXT - Debug marker
-	bool canEnableDebugMarker = false;
-	PFN_vkCmdDebugMarkerBeginEXT vkCmdDebugMarkerBegin = VK_NULL_HANDLE;
-	PFN_vkCmdDebugMarkerEndEXT vkCmdDebugMarkerEnd = VK_NULL_HANDLE;
+	bool                              canEnableDebugMarker       = false;
+	PFN_vkCmdDebugMarkerBeginEXT      vkCmdDebugMarkerBegin      = VK_NULL_HANDLE;
+	PFN_vkCmdDebugMarkerEndEXT        vkCmdDebugMarkerEnd        = VK_NULL_HANDLE;
 	PFN_vkDebugMarkerSetObjectNameEXT vkDebugMarkerSetObjectName = VK_NULL_HANDLE;
 };
 

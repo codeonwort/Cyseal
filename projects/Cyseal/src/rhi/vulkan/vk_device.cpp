@@ -381,6 +381,20 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	// Check capabilities.
 	{
 		bSupportsEnhancedBarrier = true; // vkCmdPipelineBarrier2()
+
+		VkSampleCountFlags msaaFlags = vkPhysicalDeviceLimits.framebufferColorSampleCounts & vkPhysicalDeviceLimits.framebufferDepthSampleCounts;
+		for (uint32 i = 0; i < (uint32)EMultiSampleLevel::Count; ++i)
+		{
+			uint32 sampleCount = toSampleCount((EMultiSampleLevel)i);
+			switch (sampleCount)
+			{
+				case 2: msaaQualityLevels[i]  = (uint32)((msaaFlags & VK_SAMPLE_COUNT_2_BIT) != 0); break;
+				case 4: msaaQualityLevels[i]  = (uint32)((msaaFlags & VK_SAMPLE_COUNT_4_BIT) != 0); break;
+				case 8: msaaQualityLevels[i]  = (uint32)((msaaFlags & VK_SAMPLE_COUNT_8_BIT) != 0); break;
+				case 16: msaaQualityLevels[i] = (uint32)((msaaFlags & VK_SAMPLE_COUNT_16_BIT) != 0); break;
+				default: CHECK_NO_ENTRY();
+			}
+		}
 	}
 
 	// Get debug marker functions.
