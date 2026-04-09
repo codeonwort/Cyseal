@@ -82,8 +82,6 @@ protected:
 
 		cysealEngine->startup(engineInit);
 
-		cysealEngine->setRenderResolution(WINDOW_WIDTH, WINDOW_HEIGHT);
-
 		camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 		camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 
