@@ -6,7 +6,6 @@
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
-#include "rhi/swap_chain.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
@@ -123,7 +122,7 @@ void IndirectDiffusePass::initialize()
 void IndirectDiffusePass::initializeRaytracingPipeline()
 {
 	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	rayPassDescriptor.initialize(L"IndirectDiffuse_RayPass", swapchainCount, sizeof(RayPassUniform));
 
@@ -220,7 +219,7 @@ void IndirectDiffusePass::initializeRaytracingPipeline()
 void IndirectDiffusePass::initializeTemporalPipeline()
 {
 	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	temporalPassDescriptor.initialize(L"IndirectDiffuse_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
 

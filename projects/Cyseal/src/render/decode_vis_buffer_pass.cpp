@@ -1,7 +1,6 @@
 #include "decode_vis_buffer_pass.h"
 #include "gpu_scene.h"
 #include "rhi/render_device.h"
-#include "rhi/swap_chain.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "rhi/barrier_tracker.h"
 #include "rhi/render_command.h"
@@ -9,7 +8,7 @@
 void DecodeVisBufferPass::initialize(RenderDevice* inRenderDevice)
 {
 	device = inRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	decodePassDescriptor.initialize(L"DecodeVisBufferPass", swapchainCount, 0);
 

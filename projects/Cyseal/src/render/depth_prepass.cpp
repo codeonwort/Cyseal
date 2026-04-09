@@ -7,7 +7,6 @@
 
 #include "rhi/render_device.h"
 #include "rhi/rhi_policy.h"
-#include "rhi/swap_chain.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/shader.h"
@@ -20,9 +19,7 @@ void DepthPrepass::initialize(RenderDevice* inRenderDevice, EPixelFormat inVisBu
 	device = inRenderDevice;
 	visBufferFormat = inVisBufferFormat;
 
-	SwapChain* swapchain = device->getSwapChain();
-	const uint32 swapchainCount = swapchain->getBufferCount();
-
+	const uint32 swapchainCount = device->maxFramesInFlight();
 	passDescriptor.initialize(L"DepthPrepass", swapchainCount, 0);
 
 	// Standard pipeline

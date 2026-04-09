@@ -121,14 +121,14 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		depthPrepass->initialize(renderDevice, PF_visibilityBuffer);
 		decodeVisBufferPass->initialize(renderDevice);
 		basePass->initialize(renderDevice, PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
-		hizPass->initialize();
+		hizPass->initialize(renderDevice);
 		skyPass->initialize(PF_sceneColor);
 		indirectDiffusePass->initialize();
 		indirectSpecularPass->initialize(renderDevice);
 		toneMapping->initialize(renderDevice);
 		bufferVisualization->initialize(renderDevice);
 		pathTracingPass->initialize();
-		denoiserPluginPass->initialize();
+		denoiserPluginPass->initialize(renderDevice);
 		storeHistoryPass->initialize(renderDevice);
 		frameGenPass->initialize(renderDevice);
 	}

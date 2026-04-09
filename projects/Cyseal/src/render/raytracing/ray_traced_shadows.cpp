@@ -5,7 +5,6 @@
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
-#include "rhi/swap_chain.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
@@ -46,7 +45,7 @@ void RayTracedShadowsPass::initialize()
 	}
 
 	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	rayPassDescriptor.initialize(L"RayTracedShadows_RayPass", swapchainCount, 0);
 

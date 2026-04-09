@@ -1,13 +1,11 @@
 #include "hiz_pass.h"
 #include "rhi/render_device.h"
-#include "rhi/swap_chain.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/render_command.h"
 
-void HiZPass::initialize()
+void HiZPass::initialize(RenderDevice* device)
 {
-	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	copyPassDescriptor.initialize(L"HiZ_CopyMip0Pass", swapchainCount, 0);
 	downsamplePassDescriptor.initialize(L"HiZ_DownsamplePass", swapchainCount, 0);

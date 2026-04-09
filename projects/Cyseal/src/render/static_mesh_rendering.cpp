@@ -3,7 +3,6 @@
 #include "render/gpu_culling.h"
 #include "render/static_mesh.h"
 #include "rhi/render_device.h"
-#include "rhi/swap_chain.h"
 #include "rhi/render_command.h"
 #include "world/scene_proxy.h"
 #include "material/material_database.h"
@@ -45,7 +44,7 @@ void IndirectDrawHelper::initialize(
 	CHECK(inDebugName != nullptr);
 	debugName = inDebugName;
 
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	argumentBuffer.initialize(swapchainCount);
 	argumentBufferSRV.initialize(swapchainCount);

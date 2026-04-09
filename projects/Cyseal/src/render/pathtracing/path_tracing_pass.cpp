@@ -5,7 +5,6 @@
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
-#include "rhi/swap_chain.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
@@ -309,7 +308,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 void PathTracingPass::initializeRaytracingPipeline()
 {
 	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	rayPassDescriptor.initialize(L"PathTracing_RayPass", swapchainCount, sizeof(RayPassUniform));
 
@@ -407,7 +406,7 @@ void PathTracingPass::initializeRaytracingPipeline()
 void PathTracingPass::initializeTemporalPipeline()
 {
 	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	temporalPassDescriptor.initialize(L"PathTracing_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
 

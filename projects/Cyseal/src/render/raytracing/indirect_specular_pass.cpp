@@ -5,7 +5,6 @@
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
-#include "rhi/swap_chain.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
@@ -257,7 +256,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 void IndirecSpecularPass::initializeClassifierPipeline()
 {
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	classifierPassDescriptor.initialize(L"IndirectSpecular_ClassifierPass", swapchainCount, 0);
 	indirectRaysPassDescriptor.initialize(L"IndirectSpecular_PrepareDispatch", swapchainCount, 0);
@@ -292,7 +291,7 @@ void IndirecSpecularPass::initializeClassifierPipeline()
 
 void IndirecSpecularPass::initializeRaytracingPipeline()
 {
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	rayPassDescriptor.initialize(L"IndirectSpecular_RayPass", swapchainCount, sizeof(RayPassUniform));
 
@@ -415,7 +414,7 @@ void IndirecSpecularPass::initializeRaytracingPipeline()
 
 void IndirecSpecularPass::initializeTemporalPipeline()
 {
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	temporalPassDescriptor.initialize(L"IndirectSpecular_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
 
@@ -436,7 +435,7 @@ void IndirecSpecularPass::initializeTemporalPipeline()
 
 void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 {
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	const auto historyFlags = ETextureAccessFlags::SRV | ETextureAccessFlags::UAV;
 	amdRadianceHistory.initialize(PF_amdRadiance, historyFlags, L"RT_SpecularAmdRadianceHistory");
@@ -530,7 +529,7 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 
 void IndirecSpecularPass::initializeAMDFinalizeColor()
 {
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularFinalizeColorCS");
 	shader->declarePushConstants({ {"pushConstants", 2} });
