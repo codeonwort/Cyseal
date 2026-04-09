@@ -6,24 +6,14 @@
 #include "rhi/render_command.h"
 #include "rhi/texture_manager.h"
 
-ToneMapping::~ToneMapping()
-{
-	delete shaderVS;
-	delete shaderPS;
-}
-
 void ToneMapping::initialize(RenderDevice* inDevice)
 {
 	device = inDevice;
 
-	SwapChain* swapchain = nullptr;
-	uint32 swapchainCount = 1;
+	const uint32 swapchainCount = device->maxFramesInFlight();
 	if (device->getCreateParams().swapChainParams.bHeadless == false)
 	{
-		swapchain = device->getSwapChain();
-		swapchainCount = swapchain->getBufferCount();
-
-		rtvFormats.push_back(swapchain->getBackbufferFormat());
+		rtvFormats.push_back(device->getSwapChain()->getBackbufferFormat());
 		rtvIndexForSwapChain = 0;
 	}
 	rtvFormats.push_back(EPixelFormat::R32G32B32A32_FLOAT);
@@ -39,8 +29,8 @@ void ToneMapping::initialize(RenderDevice* inDevice)
 	};
 
 	// Load shader
-	shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "ToneMappingVS");
-	shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "ToneMappingPS");
+	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "ToneMappingVS");
+	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "ToneMappingPS");
 	shaderVS->declarePushConstants();
 	shaderPS->declarePushConstants();
 	shaderVS->loadFromFile(L"tone_mapping.hlsl", "mainVS");
@@ -81,6 +71,12 @@ void ToneMapping::initialize(RenderDevice* inDevice)
 			.staticSamplers         = staticSamplers,
 		};
 		pipelineStates[i] = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
+	}
+
+	// Cleanup.
+	{
+		delete shaderVS;
+		delete shaderPS;
 	}
 }
 

@@ -27,8 +27,6 @@ struct ToneMappingInput
 class ToneMapping final : public SceneRenderPass
 {
 public:
-	~ToneMapping();
-
 	void initialize(RenderDevice* inRenderDevice);
 
 	void renderToneMapping(RenderCommandList* commandList, uint32 swapchainIndex, const ToneMappingInput& passInput);
@@ -42,8 +40,6 @@ private:
 	int32                                    rtvIndexForSwapChain = -1;
 	std::vector<EPixelFormat>                rtvFormats;
 	BufferedUniquePtr<GraphicsPipelineState> pipelineStates;
-	ShaderStage*                             shaderVS = nullptr;
-	ShaderStage*                             shaderPS = nullptr;
 
 	VertexInputLayout                        inputLayout;
 	VolatileDescriptorHelper                 passDescriptor;

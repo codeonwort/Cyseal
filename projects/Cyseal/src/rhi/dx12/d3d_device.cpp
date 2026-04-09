@@ -81,15 +81,6 @@ static void reportD3DLiveObjects()
 #endif
 }
 
-static uint32 computeNumFramesInFlight(D3DDevice* device)
-{
-	if (device->getCreateParams().swapChainParams.bHeadless)
-	{
-		return 1;
-	}
-	return device->getSwapChain()->getBufferCount();
-}
-
 D3DDevice::D3DDevice()
 	: RenderDevice()
 {
@@ -298,7 +289,7 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	}
 
 	// 6. Create command allocators and command list.
-	for (uint32 ix = 0; ix < computeNumFramesInFlight(this); ++ix)
+	for (uint32 ix = 0; ix < maxFramesInFlight(); ++ix)
 	{
 		RenderCommandAllocator* allocator = createRenderCommandAllocator();
 		commandAllocators.push_back(allocator);
@@ -358,7 +349,7 @@ void D3DDevice::initializeDearImgui()
 
 	ImGui_ImplDX12_Init(
 		device.Get(),
-		computeNumFramesInFlight(this),
+		maxFramesInFlight(),
 		backbufferFormat,
 		d3dHeap,
 		d3dHeap->GetCPUDescriptorHandleForHeapStart(),

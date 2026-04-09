@@ -191,6 +191,8 @@ public:
 
 	inline const RenderDeviceCreateParams& getCreateParams() const { return createParams; }
 
+	uint32 maxFramesInFlight() const;
+
 	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }
 	inline EPixelFormat getBackbufferDepthFormat() const { return backbufferDepthFormat; }
 	inline SwapChain* getSwapChain() const { return swapChain; }

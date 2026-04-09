@@ -167,15 +167,6 @@ static bool checkVkDebugMarkerSupport(VkPhysicalDevice physDevice)
 	return false;
 }
 
-static uint32 computeNumFramesInFlight(VulkanDevice* device)
-{
-	if (device->getCreateParams().swapChainParams.bHeadless)
-	{
-		return 1;
-	}
-	return device->getSwapChain()->getBufferCount();
-}
-
 VkDevice getVkDevice()
 {
 	return static_cast<VulkanDevice*>(gRenderDevice)->getRaw();
@@ -429,7 +420,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		commandQueue = new(EMemoryTag::RHI) VulkanRenderCommandQueue;
 		commandQueue->initialize(this);
 
-		uint32 count = computeNumFramesInFlight(this);
+		uint32 count = maxFramesInFlight();
 		for (uint32 ix = 0; ix < count; ++ix)
 		{
 			RenderCommandAllocator* allocator = createRenderCommandAllocator();

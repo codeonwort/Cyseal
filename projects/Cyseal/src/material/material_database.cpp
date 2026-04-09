@@ -3,7 +3,6 @@
 #include "render/renderer_constants.h"
 #include "rhi/render_device.h"
 #include "rhi/rhi_policy.h"
-#include "rhi/swap_chain.h"
 
 // #todo-renderer: scneeColor could use MSAA but thin G-buffers can't...
 #define ENABLE_MATERIAL_MSAA 0
@@ -112,8 +111,6 @@ GraphicsPipelineState* MaterialShaderDatabase::createDepthPipeline(
 	ShaderStage* ps,
 	bool bUseVisibilityBuffer)
 {
-	SwapChain* swapchain = device->getSwapChain();
-
 	RasterizerDesc rasterizerDesc = RasterizerDesc();
 	rasterizerDesc.cullMode = pipelineKeyDesc.cullMode;
 
@@ -152,9 +149,6 @@ GraphicsPipelineState* MaterialShaderDatabase::createBasePipeline(
 	ShaderStage* vs,
 	ShaderStage* ps)
 {
-	SwapChain* swapchain = device->getSwapChain();
-	const uint32 swapchainCount = swapchain->getBufferCount();
-
 	RasterizerDesc rasterizerDesc = RasterizerDesc();
 	rasterizerDesc.cullMode = pipelineKeyDesc.cullMode;
 

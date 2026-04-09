@@ -52,12 +52,12 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 	{
 		const uint32 sceneWidth = renderDevice->getSwapChain()->getBackbufferWidth();
 		const uint32 sceneHeight = renderDevice->getSwapChain()->getBackbufferHeight();
-		recreateSceneTextures(sceneWidth, sceneHeight);
+		recreateSceneTextures(sceneWidth, sceneHeight); // #wip: Don't access swapchain
 	}
 
 	// Scene uniforms
 	{
-		const uint32 swapchainCount = renderDevice->getSwapChain()->getBufferCount();
+		const uint32 swapchainCount = renderDevice->maxFramesInFlight();
 		CHECK(sizeof(SceneUniform) * swapchainCount <= SCENE_UNIFORM_MEMORY_POOL_SIZE);
 
 		sceneUniformMemory = UniquePtr<Buffer>(device->createBuffer(
@@ -116,7 +116,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 		gpuScene->initialize(renderDevice);
 		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
-		bilateralBlur->initialize();
+		bilateralBlur->initialize(renderDevice);
 		rayTracedShadowsPass->initialize();
 		depthPrepass->initialize(renderDevice, PF_visibilityBuffer);
 		decodeVisBufferPass->initialize(renderDevice);
@@ -862,6 +862,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 		BufferVisualizationInput sources{
+			.renderTarget        = renderOptions.finalRenderTarget,
 			.mode                = renderOptions.bufferVisualization,
 			.textureWidth        = sceneWidth,
 			.textureHeight       = sceneHeight,
