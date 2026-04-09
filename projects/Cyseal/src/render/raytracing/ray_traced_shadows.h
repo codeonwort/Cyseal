@@ -29,7 +29,7 @@ struct RayTracedShadowsInput
 class RayTracedShadowsPass final : public SceneRenderPass
 {
 public:
-	void initialize();
+	void initialize(RenderDevice* inDevice);
 
 	bool isAvailable() const;
 
@@ -39,6 +39,8 @@ private:
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
 
 private:
+	RenderDevice*                            device = nullptr;
+
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
 
 	UniquePtr<RaytracingShaderTable>         raygenShaderTable;

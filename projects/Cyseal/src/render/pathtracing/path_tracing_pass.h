@@ -42,7 +42,7 @@ struct PathTracingInput
 class PathTracingPass final : public SceneRenderPass
 {
 public:
-	void initialize();
+	void initialize(RenderDevice* inDevice);
 
 	bool isAvailable() const;
 
@@ -58,6 +58,8 @@ private:
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene);
 
 private:
+	RenderDevice*                            device = nullptr;
+
 	// Ray pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
 	UniquePtr<RaytracingShaderTable>         raygenShaderTable;

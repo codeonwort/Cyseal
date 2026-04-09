@@ -107,8 +107,9 @@ static StaticSamplerDesc getPointSamplerDesc()
 	};
 }
 
-void IndirectDiffusePass::initialize()
+void IndirectDiffusePass::initialize(RenderDevice* inDevice)
 {
+	device = inDevice;
 	if (isAvailable() == false)
 	{
 		CYLOG(LogDevice, Warning, L"HardwareRT is not available. Indirect Diffuse Reflection will be disabled.");
@@ -121,7 +122,6 @@ void IndirectDiffusePass::initialize()
 
 void IndirectDiffusePass::initializeRaytracingPipeline()
 {
-	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	rayPassDescriptor.initialize(L"IndirectDiffuse_RayPass", swapchainCount, sizeof(RayPassUniform));
@@ -189,7 +189,7 @@ void IndirectDiffusePass::initializeRaytracingPipeline()
 		.maxTraceRecursionDepth       = INDIRECT_DIFFUSE_MAX_RECURSION,
 		.staticSamplers               = std::move(staticSamplers),
 	};
-	RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
+	RTPSO = UniquePtr<RaytracingPipelineStateObject>(device->createRaytracingPipelineStateObject(pipelineDesc));
 
 	// Raygen shader table
 	{
@@ -218,12 +218,11 @@ void IndirectDiffusePass::initializeRaytracingPipeline()
 
 void IndirectDiffusePass::initializeTemporalPipeline()
 {
-	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	temporalPassDescriptor.initialize(L"IndirectDiffuse_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
 
-	ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "IndirectDiffuseTemporalCS");
+	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "IndirectDiffuseTemporalCS");
 	shader->declarePushConstants();
 	shader->loadFromFile(L"indirect_diffuse_temporal.hlsl", "mainCS");
 
@@ -231,7 +230,7 @@ void IndirectDiffusePass::initializeTemporalPipeline()
 		getLinearSamplerDesc(),
 		getPointSamplerDesc(),
 	};
-	temporalPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+	temporalPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 		ComputePipelineDesc{
 			.cs             = shader,
 			.nodeMask       = 0,
@@ -244,7 +243,7 @@ void IndirectDiffusePass::initializeTemporalPipeline()
 
 bool IndirectDiffusePass::isAvailable() const
 {
-	return gRenderDevice->getRaytracingTier() != ERaytracingTier::NotSupported;
+	return device->getRaytracingTier() != ERaytracingTier::NotSupported;
 }
 
 void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectDiffuseInput& passInput)
@@ -498,10 +497,10 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 
 	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
 		PF_colorHistory, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
-	raytracingTexture = UniquePtr<Texture>(gRenderDevice->createTexture(rayTexDesc));
+	raytracingTexture = UniquePtr<Texture>(device->createTexture(rayTexDesc));
 	raytracingTexture->setDebugName(L"RT_DiffuseRaytracingTexture");
 
-	raytracingSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(raytracingTexture.get(),
+	raytracingSRV = UniquePtr<ShaderResourceView>(device->createSRV(raytracingTexture.get(),
 		ShaderResourceViewDesc{
 			.format              = rayTexDesc.format,
 			.viewDimension       = ESRVDimension::Texture2D,
@@ -513,7 +512,7 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 			},
 		}
 	));
-	raytracingUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(raytracingTexture.get(),
+	raytracingUAV = UniquePtr<UnorderedAccessView>(device->createUAV(raytracingTexture.get(),
 		UnorderedAccessViewDesc{
 			.format         = rayTexDesc.format,
 			.viewDimension  = EUAVDimension::Texture2D,
@@ -525,7 +524,7 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
 
 	Texture* stbnTexture = gTextureManager->getSTBNVec3Cosine()->getGPUResource().get();
-	stbnSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(stbnTexture,
+	stbnSRV = UniquePtr<ShaderResourceView>(device->createSRV(stbnTexture,
 		ShaderResourceViewDesc{
 			.format              = stbnTexture->getCreateParams().format,
 			.viewDimension       = ESRVDimension::Texture3D,
@@ -548,7 +547,7 @@ void IndirectDiffusePass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint3
 	};
 
 	hitGroupShaderTable[swapchainIndex] = UniquePtr<RaytracingShaderTable>(
-		gRenderDevice->createRaytracingShaderTable(RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
+		device->createRaytracingShaderTable(RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
 
 	for (uint32 i = 0; i < maxRecords; ++i)
 	{

@@ -7,11 +7,9 @@
 #include "rhi/shader.h"
 #include "rhi/render_command.h"
 
-void SkyPass::initialize(EPixelFormat sceneColorFormat)
+void SkyPass::initialize(RenderDevice* device, EPixelFormat sceneColorFormat)
 {
-	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->maxFramesInFlight();
-
 	volatileDescriptor.initialize(L"SkyPass", swapchainCount, 0);
 
 	// Create input layout.

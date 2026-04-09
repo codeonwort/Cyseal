@@ -15,11 +15,11 @@ void StoreHistoryPass::initialize(RenderDevice* renderDevice)
 	roughnessHistory.initialize(PF_roughnessHistory, historyFlags, L"RT_RoughnessHistory");
 
 	// Shader
-	ShaderStage* copyCS = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "StoreHistoryCS");
+	ShaderStage* copyCS = renderDevice->createShader(EShaderStage::COMPUTE_SHADER, "StoreHistoryCS");
 	copyCS->declarePushConstants({ { "pushConstants", 2 } });
 	copyCS->loadFromFile(L"store_history.hlsl", "mainCS");
 
-	copyPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+	copyPipeline = UniquePtr<ComputePipelineState>(renderDevice->createComputePipelineState(
 		ComputePipelineDesc{ .cs = copyCS, .nodeMask = 0, }
 	));
 

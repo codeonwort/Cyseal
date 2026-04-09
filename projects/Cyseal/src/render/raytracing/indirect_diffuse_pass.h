@@ -38,7 +38,7 @@ struct IndirectDiffuseInput
 class IndirectDiffusePass final : public SceneRenderPass
 {
 public:
-	void initialize();
+	void initialize(RenderDevice* inDevice);
 
 	bool isAvailable() const;
 
@@ -52,6 +52,8 @@ private:
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
 
 private:
+	RenderDevice*                            device = nullptr;
+
 	// Raytracing pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
 	UniquePtr<RaytracingShaderTable>         raygenShaderTable;

@@ -36,15 +36,15 @@ struct ClosestHitPushConstants
 };
 static_assert(sizeof(ClosestHitPushConstants) % 4 == 0);
 
-void RayTracedShadowsPass::initialize()
+void RayTracedShadowsPass::initialize(RenderDevice* inDevice)
 {
+	device = inDevice;
 	if (isAvailable() == false)
 	{
 		CYLOG(LogDevice, Warning, L"HardwareRT is not available. Ray Traced Shadows will be disabled.");
 		return;
 	}
 
-	RenderDevice* device = gRenderDevice;
 	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	rayPassDescriptor.initialize(L"RayTracedShadows_RayPass", swapchainCount, 0);
@@ -76,7 +76,7 @@ void RayTracedShadowsPass::initialize()
 		.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
 		.maxTraceRecursionDepth       = 1,
 	};
-	RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
+	RTPSO = UniquePtr<RaytracingPipelineStateObject>(device->createRaytracingPipelineStateObject(pipelineDesc));
 
 	// Raygen shader table
 	{
@@ -98,7 +98,7 @@ void RayTracedShadowsPass::initialize()
 
 bool RayTracedShadowsPass::isAvailable() const
 {
-	return gRenderDevice->getRaytracingTier() != ERaytracingTier::NotSupported;
+	return device->getRaytracingTier() != ERaytracingTier::NotSupported;
 }
 
 void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList, uint32 swapchainIndex, const RayTracedShadowsInput& passInput)
@@ -180,7 +180,7 @@ void RayTracedShadowsPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint
 	};
 
 	hitGroupShaderTable[swapchainIndex] = UniquePtr<RaytracingShaderTable>(
-		gRenderDevice->createRaytracingShaderTable(RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
+		device->createRaytracingShaderTable(RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
 
 	for (uint32 i = 0; i < maxRecords; ++i)
 	{
