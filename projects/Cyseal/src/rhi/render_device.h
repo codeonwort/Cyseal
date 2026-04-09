@@ -191,6 +191,7 @@ public:
 
 	inline const RenderDeviceCreateParams& getCreateParams() const { return createParams; }
 
+	inline bool isHeadless() const { return createParams.swapChainParams.bHeadless; }
 	uint32 maxFramesInFlight() const;
 
 	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }

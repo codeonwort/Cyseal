@@ -17,6 +17,7 @@ void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 	}
 	rtvFormats.push_back(EPixelFormat::R32G32B32A32_FLOAT);
 	rtvFormats.push_back(EPixelFormat::R16G16B16A16_FLOAT);
+	rtvFormats.push_back(EPixelFormat::R8G8B8A8_UNORM);
 
 	pipelineStates.initialize((uint32)rtvFormats.size());
 

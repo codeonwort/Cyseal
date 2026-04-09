@@ -48,12 +48,8 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
 
-	// Scene textures
-	{
-		const uint32 sceneWidth = renderDevice->getSwapChain()->getBackbufferWidth();
-		const uint32 sceneHeight = renderDevice->getSwapChain()->getBackbufferHeight();
-		recreateSceneTextures(sceneWidth, sceneHeight); // #wip: Don't access swapchain
-	}
+	// Scene textures: Don't create yet. You invoke recreateSceneTextures() before using scene renderer.
+	// recreateSceneTextures(width, height);
 
 	// Scene uniforms
 	{
@@ -253,7 +249,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	commandList->rsSetViewport(fullscreenViewport);
 	commandList->rsSetScissorRect(fullscreenScissorRect);
 
-	updateSceneUniform(commandList, swapchainIndex, scene, camera);
+	updateSceneUniform(commandList, swapchainIndex, scene, camera, sceneWidth, sceneHeight);
 	auto sceneUniformCBV = sceneUniformCBVs.at(swapchainIndex);
 
 	{
@@ -906,6 +902,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Dear Imgui: Record commands
 
+	if (device->isHeadless() == false)
 	{
 		SCOPED_DRAW_EVENT(commandList, DearImgui);
 		
@@ -1448,11 +1445,10 @@ void SceneRenderer::updateSceneUniform(
 	RenderCommandList* commandList,
 	uint32 swapchainIndex,
 	const SceneProxy* scene,
-	const Camera* camera)
+	const Camera* camera,
+	uint32 sceneWidth,
+	uint32 sceneHeight)
 {
-	const float sceneWidth = (float)device->getSwapChain()->getBackbufferWidth();
-	const float sceneHeight = (float)device->getSwapChain()->getBackbufferHeight();
-
 	sceneUniformData.viewMatrix            = camera->getViewMatrix();
 	sceneUniformData.projMatrix            = camera->getProjMatrix();
 	sceneUniformData.viewProjMatrix        = camera->getViewProjMatrix();
@@ -1464,10 +1460,10 @@ void SceneRenderer::updateSceneUniform(
 	sceneUniformData.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix;
 	sceneUniformData.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix;
 
-	sceneUniformData.screenResolution[0]   = sceneWidth;
-	sceneUniformData.screenResolution[1]   = sceneHeight;
-	sceneUniformData.screenResolution[2]   = 1.0f / sceneWidth;
-	sceneUniformData.screenResolution[3]   = 1.0f / sceneHeight;
+	sceneUniformData.screenResolution[0]   = (float)sceneWidth;
+	sceneUniformData.screenResolution[1]   = (float)sceneHeight;
+	sceneUniformData.screenResolution[2]   = 1.0f / (float)sceneWidth;
+	sceneUniformData.screenResolution[3]   = 1.0f / (float)sceneHeight;
 	sceneUniformData.cameraFrustum         = camera->getFrustum();
 	sceneUniformData.cameraPosition        = camera->getPosition();
 	sceneUniformData.sunDirection          = scene->sun.direction;

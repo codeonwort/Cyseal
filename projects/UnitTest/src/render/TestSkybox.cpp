@@ -76,13 +76,15 @@ protected:
 
 		cysealEngine->startup(engineInit);
 
+		cysealEngine->setRenderResolution(WINDOW_WIDTH, WINDOW_HEIGHT);
+
 		camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 		camera.perspective(CAMERA_FOV_Y, ASPECT_RATIO, CAMERA_Z_NEAR, CAMERA_Z_FAR);
 
 		createResources();
 
-		actualImage->width = gRenderDevice->getSwapChain()->getBackbufferWidth();
-		actualImage->height = gRenderDevice->getSwapChain()->getBackbufferHeight();
+		actualImage->width = WINDOW_WIDTH;
+		actualImage->height = WINDOW_HEIGHT;
 
 		TextureCreateParams cameraColorParams = TextureCreateParams::texture2D(
 			EPixelFormat::R8G8B8A8_UNORM,
@@ -111,10 +113,7 @@ protected:
 		{
 			SceneProxy* sceneProxy = scene.createProxy();
 			RendererOptions rendererOptions{};
-			if (bNeedReadback)
-			{
-				rendererOptions.finalRenderTarget = cameraColor;
-			}
+			rendererOptions.finalRenderTarget = cameraColor;
 
 			cysealEngine->beginImguiNewFrame();
 			/* It won't intervene the result as there's no GUI if I invoke nothing in ImGui. */
