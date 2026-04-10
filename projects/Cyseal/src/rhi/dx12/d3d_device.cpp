@@ -391,20 +391,6 @@ RenderCommandAllocator* D3DDevice::createRenderCommandAllocator()
 void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)
 {
 	swapChain->resize(width, height);
-
-	// Recreate command lists.
-	// If a command list refers to a backbuffer that is already deleted, it results in an error.
-	for (RenderCommandList* commandList : commandLists)
-	{
-		delete commandList;
-	}
-	commandLists.clear();
-
-	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
-	{
-		RenderCommandList* commandList = createRenderCommandList();
-		commandLists.push_back(commandList);
-	}
 }
 
 void D3DDevice::getHardwareAdapter(IDXGIFactoryLatest* factory, IDXGIAdapter1** outAdapter)

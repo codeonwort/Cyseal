@@ -73,13 +73,15 @@ void World1::onTick(float deltaSeconds)
 			}
 		}
 
-		if (LOAD_PBRT_FILE && pbrtLoadDelay > 0)
+#if LOAD_PBRT_FILE
+		if (pbrtLoadDelay > 0)
 		{
 			if (--pbrtLoadDelay == 0)
 			{
 				createPbrtResources();
 			}
 		}
+#endif
 	}
 }
 
@@ -113,7 +115,9 @@ void World1::prepareScene()
 {
 	if (CREATE_TEST_MESHES) createTestMeshes();
 	createSkybox();
-	if (LOAD_PBRT_FILE && pbrtLoadDelay == 0) createPbrtResources();
+#if LOAD_PBRT_FILE
+	if (pbrtLoadDelay == 0) createPbrtResources();
+#endif
 
 	scene->sun.direction = SUN_DIRECTION;
 	scene->sun.illuminance = SUN_ILLUMINANCE;

@@ -190,7 +190,7 @@ void CysealEngine::renderScene(SceneProxy* sceneProxy, Camera* camera, const Ren
 // #wip: Separate render resolution from display resolution.
 void CysealEngine::setRenderResolution(uint32 newWidth, uint32 newHeight)
 {
-	if (createParams.renderDevice.swapChainParams.bHeadless == false)
+	if (renderDevice->isHeadless() == false)
 	{
 		void* hwnd = createParams.renderDevice.swapChainParams.nativeWindowHandle;
 		renderDevice->recreateSwapChain(hwnd, newWidth, newHeight);

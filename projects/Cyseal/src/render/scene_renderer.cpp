@@ -50,8 +50,6 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 	// Scene textures: Don't create yet. You invoke recreateSceneTextures() before using scene renderer.
 	// recreateSceneTextures(width, height);
-	// #wip: Hmm renderer is broken if not created here :( but it accesses swapchain...
-	recreateSceneTextures(renderDevice->getSwapChain()->getBackbufferWidth(), renderDevice->getSwapChain()->getBackbufferHeight());
 
 	// Scene uniforms
 	{

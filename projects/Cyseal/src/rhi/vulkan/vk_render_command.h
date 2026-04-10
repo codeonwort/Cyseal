@@ -56,6 +56,7 @@ public:
 
 	virtual void reset(RenderCommandAllocator* allocator) override;
 	virtual void close() override;
+	virtual bool isRecording() const override { return bIsRecording; }
 
 	virtual void barrier(
 		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
@@ -163,6 +164,7 @@ private:
 	BarrierTracker barrierTracker;
 
 	VkCommandBuffer currentCommandBuffer = VK_NULL_HANDLE;
+	bool bIsRecording = false;
 
 	// Raster context
 	bool bInDynamicRendering = false;

@@ -53,6 +53,7 @@ struct ActualImage_GpuDriven
 	uint32 height;
 };
 
+// #wip: Switch to ConsoleApplication
 class GpuDrivenApplication : public WindowsApplication
 {
 public:
@@ -81,6 +82,7 @@ protected:
 		};
 
 		cysealEngine->startup(engineInit);
+		cysealEngine->setRenderResolution(WINDOW_WIDTH, WINDOW_HEIGHT);
 
 		camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 		camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);

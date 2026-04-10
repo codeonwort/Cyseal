@@ -50,6 +50,7 @@ protected:
 		};
 
 		cysealEngine->startup(engineInit);
+		cysealEngine->setRenderResolution(getWindowWidth(), getWindowHeight());
 
 		// May overwritten by world.
 		camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
