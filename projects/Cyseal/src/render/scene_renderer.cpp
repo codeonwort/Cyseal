@@ -192,7 +192,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 	else
 	{
-		// #wip: Allow custom viewport. Force full viewport for now.
 		sceneWidth         = renderOptions.finalRenderTarget->getCreateParams().width;
 		sceneHeight        = renderOptions.finalRenderTarget->getCreateParams().height;
 	}
