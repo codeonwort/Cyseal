@@ -1,18 +1,15 @@
 #include "sky_pass.h"
 
+#include "renderer_constants.h"
 #include "rhi/render_device.h"
-#include "rhi/swap_chain.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/shader.h"
 #include "rhi/render_command.h"
 
-void SkyPass::initialize(EPixelFormat sceneColorFormat)
+void SkyPass::initialize(RenderDevice* device, EPixelFormat sceneColorFormat)
 {
-	RenderDevice* device = gRenderDevice;
-	SwapChain* swapchain = device->getSwapChain();
-	const uint32 swapchainCount = swapchain->getBufferCount();
-
+	const uint32 swapchainCount = device->maxFramesInFlight();
 	volatileDescriptor.initialize(L"SkyPass", swapchainCount, 0);
 
 	// Create input layout.
@@ -82,7 +79,7 @@ void SkyPass::initialize(EPixelFormat sceneColorFormat)
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = 1,
 		.rtvFormats             = { sceneColorFormat },
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.dsvFormat              = PF_sceneDepthDSV,
 		.sampleDesc             = SampleDesc { .count = 1, .quality = 0 },
 		.staticSamplers         = std::move(staticSamplers),
 	};

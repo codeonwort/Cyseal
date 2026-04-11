@@ -13,6 +13,7 @@ class ShaderResourceView;
 
 struct BufferVisualizationInput
 {
+	Texture*                 renderTarget        = nullptr;
 	EBufferVisualizationMode mode                = EBufferVisualizationMode::None;
 	uint32                   textureWidth        = 0;
 	uint32                   textureHeight       = 0;
@@ -38,6 +39,11 @@ public:
 	void renderVisualization(RenderCommandList* commandList, uint32 swapchainIndex, const BufferVisualizationInput& passInput);
 
 private:
-	UniquePtr<GraphicsPipelineState> pipelineState;
-	VolatileDescriptorHelper         passDescriptor;
+	GraphicsPipelineState* getPipelineState(Texture* renderTarget) const;
+
+	int32                                    rtvIndexForSwapChain = -1;
+	std::vector<EPixelFormat>                rtvFormats;
+	BufferedUniquePtr<GraphicsPipelineState> pipelineStates;
+
+	VolatileDescriptorHelper                 passDescriptor;
 };

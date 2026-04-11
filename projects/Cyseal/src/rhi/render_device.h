@@ -57,10 +57,6 @@ struct RenderDeviceCreateParams
 	bool                     enableDebugLayer    = true;
 	// Attach GPU debugger, for example PIX for DX12.
 	bool                     bAttachGPUDebugger  = false;
-
-	// true  : Render for current swapchain, record for next swapchain.
-	// false : Record for current swapchain, render for current swapchain.
-	bool                     bDoubleBuffering    = true;
 };
 
 // ID3D12Device
@@ -195,6 +191,9 @@ public:
 
 	inline const RenderDeviceCreateParams& getCreateParams() const { return createParams; }
 
+	inline bool isHeadless() const { return createParams.swapChainParams.bHeadless; }
+	uint32 maxFramesInFlight() const;
+
 	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }
 	inline EPixelFormat getBackbufferDepthFormat() const { return backbufferDepthFormat; }
 	inline SwapChain* getSwapChain() const { return swapChain; }
@@ -204,6 +203,9 @@ public:
 	inline RenderCommandQueue* getCommandQueue() const { return commandQueue; }
 
 	virtual RenderCommandList* getCommandListForCustomCommand() const = 0;
+
+	virtual uint32 getMultiSampleQuality(EMultiSampleLevel level) const = 0;
+	virtual bool supportsMultiSampleLevel(EMultiSampleLevel level) const = 0;
 
 	inline ERaytracingTier getRaytracingTier() const { return raytracingTier; }
 	inline EVariableShadingRateTier getVRSTier() const { return vrsTier; }

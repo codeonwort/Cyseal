@@ -7,7 +7,6 @@
 
 #include "rhi/render_device.h"
 #include "rhi/rhi_policy.h"
-#include "rhi/swap_chain.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource_view.h"
 #include "rhi/shader.h"
@@ -22,10 +21,7 @@ void BasePass::initialize(RenderDevice* inRenderDevice, EPixelFormat inSceneColo
 	gbufferFormats.assign(inGbufferFormats, inGbufferFormats + numGBuffers);
 	velocityMapFormat = inVelocityMapFormat;
 
-	SwapChain* swapchain = device->getSwapChain();
-	const uint32 swapchainCount = swapchain->getBufferCount();
-
-	passDescriptor.initialize(L"BasePass", swapchainCount, 0);
+	passDescriptor.initialize(L"BasePass", device->maxFramesInFlight(), 0);
 
 	for (size_t i = 0; i < GraphicsPipelineKeyDesc::numPipelineKeyDescs(); ++i)
 	{

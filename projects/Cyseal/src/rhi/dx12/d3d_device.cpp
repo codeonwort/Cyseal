@@ -81,15 +81,6 @@ static void reportD3DLiveObjects()
 #endif
 }
 
-static uint32 computeNumFramesInFlight(D3DDevice* device)
-{
-	if (device->getCreateParams().swapChainParams.bHeadless)
-	{
-		return 1;
-	}
-	return device->getSwapChain()->getBufferCount();
-}
-
 D3DDevice::D3DDevice()
 	: RenderDevice()
 {
@@ -260,22 +251,24 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	descSizeCBV_SRV_UAV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	descSizeSampler     = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
-	// 3. Check 4X MSAA support.
+	// 3. Check Multisampling support.
 	// It gives good result and the overload is not so big.
 	// All D3D11 level devices support 4X MSAA for all render target types.
-	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
-	msQualityLevels.Format           = into_d3d::pixelFormat(backbufferFormat);
-	msQualityLevels.SampleCount      = 4;
-	msQualityLevels.Flags            = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
-	msQualityLevels.NumQualityLevels = 0;
-	HR( device->CheckFeatureSupport(
-			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
-			&msQualityLevels,
-			sizeof(msQualityLevels))
-	);
-
-	quality4xMSAA = msQualityLevels.NumQualityLevels;
-	CHECK(quality4xMSAA > 0);
+	for (uint32 i = 0; i < (uint32)EMultiSampleLevel::Count; ++i)
+	{
+		D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS caps{
+			.Format           = into_d3d::pixelFormat(backbufferFormat),
+			.SampleCount      = toSampleCount((EMultiSampleLevel)i),
+			.Flags            = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE,
+			.NumQualityLevels = 0,
+		};
+		HR( device->CheckFeatureSupport(
+				D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
+				&caps,
+				sizeof(caps))
+		);
+		msaaQualityLevels[i] = caps.NumQualityLevels;
+	}
 
 	// 4. Create command queue.
 	commandQueue = new(EMemoryTag::RHI) D3DRenderCommandQueue;
@@ -296,7 +289,7 @@ void D3DDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	}
 
 	// 6. Create command allocators and command list.
-	for (uint32 ix = 0; ix < computeNumFramesInFlight(this); ++ix)
+	for (uint32 ix = 0; ix < maxFramesInFlight(); ++ix)
 	{
 		RenderCommandAllocator* allocator = createRenderCommandAllocator();
 		commandAllocators.push_back(allocator);
@@ -356,7 +349,7 @@ void D3DDevice::initializeDearImgui()
 
 	ImGui_ImplDX12_Init(
 		device.Get(),
-		computeNumFramesInFlight(this),
+		maxFramesInFlight(),
 		backbufferFormat,
 		d3dHeap,
 		d3dHeap->GetCPUDescriptorHandleForHeapStart(),
@@ -398,20 +391,6 @@ RenderCommandAllocator* D3DDevice::createRenderCommandAllocator()
 void D3DDevice::recreateSwapChain(void* nativeWindowHandle, uint32 width, uint32 height)
 {
 	swapChain->resize(width, height);
-
-	// Recreate command lists.
-	// If a command list refers to a backbuffer that is already deleted, it results in an error.
-	for (RenderCommandList* commandList : commandLists)
-	{
-		delete commandList;
-	}
-	commandLists.clear();
-
-	for (uint32 ix = 0; ix < swapChain->getBufferCount(); ++ix)
-	{
-		RenderCommandList* commandList = createRenderCommandList();
-		commandLists.push_back(commandList);
-	}
 }
 
 void D3DDevice::getHardwareAdapter(IDXGIFactoryLatest* factory, IDXGIAdapter1** outAdapter)
@@ -856,9 +835,7 @@ RenderCommandList* D3DDevice::getCommandListForCustomCommand() const
 {
 	uint32 swapchainIx = getCreateParams().swapChainParams.bHeadless
 		? 0
-		: getCreateParams().bDoubleBuffering
-			? getSwapChain()->getNextBackbufferIndex()
-			: getSwapChain()->getCurrentBackbufferIndex();
+		: getSwapChain()->getCurrentBackbufferIndex();
 
 	RenderCommandList* commandList = getCommandList(swapchainIx);
 	return commandList;

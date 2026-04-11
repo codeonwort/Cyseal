@@ -74,6 +74,9 @@ public:
 	// End command recording.
 	virtual void close() = 0;
 
+	// Returns true if reset() was called but close() was not called.
+	virtual bool isRecording() const = 0;
+
 	virtual void barrier(
 		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
 		uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
@@ -185,6 +188,8 @@ public:
 
 	void enqueueCustomCommand(CustomCommandType lambda);
 	void executeCustomCommands();
+
+	inline bool hasCustomCommands() const { return customCommands.size() > 0; }
 
 	template<typename T>
 	void enqueueDeferredDealloc(T* addrToDelete, bool ignoreNullPtr = false)

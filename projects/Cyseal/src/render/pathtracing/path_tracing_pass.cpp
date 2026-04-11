@@ -5,7 +5,6 @@
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
-#include "rhi/swap_chain.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_view.h"
@@ -120,8 +119,9 @@ static StaticSamplerDesc getPointSamplerDesc()
 	};
 }
 
-void PathTracingPass::initialize()
+void PathTracingPass::initialize(RenderDevice* inDevice)
 {
+	device = inDevice;
 	if (isAvailable() == false)
 	{
 		CYLOG(LogDevice, Warning, L"HardwareRT is not available. Path Tracing will be disabled.");
@@ -134,7 +134,7 @@ void PathTracingPass::initialize()
 
 bool PathTracingPass::isAvailable() const
 {
-	return gRenderDevice->getRaytracingTier() != ERaytracingTier::NotSupported;
+	return device->getRaytracingTier() != ERaytracingTier::NotSupported;
 }
 
 void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 swapchainIndex, const PathTracingInput& passInput)
@@ -308,8 +308,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 void PathTracingPass::initializeRaytracingPipeline()
 {
-	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	rayPassDescriptor.initialize(L"PathTracing_RayPass", swapchainCount, sizeof(RayPassUniform));
 
@@ -378,7 +377,7 @@ void PathTracingPass::initializeRaytracingPipeline()
 			.maxTraceRecursionDepth       = PATH_TRACING_MAX_RECURSION,
 			.staticSamplers               = std::move(staticSamplers),
 		};
-		RTPSO = UniquePtr<RaytracingPipelineStateObject>(gRenderDevice->createRaytracingPipelineStateObject(pipelineDesc));
+		RTPSO = UniquePtr<RaytracingPipelineStateObject>(device->createRaytracingPipelineStateObject(pipelineDesc));
 
 		// Raygen shader table
 		{
@@ -406,12 +405,11 @@ void PathTracingPass::initializeRaytracingPipeline()
 
 void PathTracingPass::initializeTemporalPipeline()
 {
-	RenderDevice* device = gRenderDevice;
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	temporalPassDescriptor.initialize(L"PathTracing_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
 
-	ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "PathTracingTemporalCS");
+	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "PathTracingTemporalCS");
 	shader->declarePushConstants();
 	shader->loadFromFile(L"path_tracing_temporal.hlsl", "mainCS");
 
@@ -419,7 +417,7 @@ void PathTracingPass::initializeTemporalPipeline()
 		getLinearSamplerDesc(),
 		getPointSamplerDesc(),
 	};
-	temporalPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+	temporalPipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 		ComputePipelineDesc{
 			.cs             = shader,
 			.nodeMask       = 0,
@@ -532,10 +530,10 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 
 	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
 		PF_raytracing, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
-	raytracingTexture = UniquePtr<Texture>(gRenderDevice->createTexture(rayTexDesc));
+	raytracingTexture = UniquePtr<Texture>(device->createTexture(rayTexDesc));
 	raytracingTexture->setDebugName(L"RT_PathTracingRaysTexture");
 
-	raytracingSRV = UniquePtr<ShaderResourceView>(gRenderDevice->createSRV(raytracingTexture.get(),
+	raytracingSRV = UniquePtr<ShaderResourceView>(device->createSRV(raytracingTexture.get(),
 		ShaderResourceViewDesc{
 			.format              = rayTexDesc.format,
 			.viewDimension       = ESRVDimension::Texture2D,
@@ -547,7 +545,7 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 			},
 		}
 	));
-	raytracingUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(raytracingTexture.get(),
+	raytracingUAV = UniquePtr<UnorderedAccessView>(device->createUAV(raytracingTexture.get(),
 		UnorderedAccessViewDesc{
 			.format         = rayTexDesc.format,
 			.viewDimension  = EUAVDimension::Texture2D,
@@ -567,7 +565,7 @@ void PathTracingPass::resizeHitGroupShaderTable(uint32 swapchainIndex, const Sce
 	};
 
 	hitGroupShaderTable[swapchainIndex] = UniquePtr<RaytracingShaderTable>(
-		gRenderDevice->createRaytracingShaderTable(
+		device->createRaytracingShaderTable(
 			RTPSO.get(), totalRecords, sizeof(RootArguments), L"PathTracing_HitGroupShaderTable"));
 
 	const uint32 numStaticMeshes = (uint32)scene->staticMeshes.size();

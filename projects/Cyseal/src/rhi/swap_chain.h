@@ -66,10 +66,6 @@ public:
 	inline EPixelFormat getBackbufferFormat() const { return backbufferFormat; }
 	inline EPixelFormat getBackbufferDepthFormat() const { return backbufferDepthFormat; }
 
-	// #todo-swapchain: Support 4xMSAA
-	virtual bool supports4xMSAA() const { return false; }
-	virtual uint32 get4xMSAAQuality() const { return 1; }
-
 protected:
 	// Should match with those from RenderDevice
 	uint32 backbufferWidth;

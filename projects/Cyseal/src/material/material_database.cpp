@@ -3,7 +3,18 @@
 #include "render/renderer_constants.h"
 #include "rhi/render_device.h"
 #include "rhi/rhi_policy.h"
-#include "rhi/swap_chain.h"
+
+// #todo-renderer: scneeColor could use MSAA but thin G-buffers can't...
+#define ENABLE_MATERIAL_MSAA 0
+
+static bool check4xMSAA(RenderDevice* device)
+{
+#if ENABLE_MATERIAL_MSAA
+	return device->supportsMultiSampleLevel(EMultiSampleLevel::x4);
+#else
+	return false;
+#endif
+}
 
 static VertexInputLayout createVertexInputLayout()
 {
@@ -100,8 +111,6 @@ GraphicsPipelineState* MaterialShaderDatabase::createDepthPipeline(
 	ShaderStage* ps,
 	bool bUseVisibilityBuffer)
 {
-	SwapChain* swapchain = device->getSwapChain();
-
 	RasterizerDesc rasterizerDesc = RasterizerDesc();
 	rasterizerDesc.cullMode = pipelineKeyDesc.cullMode;
 
@@ -111,6 +120,7 @@ GraphicsPipelineState* MaterialShaderDatabase::createDepthPipeline(
 
 	VertexInputLayout inputLayout = createVertexInputLayout();
 
+	const bool bMSAAx4 = check4xMSAA(device);
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = vs,
 		.ps                     = ps,
@@ -122,10 +132,10 @@ GraphicsPipelineState* MaterialShaderDatabase::createDepthPipeline(
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = bUseVisibilityBuffer ? 1u : 0u,
 		.rtvFormats             = { bUseVisibilityBuffer ? PF_visibilityBuffer : EPixelFormat::UNKNOWN },
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.dsvFormat              = PF_sceneDepthDSV,
 		.sampleDesc = SampleDesc{
-			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
-			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
+			.count              = bMSAAx4 ? 4u : 1u,
+			.quality            = bMSAAx4 ? (device->getMultiSampleQuality(EMultiSampleLevel::x4) - 1) : 0,
 		},
 		.staticSamplers         = {},
 	};
@@ -139,9 +149,6 @@ GraphicsPipelineState* MaterialShaderDatabase::createBasePipeline(
 	ShaderStage* vs,
 	ShaderStage* ps)
 {
-	SwapChain* swapchain = device->getSwapChain();
-	const uint32 swapchainCount = swapchain->getBufferCount();
-
 	RasterizerDesc rasterizerDesc = RasterizerDesc();
 	rasterizerDesc.cullMode = pipelineKeyDesc.cullMode;
 
@@ -176,6 +183,7 @@ GraphicsPipelineState* MaterialShaderDatabase::createBasePipeline(
 		? EComparisonFunc::GreaterEqual
 		: EComparisonFunc::LessEqual;
 
+	const bool bMSAAx4 = check4xMSAA(device);
 	GraphicsPipelineDesc pipelineDesc{
 		.vs                     = vs,
 		.ps                     = ps,
@@ -187,10 +195,10 @@ GraphicsPipelineState* MaterialShaderDatabase::createBasePipeline(
 		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
 		.numRenderTargets       = numRTVs,
 		.rtvFormats             = { EPixelFormat::UNKNOWN, }, // Fill later
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
+		.dsvFormat              = PF_sceneDepthDSV,
 		.sampleDesc = SampleDesc{
-			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
-			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
+			.count              = bMSAAx4 ? 4u : 1u,
+			.quality            = bMSAAx4 ? (device->getMultiSampleQuality(EMultiSampleLevel::x4) - 1) : 0,
 		},
 		.staticSamplers         = std::move(staticSamplers),
 	};

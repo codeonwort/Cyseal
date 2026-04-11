@@ -104,6 +104,7 @@ void D3DRenderCommandList::reset(RenderCommandAllocator* allocator)
 	HR( commandList->Reset(d3dAllocator, nullptr) );
 	
 	barrierTracker.resetAll();
+	bIsRecording = true;
 }
 
 void D3DRenderCommandList::close()
@@ -111,6 +112,7 @@ void D3DRenderCommandList::close()
 	HR( commandList->Close() );
 
 	barrierTracker.flushFinalStates();
+	bIsRecording = false;
 }
 
 void D3DRenderCommandList::iaSetPrimitiveTopology(EPrimitiveTopology topology)

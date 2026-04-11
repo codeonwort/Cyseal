@@ -6,7 +6,6 @@
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
-#include "rhi/swap_chain.h"
 #include "rhi/texture_manager.h"
 #include "rhi/vertex_buffer_pool.h"
 #include "core/matrix.h"
@@ -71,7 +70,7 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 
 void GPUScene::initializeSceneBufferPipeline()
 {
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	gpuSceneEvictCommandBuffer.initialize(swapchainCount);
 	gpuSceneAllocCommandBuffer.initialize(swapchainCount);
@@ -121,7 +120,7 @@ void GPUScene::initializeSceneBufferPipeline()
 
 void GPUScene::initializeMaterialBufferPipeline()
 {
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	materialPassDescriptor.initialize(L"GPUSceneMaterial", swapchainCount, 0);
 	materialCommandBuffer.initialize(swapchainCount);
@@ -142,7 +141,7 @@ void GPUScene::initializeMaterialBufferPipeline()
 
 void GPUScene::initializeDrawcallPipeline()
 {
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	drawcallPassDescriptor.initialize(L"DrawcallGen", swapchainCount, sizeof(DrawcallPassUniform));
 

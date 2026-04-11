@@ -18,7 +18,7 @@ struct DenoiserPluginInput
 class DenoiserPluginPass final : public SceneRenderPass
 {
 public:
-	void initialize();
+	void initialize(RenderDevice* inDevice);
 
 	bool isAvailable() const;
 
@@ -29,6 +29,8 @@ private:
 	void resizeTextures(uint32 newWidth, uint32 newHeight);
 
 private:
+	RenderDevice* device = nullptr;
+
 	UniquePtr<ComputePipelineState> blitPipelineState;
 	VolatileDescriptorHelper blitPassDescriptor;
 

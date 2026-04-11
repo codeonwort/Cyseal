@@ -21,7 +21,7 @@ struct HiZPassInput
 class HiZPass final : public SceneRenderPass
 {
 public:
-	void initialize();
+	void initialize(RenderDevice* inDevice);
 
 	void renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, const HiZPassInput& passInput);
 

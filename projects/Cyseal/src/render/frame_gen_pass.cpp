@@ -1,6 +1,5 @@
 #include "frame_gen_pass.h"
 #include "rhi/render_device.h"
-#include "rhi/swap_chain.h"
 
 void FrameGenPass::initialize(RenderDevice* inRenderDevice)
 {
@@ -16,7 +15,7 @@ void FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swa
 
 void FrameGenPass::initializePipelines()
 {
-	const uint32 swapchainCount = device->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	// #todo-fsr3: VolatileDescriptorHelperfor for cbuffers:
 	// FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION)

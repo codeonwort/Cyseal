@@ -1,6 +1,7 @@
 #include "render_device.h"
 #include "gpu_resource_binding.h"
 #include "descriptor_heap.h"
+#include "swap_chain.h"
 
 #include "denoiser_device.h"
 
@@ -49,4 +50,9 @@ void RenderDevice::initializeDenoiserDevice()
 {
 	denoiserDevice = new DenoiserDevice;
 	denoiserDevice->create();
+}
+
+uint32 RenderDevice::maxFramesInFlight() const
+{
+	return getCreateParams().swapChainParams.bHeadless ? 1 : getSwapChain()->getBufferCount();
 }

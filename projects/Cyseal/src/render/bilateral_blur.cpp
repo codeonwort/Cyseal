@@ -1,7 +1,6 @@
 #include "bilateral_blur.h"
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
-#include "rhi/swap_chain.h"
 
 struct BlurUniform
 {
@@ -16,17 +15,18 @@ struct BlurUniform
 	uint32 _pad2;
 };
 
-void BilateralBlur::initialize()
+void BilateralBlur::initialize(RenderDevice* inDevice)
 {
-	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+	device = inDevice;
+	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	// Blur pipeline
 	{
-		ShaderStage* shader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "BilateralBlurCS");
+		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "BilateralBlurCS");
 		shader->declarePushConstants({ { "pushConstants", 1} });
 		shader->loadFromFile(L"bilateral_blur.hlsl", "mainCS");
 
-		pipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+		pipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 			ComputePipelineDesc{ .cs = shader, .nodeMask = 0 }
 		));
 
@@ -173,10 +173,10 @@ void BilateralBlur::resizeTexture(RenderCommandList* commandList, uint32 width, 
 
 	commandList->enqueueDeferredDealloc(colorScratch.release(), true);
 
-	colorScratch = UniquePtr<Texture>(gRenderDevice->createTexture(colorDesc));
+	colorScratch = UniquePtr<Texture>(device->createTexture(colorDesc));
 	colorScratch->setDebugName(L"RT_BilateralBlurColorScratch");
 
-	colorScratchUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorScratch.get(),
+	colorScratchUAV = UniquePtr<UnorderedAccessView>(device->createUAV(colorScratch.get(),
 		UnorderedAccessViewDesc{
 			.format        = colorDesc.format,
 			.viewDimension = EUAVDimension::Texture2D,

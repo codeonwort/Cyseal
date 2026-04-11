@@ -25,12 +25,14 @@ struct BilateralBlurInput
 class BilateralBlur : public SceneRenderPass
 {
 public:
-	void initialize();
+	void initialize(RenderDevice* inDevice);
 
 	void renderBilateralBlur(RenderCommandList* commandList, uint32 swapchainIndex, const BilateralBlurInput& passInput);
 
 private:
 	void resizeTexture(RenderCommandList* commandList, uint32 width, uint32 height);
+
+	RenderDevice* device = nullptr;
 
 	UniquePtr<ComputePipelineState> pipelineState;
 	VolatileDescriptorHelper passDescriptor;

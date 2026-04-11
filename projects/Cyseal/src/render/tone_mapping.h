@@ -12,6 +12,7 @@ class ShaderResourceView;
 
 struct ToneMappingInput
 {
+	Texture*            renderTarget; // If null we're rendering to backbuffer.
 	Viewport            viewport;
 	ScissorRect         scissorRect;
 	ConstantBufferView* sceneUniformCBV;
@@ -26,12 +27,20 @@ struct ToneMappingInput
 class ToneMapping final : public SceneRenderPass
 {
 public:
-	void initialize(RenderDevice* renderDevice);
+	void initialize(RenderDevice* inRenderDevice);
 
 	void renderToneMapping(RenderCommandList* commandList, uint32 swapchainIndex, const ToneMappingInput& passInput);
 
 private:
-	UniquePtr<GraphicsPipelineState> pipelineState;
-	VertexInputLayout                inputLayout;
-	VolatileDescriptorHelper         passDescriptor;
+	GraphicsPipelineState* getPipelineState(Texture* renderTarget) const;
+
+private:
+	RenderDevice*                            device = nullptr;
+
+	int32                                    rtvIndexForSwapChain = -1;
+	std::vector<EPixelFormat>                rtvFormats;
+	BufferedUniquePtr<GraphicsPipelineState> pipelineStates;
+
+	VertexInputLayout                        inputLayout;
+	VolatileDescriptorHelper                 passDescriptor;
 };

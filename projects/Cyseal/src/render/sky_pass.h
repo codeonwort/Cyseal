@@ -22,7 +22,7 @@ struct SkyPassInput
 class SkyPass final : public SceneRenderPass
 {
 public:
-	void initialize(EPixelFormat sceneColorFormat);
+	void initialize(RenderDevice* device, EPixelFormat sceneColorFormat);
 
 	void renderSky(RenderCommandList* commandList, uint32 swapchainIndex, const SkyPassInput& passInput);
 

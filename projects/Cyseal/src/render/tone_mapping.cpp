@@ -6,19 +6,28 @@
 #include "rhi/render_command.h"
 #include "rhi/texture_manager.h"
 
-void ToneMapping::initialize(RenderDevice* device)
+void ToneMapping::initialize(RenderDevice* inDevice)
 {
-	SwapChain* swapchain = device->getSwapChain();
-	const uint32 swapchainCount = swapchain->getBufferCount();
+	device = inDevice;
+
+	const uint32 swapchainCount = device->maxFramesInFlight();
+	if (device->getCreateParams().swapChainParams.bHeadless == false)
+	{
+		rtvFormats.push_back(device->getSwapChain()->getBackbufferFormat());
+		rtvIndexForSwapChain = 0;
+	}
+	rtvFormats.push_back(EPixelFormat::R32G32B32A32_FLOAT);
+	rtvFormats.push_back(EPixelFormat::R16G16B16A16_FLOAT);
+	rtvFormats.push_back(EPixelFormat::R8G8B8A8_UNORM);
+
+	pipelineStates.initialize((uint32)rtvFormats.size());
 
 	passDescriptor.initialize(L"ToneMapping", swapchainCount, 0);
 
 	// Create input layout
-	{
-		inputLayout = {
-			{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0}
-		};
-	}
+	inputLayout = {
+		{"POSITION", 0, EPixelFormat::R32G32B32_FLOAT, 0, 0, EVertexInputClassification::PerVertex, 0}
+	};
 
 	// Load shader
 	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "ToneMappingVS");
@@ -45,27 +54,27 @@ void ToneMapping::initialize(RenderDevice* device)
 			.shaderVisibility = EShaderVisibility::All,
 		},
 	};
-	GraphicsPipelineDesc pipelineDesc{
-		.vs                     = shaderVS,
-		.ps                     = shaderPS,
-		.blendDesc              = BlendDesc(),
-		.sampleMask             = 0xffffffff,
-		.rasterizerDesc         = RasterizerDesc::FrontCull(),
-		.depthstencilDesc       = DepthstencilDesc::NoDepth(),
-		.inputLayout            = inputLayout,
-		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
-		.numRenderTargets       = 1,
-		.rtvFormats             = { swapchain->getBackbufferFormat(), },
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
-		.sampleDesc = SampleDesc{
-			.count              = swapchain->supports4xMSAA() ? 4u : 1u,
-			.quality            = swapchain->supports4xMSAA() ? (swapchain->get4xMSAAQuality() - 1) : 0,
-		},
-		.staticSamplers         = std::move(staticSamplers),
-	};
-	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
+	for (size_t i = 0; i < rtvFormats.size(); ++i)
+	{
+		GraphicsPipelineDesc pipelineDesc{
+			.vs                     = shaderVS,
+			.ps                     = shaderPS,
+			.blendDesc              = BlendDesc(),
+			.sampleMask             = 0xffffffff,
+			.rasterizerDesc         = RasterizerDesc::FrontCull(),
+			.depthstencilDesc       = DepthstencilDesc::NoDepth(),
+			.inputLayout            = inputLayout,
+			.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
+			.numRenderTargets       = 1,
+			.rtvFormats             = { rtvFormats[i] },
+			.dsvFormat              = EPixelFormat::UNKNOWN, // No depth so don't care
+			.sampleDesc             = SampleDesc{ .count = 1u, .quality = 0, },
+			.staticSamplers         = staticSamplers,
+		};
+		pipelineStates[i] = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
+	}
 
-	// Cleanup
+	// Cleanup.
 	{
 		delete shaderVS;
 		delete shaderPS;
@@ -74,6 +83,8 @@ void ToneMapping::initialize(RenderDevice* device)
 
 void ToneMapping::renderToneMapping(RenderCommandList* commandList, uint32 swapchainIndex, const ToneMappingInput& passInput)
 {
+	GraphicsPipelineState* pipelineState = getPipelineState(passInput.renderTarget);
+
 	ShaderParameterTable SPT{};
 	SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 	SPT.texture("sceneColor", passInput.sceneColorSRV);
@@ -90,11 +101,29 @@ void ToneMapping::renderToneMapping(RenderCommandList* commandList, uint32 swapc
 	commandList->rsSetViewport(passInput.viewport);
 	commandList->rsSetScissorRect(passInput.scissorRect);
 
-	commandList->setGraphicsPipelineState(pipelineState.get());
-	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileHeap);
+	commandList->setGraphicsPipelineState(pipelineState);
+	commandList->bindGraphicsShaderParameters(pipelineState, &SPT, volatileHeap);
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);
 
 	commandList->beginRenderPass();
 	commandList->drawInstanced(3, 1, 0, 0); // Fullscreen triangle
 	commandList->endRenderPass();
+}
+
+GraphicsPipelineState* ToneMapping::getPipelineState(Texture* renderTarget) const
+{
+	if (renderTarget == nullptr)
+	{
+		CHECK(rtvIndexForSwapChain >= 0);
+		return pipelineStates.at(rtvIndexForSwapChain);
+	}
+	for (size_t i = 0; i < rtvFormats.size(); ++i)
+	{
+		if (rtvFormats[i] == renderTarget->getCreateParams().format)
+		{
+			return pipelineStates.at(i);
+		}
+	}
+	CHECK_NO_ENTRY();
+	return nullptr;
 }

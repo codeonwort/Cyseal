@@ -1,15 +1,25 @@
 #include "buffer_visualization.h"
 #include "rhi/render_device.h"
-#include "rhi/render_command.h"
 #include "rhi/swap_chain.h"
+#include "rhi/render_command.h"
 #include "rhi/shader.h"
 #include "rhi/texture_manager.h"
 
 void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 {
 	RenderDevice* device = inRenderDevice;
-	SwapChain* swapchain = device->getSwapChain();
-	const uint32 swapchainCount = swapchain->getBufferCount();
+
+	const uint32 swapchainCount = device->maxFramesInFlight();
+	if (device->getCreateParams().swapChainParams.bHeadless == false)
+	{
+		rtvFormats.push_back(device->getSwapChain()->getBackbufferFormat());
+		rtvIndexForSwapChain = 0;
+	}
+	rtvFormats.push_back(EPixelFormat::R32G32B32A32_FLOAT);
+	rtvFormats.push_back(EPixelFormat::R16G16B16A16_FLOAT);
+	rtvFormats.push_back(EPixelFormat::R8G8B8A8_UNORM);
+
+	pipelineStates.initialize((uint32)rtvFormats.size());
 
 	passDescriptor.initialize(L"BufferVisualization", swapchainCount, 0);
 
@@ -43,25 +53,28 @@ void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 			.shaderVisibility = EShaderVisibility::All,
 		},
 	};
-	GraphicsPipelineDesc pipelineDesc{
-		.vs                     = shaderVS,
-		.ps                     = shaderPS,
-		.ds                     = nullptr,
-		.hs                     = nullptr,
-		.gs                     = nullptr,
-		.blendDesc              = BlendDesc(),
-		.sampleMask             = 0xffffffff,
-		.rasterizerDesc         = RasterizerDesc::FrontCull(),
-		.depthstencilDesc       = DepthstencilDesc::NoDepth(),
-		.inputLayout            = inputLayout,
-		.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
-		.numRenderTargets       = 1,
-		.rtvFormats             = { swapchain->getBackbufferFormat() },
-		.dsvFormat              = swapchain->getBackbufferDepthFormat(),
-		.sampleDesc             = SampleDesc { .count = 1, .quality = 0 },
-		.staticSamplers         = std::move(staticSamplers),
-	};
-	pipelineState = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
+	for (size_t i = 0; i < rtvFormats.size(); ++i)
+	{
+		GraphicsPipelineDesc pipelineDesc{
+			.vs                     = shaderVS,
+			.ps                     = shaderPS,
+			.ds                     = nullptr,
+			.hs                     = nullptr,
+			.gs                     = nullptr,
+			.blendDesc              = BlendDesc(),
+			.sampleMask             = 0xffffffff,
+			.rasterizerDesc         = RasterizerDesc::FrontCull(),
+			.depthstencilDesc       = DepthstencilDesc::NoDepth(),
+			.inputLayout            = inputLayout,
+			.primitiveTopologyType  = EPrimitiveTopologyType::Triangle,
+			.numRenderTargets       = 1,
+			.rtvFormats             = { rtvFormats[i] },
+			.dsvFormat              = EPixelFormat::UNKNOWN, // No depth so don't care
+			.sampleDesc             = SampleDesc { .count = 1, .quality = 0 },
+			.staticSamplers         = staticSamplers,
+		};
+		pipelineStates[i] = UniquePtr<GraphicsPipelineState>(device->createGraphicsPipelineState(pipelineDesc));
+	}
 
 	// Cleanup.
 	{
@@ -72,6 +85,8 @@ void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 
 void BufferVisualization::renderVisualization(RenderCommandList* commandList, uint32 swapchainIndex, const BufferVisualizationInput& passInput)
 {
+	GraphicsPipelineState* pipelineState = getPipelineState(passInput.renderTarget);
+
 	ShaderParameterTable SPT{};
 	SPT.pushConstants("pushConstants", { (uint32)passInput.mode, passInput.textureWidth, passInput.textureHeight });
 	SPT.texture("gbuffer0", passInput.gbuffer0SRV);
@@ -90,11 +105,29 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
 
-	commandList->setGraphicsPipelineState(pipelineState.get());
-	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileHeap);
+	commandList->setGraphicsPipelineState(pipelineState);
+	commandList->bindGraphicsShaderParameters(pipelineState, &SPT, volatileHeap);
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);
 
 	commandList->beginRenderPass();
 	commandList->drawInstanced(3, 1, 0, 0); // Fullscreen triangle
 	commandList->endRenderPass();
+}
+
+GraphicsPipelineState* BufferVisualization::getPipelineState(Texture* renderTarget) const
+{
+	if (renderTarget == nullptr)
+	{
+		CHECK(rtvIndexForSwapChain >= 0);
+		return pipelineStates.at(rtvIndexForSwapChain);
+	}
+	for (size_t i = 0; i < rtvFormats.size(); ++i)
+	{
+		if (rtvFormats[i] == renderTarget->getCreateParams().format)
+		{
+			return pipelineStates.at(i);
+		}
+	}
+	CHECK_NO_ENTRY();
+	return nullptr;
 }

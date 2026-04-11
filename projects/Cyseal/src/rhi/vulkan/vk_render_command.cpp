@@ -147,6 +147,7 @@ void VulkanRenderCommandList::reset(RenderCommandAllocator* allocator)
 	CHECK(ret == VK_SUCCESS);
 
 	barrierTracker.resetAll();
+	bIsRecording = true;
 }
 
 void VulkanRenderCommandList::close()
@@ -157,6 +158,7 @@ void VulkanRenderCommandList::close()
 	CHECK(ret == VK_SUCCESS);
 
 	barrierTracker.flushFinalStates();
+	bIsRecording = false;
 }
 
 void VulkanRenderCommandList::barrier(

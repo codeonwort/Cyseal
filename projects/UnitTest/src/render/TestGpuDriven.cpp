@@ -7,7 +7,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "core/engine.h"
 #include "core/smart_pointer.h"
-#include "core/win/windows_application.h"
+#include "core/console_application.h"
 #include "geometry/meso_geometry.h"
 #include "geometry/primitive.h"
 #include "geometry/procedural.h"
@@ -34,10 +34,9 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define CAMERA_Z_NEAR        0.01f
 #define CAMERA_Z_FAR         10000.0f
 
-#define WINDOW_X             200
-#define WINDOW_Y             200
 #define WINDOW_WIDTH         256
 #define WINDOW_HEIGHT        256
+#define ASPECT_RATIO         ((float)WINDOW_WIDTH / (float)WINDOW_HEIGHT)
 
 const int32 nPrepassConfigs = 2;
 const int32 nVisBufferConfigs = 2;
@@ -45,7 +44,7 @@ const int32 nGpuCullingConfigs = 2;
 const int32 nIndirectDrawConfigs = (int32)EIndirectDrawMode::Count;
 const int32 nTotalConfigs = nPrepassConfigs * nVisBufferConfigs * nGpuCullingConfigs * nIndirectDrawConfigs;
 
-struct ActualImage
+struct ActualImage_GpuDriven
 {
 	std::vector<uint8> images[nTotalConfigs];
 	std::wstring actualTags[nTotalConfigs];
@@ -53,43 +52,43 @@ struct ActualImage
 	uint32 height;
 };
 
-class GpuDrivenApplication : public WindowsApplication
+class GpuDrivenApplication : public ConsoleApplication
 {
 public:
-	GpuDrivenApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI, ActualImage* inActualImage)
+	GpuDrivenApplication(CysealEngine* inEngine, ERenderDeviceRawAPI inGraphicsAPI, ActualImage_GpuDriven* inActualImage)
 		: cysealEngine(inEngine)
 		, graphicsAPI(inGraphicsAPI)
 		, actualImage(inActualImage)
 	{}
 
 protected:
-	virtual bool onInitialize() override
+	virtual void onExecute() override
 	{
-		SwapChainCreateParams swapChainParams{
-			.bHeadless          = false,
-			.nativeWindowHandle = getHWND(),
-			.windowType         = EWindowType::WINDOWED,
-			.windowWidth        = WINDOW_WIDTH,
-			.windowHeight       = WINDOW_HEIGHT,
-		};
+		onInitialize();
+		while (onTick()) {}
+		onTerminate();
+	}
+
+	bool onInitialize()
+	{
 		CysealEngineCreateParams engineInit{
 			.renderDevice = RenderDeviceCreateParams{
-				.swapChainParams  = swapChainParams,
+				.swapChainParams  = SwapChainCreateParams::noSwapChain(),
 				.rawAPI           = graphicsAPI,
-				.bDoubleBuffering = false,
 			},
 			.rendererType = ERendererType::Standard,
 		};
 
 		cysealEngine->startup(engineInit);
+		cysealEngine->setRenderResolution(WINDOW_WIDTH, WINDOW_HEIGHT);
 
 		camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
-		camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
+		camera.perspective(CAMERA_FOV_Y, ASPECT_RATIO, CAMERA_Z_NEAR, CAMERA_Z_FAR);
 
 		createScene();
 
-		actualImage->width = gRenderDevice->getSwapChain()->getBackbufferWidth();
-		actualImage->height = gRenderDevice->getSwapChain()->getBackbufferHeight();
+		actualImage->width = WINDOW_WIDTH;
+		actualImage->height = WINDOW_HEIGHT;
 
 		TextureCreateParams cameraColorParams = TextureCreateParams::texture2D(
 			EPixelFormat::R8G8B8A8_UNORM,
@@ -100,7 +99,7 @@ protected:
 		return true;
 	}
 
-	virtual void onTerminate() override
+	void onTerminate()
 	{
 		delete cameraColor;
 		for (StaticMesh* sm : staticMeshes)
@@ -111,7 +110,7 @@ protected:
 		cysealEngine->shutdown();
 	}
 
-	virtual void onTick(float deltaSeconds) override
+	bool onTick()
 	{
 		bool bNeedReadback = frameCounter != 0;
 
@@ -123,13 +122,13 @@ protected:
 
 		SceneProxy* sceneProxy = scene.createProxy();
 		RendererOptions rendererOptions{};
+		rendererOptions.finalRenderTarget = cameraColor;
 		rendererOptions.rayTracedShadows = ERayTracedShadowsMode::Disabled;
 		rendererOptions.indirectDiffuse = EIndirectDiffuseMode::Disabled;
 		rendererOptions.indirectSpecular = EIndirectSpecularMode::Disabled;
 		rendererOptions.pathTracing = EPathTracingMode::Disabled;
 		if (bNeedReadback)
 		{
-			rendererOptions.finalRenderTarget = cameraColor;
 			rendererOptions.bEnableDepthPrepass = (bool)prepassConfig;
 			rendererOptions.bEnableVisibilityBuffer = (bool)visBufferConfig;
 			rendererOptions.bEnableGPUCulling = (bool)gpuCullingConfig;
@@ -187,7 +186,7 @@ protected:
 						if (prepassConfig == 2)
 						{
 							Assert::IsTrue(configIndex == nTotalConfigs);
-							terminateApplication();
+							return false;
 						}
 					}
 				}
@@ -195,6 +194,7 @@ protected:
 		}
 
 		++frameCounter;
+		return true;
 	}
 
 private:
@@ -305,7 +305,7 @@ private:
 	int32 frameCounter = 0;
 
 	Texture* cameraColor = nullptr;
-	ActualImage* actualImage = nullptr;
+	ActualImage_GpuDriven* actualImage = nullptr;
 };
 
 namespace UnitTest
@@ -316,16 +316,13 @@ namespace UnitTest
 	protected:
 		void RenderGpuDriven()
 		{
-			ActualImage actualImage;
+			ActualImage_GpuDriven actualImage;
 
 			HWND nativeWindowHandle = NULL;
 
 			CysealEngine cysealEngine;
 
-			WindowsApplication* app = new GpuDrivenApplication(&cysealEngine, graphicsAPI, &actualImage);
-			app->setWindowTitle(L"Hello world");
-			app->setWindowPosition(WINDOW_X, WINDOW_Y);
-			app->setWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+			ConsoleApplication* app = new GpuDrivenApplication(&cysealEngine, graphicsAPI, &actualImage);
 
 			ApplicationCreateParams createParams;
 			createParams.nativeWindowHandle = nativeWindowHandle;

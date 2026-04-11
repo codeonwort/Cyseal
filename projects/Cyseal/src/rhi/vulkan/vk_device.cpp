@@ -167,15 +167,6 @@ static bool checkVkDebugMarkerSupport(VkPhysicalDevice physDevice)
 	return false;
 }
 
-static uint32 computeNumFramesInFlight(VulkanDevice* device)
-{
-	if (device->getCreateParams().swapChainParams.bHeadless)
-	{
-		return 1;
-	}
-	return device->getSwapChain()->getBufferCount();
-}
-
 VkDevice getVkDevice()
 {
 	return static_cast<VulkanDevice*>(gRenderDevice)->getRaw();
@@ -390,6 +381,20 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 	// Check capabilities.
 	{
 		bSupportsEnhancedBarrier = true; // vkCmdPipelineBarrier2()
+
+		VkSampleCountFlags msaaFlags = vkPhysicalDeviceLimits.framebufferColorSampleCounts & vkPhysicalDeviceLimits.framebufferDepthSampleCounts;
+		for (uint32 i = 0; i < (uint32)EMultiSampleLevel::Count; ++i)
+		{
+			uint32 sampleCount = toSampleCount((EMultiSampleLevel)i);
+			switch (sampleCount)
+			{
+				case 2: msaaQualityLevels[i]  = (uint32)((msaaFlags & VK_SAMPLE_COUNT_2_BIT) != 0); break;
+				case 4: msaaQualityLevels[i]  = (uint32)((msaaFlags & VK_SAMPLE_COUNT_4_BIT) != 0); break;
+				case 8: msaaQualityLevels[i]  = (uint32)((msaaFlags & VK_SAMPLE_COUNT_8_BIT) != 0); break;
+				case 16: msaaQualityLevels[i] = (uint32)((msaaFlags & VK_SAMPLE_COUNT_16_BIT) != 0); break;
+				default: CHECK_NO_ENTRY();
+			}
+		}
 	}
 
 	// Get debug marker functions.
@@ -429,7 +434,7 @@ void VulkanDevice::onInitialize(const RenderDeviceCreateParams& createParams)
 		commandQueue = new(EMemoryTag::RHI) VulkanRenderCommandQueue;
 		commandQueue->initialize(this);
 
-		uint32 count = computeNumFramesInFlight(this);
+		uint32 count = maxFramesInFlight();
 		for (uint32 ix = 0; ix < count; ++ix)
 		{
 			RenderCommandAllocator* allocator = createRenderCommandAllocator();
@@ -1497,15 +1502,11 @@ RenderCommandList* VulkanDevice::getCommandListForCustomCommand() const
 
 	uint32 swapchainIx = bHeadless
 		? 0
-		: getCreateParams().bDoubleBuffering
-			? getSwapChain()->getNextBackbufferIndex()
-			: getSwapChain()->getCurrentBackbufferIndex();
+		: getSwapChain()->getCurrentBackbufferIndex();
 
 	if (!bHeadless && getSwapChain()->getCurrentBackbufferIndex() == 0xffffffff)
 	{
-		swapchainIx = getCreateParams().bDoubleBuffering
-			? 1
-			: 0;
+		swapchainIx = 0;
 	}
 
 	RenderCommandList* commandList = getCommandList(swapchainIx);

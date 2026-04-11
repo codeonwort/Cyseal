@@ -39,20 +39,6 @@
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
 
-// https://github.com/microsoft/DirectX-Specs/blob/master/d3d/PlanarDepthStencilDDISpec.md
-// NOTE: Also need to change backbufferDepthFormat in render_device.h
-#if 0
-	// Depth 24-bit, Stencil 8-bit
-static const EPixelFormat DEPTH_TEXTURE_FORMAT = EPixelFormat::R24G8_TYPELESS;
-static const EPixelFormat DEPTH_DSV_FORMAT = EPixelFormat::D24_UNORM_S8_UINT;
-static const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R24_UNORM_X8_TYPELESS;
-#else
-	// Depth 32-bit, Stencil 8-bit
-static const EPixelFormat DEPTH_TEXTURE_FORMAT = EPixelFormat::R32G8X24_TYPELESS;
-static const EPixelFormat DEPTH_DSV_FORMAT = EPixelFormat::D32_FLOAT_S8_UINT;
-static const EPixelFormat DEPTH_SRV_FORMAT = EPixelFormat::R32_FLOAT_X8X24_TYPELESS;
-#endif
-
 static uint32 fullMipCount(uint32 width, uint32 height)
 {
 	return static_cast<uint32>(floor(log2(std::max(width, height))) + 1);
@@ -62,16 +48,12 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
 
-	// Scene textures
-	{
-		const uint32 sceneWidth = renderDevice->getSwapChain()->getBackbufferWidth();
-		const uint32 sceneHeight = renderDevice->getSwapChain()->getBackbufferHeight();
-		recreateSceneTextures(sceneWidth, sceneHeight);
-	}
+	// Scene textures: Don't create yet. You invoke recreateSceneTextures() before using scene renderer.
+	// recreateSceneTextures(width, height);
 
 	// Scene uniforms
 	{
-		const uint32 swapchainCount = renderDevice->getSwapChain()->getBufferCount();
+		const uint32 swapchainCount = renderDevice->maxFramesInFlight();
 		CHECK(sizeof(SceneUniform) * swapchainCount <= SCENE_UNIFORM_MEMORY_POOL_SIZE);
 
 		sceneUniformMemory = UniquePtr<Buffer>(device->createBuffer(
@@ -130,19 +112,19 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 		gpuScene->initialize(renderDevice);
 		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
-		bilateralBlur->initialize();
-		rayTracedShadowsPass->initialize();
+		bilateralBlur->initialize(renderDevice);
+		rayTracedShadowsPass->initialize(renderDevice);
 		depthPrepass->initialize(renderDevice, PF_visibilityBuffer);
 		decodeVisBufferPass->initialize(renderDevice);
 		basePass->initialize(renderDevice, PF_sceneColor, PF_gbuffers, NUM_GBUFFERS, PF_velocityMap);
-		hizPass->initialize();
-		skyPass->initialize(PF_sceneColor);
-		indirectDiffusePass->initialize();
+		hizPass->initialize(renderDevice);
+		skyPass->initialize(renderDevice, PF_sceneColor);
+		indirectDiffusePass->initialize(renderDevice);
 		indirectSpecularPass->initialize(renderDevice);
 		toneMapping->initialize(renderDevice);
 		bufferVisualization->initialize(renderDevice);
-		pathTracingPass->initialize();
-		denoiserPluginPass->initialize();
+		pathTracingPass->initialize(renderDevice);
+		denoiserPluginPass->initialize(renderDevice);
 		storeHistoryPass->initialize(renderDevice);
 		frameGenPass->initialize(renderDevice);
 	}
@@ -172,36 +154,47 @@ void SceneRenderer::destroy()
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
-	bool bDoubleBuffering     = device->getCreateParams().bDoubleBuffering;
-	
-	auto swapChain            = device->getSwapChain();
-	swapChain->prepareBackbuffer();
+	bool bRenderToBackbuffer = renderOptions.renderToBackbuffer();
 
-	uint32 swapchainIndex     = bDoubleBuffering ? swapChain->getNextBackbufferIndex() : swapChain->getCurrentBackbufferIndex();
+	uint32            swapchainIndex     = 0;
+	SwapChain*        swapChain          = nullptr;
+	SwapChainImage*   swapchainBuffer    = nullptr;
+	RenderTargetView* swapchainBufferRTV = nullptr;
 
-	auto swapchainBuffer      = swapChain->getSwapchainBuffer(swapchainIndex);
-	auto swapchainBufferRTV   = swapChain->getSwapchainBufferRTV(swapchainIndex);
-	auto commandAllocator     = device->getCommandAllocator(swapchainIndex);
-	auto commandList          = device->getCommandList(swapchainIndex);
-	auto commandQueue         = device->getCommandQueue();
+	if (bRenderToBackbuffer)
+	{
+		swapChain = device->getSwapChain();
+		CHECK(swapChain != nullptr);
+
+		swapChain->prepareBackbuffer();
+
+		swapchainIndex     = swapChain->getCurrentBackbufferIndex();
+		swapchainBuffer    = swapChain->getSwapchainBuffer(swapchainIndex);
+		swapchainBufferRTV = swapChain->getSwapchainBufferRTV(swapchainIndex);
+	}
+
+	auto commandAllocator  = device->getCommandAllocator(swapchainIndex);
+	auto commandList       = device->getCommandList(swapchainIndex);
+	auto commandQueue      = device->getCommandQueue();
 
 	createFinalColorRTV(commandList, renderOptions);
 
-	if (bDoubleBuffering)
+	TextureKind*      finalColorTarget   = renderOptions.finalRenderTarget;
+	RenderTargetView* finalRTV           = finalColorRTV.get();
+	uint32            sceneWidth         = 0;
+	uint32            sceneHeight        = 0;
+	if (bRenderToBackbuffer)
 	{
-		uint32 ix = swapChain->getCurrentBackbufferIndex();
-		auto cmdAllocator = device->getCommandAllocator(ix);
-		auto cmdList = device->getCommandList(ix);
-
-		if (cmdAllocator->isValid())
-		{
-			commandQueue->executeCommandList(cmdList, swapChain);
-		}
+		sceneWidth         = swapChain->getBackbufferWidth();
+		sceneHeight        = swapChain->getBackbufferHeight();
+		finalColorTarget   = swapchainBuffer;
+		finalRTV           = swapchainBufferRTV;
 	}
-
-	// #todo-renderer: Can be different due to resolution scaling
-	const uint32 sceneWidth = swapChain->getBackbufferWidth();
-	const uint32 sceneHeight = swapChain->getBackbufferHeight();
+	else
+	{
+		sceneWidth         = renderOptions.finalRenderTarget->getCreateParams().width;
+		sceneHeight        = renderOptions.finalRenderTarget->getCreateParams().height;
+	}
 
 	const bool bRenderDepthPrepass = renderOptions.bEnableDepthPrepass;
 	const bool bRenderVisibilityBuffer = renderOptions.bEnableVisibilityBuffer;
@@ -255,7 +248,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	commandList->rsSetViewport(fullscreenViewport);
 	commandList->rsSetScissorRect(fullscreenScissorRect);
 
-	updateSceneUniform(commandList, swapchainIndex, scene, camera);
+	updateSceneUniform(commandList, swapchainIndex, scene, camera, sceneWidth, sceneHeight);
 	auto sceneUniformCBV = sceneUniformCBVs.at(swapchainIndex);
 
 	{
@@ -753,13 +746,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 
 	// Set final render target.
-	TextureKind* finalColorTarget = renderOptions.finalRenderTarget;
-	RenderTargetView* finalRTV = finalColorRTV.get();
-	if (renderOptions.renderToBackbuffer())
-	{
-		finalColorTarget = swapchainBuffer;
-		finalRTV = swapchainBufferRTV;
-	}
 	{
 		SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
 
@@ -803,6 +789,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
 		ToneMappingInput passInput{
+			.renderTarget        = renderOptions.finalRenderTarget,
 			.viewport            = fullscreenViewport,
 			.scissorRect         = fullscreenScissorRect,
 			.sceneUniformCBV     = sceneUniformCBV,
@@ -870,6 +857,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 		BufferVisualizationInput sources{
+			.renderTarget        = renderOptions.finalRenderTarget,
 			.mode                = renderOptions.bufferVisualization,
 			.textureWidth        = sceneWidth,
 			.textureHeight       = sceneHeight,
@@ -913,6 +901,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Dear Imgui: Record commands
 
+	if (device->isHeadless() == false)
 	{
 		SCOPED_DRAW_EVENT(commandList, DearImgui);
 		
@@ -925,21 +914,24 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Finalize
 
-	TextureBarrierAuto presentBarrier = {
-		EBarrierSync::DRAW, EBarrierAccess::COMMON, EBarrierLayout::Present,
-		swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-	};
-	commandList->barrierAuto(0, nullptr, 1, &presentBarrier, 0, nullptr);
+	if (bRenderToBackbuffer)
+	{
+		TextureBarrierAuto presentBarrier = {
+			EBarrierSync::DRAW, EBarrierAccess::COMMON, EBarrierLayout::Present,
+			swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+		};
+		commandList->barrierAuto(0, nullptr, 1, &presentBarrier, 0, nullptr);
+	}
 
 	commandList->close();
 	commandAllocator->markValid();
 
-	if (!bDoubleBuffering)
-	{
-		commandQueue->executeCommandList(commandList, swapChain);
-	}
+	commandQueue->executeCommandList(commandList, swapChain);
 
-	swapChain->present();
+	if (bRenderToBackbuffer)
+	{
+		swapChain->present();
+	}
 
 	{
 		SCOPED_CPU_EVENT(WaitForGPU);
@@ -1090,14 +1082,14 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 
 	cleanup(RT_sceneDepth.release());
 	sceneDepthDesc = TextureCreateParams::texture2D(
-		DEPTH_TEXTURE_FORMAT, ETextureAccessFlags::DSV, sceneWidth, sceneHeight,
+		PF_sceneDepth, ETextureAccessFlags::DSV, sceneWidth, sceneHeight,
 		1, 1, 0).setOptimalClearDepth(getDeviceFarDepth());
 	RT_sceneDepth = UniquePtr<Texture>(device->createTexture(sceneDepthDesc));
 	RT_sceneDepth->setDebugName(L"RT_SceneDepth");
 
 	sceneDepthDSV = UniquePtr<DepthStencilView>(device->createDSV(RT_sceneDepth.get(),
 		DepthStencilViewDesc{
-			.format        = DEPTH_DSV_FORMAT,
+			.format        = PF_sceneDepthDSV,
 			.viewDimension = EDSVDimension::Texture2D,
 			.flags         = EDSVFlags::None,
 			.texture2D     = Texture2DDSVDesc{ .mipSlice = 0 }
@@ -1105,7 +1097,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	));
 	sceneDepthSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_sceneDepth.get(),
 		ShaderResourceViewDesc{
-			.format              = DEPTH_SRV_FORMAT,
+			.format              = PF_sceneDepthSRV,
 			.viewDimension       = ESRVDimension::Texture2D,
 			.texture2D           = Texture2DSRVDesc{
 				.mostDetailedMip = 0,
@@ -1123,7 +1115,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	RT_prevSceneDepth->setDebugName(L"RT_prevSceneDepth");
 	prevSceneDepthSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_prevSceneDepth.get(),
 		ShaderResourceViewDesc{
-			.format              = DEPTH_SRV_FORMAT,
+			.format              = PF_sceneDepthSRV,
 			.viewDimension       = ESRVDimension::Texture2D,
 			.texture2D           = Texture2DSRVDesc{
 				.mostDetailedMip = 0,
@@ -1452,11 +1444,10 @@ void SceneRenderer::updateSceneUniform(
 	RenderCommandList* commandList,
 	uint32 swapchainIndex,
 	const SceneProxy* scene,
-	const Camera* camera)
+	const Camera* camera,
+	uint32 sceneWidth,
+	uint32 sceneHeight)
 {
-	const float sceneWidth = (float)device->getSwapChain()->getBackbufferWidth();
-	const float sceneHeight = (float)device->getSwapChain()->getBackbufferHeight();
-
 	sceneUniformData.viewMatrix            = camera->getViewMatrix();
 	sceneUniformData.projMatrix            = camera->getProjMatrix();
 	sceneUniformData.viewProjMatrix        = camera->getViewProjMatrix();
@@ -1468,10 +1459,10 @@ void SceneRenderer::updateSceneUniform(
 	sceneUniformData.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix;
 	sceneUniformData.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix;
 
-	sceneUniformData.screenResolution[0]   = sceneWidth;
-	sceneUniformData.screenResolution[1]   = sceneHeight;
-	sceneUniformData.screenResolution[2]   = 1.0f / sceneWidth;
-	sceneUniformData.screenResolution[3]   = 1.0f / sceneHeight;
+	sceneUniformData.screenResolution[0]   = (float)sceneWidth;
+	sceneUniformData.screenResolution[1]   = (float)sceneHeight;
+	sceneUniformData.screenResolution[2]   = 1.0f / (float)sceneWidth;
+	sceneUniformData.screenResolution[3]   = 1.0f / (float)sceneHeight;
 	sceneUniformData.cameraFrustum         = camera->getFrustum();
 	sceneUniformData.cameraPosition        = camera->getPosition();
 	sceneUniformData.sunDirection          = scene->sun.direction;

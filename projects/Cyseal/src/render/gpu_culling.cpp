@@ -2,7 +2,6 @@
 #include "gpu_scene.h"
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
-#include "rhi/swap_chain.h"
 #include "rhi/gpu_resource_binding.h"
 #include "world/camera.h"
 #include "util/logging.h"
@@ -19,8 +18,7 @@ void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxCullOperat
 {
 	maxCullOperationsPerFrame = inMaxCullOperationsPerFrame;
 
-	const uint32 swapchainCount = inRenderDevice->getSwapChain()->getBufferCount();
-
+	const uint32 swapchainCount = inRenderDevice->maxFramesInFlight();
 	passDescriptor.initialize(L"GPUCulling", swapchainCount, 0);
 
 	// Shader

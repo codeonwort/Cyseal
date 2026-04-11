@@ -52,6 +52,8 @@ public:
 
 	virtual void close() override;
 
+	virtual bool isRecording() const override { return bIsRecording; }
+
 	virtual void barrier(
 		uint32 numBufferBarriers, const BufferBarrier* bufferBarriers,
 		uint32 numTextureBarriers, const TextureBarrier* textureBarriers,
@@ -156,9 +158,10 @@ public:
 	void notifyReadbackAvailable();
 
 private:
-	D3DDevice* device;
-	D3DRenderCommandAllocator* commandAllocator;
+	D3DDevice* device = nullptr;
+	D3DRenderCommandAllocator* commandAllocator = nullptr;
 	WRL::ComPtr<ID3D12GraphicsCommandListLatest> commandList;
+	bool bIsRecording = false;
 	BarrierTracker barrierTracker;
 
 	// Raster context

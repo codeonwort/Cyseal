@@ -79,10 +79,17 @@ void CysealEngine::startup(const CysealEngineCreateParams& inCreateParams)
 	CYLOG(LogEngine, Log, TEXT("Renderer has been initialized."));
 
 	// Dear IMGUI
-	createDearImgui(createParams.renderDevice.swapChainParams.nativeWindowHandle);
-	renderDevice->initializeDearImgui();
+	if (renderDevice->isHeadless() == false)
+	{
+		createDearImgui(createParams.renderDevice.swapChainParams.nativeWindowHandle);
+		renderDevice->initializeDearImgui();
 
-	CYLOG(LogEngine, Log, TEXT("Dear IMGUI has been initialized."));
+		CYLOG(LogEngine, Log, TEXT("Dear IMGUI has been initialized."));
+	}
+	else
+	{
+		CYLOG(LogEngine, Log, TEXT("Dear IMGUI is not supported for headless device."));
+	}
 
 	// Unit test
 	UnitTestValidator::runAllUnitTests();
@@ -102,13 +109,19 @@ void CysealEngine::shutdown()
 	// Ensure no GPU commands in flight.
 	renderDevice->flushCommandQueue();
 
-	renderDevice->shutdownDearImgui();
+	if (renderDevice->isHeadless() == false)
+	{
+		renderDevice->shutdownDearImgui();
 #if PLATFORM_WINDOWS
-	ImGui_ImplWin32_Shutdown();
+		if (!renderDevice->isHeadless())
+		{
+			ImGui_ImplWin32_Shutdown();
+		}
 #else
 	#error "Not implemented yet"
 #endif
-	ImGui::DestroyContext();
+		ImGui::DestroyContext();
+	}
 
 	// Subsystems (pre)
 	{
@@ -149,6 +162,8 @@ void CysealEngine::shutdown()
 
 void CysealEngine::beginImguiNewFrame()
 {
+	if (renderDevice->isHeadless()) return;
+
 	renderDevice->beginDearImguiNewFrame();
 
 #if PLATFORM_WINDOWS
@@ -162,6 +177,8 @@ void CysealEngine::beginImguiNewFrame()
 
 void CysealEngine::renderImgui()
 {
+	if (renderDevice->isHeadless()) return;
+
 	ImGui::Render();
 }
 
@@ -172,8 +189,11 @@ void CysealEngine::renderScene(SceneProxy* sceneProxy, Camera* camera, const Ren
 
 void CysealEngine::setRenderResolution(uint32 newWidth, uint32 newHeight)
 {
-	void* hwnd = createParams.renderDevice.swapChainParams.nativeWindowHandle;
-	renderDevice->recreateSwapChain(hwnd, newWidth, newHeight);
+	if (renderDevice->isHeadless() == false)
+	{
+		void* hwnd = createParams.renderDevice.swapChainParams.nativeWindowHandle;
+		renderDevice->recreateSwapChain(hwnd, newWidth, newHeight);
+	}
 	renderer->recreateSceneTextures(newWidth, newHeight);
 }
 

@@ -2,7 +2,6 @@
 
 #include "rhi/render_device.h"
 #include "rhi/denoiser_device.h"
-#include "rhi/swap_chain.h"
 #include "rhi/render_command.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource.h"
@@ -16,8 +15,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogDenoiserPlugin);
 // Should provide proper stride so that the plugin only consider RGB channels.
 static constexpr EPixelFormat DENOISER_INPUT_FORMAT = EPixelFormat::R32G32B32A32_FLOAT;
 
-void DenoiserPluginPass::initialize()
+void DenoiserPluginPass::initialize(RenderDevice* inDevice)
 {
+	device = inDevice;
+
 	if (!isAvailable())
 	{
 		CYLOG(LogDenoiserPlugin, Warning, L"Denoiser device is unavailable. Denoiser pass will be disabled.");
@@ -26,24 +27,24 @@ void DenoiserPluginPass::initialize()
 
 	// Shader
 	{
-		ShaderStage* blitShader = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "BlitDenoiserInputCS");
+		ShaderStage* blitShader = device->createShader(EShaderStage::COMPUTE_SHADER, "BlitDenoiserInputCS");
 		blitShader->declarePushConstants({ { "pushConstants", 1} });
 		blitShader->loadFromFile(L"blit_denoiser_input.hlsl", "mainCS");
 
-		blitPipelineState = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+		blitPipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 			ComputePipelineDesc{ .cs = blitShader, .nodeMask = 0 }
 		));
 
 		delete blitShader;
 	}
 
-	const uint32 swapchainCount = gRenderDevice->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = device->maxFramesInFlight();
 	blitPassDescriptor.initialize(L"DenoiserPlugin_BlitPass", swapchainCount, 0);
 }
 
 bool DenoiserPluginPass::isAvailable() const
 {
-	return gRenderDevice->getDenoiserDevice()->isValid();
+	return device->getDenoiserDevice()->isValid();
 }
 
 void DenoiserPluginPass::blitTextures(RenderCommandList* commandList, uint32 swapchainIndex, const DenoiserPluginInput& passInput)
@@ -87,7 +88,7 @@ void DenoiserPluginPass::executeDenoiser(RenderCommandList* commandList, Texture
 	CHECK(albedoReadbackHandle->bAvailable);
 	CHECK(normalReadbackHandle->bAvailable);
 
-	DenoiserDevice* denoiserDevice = gRenderDevice->getDenoiserDevice();
+	DenoiserDevice* denoiserDevice = device->getDenoiserDevice();
 
 	std::vector<uint8> denoisedBuffer;
 	denoiserDevice->denoise(colorReadbackHandle->readbackData, albedoReadbackHandle->readbackData, normalReadbackHandle->readbackData, denoisedBuffer);
@@ -130,13 +131,13 @@ void DenoiserPluginPass::resizeTextures(uint32 newWidth, uint32 newHeight)
 			ETextureAccessFlags::UAV | ETextureAccessFlags::CPU_READBACK,
 			newWidth, newHeight, 1, 1, 0);
 
-		colorTexture = UniquePtr<Texture>(gRenderDevice->createTexture(readbackTextureDesc));
+		colorTexture = UniquePtr<Texture>(device->createTexture(readbackTextureDesc));
 		colorTexture->setDebugName(L"Texture_DenoiserInput_Color");
 
-		albedoTexture = UniquePtr<Texture>(gRenderDevice->createTexture(readbackTextureDesc));
+		albedoTexture = UniquePtr<Texture>(device->createTexture(readbackTextureDesc));
 		albedoTexture->setDebugName(L"Texture_DenoiserInput_Albedo");
 
-		normalTexture = UniquePtr<Texture>(gRenderDevice->createTexture(readbackTextureDesc));
+		normalTexture = UniquePtr<Texture>(device->createTexture(readbackTextureDesc));
 		normalTexture->setDebugName(L"Texture_DenoiserInput_Normal");
 
 		const TextureCreateParams uploadTextureDesc = TextureCreateParams::texture2D(
@@ -144,7 +145,7 @@ void DenoiserPluginPass::resizeTextures(uint32 newWidth, uint32 newHeight)
 			ETextureAccessFlags::UAV | ETextureAccessFlags::CPU_WRITE,
 			newWidth, newHeight, 1, 1, 0);
 
-		denoisedTexture = UniquePtr<Texture>(gRenderDevice->createTexture(uploadTextureDesc));
+		denoisedTexture = UniquePtr<Texture>(device->createTexture(uploadTextureDesc));
 		denoisedTexture->setDebugName(L"Texture_DenoiserOutput");
 
 		const UnorderedAccessViewDesc uavDesc{
@@ -153,8 +154,8 @@ void DenoiserPluginPass::resizeTextures(uint32 newWidth, uint32 newHeight)
 			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 }
 		};
 
-		colorUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(colorTexture.get(), uavDesc));
-		albedoUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(albedoTexture.get(), uavDesc));
-		normalUAV = UniquePtr<UnorderedAccessView>(gRenderDevice->createUAV(normalTexture.get(), uavDesc));
+		colorUAV = UniquePtr<UnorderedAccessView>(device->createUAV(colorTexture.get(), uavDesc));
+		albedoUAV = UniquePtr<UnorderedAccessView>(device->createUAV(albedoTexture.get(), uavDesc));
+		normalUAV = UniquePtr<UnorderedAccessView>(device->createUAV(normalTexture.get(), uavDesc));
 	}
 }

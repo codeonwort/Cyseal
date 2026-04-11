@@ -1,14 +1,13 @@
 #include "store_history_pass.h"
 #include "rhi/render_command.h"
 #include "rhi/render_device.h"
-#include "rhi/swap_chain.h"
 
 #define PF_normalHistory       EPixelFormat::R16G16B16A16_FLOAT
 #define PF_roughnessHistory    EPixelFormat::R16_FLOAT
 
 void StoreHistoryPass::initialize(RenderDevice* renderDevice)
 {
-	const uint32 swapchainCount = renderDevice->getSwapChain()->getBufferCount();
+	const uint32 swapchainCount = renderDevice->maxFramesInFlight();
 	passDescriptor.initialize(L"StoreHistoryPass", swapchainCount, 0);
 
 	const ETextureAccessFlags historyFlags = ETextureAccessFlags::UAV | ETextureAccessFlags::SRV;
@@ -16,11 +15,11 @@ void StoreHistoryPass::initialize(RenderDevice* renderDevice)
 	roughnessHistory.initialize(PF_roughnessHistory, historyFlags, L"RT_RoughnessHistory");
 
 	// Shader
-	ShaderStage* copyCS = gRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "StoreHistoryCS");
+	ShaderStage* copyCS = renderDevice->createShader(EShaderStage::COMPUTE_SHADER, "StoreHistoryCS");
 	copyCS->declarePushConstants({ { "pushConstants", 2 } });
 	copyCS->loadFromFile(L"store_history.hlsl", "mainCS");
 
-	copyPipeline = UniquePtr<ComputePipelineState>(gRenderDevice->createComputePipelineState(
+	copyPipeline = UniquePtr<ComputePipelineState>(renderDevice->createComputePipelineState(
 		ComputePipelineDesc{ .cs = copyCS, .nodeMask = 0, }
 	));
 
