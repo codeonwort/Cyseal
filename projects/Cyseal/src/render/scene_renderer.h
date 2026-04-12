@@ -163,6 +163,7 @@ private:
 	class DenoiserPluginPass*   denoiserPluginPass    = nullptr;
 	class StoreHistoryPass*     storeHistoryPass      = nullptr;
 	class FrameGenPass*         frameGenPass          = nullptr;
+	class FinalBlitPass*        finalBlitPass         = nullptr;
 
 	std::vector<class SceneRenderPass*> sceneRenderPasses;
 };

@@ -33,6 +33,7 @@
 #include "render/pathtracing/path_tracing_pass.h"
 #include "render/pathtracing/denoiser_plugin_pass.h"
 #include "render/frame_gen_pass.h"
+#include "render/final_blit_pass.h"
 
 #include "util/profiling.h"
 
@@ -109,6 +110,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(denoiserPluginPass = new(EMemoryTag::Renderer) DenoiserPluginPass);
 		sceneRenderPasses.push_back(storeHistoryPass = new(EMemoryTag::Renderer) StoreHistoryPass);
 		sceneRenderPasses.push_back(frameGenPass = new(EMemoryTag::Renderer) FrameGenPass);
+		sceneRenderPasses.push_back(finalBlitPass = new(EMemoryTag::Renderer) FinalBlitPass);
 
 		gpuScene->initialize(renderDevice);
 		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
@@ -127,6 +129,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		denoiserPluginPass->initialize(renderDevice);
 		storeHistoryPass->initialize(renderDevice);
 		frameGenPass->initialize(renderDevice);
+		finalBlitPass->initialize(renderDevice);
 	}
 }
 
@@ -745,7 +748,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
 	}
 
-	// #wip: If render resolution and final target resolution are different, scale the result to the final target.
+	// #wip: Render to final color instead.
 
 	// Set final render target.
 	{
@@ -903,13 +906,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	//////////////////////////////////////////////////////////////////////////
 	// Dear Imgui: Record commands
 
+	// #wip: Switch to final render target and consider render/display resolutions.
+
 	if (device->isHeadless() == false)
 	{
 		SCOPED_DRAW_EVENT(commandList, DearImgui);
 		
 		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
 		commandList->setDescriptorHeaps(1, imguiHeaps);
-		// #note: GUI is rendered to the final RT anyway. swapchainBuffer is used for layout transition in VK.
 		device->renderDearImgui(commandList, swapchainBuffer);
 	}
 
