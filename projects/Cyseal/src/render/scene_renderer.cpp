@@ -177,18 +177,18 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	auto commandList       = device->getCommandList(swapchainIndex);
 	auto commandQueue      = device->getCommandQueue();
 
-	createFinalColorRTV(commandList, renderOptions);
+	createFinalBlitRTV(commandList, renderOptions);
 
-	TextureKind*      finalColorTarget   = renderOptions.finalRenderTarget;
-	RenderTargetView* finalRTV           = finalColorRTV.get();
-	uint32            sceneWidth         = 0;
-	uint32            sceneHeight        = 0;
+	TextureKind*      finalBlitTarget = renderOptions.finalRenderTarget;
+	RenderTargetView* finalBlitRTV    = finalRenderTargetRTV.get();
+	uint32            sceneWidth      = 0;
+	uint32            sceneHeight     = 0;
 	if (bRenderToBackbuffer)
 	{
 		sceneWidth         = swapChain->getBackbufferWidth();
 		sceneHeight        = swapChain->getBackbufferHeight();
-		finalColorTarget   = swapchainBuffer;
-		finalRTV           = swapchainBufferRTV;
+		finalBlitTarget    = swapchainBuffer;
+		finalBlitRTV       = swapchainBufferRTV;
 	}
 	else
 	{
@@ -753,11 +753,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		TextureBarrierAuto barrier{
 			EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
-			finalColorTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			finalBlitTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
 		};
 		commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
 
-		commandList->omSetRenderTarget(finalRTV, nullptr);
+		commandList->omSetRenderTarget(finalBlitRTV, nullptr);
 	}
 
 	// Tone mapping
@@ -1557,9 +1557,9 @@ void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList,
 		commandList->buildRaytracingAccelerationStructure((uint32)blasDescArray.size(), blasDescArray.data()));
 }
 
-void SceneRenderer::createFinalColorRTV(RenderCommandList* commandList, const RendererOptions& renderOptions)
+void SceneRenderer::createFinalBlitRTV(RenderCommandList* commandList, const RendererOptions& renderOptions)
 {
-	commandList->enqueueDeferredDealloc(finalColorRTV.release(), true);
+	commandList->enqueueDeferredDealloc(finalRenderTargetRTV.release(), true);
 
 	if (renderOptions.renderToBackbuffer())
 	{
@@ -1567,7 +1567,7 @@ void SceneRenderer::createFinalColorRTV(RenderCommandList* commandList, const Re
 	}
 	Texture* texture = renderOptions.finalRenderTarget;
 
-	finalColorRTV = UniquePtr<RenderTargetView>(device->createRTV(texture,
+	finalRenderTargetRTV = UniquePtr<RenderTargetView>(device->createRTV(texture,
 		RenderTargetViewDesc{
 			.format            = texture->getCreateParams().format,
 			.viewDimension     = ERTVDimension::Texture2D,
