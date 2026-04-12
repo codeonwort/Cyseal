@@ -73,7 +73,7 @@ bool TestApplication::onInitialize()
 		.rendererType = RENDERER_TYPE,
 	};
 	cysealEngine.startup(engineInit);
-	cysealEngine.setRenderResolution(getWindowWidth(), getWindowHeight());
+	cysealEngine.setRenderAndDisplayResolution(getWindowWidth(), getWindowHeight());
 
 	// May overwritten by world.
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
@@ -184,7 +184,7 @@ void TestApplication::onTick(float deltaSeconds)
 
 		if (bViewportNeedsResize)
 		{
-			cysealEngine.setRenderResolution(newViewportWidth, newViewportHeight);
+			cysealEngine.setRenderAndDisplayResolution(newViewportWidth, newViewportHeight);
 			bViewportNeedsResize = false;
 		}
 

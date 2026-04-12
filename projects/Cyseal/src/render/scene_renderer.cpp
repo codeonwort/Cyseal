@@ -745,6 +745,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
 	}
 
+	// #wip: If render resolution and final target resolution are different, scale the result to the final target.
+
 	// Set final render target.
 	{
 		SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);

@@ -49,7 +49,7 @@ void D3DSwapChain::initialize(
 		.SampleDesc  = {1, 0},
 		.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
 		.BufferCount = SWAP_CHAIN_BUFFER_COUNT,
-		.Scaling     = DXGI_SCALING_STRETCH,
+		.Scaling     = DXGI_SCALING_STRETCH, // #todo-swapchain: Scaling method
 		.SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD,
 		.AlphaMode   = DXGI_ALPHA_MODE_UNSPECIFIED,
 		.Flags       = 0,
@@ -104,7 +104,7 @@ void D3DSwapChain::resize(uint32 newWidth, uint32 newHeight)
 		SWAP_CHAIN_BUFFER_COUNT,
 		newWidth, newHeight,
 		into_d3d::pixelFormat(backbufferFormat),
-		0 /*DXGI_SWAP_CHAIN_FLAG*/);
+		(DXGI_SWAP_CHAIN_FLAG)0);
 
 	createSwapchainImages();
 }

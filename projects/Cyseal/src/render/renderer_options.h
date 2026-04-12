@@ -191,25 +191,30 @@ inline const char** getPathTracingKernelNames()
 
 struct RendererOptions
 {
-	EIndirectDrawMode indirectDrawMode = EIndirectDrawMode::PopulateOnGPU;
-	bool bEnableGPUCulling = true;
+	// Indirect draw
+	EIndirectDrawMode         indirectDrawMode = EIndirectDrawMode::PopulateOnGPU;
+	bool                      bEnableGPUCulling = true;
 
-	bool bEnableDepthPrepass = true;
-	bool bEnableVisibilityBuffer = true;
+	// Depth and visibility pass
+	bool                      bEnableDepthPrepass = true;
+	bool                      bEnableVisibilityBuffer = true;
 
-	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
+	// Debug visualization
+	EBufferVisualizationMode  bufferVisualization = EBufferVisualizationMode::None;
 
-	ERayTracedShadowsMode rayTracedShadows = ERayTracedShadowsMode::Disabled;
-	EIndirectDiffuseMode indirectDiffuse = EIndirectDiffuseMode::Disabled;
-	EIndirectSpecularMode indirectSpecular = EIndirectSpecularMode::ForceMirror;
+	// Ray tracing
+	ERayTracedShadowsMode     rayTracedShadows = ERayTracedShadowsMode::Disabled;
+	EIndirectDiffuseMode      indirectDiffuse = EIndirectDiffuseMode::Disabled;
+	EIndirectSpecularMode     indirectSpecular = EIndirectSpecularMode::ForceMirror;
 
-	EPathTracingMode pathTracing = EPathTracingMode::Disabled;
-	bool bCameraHasMoved = false;
+	// Path tracing
+	EPathTracingMode          pathTracing = EPathTracingMode::Disabled;
+	bool                      bCameraHasMoved = false;
 	EPathTracingDenoiserState pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
-	EPathTracingKernel pathTracingKernel = EPathTracingKernel::MegaKernel;
+	EPathTracingKernel        pathTracingKernel = EPathTracingKernel::MegaKernel;
 
-	// If specified, render the result to it. If null, render to backbuffer.
-	class Texture* finalRenderTarget = nullptr;
+	// Render target
+	class Texture*            finalRenderTarget = nullptr; // If specified, render the result to it. If null, render to backbuffer.
 
 	inline bool anyRayTracingEnabled() const
 	{
