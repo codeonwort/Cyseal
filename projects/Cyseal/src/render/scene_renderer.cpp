@@ -1422,6 +1422,37 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			},
 		}
 	));
+
+	cleanup(RT_finalSceneColor.release());
+	RT_finalSceneColor = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_finalSceneColor,
+			ETextureAccessFlags::RTV,
+			sceneWidth, sceneHeight, 1, 1, 0)));
+	RT_finalSceneColor->setDebugName(L"RT_FinalSceneColor");
+
+	finalSceneColorSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_finalSceneColor.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_finalSceneColor->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_finalSceneColor->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	finalSceneColorRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_finalSceneColor.get(),
+		RenderTargetViewDesc{
+			.format            = RT_finalSceneColor->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
+		}
+	));
 }
 
 void SceneRenderer::resetCommandList(RenderCommandAllocator* commandAllocator, RenderCommandList* commandList)

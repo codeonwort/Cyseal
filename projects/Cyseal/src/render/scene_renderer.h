@@ -138,6 +138,10 @@ private:
 	UniquePtr<ShaderResourceView>          grey2DSRV; // SRV for fallback texture
 	UniquePtr<ShaderResourceView>          skyboxSRV;
 
+	UniquePtr<Texture>                     RT_finalSceneColor; // This will be blitted to final target.
+	UniquePtr<ShaderResourceView>          finalSceneColorSRV;
+	UniquePtr<RenderTargetView>            finalSceneColorRTV;
+
 	UniquePtr<RenderTargetView>            finalRenderTargetRTV; // Created if final target is not swapchain image.
 
 	// ------------------------------------------------------------------------
