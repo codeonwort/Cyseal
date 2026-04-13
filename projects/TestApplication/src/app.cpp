@@ -75,6 +75,9 @@ bool TestApplication::onInitialize()
 	cysealEngine.startup(engineInit);
 	cysealEngine.setRenderAndDisplayResolution(getWindowWidth(), getWindowHeight());
 
+	newViewportWidth = getWindowWidth();
+	newViewportHeight = getWindowHeight();
+
 	// May overwritten by world.
 	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
@@ -184,7 +187,9 @@ void TestApplication::onTick(float deltaSeconds)
 
 		if (bViewportNeedsResize)
 		{
-			cysealEngine.setRenderAndDisplayResolution(newViewportWidth, newViewportHeight);
+			float k = (float)appState.renderScale / 100.0f;
+			cysealEngine.setDisplayResolution(newViewportWidth, newViewportHeight);
+			cysealEngine.setRenderResolution((uint32)(k * (float)newViewportWidth), (uint32)(k * (float)newViewportHeight));
 			bViewportNeedsResize = false;
 		}
 
@@ -193,6 +198,11 @@ void TestApplication::onTick(float deltaSeconds)
 			//ImGui::ShowDemoWindow(0);
 
 			ImGui::Begin("Cyseal");
+
+			ImGui::SeparatorText("Render Scale");
+			int32 oldRenderScale = appState.renderScale;
+			ImGui::SliderInt("Render Resolution", &appState.renderScale, 25, 200, "%d percent", ImGuiSliderFlags_AlwaysClamp);
+			bViewportNeedsResize = oldRenderScale != appState.renderScale;
 
 			ImGui::SeparatorText("Indirect Draw");
 			if (ImGui::BeginTable("##Indirect Draw", 2))
