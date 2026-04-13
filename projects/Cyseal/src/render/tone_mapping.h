@@ -35,9 +35,6 @@ private:
 	GraphicsPipelineState* getPipelineState(Texture* renderTarget) const;
 
 private:
-	RenderDevice*                            device = nullptr;
-
-	int32                                    rtvIndexForSwapChain = -1;
 	std::vector<EPixelFormat>                rtvFormats;
 	BufferedUniquePtr<GraphicsPipelineState> pipelineStates;
 

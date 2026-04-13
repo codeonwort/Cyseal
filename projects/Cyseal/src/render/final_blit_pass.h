@@ -13,8 +13,6 @@ class ShaderResourceView;
 struct FinalBlitPassInput
 {
 	Texture*            renderTarget; // If null we're rendering to backbuffer.
-	Viewport            viewport;
-	ScissorRect         scissorRect;
 	ShaderResourceView* finalSceneColorSRV;
 };
 

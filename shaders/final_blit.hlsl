@@ -14,19 +14,19 @@ SamplerState                 sourceTextureSampler;
 
 struct Interpolants
 {
-    float4 posH : SV_POSITION;
-    float2 uv : TEXCOORD0;
+	float4 posH : SV_POSITION;
+	float2 uv : TEXCOORD0;
 };
 
 Interpolants mainVS(uint vertexID: SV_VertexID)
 {
-    Interpolants output;
+	Interpolants output;
 
-    output.uv = float2((vertexID << 1) & 2, vertexID & 2);
-    output.uv.y = 1.0 - output.uv.y;
-    output.posH = float4(output.uv * 2.0 + -1.0, 0.0, 1.0);
+	output.uv = float2((vertexID << 1) & 2, vertexID & 2);
+	output.uv.y = 1.0 - output.uv.y;
+	output.posH = float4(output.uv * 2.0 + -1.0, 0.0, 1.0);
 
-    return output;
+	return output;
 }
 
 // ------------------------------------------------------------------------
@@ -34,9 +34,9 @@ Interpolants mainVS(uint vertexID: SV_VertexID)
 
 float4 mainPS(Interpolants interpolants) : SV_TARGET
 {
-    float2 screenUV = interpolants.uv;
-    screenUV.y = 1.0 - screenUV.y;
+	float2 screenUV = interpolants.uv;
+	screenUV.y = 1.0 - screenUV.y;
 
 	float4 color = sourceTexture.SampleLevel(sourceTextureSampler, screenUV, 0);
-    return color;
+	return color;
 }

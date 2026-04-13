@@ -92,8 +92,9 @@ void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, uint32 swapc
 	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
 
-	commandList->rsSetViewport(passInput.viewport);
-	commandList->rsSetScissorRect(passInput.scissorRect);
+	// Assumes set by caller.
+	//commandList->rsSetViewport(passInput.viewport);
+	//commandList->rsSetScissorRect(passInput.scissorRect);
 
 	commandList->setGraphicsPipelineState(pipelineState);
 	commandList->bindGraphicsShaderParameters(pipelineState, &SPT, volatileHeap);

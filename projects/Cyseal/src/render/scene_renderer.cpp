@@ -182,21 +182,27 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	createFinalBlitRTV(commandList, renderOptions);
 
-	TextureKind*      finalBlitTarget = renderOptions.finalRenderTarget;
-	RenderTargetView* finalBlitRTV    = finalRenderTargetRTV.get();
 	uint32            sceneWidth      = 0;
 	uint32            sceneHeight     = 0;
+	TextureKind*      finalBlitTarget = renderOptions.finalRenderTarget;
+	RenderTargetView* finalBlitRTV    = finalRenderTargetRTV.get();
+	uint32            finalBlitWidth  = 0;
+	uint32            finalBlitHeight = 0;
 	if (bRenderToBackbuffer)
 	{
-		sceneWidth         = swapChain->getBackbufferWidth();
+		sceneWidth         = swapChain->getBackbufferWidth(); // #wip: Use render resolution
 		sceneHeight        = swapChain->getBackbufferHeight();
 		finalBlitTarget    = swapchainBuffer;
 		finalBlitRTV       = swapchainBufferRTV;
+		finalBlitWidth     = swapChain->getBackbufferWidth();
+		finalBlitHeight    = swapChain->getBackbufferHeight();
 	}
 	else
 	{
 		sceneWidth         = renderOptions.finalRenderTarget->getCreateParams().width;
 		sceneHeight        = renderOptions.finalRenderTarget->getCreateParams().height;
+		finalBlitWidth     = renderOptions.finalRenderTarget->getCreateParams().width;
+		finalBlitHeight    = renderOptions.finalRenderTarget->getCreateParams().height;
 	}
 
 	const bool bRenderDepthPrepass = renderOptions.bEnableDepthPrepass;
@@ -748,19 +754,17 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
 	}
 
-	// #wip: Render to final color instead.
-
-	// Set final render target.
+	// Set final color as render target.
 	{
-		SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
+		SCOPED_DRAW_EVENT(commandList, SetFinalColorAsRenderTarget);
 
 		TextureBarrierAuto barrier{
 			EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
-			finalBlitTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			RT_finalSceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
 		};
 		commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
 
-		commandList->omSetRenderTarget(finalBlitRTV, nullptr);
+		commandList->omSetRenderTarget(finalSceneColorRTV.get(), nullptr);
 	}
 
 	// Tone mapping
@@ -794,7 +798,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
 		ToneMappingInput passInput{
-			.renderTarget        = renderOptions.finalRenderTarget,
+			.renderTarget        = RT_finalSceneColor.get(),
 			.viewport            = fullscreenViewport,
 			.scissorRect         = fullscreenScissorRect,
 			.sceneUniformCBV     = sceneUniformCBV,
@@ -862,7 +866,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 		BufferVisualizationInput sources{
-			.renderTarget        = renderOptions.finalRenderTarget,
+			.renderTarget        = RT_finalSceneColor.get(),
 			.mode                = renderOptions.bufferVisualization,
 			.textureWidth        = sceneWidth,
 			.textureHeight       = sceneHeight,
@@ -903,11 +907,58 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		storeHistoryPass->copyCurrentToPrev(commandList, swapchainIndex);
 	}
 
-	//////////////////////////////////////////////////////////////////////////
+	// -----------------------------------------------------------------------
+	// Internal rendering is done. Prepare to blit to the final render target.
+
+	// Set final render target.
+	{
+		SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
+
+		const Viewport finalBlitViewport{
+			.topLeftX = 0,
+			.topLeftY = 0,
+			.width    = static_cast<float>(finalBlitWidth),
+			.height   = static_cast<float>(finalBlitHeight),
+			.minDepth = 0.0f,
+			.maxDepth = 1.0f,
+		};
+		const ScissorRect finalBlitScissorRect{
+			.left   = 0,
+			.top    = 0,
+			.right  = finalBlitWidth,
+			.bottom = finalBlitHeight,
+		};
+		commandList->rsSetViewport(finalBlitViewport);
+		commandList->rsSetScissorRect(finalBlitScissorRect);
+
+		TextureBarrierAuto barrier{
+			EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+			finalBlitTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+		};
+		commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
+
+		commandList->omSetRenderTarget(finalBlitRTV, nullptr);
+	}
+
+	{
+		SCOPED_DRAW_EVENT(commandList, FinalBlit);
+
+		TextureBarrierAuto textureBarriers[] = {
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_finalSceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+		FinalBlitPassInput passInput{
+			.renderTarget       = renderOptions.finalRenderTarget,
+			.finalSceneColorSRV = finalSceneColorSRV.get(),
+		};
+		finalBlitPass->renderFinalBlit(commandList, swapchainIndex, passInput);
+	}
+
 	// Dear Imgui: Record commands
-
-	// #wip: Switch to final render target and consider render/display resolutions.
-
 	if (device->isHeadless() == false)
 	{
 		SCOPED_DRAW_EVENT(commandList, DearImgui);
