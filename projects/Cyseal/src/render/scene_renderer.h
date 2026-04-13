@@ -39,6 +39,11 @@ public:
 	virtual void destroy() override;
 	virtual void render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions) override;
 
+	/// <summary>
+	/// Recreate internal render targets for the target render resolution.
+	/// </summary>
+	/// <param name="sceneWidth">Width of new render resolution.</param>
+	/// <param name="sceneHeight">Height of new render resolution.</param>
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) override;
 	
 private:
@@ -64,6 +69,9 @@ private:
 
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.
+	uint32                                 renderResolutionX = 0;
+	uint32                                 renderResolutionY = 0;
+
 	UniquePtr<Texture>                     RT_visibilityBuffer;
 	UniquePtr<ShaderResourceView>          visibilityBufferSRV;
 	UniquePtr<RenderTargetView>            visibilityBufferRTV;

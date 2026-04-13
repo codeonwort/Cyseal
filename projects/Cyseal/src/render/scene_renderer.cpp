@@ -182,16 +182,16 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	createFinalBlitRTV(commandList, renderOptions);
 
-	uint32            sceneWidth      = 0;
-	uint32            sceneHeight     = 0;
+	// #wip: Parameterize resolution scale.
+	const uint32      sceneWidth      = renderResolutionX;
+	const uint32      sceneHeight     = renderResolutionY;
+
 	TextureKind*      finalBlitTarget = renderOptions.finalRenderTarget;
 	RenderTargetView* finalBlitRTV    = finalRenderTargetRTV.get();
 	uint32            finalBlitWidth  = 0;
 	uint32            finalBlitHeight = 0;
 	if (bRenderToBackbuffer)
 	{
-		sceneWidth         = swapChain->getBackbufferWidth(); // #wip: Use render resolution
-		sceneHeight        = swapChain->getBackbufferHeight();
 		finalBlitTarget    = swapchainBuffer;
 		finalBlitRTV       = swapchainBufferRTV;
 		finalBlitWidth     = swapChain->getBackbufferWidth();
@@ -199,8 +199,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 	else
 	{
-		sceneWidth         = renderOptions.finalRenderTarget->getCreateParams().width;
-		sceneHeight        = renderOptions.finalRenderTarget->getCreateParams().height;
 		finalBlitWidth     = renderOptions.finalRenderTarget->getCreateParams().width;
 		finalBlitHeight    = renderOptions.finalRenderTarget->getCreateParams().height;
 	}
@@ -1004,6 +1002,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 {
+	renderResolutionX = sceneWidth;
+	renderResolutionY = sceneHeight;
+
 	device->getDenoiserDevice()->recreateResources(sceneWidth, sceneHeight);
 
 	auto& cleanupList = this->deferredCleanupList;
