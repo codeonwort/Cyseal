@@ -1,5 +1,8 @@
 #pragma once
 
+#include "core/int_types.h"
+#include "core/clamped_numeric.h"
+
 enum class ERendererType
 {
 	Standard,
@@ -215,6 +218,7 @@ struct RendererOptions
 
 	// Render target
 	class Texture*            finalRenderTarget = nullptr; // If specified, render the result to it. If null, render to backbuffer.
+	Clamped<uint32>           resolutionScale{ 100, 25, 100 }; // Without resizing internal render targets, control the scale of render resolution.
 
 	inline bool anyRayTracingEnabled() const
 	{

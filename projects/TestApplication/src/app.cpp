@@ -187,7 +187,7 @@ void TestApplication::onTick(float deltaSeconds)
 
 		if (bViewportNeedsResize)
 		{
-			float k = (float)appState.renderScale / 100.0f;
+			float k = (float)appState.displayScale / 100.0f;
 			cysealEngine.setDisplayResolution(newViewportWidth, newViewportHeight);
 			cysealEngine.setRenderResolution((uint32)(k * (float)newViewportWidth), (uint32)(k * (float)newViewportHeight));
 			bViewportNeedsResize = false;
@@ -199,10 +199,12 @@ void TestApplication::onTick(float deltaSeconds)
 
 			ImGui::Begin("Cyseal");
 
-			ImGui::SeparatorText("Render Scale");
-			int32 oldRenderScale = appState.renderScale;
-			ImGui::SliderInt("Render Resolution", &appState.renderScale, 25, 200, "%d percent", ImGuiSliderFlags_AlwaysClamp);
-			bViewportNeedsResize = oldRenderScale != appState.renderScale;
+			ImGui::SeparatorText("Resolution");
+			int32 oldDisplayScale = appState.displayScale;
+			ImGui::SliderInt("Display Scale", &appState.displayScale, 25, 200, "%d percent", ImGuiSliderFlags_AlwaysClamp);
+			bViewportNeedsResize = oldDisplayScale != appState.displayScale;
+			ImGui::SliderInt("Render Scale", &appState.renderResolutionScale, 25, 100, "%d percent", ImGuiSliderFlags_AlwaysClamp);
+			appState.rendererOptions.resolutionScale = appState.renderResolutionScale;
 
 			ImGui::SeparatorText("Indirect Draw");
 			if (ImGui::BeginTable("##Indirect Draw", 2))

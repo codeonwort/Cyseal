@@ -182,9 +182,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	createFinalBlitRTV(commandList, renderOptions);
 
-	// #wip: Parameterize resolution scale.
-	const uint32      sceneWidth      = renderResolutionX;
-	const uint32      sceneHeight     = renderResolutionY;
+	// #wip: Correctly use sceneWidth/Height in every render pass.
+	const uint32      unscaledRenderWidth  = renderResolutionX;
+	const uint32      unscaledRenderHeight = renderResolutionY;
+	const uint32      sceneWidth           = (renderOptions.resolutionScale == 100) ? unscaledRenderWidth : (uint32)(0.01f * (float)(renderOptions.resolutionScale * unscaledRenderWidth));
+	const uint32      sceneHeight          = (renderOptions.resolutionScale == 100) ? unscaledRenderHeight : (uint32)(0.01f * (float)(renderOptions.resolutionScale * unscaledRenderHeight));
 
 	TextureKind*      finalBlitTarget = renderOptions.finalRenderTarget;
 	RenderTargetView* finalBlitRTV    = finalRenderTargetRTV.get();
