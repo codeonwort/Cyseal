@@ -183,6 +183,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	createFinalBlitRTV(commandList, renderOptions);
 
 	// #wip: Correctly use sceneWidth/Height in every render pass.
+	// raytracing & pathtracing seems broken
 	const uint32      unscaledRenderWidth  = renderResolutionX;
 	const uint32      unscaledRenderHeight = renderResolutionY;
 	const uint32      sceneWidth           = (renderOptions.resolutionScale == 100) ? unscaledRenderWidth : (uint32)(0.01f * (float)(renderOptions.resolutionScale * unscaledRenderWidth));
@@ -870,6 +871,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.mode                = renderOptions.bufferVisualization,
 			.textureWidth        = sceneWidth,
 			.textureHeight       = sceneHeight,
+			.sceneUniformCBV     = sceneUniformCBV,
 			.gbuffer0SRV         = gbufferSRVs[0].get(),
 			.gbuffer1SRV         = gbufferSRVs[1].get(),
 			.sceneColorSRV       = sceneColorSRV.get(),
@@ -886,6 +888,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
 	}
 
+	// #wip: Cope with render resolution changes.
 	// Store history pass (step 2)
 	{
 		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Prev);
@@ -952,6 +955,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 		FinalBlitPassInput passInput{
+			.sceneUniformCBV    = sceneUniformCBV,
 			.renderTarget       = renderOptions.finalRenderTarget,
 			.finalSceneColorSRV = finalSceneColorSRV.get(),
 		};
@@ -1539,25 +1543,29 @@ void SceneRenderer::updateSceneUniform(
 	uint32 sceneWidth,
 	uint32 sceneHeight)
 {
-	sceneUniformData.viewMatrix            = camera->getViewMatrix();
-	sceneUniformData.projMatrix            = camera->getProjMatrix();
-	sceneUniformData.viewProjMatrix        = camera->getViewProjMatrix();
+	sceneUniformData.viewMatrix                    = camera->getViewMatrix();
+	sceneUniformData.projMatrix                    = camera->getProjMatrix();
+	sceneUniformData.viewProjMatrix                = camera->getViewProjMatrix();
 
-	sceneUniformData.viewInvMatrix         = camera->getViewInvMatrix();
-	sceneUniformData.projInvMatrix         = camera->getProjInvMatrix();
-	sceneUniformData.viewProjInvMatrix     = camera->getViewProjInvMatrix();
+	sceneUniformData.viewInvMatrix                 = camera->getViewInvMatrix();
+	sceneUniformData.projInvMatrix                 = camera->getProjInvMatrix();
+	sceneUniformData.viewProjInvMatrix             = camera->getViewProjInvMatrix();
 
-	sceneUniformData.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix;
-	sceneUniformData.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix;
+	sceneUniformData.prevViewProjMatrix            = prevSceneUniformData.viewProjMatrix;
+	sceneUniformData.prevViewProjInvMatrix         = prevSceneUniformData.viewProjInvMatrix;
 
-	sceneUniformData.screenResolution[0]   = (float)sceneWidth;
-	sceneUniformData.screenResolution[1]   = (float)sceneHeight;
-	sceneUniformData.screenResolution[2]   = 1.0f / (float)sceneWidth;
-	sceneUniformData.screenResolution[3]   = 1.0f / (float)sceneHeight;
-	sceneUniformData.cameraFrustum         = camera->getFrustum();
-	sceneUniformData.cameraPosition        = camera->getPosition();
-	sceneUniformData.sunDirection          = scene->sun.direction;
-	sceneUniformData.sunIlluminance        = scene->sun.illuminance;
+	sceneUniformData.unscaledScreenResolution[0]   = (float)renderResolutionX;
+	sceneUniformData.unscaledScreenResolution[1]   = (float)renderResolutionY;
+	sceneUniformData.unscaledScreenResolution[2]   = 1.0f / (float)renderResolutionX;
+	sceneUniformData.unscaledScreenResolution[3]   = 1.0f / (float)renderResolutionY;
+	sceneUniformData.screenResolution[0]           = (float)sceneWidth;
+	sceneUniformData.screenResolution[1]           = (float)sceneHeight;
+	sceneUniformData.screenResolution[2]           = 1.0f / (float)sceneWidth;
+	sceneUniformData.screenResolution[3]           = 1.0f / (float)sceneHeight;
+	sceneUniformData.cameraFrustum                 = camera->getFrustum();
+	sceneUniformData.cameraPosition                = camera->getPosition();
+	sceneUniformData.sunDirection                  = scene->sun.direction;
+	sceneUniformData.sunIlluminance                = scene->sun.illuminance;
 	
 	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &sceneUniformData, sizeof(sceneUniformData));
 

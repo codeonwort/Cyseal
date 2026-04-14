@@ -30,21 +30,23 @@ struct PushConstants
 };
 
 [[vk::push_constant]]
-ConstantBuffer<PushConstants> pushConstants : register(b0, space0);
+ConstantBuffer<PushConstants> pushConstants    : register(b0, space0);
 
-Texture2D<GBUFFER0_DATATYPE> gbuffer0       : register(t0, space0);
-Texture2D<GBUFFER1_DATATYPE> gbuffer1       : register(t1, space0);
-Texture2D sceneColor                        : register(t2, space0);
-Texture2D shadowMask                        : register(t3, space0);
-Texture2D indirectDiffuse                   : register(t4, space0);
-Texture2D indirectSpecular                  : register(t5, space0);
-Texture2D velocityMap                       : register(t6, space0);
-Texture2D<uint> visibilityBuffer            : register(t7, space0);
-Texture2D barycentricCoord                  : register(t8, space0);
-Texture2D<GBUFFER0_DATATYPE> visGBuffer0    : register(t9, space0);
-Texture2D<GBUFFER1_DATATYPE> visGBuffer1    : register(t10, space0);
+ConstantBuffer<SceneUniform>  sceneUniform;
 
-SamplerState textureSampler                 : register(s0, space0);
+Texture2D<GBUFFER0_DATATYPE>  gbuffer0         : register(t0, space0);
+Texture2D<GBUFFER1_DATATYPE>  gbuffer1         : register(t1, space0);
+Texture2D                     sceneColor       : register(t2, space0);
+Texture2D                     shadowMask       : register(t3, space0);
+Texture2D                     indirectDiffuse  : register(t4, space0);
+Texture2D                     indirectSpecular : register(t5, space0);
+Texture2D                     velocityMap      : register(t6, space0);
+Texture2D<uint>               visibilityBuffer : register(t7, space0);
+Texture2D                     barycentricCoord : register(t8, space0);
+Texture2D<GBUFFER0_DATATYPE>  visGBuffer0      : register(t9, space0);
+Texture2D<GBUFFER1_DATATYPE>  visGBuffer1      : register(t10, space0);
+
+SamplerState                  textureSampler   : register(s0, space0);
 
 // ------------------------------------------------------------------------
 // Vertex shader
@@ -79,8 +81,10 @@ float3 materialIdToRandomColor(uint id)
 
 float4 mainPS(Interpolants interpolants) : SV_TARGET
 {
-	float2 screenUV = interpolants.uv;
-	screenUV.y = 1.0 - screenUV.y;
+	float2 fullscreenUV = interpolants.uv;
+	fullscreenUV.y = 1.0 - fullscreenUV.y;
+	
+	float2 scaledUV = fullscreenUV * sceneUniform.screenResolution.xy * sceneUniform.unscaledScreenResolution.zw;
 
 	uint modeEnum = pushConstants.modeEnum;
 	float4 color = float4(0.0, 0.0, 0.0, 1.0);
@@ -119,28 +123,28 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	}
 	else if (modeEnum == MODE_DIRECT_LIGHTING)
 	{
-		color.rgb = sceneColor.SampleLevel(textureSampler, screenUV, 0.0).rgb;
+		color.rgb = sceneColor.SampleLevel(textureSampler, scaledUV, 0.0).rgb;
 	}
 	else if (modeEnum == MODE_RAY_TRACED_SHADOWS)
 	{
-		color.rgb = shadowMask.SampleLevel(textureSampler, screenUV, 0.0).rrr;
+		color.rgb = shadowMask.SampleLevel(textureSampler, scaledUV, 0.0).rrr;
 	}
 	else if (modeEnum == MODE_INDIRECT_DIFFUSE)
 	{
-		color.rgb = indirectDiffuse.SampleLevel(textureSampler, screenUV, 0.0).rgb;
+		color.rgb = indirectDiffuse.SampleLevel(textureSampler, scaledUV, 0.0).rgb;
 	}
 	else if (modeEnum == MODE_INDIRECT_SPECULAR)
 	{
-		color.rgb = indirectSpecular.SampleLevel(textureSampler, screenUV, 0.0).rgb;
+		color.rgb = indirectSpecular.SampleLevel(textureSampler, scaledUV, 0.0).rgb;
 	}
 	else if (modeEnum == MODE_VELOCITY_MAP)
 	{
-		float2 vel = velocityMap.SampleLevel(textureSampler, screenUV, 0.0).rg;
+		float2 vel = velocityMap.SampleLevel(textureSampler, scaledUV, 0.0).rg;
 		color.rg = 50.0 * abs(vel);
 	}
 	else if (modeEnum == MODE_VISIBILITY_BUFFER)
 	{
-		int2 coord = int2(screenUV * float2(pushConstants.width, pushConstants.height));
+		int2 coord = int2(fullscreenUV * float2(pushConstants.width, pushConstants.height));
 		uint visPacked = visibilityBuffer.Load(int3(coord, 0)).r;
 		VisibilityBufferData vdata = decodeVisibilityBuffer(visPacked);
 		// My no brainer hash function

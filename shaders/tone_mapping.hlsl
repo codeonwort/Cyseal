@@ -84,6 +84,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 {
     float2 screenUV = interpolants.uv;
     screenUV.y = 1.0 - screenUV.y;
+	screenUV *= sceneUniform.screenResolution.xy * sceneUniform.unscaledScreenResolution.zw;
 
     float deviceZ = sceneDepth.SampleLevel(sceneColorSampler, screenUV, 0).r;
     float4 positionCS = getPositionCS(screenUV, deviceZ);

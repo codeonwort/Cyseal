@@ -16,6 +16,8 @@
 	#error Not supported yet
 #endif
 
+// #wip: Fails to initialize DenoiserDevice?
+
 DEFINE_LOG_CATEGORY_STATIC(LogDenoiserDevice);
 
 static std::wstring getOIDNDeviceTypeString(OIDNDeviceType type)

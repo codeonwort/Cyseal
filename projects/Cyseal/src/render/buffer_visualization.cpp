@@ -81,6 +81,7 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 
 	ShaderParameterTable SPT{};
 	SPT.pushConstants("pushConstants", { (uint32)passInput.mode, passInput.textureWidth, passInput.textureHeight });
+	SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 	SPT.texture("gbuffer0", passInput.gbuffer0SRV);
 	SPT.texture("gbuffer1", passInput.gbuffer1SRV);
 	SPT.texture("sceneColor", passInput.sceneColorSRV);

@@ -12,6 +12,7 @@ class ShaderResourceView;
 
 struct FinalBlitPassInput
 {
+	ConstantBufferView* sceneUniformCBV;
 	Texture*            renderTarget; // If null we're rendering to backbuffer.
 	ShaderResourceView* finalSceneColorSRV;
 };

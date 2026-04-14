@@ -19,6 +19,7 @@ struct SceneUniform
 	Float4x4      prevViewProjMatrix;
 	Float4x4      prevViewProjInvMatrix;
 
+	float         unscaledScreenResolution[4]; // (w, h, 1/w, 1/h)
 	float         screenResolution[4]; // (w, h, 1/w, 1/h)
 	CameraFrustum cameraFrustum;
 	vec3          cameraPosition; float _pad0;

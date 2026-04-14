@@ -17,6 +17,7 @@ struct BufferVisualizationInput
 	EBufferVisualizationMode mode                = EBufferVisualizationMode::None;
 	uint32                   textureWidth        = 0;
 	uint32                   textureHeight       = 0;
+	ConstantBufferView*      sceneUniformCBV     = nullptr;
 	ShaderResourceView*      gbuffer0SRV         = nullptr;
 	ShaderResourceView*      gbuffer1SRV         = nullptr;
 	ShaderResourceView*      sceneColorSRV       = nullptr;

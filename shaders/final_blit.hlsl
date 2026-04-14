@@ -36,7 +36,10 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 {
 	float2 screenUV = interpolants.uv;
 	screenUV.y = 1.0 - screenUV.y;
+	
+	float2 uvScale = sceneUniform.screenResolution.xy * sceneUniform.unscaledScreenResolution.zw;
+	float2 sourceUV = screenUV * uvScale;
 
-	float4 color = sourceTexture.SampleLevel(sourceTextureSampler, screenUV, 0);
+	float4 color = sourceTexture.SampleLevel(sourceTextureSampler, sourceUV, 0);
 	return color;
 }
