@@ -15,6 +15,9 @@
 
 #include "util/logging.h"
 
+// #todo-specular: AMD reflection denoiser is even more broken with render resolution scaling.
+// But it didn't work well at 100% scale anyway, so let's revisit later.
+
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
@@ -68,7 +71,6 @@ struct TemporalPassUniform
 	uint32   _pad1;
 };
 
-// #wip: legacy denoiser is fine, AMd denoiser is broken...
 // cbuffer cbDenoiserReflections in ffx_denoiser_reflections_callbacks_hlsl.h
 struct AMDDenoiserUniform
 {
@@ -1098,7 +1100,6 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 		.invProjection           = passInput.invProjection.transpose(),
 		.invView                 = passInput.invView.transpose(),
 		.prevViewProjection      = passInput.prevViewProjection.transpose(),
-		// #wip: Both unscaled and scaled values do not work. Need to read the shader code again :(
 		.renderSize              = { passInput.unscaledRenderWidth, passInput.unscaledRenderHeight },
 		.invRenderSize           = { 1.0f / (float)passInput.unscaledRenderWidth, 1.0f / (float)passInput.unscaledRenderHeight },
 		.motionVectorScale       = { 1.0f, 1.0f },

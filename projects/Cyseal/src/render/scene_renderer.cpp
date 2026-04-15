@@ -891,7 +891,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
 	}
 
-	// #wip: Cope with render resolution changes.
+	// #wip: Need to store 'prev scaled-render resolution' and sample prevSceneDepth with it.
+	// Currently just using 'current scaled-render resolutin' to sample prevSceneDepth :(
 	// Store history pass (step 2)
 	{
 		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Prev);
