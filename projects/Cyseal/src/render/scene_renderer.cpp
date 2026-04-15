@@ -186,8 +186,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	// raytracing & pathtracing seems broken
 	const uint32      unscaledRenderWidth  = renderResolutionX;
 	const uint32      unscaledRenderHeight = renderResolutionY;
-	const uint32      sceneWidth           = (renderOptions.resolutionScale == 100) ? unscaledRenderWidth : (uint32)(0.01f * (float)(renderOptions.resolutionScale * unscaledRenderWidth));
-	const uint32      sceneHeight          = (renderOptions.resolutionScale == 100) ? unscaledRenderHeight : (uint32)(0.01f * (float)(renderOptions.resolutionScale * unscaledRenderHeight));
+	const uint32      resolutionScale      = renderOptions.getResolutionScale();
+	const uint32      sceneWidth           = (resolutionScale == 100) ? unscaledRenderWidth : (uint32)(0.01f * (float)(resolutionScale * unscaledRenderWidth));
+	const uint32      sceneHeight          = (resolutionScale == 100) ? unscaledRenderHeight : (uint32)(0.01f * (float)(resolutionScale * unscaledRenderHeight));
 
 	TextureKind*      finalBlitTarget = renderOptions.finalRenderTarget;
 	RenderTargetView* finalBlitRTV    = finalRenderTargetRTV.get();
@@ -644,7 +645,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				};
 				commandList->barrierAuto(0, nullptr, _countof(barriers2), barriers2, 0, nullptr);
 
-				denoiserPluginPass->executeDenoiser(commandList, RT_pathTracing.get());
+				denoiserPluginPass->executeDenoiser(commandList, sceneWidth, sceneHeight, RT_pathTracing.get());
 			}
 		}
 	}

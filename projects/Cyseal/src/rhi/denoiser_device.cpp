@@ -16,8 +16,6 @@
 	#error Not supported yet
 #endif
 
-// #wip: Fails if render scale is not 100%
-
 DEFINE_LOG_CATEGORY_STATIC(LogDenoiserDevice);
 
 static std::wstring getOIDNDeviceTypeString(OIDNDeviceType type)
@@ -100,10 +98,17 @@ void DenoiserDevice::recreateResources(uint32 imageWidth, uint32 imageHeight)
 	checkNoDeviceError();
 }
 
-bool DenoiserDevice::denoise(void* noisy, void* albedo, void* normal, std::vector<uint8>& outResult)
+bool DenoiserDevice::denoise(void* noisy, void* albedo, void* normal, uint32 inputWidth, uint32 inputHeight, std::vector<uint8>& outResult)
 {
 	if (!isValid())
 	{
+		return false;
+	}
+
+	// Currently does not support render resolution scale.
+	if (width != inputWidth || height != inputHeight)
+	{
+		CYLOG(LogDenoiserDevice, Error, L"Input size (%d, %d) is different than internal resource size (%d, %d).", inputWidth, inputHeight, width, height);
 		return false;
 	}
 

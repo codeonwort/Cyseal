@@ -16,12 +16,17 @@ public:
 	// Resize internal resources, if needed.
 	void recreateResources(uint32 imageWidth, uint32 imageHeight);
 
-	// @param inColor Noisy raytracing result.
-	// @param inAlbedo Clean albedo image.
-	// @param inNormal Clean surface normal image.
-	// @param outResult Raw buffer that contains denoised result.
-	// @return false if unable to denoise.
-	bool denoise(void* inColor, void* inAlbedo, void* inNormal, std::vector<uint8>& outResult);
+	/// <summary>
+	/// Execute denoiser with given input images.
+	/// </summary>
+	/// <param name="inColor">Noisy raytracing result.</param>
+	/// <param name="inAlbedo">Clean albedo image.</param>
+	/// <param name="inNormal">Clean surface normal image.</param>
+	/// <param name="inputWidth">Width of input images.</param>
+	/// <param name="inputHeight">Height of input images.</param>
+	/// <param name="outResult">Raw buffer that contains denoised result</param>
+	/// <returns>false if unable to denoise</returns>
+	bool denoise(void* inColor, void* inAlbedo, void* inNormal, uint32 inputWidth, uint32 inputHeight, std::vector<uint8>& outResult);
 
 	bool isValid() const;
 

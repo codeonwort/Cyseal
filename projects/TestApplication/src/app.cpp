@@ -203,8 +203,17 @@ void TestApplication::onTick(float deltaSeconds)
 			int32 oldDisplayScale = appState.displayScale;
 			ImGui::SliderInt("Display Scale", &appState.displayScale, 25, 200, "%d percent", ImGuiSliderFlags_AlwaysClamp);
 			bViewportNeedsResize = oldDisplayScale != appState.displayScale;
+			if (!appState.rendererOptions.resolutionScaleAvailable())
+			{
+				ImGui::BeginDisabled();
+			}
 			ImGui::SliderInt("Render Scale", &appState.renderResolutionScale, 25, 100, "%d percent", ImGuiSliderFlags_AlwaysClamp);
-			appState.rendererOptions.resolutionScale = appState.renderResolutionScale;
+			appState.rendererOptions.setResolutionScale(appState.renderResolutionScale);
+			if (!appState.rendererOptions.resolutionScaleAvailable())
+			{
+				ImGui::Text("Render Scale is unavailable for path tracing");
+				ImGui::EndDisabled();
+			}
 
 			ImGui::SeparatorText("Indirect Draw");
 			if (ImGui::BeginTable("##Indirect Draw", 2))

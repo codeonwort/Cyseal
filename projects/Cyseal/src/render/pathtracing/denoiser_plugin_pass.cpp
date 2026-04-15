@@ -120,7 +120,7 @@ static void* alignTextureData(void* pData, std::vector<uint8>& alignedData, uint
 	return alignedData.data();
 }
 
-void DenoiserPluginPass::executeDenoiser(RenderCommandList* commandList, Texture* dst)
+void DenoiserPluginPass::executeDenoiser(RenderCommandList* commandList, uint32 dstWidth, uint32 dstHeight, Texture* dst)
 {
 	CHECK(colorReadbackHandle->bAvailable);
 	CHECK(albedoReadbackHandle->bAvailable);
@@ -140,7 +140,7 @@ void DenoiserPluginPass::executeDenoiser(RenderCommandList* commandList, Texture
 	void* pNormalData = tightenTextureData(normalReadbackHandle->readbackData, tightNormalData, tightRowPitch, dstRowPitch, height);
 
 	std::vector<uint8> denoisedBuffer;
-	denoiserDevice->denoise(pColorData, pAlbedoData, pNormalData, denoisedBuffer);
+	denoiserDevice->denoise(pColorData, pAlbedoData, pNormalData, dstWidth, dstHeight, denoisedBuffer);
 
 	// Reset for future readback request.
 	colorReadbackHandle = nullptr;
