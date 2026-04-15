@@ -21,6 +21,8 @@ struct IndirectSpecularInput
 	const SceneProxy*      scene;
 	EIndirectSpecularMode  mode;
 
+	uint32                 unscaledRenderWidth;
+	uint32                 unscaledRenderHeight;
 	uint32                 sceneWidth;
 	uint32                 sceneHeight;
 	Float4x4               invProjection;
@@ -75,7 +77,7 @@ private:
 	void initializeAMDReflectionDenoiser();
 	void initializeAMDFinalizeColor();
 
-	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
+	void resizeTextures(RenderCommandList* commandList, uint32 newUnscaledWidth, uint32 newUnscaledHeight);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
 
 	// classifierPhase requires some resources that are created by raytracingPhase.
@@ -118,8 +120,11 @@ private:
 	UniquePtr<ComputePipelineState>          temporalPipeline;
 	VolatileDescriptorHelper                 temporalPassDescriptor;
 
-	uint32                                   historyWidth = 0;
-	uint32                                   historyHeight = 0;
+	uint32                                   unscaledHistoryWidth = 0;
+	uint32                                   unscaledHistoryHeight = 0;
+	uint32                                   actualHistoryWidth[2];
+	uint32                                   actualHistoryHeight[2];
+
 	TextureSequence                          colorHistory;
 	TextureSequence                          momentHistory;
 	TextureSequence                          sampleCountHistory;

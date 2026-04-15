@@ -182,8 +182,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	createFinalBlitRTV(commandList, renderOptions);
 
-	// #wip: Correctly use sceneWidth/Height in every render pass.
-	// raytracing & pathtracing seems broken
 	const uint32      unscaledRenderWidth  = renderResolutionX;
 	const uint32      unscaledRenderHeight = renderResolutionY;
 	const uint32      resolutionScale      = renderOptions.getResolutionScale();
@@ -720,6 +718,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		IndirectSpecularInput passInput{
 			.scene                   = scene,
 			.mode                    = renderOptions.indirectSpecular,
+			.unscaledRenderWidth     = unscaledRenderWidth,
+			.unscaledRenderHeight    = unscaledRenderHeight,
 			.sceneWidth              = sceneWidth,
 			.sceneHeight             = sceneHeight,
 			.invProjection           = sceneUniformData.projInvMatrix,
