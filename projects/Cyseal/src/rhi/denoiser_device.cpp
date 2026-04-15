@@ -16,7 +16,7 @@
 	#error Not supported yet
 #endif
 
-// #wip: Fails to initialize DenoiserDevice?
+// #wip: Fails if render scale is not 100%
 
 DEFINE_LOG_CATEGORY_STATIC(LogDenoiserDevice);
 
@@ -131,11 +131,7 @@ bool DenoiserDevice::denoise(void* noisy, void* albedo, void* normal, std::vecto
 
 bool DenoiserDevice::isValid() const
 {
-	return oidnDevice != nullptr
-		&& oidnColorBuffer != nullptr
-		&& oidnAlbedoBuffer != nullptr
-		&& oidnNormalBuffer != nullptr
-		&& oidnDenoisedBuffer != nullptr;
+	return oidnDevice != nullptr;
 }
 
 bool DenoiserDevice::checkNoDeviceError()

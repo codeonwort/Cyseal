@@ -82,6 +82,44 @@ void DenoiserPluginPass::blitTextures(RenderCommandList* commandList, uint32 swa
 	normalReadbackHandle = normalTexture->requestReadback(commandList, region);
 }
 
+static void* tightenTextureData(void* pData, std::vector<uint8>& tightData, uint64 tightRowPitch, uint64 alignedRowPitch, uint32 height)
+{
+	if (tightRowPitch == alignedRowPitch) return pData;
+
+	tightData.resize(tightRowPitch * height);
+
+	uint8* pSrc = reinterpret_cast<uint8*>(pData);
+	uint8* pDst = tightData.data();
+
+	for (uint32 y = 0; y < height; ++y)
+	{
+		std::memcpy(pDst, pSrc, tightRowPitch);
+		pSrc += alignedRowPitch;
+		pDst += tightRowPitch;
+	}
+
+	return tightData.data();
+}
+
+static void* alignTextureData(void* pData, std::vector<uint8>& alignedData, uint64 tightRowPitch, uint64 alignedRowPitch, uint32 height)
+{
+	if (tightRowPitch == alignedRowPitch) return pData;
+
+	alignedData.resize(alignedRowPitch * height);
+
+	uint8* pSrc = reinterpret_cast<uint8*>(pData);
+	uint8* pDst = alignedData.data();
+
+	for (uint32 y = 0; y < height; ++y)
+	{
+		std::memcpy(pDst, pSrc, tightRowPitch);
+		pSrc += tightRowPitch;
+		pDst += alignedRowPitch;
+	}
+
+	return alignedData.data();
+}
+
 void DenoiserPluginPass::executeDenoiser(RenderCommandList* commandList, Texture* dst)
 {
 	CHECK(colorReadbackHandle->bAvailable);
@@ -90,19 +128,28 @@ void DenoiserPluginPass::executeDenoiser(RenderCommandList* commandList, Texture
 
 	DenoiserDevice* denoiserDevice = device->getDenoiserDevice();
 
-	std::vector<uint8> denoisedBuffer;
-	denoiserDevice->denoise(colorReadbackHandle->readbackData, albedoReadbackHandle->readbackData, normalReadbackHandle->readbackData, denoisedBuffer);
+	const uint32 width = denoisedTexture->getCreateParams().width;
+	const uint32 height = denoisedTexture->getCreateParams().height;
+	const uint64 dstRowPitch = denoisedTexture->getRowPitch();
+	const uint64 dstSlicePitch = dstRowPitch * height;
+	const uint64 tightRowPitch = 4 * sizeof(float) * width;
 
+	std::vector<uint8> tightColorData, tightAlbedoData, tightNormalData;
+	void* pColorData = tightenTextureData(colorReadbackHandle->readbackData, tightColorData, tightRowPitch, dstRowPitch, height);
+	void* pAlbedoData = tightenTextureData(albedoReadbackHandle->readbackData, tightAlbedoData, tightRowPitch, dstRowPitch, height);
+	void* pNormalData = tightenTextureData(normalReadbackHandle->readbackData, tightNormalData, tightRowPitch, dstRowPitch, height);
+
+	std::vector<uint8> denoisedBuffer;
+	denoiserDevice->denoise(pColorData, pAlbedoData, pNormalData, denoisedBuffer);
+
+	// Reset for future readback request.
 	colorReadbackHandle = nullptr;
 	albedoReadbackHandle = nullptr;
 	normalReadbackHandle = nullptr;
 
-	const uint32 width = denoisedTexture->getCreateParams().width;
-	const uint32 height = denoisedTexture->getCreateParams().height;
-	const uint64 rowPitch = denoisedTexture->getRowPitch();
-	const uint64 slicePitch = rowPitch * height;
-
-	denoisedTexture->uploadData(commandList, denoisedBuffer.data(), rowPitch, slicePitch, 0);
+	std::vector<uint8> alignedDenoisedBuffer;
+	void* pDenoisedData = alignTextureData(denoisedBuffer.data(), alignedDenoisedBuffer, tightRowPitch, dstRowPitch, height);
+	denoisedTexture->uploadData(commandList, pDenoisedData, dstRowPitch, dstSlicePitch, 0);
 
 	TextureBarrierAuto barrier{
 		EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
