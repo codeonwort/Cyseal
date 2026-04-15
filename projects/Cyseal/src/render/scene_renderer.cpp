@@ -674,6 +674,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		IndirectDiffuseInput passInput{
 			.scene                  = scene,
 			.mode                   = renderOptions.indirectDiffuse,
+			.unscaledRenderWidth    = unscaledRenderWidth,
+			.unscaledRenderHeight   = unscaledRenderHeight,
 			.sceneWidth             = sceneWidth,
 			.sceneHeight            = sceneHeight,
 			.gpuScene               = gpuScene,

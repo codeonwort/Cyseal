@@ -16,6 +16,8 @@ struct IndirectDiffuseInput
 	const SceneProxy*          scene;
 	EIndirectDiffuseMode       mode;
 
+	uint32                     unscaledRenderWidth;
+	uint32                     unscaledRenderHeight;
 	uint32                     sceneWidth;
 	uint32                     sceneHeight;
 
@@ -48,7 +50,7 @@ private:
 	void initializeRaytracingPipeline();
 	void initializeTemporalPipeline();
 
-	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
+	void resizeTextures(RenderCommandList* commandList, uint32 newUnscaledWidth, uint32 newUnscaledHeight);
 	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
 
 private:
@@ -67,8 +69,10 @@ private:
 	VolatileDescriptorHelper                 temporalPassDescriptor;
 
 	// Resources
-	uint32                                   historyWidth = 0;
-	uint32                                   historyHeight = 0;
+	uint32                                   unscaledHistoryWidth = 0;
+	uint32                                   unscaledHistoryHeight = 0;
+	uint32                                   actualHistoryWidth[2];
+	uint32                                   actualHistoryHeight[2];
 	UniquePtr<Texture>                       raytracingTexture;
 	UniquePtr<ShaderResourceView>            raytracingSRV;
 	UniquePtr<UnorderedAccessView>           raytracingUAV;

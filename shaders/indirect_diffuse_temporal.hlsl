@@ -6,8 +6,8 @@
 
 struct PassUniform
 {
-	uint2  screenSize;
-	float2 invScreenSize;
+	uint2  prevScreenSize;
+	float2 prevInvScreenSize;
 };
 
 // ---------------------------------------------------------
@@ -40,9 +40,10 @@ struct PrevFrameInfo
 	float2 moments;
 };
 
-float2 getScreenUV(uint2 texel)
+// [0,0] ~ (1,1)
+float2 getUnscaledScreenUV(uint2 texel)
 {
-	return (float2(texel) + float2(0.5, 0.5)) * passUniform.invScreenSize;
+	return (float2(texel) + float2(0.5, 0.5)) * sceneUniform.screenResolution.zw;
 }
 
 float getLuminance(float3 color)
@@ -50,11 +51,12 @@ float getLuminance(float3 color)
 	return dot(color, float3(0.2126, 0.7152, 0.0722));
 }
 
-PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
+PrevFrameInfo getReprojectedInfo(float2 unscaledCurrentScreenUV, float2 currentScreenUV)
 {
 	float2 velocity = velocityMapTexture.SampleLevel(pointSampler, currentScreenUV, 0).rg;
-	float2 screenUV = currentScreenUV - velocity;
-	float4 positionCS = textureUVToClipSpace(screenUV);
+	float2 unscaledScreenUV = unscaledCurrentScreenUV - velocity;
+	float4 positionCS = textureUVToClipSpace(unscaledScreenUV);
+	float2 screenUV = unscaledScreenUV * float2(passUniform.prevScreenSize) * sceneUniform.unscaledScreenResolution.zw;
 	
 	PrevFrameInfo info;
 	if (uvOutOfBounds(screenUV))
@@ -69,7 +71,7 @@ PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
 
 	info.bValid = true;
 	info.positionWS = clipSpaceToWorldSpace(positionCS, sceneUniform.prevViewProjInvMatrix);
-	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
+	info.linearDepth = getLinearDepth(unscaledScreenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
 	info.color = color;
 	info.historyCount = moments.z;
 	info.moments = moments.xy;
@@ -80,17 +82,18 @@ PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
 [numthreads(8, 8, 1)]
 void mainCS(uint3 tid : SV_DispatchThreadID)
 {
-	if (any(tid.xy >= passUniform.screenSize))
+	if (any(tid.xy >= sceneUniform.screenResolution.xy))
 	{
 		return;
 	}
 	
 	uint2 texel = tid.xy;
-	float2 screenUV = getScreenUV(texel);
+	float2 unscaledScreenUV = getUnscaledScreenUV(texel);
+	float2 screenUV = unscaledScreenUV * sceneUniform.screenResolution.xy * sceneUniform.unscaledScreenResolution.zw;
 
 	float sceneDepth = sceneDepthTexture.Load(int3(texel, 0)).r;
-	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth, sceneUniform.viewProjInvMatrix);
-	float linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix);
+	float3 positionWS = getWorldPositionFromSceneDepth(unscaledScreenUV, sceneDepth, sceneUniform.viewProjInvMatrix);
+	float linearDepth = getLinearDepth(unscaledScreenUV, sceneDepth, sceneUniform.projInvMatrix);
 
 	float3 Wo = raytracingTexture.Load(int3(texel, 0)).xyz;
 	float historyCount = 0;
@@ -101,7 +104,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		moments.y = moments.x * moments.x;
 		
 		// Temporal reprojection
-		PrevFrameInfo prevFrame = getReprojectedInfo(screenUV);
+		PrevFrameInfo prevFrame = getReprojectedInfo(unscaledScreenUV, screenUV);
 		bool bTemporalReprojection = false;
 		{
 			float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;

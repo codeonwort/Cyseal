@@ -44,8 +44,8 @@ struct RayPassUniform
 };
 struct TemporalPassUniform
 {
-	uint32    screenSize[2];
-	float     invScreenSize[2];
+	uint32    prevScreenSize[2];
+	float     prevInvScreenSize[2];
 };
 
 // Should match with RayPayload in indirect_diffuse_raytracing.hlsl.
@@ -269,10 +269,13 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 	// -------------------------------------------------------------------
 	// Phase: Setup
 
-	resizeTextures(commandList, sceneWidth, sceneHeight);
+	resizeTextures(commandList, passInput.unscaledRenderWidth, passInput.unscaledRenderHeight);
 
 	const uint32 currFrame = swapchainIndex % 2;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+
+	actualHistoryWidth[currFrame] = passInput.sceneWidth;
+	actualHistoryHeight[currFrame] = passInput.sceneHeight;
 
 	auto currColorTexture = colorHistory.getTexture(currFrame);
 	auto prevColorTexture = colorHistory.getTexture(prevFrame);
@@ -389,10 +392,10 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 	{
 		TemporalPassUniform uboData;
 
-		uboData.screenSize[0] = historyWidth;
-		uboData.screenSize[1] = historyHeight;
-		uboData.invScreenSize[0] = 1.0f / (float)historyWidth;
-		uboData.invScreenSize[1] = 1.0f / (float)historyHeight;
+		uboData.prevScreenSize[0] = actualHistoryWidth[prevFrame];
+		uboData.prevScreenSize[1] = actualHistoryHeight[prevFrame];
+		uboData.prevInvScreenSize[0] = 1.0f / (float)actualHistoryWidth[prevFrame];
+		uboData.prevInvScreenSize[1] = 1.0f / (float)actualHistoryHeight[prevFrame];
 
 		auto uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
@@ -427,8 +430,8 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 	{
 		SCOPED_DRAW_EVENT(commandList, DiffuseTemporalReprojection);
 
-		uint32 dispatchX = (historyWidth + 7) / 8;
-		uint32 dispatchY = (historyHeight + 7) / 8;
+		uint32 dispatchX = (passInput.sceneWidth + 7) / 8;
+		uint32 dispatchY = (passInput.sceneHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 		
 		TextureBarrierAuto textureBarriers[] = {
@@ -484,19 +487,28 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 	passInput.bilateralBlur->renderBilateralBlur(commandList, swapchainIndex, blurPassInput);
 }
 
-void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
+void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 newUnscaledWidth, uint32 newUnscaledHeight)
 {
-	if (historyWidth == newWidth && historyHeight == newHeight)
+	if (unscaledHistoryWidth == newUnscaledWidth && unscaledHistoryHeight == newUnscaledHeight)
 	{
 		return;
 	}
-	historyWidth = newWidth;
-	historyHeight = newHeight;
+	unscaledHistoryWidth = newUnscaledWidth;
+	unscaledHistoryHeight = newUnscaledHeight;
+
+	for (uint32 i = 0; i < _countof(actualHistoryWidth); ++i)
+	{
+		if (actualHistoryWidth[i] == 0 || actualHistoryHeight[i] == 0)
+		{
+			actualHistoryWidth[i] = unscaledHistoryWidth;
+			actualHistoryHeight[i] = unscaledHistoryHeight;
+		}
+	}
 
 	commandList->enqueueDeferredDealloc(raytracingTexture.release(), true);
 
 	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
-		PF_colorHistory, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
+		PF_colorHistory, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, unscaledHistoryWidth, unscaledHistoryHeight);
 	raytracingTexture = UniquePtr<Texture>(device->createTexture(rayTexDesc));
 	raytracingTexture->setDebugName(L"RT_DiffuseRaytracingTexture");
 
@@ -520,8 +532,8 @@ void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 
 		}
 	));
 
-	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
-	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
+	colorHistory.resizeTextures(commandList, unscaledHistoryWidth, unscaledHistoryHeight);
+	momentHistory.resizeTextures(commandList, unscaledHistoryWidth, unscaledHistoryHeight);
 
 	Texture* stbnTexture = gTextureManager->getSTBNVec3Cosine()->getGPUResource().get();
 	stbnSRV = UniquePtr<ShaderResourceView>(device->createSRV(stbnTexture,
