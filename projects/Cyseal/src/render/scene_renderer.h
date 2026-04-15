@@ -20,7 +20,8 @@ struct SceneUniform
 	Float4x4      prevViewProjInvMatrix;
 
 	float         unscaledScreenResolution[4]; // (w, h, 1/w, 1/h)
-	float         screenResolution[4]; // (w, h, 1/w, 1/h)
+	float         screenResolution[4];         // (w, h, 1/w, 1/h)
+	float         prevScreenResolution[4];     // (w, h, 1/w, 1/h)
 	CameraFrustum cameraFrustum;
 	vec3          cameraPosition; float _pad0;
 	vec3          sunDirection;   float _pad1;
@@ -42,6 +43,7 @@ public:
 
 	/// <summary>
 	/// Recreate internal render targets for the target render resolution.
+	/// Do not apply render resolution scale to the arguments.
 	/// </summary>
 	/// <param name="sceneWidth">Width of new render resolution.</param>
 	/// <param name="sceneHeight">Height of new render resolution.</param>
@@ -70,8 +72,16 @@ private:
 
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.
+
+	// Unscaled render resolution. Render targets are created with this size.
+	// The renderer might use only subregions of render targets if render scale is below 100%.
 	uint32                                 renderResolutionX = 0;
 	uint32                                 renderResolutionY = 0;
+
+	// (render resolution) * (render scale) of prev frame.
+	// Used for sampling prev frame render targets. (e.g., RT_prevSceneDepth)
+	uint32                                 prevScaledRenderResolutionX = 0;
+	uint32                                 prevScaledRenderResolutionY = 0;
 
 	UniquePtr<Texture>                     RT_visibilityBuffer;
 	UniquePtr<ShaderResourceView>          visibilityBufferSRV;

@@ -891,8 +891,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
 	}
 
-	// #wip: Need to store 'prev scaled-render resolution' and sample prevSceneDepth with it.
-	// Currently just using 'current scaled-render resolutin' to sample prevSceneDepth :(
 	// Store history pass (step 2)
 	{
 		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Prev);
@@ -966,6 +964,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		finalBlitPass->renderFinalBlit(commandList, swapchainIndex, passInput);
 	}
 
+	prevScaledRenderResolutionX = sceneWidth;
+	prevScaledRenderResolutionY = sceneHeight;
+
 	// Dear Imgui: Record commands
 	if (device->isHeadless() == false)
 	{
@@ -1014,6 +1015,11 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 {
 	renderResolutionX = sceneWidth;
 	renderResolutionY = sceneHeight;
+	if (prevScaledRenderResolutionX == 0 || prevScaledRenderResolutionY == 0)
+	{
+		prevScaledRenderResolutionX = sceneWidth;
+		prevScaledRenderResolutionY = sceneHeight;
+	}
 
 	device->getDenoiserDevice()->recreateResources(sceneWidth, sceneHeight);
 
@@ -1566,6 +1572,10 @@ void SceneRenderer::updateSceneUniform(
 	sceneUniformData.screenResolution[1]           = (float)sceneHeight;
 	sceneUniformData.screenResolution[2]           = 1.0f / (float)sceneWidth;
 	sceneUniformData.screenResolution[3]           = 1.0f / (float)sceneHeight;
+	sceneUniformData.prevScreenResolution[0]       = (float)prevScaledRenderResolutionX;
+	sceneUniformData.prevScreenResolution[1]       = (float)prevScaledRenderResolutionY;
+	sceneUniformData.prevScreenResolution[2]       = 1.0f / (float)prevScaledRenderResolutionX;
+	sceneUniformData.prevScreenResolution[3]       = 1.0f / (float)prevScaledRenderResolutionY;
 	sceneUniformData.cameraFrustum                 = camera->getFrustum();
 	sceneUniformData.cameraPosition                = camera->getPosition();
 	sceneUniformData.sunDirection                  = scene->sun.direction;
