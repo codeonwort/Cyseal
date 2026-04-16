@@ -206,7 +206,8 @@ void D3DTexture::initialize(const TextureCreateParams& params)
 		numSubresources = 1;
 	}
 	const UINT64 uploadBufferSize = ::GetRequiredIntermediateSize(rawResource.Get(), 0, numSubresources);
-	const UINT64 readbackBufferSize = uploadBufferSize;
+	// Maybe better to just use slice pitch instead of using upload buffer size?
+	const UINT64 readbackBufferSize = Cymath::alignBytes64(uploadBufferSize, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 
 	// Create optional resources if this texture supports upload and/or readback.
 	if (ENUM_HAS_FLAG(params.accessFlags, ETextureAccessFlags::CPU_WRITE))

@@ -220,6 +220,8 @@ struct BlendDesc
 	bool alphaToCoverageEnable  = false;
 	bool independentBlendEnable = false;
 	RenderTargetBlendDesc renderTarget[8];
+
+	static BlendDesc noBlend() { return BlendDesc(); } // Default value is no blend.
 };
 
 enum class EDepthClearFlags : uint8

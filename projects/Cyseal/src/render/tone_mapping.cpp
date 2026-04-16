@@ -1,25 +1,16 @@
 #include "tone_mapping.h"
+#include "renderer_constants.h"
+
 #include "rhi/render_device.h"
-#include "rhi/swap_chain.h"
-#include "rhi/gpu_resource_binding.h"
-#include "rhi/shader.h"
 #include "rhi/render_command.h"
-#include "rhi/texture_manager.h"
+#include "rhi/shader.h"
 
 void ToneMapping::initialize(RenderDevice* inDevice)
 {
-	device = inDevice;
-
+	RenderDevice* device = inDevice;
 	const uint32 swapchainCount = device->maxFramesInFlight();
-	if (device->getCreateParams().swapChainParams.bHeadless == false)
-	{
-		rtvFormats.push_back(device->getSwapChain()->getBackbufferFormat());
-		rtvIndexForSwapChain = 0;
-	}
-	rtvFormats.push_back(EPixelFormat::R32G32B32A32_FLOAT);
-	rtvFormats.push_back(EPixelFormat::R16G16B16A16_FLOAT);
-	rtvFormats.push_back(EPixelFormat::R8G8B8A8_UNORM);
 
+	rtvFormats.push_back(PF_finalSceneColor);
 	pipelineStates.initialize((uint32)rtvFormats.size());
 
 	passDescriptor.initialize(L"ToneMapping", swapchainCount, 0);
@@ -112,11 +103,7 @@ void ToneMapping::renderToneMapping(RenderCommandList* commandList, uint32 swapc
 
 GraphicsPipelineState* ToneMapping::getPipelineState(Texture* renderTarget) const
 {
-	if (renderTarget == nullptr)
-	{
-		CHECK(rtvIndexForSwapChain >= 0);
-		return pipelineStates.at(rtvIndexForSwapChain);
-	}
+	CHECK(renderTarget != nullptr);
 	for (size_t i = 0; i < rtvFormats.size(); ++i)
 	{
 		if (rtvFormats[i] == renderTarget->getCreateParams().format)

@@ -19,7 +19,9 @@ struct SceneUniform
 	Float4x4      prevViewProjMatrix;
 	Float4x4      prevViewProjInvMatrix;
 
-	float         screenResolution[4]; // (w, h, 1/w, 1/h)
+	float         unscaledScreenResolution[4]; // (w, h, 1/w, 1/h)
+	float         screenResolution[4];         // (w, h, 1/w, 1/h)
+	float         prevScreenResolution[4];     // (w, h, 1/w, 1/h)
 	CameraFrustum cameraFrustum;
 	vec3          cameraPosition; float _pad0;
 	vec3          sunDirection;   float _pad1;
@@ -39,6 +41,12 @@ public:
 	virtual void destroy() override;
 	virtual void render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions) override;
 
+	/// <summary>
+	/// Recreate internal render targets for the target render resolution.
+	/// Do not apply render resolution scale to the arguments.
+	/// </summary>
+	/// <param name="sceneWidth">Width of new render resolution.</param>
+	/// <param name="sceneHeight">Height of new render resolution.</param>
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) override;
 	
 private:
@@ -51,7 +59,7 @@ private:
 
 	void rebuildAccelerationStructure(RenderCommandList* commandList, const SceneProxy* scene);
 
-	void createFinalColorRTV(RenderCommandList* commandList, const RendererOptions& renderOptions);
+	void createFinalBlitRTV(RenderCommandList* commandList, const RendererOptions& renderOptions);
 
 private:
 	RenderDevice* device = nullptr;
@@ -64,6 +72,17 @@ private:
 
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.
+
+	// Unscaled render resolution. Render targets are created with this size.
+	// The renderer might use only subregions of render targets if render scale is below 100%.
+	uint32                                 renderResolutionX = 0;
+	uint32                                 renderResolutionY = 0;
+
+	// (render resolution) * (render scale) of prev frame.
+	// Used for sampling prev frame render targets. (e.g., RT_prevSceneDepth)
+	uint32                                 prevScaledRenderResolutionX = 0;
+	uint32                                 prevScaledRenderResolutionY = 0;
+
 	UniquePtr<Texture>                     RT_visibilityBuffer;
 	UniquePtr<ShaderResourceView>          visibilityBufferSRV;
 	UniquePtr<RenderTargetView>            visibilityBufferRTV;
@@ -138,7 +157,11 @@ private:
 	UniquePtr<ShaderResourceView>          grey2DSRV; // SRV for fallback texture
 	UniquePtr<ShaderResourceView>          skyboxSRV;
 
-	UniquePtr<RenderTargetView>            finalColorRTV;
+	UniquePtr<Texture>                     RT_finalSceneColor; // This will be blitted to final target.
+	UniquePtr<ShaderResourceView>          finalSceneColorSRV;
+	UniquePtr<RenderTargetView>            finalSceneColorRTV;
+
+	UniquePtr<RenderTargetView>            finalRenderTargetRTV; // Created if final target is not swapchain image.
 
 	// ------------------------------------------------------------------------
 	// Render passes
@@ -159,6 +182,7 @@ private:
 	class DenoiserPluginPass*   denoiserPluginPass    = nullptr;
 	class StoreHistoryPass*     storeHistoryPass      = nullptr;
 	class FrameGenPass*         frameGenPass          = nullptr;
+	class FinalBlitPass*        finalBlitPass         = nullptr;
 
 	std::vector<class SceneRenderPass*> sceneRenderPasses;
 };

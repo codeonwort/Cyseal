@@ -88,6 +88,7 @@
     <ClInclude Include="src\core\aabb.h" />
     <ClInclude Include="src\core\application.h" />
     <ClInclude Include="src\core\assertion.h" />
+    <ClInclude Include="src\core\clamped_numeric.h" />
     <ClInclude Include="src\core\console_application.h" />
     <ClInclude Include="src\core\core_minimal.h" />
     <ClInclude Include="src\core\critical_section.h" />
@@ -124,6 +125,7 @@
     <ClInclude Include="src\render\buffer_visualization.h" />
     <ClInclude Include="src\render\decode_vis_buffer_pass.h" />
     <ClInclude Include="src\render\depth_prepass.h" />
+    <ClInclude Include="src\render\final_blit_pass.h" />
     <ClInclude Include="src\render\frame_gen_pass.h" />
     <ClInclude Include="src\render\gpu_culling.h" />
     <ClInclude Include="src\render\gpu_scene_command.h" />
@@ -246,6 +248,7 @@
     <ClCompile Include="src\render\buffer_visualization.cpp" />
     <ClCompile Include="src\render\decode_vis_buffer_pass.cpp" />
     <ClCompile Include="src\render\depth_prepass.cpp" />
+    <ClCompile Include="src\render\final_blit_pass.cpp" />
     <ClCompile Include="src\render\frame_gen_pass.cpp" />
     <ClCompile Include="src\render\gpu_culling.cpp" />
     <ClCompile Include="src\render\hiz_pass.cpp" />

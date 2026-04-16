@@ -10,31 +10,27 @@
 class RenderCommandList;
 class ShaderResourceView;
 
-struct ToneMappingInput
+struct FinalBlitPassInput
 {
-	Texture*            renderTarget; // If null we're rendering to backbuffer.
-	Viewport            viewport;
-	ScissorRect         scissorRect;
 	ConstantBufferView* sceneUniformCBV;
-	ShaderResourceView* sceneColorSRV;
-	ShaderResourceView* sceneDepthSRV;
-	ShaderResourceView* gbuffer0SRV;
-	ShaderResourceView* gbuffer1SRV;
-	ShaderResourceView* indirectDiffuseSRV;
-	ShaderResourceView* indirectSpecularSRV;
+	Texture*            renderTarget; // If null we're rendering to backbuffer.
+	ShaderResourceView* finalSceneColorSRV;
 };
 
-class ToneMapping final : public SceneRenderPass
+class FinalBlitPass final : public SceneRenderPass
 {
 public:
 	void initialize(RenderDevice* inRenderDevice);
 
-	void renderToneMapping(RenderCommandList* commandList, uint32 swapchainIndex, const ToneMappingInput& passInput);
+	void renderFinalBlit(RenderCommandList* commandList, uint32 swapchainIndex, const FinalBlitPassInput& passInput);
 
 private:
 	GraphicsPipelineState* getPipelineState(Texture* renderTarget) const;
 
 private:
+	RenderDevice*                            device = nullptr;
+
+	int32                                    rtvIndexForSwapChain = -1;
 	std::vector<EPixelFormat>                rtvFormats;
 	BufferedUniquePtr<GraphicsPipelineState> pipelineStates;
 

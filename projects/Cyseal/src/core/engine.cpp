@@ -162,6 +162,8 @@ void CysealEngine::shutdown()
 
 void CysealEngine::beginImguiNewFrame()
 {
+	CHECK(state == EEngineState::RUNNING);
+
 	if (renderDevice->isHeadless()) return;
 
 	renderDevice->beginDearImguiNewFrame();
@@ -177,6 +179,8 @@ void CysealEngine::beginImguiNewFrame()
 
 void CysealEngine::renderImgui()
 {
+	CHECK(state == EEngineState::RUNNING);
+
 	if (renderDevice->isHeadless()) return;
 
 	ImGui::Render();
@@ -184,17 +188,34 @@ void CysealEngine::renderImgui()
 
 void CysealEngine::renderScene(SceneProxy* sceneProxy, Camera* camera, const RendererOptions& rendererOptions)
 {
+	CHECK(state == EEngineState::RUNNING);
+
 	renderer->render(sceneProxy, camera, rendererOptions);
 }
 
 void CysealEngine::setRenderResolution(uint32 newWidth, uint32 newHeight)
 {
-	if (renderDevice->isHeadless() == false)
-	{
-		void* hwnd = createParams.renderDevice.swapChainParams.nativeWindowHandle;
-		renderDevice->recreateSwapChain(hwnd, newWidth, newHeight);
-	}
+	CHECK(state == EEngineState::RUNNING);
+
 	renderer->recreateSceneTextures(newWidth, newHeight);
+}
+
+bool CysealEngine::setDisplayResolution(uint32 newWidth, uint32 newHeight)
+{
+	CHECK(state == EEngineState::RUNNING);
+
+	if (renderDevice->isHeadless()) return false;
+
+	void* hwnd = createParams.renderDevice.swapChainParams.nativeWindowHandle;
+	renderDevice->recreateSwapChain(hwnd, newWidth, newHeight);
+
+	return true;
+}
+
+bool CysealEngine::setRenderAndDisplayResolution(uint32 newWidth, uint32 newHeight)
+{
+	setRenderResolution(newWidth, newHeight);
+	return setDisplayResolution(newWidth, newHeight);
 }
 
 void CysealEngine::createRenderDevice(const RenderDeviceCreateParams& createParams)

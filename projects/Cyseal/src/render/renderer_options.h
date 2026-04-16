@@ -1,5 +1,8 @@
 #pragma once
 
+#include "core/int_types.h"
+#include "core/clamped_numeric.h"
+
 enum class ERendererType
 {
 	Standard,
@@ -191,26 +194,37 @@ inline const char** getPathTracingKernelNames()
 
 struct RendererOptions
 {
-	EIndirectDrawMode indirectDrawMode = EIndirectDrawMode::PopulateOnGPU;
-	bool bEnableGPUCulling = true;
+	// Indirect draw
+	EIndirectDrawMode         indirectDrawMode = EIndirectDrawMode::PopulateOnGPU;
+	bool                      bEnableGPUCulling = true;
 
-	bool bEnableDepthPrepass = true;
-	bool bEnableVisibilityBuffer = true;
+	// Depth and visibility pass
+	bool                      bEnableDepthPrepass = true;
+	bool                      bEnableVisibilityBuffer = true;
 
-	EBufferVisualizationMode bufferVisualization = EBufferVisualizationMode::None;
+	// Debug visualization
+	EBufferVisualizationMode  bufferVisualization = EBufferVisualizationMode::None;
 
-	ERayTracedShadowsMode rayTracedShadows = ERayTracedShadowsMode::Disabled;
-	EIndirectDiffuseMode indirectDiffuse = EIndirectDiffuseMode::Disabled;
-	EIndirectSpecularMode indirectSpecular = EIndirectSpecularMode::ForceMirror;
+	// Ray tracing
+	ERayTracedShadowsMode     rayTracedShadows = ERayTracedShadowsMode::Disabled;
+	EIndirectDiffuseMode      indirectDiffuse = EIndirectDiffuseMode::Disabled;
+	EIndirectSpecularMode     indirectSpecular = EIndirectSpecularMode::ForceMirror;
 
-	EPathTracingMode pathTracing = EPathTracingMode::Disabled;
-	bool bCameraHasMoved = false;
+	// Path tracing
+	EPathTracingMode          pathTracing = EPathTracingMode::Disabled;
+	bool                      bCameraHasMoved = false;
 	EPathTracingDenoiserState pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
-	EPathTracingKernel pathTracingKernel = EPathTracingKernel::MegaKernel;
+	EPathTracingKernel        pathTracingKernel = EPathTracingKernel::MegaKernel;
 
-	// If specified, render the result to it. If null, render to backbuffer.
-	class Texture* finalRenderTarget = nullptr;
+	// Render target
+	class Texture*            finalRenderTarget = nullptr; // If specified, render the result to it. If null, render to backbuffer.
+	inline uint32             getResolutionScale() const { return resolutionScaleAvailable() ? resolutionScale : 100; }
+	void                      setResolutionScale(uint32 value) { resolutionScale = value; }
 
+private:
+	Clamped<uint32>           resolutionScale{ 100, 25, 100 }; // Without resizing internal render targets, control the scale of render resolution.
+
+public:
 	inline bool anyRayTracingEnabled() const
 	{
 		bool bShadows = rayTracedShadows != ERayTracedShadowsMode::Disabled;
@@ -221,4 +235,9 @@ struct RendererOptions
 	}
 
 	inline bool renderToBackbuffer() const { return finalRenderTarget == nullptr; }
+
+	// #todo-oidn: It seems OIDN does not support denoising subregion of oidn buffers.
+	// I can resize oidn buffers whenever render scale changes, but using CPU version of OIDN for realtime purpose is not gonna work well anyway,
+	// so let's disable render scale for path tracing, for now. Let's remove this limitation when I do serious work on denoiser.
+	inline bool resolutionScaleAvailable() const { return pathTracing == EPathTracingMode::Disabled; }
 };

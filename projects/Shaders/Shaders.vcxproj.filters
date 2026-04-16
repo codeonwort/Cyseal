@@ -71,6 +71,7 @@
     <FxCompile Include="..\..\shaders\generate_drawcall.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_arguments.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_draw_common.hlsl" />
+    <FxCompile Include="..\..\shaders\final_blit.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">

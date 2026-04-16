@@ -1,12 +1,12 @@
 #pragma once
 
 #include "scene_render_pass.h"
-#include "core/smart_pointer.h"
+#include "render/renderer_options.h"
 #include "rhi/pipeline_state.h"
 #include "rhi/gpu_resource.h"
 #include "rhi/gpu_resource_binding.h"
-#include "render/renderer_options.h"
 #include "util/volatile_descriptor.h"
+#include "core/smart_pointer.h"
 
 class RenderCommandList;
 class ShaderResourceView;
@@ -17,6 +17,7 @@ struct BufferVisualizationInput
 	EBufferVisualizationMode mode                = EBufferVisualizationMode::None;
 	uint32                   textureWidth        = 0;
 	uint32                   textureHeight       = 0;
+	ConstantBufferView*      sceneUniformCBV     = nullptr;
 	ShaderResourceView*      gbuffer0SRV         = nullptr;
 	ShaderResourceView*      gbuffer1SRV         = nullptr;
 	ShaderResourceView*      sceneColorSRV       = nullptr;
@@ -41,7 +42,6 @@ public:
 private:
 	GraphicsPipelineState* getPipelineState(Texture* renderTarget) const;
 
-	int32                                    rtvIndexForSwapChain = -1;
 	std::vector<EPixelFormat>                rtvFormats;
 	BufferedUniquePtr<GraphicsPipelineState> pipelineStates;
 

@@ -133,6 +133,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="src\core\TestClampedNumeric.cpp" />
     <ClCompile Include="src\render\TestGpuDriven.cpp" />
     <ClCompile Include="src\render\TestImageComparison.cpp" />
     <ClCompile Include="src\render\TestSkybox.cpp" />

@@ -33,6 +33,7 @@
 #include "render/pathtracing/path_tracing_pass.h"
 #include "render/pathtracing/denoiser_plugin_pass.h"
 #include "render/frame_gen_pass.h"
+#include "render/final_blit_pass.h"
 
 #include "util/profiling.h"
 
@@ -109,6 +110,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(denoiserPluginPass = new(EMemoryTag::Renderer) DenoiserPluginPass);
 		sceneRenderPasses.push_back(storeHistoryPass = new(EMemoryTag::Renderer) StoreHistoryPass);
 		sceneRenderPasses.push_back(frameGenPass = new(EMemoryTag::Renderer) FrameGenPass);
+		sceneRenderPasses.push_back(finalBlitPass = new(EMemoryTag::Renderer) FinalBlitPass);
 
 		gpuScene->initialize(renderDevice);
 		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
@@ -127,6 +129,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		denoiserPluginPass->initialize(renderDevice);
 		storeHistoryPass->initialize(renderDevice);
 		frameGenPass->initialize(renderDevice);
+		finalBlitPass->initialize(renderDevice);
 	}
 }
 
@@ -177,23 +180,29 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	auto commandList       = device->getCommandList(swapchainIndex);
 	auto commandQueue      = device->getCommandQueue();
 
-	createFinalColorRTV(commandList, renderOptions);
+	createFinalBlitRTV(commandList, renderOptions);
 
-	TextureKind*      finalColorTarget   = renderOptions.finalRenderTarget;
-	RenderTargetView* finalRTV           = finalColorRTV.get();
-	uint32            sceneWidth         = 0;
-	uint32            sceneHeight        = 0;
+	const uint32      unscaledRenderWidth  = renderResolutionX;
+	const uint32      unscaledRenderHeight = renderResolutionY;
+	const uint32      resolutionScale      = renderOptions.getResolutionScale();
+	const uint32      sceneWidth           = (resolutionScale == 100) ? unscaledRenderWidth : (uint32)(0.01f * (float)(resolutionScale * unscaledRenderWidth));
+	const uint32      sceneHeight          = (resolutionScale == 100) ? unscaledRenderHeight : (uint32)(0.01f * (float)(resolutionScale * unscaledRenderHeight));
+
+	TextureKind*      finalBlitTarget = renderOptions.finalRenderTarget;
+	RenderTargetView* finalBlitRTV    = finalRenderTargetRTV.get();
+	uint32            finalBlitWidth  = 0;
+	uint32            finalBlitHeight = 0;
 	if (bRenderToBackbuffer)
 	{
-		sceneWidth         = swapChain->getBackbufferWidth();
-		sceneHeight        = swapChain->getBackbufferHeight();
-		finalColorTarget   = swapchainBuffer;
-		finalRTV           = swapchainBufferRTV;
+		finalBlitTarget    = swapchainBuffer;
+		finalBlitRTV       = swapchainBufferRTV;
+		finalBlitWidth     = swapChain->getBackbufferWidth();
+		finalBlitHeight    = swapChain->getBackbufferHeight();
 	}
 	else
 	{
-		sceneWidth         = renderOptions.finalRenderTarget->getCreateParams().width;
-		sceneHeight        = renderOptions.finalRenderTarget->getCreateParams().height;
+		finalBlitWidth     = renderOptions.finalRenderTarget->getCreateParams().width;
+		finalBlitHeight    = renderOptions.finalRenderTarget->getCreateParams().height;
 	}
 
 	const bool bRenderDepthPrepass = renderOptions.bEnableDepthPrepass;
@@ -634,7 +643,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				};
 				commandList->barrierAuto(0, nullptr, _countof(barriers2), barriers2, 0, nullptr);
 
-				denoiserPluginPass->executeDenoiser(commandList, RT_pathTracing.get());
+				denoiserPluginPass->executeDenoiser(commandList, sceneWidth, sceneHeight, RT_pathTracing.get());
 			}
 		}
 	}
@@ -663,6 +672,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		IndirectDiffuseInput passInput{
 			.scene                  = scene,
 			.mode                   = renderOptions.indirectDiffuse,
+			.unscaledRenderWidth    = unscaledRenderWidth,
+			.unscaledRenderHeight   = unscaledRenderHeight,
 			.sceneWidth             = sceneWidth,
 			.sceneHeight            = sceneHeight,
 			.gpuScene               = gpuScene,
@@ -707,6 +718,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		IndirectSpecularInput passInput{
 			.scene                   = scene,
 			.mode                    = renderOptions.indirectSpecular,
+			.unscaledRenderWidth     = unscaledRenderWidth,
+			.unscaledRenderHeight    = unscaledRenderHeight,
 			.sceneWidth              = sceneWidth,
 			.sceneHeight             = sceneHeight,
 			.invProjection           = sceneUniformData.projInvMatrix,
@@ -745,17 +758,17 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
 	}
 
-	// Set final render target.
+	// Set final color as render target.
 	{
-		SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
+		SCOPED_DRAW_EVENT(commandList, SetFinalColorAsRenderTarget);
 
 		TextureBarrierAuto barrier{
 			EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
-			finalColorTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			RT_finalSceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
 		};
 		commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
 
-		commandList->omSetRenderTarget(finalRTV, nullptr);
+		commandList->omSetRenderTarget(finalSceneColorRTV.get(), nullptr);
 	}
 
 	// Tone mapping
@@ -789,7 +802,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
 		ToneMappingInput passInput{
-			.renderTarget        = renderOptions.finalRenderTarget,
+			.renderTarget        = RT_finalSceneColor.get(),
 			.viewport            = fullscreenViewport,
 			.scissorRect         = fullscreenScissorRect,
 			.sceneUniformCBV     = sceneUniformCBV,
@@ -857,10 +870,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 		BufferVisualizationInput sources{
-			.renderTarget        = renderOptions.finalRenderTarget,
+			.renderTarget        = RT_finalSceneColor.get(),
 			.mode                = renderOptions.bufferVisualization,
 			.textureWidth        = sceneWidth,
 			.textureHeight       = sceneHeight,
+			.sceneUniformCBV     = sceneUniformCBV,
 			.gbuffer0SRV         = gbufferSRVs[0].get(),
 			.gbuffer1SRV         = gbufferSRVs[1].get(),
 			.sceneColorSRV       = sceneColorSRV.get(),
@@ -898,16 +912,68 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		storeHistoryPass->copyCurrentToPrev(commandList, swapchainIndex);
 	}
 
-	//////////////////////////////////////////////////////////////////////////
-	// Dear Imgui: Record commands
+	// -----------------------------------------------------------------------
+	// Internal rendering is done. Prepare to blit to the final render target.
 
+	// Set final render target.
+	{
+		SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
+
+		const Viewport finalBlitViewport{
+			.topLeftX = 0,
+			.topLeftY = 0,
+			.width    = static_cast<float>(finalBlitWidth),
+			.height   = static_cast<float>(finalBlitHeight),
+			.minDepth = 0.0f,
+			.maxDepth = 1.0f,
+		};
+		const ScissorRect finalBlitScissorRect{
+			.left   = 0,
+			.top    = 0,
+			.right  = finalBlitWidth,
+			.bottom = finalBlitHeight,
+		};
+		commandList->rsSetViewport(finalBlitViewport);
+		commandList->rsSetScissorRect(finalBlitScissorRect);
+
+		TextureBarrierAuto barrier{
+			EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+			finalBlitTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+		};
+		commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
+
+		commandList->omSetRenderTarget(finalBlitRTV, nullptr);
+	}
+
+	{
+		SCOPED_DRAW_EVENT(commandList, FinalBlit);
+
+		TextureBarrierAuto textureBarriers[] = {
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				RT_finalSceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+		FinalBlitPassInput passInput{
+			.sceneUniformCBV    = sceneUniformCBV,
+			.renderTarget       = renderOptions.finalRenderTarget,
+			.finalSceneColorSRV = finalSceneColorSRV.get(),
+		};
+		finalBlitPass->renderFinalBlit(commandList, swapchainIndex, passInput);
+	}
+
+	prevScaledRenderResolutionX = sceneWidth;
+	prevScaledRenderResolutionY = sceneHeight;
+
+	// Dear Imgui: Record commands
 	if (device->isHeadless() == false)
 	{
 		SCOPED_DRAW_EVENT(commandList, DearImgui);
 		
 		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
 		commandList->setDescriptorHeaps(1, imguiHeaps);
-		// #note: GUI is rendered to the final RT anyway. swapchainBuffer is used for layout transition in VK.
 		device->renderDearImgui(commandList, swapchainBuffer);
 	}
 
@@ -947,6 +1013,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 {
+	renderResolutionX = sceneWidth;
+	renderResolutionY = sceneHeight;
+	if (prevScaledRenderResolutionX == 0 || prevScaledRenderResolutionY == 0)
+	{
+		prevScaledRenderResolutionX = sceneWidth;
+		prevScaledRenderResolutionY = sceneHeight;
+	}
+
 	device->getDenoiserDevice()->recreateResources(sceneWidth, sceneHeight);
 
 	auto& cleanupList = this->deferredCleanupList;
@@ -1420,6 +1494,37 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			},
 		}
 	));
+
+	cleanup(RT_finalSceneColor.release());
+	RT_finalSceneColor = UniquePtr<Texture>(device->createTexture(
+		TextureCreateParams::texture2D(
+			PF_finalSceneColor,
+			ETextureAccessFlags::RTV,
+			sceneWidth, sceneHeight, 1, 1, 0)));
+	RT_finalSceneColor->setDebugName(L"RT_FinalSceneColor");
+
+	finalSceneColorSRV = UniquePtr<ShaderResourceView>(device->createSRV(RT_finalSceneColor.get(),
+		ShaderResourceViewDesc{
+			.format              = RT_finalSceneColor->getCreateParams().format,
+			.viewDimension       = ESRVDimension::Texture2D,
+			.texture2D           = Texture2DSRVDesc{
+				.mostDetailedMip = 0,
+				.mipLevels       = RT_finalSceneColor->getCreateParams().mipLevels,
+				.planeSlice      = 0,
+				.minLODClamp     = 0.0f,
+			},
+		}
+	));
+	finalSceneColorRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_finalSceneColor.get(),
+		RenderTargetViewDesc{
+			.format            = RT_finalSceneColor->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
+		}
+	));
 }
 
 void SceneRenderer::resetCommandList(RenderCommandAllocator* commandAllocator, RenderCommandList* commandList)
@@ -1448,25 +1553,33 @@ void SceneRenderer::updateSceneUniform(
 	uint32 sceneWidth,
 	uint32 sceneHeight)
 {
-	sceneUniformData.viewMatrix            = camera->getViewMatrix();
-	sceneUniformData.projMatrix            = camera->getProjMatrix();
-	sceneUniformData.viewProjMatrix        = camera->getViewProjMatrix();
+	sceneUniformData.viewMatrix                    = camera->getViewMatrix();
+	sceneUniformData.projMatrix                    = camera->getProjMatrix();
+	sceneUniformData.viewProjMatrix                = camera->getViewProjMatrix();
 
-	sceneUniformData.viewInvMatrix         = camera->getViewInvMatrix();
-	sceneUniformData.projInvMatrix         = camera->getProjInvMatrix();
-	sceneUniformData.viewProjInvMatrix     = camera->getViewProjInvMatrix();
+	sceneUniformData.viewInvMatrix                 = camera->getViewInvMatrix();
+	sceneUniformData.projInvMatrix                 = camera->getProjInvMatrix();
+	sceneUniformData.viewProjInvMatrix             = camera->getViewProjInvMatrix();
 
-	sceneUniformData.prevViewProjMatrix    = prevSceneUniformData.viewProjMatrix;
-	sceneUniformData.prevViewProjInvMatrix = prevSceneUniformData.viewProjInvMatrix;
+	sceneUniformData.prevViewProjMatrix            = prevSceneUniformData.viewProjMatrix;
+	sceneUniformData.prevViewProjInvMatrix         = prevSceneUniformData.viewProjInvMatrix;
 
-	sceneUniformData.screenResolution[0]   = (float)sceneWidth;
-	sceneUniformData.screenResolution[1]   = (float)sceneHeight;
-	sceneUniformData.screenResolution[2]   = 1.0f / (float)sceneWidth;
-	sceneUniformData.screenResolution[3]   = 1.0f / (float)sceneHeight;
-	sceneUniformData.cameraFrustum         = camera->getFrustum();
-	sceneUniformData.cameraPosition        = camera->getPosition();
-	sceneUniformData.sunDirection          = scene->sun.direction;
-	sceneUniformData.sunIlluminance        = scene->sun.illuminance;
+	sceneUniformData.unscaledScreenResolution[0]   = (float)renderResolutionX;
+	sceneUniformData.unscaledScreenResolution[1]   = (float)renderResolutionY;
+	sceneUniformData.unscaledScreenResolution[2]   = 1.0f / (float)renderResolutionX;
+	sceneUniformData.unscaledScreenResolution[3]   = 1.0f / (float)renderResolutionY;
+	sceneUniformData.screenResolution[0]           = (float)sceneWidth;
+	sceneUniformData.screenResolution[1]           = (float)sceneHeight;
+	sceneUniformData.screenResolution[2]           = 1.0f / (float)sceneWidth;
+	sceneUniformData.screenResolution[3]           = 1.0f / (float)sceneHeight;
+	sceneUniformData.prevScreenResolution[0]       = (float)prevScaledRenderResolutionX;
+	sceneUniformData.prevScreenResolution[1]       = (float)prevScaledRenderResolutionY;
+	sceneUniformData.prevScreenResolution[2]       = 1.0f / (float)prevScaledRenderResolutionX;
+	sceneUniformData.prevScreenResolution[3]       = 1.0f / (float)prevScaledRenderResolutionY;
+	sceneUniformData.cameraFrustum                 = camera->getFrustum();
+	sceneUniformData.cameraPosition                = camera->getPosition();
+	sceneUniformData.sunDirection                  = scene->sun.direction;
+	sceneUniformData.sunIlluminance                = scene->sun.illuminance;
 	
 	sceneUniformCBVs[swapchainIndex]->writeToGPU(commandList, &sceneUniformData, sizeof(sceneUniformData));
 
@@ -1555,9 +1668,9 @@ void SceneRenderer::rebuildAccelerationStructure(RenderCommandList* commandList,
 		commandList->buildRaytracingAccelerationStructure((uint32)blasDescArray.size(), blasDescArray.data()));
 }
 
-void SceneRenderer::createFinalColorRTV(RenderCommandList* commandList, const RendererOptions& renderOptions)
+void SceneRenderer::createFinalBlitRTV(RenderCommandList* commandList, const RendererOptions& renderOptions)
 {
-	commandList->enqueueDeferredDealloc(finalColorRTV.release(), true);
+	commandList->enqueueDeferredDealloc(finalRenderTargetRTV.release(), true);
 
 	if (renderOptions.renderToBackbuffer())
 	{
@@ -1565,7 +1678,7 @@ void SceneRenderer::createFinalColorRTV(RenderCommandList* commandList, const Re
 	}
 	Texture* texture = renderOptions.finalRenderTarget;
 
-	finalColorRTV = UniquePtr<RenderTargetView>(device->createRTV(texture,
+	finalRenderTargetRTV = UniquePtr<RenderTargetView>(device->createRTV(texture,
 		RenderTargetViewDesc{
 			.format            = texture->getCreateParams().format,
 			.viewDimension     = ERTVDimension::Texture2D,

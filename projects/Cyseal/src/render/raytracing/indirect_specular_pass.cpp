@@ -15,6 +15,9 @@
 
 #include "util/logging.h"
 
+// #todo-specular: AMD reflection denoiser is even more broken with render resolution scaling.
+// But it didn't work well at 100% scale anyway, so let's revisit later.
+
 // Reference: 'D3D12RaytracingHelloWorld' and 'D3D12RaytracingSimpleLighting' samples in
 // https://github.com/microsoft/DirectX-Graphics-Samples
 
@@ -60,7 +63,8 @@ struct RayPassUniform
 struct TemporalPassUniform
 {
 	uint32   screenSize[2];
-	float    invScreenSize[2];
+	uint32   prevScreenSize[2];
+	float    prevInvScreenSize[2];
 	uint32   bInvalidateHistory;
 	uint32   bLimitHistory;
 	uint32   _pad0;
@@ -208,6 +212,9 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 	const uint32 currFrame = swapchainIndex % 2;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+
+	actualHistoryWidth[currFrame] = passInput.sceneWidth;
+	actualHistoryHeight[currFrame] = passInput.sceneHeight;
 
 	auto currColorTexture  = colorHistory.getTexture(currFrame);
 	auto prevColorTexture  = colorHistory.getTexture(prevFrame);
@@ -548,25 +555,34 @@ void IndirecSpecularPass::initializeAMDFinalizeColor()
 	delete shader;
 }
 
-void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
+void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 newUnscaledWidth, uint32 newUnscaledHeight)
 {
-	if (historyWidth == newWidth && historyHeight == newHeight)
+	if (unscaledHistoryWidth == newUnscaledWidth && unscaledHistoryHeight == newUnscaledHeight)
 	{
 		return;
 	}
-	historyWidth = newWidth;
-	historyHeight = newHeight;
+	unscaledHistoryWidth = newUnscaledWidth;
+	unscaledHistoryHeight = newUnscaledHeight;
 
-	colorHistory.resizeTextures(commandList, historyWidth, historyHeight);
-	momentHistory.resizeTextures(commandList, historyWidth, historyHeight);
-	sampleCountHistory.resizeTextures(commandList, historyWidth, historyHeight);
+	for (uint32 i = 0; i < _countof(actualHistoryWidth); ++i)
+	{
+		if (actualHistoryWidth[i] == 0 || actualHistoryHeight[i] == 0)
+		{
+			actualHistoryWidth[i] = unscaledHistoryWidth;
+			actualHistoryHeight[i] = unscaledHistoryHeight;
+		}
+	}
 
-	amdRadianceHistory.resizeTextures(commandList, historyWidth, historyHeight);
-	amdVarianceHistory.resizeTextures(commandList, historyWidth, historyHeight);
-	amdSampleCountHistory.resizeTextures(commandList, historyWidth, historyHeight);
+	colorHistory.resizeTextures(commandList, unscaledHistoryWidth, unscaledHistoryHeight);
+	momentHistory.resizeTextures(commandList, unscaledHistoryWidth, unscaledHistoryHeight);
+	sampleCountHistory.resizeTextures(commandList, unscaledHistoryWidth, unscaledHistoryHeight);
+
+	amdRadianceHistory.resizeTextures(commandList, unscaledHistoryWidth, unscaledHistoryHeight);
+	amdVarianceHistory.resizeTextures(commandList, unscaledHistoryWidth, unscaledHistoryHeight);
+	amdSampleCountHistory.resizeTextures(commandList, unscaledHistoryWidth, unscaledHistoryHeight);
 
 	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
-		PF_raytracing, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, historyWidth, historyHeight);
+		PF_raytracing, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, unscaledHistoryWidth, unscaledHistoryHeight);
 #if INDIRECT_DISPATCH_RAYS
 	// Lazy way to clear the texture.
 	rayTexDesc.accessFlags = rayTexDesc.accessFlags | ETextureAccessFlags::RTV;
@@ -612,7 +628,7 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	avgRadianceTexture = UniquePtr<Texture>(device->createTexture(
 		TextureCreateParams::texture2D(
 			PF_avgRadiance, ETextureAccessFlags::UAV,
-			(historyWidth + 7) / 8, (historyHeight + 7) / 8,
+			(unscaledHistoryWidth + 7) / 8, (unscaledHistoryHeight + 7) / 8,
 			1, 1, 0
 		)
 	));
@@ -641,7 +657,7 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	reprojectedRadianceTexture = UniquePtr<Texture>(device->createTexture(
 		TextureCreateParams::texture2D(
 			PF_reprojectedRadiance, ETextureAccessFlags::UAV,
-			historyWidth, historyHeight,
+			unscaledHistoryWidth, unscaledHistoryHeight,
 			1, 1, 0
 		)
 	));
@@ -670,7 +686,7 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	amdFinalColorTexture = UniquePtr<Texture>(device->createTexture(
 		TextureCreateParams::texture2D(
 			PF_reprojectedRadiance, ETextureAccessFlags::RTV | ETextureAccessFlags::UAV,
-			historyWidth, historyHeight,
+			unscaledHistoryWidth, unscaledHistoryHeight,
 			1, 1, 0
 		)
 	));
@@ -717,10 +733,7 @@ void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint3
 
 void IndirecSpecularPass::prepareRaytracingResources(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
 {
-	uint32 sceneWidth = passInput.sceneWidth;
-	uint32 sceneHeight = passInput.sceneHeight;
-
-	resizeTextures(commandList, sceneWidth, sceneHeight);
+	resizeTextures(commandList, passInput.unscaledRenderWidth, passInput.unscaledRenderHeight);
 
 	// Resize hit group shader table if needed.
 	// #todo-lod: Raytracing does not support LOD...
@@ -734,8 +747,8 @@ void IndirecSpecularPass::prepareRaytracingResources(RenderCommandList* commandL
 		.raygenShaderTable = raygenShaderTable.get(),
 		.missShaderTable   = missShaderTable.get(),
 		.hitGroupTable     = hitGroupShaderTable.at(swapchainIndex),
-		.width             = sceneWidth,
-		.height            = sceneHeight,
+		.width             = passInput.sceneWidth,
+		.height            = passInput.sceneHeight,
 		.depth             = 1,
 	};
 	rayCommandGenerator->beginCommand(0);
@@ -1003,10 +1016,12 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 	{
 		TemporalPassUniform uboData;
 
-		uboData.screenSize[0] = historyWidth;
-		uboData.screenSize[1] = historyHeight;
-		uboData.invScreenSize[0] = 1.0f / (float)historyWidth;
-		uboData.invScreenSize[1] = 1.0f / (float)historyHeight;
+		uboData.screenSize[0] = actualHistoryWidth[currFrame];
+		uboData.screenSize[1] = actualHistoryHeight[currFrame];
+		uboData.prevScreenSize[0] = actualHistoryWidth[prevFrame];
+		uboData.prevScreenSize[1] = actualHistoryHeight[prevFrame];
+		uboData.prevInvScreenSize[0] = 1.0f / (float)actualHistoryWidth[prevFrame];
+		uboData.prevInvScreenSize[1] = 1.0f / (float)actualHistoryHeight[prevFrame];
 		uboData.bInvalidateHistory = (passInput.mode == EIndirectSpecularMode::ForceMirror);
 		uboData.bLimitHistory = (passInput.mode == EIndirectSpecularMode::BRDF);
 
@@ -1041,8 +1056,8 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 
 	// Dispatch compute and issue memory barriers.
 	{
-		uint32 dispatchX = (historyWidth + 7) / 8;
-		uint32 dispatchY = (historyHeight + 7) / 8;
+		uint32 dispatchX = (passInput.sceneWidth + 7) / 8;
+		uint32 dispatchY = (passInput.sceneHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
 		GlobalBarrier globalBarrier = {
@@ -1085,8 +1100,8 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 		.invProjection           = passInput.invProjection.transpose(),
 		.invView                 = passInput.invView.transpose(),
 		.prevViewProjection      = passInput.prevViewProjection.transpose(),
-		.renderSize              = { passInput.sceneWidth, passInput.sceneHeight },
-		.invRenderSize           = { 1.0f / (float)passInput.sceneWidth, 1.0f / (float)passInput.sceneHeight },
+		.renderSize              = { passInput.unscaledRenderWidth, passInput.unscaledRenderHeight },
+		.invRenderSize           = { 1.0f / (float)passInput.unscaledRenderWidth, 1.0f / (float)passInput.unscaledRenderHeight },
 		.motionVectorScale       = { 1.0f, 1.0f },
 		.normalsUnpackMul        = 1.0f,
 		.normalsUnpackAdd        = 0.0f,
