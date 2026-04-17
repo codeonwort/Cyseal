@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "core/cymath.h"
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
 #include "render/scene_render_pass.h"
@@ -15,6 +16,7 @@ struct IndirectDiffuseInput
 {
 	const SceneProxy*          scene;
 	EIndirectDiffuseMode       mode;
+	uint32                     randomSeed; // Ignored if zero.
 
 	uint32                     unscaledRenderWidth;
 	uint32                     unscaledRenderHeight;
@@ -55,6 +57,8 @@ private:
 
 private:
 	RenderDevice*                            device = nullptr;
+
+	RNG<float>                               rng;
 
 	// Raytracing pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;

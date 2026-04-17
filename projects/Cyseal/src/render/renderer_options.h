@@ -208,6 +208,7 @@ struct RendererOptions
 	// Ray tracing
 	ERayTracedShadowsMode     rayTracedShadows = ERayTracedShadowsMode::Disabled;
 	EIndirectDiffuseMode      indirectDiffuse = EIndirectDiffuseMode::Disabled;
+	uint32                    indirectDiffuseRandomSeed = 0;
 	EIndirectSpecularMode     indirectSpecular = EIndirectSpecularMode::ForceMirror;
 
 	// Path tracing

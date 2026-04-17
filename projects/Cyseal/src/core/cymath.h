@@ -38,6 +38,24 @@ public:
 	static inline uint32 packUint16x2(uint32 x, uint32 y);
 };
 
+template<typename T>
+class RNG
+{
+public:
+	RNG(T minValue = 0, T maxValue = 1)
+	{
+		std::random_device rd;
+		gen = std::mt19937(rd());
+		dist = std::uniform_real_distribution<T>(minValue, maxValue);
+	}
+
+	inline void resetSeed(uint32 seed) { gen = std::mt19937(seed); }
+	inline T get() { return dist(gen); }
+private:
+	std::mt19937 gen;
+	std::uniform_real_distribution<T> dist;
+};
+
 float Cymath::radians(float degree)
 {
 	return degree * TO_RADIAN;
