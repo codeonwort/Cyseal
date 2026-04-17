@@ -85,6 +85,7 @@ void MaterialShaderDatabase::destroyMaterials()
 		if (passes.depthAndVisibility != nullptr) delete passes.depthAndVisibility;
 		if (passes.basePass != nullptr) delete passes.basePass;
 	}
+	freeNumberTable.clear();
 	database.clear();
 }
 
