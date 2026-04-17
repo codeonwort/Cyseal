@@ -4,6 +4,8 @@
 #include "core/assertion.h"
 
 #include <string>
+#include <vector>
+#include <utility>
 
 namespace render_test
 {
@@ -61,22 +63,22 @@ namespace render_test
 		struct Config
 		{
 			ConfigType type;
-			std::string name; // Just for debugging when breakpoint hits.
+			std::vector<std::string> names;
 			uint32 value;
 		};
 		struct ConfigHandle
 		{
-			inline bool getBoolValue(int32 ix) const
+			inline std::pair<bool,const char*> getBoolValue(int32 ix) const
 			{
 				const Config& conf = (*ptr)[ix];
 				CHECK(conf.type == ConfigType::Bool);
-				return (bool)conf.value;
+				return std::make_pair((bool)conf.value, conf.names[conf.value].c_str());
 			}
-			inline uint32 getIntValue(int32 ix) const
+			inline std::pair<uint32,const char*> getIntValue(int32 ix) const
 			{
 				const Config& conf = (*ptr)[ix];
 				CHECK(conf.type == ConfigType::Integer);
-				return conf.value;
+				return std::make_pair(conf.value, conf.names[conf.value].c_str());
 			}
 			inline int32 getLinearIx() const { return *ptrLinearIx; }
 			std::vector<Config>* ptr = nullptr;
@@ -86,19 +88,19 @@ namespace render_test
 		ConfigPermutation()
 		{}
 
-		int32 addBoolConfig(const char* name)
+		int32 addBoolConfig(const char* falseName, const char* trueName)
 		{
 			CHECK(!bStarted && !bFinished);
 
-			configs.push_back({ ConfigType::Bool, name, 2 });
+			configs.push_back({ ConfigType::Bool, {falseName, trueName}, 2 });
 			return (int32)(configs.size() - 1);
 		}
 
-		int32 addIntConfig(const char* name, uint32 count)
+		int32 addIntConfig(uint32 count, const std::vector<std::string>& names)
 		{
 			CHECK(!bStarted && !bFinished);
 
-			configs.push_back({ ConfigType::Integer, name, count });
+			configs.push_back({ ConfigType::Integer, names, count });
 			return (int32)(configs.size() - 1);
 		}
 
@@ -111,7 +113,7 @@ namespace render_test
 			nTotalConfigs = 1;
 			for (size_t i = 0; i < current.size(); ++i)
 			{
-				current[i] = Config(configs[i].type, configs[i].name.c_str(), 0);
+				current[i] = Config(configs[i].type, configs[i].names, 0);
 				nTotalConfigs *= configs[i].value;
 			}
 			currentLinearIx = 0;
@@ -130,12 +132,12 @@ namespace render_test
 
 			const size_t n = current.size();
 			current[0].value += 1;
-			for (size_t i = 0; i < n; ++i)
+			for (size_t i = 0; i < n - 1; ++i)
 			{
 				if (current[i].value == configs[i].value)
 				{
-					if (n > 1) current[i].value = 0;
-					if (i + 1 != n) current[i + 1].value += 1;
+					current[i].value = 0;
+					current[i + 1].value += 1;
 				}
 			}
 			++currentLinearIx;

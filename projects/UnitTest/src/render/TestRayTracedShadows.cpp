@@ -89,7 +89,7 @@ protected:
 
 		createScene();
 
-		configIxDebugVis = configPermutation.addBoolConfig("debugVis");
+		configIxDebugVis = configPermutation.addBoolConfig("fullcolor", "shadowonly");
 		configHandle = configPermutation.init();
 
 		actualImage->init(configPermutation.numTotalConfigs(), WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -127,7 +127,7 @@ protected:
 		rendererOptions.pathTracing = EPathTracingMode::Disabled;
 		if (bNeedReadback)
 		{
-			const bool debugVis = configHandle.getBoolValue(configIxDebugVis);
+			const bool debugVis = configHandle.getBoolValue(configIxDebugVis).first;
 			rendererOptions.bufferVisualization = debugVis ? EBufferVisualizationMode::RayTracedShadows : EBufferVisualizationMode::None;
 		}
 
@@ -157,7 +157,7 @@ protected:
 			targetImage.assign(readbackData, readbackData + handle->totalBytes);
 
 			const char* sApi = (graphicsAPI == ERenderDeviceRawAPI::DirectX12) ? "d3d" : "vk";
-			const char* sDebugVis = configHandle.getBoolValue(configIxDebugVis) ? "shadowonly" : "fullcolor";
+			const char* sDebugVis = configHandle.getBoolValue(configIxDebugVis).second;
 
 			char msg[256]; std::wstring wMsg;
 			sprintf_s(msg, "TestRayTracedShadows/%s/%s.png", sApi, sDebugVis);

@@ -38,16 +38,18 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define WINDOW_HEIGHT        256
 #define ASPECT_RATIO         ((float)WINDOW_WIDTH / (float)WINDOW_HEIGHT)
 
-const int32 nPrepassConfigs = 2;
-const int32 nVisBufferConfigs = 2;
-const int32 nGpuCullingConfigs = 2;
-const int32 nIndirectDrawConfigs = (int32)EIndirectDrawMode::Count;
-const int32 nTotalConfigs = nPrepassConfigs * nVisBufferConfigs * nGpuCullingConfigs * nIndirectDrawConfigs;
-
 struct ActualImage_GpuDriven
 {
-	std::vector<uint8> images[nTotalConfigs];
-	std::wstring actualTags[nTotalConfigs];
+	void init(size_t imageCount, uint32 inWidth, uint32 inHeight)
+	{
+		images.resize(imageCount);
+		actualTags.resize(imageCount);
+		width = inWidth;
+		height = inHeight;
+	}
+
+	std::vector<std::vector<uint8>> images;
+	std::vector<std::wstring> actualTags;
 	uint32 width;
 	uint32 height;
 };
@@ -87,8 +89,13 @@ protected:
 
 		createScene();
 
-		actualImage->width = WINDOW_WIDTH;
-		actualImage->height = WINDOW_HEIGHT;
+		configIxPrepass = configPermutation.addBoolConfig("noprepass", "prepass");
+		configIxVisBuffer = configPermutation.addBoolConfig("novisbuf", "visbuf");
+		configIxGpuCulling = configPermutation.addBoolConfig("nocull", "gpucull");
+		configIxIndirectDraw = configPermutation.addIntConfig((int32)EIndirectDrawMode::Count, { "direct", "cpugen", "gpugen" });
+		configHandle = configPermutation.init();
+
+		actualImage->init(configPermutation.numTotalConfigs(), WINDOW_WIDTH, WINDOW_HEIGHT);
 
 		TextureCreateParams cameraColorParams = TextureCreateParams::texture2D(
 			EPixelFormat::R8G8B8A8_UNORM,
@@ -114,12 +121,6 @@ protected:
 	{
 		bool bNeedReadback = frameCounter != 0;
 
-		static int32 prepassConfig = 0;
-		static int32 visBufferConfig = 0;
-		static int32 gpuCullingConfig = 0;
-		static int32 indirectDrawConfig = 0;
-		static int32 configIndex = 0;
-
 		SceneProxy* sceneProxy = scene.createProxy();
 		RendererOptions rendererOptions{};
 		rendererOptions.finalRenderTarget = cameraColor;
@@ -129,10 +130,10 @@ protected:
 		rendererOptions.pathTracing = EPathTracingMode::Disabled;
 		if (bNeedReadback)
 		{
-			rendererOptions.bEnableDepthPrepass = (bool)prepassConfig;
-			rendererOptions.bEnableVisibilityBuffer = (bool)visBufferConfig;
-			rendererOptions.bEnableGPUCulling = (bool)gpuCullingConfig;
-			rendererOptions.indirectDrawMode = (EIndirectDrawMode)indirectDrawConfig;
+			rendererOptions.bEnableDepthPrepass = configHandle.getBoolValue(configIxPrepass).first;
+			rendererOptions.bEnableVisibilityBuffer = configHandle.getBoolValue(configIxVisBuffer).first;
+			rendererOptions.bEnableGPUCulling = configHandle.getBoolValue(configIxGpuCulling).first;
+			rendererOptions.indirectDrawMode = (EIndirectDrawMode)(configHandle.getIntValue(configIxIndirectDraw).first);
 		}
 
 		cysealEngine->beginImguiNewFrame();
@@ -150,6 +151,8 @@ protected:
 			finishRendering(commandList);
 			Assert::IsTrue(handle->bAvailable);
 
+			const int32 configIndex = configHandle.getLinearIx();
+
 			uint8* readbackData = reinterpret_cast<uint8*>(handle->readbackData);
 			
 			std::vector<uint8>& targetImage = actualImage->images[configIndex];
@@ -158,39 +161,17 @@ protected:
 			targetImage.assign(readbackData, readbackData + handle->totalBytes);
 
 			const char* sApi = (graphicsAPI == ERenderDeviceRawAPI::DirectX12) ? "d3d" : "vk";
-			const char* sPrepass = (prepassConfig == 0) ? "noprepass" : "prepass";
-			const char* sVisBuffer = (visBufferConfig == 0) ? "novisbuf" : "visbuf";
-			const char* sCulling = (gpuCullingConfig == 0) ? "nocull" : "gpucull";
-			const char* sIndirect = (indirectDrawConfig == 0) ? "direct" : (indirectDrawConfig == 1) ? "cpugen" : "gpugen";
+			const char* sPrepass = configHandle.getBoolValue(configIxPrepass).second;
+			const char* sVisBuffer = configHandle.getBoolValue(configIxVisBuffer).second;
+			const char* sCulling = configHandle.getBoolValue(configIxGpuCulling).second;
+			const char* sIndirect = configHandle.getIntValue(configIxIndirectDraw).second;
 
 			char msg[256]; std::wstring wMsg;
 			sprintf_s(msg, "TestGpuDriven/%s/%s_%s_%s_%s.png", sApi, sPrepass, sVisBuffer, sCulling, sIndirect);
 			str_to_wstr(msg, wMsg);
 			actualTag = wMsg;
 
-			++configIndex;
-
-			indirectDrawConfig += 1;
-			if (indirectDrawConfig == (int)EIndirectDrawMode::Count)
-			{
-				indirectDrawConfig = 0;
-				gpuCullingConfig += 1;
-				if (gpuCullingConfig == 2)
-				{
-					gpuCullingConfig = 0;
-					visBufferConfig += 1;
-					if (visBufferConfig == 2)
-					{
-						visBufferConfig = 0;
-						prepassConfig += 1;
-						if (prepassConfig == 2)
-						{
-							Assert::IsTrue(configIndex == nTotalConfigs);
-							return false;
-						}
-					}
-				}
-			}
+			if (configPermutation.advance() == false) return false;
 		}
 
 		++frameCounter;
@@ -306,6 +287,13 @@ private:
 
 	Texture* cameraColor = nullptr;
 	ActualImage_GpuDriven* actualImage = nullptr;
+
+	render_test::ConfigPermutation configPermutation;
+	render_test::ConfigPermutation::ConfigHandle configHandle;
+	int32 configIxPrepass = -1;
+	int32 configIxVisBuffer = -1;
+	int32 configIxGpuCulling = -1;
+	int32 configIxIndirectDraw = -1;
 };
 
 namespace UnitTest
@@ -335,7 +323,7 @@ namespace UnitTest
 			Assert::IsTrue(ret == EApplicationReturnCode::Ok);
 
 			int32 invalidImgCount = 0;
-			for (int32 i = 0; i < nTotalConfigs; ++i)
+			for (int32 i = 0; i < actualImage.images.size(); ++i)
 			{
 				std::vector<uint8>& image = actualImage.images[i];
 				const std::wstring& actualTag = actualImage.actualTags[i];
