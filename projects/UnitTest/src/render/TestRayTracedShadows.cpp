@@ -36,84 +36,6 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define WINDOW_HEIGHT        256
 #define ASPECT_RATIO         ((float)WINDOW_WIDTH / (float)WINDOW_HEIGHT)
 
-class ConfigPermutation
-{
-public:
-	struct Config
-	{
-		std::string name;
-		uint32 value;
-	};
-	struct ConfigHandle
-	{
-		inline uint32 getValue(int32 ix) const { return (*ptr)[ix].value; }
-		inline int32 getLinearIx() const { return *ptrLinearIx; }
-		std::vector<Config>* ptr = nullptr;
-		int32* ptrLinearIx = nullptr;
-	};
-
-	ConfigPermutation()
-	{
-	}
-
-	int32 addConfig(const char* name, uint32 count)
-	{
-		CHECK(!bStarted && !bFinished);
-
-		configs.push_back({ name, count });
-		return (int32)(configs.size() - 1);
-	}
-
-	ConfigHandle init()
-	{
-		CHECK(!bStarted && !bFinished);
-		bStarted = true;
-
-		current.resize(configs.size());
-		nTotalConfigs = 1;
-		for (size_t i = 0; i < current.size(); ++i)
-		{
-			current[i] = Config(configs[i].name.c_str(), 0);
-			nTotalConfigs *= configs[i].value;
-		}
-		currentLinearIx = 0;
-		return ConfigHandle{ &current, &currentLinearIx };
-	}
-
-	uint32 numTotalConfigs() const
-	{
-		CHECK(bStarted);
-		return nTotalConfigs;
-	}
-
-	bool advance()
-	{
-		CHECK(bStarted && !bFinished);
-
-		const size_t n = current.size();
-		current[0].value += 1;
-		for (size_t i = 0; i < n; ++i)
-		{
-			if (current[i].value == configs[i].value)
-			{
-				if (n > 1) current[i].value = 0;
-				if (i + 1 != n) current[i + 1].value += 1;
-			}
-		}
-		++currentLinearIx;
-		bFinished = current[n - 1].value == configs[n - 1].value;
-		return !bFinished;
-	}
-
-private:
-	std::vector<Config> configs;
-	uint32 nTotalConfigs = 0;
-
-	std::vector<Config> current;
-	int32 currentLinearIx = -1;
-	bool bStarted = false, bFinished = false;
-};
-
 struct ActualImage_RayTracedShadows
 {
 	void init(size_t imageCount, uint32 inWidth, uint32 inHeight)
@@ -167,7 +89,7 @@ protected:
 
 		createScene();
 
-		configIxDebugVis = configPermutation.addConfig("debugVis", 2);
+		configIxDebugVis = configPermutation.addBoolConfig("debugVis");
 		configHandle = configPermutation.init();
 
 		actualImage->init(configPermutation.numTotalConfigs(), WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -205,7 +127,7 @@ protected:
 		rendererOptions.pathTracing = EPathTracingMode::Disabled;
 		if (bNeedReadback)
 		{
-			const bool debugVis = configHandle.getValue(configIxDebugVis) != 0;
+			const bool debugVis = configHandle.getBoolValue(configIxDebugVis);
 			rendererOptions.bufferVisualization = debugVis ? EBufferVisualizationMode::RayTracedShadows : EBufferVisualizationMode::None;
 		}
 
@@ -235,7 +157,7 @@ protected:
 			targetImage.assign(readbackData, readbackData + handle->totalBytes);
 
 			const char* sApi = (graphicsAPI == ERenderDeviceRawAPI::DirectX12) ? "d3d" : "vk";
-			const char* sDebugVis = (configHandle.getValue(configIxDebugVis) == 0) ? "fullcolor" : "shadowonly";
+			const char* sDebugVis = configHandle.getBoolValue(configIxDebugVis) ? "shadowonly" : "fullcolor";
 
 			char msg[256]; std::wstring wMsg;
 			sprintf_s(msg, "TestRayTracedShadows/%s/%s.png", sApi, sDebugVis);
@@ -375,8 +297,8 @@ private:
 	Texture* cameraColor = nullptr;
 	ActualImage_RayTracedShadows* actualImage = nullptr;
 
-	ConfigPermutation configPermutation;
-	ConfigPermutation::ConfigHandle configHandle;
+	render_test::ConfigPermutation configPermutation;
+	render_test::ConfigPermutation::ConfigHandle configHandle;
 	int32 configIxDebugVis = -1;
 };
 
