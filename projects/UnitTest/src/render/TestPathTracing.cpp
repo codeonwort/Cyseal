@@ -134,6 +134,7 @@ protected:
 		rendererOptions.indirectDiffuse = EIndirectDiffuseMode::Disabled;
 		rendererOptions.indirectSpecular = EIndirectSpecularMode::Disabled;
 		rendererOptions.pathTracing = EPathTracingMode::Offline;
+		if (frameCounter == 0) rendererOptions.pathTracingRandomSeed = 1234;
 		rendererOptions.pathTracingDenoiserState = bNeedReadback
 			? EPathTracingDenoiserState::DenoiseNow
 			: EPathTracingDenoiserState::WaitForFrameAccumulation;
