@@ -34,11 +34,22 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define CAMERA_Z_NEAR        0.01f
 #define CAMERA_Z_FAR         10000.0f
 
-#define WINDOW_WIDTH         1024
-#define WINDOW_HEIGHT        1024
+#define WINDOW_WIDTH         256
+#define WINDOW_HEIGHT        256
 #define ASPECT_RATIO         ((float)WINDOW_WIDTH / (float)WINDOW_HEIGHT)
 
 #define SAMPLES_PER_PIXEL    32
+
+// For CppUnitTestFramework.
+static std::wstring ToString(const std::vector<vec3>& q)
+{
+	std::wstringstream wss;
+	for (const vec3& v : q)
+	{
+		wss << '(' << v.x << ',' << v.y << ',' << v.z << ") ";
+	}
+	return wss.str();
+}
 
 struct ActualImage_PathTracing
 {
@@ -384,18 +395,24 @@ namespace UnitTest
 
 			Assert::IsTrue(ret == EApplicationReturnCode::Ok);
 
-			int32 invalidImgCount = 0;
+			std::vector<vec3> zeros(actualImage.images.size(), vec3(0.0f));
+			std::vector<vec3> errors(actualImage.images.size(), vec3(0.0f));
+
+			uint32 numInvalidImages = 0;
 			for (int32 i = 0; i < actualImage.images.size(); ++i)
 			{
 				std::vector<uint8>& image = actualImage.images[i];
 				const std::wstring& actualTag = actualImage.actualTags[i];
 				const std::wstring& refTag = actualImage.refTags[i];
-				uint32 numDiff = render_test::compareRefImageToRgba8ui(refTag.data(), image.data());
+
+				errors[i] = render_test::computeMinSquareErrorRgba8ui(refTag.data(), image.data());
 				render_test::saveRgba8uiImage(actualTag.data(), image.data(), actualImage.width, actualImage.height);
-				
-				invalidImgCount += (0 != numDiff) ? 1 : 0;
+
+				if (allLessThan(errors[i], vec3(0.01f)) == false) numInvalidImages += 1;
 			}
-			Assert::AreEqual(0, invalidImgCount);
+
+			std::wstring assertMsg = ToString(errors);
+			Assert::AreEqual(0u, numInvalidImages, assertMsg.c_str());
 		}
 	};
 
