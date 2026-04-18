@@ -37,4 +37,7 @@ private:
 	UniquePtr<ComputePipelineState> inpaintingPipeline;
 	UniquePtr<ComputePipelineState> gameVectorFieldInpaintingPyramidPipeline;
 	UniquePtr<ComputePipelineState> debugViewPipeline;
+
+	VolatileDescriptorHelper        frameInterpDescriptor;
+	VolatileDescriptorHelper        inpaintingPyramidDescriptor;
 };

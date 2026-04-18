@@ -1,6 +1,56 @@
 #include "frame_gen_pass.h"
 #include "rhi/render_device.h"
 
+// FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION)
+struct FrameInterpUniform
+{
+	int32           renderSize[2];
+	int32           displaySize[2];
+
+	float           displaySizeRcp[2];
+	float           cameraNear;
+	float           cameraFar;
+
+	int32           upscalerTargetSize[2];
+	int32           Mode;
+	int32           reset;
+
+	float           fDeviceToViewDepth[4];
+
+	float           deltaTime;
+	int32           HUDLessAttachedFactor;
+	int32           distortionFieldSize[2];
+
+	float           opticalFlowScale[2];
+	int32           opticalFlowBlockSize;
+	uint32          dispatchFlags;
+
+	int32           maxRenderSize[2];
+	int32           opticalFlowHalfResMode;
+	int32           NumInstances;
+
+	int32           interpolationRectBase[2];
+	int32           interpolationRectSize[2];
+
+	float           debugBarColor[3];
+	uint32          backBufferTransferFunction;
+
+	float           minMaxLuminance[2];
+	float           fTanHalfFOV;
+	int32           _pad1;
+
+	float           fJitter[2];
+	float           fMotionVectorScale[2];
+};
+
+// FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_INPAINTING_PYRAMID)
+struct InpaintingPyramidUniform
+{
+	uint32          mips;
+	uint32          numWorkGroups;
+	uint32          workGroupOffset[2];
+};
+
 void FrameGenPass::initialize(RenderDevice* inRenderDevice)
 {
 	device = inRenderDevice;
@@ -17,9 +67,8 @@ void FrameGenPass::initializePipelines()
 {
 	const uint32 swapchainCount = device->maxFramesInFlight();
 
-	// #todo-fsr3: VolatileDescriptorHelperfor for cbuffers:
-	// FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION)
-	// FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_INPAINTING_PYRAMID)
+	frameInterpDescriptor.initialize(L"FSR3_FrameInterpUniform", swapchainCount, sizeof(FrameInterpUniform));
+	inpaintingPyramidDescriptor.initialize(L"FSR3_InpaintingPyramidUniform", swapchainCount, sizeof(InpaintingPyramidUniform));
 
 	// reconstructAndDilatePipeline
 	{
