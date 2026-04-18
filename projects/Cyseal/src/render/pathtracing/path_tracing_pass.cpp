@@ -160,6 +160,11 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 	resizeTextures(commandList, sceneWidth, sceneHeight);
 
+	if (passInput.randomSeed > 0)
+	{
+		rng.resetSeed(passInput.randomSeed);
+	}
+
 	const uint32 currFrame = swapchainIndex % 2;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
 
