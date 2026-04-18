@@ -580,6 +580,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.camera                = camera,
 				.mode                  = renderOptions.pathTracing,
 				.kernel                = renderOptions.pathTracingKernel,
+				.randomSeed            = renderOptions.pathTracingRandomSeed,
 				.bCameraHasMoved       = renderOptions.bCameraHasMoved,
 				.sceneWidth            = sceneWidth,
 				.sceneHeight           = sceneHeight,
