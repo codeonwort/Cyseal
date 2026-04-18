@@ -179,6 +179,8 @@ void IndirecSpecularPass::initialize(RenderDevice* inRenderDevice)
 		return;
 	}
 
+	rng = RNG<float>(0.0f, 1.0f);
+
 	initializeClassifierPipeline();
 	initializeRaytracingPipeline();
 	initializeTemporalPipeline();
@@ -206,6 +208,11 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	{
 		// #todo-zero-size: Release resources if any.
 		return;
+	}
+
+	if (passInput.randomSeed > 0)
+	{
+		rng.resetSeed(passInput.randomSeed);
 	}
 
 	prepareRaytracingResources(commandList, swapchainIndex, passInput);
@@ -854,8 +861,8 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 
 		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
 		{
-			uboData->randFloats0[i] = Cymath::randFloat();
-			uboData->randFloats1[i] = Cymath::randFloat();
+			uboData->randFloats0[i] = rng.get();
+			uboData->randFloats1[i] = rng.get();
 		}
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;

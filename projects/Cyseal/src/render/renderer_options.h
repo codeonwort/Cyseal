@@ -210,6 +210,7 @@ struct RendererOptions
 	EIndirectDiffuseMode      indirectDiffuse = EIndirectDiffuseMode::Disabled;
 	uint32                    indirectDiffuseRandomSeed = 0;
 	EIndirectSpecularMode     indirectSpecular = EIndirectSpecularMode::ForceMirror;
+	uint32                    indirectSpecularRandomSeed = 0;
 
 	// Path tracing
 	EPathTracingMode          pathTracing = EPathTracingMode::Disabled;

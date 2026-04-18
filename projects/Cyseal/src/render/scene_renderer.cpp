@@ -719,6 +719,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		IndirectSpecularInput passInput{
 			.scene                   = scene,
 			.mode                    = renderOptions.indirectSpecular,
+			.randomSeed              = renderOptions.indirectSpecularRandomSeed,
 			.unscaledRenderWidth     = unscaledRenderWidth,
 			.unscaledRenderHeight    = unscaledRenderHeight,
 			.sceneWidth              = sceneWidth,
