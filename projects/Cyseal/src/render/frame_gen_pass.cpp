@@ -1,5 +1,8 @@
 #include "frame_gen_pass.h"
 #include "rhi/render_device.h"
+#include "world/camera.h"
+
+// See sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp
 
 // FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION)
 struct FrameInterpUniform
@@ -15,10 +18,10 @@ struct FrameInterpUniform
 	int32           Mode;
 	int32           reset;
 
-	float           fDeviceToViewDepth[4];
+	float           fDeviceToViewDepth[4]; // #wip: setupDeviceDepthToViewSpaceDepthParams
 
 	float           deltaTime;
-	int32           HUDLessAttachedFactor;
+	int32           HUDLessAttachedFactor; // 1 or 0 (#wip: Is it for HUD upscaling?)
 	int32           distortionFieldSize[2];
 
 	float           opticalFlowScale[2];
@@ -60,7 +63,8 @@ void FrameGenPass::initialize(RenderDevice* inRenderDevice)
 
 void FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
 {
-	//
+	preparePhase(commandList, swapchainIndex, passInput);
+	dispatchPhase(commandList, swapchainIndex, passInput);
 }
 
 void FrameGenPass::initializePipelines()
@@ -245,4 +249,90 @@ void FrameGenPass::initializePipelines()
 
 		delete shader;
 	}
+}
+
+// See ffxFrameInterpolationPrepare.
+void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
+{
+	// #wip: Dispatch reconstructAndDilatePipeline
+}
+
+// See ffxFrameInterpolationDispatch.
+void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
+{
+	FrameInterpUniform uniformData{
+		.renderSize                 = { passInput.renderSizeX, passInput.renderSizeY },
+		.displaySize                = { passInput.displaySizeX, passInput.displaySizeY },
+		.displaySizeRcp             = { 1.0f / (float)(passInput.displaySizeX), 1.0f / (float)(passInput.displaySizeY) },
+		.cameraNear                 = passInput.camera->getZNear(),
+		.cameraFar                  = passInput.camera->getZFar(),
+		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY }, // #wip: upscale target size
+		.Mode                       = 0, // #wip: What is this? No shader accesses it, even ffx source code does not use it.
+		.reset                      = 0, // #wip: reset, see ffxFrameInterpolationDispatch
+		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // #wip: fDeviceToViewDepth, see setupDeviceDepthToViewSpaceDepthParams
+		.deltaTime                  = passInput.deltaTime, // #wip: Unit of deltaTime?
+		.HUDLessAttachedFactor      = 0,
+		.distortionFieldSize        = { 1, 1 },
+		.opticalFlowScale           = { 1.0f, 1.0f }, // #wip: opticalFlowScale
+		.opticalFlowBlockSize       = passInput.opticalFlowBlockSize,
+		.dispatchFlags              = passInput.dispatchFlags,
+		.maxRenderSize              = { passInput.displaySizeX, passInput.displaySizeY },
+		.opticalFlowHalfResMode     = 0, // #wip: opticalFlowHalfResMode
+		.NumInstances               = 0, // #wip: NumInstances unused?
+		.interpolationRectBase      = { 0, 0 },
+		.interpolationRectSize      = { passInput.renderSizeX, passInput.renderSizeY },
+		.debugBarColor              = { 1.0f, 0.0f, 0.0f },
+		.backBufferTransferFunction = passInput.backBufferTransferFunction,
+		.minMaxLuminance            = { 0.0f, 65000.0f }, // #todo-fsr: minMaxLuminance
+		.fTanHalfFOV                = 0.5f * std::tan(2.0f * std::atan(std::tan(passInput.camera->getFovYInRadians() * 0.5f) * passInput.camera->getAspectRatio())),
+		._pad1                      = 0,
+		.fJitter                    = { 0, 0 }, // #wip: jitter
+		.fMotionVectorScale         = { 1.0f, 1.0f },
+	};
+
+	ConstantBufferView* passUniformCBV = frameInterpDescriptor.getUniformCBV(swapchainIndex);
+	passUniformCBV->writeToGPU(commandList, &uniformData, sizeof(uniformData));
+
+	const uint32 displayDispatchSizeX = (passInput.displaySizeX + 7) / 8;
+	const uint32 displayDispatchSizeY = (passInput.displaySizeY + 7) / 8;
+
+	const uint32 renderDispatchSizeX = (passInput.renderSizeX + 7) / 8;
+	const uint32 renderDispatchSizeY = (passInput.renderSizeY + 7) / 8;
+
+	const uint32 opticalFlowDispatchSizeX = (uint32)(passInput.displaySizeX / (float)passInput.opticalFlowBlockSize + 7) / 8;
+	const uint32 opticalFlowDispatchSizeY = (uint32)(passInput.displaySizeY / (float)passInput.opticalFlowBlockSize + 7) / 8;
+
+	// #wip: Dispatch setupPipeline (renderDispatchSizeX/Y)
+	// #wip: Dispatch gameVectorFieldInpaintingPyramidPipeline
+
+	if (uniformData.reset == 0)
+	{
+		// #wip: Clear estimated depth resources
+		// ...
+
+		// #wip: Dispatch reconstructPrevDepthPipeline
+		// #wip: Dispatch gameMotionVectorFieldPipeline
+		
+		// #wip: scheduleDispatchGameVectorFieldInpaintingPyramid()
+
+		// #wip: Dispatch opticalFlowVectorFieldPipeline
+		// #wip: Dispatch disocclusionMaskPipeline
+	}
+
+	// #wip: Dispatch interpolationPipeline (pipelineFiScfi in ffx)
+
+	// inpainting pyramid
+	{
+		// #wip: Auto exposure via SPD
+		// #wip: Dispatch inpaintingPyramidPipeline
+	}
+
+	// #wip: inpaintingPipeline
+
+	if (false /* draw debug view */)
+	{
+		// #wip: Dispatch debugViewPipeline
+	}
+
+	// #wip: Store current buffer
 }

@@ -47,7 +47,10 @@ public:
 	void setZNear(float zNear);
 	void setZFar(float zFar);
 
+	inline float getFovYInRadians() const { return fovY_radians; }
 	inline float getAspectRatio() const { return aspectRatioWH; }
+	inline float getZNear() const { return zNear; }
+	inline float getZFar() const { return zFar; }
 
 	// Set properties of view matrix at once.
 	void lookAt(const vec3& origin, const vec3& target, const vec3& up);

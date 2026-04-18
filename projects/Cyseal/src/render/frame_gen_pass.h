@@ -6,9 +6,20 @@
 #include "rhi/pipeline_state.h"
 #include "util/volatile_descriptor.h"
 
+class Camera;
+
 struct FrameGenPassInput
 {
-	//
+	const Camera* camera;
+
+	int32  renderSizeX;
+	int32  renderSizeY;
+	int32  displaySizeX;
+	int32  displaySizeY;
+	float  deltaTime;
+	int32  opticalFlowBlockSize;
+	uint32 dispatchFlags;
+	uint32 backBufferTransferFunction;
 };
 
 class FrameGenPass final : public SceneRenderPass
@@ -20,6 +31,9 @@ public:
 
 private:
 	void initializePipelines();
+
+	void preparePhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
+	void dispatchPhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
 
 private:
 	RenderDevice* device = nullptr;
