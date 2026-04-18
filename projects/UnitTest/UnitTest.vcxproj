@@ -137,6 +137,7 @@
     <ClCompile Include="src\render\TestGpuDriven.cpp" />
     <ClCompile Include="src\render\TestImageComparison.cpp" />
     <ClCompile Include="src\render\TestIndirectDiffuse.cpp" />
+    <ClCompile Include="src\render\TestIndirectSpecular.cpp" />
     <ClCompile Include="src\render\TestRayTracedShadows.cpp" />
     <ClCompile Include="src\render\TestSkybox.cpp" />
     <ClCompile Include="src\render\test_render_utils.cpp" />
