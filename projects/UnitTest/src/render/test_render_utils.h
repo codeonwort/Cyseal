@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "core/vec3.h"
 #include "core/assertion.h"
 
 #include <string>
@@ -32,6 +33,14 @@ namespace render_test
 	/// <param name="imageActual"></param>
 	/// <returns></returns>
 	uint32 compareRefImageToRgba32f(const wchar_t* refImagePath, float* imageActual);
+
+	/// <summary>
+	/// Each pixel value is mapped to [0, 1]. MSE is computed for each channel.
+	/// </summary>
+	/// <param name="refImagePath">The path to reference PNG image, relative to the solution directory.</param>
+	/// <param name="imageActual">Pointer to rgba8 image data</param>
+	/// <returns>Min square error for each channel.</returns>
+	vec3 computeMinSquareErrorRgba8ui(const wchar_t* refImagePath, uint8* imageActual);
 
 	/// <summary>
 	/// Save rgba8ui image as PNG.
