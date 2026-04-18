@@ -128,6 +128,8 @@ void PathTracingPass::initialize(RenderDevice* inDevice)
 		return;
 	}
 
+	rng = RNG<float>(0.0f, 1.0f);
+
 	initializeRaytracingPipeline();
 	initializeTemporalPipeline();
 }
@@ -157,6 +159,11 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 	// Phase: Setup
 
 	resizeTextures(commandList, sceneWidth, sceneHeight);
+
+	if (passInput.randomSeed > 0)
+	{
+		rng.resetSeed(passInput.randomSeed);
+	}
 
 	const uint32 currFrame = swapchainIndex % 2;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
@@ -446,8 +453,8 @@ void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, uint32 s
 
 		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
 		{
-			uboData->randFloats0[i] = Cymath::randFloat();
-			uboData->randFloats1[i] = Cymath::randFloat();
+			uboData->randFloats0[i] = rng.get();
+			uboData->randFloats1[i] = rng.get();
 		}
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;

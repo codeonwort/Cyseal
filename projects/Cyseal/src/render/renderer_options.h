@@ -214,6 +214,7 @@ struct RendererOptions
 
 	// Path tracing
 	EPathTracingMode          pathTracing = EPathTracingMode::Disabled;
+	uint32                    pathTracingRandomSeed = 0;
 	bool                      bCameraHasMoved = false;
 	EPathTracingDenoiserState pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
 	EPathTracingKernel        pathTracingKernel = EPathTracingKernel::MegaKernel;

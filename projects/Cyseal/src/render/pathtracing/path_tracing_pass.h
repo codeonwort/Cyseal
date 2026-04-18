@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "core/cymath.h"
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_view.h"
@@ -19,6 +20,7 @@ struct PathTracingInput
 	const Camera*              camera;
 	EPathTracingMode           mode;
 	EPathTracingKernel         kernel;
+	uint32                     randomSeed;
 
 	bool                       bCameraHasMoved;
 	uint32                     sceneWidth;
@@ -59,6 +61,8 @@ private:
 
 private:
 	RenderDevice*                            device = nullptr;
+
+	RNG<float>                               rng;
 
 	// Ray pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;

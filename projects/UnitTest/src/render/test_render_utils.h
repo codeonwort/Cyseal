@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "core/vec3.h"
 #include "core/assertion.h"
 
 #include <string>
@@ -32,6 +33,14 @@ namespace render_test
 	/// <param name="imageActual"></param>
 	/// <returns></returns>
 	uint32 compareRefImageToRgba32f(const wchar_t* refImagePath, float* imageActual);
+
+	/// <summary>
+	/// Each pixel value is mapped to [0, 1]. MSE is computed for each channel.
+	/// </summary>
+	/// <param name="refImagePath">The path to reference PNG image, relative to the solution directory.</param>
+	/// <param name="imageActual">Pointer to rgba8 image data</param>
+	/// <returns>Min square error for each channel.</returns>
+	vec3 computeMinSquareErrorRgba8ui(const wchar_t* refImagePath, uint8* imageActual);
 
 	/// <summary>
 	/// Save rgba8ui image as PNG.
@@ -131,17 +140,24 @@ namespace render_test
 			CHECK(bStarted && !bFinished);
 
 			const size_t n = current.size();
-			current[0].value += 1;
-			for (size_t i = 0; i < n - 1; ++i)
+			if (n == 0)
 			{
-				if (current[i].value == configs[i].value)
-				{
-					current[i].value = 0;
-					current[i + 1].value += 1;
-				}
+				bFinished = true;
 			}
-			++currentLinearIx;
-			bFinished = current[n - 1].value == configs[n - 1].value;
+			else
+			{
+				current[0].value += 1;
+				for (size_t i = 0; i < n - 1; ++i)
+				{
+					if (current[i].value == configs[i].value)
+					{
+						current[i].value = 0;
+						current[i + 1].value += 1;
+					}
+				}
+				++currentLinearIx;
+				bFinished = current[n - 1].value == configs[n - 1].value;
+			}
 			return !bFinished;
 		}
 

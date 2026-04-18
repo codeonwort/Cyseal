@@ -103,6 +103,38 @@ namespace render_test
 		return 0xffffffff;
 	}
 
+	vec3 computeMinSquareErrorRgba8ui(const wchar_t* refImagePath, uint8* imageActual)
+	{
+		std::wstring solutionDir = getSolutionDirectory();
+		if (solutionDir.size() > 0)
+		{
+			std::wstring fullPath = solutionDir + L"tests/referenceImages/" + refImagePath;
+
+			ImageLoader loader;
+			ImageLoadData* refData = loader.load(fullPath, false, false);
+			if (refData != nullptr)
+			{
+				uint8* p1 = reinterpret_cast<uint8*>(refData->buffer);
+				uint8* p2 = imageActual;
+				float errRed = 0.0f, errGreen = 0.0f, errBlue = 0.0f;
+				for (uint32 y = 0; y < refData->height; ++y)
+				{
+					for (uint32 x = 0; x < refData->width; ++x)
+					{
+						float r1 = (float)(p1[x * 4 + 0]) / 255.0f, g1 = (float)(p1[x * 4 + 1]) / 255.0f, b1 = (float)(p1[x * 4 + 2]) / 255.0f;
+						float r2 = (float)(p2[x * 4 + 0]) / 255.0f, g2 = (float)(p2[x * 4 + 1]) / 255.0f, b2 = (float)(p2[x * 4 + 2]) / 255.0f;
+						float rDiff = std::abs(r1 - r2), gDiff = std::abs(g1 - g2), bDiff = std::abs(b1 - b2);
+						errRed += rDiff * rDiff; errGreen += gDiff * gDiff; errBlue += bDiff * bDiff;
+					}
+					p1 += refData->getRowPitch();
+					p2 += refData->getRowPitch();
+				}
+				return vec3(errRed, errGreen, errBlue) / (float)(refData->width * refData->height);
+			}
+		}
+		return FLT_MAX;
+	}
+
 	bool saveRgba8uiImage(const wchar_t* filepath, uint8* rgba8Image, uint32 width, uint32 height)
 	{
 		std::wstring solutionDir = getSolutionDirectory();
