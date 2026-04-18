@@ -34,9 +34,8 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define CAMERA_Z_NEAR        0.01f
 #define CAMERA_Z_FAR         10000.0f
 
-// #wip: Reduce to 256x256 after bugfix.
-#define WINDOW_WIDTH         1024
-#define WINDOW_HEIGHT        1024
+#define WINDOW_WIDTH         256
+#define WINDOW_HEIGHT        256
 #define ASPECT_RATIO         ((float)WINDOW_WIDTH / (float)WINDOW_HEIGHT)
 
 const int32 captureFrames[] = { 1, 4, 16, 32, 64 };
@@ -105,6 +104,7 @@ protected:
 
 		createScene();
 
+		frameCounter = 0;
 		numCaptured = 0;
 		actualImage->init(NUM_CAPTURE_FRAMES, WINDOW_WIDTH, WINDOW_HEIGHT);
 
