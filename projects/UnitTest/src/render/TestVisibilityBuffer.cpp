@@ -22,8 +22,6 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "rhi/vulkan/vk_device.h"
 #include "util/string_conversion.h"
 
-#include <array>
-
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (10.0f * vec3(1.0f, 1.0f, 1.0f))
 
