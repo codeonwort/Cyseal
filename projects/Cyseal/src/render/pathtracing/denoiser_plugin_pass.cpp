@@ -56,6 +56,24 @@ void DenoiserPluginPass::blitTextures(RenderCommandList* commandList, uint32 swa
 
 	resizeTextures(width, height);
 
+	{
+		TextureBarrierAuto barriers[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				colorTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				albedoTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				normalTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
+	}
+
 	ShaderParameterTable SPT{};
 	SPT.pushConstant("pushConstants", packedWidthHeight);
 	SPT.texture("inSceneColor", passInput.sceneColorSRV);
