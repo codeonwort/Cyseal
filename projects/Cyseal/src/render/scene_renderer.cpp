@@ -719,6 +719,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		IndirectSpecularInput passInput{
 			.scene                   = scene,
 			.mode                    = renderOptions.indirectSpecular,
+			.randomSeed              = renderOptions.indirectSpecularRandomSeed,
 			.unscaledRenderWidth     = unscaledRenderWidth,
 			.unscaledRenderHeight    = unscaledRenderHeight,
 			.sceneWidth              = sceneWidth,
@@ -733,7 +734,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gbuffer0Texture         = currentGBufferTexture0,
 			.gbuffer1Texture         = currentGBufferTexture1,
 			.gbuffer0SRV             = currentGBufferSRV0,
-			.gbuffer1SRV             = currentGBufferSRV0,
+			.gbuffer1SRV             = currentGBufferSRV1,
 			.normalTexture           = historyResources.currNormal,
 			.normalSRV               = historyResources.currNormalSRV,
 			.roughnessTexture        = historyResources.currRoughness,

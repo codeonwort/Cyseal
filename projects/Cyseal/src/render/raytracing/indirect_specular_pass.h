@@ -2,6 +2,7 @@
 
 #include "core/int_types.h"
 #include "core/matrix.h"
+#include "core/cymath.h"
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
 #include "rhi/pipeline_state.h"
@@ -20,6 +21,7 @@ struct IndirectSpecularInput
 {
 	const SceneProxy*      scene;
 	EIndirectSpecularMode  mode;
+	uint32                 randomSeed;
 
 	uint32                 unscaledRenderWidth;
 	uint32                 unscaledRenderHeight;
@@ -95,6 +97,8 @@ private:
 
 private:
 	RenderDevice*                            device = nullptr;
+
+	RNG<float>                               rng;
 
 	// Tile classification pass
 	UniquePtr<ComputePipelineState>          classifierPipeline;
