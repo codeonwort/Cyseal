@@ -140,6 +140,11 @@ float2 getScreenUV(uint2 texel)
 float2 getRandoms(uint2 texel, uint bounce)
 {
 	uint first = texel.x + passUniform.renderTargetWidth * texel.y;
+	
+	// Correlation is too obvious when render resolution is multiple of RANDOM_SEQUENCE_WIDTH and/or RANDOM_SEQUENCE_HEIGHT.
+	// Try to randomize it.
+	first = first + (first & 0x3F) * (texel.x * 13 + texel.y + 19);
+	
 	uint seq0 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
 	uint seq1 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
 	float rand0 = passUniform.randFloats0[seq0 / 4][seq0 % 4];
