@@ -181,6 +181,7 @@ private:
 	class PathTracingPass*      pathTracingPass       = nullptr;
 	class DenoiserPluginPass*   denoiserPluginPass    = nullptr;
 	class StoreHistoryPass*     storeHistoryPass      = nullptr;
+	class OpticalFlowPass*      opticalFlowPass       = nullptr;
 	class FrameGenPass*         frameGenPass          = nullptr;
 	class FinalBlitPass*        finalBlitPass         = nullptr;
 

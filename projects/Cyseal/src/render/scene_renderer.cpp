@@ -32,6 +32,7 @@
 #include "render/raytracing/indirect_specular_pass.h"
 #include "render/pathtracing/path_tracing_pass.h"
 #include "render/pathtracing/denoiser_plugin_pass.h"
+#include "render/optical_flow_pass.h"
 #include "render/frame_gen_pass.h"
 #include "render/final_blit_pass.h"
 
@@ -109,6 +110,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(pathTracingPass = new(EMemoryTag::Renderer) PathTracingPass);
 		sceneRenderPasses.push_back(denoiserPluginPass = new(EMemoryTag::Renderer) DenoiserPluginPass);
 		sceneRenderPasses.push_back(storeHistoryPass = new(EMemoryTag::Renderer) StoreHistoryPass);
+		sceneRenderPasses.push_back(opticalFlowPass = new(EMemoryTag::Renderer) OpticalFlowPass);
 		sceneRenderPasses.push_back(frameGenPass = new(EMemoryTag::Renderer) FrameGenPass);
 		sceneRenderPasses.push_back(finalBlitPass = new(EMemoryTag::Renderer) FinalBlitPass);
 
@@ -128,6 +130,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		pathTracingPass->initialize(renderDevice);
 		denoiserPluginPass->initialize(renderDevice);
 		storeHistoryPass->initialize(renderDevice);
+		opticalFlowPass->initialize(renderDevice);
 		frameGenPass->initialize(renderDevice);
 		finalBlitPass->initialize(renderDevice);
 	}
