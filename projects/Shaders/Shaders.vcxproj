@@ -94,6 +94,13 @@
     <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_reconstruct_and_dilate_pass.hlsl" />
     <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_reconstruct_previous_depth_pass.hlsl" />
     <FxCompile Include="..\..\shaders\amd\ffx_frameinterpolation_setup_pass.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_compute_luminance_pyramid_pass.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_compute_optical_flow_advanced_pass_v5.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_compute_scd_divergence_pass.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_filter_optical_flow_pass_v5.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_generate_scd_histogram_pass.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_prepare_luma_pass.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_scale_optical_flow_advanced_pass_v5.hlsl" />
     <FxCompile Include="..\..\shaders\base_pass.hlsl" />
     <FxCompile Include="..\..\shaders\bilateral_blur.hlsl" />
     <FxCompile Include="..\..\shaders\blit_denoiser_input.hlsl" />
@@ -137,6 +144,7 @@
     <ClInclude Include="..\..\shaders\amd\ffx_core_gpu_common.h" />
     <ClInclude Include="..\..\shaders\amd\ffx_core_gpu_common_half.h" />
     <ClInclude Include="..\..\shaders\amd\ffx_core_hlsl.h" />
+    <ClInclude Include="..\..\shaders\amd\ffx_core_portability.h" />
     <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation.h" />
     <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_callbacks_glsl.h" />
     <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_callbacks_hlsl.h" />
@@ -152,6 +160,16 @@
     <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_reconstruct_previous_depth.h" />
     <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_resources.h" />
     <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_setup.h" />
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_callbacks_hlsl.h" />
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_common.h" />
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_compute_luminance_pyramid.h" />
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_compute_optical_flow_v5.h" />
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_compute_scd_divergence.h" />
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_filter_optical_flow_v5.h" />
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_generate_scd_histogram.h" />
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_prepare_luma.h" />
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_resources.h" />
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_scale_optical_flow_advanced_v5.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
