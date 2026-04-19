@@ -2,6 +2,7 @@
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
 
+// cbuffer cbOF
 struct PassUniform
 {
 	int32  iInputLumaResolution[2];
@@ -24,21 +25,18 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 {
 	recreateResources(commandList, swapchainIndex, passInput);
 
-	{
-		SCOPED_DRAW_EVENT(commandList, UpdateUniforms);
+	PassUniform uniformData{
+		.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
+		.uOpticalFlowPyramidLevel      = 0,
+		.uOpticalFlowPyramidLevelCount = 7,
+		.iFrameIndex                   = passInput.frameIndex,
+		.backbufferTransferFunction    = (uint32)passInput.transferFunction,
+		.minMaxLuminance               = { 0.0f, 3000.0f }, // #wip: minMaxLuminance
+	};
 
-		PassUniform uniformData{
-			.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
-			.uOpticalFlowPyramidLevel      = 0,
-			.uOpticalFlowPyramidLevelCount = 7,
-			.iFrameIndex                   = passInput.frameIndex,
-			.backbufferTransferFunction    = (uint32)passInput.transferFunction,
-			.minMaxLuminance               = { 0.0f, 65000.0f },
-		};
+	ConstantBufferView* passUniformCBV = prepareLumaDescriptor.getUniformCBV(swapchainIndex);
+	passUniformCBV->writeToGPU(commandList, &uniformData, sizeof(uniformData));
 
-		ConstantBufferView* passUniformCBV = prepareLumaDescriptor.getUniformCBV(swapchainIndex);
-		passUniformCBV->writeToGPU(commandList, &uniformData, sizeof(uniformData));
-	}
 	{
 		SCOPED_DRAW_EVENT(commandList, PrepareLuma);
 
@@ -52,30 +50,31 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 				lumaTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriersBefore), textureBarriersBefore, 0, nullptr);
 
 		ShaderParameterTable SPT{};
+		SPT.constantBuffer("cbOF", passUniformCBV);
 		SPT.texture("r_input_color", passInput.sceneColorSRV);
 		SPT.rwTexture("rw_optical_flow_input", lumaUAVs[0].get());
 
 		prepareLumaDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
-
-		auto pipeline = pipelinePrepareLuma.get();
 		auto descriptorHeap = prepareLumaDescriptor.getDescriptorHeap(swapchainIndex);
 
-		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+		commandList->setComputePipelineState(pipelinePrepareLuma.get());
+		commandList->bindComputeShaderParameters(pipelinePrepareLuma.get(), &SPT, descriptorHeap);
 
 		uint32 dispatchSizeX = (passInput.lumaResolutionX + 15) / 16, dispatchSizeY = (passInput.lumaResolutionY + 15) / 16;
 		commandList->dispatchCompute(dispatchSizeX, dispatchSizeY, 1);
 
-		GlobalBarrier barrier{
+		GlobalBarrier globalBarrierAfter{
 			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS
 		};
-		commandList->barrierAuto(0, nullptr, 0, nullptr, 1, &barrier);
+		commandList->barrierAuto(0, nullptr, 0, nullptr, 1, &globalBarrierAfter);
 	}
 	{
 		SCOPED_DRAW_EVENT(commandList, GenerateInputPyramid);
 
-
+		// #wip: Execute GenerateInputPyramid
 	}
 }
 

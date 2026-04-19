@@ -789,6 +789,21 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		combineLightingPass->combineLighting(commandList, swapchainIndex, passInput);
 	}
 
+	if (!bRenderPathTracing)
+	{
+		SCOPED_DRAW_EVENT(commandList, OpticalFlow);
+
+		OpticalFlowPassInput passInput{
+			.frameIndex        = currentFrameIndex,
+			.transferFunction  = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance,
+			.lumaResolutionX   = (int32)sceneWidth,
+			.lumaResolutionY   = (int32)sceneHeight,
+			.sceneColorTexture = RT_sceneColor.get(),
+			.sceneColorSRV     = sceneColorSRV.get(),
+		};
+		opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
+	}
+
 	// Set final color as render target.
 	{
 		SCOPED_DRAW_EVENT(commandList, SetFinalColorAsRenderTarget);
@@ -1023,6 +1038,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	commandList->executeDeferredDealloc();
 	for (auto& cand : deferredCleanupList) delete cand.resource;
 	deferredCleanupList.clear();
+
+	currentFrameIndex += 1;
 }
 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
