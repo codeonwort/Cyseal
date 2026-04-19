@@ -2,7 +2,12 @@
 #include "rhi/render_device.h"
 #include "world/camera.h"
 
-// See sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp
+// doc: docs/techniques/frame-interpolation.md
+// src: sdk/src/components/frameinterpolation/ffx_frameinterpolation.cpp
+
+// Input: 2 back buffers + several resources shared with FSR3Upscaler and FfxOpticalFlow
+// Output: An interpolated image between the 2 back buffers
+// 
 
 // FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION)
 struct FrameInterpUniform
@@ -18,15 +23,15 @@ struct FrameInterpUniform
 	int32           Mode;
 	int32           reset;
 
-	float           fDeviceToViewDepth[4]; // #wip: setupDeviceDepthToViewSpaceDepthParams
+	float           fDeviceToViewDepth[4]; // #todo-fsr3-framegen: setupDeviceDepthToViewSpaceDepthParams
 
-	float           deltaTime;
-	int32           HUDLessAttachedFactor; // 1 or 0 (#wip: Is it for HUD upscaling?)
+	float           deltaTime; // In milliseconds
+	int32           HUDLessAttachedFactor; // 1 or 0 (#todo-fsr3-framegen: Is it for HUD upscaling?)
 	int32           distortionFieldSize[2];
 
 	float           opticalFlowScale[2];
 	int32           opticalFlowBlockSize;
-	uint32          dispatchFlags;
+	uint32          dispatchFlags; // #todo-fsr3-framegen: FfxFrameInterpolationDispatchFlags (FFX_FRAMEINTERPOLATION_DISPATCH_DRAW_DEBUG_TEAR_LINES, FFX_FRAMEINTERPOLATION_DISPATCH_DRAW_DEBUG_VIEW)
 
 	int32           maxRenderSize[2];
 	int32           opticalFlowHalfResMode;
@@ -36,9 +41,9 @@ struct FrameInterpUniform
 	int32           interpolationRectSize[2];
 
 	float           debugBarColor[3];
-	uint32          backBufferTransferFunction;
+	uint32          backBufferTransferFunction; // Transfer fn to convert interpolation source color data to linear RGB
 
-	float           minMaxLuminance[2];
+	float           minMaxLuminance[2]; // Used when converting HDR colors to linear RGB
 	float           fTanHalfFOV;
 	int32           _pad1;
 
@@ -63,8 +68,8 @@ void FrameGenPass::initialize(RenderDevice* inRenderDevice)
 
 void FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
 {
-	preparePhase(commandList, swapchainIndex, passInput);
-	dispatchPhase(commandList, swapchainIndex, passInput);
+	//preparePhase(commandList, swapchainIndex, passInput);
+	//dispatchPhase(commandList, swapchainIndex, passInput);
 }
 
 void FrameGenPass::initializePipelines()
@@ -252,9 +257,10 @@ void FrameGenPass::initializePipelines()
 }
 
 // See ffxFrameInterpolationPrepare.
+// Generate FSR3 upscaler resources.
 void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
 {
-	// #wip: Dispatch reconstructAndDilatePipeline
+	// #todo-fsr3-framegen: Dispatch reconstructAndDilatePipeline
 }
 
 // See ffxFrameInterpolationDispatch.
@@ -266,19 +272,19 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		.displaySizeRcp             = { 1.0f / (float)(passInput.displaySizeX), 1.0f / (float)(passInput.displaySizeY) },
 		.cameraNear                 = passInput.camera->getZNear(),
 		.cameraFar                  = passInput.camera->getZFar(),
-		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY }, // #wip: upscale target size
-		.Mode                       = 0, // #wip: What is this? No shader accesses it, even ffx source code does not use it.
-		.reset                      = 0, // #wip: reset, see ffxFrameInterpolationDispatch
-		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // #wip: fDeviceToViewDepth, see setupDeviceDepthToViewSpaceDepthParams
-		.deltaTime                  = passInput.deltaTime, // #wip: Unit of deltaTime?
+		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY }, // #todo-fsr3-framegen: upscale target size
+		.Mode                       = 0, // #todo-fsr3-framegen: What is this? No shader accesses it, even ffx source code does not use it.
+		.reset                      = 0, // #todo-fsr3-framegen: reset, see ffxFrameInterpolationDispatch
+		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // #todo-fsr3-framegen: fDeviceToViewDepth, see setupDeviceDepthToViewSpaceDepthParams
+		.deltaTime                  = passInput.deltaTime, // #todo-fsr3-framegen: Unit of deltaTime?
 		.HUDLessAttachedFactor      = 0,
 		.distortionFieldSize        = { 1, 1 },
-		.opticalFlowScale           = { 1.0f, 1.0f }, // #wip: opticalFlowScale
+		.opticalFlowScale           = { 1.0f, 1.0f }, // #todo-fsr3-framegen: opticalFlowScale
 		.opticalFlowBlockSize       = passInput.opticalFlowBlockSize,
 		.dispatchFlags              = passInput.dispatchFlags,
 		.maxRenderSize              = { passInput.displaySizeX, passInput.displaySizeY },
-		.opticalFlowHalfResMode     = 0, // #wip: opticalFlowHalfResMode
-		.NumInstances               = 0, // #wip: NumInstances unused?
+		.opticalFlowHalfResMode     = 0, // #todo-fsr3-framegen: opticalFlowHalfResMode
+		.NumInstances               = 0, // #todo-fsr3-framegen: NumInstances unused?
 		.interpolationRectBase      = { 0, 0 },
 		.interpolationRectSize      = { passInput.renderSizeX, passInput.renderSizeY },
 		.debugBarColor              = { 1.0f, 0.0f, 0.0f },
@@ -286,7 +292,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		.minMaxLuminance            = { 0.0f, 65000.0f }, // #todo-fsr: minMaxLuminance
 		.fTanHalfFOV                = 0.5f * std::tan(2.0f * std::atan(std::tan(passInput.camera->getFovYInRadians() * 0.5f) * passInput.camera->getAspectRatio())),
 		._pad1                      = 0,
-		.fJitter                    = { 0, 0 }, // #wip: jitter
+		.fJitter                    = { 0, 0 }, // #todo-fsr3-framegen: jitter
 		.fMotionVectorScale         = { 1.0f, 1.0f },
 	};
 
@@ -302,37 +308,37 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	const uint32 opticalFlowDispatchSizeX = (uint32)(passInput.displaySizeX / (float)passInput.opticalFlowBlockSize + 7) / 8;
 	const uint32 opticalFlowDispatchSizeY = (uint32)(passInput.displaySizeY / (float)passInput.opticalFlowBlockSize + 7) / 8;
 
-	// #wip: Dispatch setupPipeline (renderDispatchSizeX/Y)
-	// #wip: Dispatch gameVectorFieldInpaintingPyramidPipeline
+	// #todo-fsr3-framegen: Dispatch setupPipeline (renderDispatchSizeX/Y)
+	// #todo-fsr3-framegen: Dispatch gameVectorFieldInpaintingPyramidPipeline
 
 	if (uniformData.reset == 0)
 	{
-		// #wip: Clear estimated depth resources
+		// #todo-fsr3-framegen: Clear estimated depth resources
 		// ...
 
-		// #wip: Dispatch reconstructPrevDepthPipeline
-		// #wip: Dispatch gameMotionVectorFieldPipeline
+		// #todo-fsr3-framegen: Dispatch reconstructPrevDepthPipeline
+		// #todo-fsr3-framegen: Dispatch gameMotionVectorFieldPipeline
 		
-		// #wip: scheduleDispatchGameVectorFieldInpaintingPyramid()
+		// #todo-fsr3-framegen: scheduleDispatchGameVectorFieldInpaintingPyramid()
 
-		// #wip: Dispatch opticalFlowVectorFieldPipeline
-		// #wip: Dispatch disocclusionMaskPipeline
+		// #todo-fsr3-framegen: Dispatch opticalFlowVectorFieldPipeline
+		// #todo-fsr3-framegen: Dispatch disocclusionMaskPipeline
 	}
 
-	// #wip: Dispatch interpolationPipeline (pipelineFiScfi in ffx)
+	// #todo-fsr3-framegen: Dispatch interpolationPipeline (pipelineFiScfi in ffx)
 
 	// inpainting pyramid
 	{
-		// #wip: Auto exposure via SPD
-		// #wip: Dispatch inpaintingPyramidPipeline
+		// #todo-fsr3-framegen: Auto exposure via SPD
+		// #todo-fsr3-framegen: Dispatch inpaintingPyramidPipeline
 	}
 
-	// #wip: inpaintingPipeline
+	// #todo-fsr3-framegen: inpaintingPipeline
 
 	if (false /* draw debug view */)
 	{
-		// #wip: Dispatch debugViewPipeline
+		// #todo-fsr3-framegen: Dispatch debugViewPipeline
 	}
 
-	// #wip: Store current buffer
+	// #todo-fsr3-framegen: Store current buffer
 }
