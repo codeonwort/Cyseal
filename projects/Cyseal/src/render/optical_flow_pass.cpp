@@ -14,6 +14,54 @@ struct PassUniform
 	float  minMaxLuminance[2];
 };
 
+// cbuffer cbOF_SPD
+struct SpdUniform
+{
+	uint32 mips;
+	uint32 numWorkGroups;
+	uint32 workGroupOffset[2];
+	uint32 numWorkGroupOpticalFlowInputPyramid;
+	uint32 pad0_;
+	uint32 pad1_;
+	uint32 pad2_;
+};
+
+// Ported from <FidelityFX_SDK>/sdk/include/FidelityFX/gpu/spd/ffx_spd.h
+static void ffxSpdSetup(
+	uint32 dispatchThreadGroupCountXY[2],
+	uint32 workGroupOffset[2],
+	uint32 numWorkGroupsAndMips[2],
+	const uint32 rectInfo[4],
+	const int32 mips)
+{
+	// determines the offset of the first tile to downsample based on
+	// left (rectInfo[0]) and top (rectInfo[1]) of the subregion.
+	workGroupOffset[0] = rectInfo[0] / 64;
+	workGroupOffset[1] = rectInfo[1] / 64;
+
+	uint32 endIndexX = (rectInfo[0] + rectInfo[2] - 1) / 64;  // rectInfo[0] = left, rectInfo[2] = width
+	uint32 endIndexY = (rectInfo[1] + rectInfo[3] - 1) / 64;  // rectInfo[1] = top, rectInfo[3] = height
+
+	// we only need to dispatch as many thread groups as tiles we need to downsample
+	// number of tiles per slice depends on the subregion to downsample
+	dispatchThreadGroupCountXY[0] = endIndexX + 1 - workGroupOffset[0];
+	dispatchThreadGroupCountXY[1] = endIndexY + 1 - workGroupOffset[1];
+
+	// number of thread groups per slice
+	numWorkGroupsAndMips[0] = (dispatchThreadGroupCountXY[0]) * (dispatchThreadGroupCountXY[1]);
+
+	if (mips >= 0)
+	{
+		numWorkGroupsAndMips[1] = uint32(mips);
+	}
+	else
+	{
+		// calculate based on rect width and height
+		uint32 resolution = (std::max)(rectInfo[2], rectInfo[3]);
+		numWorkGroupsAndMips[1] = (uint32)((std::min(std::floor(std::log2(float(resolution))), float(12))));
+	}
+}
+
 void OpticalFlowPass::initialize(RenderDevice* inRenderDevice)
 {
 	device = inRenderDevice;
@@ -21,11 +69,12 @@ void OpticalFlowPass::initialize(RenderDevice* inRenderDevice)
 	initializePipelines();
 }
 
+// See sdk/src/components/opticalflow/ffx_opticalflow.cpp for dispatch order.
 void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput)
 {
 	recreateResources(commandList, swapchainIndex, passInput);
 
-	PassUniform uniformData{
+	PassUniform passUniformData{
 		.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
 		.uOpticalFlowPyramidLevel      = 0,
 		.uOpticalFlowPyramidLevelCount = 7,
@@ -33,9 +82,27 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		.backbufferTransferFunction    = (uint32)passInput.transferFunction,
 		.minMaxLuminance               = { 0.0f, 3000.0f }, // #wip: minMaxLuminance
 	};
-
 	ConstantBufferView* passUniformCBV = prepareLumaDescriptor.getUniformCBV(swapchainIndex);
-	passUniformCBV->writeToGPU(commandList, &uniformData, sizeof(uniformData));
+	passUniformCBV->writeToGPU(commandList, &passUniformData, sizeof(passUniformData));
+
+	uint32 threadGroupSizeOpticalFlowInputPyramid[2];
+	uint32 workGroupOffset[2];
+	uint32 numWorkGroupsAndMips[2];
+	const uint32 rectInfo[4] = { 0u, 0u, (uint32)passInput.lumaResolutionX, (uint32)passInput.lumaResolutionY };
+	// #wip: Why mips = 4?
+	ffxSpdSetup(threadGroupSizeOpticalFlowInputPyramid, workGroupOffset, numWorkGroupsAndMips, rectInfo, 4);
+
+	SpdUniform spdUniformData{
+		.mips                                = numWorkGroupsAndMips[1],
+		.numWorkGroups                       = numWorkGroupsAndMips[0],
+		.workGroupOffset                     = { workGroupOffset[0], workGroupOffset[1] },
+		.numWorkGroupOpticalFlowInputPyramid = numWorkGroupsAndMips[0],
+		.pad0_                               = 0,
+		.pad1_                               = 0,
+		.pad2_                               = 0,
+	};
+	ConstantBufferView* spdUniformCBV = genInputPyramidDescriptor.getUniformCBV(swapchainIndex);
+	spdUniformCBV->writeToGPU(commandList, &spdUniformData, sizeof(spdUniformData));
 
 	{
 		SCOPED_DRAW_EVENT(commandList, PrepareLuma);
@@ -63,8 +130,13 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		commandList->setComputePipelineState(pipelinePrepareLuma.get());
 		commandList->bindComputeShaderParameters(pipelinePrepareLuma.get(), &SPT, descriptorHeap);
 
-		uint32 dispatchSizeX = (passInput.lumaResolutionX + 15) / 16, dispatchSizeY = (passInput.lumaResolutionY + 15) / 16;
-		commandList->dispatchCompute(dispatchSizeX, dispatchSizeY, 1);
+		const int32_t threadGroupSizeX = 16;
+		const int32_t threadGroupSizeY = 16;
+		const uint32_t threadPixelsX = 2;
+		const uint32_t threadPixelsY = 2;
+		int32_t dispatchX = ((passInput.lumaResolutionX + (threadPixelsX - 1)) / threadPixelsX + (threadGroupSizeX - 1)) / threadGroupSizeX;
+		int32_t dispatchY = ((passInput.lumaResolutionY + (threadPixelsY - 1)) / threadPixelsY + (threadGroupSizeY - 1)) / threadGroupSizeY;
+		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
 		GlobalBarrier globalBarrierAfter{
 			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS
@@ -74,8 +146,32 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	{
 		SCOPED_DRAW_EVENT(commandList, GenerateInputPyramid);
 
-		// #wip: Execute GenerateInputPyramid
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("cbOF", passUniformCBV);
+		SPT.constantBuffer("cbOF_SPD", spdUniformCBV);
+		SPT.rwTexture("rw_optical_flow_input", lumaUAVs[0].get());
+		SPT.rwTexture("rw_optical_flow_input_level_1", lumaUAVs[1].get());
+		SPT.rwTexture("rw_optical_flow_input_level_2", lumaUAVs[2].get());
+		SPT.rwTexture("rw_optical_flow_input_level_3", lumaUAVs[3].get());
+		SPT.rwTexture("rw_optical_flow_input_level_4", lumaUAVs[4].get());
+		SPT.rwTexture("rw_optical_flow_input_level_5", lumaUAVs[5].get());
+		SPT.rwTexture("rw_optical_flow_input_level_6", lumaUAVs[6].get());
+
+		genInputPyramidDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+		auto descriptorHeap = genInputPyramidDescriptor.getDescriptorHeap(swapchainIndex);
+
+		commandList->setComputePipelineState(pipelineGenerateOpticalFlowInputPyramid.get());
+		commandList->bindComputeShaderParameters(pipelineGenerateOpticalFlowInputPyramid.get(), &SPT, descriptorHeap);
+
+		commandList->dispatchCompute(threadGroupSizeOpticalFlowInputPyramid[0], threadGroupSizeOpticalFlowInputPyramid[1], 1);
+
+		GlobalBarrier globalBarrierAfter{
+			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS
+		};
+		commandList->barrierAuto(0, nullptr, 0, nullptr, 1, &globalBarrierAfter);
 	}
+	// #wip: Dispatch pipelineGenerateSCDHistogram
+	// #wip: Dispatch pipelineComputeSCDDivergence
 }
 
 void OpticalFlowPass::initializePipelines()
@@ -86,6 +182,7 @@ void OpticalFlowPass::initializePipelines()
 	lumaResolutionYs.resize(swapchainCount, 0);
 
 	prepareLumaDescriptor.initialize(L"OpticalFlowPrepareLuma", swapchainCount, sizeof(PassUniform));
+	genInputPyramidDescriptor.initialize(L"OpticalFlowGenerateInputPyramid", swapchainCount, sizeof(SpdUniform));
 
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)

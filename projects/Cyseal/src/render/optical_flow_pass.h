@@ -39,7 +39,7 @@ private:
 private:
 	RenderDevice* device = nullptr;
 
-	// <FidelityFX_SDK>/sdk/src/components/frameinterpolation/ffx_opticalflow_private.h
+	// <FidelityFX_SDK>/sdk/src/components/opticalflow/ffx_opticalflow_private.h
 	UniquePtr<ComputePipelineState> pipelinePrepareLuma;
 	UniquePtr<ComputePipelineState> pipelineGenerateOpticalFlowInputPyramid;
 	UniquePtr<ComputePipelineState> pipelineGenerateSCDHistogram;
@@ -49,6 +49,7 @@ private:
 	UniquePtr<ComputePipelineState> pipelineScaleOpticalFlowAdvancedV5;
 
 	VolatileDescriptorHelper        prepareLumaDescriptor;
+	VolatileDescriptorHelper        genInputPyramidDescriptor;
 
 	std::vector<int32>              lumaResolutionXs;
 	std::vector<int32>              lumaResolutionYs;
