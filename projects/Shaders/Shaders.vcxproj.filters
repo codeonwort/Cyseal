@@ -108,6 +108,9 @@
     <Filter Include="amd\opticalflow">
       <UniqueIdentifier>{0a0c53da-4ca0-490d-ac19-54d746e27fb8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="amd\spd">
+      <UniqueIdentifier>{5655f376-a4de-4339-8c12-54c088f6abfa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_callbacks_hlsl.h">
@@ -223,6 +226,18 @@
     </ClInclude>
     <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_scale_optical_flow_advanced_v5.h">
       <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\spd\ffx_spd.h">
+      <Filter>amd\spd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\spd\ffx_spd_callbacks_hlsl.h">
+      <Filter>amd\spd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\spd\ffx_spd_downsample.h">
+      <Filter>amd\spd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\spd\ffx_spd_resources.h">
+      <Filter>amd\spd</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
