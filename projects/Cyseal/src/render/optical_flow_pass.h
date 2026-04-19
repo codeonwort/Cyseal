@@ -51,6 +51,7 @@ private:
 	VolatileDescriptorHelper               prepareLumaDescriptor;
 	VolatileDescriptorHelper               genInputPyramidDescriptor;
 	VolatileDescriptorHelper               genSCDHistogramDescriptor;
+	VolatileDescriptorHelper               computeSCDDivergenceDescriptor;
 
 	std::vector<int32>                     lumaResolutionXs;
 	std::vector<int32>                     lumaResolutionYs;
@@ -59,4 +60,8 @@ private:
 	UniquePtr<ShaderResourceView>          lumaSRV;
 	BufferedUniquePtr<Texture>             scdHistogramTextures;
 	BufferedUniquePtr<UnorderedAccessView> scdHistogramUAVs;
+	UniquePtr<Texture>                     scdTempTexture;
+	UniquePtr<UnorderedAccessView>         scdTempUAV;
+	UniquePtr<Texture>                     scdOutputTexture;
+	UniquePtr<UnorderedAccessView>         scdOutputUAV;
 };
