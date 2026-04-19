@@ -17,11 +17,6 @@ struct ToneMappingInput
 	ScissorRect         scissorRect;
 	ConstantBufferView* sceneUniformCBV;
 	ShaderResourceView* sceneColorSRV;
-	ShaderResourceView* sceneDepthSRV;
-	ShaderResourceView* gbuffer0SRV;
-	ShaderResourceView* gbuffer1SRV;
-	ShaderResourceView* indirectDiffuseSRV;
-	ShaderResourceView* indirectSpecularSRV;
 };
 
 class ToneMapping final : public SceneRenderPass

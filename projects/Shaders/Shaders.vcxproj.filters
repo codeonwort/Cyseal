@@ -93,6 +93,7 @@
     <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_scale_optical_flow_advanced_pass_v5.hlsl">
       <Filter>amd</Filter>
     </FxCompile>
+    <FxCompile Include="..\..\shaders\combine_lighting.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">

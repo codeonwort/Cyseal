@@ -176,6 +176,7 @@ private:
 	class SkyPass*              skyPass               = nullptr;
 	class IndirectDiffusePass*  indirectDiffusePass   = nullptr;
 	class IndirecSpecularPass*  indirectSpecularPass  = nullptr;
+	class CombineLightingPass*  combineLightingPass   = nullptr;
 	class ToneMapping*          toneMapping           = nullptr;
 	class BufferVisualization*  bufferVisualization   = nullptr;
 	class PathTracingPass*      pathTracingPass       = nullptr;

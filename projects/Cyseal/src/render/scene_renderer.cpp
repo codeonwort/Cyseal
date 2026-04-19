@@ -24,6 +24,7 @@
 #include "render/base_pass.h"
 #include "render/hiz_pass.h"
 #include "render/sky_pass.h"
+#include "render/combine_lighting_pass.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
 #include "render/store_history_pass.h"
@@ -105,6 +106,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(skyPass = new(EMemoryTag::Renderer) SkyPass);
 		sceneRenderPasses.push_back(indirectDiffusePass = new(EMemoryTag::Renderer) IndirectDiffusePass);
 		sceneRenderPasses.push_back(indirectSpecularPass = new(EMemoryTag::Renderer) IndirecSpecularPass);
+		sceneRenderPasses.push_back(combineLightingPass = new(EMemoryTag::Renderer) CombineLightingPass);
 		sceneRenderPasses.push_back(toneMapping = new(EMemoryTag::Renderer) ToneMapping);
 		sceneRenderPasses.push_back(bufferVisualization = new(EMemoryTag::Renderer) BufferVisualization);
 		sceneRenderPasses.push_back(pathTracingPass = new(EMemoryTag::Renderer) PathTracingPass);
@@ -125,6 +127,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		skyPass->initialize(renderDevice, PF_sceneColor);
 		indirectDiffusePass->initialize(renderDevice);
 		indirectSpecularPass->initialize(renderDevice);
+		combineLightingPass->initialize(renderDevice, PF_sceneColor);
 		toneMapping->initialize(renderDevice);
 		bufferVisualization->initialize(renderDevice);
 		pathTracingPass->initialize(renderDevice);
@@ -764,6 +767,28 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
 	}
 
+	if (!bRenderPathTracing)
+	{
+		SCOPED_DRAW_EVENT(commandList, CombineLighting);
+
+		CombineLightingPassInput passInput{
+			.sceneUniformCBV         = sceneUniformCBV,
+			.sceneColorTexture       = RT_sceneColor.get(),
+			.sceneColorRTV           = sceneColorRTV.get(),
+			.sceneDepthTexture       = RT_sceneDepth.get(),
+			.sceneDepthSRV           = sceneDepthSRV.get(),
+			.gbuffer0Texture         = RT_gbuffers[0].get(),
+			.gbuffer0SRV             = currentGBufferSRV0,
+			.gbuffer1Texture         = RT_gbuffers[1].get(),
+			.gbuffer1SRV             = currentGBufferSRV1,
+			.indirectDiffuseTexture  = RT_indirectDiffuse.get(),
+			.indirectDiffuseSRV      = indirectDiffuseSRV.get(),
+			.indirectSpecularTexture = RT_indirectSpecular.get(),
+			.indirectSpecularSRV     = indirectSpecularSRV.get(),
+		};
+		combineLightingPass->combineLighting(commandList, swapchainIndex, passInput);
+	}
+
 	// Set final color as render target.
 	{
 		SCOPED_DRAW_EVENT(commandList, SetFinalColorAsRenderTarget);
@@ -781,29 +806,17 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, ToneMapping);
 
-		TextureBarrierAuto barriersBefore[] = {
+		TextureBarrierAuto barriers[] = {
 			{
 				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				RT_sceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_READ, EBarrierLayout::DepthStencilRead,
-				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_indirectDiffuse.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_indirectSpecular.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 			{
 				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				RT_pathTracing.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 		};
-		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
 
 		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
@@ -813,11 +826,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.scissorRect         = fullscreenScissorRect,
 			.sceneUniformCBV     = sceneUniformCBV,
 			.sceneColorSRV       = alternateSceneColorSRV,
-			.sceneDepthSRV       = sceneDepthSRV.get(),
-			.gbuffer0SRV         = currentGBufferSRV0,
-			.gbuffer1SRV         = currentGBufferSRV1,
-			.indirectDiffuseSRV  = indirectDiffuseSRV.get(),
-			.indirectSpecularSRV = indirectSpecularSRV.get(),
 		};
 		toneMapping->renderToneMapping(commandList, swapchainIndex, passInput);
 	}
