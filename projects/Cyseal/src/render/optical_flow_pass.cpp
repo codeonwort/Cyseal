@@ -2,6 +2,16 @@
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
 
+constexpr uint32 OpticalFlowMaxPyramidLevels = 7;
+constexpr uint32 HistogramBins = 256;
+constexpr uint32 HistogramsPerDim = 3;
+constexpr uint32 HistogramShifts = 3;
+
+static uint32 GetSCDHistogramTextureWidth()
+{
+	return HistogramBins * (HistogramsPerDim * HistogramsPerDim);
+}
+
 // cbuffer cbOF
 struct PassUniform
 {
@@ -74,6 +84,9 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 {
 	recreateResources(commandList, swapchainIndex, passInput);
 
+	const uint32 currFrame = swapchainIndex;
+	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+
 	PassUniform passUniformData{
 		.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
 		.uOpticalFlowPyramidLevel      = 0,
@@ -130,12 +143,12 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		commandList->setComputePipelineState(pipelinePrepareLuma.get());
 		commandList->bindComputeShaderParameters(pipelinePrepareLuma.get(), &SPT, descriptorHeap);
 
-		const int32_t threadGroupSizeX = 16;
-		const int32_t threadGroupSizeY = 16;
-		const uint32_t threadPixelsX = 2;
-		const uint32_t threadPixelsY = 2;
-		int32_t dispatchX = ((passInput.lumaResolutionX + (threadPixelsX - 1)) / threadPixelsX + (threadGroupSizeX - 1)) / threadGroupSizeX;
-		int32_t dispatchY = ((passInput.lumaResolutionY + (threadPixelsY - 1)) / threadPixelsY + (threadGroupSizeY - 1)) / threadGroupSizeY;
+		const int32 threadGroupSizeX = 16;
+		const int32 threadGroupSizeY = 16;
+		const uint32 threadPixelsX = 2;
+		const uint32 threadPixelsY = 2;
+		int32 dispatchX = ((passInput.lumaResolutionX + (threadPixelsX - 1)) / threadPixelsX + (threadGroupSizeX - 1)) / threadGroupSizeX;
+		int32 dispatchY = ((passInput.lumaResolutionY + (threadPixelsY - 1)) / threadPixelsY + (threadGroupSizeY - 1)) / threadGroupSizeY;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
 		GlobalBarrier globalBarrierAfter{
@@ -163,14 +176,51 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		commandList->setComputePipelineState(pipelineGenerateOpticalFlowInputPyramid.get());
 		commandList->bindComputeShaderParameters(pipelineGenerateOpticalFlowInputPyramid.get(), &SPT, descriptorHeap);
 
-		commandList->dispatchCompute(threadGroupSizeOpticalFlowInputPyramid[0], threadGroupSizeOpticalFlowInputPyramid[1], 1);
+		const uint32 dispatchX = threadGroupSizeOpticalFlowInputPyramid[0];
+		const uint32 dispatchY = threadGroupSizeOpticalFlowInputPyramid[1];
+		commandList->dispatchCompute(dispatchX, dispatchY, 1);
 
 		GlobalBarrier globalBarrierAfter{
 			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS
 		};
 		commandList->barrierAuto(0, nullptr, 0, nullptr, 1, &globalBarrierAfter);
 	}
-	// #wip: Dispatch pipelineGenerateSCDHistogram
+	{
+		SCOPED_DRAW_EVENT(commandList, GenerateSCDHistogram);
+
+		TextureBarrierAuto textureBarriersBefore[] = {
+			{
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				lumaTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriersBefore), textureBarriersBefore, 0, nullptr);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("cbOF", passUniformCBV);
+		SPT.texture("r_optical_flow_input", lumaSRV.get());
+		SPT.rwTexture("rw_optical_flow_scd_histogram", scdHistogramUAVs[currFrame].get());
+
+		genSCDHistogramDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+		auto descriptorHeap = genSCDHistogramDescriptor.getDescriptorHeap(swapchainIndex);
+
+		commandList->setComputePipelineState(pipelineGenerateSCDHistogram.get());
+		commandList->bindComputeShaderParameters(pipelineGenerateSCDHistogram.get(), &SPT, descriptorHeap);
+
+		const uint32 threadGroupSizeX = 32;
+		const uint32 threadGroupSizeY = 8;
+		const uint32 strataWidth = (passInput.lumaResolutionX / 4) / HistogramsPerDim;
+		const uint32 strataHeight = passInput.lumaResolutionY / HistogramsPerDim;
+		const uint32 dispatchX = (strataWidth + threadGroupSizeX - 1) / threadGroupSizeX;
+		const uint32 dispatchY = 16;
+		const uint32 dispatchZ = HistogramsPerDim * HistogramsPerDim;
+		commandList->dispatchCompute(dispatchX, dispatchY, dispatchZ);
+
+		GlobalBarrier globalBarrierAfter{
+			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS
+		};
+		commandList->barrierAuto(0, nullptr, 0, nullptr, 1, &globalBarrierAfter);
+	}
 	// #wip: Dispatch pipelineComputeSCDDivergence
 }
 
@@ -181,8 +231,12 @@ void OpticalFlowPass::initializePipelines()
 	lumaResolutionXs.resize(swapchainCount, 0);
 	lumaResolutionYs.resize(swapchainCount, 0);
 
+	scdHistogramTextures.initialize(swapchainCount);
+	scdHistogramUAVs.initialize(swapchainCount);
+
 	prepareLumaDescriptor.initialize(L"OpticalFlowPrepareLuma", swapchainCount, sizeof(PassUniform));
 	genInputPyramidDescriptor.initialize(L"OpticalFlowGenerateInputPyramid", swapchainCount, sizeof(SpdUniform));
+	genSCDHistogramDescriptor.initialize(L"OpticalFlowGenerateSCDHistogram", swapchainCount, 0);
 
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)
@@ -233,6 +287,39 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 					.format         = lumaTexture->getCreateParams().format,
 					.viewDimension  = EUAVDimension::Texture2D,
 					.texture2D      = Texture2DUAVDesc{ .mipSlice = mip, .planeSlice = 0 },
+				}
+			));
+		}
+		lumaSRV = UniquePtr<ShaderResourceView>(device->createSRV(lumaTexture.get(),
+			ShaderResourceViewDesc{
+				.format              = lumaTexture->getCreateParams().format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = lumaTexture->getCreateParams().mipLevels,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				},
+			}
+		));
+	}
+	if (scdHistogramTextures[0] == nullptr)
+	{
+		for (uint32 i = 0; i < scdHistogramTextures.size(); ++i)
+		{
+			scdHistogramTextures[i] = UniquePtr<Texture>(device->createTexture(TextureCreateParams::texture2D(
+				EPixelFormat::R32_UINT, ETextureAccessFlags::UAV,
+				GetSCDHistogramTextureWidth(), 1)));
+
+			wchar_t debugName[128];
+			std::swprintf(debugName, sizeof(debugName), L"RT_OpticalFlow_SCDHistogram_%u", i);
+			scdHistogramTextures[i]->setDebugName(debugName);
+
+			scdHistogramUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(scdHistogramTextures[i].get(),
+				UnorderedAccessViewDesc{
+					.format         = lumaTexture->getCreateParams().format,
+					.viewDimension  = EUAVDimension::Texture2D,
+					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 				}
 			));
 		}

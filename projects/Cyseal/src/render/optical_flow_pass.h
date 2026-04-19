@@ -40,19 +40,23 @@ private:
 	RenderDevice* device = nullptr;
 
 	// <FidelityFX_SDK>/sdk/src/components/opticalflow/ffx_opticalflow_private.h
-	UniquePtr<ComputePipelineState> pipelinePrepareLuma;
-	UniquePtr<ComputePipelineState> pipelineGenerateOpticalFlowInputPyramid;
-	UniquePtr<ComputePipelineState> pipelineGenerateSCDHistogram;
-	UniquePtr<ComputePipelineState> pipelineComputeSCDDivergence;
-	UniquePtr<ComputePipelineState> pipelineComputeOpticalFlowAdvancedV5;
-	UniquePtr<ComputePipelineState> pipelineFilterOpticalFlowV5;
-	UniquePtr<ComputePipelineState> pipelineScaleOpticalFlowAdvancedV5;
+	UniquePtr<ComputePipelineState>        pipelinePrepareLuma;
+	UniquePtr<ComputePipelineState>        pipelineGenerateOpticalFlowInputPyramid;
+	UniquePtr<ComputePipelineState>        pipelineGenerateSCDHistogram;
+	UniquePtr<ComputePipelineState>        pipelineComputeSCDDivergence;
+	UniquePtr<ComputePipelineState>        pipelineComputeOpticalFlowAdvancedV5;
+	UniquePtr<ComputePipelineState>        pipelineFilterOpticalFlowV5;
+	UniquePtr<ComputePipelineState>        pipelineScaleOpticalFlowAdvancedV5;
 
-	VolatileDescriptorHelper        prepareLumaDescriptor;
-	VolatileDescriptorHelper        genInputPyramidDescriptor;
+	VolatileDescriptorHelper               prepareLumaDescriptor;
+	VolatileDescriptorHelper               genInputPyramidDescriptor;
+	VolatileDescriptorHelper               genSCDHistogramDescriptor;
 
-	std::vector<int32>              lumaResolutionXs;
-	std::vector<int32>              lumaResolutionYs;
-	UniquePtr<Texture>              lumaTexture;
-	UniquePtr<UnorderedAccessView>  lumaUAVs[7];
+	std::vector<int32>                     lumaResolutionXs;
+	std::vector<int32>                     lumaResolutionYs;
+	UniquePtr<Texture>                     lumaTexture;
+	UniquePtr<UnorderedAccessView>         lumaUAVs[7];
+	UniquePtr<ShaderResourceView>          lumaSRV;
+	BufferedUniquePtr<Texture>             scdHistogramTextures;
+	BufferedUniquePtr<UnorderedAccessView> scdHistogramUAVs;
 };
