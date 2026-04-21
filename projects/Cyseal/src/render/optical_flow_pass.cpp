@@ -96,8 +96,9 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 {
 	recreateResources(commandList, swapchainIndex, passInput);
 
-	const uint32 currFrame = swapchainIndex;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const bool isOddFrame = !!(resourceFrameIndex & 1);
+	const uint32 currFrame = isOddFrame ? 1 : 0;
+	const uint32 prevFrame = isOddFrame ? 0 : 1;
 
 	const int advancedAlgorithmIterations = 7;
 	const uint32 opticalFlowBlockSize = 8;
@@ -513,6 +514,16 @@ ShaderResourceView* OpticalFlowPass::getOpticalFlowVectorSRV() const
 	return opticalFlowVectorSRV.get();
 }
 
+uint32 OpticalFlowPass::getOpticalFlowVectorSizeX() const
+{
+	return opticalFlowVectorSizeX;
+}
+
+uint32 OpticalFlowPass::getOpticalFlowVectorSizeY() const
+{
+	return opticalFlowVectorSizeY;
+}
+
 void OpticalFlowPass::initializePipelines()
 {
 	const uint32 swapchainCount = device->maxFramesInFlight();
@@ -576,6 +587,9 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 			(opticalFlowTextureSizes[i - 1].height + 1) / 2
 		};
 	}
+
+	opticalFlowVectorSizeX = opticalFlowTextureSizes[0].width;
+	opticalFlowVectorSizeY = opticalFlowTextureSizes[0].height;
 
 	// #wip: Use bContainerResolutionChanged?
 	if (bLumaResolutionChanged)
@@ -728,10 +742,11 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 	{
 		commandList->enqueueDeferredDealloc(opticalFlowVectorTexture.release(), true);
 		commandList->enqueueDeferredDealloc(opticalFlowVectorUAV.release(), true);
+		commandList->enqueueDeferredDealloc(opticalFlowVectorSRV.release(), true);
 
 		TextureCreateParams texDesc = TextureCreateParams::texture2D(
 			EPixelFormat::R16G16_SINT, ETextureAccessFlags::UAV,
-			opticalFlowTextureSizes[0].width, opticalFlowTextureSizes[0].height, 1);
+			opticalFlowVectorSizeX, opticalFlowVectorSizeY, 1);
 		opticalFlowVectorTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		opticalFlowVectorTexture->setDebugName(L"RT_OpticalFlow_opticalFlowVector");
 

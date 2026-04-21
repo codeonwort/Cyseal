@@ -28,6 +28,7 @@ struct PushConstants
 	uint modeEnum;
 	uint width;
 	uint height;
+	uint opticalFlowVectorPackedSize; // high 16-bit: width, low 16-bit: height
 };
 
 [[vk::push_constant]]
@@ -49,6 +50,12 @@ Texture2D<GBUFFER1_DATATYPE>  visGBuffer1       : register(t10, space0);
 Texture2D<uint2>              opticalFlowVector : register(t11, space0);
 
 SamplerState                  textureSampler    : register(s0, space0);
+
+uint2 unpackOpticalFlowVectorTextureSize()
+{
+	uint xy = pushConstants.opticalFlowVectorPackedSize;
+	return uint2(xy & 0xffff, (xy >> 16) & 0xffff);
+}
 
 // ------------------------------------------------------------------------
 // Vertex shader
@@ -177,11 +184,11 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	}
 	else if (modeEnum == MODE_OPTICAL_FLOW_VECTOR)
 	{
-		// #wip: Always black yet
-		int2 coord = int2(fullscreenUV * float2(pushConstants.width, pushConstants.height));
+		uint2 ofvSize = unpackOpticalFlowVectorTextureSize();
+		int2 coord = int2(fullscreenUV * float2(ofvSize.x, ofvSize.y));
 		int2 flow = opticalFlowVector.Load(int3(coord, 0)).rg;
-		color.r = abs(float(flow.r)) / 64.0;
-		color.g = abs(float(flow.g)) / 64.0;
+		color.r = saturate(abs(float(flow.r)) / 4.0);
+		color.g = saturate(abs(float(flow.g)) / 4.0);
 		color.b = 0;
 	}
 

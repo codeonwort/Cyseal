@@ -35,6 +35,8 @@ public:
 
 	Texture* getOpticalFlowVectorTexture() const;
 	ShaderResourceView* getOpticalFlowVectorSRV() const;
+	uint32 getOpticalFlowVectorSizeX() const;
+	uint32 getOpticalFlowVectorSizeY() const;
 
 private:
 	void initializePipelines();
@@ -81,6 +83,8 @@ private:
 	UniquePtr<Texture>                     scdOutputTexture;
 	UniquePtr<UnorderedAccessView>         scdOutputUAV;
 
+	uint32                                 opticalFlowVectorSizeX = 0;
+	uint32                                 opticalFlowVectorSizeY = 0;
 	UniquePtr<Texture>                     opticalFlowVectorTexture;
 	UniquePtr<UnorderedAccessView>         opticalFlowVectorUAV;
 	UniquePtr<ShaderResourceView>          opticalFlowVectorSRV;

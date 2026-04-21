@@ -24,7 +24,7 @@ void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 	ShaderStage* shaderVS = device->createShader(EShaderStage::VERTEX_SHADER, "BufferVisualizationVS");
 	ShaderStage* shaderPS = device->createShader(EShaderStage::PIXEL_SHADER, "BufferVisualizationPS");
 	shaderVS->declarePushConstants();
-	shaderPS->declarePushConstants({ { "pushConstants", 3} });
+	shaderPS->declarePushConstants({ { "pushConstants", 4} });
 	shaderVS->loadFromFile(L"buffer_visualization.hlsl", "mainVS");
 	shaderPS->loadFromFile(L"buffer_visualization.hlsl", "mainPS");
 
@@ -79,8 +79,10 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 {
 	GraphicsPipelineState* pipelineState = getPipelineState(passInput.renderTarget);
 
+	uint32 ofvPackedSize = Cymath::packUint16x2(passInput.opticalFlowVectorSizeX, passInput.opticalFlowVectorSizeY);
+
 	ShaderParameterTable SPT{};
-	SPT.pushConstants("pushConstants", { (uint32)passInput.mode, passInput.textureWidth, passInput.textureHeight });
+	SPT.pushConstants("pushConstants", { (uint32)passInput.mode, passInput.textureWidth, passInput.textureHeight, ofvPackedSize });
 	SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 	SPT.texture("gbuffer0", passInput.gbuffer0SRV);
 	SPT.texture("gbuffer1", passInput.gbuffer1SRV);
