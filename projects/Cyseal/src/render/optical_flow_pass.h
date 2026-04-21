@@ -55,6 +55,7 @@ private:
 	VolatileDescriptorHelper               genSCDHistogramDescriptor;
 	VolatileDescriptorHelper               computeSCDDivergenceDescriptor;
 	VolatileDescriptorHelper               computeOpticalFlowAdvancedV5Descriptor;
+	VolatileDescriptorHelper               filterOpticalFlowV5Descriptor;
 
 	std::vector<int32>                     containerResolutionXs;
 	std::vector<int32>                     containerResolutionYs;

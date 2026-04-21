@@ -304,6 +304,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	}
 
 	DescriptorIndexTracker computeAdvancedV5Tracker{};
+	DescriptorIndexTracker filterV5Tracker{};
 
 	// #wip: ffx_opticalflow.cpp line:728
 	for (int32 level = pyramidMaxIterations - 1; level >= 0; --level)
@@ -315,16 +316,27 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		const uint32 opticalFlowResourceIndexA = (currFrame != (uint32)isOddLevel) ? currFrame : prevFrame;
 		const uint32 opticalFlowResourceIndexB = (currFrame != (uint32)isOddLevel) ? prevFrame : currFrame;
 
+		PassUniform v5PassUniformData{
+			.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
+			.uOpticalFlowPyramidLevel      = (uint32)level,
+			.uOpticalFlowPyramidLevelCount = 7,
+			.iFrameIndex                   = passInput.frameIndex,
+			.backbufferTransferFunction    = (uint32)passInput.transferFunction,
+			.minMaxLuminance               = { 0.0f, 3000.0f }, // #wip: minMaxLuminance
+		};
+		ConstantBufferView* v5PassUniformCBV = computeOpticalFlowAdvancedV5Descriptor.getUniformChunkCBV(swapchainIndex, level);
+		v5PassUniformCBV->writeToGPU(commandList, &v5PassUniformData, sizeof(v5PassUniformData));
+
 		{
 			SCOPED_DRAW_EVENT(commandList, ComputeOpticalFlowAdvancedV5);
 
 			TextureBarrierAuto textureBarriersBefore[] = {
 				{
-					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 					opticalFlowInputTextures[opticalFlowInputResourceIndexA][level].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 				},
 				{
-					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 					opticalFlowInputTextures[opticalFlowInputResourceIndexB][level].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 				},
 				{
@@ -341,17 +353,6 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 			auto& volatileDescriptor = computeOpticalFlowAdvancedV5Descriptor;
 			auto pipelineState = pipelineComputeOpticalFlowAdvancedV5.get();
 
-			PassUniform v5PassUniformData{
-				.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
-				.uOpticalFlowPyramidLevel      = (uint32)level,
-				.uOpticalFlowPyramidLevelCount = 7,
-				.iFrameIndex                   = passInput.frameIndex,
-				.backbufferTransferFunction    = (uint32)passInput.transferFunction,
-				.minMaxLuminance               = { 0.0f, 3000.0f }, // #wip: minMaxLuminance
-			};
-			ConstantBufferView* v5PassUniformCBV = volatileDescriptor.getUniformChunkCBV(swapchainIndex, level);
-			v5PassUniformCBV->writeToGPU(commandList, &v5PassUniformData, sizeof(v5PassUniformData));
-
 			ShaderParameterTable SPT{};
 			SPT.constantBuffer("cbOF", v5PassUniformCBV);
 			SPT.texture("r_optical_flow_input", opticalFlowInputSRVs[opticalFlowInputResourceIndexA][level].get());
@@ -367,7 +368,6 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 
 			const uint32 inputLumaWidth = std::max(passInput.lumaResolutionX >> level, 1);
 			const uint32 inputLumaHeight = std::max(passInput.lumaResolutionY >> level, 1);
-
 			const uint32 threadPixels = 4;
 			CHECK(opticalFlowBlockSize >= threadPixels);
 			const uint32 threadGroupSizeY = 16;
@@ -381,7 +381,48 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 			};
 		}
 		
-		// #wip: Dispatch pipelineFilterOpticalFlowV5
+		{
+			SCOPED_DRAW_EVENT(commandList, FilterOpticalFlowV5);
+
+			TextureBarrierAuto textureBarriersBefore[] = {
+				{
+					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+					opticalFlowTextures[opticalFlowResourceIndexB][level].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				},
+				{
+					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+					opticalFlowTextures[opticalFlowInputResourceIndexA][level].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				},
+			};
+			commandList->barrierAuto(0, nullptr, _countof(textureBarriersBefore), textureBarriersBefore, 0, nullptr);
+
+			auto& volatileDescriptor = filterOpticalFlowV5Descriptor;
+			auto pipelineState = pipelineFilterOpticalFlowV5.get();
+
+			ShaderParameterTable SPT{};
+			SPT.constantBuffer("cbOF", v5PassUniformCBV);
+			SPT.texture("r_optical_flow_previous", opticalFlowSRVs[opticalFlowInputResourceIndexB][level].get());
+			SPT.rwTexture("rw_optical_flow", opticalFlowUAVs[opticalFlowResourceIndexA][level].get());
+
+			volatileDescriptor.resizeDescriptorHeap(swapchainIndex, OpticalFlowMaxPyramidLevels* SPT.totalDescriptors());
+			auto descriptorHeap = volatileDescriptor.getDescriptorHeap(swapchainIndex);
+
+			commandList->setComputePipelineState(pipelineState);
+			commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap, &filterV5Tracker);
+
+			const uint32 levelWidth = opticalFlowTextureSizes[level].width;
+			const uint32 levelHeight = opticalFlowTextureSizes[level].height;
+			const uint32 threadGroupSizeX = 16;
+			const uint32 threadGroupSizeY = 4;
+			const uint32 dispatchX = (levelWidth + threadGroupSizeX - 1) / threadGroupSizeX;
+			const uint32 dispatchY = (levelHeight + threadGroupSizeY - 1) / threadGroupSizeY;
+			commandList->dispatchCompute(dispatchX, dispatchY, 1);
+
+			GlobalBarrier globalBarrierAfter{
+				EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS
+			};
+		}
+
 		// #wip: Dispatch pipelineScaleOpticalFlowAdvancedV5
 	}
 }
@@ -403,6 +444,7 @@ void OpticalFlowPass::initializePipelines()
 	genSCDHistogramDescriptor.initialize(L"OpticalFlowGenerateSCDHistogram", swapchainCount, 0);
 	computeSCDDivergenceDescriptor.initialize(L"OpticalFlowComputeSCDDivergence", swapchainCount, 0);
 	computeOpticalFlowAdvancedV5Descriptor.initialize(L"OpticalFlowComputeAdvancedV5", swapchainCount, OpticalFlowMaxPyramidLevels * sizeof(PassUniform), OpticalFlowMaxPyramidLevels);
+	filterOpticalFlowV5Descriptor.initialize(L"FilterOpticalFlowV5", swapchainCount, 0);
 
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)
