@@ -103,6 +103,11 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	const int advancedAlgorithmIterations = 7;
 	const uint32 opticalFlowBlockSize = 8;
 
+	// #wip: How to calculate min/max luminance? Just downsample the sceneColor to 1x1?
+	// But how to read it? GPU stall and readback is def not an option :(
+	const float fMinLuminance = 0.0f;
+	const float fMaxLuminance = 3000.0f;
+
 	// #wip: Reset accumulation, if requested
 	{
 		// ...
@@ -114,7 +119,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		.uOpticalFlowPyramidLevelCount = 7,
 		.iFrameIndex                   = resourceFrameIndex,
 		.backbufferTransferFunction    = (uint32)passInput.transferFunction,
-		.minMaxLuminance               = { 0.0f, 3000.0f }, // #wip: minMaxLuminance
+		.minMaxLuminance               = { fMinLuminance, fMaxLuminance },
 	};
 	ConstantBufferView* passUniformCBV = prepareLumaDescriptor.getUniformCBV(swapchainIndex);
 	passUniformCBV->writeToGPU(commandList, &passUniformData, sizeof(passUniformData));
@@ -180,7 +185,15 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	{
 		SCOPED_DRAW_EVENT(commandList, GenerateInputPyramid);
 
-		// The only texture parameter was barriered right before, so no need to place any barriers here.
+		TextureBarrierAuto textureBarriersBefore[7];
+		for (uint32 i = 0; i < 7; ++i)
+		{
+			textureBarriersBefore[i] = {
+				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+				opticalFlowInputTextures[currFrame][i].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			};
+		}
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriersBefore), textureBarriersBefore, 0, nullptr);
 
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("cbOF", passUniformCBV);
@@ -330,7 +343,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 			.uOpticalFlowPyramidLevelCount = 7,
 			.iFrameIndex                   = resourceFrameIndex,
 			.backbufferTransferFunction    = (uint32)passInput.transferFunction,
-			.minMaxLuminance               = { 0.0f, 3000.0f }, // #wip: minMaxLuminance
+			.minMaxLuminance               = { fMinLuminance, fMaxLuminance },
 		};
 		ConstantBufferView* v5PassUniformCBV = computeOpticalFlowAdvancedV5Descriptor.getUniformChunkCBV(swapchainIndex, level);
 		v5PassUniformCBV->writeToGPU(commandList, &v5PassUniformData, sizeof(v5PassUniformData));
@@ -572,11 +585,6 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 	const bool bContainerResolutionChanged = containerResolutionXs[swapchainIndex] != passInput.containerSizeX || containerResolutionYs[swapchainIndex] != passInput.containerSizeY;
 	const bool bLumaResolutionChanged = lumaResolutionXs[swapchainIndex] != passInput.lumaResolutionX || lumaResolutionYs[swapchainIndex] != passInput.lumaResolutionY;
 	
-	containerResolutionXs[swapchainIndex] = passInput.containerSizeX;
-	containerResolutionYs[swapchainIndex] = passInput.containerSizeY;
-	lumaResolutionXs[swapchainIndex] = passInput.lumaResolutionX;
-	lumaResolutionYs[swapchainIndex] = passInput.lumaResolutionY;
-
 	const uint32 opticalFlowBlockSize = 8;
 	FfxDimensions2D opticalFlowTextureSizes[OpticalFlowMaxPyramidLevels];
 	opticalFlowTextureSizes[0] = GetOpticalFlowTextureSize({ passInput.containerSizeX,passInput.containerSizeY }, opticalFlowBlockSize);
@@ -588,6 +596,11 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 		};
 	}
 
+	// Update member variables.
+	containerResolutionXs[swapchainIndex] = passInput.containerSizeX;
+	containerResolutionYs[swapchainIndex] = passInput.containerSizeY;
+	lumaResolutionXs[swapchainIndex] = passInput.lumaResolutionX;
+	lumaResolutionYs[swapchainIndex] = passInput.lumaResolutionY;
 	opticalFlowVectorSizeX = opticalFlowTextureSizes[0].width;
 	opticalFlowVectorSizeY = opticalFlowTextureSizes[0].height;
 
