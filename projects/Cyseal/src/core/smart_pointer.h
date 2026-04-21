@@ -157,9 +157,22 @@ public:
 	{
 		instances.resize(bufferCount);
 	}
+	void clear()
+	{
+		instances.clear();
+	}
+	size_t bufferCount() const
+	{
+		return instances.size();
+	}
+	size_t bufferSize(uint32 ix) const
+	{
+		return instances[ix].size();
+	}
 	T* at(size_t bufferIndex, size_t itemIndex)
 	{
-		return instances[bufferIndex][itemIndex];
+		const auto& vec = instances[bufferIndex];
+		return vec[itemIndex].get();
 	}
 	std::vector<std::unique_ptr<T>>& operator[](size_t bufferIndex)
 	{
