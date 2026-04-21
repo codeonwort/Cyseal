@@ -17,7 +17,6 @@ enum class OpticalFlowBackbufferTransferFunction : uint32
 
 struct OpticalFlowPassInput
 {
-	uint32                                frameIndex;
 	OpticalFlowBackbufferTransferFunction transferFunction;
 	uint32                                containerSizeX;
 	uint32                                containerSizeY;
@@ -40,6 +39,7 @@ private:
 
 private:
 	RenderDevice* device = nullptr;
+	uint32 resourceFrameIndex = 0;
 
 	// <FidelityFX_SDK>/sdk/src/components/opticalflow/ffx_opticalflow_private.h
 	UniquePtr<ComputePipelineState>        pipelinePrepareLuma;
@@ -56,6 +56,7 @@ private:
 	VolatileDescriptorHelper               computeSCDDivergenceDescriptor;
 	VolatileDescriptorHelper               computeOpticalFlowAdvancedV5Descriptor;
 	VolatileDescriptorHelper               filterOpticalFlowV5Descriptor;
+	VolatileDescriptorHelper               scaleOpticalFlowAdvancedV5Descriptor;
 
 	std::vector<int32>                     containerResolutionXs;
 	std::vector<int32>                     containerResolutionYs;
@@ -76,4 +77,7 @@ private:
 	UniquePtr<UnorderedAccessView>         scdTempUAV;
 	UniquePtr<Texture>                     scdOutputTexture;
 	UniquePtr<UnorderedAccessView>         scdOutputUAV;
+
+	UniquePtr<Texture>                     opticalFlowVectorTexture;
+	UniquePtr<UnorderedAccessView>         opticalFlowVectorUAV;
 };

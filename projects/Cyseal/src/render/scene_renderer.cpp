@@ -794,7 +794,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, OpticalFlow);
 
 		OpticalFlowPassInput passInput{
-			.frameIndex        = currentFrameIndex,
 			.transferFunction  = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance,
 			.containerSizeX    = unscaledRenderWidth,
 			.containerSizeY    = unscaledRenderHeight,
@@ -1040,8 +1039,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	commandList->executeDeferredDealloc();
 	for (auto& cand : deferredCleanupList) delete cand.resource;
 	deferredCleanupList.clear();
-
-	currentFrameIndex += 1;
 }
 
 void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)

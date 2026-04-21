@@ -64,8 +64,6 @@ private:
 private:
 	RenderDevice* device = nullptr;
 
-	uint32 currentFrameIndex = 0; // #wip: Ideally comes from outside of renderer
-
 	struct DeferredCleanup { GPUResource* resource; /*uint32 count;*/ }; // Don't remember why I put 'count' there...?
 	std::vector<DeferredCleanup> deferredCleanupList;
 
