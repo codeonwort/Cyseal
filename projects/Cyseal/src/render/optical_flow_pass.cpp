@@ -12,6 +12,15 @@ static uint32 GetSCDHistogramTextureWidth()
 	return HistogramBins * (HistogramsPerDim * HistogramsPerDim);
 }
 
+struct FfxDimensions2D { uint32 width, height; };
+
+static FfxDimensions2D GetOpticalFlowTextureSize(const FfxDimensions2D& displaySize, const uint32 opticalFlowBlockSize)
+{
+	uint32 width = (displaySize.width + opticalFlowBlockSize - 1) / opticalFlowBlockSize;
+	uint32 height = (displaySize.height + opticalFlowBlockSize - 1) / opticalFlowBlockSize;
+	return { width, height };
+}
+
 // cbuffer cbOF
 struct PassUniform
 {
@@ -87,6 +96,14 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	const uint32 currFrame = swapchainIndex;
 	const uint32 prevFrame = (swapchainIndex + 1) % 2;
 
+	const int advancedAlgorithmIterations = 7;
+	const uint32 opticalFlowBlockSize = 8;
+
+	// #wip: Reset accumulation, if requested
+	{
+		// ...
+	}
+
 	PassUniform passUniformData{
 		.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
 		.uOpticalFlowPyramidLevel      = 0,
@@ -127,7 +144,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 			},
 			{
 				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				lumaTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				opticalFlowInputTextures[currFrame][0].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriersBefore), textureBarriersBefore, 0, nullptr);
@@ -135,7 +152,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("cbOF", passUniformCBV);
 		SPT.texture("r_input_color", passInput.sceneColorSRV);
-		SPT.rwTexture("rw_optical_flow_input", lumaUAVs[0].get());
+		SPT.rwTexture("rw_optical_flow_input", opticalFlowInputUAVs[currFrame][0].get());
 
 		prepareLumaDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
 		auto descriptorHeap = prepareLumaDescriptor.getDescriptorHeap(swapchainIndex);
@@ -164,13 +181,13 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("cbOF", passUniformCBV);
 		SPT.constantBuffer("cbOF_SPD", spdUniformCBV);
-		SPT.rwTexture("rw_optical_flow_input", lumaUAVs[0].get());
-		SPT.rwTexture("rw_optical_flow_input_level_1", lumaUAVs[1].get());
-		SPT.rwTexture("rw_optical_flow_input_level_2", lumaUAVs[2].get());
-		SPT.rwTexture("rw_optical_flow_input_level_3", lumaUAVs[3].get());
-		SPT.rwTexture("rw_optical_flow_input_level_4", lumaUAVs[4].get());
-		SPT.rwTexture("rw_optical_flow_input_level_5", lumaUAVs[5].get());
-		SPT.rwTexture("rw_optical_flow_input_level_6", lumaUAVs[6].get());
+		SPT.rwTexture("rw_optical_flow_input", opticalFlowInputUAVs[currFrame][0].get());
+		SPT.rwTexture("rw_optical_flow_input_level_1", opticalFlowInputUAVs[currFrame][1].get());
+		SPT.rwTexture("rw_optical_flow_input_level_2", opticalFlowInputUAVs[currFrame][2].get());
+		SPT.rwTexture("rw_optical_flow_input_level_3", opticalFlowInputUAVs[currFrame][3].get());
+		SPT.rwTexture("rw_optical_flow_input_level_4", opticalFlowInputUAVs[currFrame][4].get());
+		SPT.rwTexture("rw_optical_flow_input_level_5", opticalFlowInputUAVs[currFrame][5].get());
+		SPT.rwTexture("rw_optical_flow_input_level_6", opticalFlowInputUAVs[currFrame][6].get());
 
 		genInputPyramidDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
 		auto descriptorHeap = genInputPyramidDescriptor.getDescriptorHeap(swapchainIndex);
@@ -193,7 +210,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		TextureBarrierAuto textureBarriersBefore[] = {
 			{
 				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				lumaTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				opticalFlowInputTextures[currFrame][0].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 			{
 				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
@@ -204,7 +221,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("cbOF", passUniformCBV);
-		SPT.texture("r_optical_flow_input", lumaSRV.get());
+		SPT.texture("r_optical_flow_input", opticalFlowInputSRVs[currFrame][0].get());
 		SPT.rwTexture("rw_optical_flow_scd_histogram", scdHistogramUAVs[currFrame].get());
 
 		genSCDHistogramDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
@@ -272,15 +289,109 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		};
 		commandList->barrierAuto(0, nullptr, 0, nullptr, 1, &globalBarrierAfter);
 	}
-	// #wip: Dispatch pipelineComputeOpticalFlowAdvancedV5
-	// #wip: Dispatch pipelineFilterOpticalFlowV5
-	// #wip: Dispatch pipelineScaleOpticalFlowAdvancedV5
+
+	FfxDimensions2D opticalFlowTextureSizes[OpticalFlowMaxPyramidLevels];
+	const int32 pyramidMaxIterations = advancedAlgorithmIterations;
+	CHECK(pyramidMaxIterations <= OpticalFlowMaxPyramidLevels);
+
+	opticalFlowTextureSizes[0] = GetOpticalFlowTextureSize({ passInput.containerSizeX,passInput.containerSizeY }, opticalFlowBlockSize);
+	for (int32 i = 1; i < pyramidMaxIterations; i++)
+	{
+		opticalFlowTextureSizes[i] = {
+			(opticalFlowTextureSizes[i - 1].width + 1) / 2,
+			(opticalFlowTextureSizes[i - 1].height + 1) / 2
+		};
+	}
+
+	DescriptorIndexTracker computeAdvancedV5Tracker{};
+
+	// #wip: ffx_opticalflow.cpp line:728
+	for (int32 level = pyramidMaxIterations - 1; level >= 0; --level)
+	{
+		const bool isOddLevel = !!(level & 1);
+
+		const uint32 opticalFlowInputResourceIndexA = currFrame;
+		const uint32 opticalFlowInputResourceIndexB = prevFrame;
+		const uint32 opticalFlowResourceIndexA = (currFrame != (uint32)isOddLevel) ? currFrame : prevFrame;
+		const uint32 opticalFlowResourceIndexB = (currFrame != (uint32)isOddLevel) ? prevFrame : currFrame;
+
+		{
+			SCOPED_DRAW_EVENT(commandList, ComputeOpticalFlowAdvancedV5);
+
+			TextureBarrierAuto textureBarriersBefore[] = {
+				{
+					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+					opticalFlowInputTextures[opticalFlowInputResourceIndexA][level].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				},
+				{
+					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+					opticalFlowInputTextures[opticalFlowInputResourceIndexB][level].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				},
+				{
+					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+					opticalFlowTextures[opticalFlowResourceIndexA][level].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				},
+				{
+					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+					scdOutputTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				},
+			};
+			commandList->barrierAuto(0, nullptr, _countof(textureBarriersBefore), textureBarriersBefore, 0, nullptr);
+
+			auto& volatileDescriptor = computeOpticalFlowAdvancedV5Descriptor;
+			auto pipelineState = pipelineComputeOpticalFlowAdvancedV5.get();
+
+			PassUniform v5PassUniformData{
+				.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
+				.uOpticalFlowPyramidLevel      = (uint32)level,
+				.uOpticalFlowPyramidLevelCount = 7,
+				.iFrameIndex                   = passInput.frameIndex,
+				.backbufferTransferFunction    = (uint32)passInput.transferFunction,
+				.minMaxLuminance               = { 0.0f, 3000.0f }, // #wip: minMaxLuminance
+			};
+			ConstantBufferView* v5PassUniformCBV = volatileDescriptor.getUniformChunkCBV(swapchainIndex, level);
+			v5PassUniformCBV->writeToGPU(commandList, &v5PassUniformData, sizeof(v5PassUniformData));
+
+			ShaderParameterTable SPT{};
+			SPT.constantBuffer("cbOF", v5PassUniformCBV);
+			SPT.texture("r_optical_flow_input", opticalFlowInputSRVs[opticalFlowInputResourceIndexA][level].get());
+			SPT.texture("r_optical_flow_previous_input", opticalFlowInputSRVs[opticalFlowInputResourceIndexB][level].get());
+			SPT.rwTexture("rw_optical_flow", opticalFlowUAVs[opticalFlowResourceIndexA][level].get());
+			SPT.rwTexture("rw_optical_flow_scd_output", scdOutputUAV.get());
+
+			volatileDescriptor.resizeDescriptorHeap(swapchainIndex, OpticalFlowMaxPyramidLevels * SPT.totalDescriptors());
+			auto descriptorHeap = volatileDescriptor.getDescriptorHeap(swapchainIndex);
+
+			commandList->setComputePipelineState(pipelineState);
+			commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap, &computeAdvancedV5Tracker);
+
+			const uint32 inputLumaWidth = std::max(passInput.lumaResolutionX >> level, 1);
+			const uint32 inputLumaHeight = std::max(passInput.lumaResolutionY >> level, 1);
+
+			const uint32 threadPixels = 4;
+			CHECK(opticalFlowBlockSize >= threadPixels);
+			const uint32 threadGroupSizeY = 16;
+			const uint32 threadGroupSize = 64;
+			const uint32 dispatchX = ((inputLumaWidth + threadPixels - 1) / threadPixels * threadGroupSizeY + (threadGroupSize - 1)) / threadGroupSize;
+			const uint32 dispatchY = (inputLumaHeight + (threadGroupSizeY - 1)) / threadGroupSizeY;
+			commandList->dispatchCompute(dispatchX, dispatchY, 1);
+
+			GlobalBarrier globalBarrierAfter{
+				EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS
+			};
+		}
+		
+		// #wip: Dispatch pipelineFilterOpticalFlowV5
+		// #wip: Dispatch pipelineScaleOpticalFlowAdvancedV5
+	}
 }
 
 void OpticalFlowPass::initializePipelines()
 {
 	const uint32 swapchainCount = device->maxFramesInFlight();
 
+	containerResolutionXs.resize(swapchainCount, 0);
+	containerResolutionYs.resize(swapchainCount, 0);
 	lumaResolutionXs.resize(swapchainCount, 0);
 	lumaResolutionYs.resize(swapchainCount, 0);
 
@@ -291,6 +402,7 @@ void OpticalFlowPass::initializePipelines()
 	genInputPyramidDescriptor.initialize(L"OpticalFlowGenerateInputPyramid", swapchainCount, sizeof(SpdUniform));
 	genSCDHistogramDescriptor.initialize(L"OpticalFlowGenerateSCDHistogram", swapchainCount, 0);
 	computeSCDDivergenceDescriptor.initialize(L"OpticalFlowComputeSCDDivergence", swapchainCount, 0);
+	computeOpticalFlowAdvancedV5Descriptor.initialize(L"OpticalFlowComputeAdvancedV5", swapchainCount, OpticalFlowMaxPyramidLevels * sizeof(PassUniform), OpticalFlowMaxPyramidLevels);
 
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)
@@ -311,52 +423,128 @@ void OpticalFlowPass::initializePipelines()
 	createPipeline("OpticalFlowGenerateSCDHistogramCS", L"amd/ffx_opticalflow_generate_scd_histogram_pass.hlsl", pipelineGenerateSCDHistogram);
 	createPipeline("OpticalFlowComputeSCDDivergence", L"amd/ffx_opticalflow_compute_scd_divergence_pass.hlsl", pipelineComputeSCDDivergence);
 	createPipeline("OpticalFlowFilterAdvancedV5", L"amd/ffx_opticalflow_compute_optical_flow_advanced_pass_v5.hlsl", pipelineComputeOpticalFlowAdvancedV5);
-	createPipeline("OpticalFlowFilterV5", L"amd/ffx_opticalflow_prepare_luma_pass.hlsl", pipelineFilterOpticalFlowV5);
+	createPipeline("OpticalFlowFilterV5", L"amd/ffx_opticalflow_filter_optical_flow_pass_v5.hlsl", pipelineFilterOpticalFlowV5);
 	createPipeline("OpticalFlowScaleAdvancedV5", L"amd/ffx_opticalflow_scale_optical_flow_advanced_pass_v5.hlsl", pipelineScaleOpticalFlowAdvancedV5);
 }
 
 void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput)
 {
-	if (lumaResolutionXs[swapchainIndex] != passInput.lumaResolutionX || lumaResolutionYs[swapchainIndex] != passInput.lumaResolutionY)
+	const bool bContainerResolutionChanged = containerResolutionXs[swapchainIndex] != passInput.containerSizeX || containerResolutionYs[swapchainIndex] != passInput.containerSizeY;
+	const bool bLumaResolutionChanged = lumaResolutionXs[swapchainIndex] != passInput.lumaResolutionX || lumaResolutionYs[swapchainIndex] != passInput.lumaResolutionY;
+	
+	containerResolutionXs[swapchainIndex] = passInput.containerSizeX;
+	containerResolutionYs[swapchainIndex] = passInput.containerSizeY;
+	lumaResolutionXs[swapchainIndex] = passInput.lumaResolutionX;
+	lumaResolutionYs[swapchainIndex] = passInput.lumaResolutionY;
+
+	const uint32 opticalFlowBlockSize = 8;
+	FfxDimensions2D opticalFlowTextureSizes[OpticalFlowMaxPyramidLevels];
+	opticalFlowTextureSizes[0] = GetOpticalFlowTextureSize({ passInput.containerSizeX,passInput.containerSizeY }, opticalFlowBlockSize);
+	for (int32 i = 1; i < OpticalFlowMaxPyramidLevels; i++)
 	{
-		commandList->enqueueDeferredDealloc(lumaTexture.release(), true);
-		for (size_t i = 0; i < _countof(lumaUAVs); ++i)
-		{
-			commandList->enqueueDeferredDealloc(lumaUAVs[i].release(), true);
-		}
-
-		lumaResolutionXs[swapchainIndex] = passInput.lumaResolutionX;
-		lumaResolutionYs[swapchainIndex] = passInput.lumaResolutionY;
-
-		TextureCreateParams texDesc = TextureCreateParams::texture2D(
-			EPixelFormat::R32_UINT, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
-			passInput.lumaResolutionX, passInput.lumaResolutionY, 7);
-		lumaTexture = UniquePtr<Texture>(device->createTexture(texDesc));
-		lumaTexture->setDebugName(L"RT_OpticalFlow_Luma");
-
-		for (uint32 mip = 0; mip < _countof(lumaUAVs); ++mip)
-		{
-			lumaUAVs[mip] = UniquePtr<UnorderedAccessView>(device->createUAV(lumaTexture.get(),
-				UnorderedAccessViewDesc{
-					.format         = lumaTexture->getCreateParams().format,
-					.viewDimension  = EUAVDimension::Texture2D,
-					.texture2D      = Texture2DUAVDesc{ .mipSlice = mip, .planeSlice = 0 },
-				}
-			));
-		}
-		lumaSRV = UniquePtr<ShaderResourceView>(device->createSRV(lumaTexture.get(),
-			ShaderResourceViewDesc{
-				.format              = lumaTexture->getCreateParams().format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = lumaTexture->getCreateParams().mipLevels,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
+		opticalFlowTextureSizes[i] = {
+			(opticalFlowTextureSizes[i - 1].width + 1) / 2,
+			(opticalFlowTextureSizes[i - 1].height + 1) / 2
+		};
 	}
+
+	// #wip: Use bContainerResolutionChanged?
+	if (bLumaResolutionChanged)
+	{
+		for (uint32 frameIx = 0; frameIx < 2; ++frameIx)
+		{
+			for (size_t i = 0; i < _countof(opticalFlowInputUAVs[frameIx]); ++i)
+			{
+				commandList->enqueueDeferredDealloc(opticalFlowInputTextures[frameIx][i].release(), true);
+				commandList->enqueueDeferredDealloc(opticalFlowInputUAVs[frameIx][i].release(), true);
+				commandList->enqueueDeferredDealloc(opticalFlowInputSRVs[frameIx][i].release(), true);
+			}
+
+			for (uint32 mip = 0; mip < _countof(opticalFlowInputUAVs[frameIx]); ++mip)
+			{
+				TextureCreateParams texDesc = TextureCreateParams::texture2D(
+					EPixelFormat::R32_UINT, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+					passInput.lumaResolutionX >> mip, passInput.lumaResolutionY >> mip, 7);
+
+				Texture* currTexture = device->createTexture(texDesc);
+				opticalFlowInputTextures[frameIx][mip] = UniquePtr<Texture>(currTexture);
+
+				wchar_t msg[128];
+				std::swprintf(msg, _countof(msg), L"RT_OpticalFlow_OpticalFlowInput_%s_%u", frameIx == 0 ? L"A" : L"B", mip);
+				currTexture->setDebugName(msg);
+
+				opticalFlowInputUAVs[frameIx][mip] = UniquePtr<UnorderedAccessView>(device->createUAV(currTexture,
+					UnorderedAccessViewDesc{
+						.format         = currTexture->getCreateParams().format,
+						.viewDimension  = EUAVDimension::Texture2D,
+						.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+					}
+				));
+				opticalFlowInputSRVs[frameIx][mip] = UniquePtr<ShaderResourceView>(device->createSRV(currTexture,
+					ShaderResourceViewDesc{
+						.format              = currTexture->getCreateParams().format,
+						.viewDimension       = ESRVDimension::Texture2D,
+						.texture2D           = Texture2DSRVDesc{
+							.mostDetailedMip = 0,
+							.mipLevels       = currTexture->getCreateParams().mipLevels,
+							.planeSlice      = 0,
+							.minLODClamp     = 0.0f,
+						},
+					}
+				));
+			}
+		}
+	}
+
+	if (bLumaResolutionChanged)
+	{
+		for (uint32 frameIx = 0; frameIx < 2; ++frameIx)
+		{
+			for (size_t i = 0; i < _countof(opticalFlowUAVs[frameIx]); ++i)
+			{
+				commandList->enqueueDeferredDealloc(opticalFlowTextures[frameIx][i].release(), true);
+				commandList->enqueueDeferredDealloc(opticalFlowUAVs[frameIx][i].release(), true);
+				commandList->enqueueDeferredDealloc(opticalFlowSRVs[frameIx][i].release(), true);
+			}
+
+			for (uint32 mip = 0; mip < _countof(opticalFlowInputUAVs[frameIx]); ++mip)
+			{
+				// Not a case where a texture contains 7 mips; each mip is an individual texture.
+				TextureCreateParams texDesc = TextureCreateParams::texture2D(
+					EPixelFormat::R16G16_SINT, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+					opticalFlowTextureSizes[mip].width, opticalFlowTextureSizes[mip].height, 1);
+				opticalFlowTextures[frameIx][mip] = UniquePtr<Texture>(device->createTexture(texDesc));
+
+				Texture* const currTexture = opticalFlowTextures[frameIx][mip].get();
+
+				wchar_t msg[128];
+				std::swprintf(msg, _countof(msg), L"RT_OpticalFlow_OpticalFlowInput_%s_%u", frameIx == 0 ? L"A" : L"B", mip);
+				currTexture->setDebugName(msg);
+
+				opticalFlowUAVs[frameIx][mip] = UniquePtr<UnorderedAccessView>(device->createUAV(currTexture,
+					UnorderedAccessViewDesc{
+						.format         = currTexture->getCreateParams().format,
+						.viewDimension  = EUAVDimension::Texture2D,
+						.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+					}
+				));
+				opticalFlowSRVs[frameIx][mip] = UniquePtr<ShaderResourceView>(device->createSRV(currTexture,
+					ShaderResourceViewDesc{
+						.format              = currTexture->getCreateParams().format,
+						.viewDimension       = ESRVDimension::Texture2D,
+						.texture2D           = Texture2DSRVDesc{
+							.mostDetailedMip = 0,
+							.mipLevels       = currTexture->getCreateParams().mipLevels,
+							.planeSlice      = 0,
+							.minLODClamp     = 0.0f,
+						},
+					}
+				));
+			}
+		}
+	}
+
+	// Irrelevant to input resolution, so just null check.
 	if (scdHistogramTextures[0] == nullptr)
 	{
 		for (uint32 i = 0; i < scdHistogramTextures.size(); ++i)
@@ -371,7 +559,7 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 
 			scdHistogramUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(scdHistogramTextures[i].get(),
 				UnorderedAccessViewDesc{
-					.format         = lumaTexture->getCreateParams().format,
+					.format         = scdHistogramTextures[i]->getCreateParams().format,
 					.viewDimension  = EUAVDimension::Texture2D,
 					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 				}

@@ -796,6 +796,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		OpticalFlowPassInput passInput{
 			.frameIndex        = currentFrameIndex,
 			.transferFunction  = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance,
+			.containerSizeX    = unscaledRenderWidth,
+			.containerSizeY    = unscaledRenderHeight,
 			.lumaResolutionX   = (int32)sceneWidth,
 			.lumaResolutionY   = (int32)sceneHeight,
 			.sceneColorTexture = RT_sceneColor.get(),

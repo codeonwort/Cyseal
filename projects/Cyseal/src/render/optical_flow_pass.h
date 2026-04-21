@@ -19,6 +19,8 @@ struct OpticalFlowPassInput
 {
 	uint32                                frameIndex;
 	OpticalFlowBackbufferTransferFunction transferFunction;
+	uint32                                containerSizeX;
+	uint32                                containerSizeY;
 	int32                                 lumaResolutionX;
 	int32                                 lumaResolutionY;
 	Texture*                              sceneColorTexture;
@@ -52,12 +54,21 @@ private:
 	VolatileDescriptorHelper               genInputPyramidDescriptor;
 	VolatileDescriptorHelper               genSCDHistogramDescriptor;
 	VolatileDescriptorHelper               computeSCDDivergenceDescriptor;
+	VolatileDescriptorHelper               computeOpticalFlowAdvancedV5Descriptor;
 
+	std::vector<int32>                     containerResolutionXs;
+	std::vector<int32>                     containerResolutionYs;
 	std::vector<int32>                     lumaResolutionXs;
 	std::vector<int32>                     lumaResolutionYs;
-	UniquePtr<Texture>                     lumaTexture;
-	UniquePtr<UnorderedAccessView>         lumaUAVs[7];
-	UniquePtr<ShaderResourceView>          lumaSRV;
+
+	UniquePtr<Texture>                     opticalFlowInputTextures[2][7];
+	UniquePtr<UnorderedAccessView>         opticalFlowInputUAVs[2][7];
+	UniquePtr<ShaderResourceView>          opticalFlowInputSRVs[2][7];
+
+	UniquePtr<Texture>                     opticalFlowTextures[2][7];
+	UniquePtr<UnorderedAccessView>         opticalFlowUAVs[2][7];
+	UniquePtr<ShaderResourceView>          opticalFlowSRVs[2][7];
+
 	BufferedUniquePtr<Texture>             scdHistogramTextures;
 	BufferedUniquePtr<UnorderedAccessView> scdHistogramUAVs;
 	UniquePtr<Texture>                     scdTempTexture;
