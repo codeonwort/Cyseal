@@ -6,17 +6,20 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogRHI)
 
-void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize)
+void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize, uint32 uniformChunkCount)
 {
 	renderDevice = inRenderDevice;
 	passName = inPassName;
 	totalDescriptor.resize(swapchainCount, 0);
 	descriptorHeap.initialize(swapchainCount);
+	chunkCount = uniformChunkCount;
 
 	// Uniforms
 	if (uniformTotalSize > 0)
 	{
 		CHECK(uniformTotalSize * swapchainCount <= UNIFORM_MEMORY_POOL_SIZE);
+		CHECK(uniformTotalSize % uniformChunkCount == 0);
+		CHECK(uniformChunkCount > 0);
 
 		uniformMemory = UniquePtr<Buffer>(renderDevice->createBuffer(
 			BufferCreateParams{
@@ -29,34 +32,38 @@ void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wc
 		uniformDescriptorHeap = UniquePtr<DescriptorHeap>(renderDevice->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::CBV,
-				.numDescriptors = swapchainCount,
+				.numDescriptors = swapchainCount * chunkCount,
 				.flags          = EDescriptorHeapFlags::None,
 				.nodeMask       = 0,
 				.purpose        = EDescriptorHeapPurpose::Volatile,
 			}
 		));
 
+		const uint32 alignment = renderDevice->getConstantBufferDataAlignment();
 		uint32 bufferOffset = 0;
 		uniformCBVs.initialize(swapchainCount);
 		for (uint32 i = 0; i < swapchainCount; ++i)
 		{
-			uniformCBVs[i] = UniquePtr<ConstantBufferView>(
-				renderDevice->createCBV(
-					uniformMemory.get(),
-					uniformDescriptorHeap.get(),
-					uniformTotalSize,
-					bufferOffset));
+			uniformCBVs[i].resize(uniformChunkCount);
+			for (uint32 j = 0; j < uniformChunkCount; ++j)
+			{
+				uniformCBVs[i][j] = UniquePtr<ConstantBufferView>(
+					renderDevice->createCBV(
+						uniformMemory.get(),
+						uniformDescriptorHeap.get(),
+						uniformTotalSize,
+						bufferOffset));
 
-			uint32 alignment = renderDevice->getConstantBufferDataAlignment();
-			bufferOffset += Cymath::alignBytes(uniformTotalSize, alignment);
+				bufferOffset += Cymath::alignBytes(uniformTotalSize, alignment);
+			}
 		}
 	}
 }
 
-void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize)
+void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize, uint32 uniformChunkCount)
 {
 	CHECK(gRenderDevice != nullptr);
-	initialize(gRenderDevice, inPassName, swapchainCount, uniformTotalSize);
+	initialize(gRenderDevice, inPassName, swapchainCount, uniformTotalSize, uniformChunkCount);
 }
 
 void VolatileDescriptorHelper::destroy()
