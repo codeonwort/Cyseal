@@ -1,23 +1,24 @@
 #include "common.hlsl"
 
 // Should match with EBufferVisualizationMode
-#define MODE_NONE               0
-#define MODE_MATERIAL_ID        1
-#define MODE_ALBEDO             2
-#define MODE_ROUGHNESS          3
-#define MODE_METAL_MASK         4
-#define MODE_NORMAL             5
-#define MODE_DIRECT_LIGHTING    6
-#define MODE_RAY_TRACED_SHADOWS 7
-#define MODE_INDIRECT_DIFFUSE   8
-#define MODE_INDIRECT_SPECULAR  9
-#define MODE_VELOCITY_MAP       10
-#define MODE_VISIBILITY_BUFFER  11
-#define MODE_BARYCENTRIC_COORD  12
-#define MODE_VIS_MATERIAL_ID    13
-#define MODE_VIS_ALBEDO         14
-#define MODE_VIS_ROUGHNESS      15
-#define MODE_VIS_METAL_MASK     16
+#define MODE_NONE                0
+#define MODE_MATERIAL_ID         1
+#define MODE_ALBEDO              2
+#define MODE_ROUGHNESS           3
+#define MODE_METAL_MASK          4
+#define MODE_NORMAL              5
+#define MODE_DIRECT_LIGHTING     6
+#define MODE_RAY_TRACED_SHADOWS  7
+#define MODE_INDIRECT_DIFFUSE    8
+#define MODE_INDIRECT_SPECULAR   9
+#define MODE_VELOCITY_MAP        10
+#define MODE_VISIBILITY_BUFFER   11
+#define MODE_BARYCENTRIC_COORD   12
+#define MODE_VIS_MATERIAL_ID     13
+#define MODE_VIS_ALBEDO          14
+#define MODE_VIS_ROUGHNESS       15
+#define MODE_VIS_METAL_MASK      16
+#define MODE_OPTICAL_FLOW_VECTOR 17
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -30,23 +31,24 @@ struct PushConstants
 };
 
 [[vk::push_constant]]
-ConstantBuffer<PushConstants> pushConstants    : register(b0, space0);
+ConstantBuffer<PushConstants> pushConstants     : register(b0, space0);
 
 ConstantBuffer<SceneUniform>  sceneUniform;
 
-Texture2D<GBUFFER0_DATATYPE>  gbuffer0         : register(t0, space0);
-Texture2D<GBUFFER1_DATATYPE>  gbuffer1         : register(t1, space0);
-Texture2D                     sceneColor       : register(t2, space0);
-Texture2D                     shadowMask       : register(t3, space0);
-Texture2D                     indirectDiffuse  : register(t4, space0);
-Texture2D                     indirectSpecular : register(t5, space0);
-Texture2D                     velocityMap      : register(t6, space0);
-Texture2D<uint>               visibilityBuffer : register(t7, space0);
-Texture2D                     barycentricCoord : register(t8, space0);
-Texture2D<GBUFFER0_DATATYPE>  visGBuffer0      : register(t9, space0);
-Texture2D<GBUFFER1_DATATYPE>  visGBuffer1      : register(t10, space0);
+Texture2D<GBUFFER0_DATATYPE>  gbuffer0          : register(t0, space0);
+Texture2D<GBUFFER1_DATATYPE>  gbuffer1          : register(t1, space0);
+Texture2D                     sceneColor        : register(t2, space0);
+Texture2D                     shadowMask        : register(t3, space0);
+Texture2D                     indirectDiffuse   : register(t4, space0);
+Texture2D                     indirectSpecular  : register(t5, space0);
+Texture2D                     velocityMap       : register(t6, space0);
+Texture2D<uint>               visibilityBuffer  : register(t7, space0);
+Texture2D                     barycentricCoord  : register(t8, space0);
+Texture2D<GBUFFER0_DATATYPE>  visGBuffer0       : register(t9, space0);
+Texture2D<GBUFFER1_DATATYPE>  visGBuffer1       : register(t10, space0);
+Texture2D<uint2>              opticalFlowVector : register(t11, space0);
 
-SamplerState                  textureSampler   : register(s0, space0);
+SamplerState                  textureSampler    : register(s0, space0);
 
 // ------------------------------------------------------------------------
 // Vertex shader
@@ -172,6 +174,15 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	else if (modeEnum == MODE_VIS_METAL_MASK)
 	{
 		color.rgb = bInvalidBary ? PINK : visGBufferData.metalMask.rrr;
+	}
+	else if (modeEnum == MODE_OPTICAL_FLOW_VECTOR)
+	{
+		// #wip: Always black yet
+		int2 coord = int2(fullscreenUV * float2(pushConstants.width, pushConstants.height));
+		int2 flow = opticalFlowVector.Load(int3(coord, 0)).rg;
+		color.r = abs(float(flow.r)) / 64.0;
+		color.g = abs(float(flow.g)) / 64.0;
+		color.b = 0;
 	}
 
 	// Gamma correction

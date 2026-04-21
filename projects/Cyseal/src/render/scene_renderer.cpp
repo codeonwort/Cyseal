@@ -896,26 +896,31 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				RT_visGbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				opticalFlowPass->getOpticalFlowVectorTexture(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 		BufferVisualizationInput sources{
-			.renderTarget        = RT_finalSceneColor.get(),
-			.mode                = renderOptions.bufferVisualization,
-			.textureWidth        = sceneWidth,
-			.textureHeight       = sceneHeight,
-			.sceneUniformCBV     = sceneUniformCBV,
-			.gbuffer0SRV         = gbufferSRVs[0].get(),
-			.gbuffer1SRV         = gbufferSRVs[1].get(),
-			.sceneColorSRV       = sceneColorSRV.get(),
-			.shadowMaskSRV       = shadowMaskSRV.get(),
-			.indirectDiffuseSRV  = bRenderIndirectDiffuse ? indirectDiffuseSRV.get() : grey2DSRV.get(),
-			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
-			.velocityMapSRV      = velocityMapSRV.get(),
-			.visibilityBufferSRV = visibilityBufferSRV.get(),
-			.barycentricCoordSRV = barycentricCoordSRV.get(),
-			.visGbuffer0SRV      = visGbufferSRVs[0].get(),
-			.visGbuffer1SRV      = visGbufferSRVs[1].get(),
+			.renderTarget         = RT_finalSceneColor.get(),
+			.mode                 = renderOptions.bufferVisualization,
+			.textureWidth         = sceneWidth,
+			.textureHeight        = sceneHeight,
+			.sceneUniformCBV      = sceneUniformCBV,
+			.gbuffer0SRV          = gbufferSRVs[0].get(),
+			.gbuffer1SRV          = gbufferSRVs[1].get(),
+			.sceneColorSRV        = sceneColorSRV.get(),
+			.shadowMaskSRV        = shadowMaskSRV.get(),
+			.indirectDiffuseSRV   = bRenderIndirectDiffuse ? indirectDiffuseSRV.get() : grey2DSRV.get(),
+			.indirectSpecularSRV  = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
+			.velocityMapSRV       = velocityMapSRV.get(),
+			.visibilityBufferSRV  = visibilityBufferSRV.get(),
+			.barycentricCoordSRV  = barycentricCoordSRV.get(),
+			.visGbuffer0SRV       = visGbufferSRVs[0].get(),
+			.visGbuffer1SRV       = visGbufferSRVs[1].get(),
+			.opticalFlowVectorSRV = opticalFlowPass->getOpticalFlowVectorSRV(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);

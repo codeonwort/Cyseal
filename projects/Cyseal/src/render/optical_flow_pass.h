@@ -33,6 +33,9 @@ public:
 
 	void runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput);
 
+	Texture* getOpticalFlowVectorTexture() const;
+	ShaderResourceView* getOpticalFlowVectorSRV() const;
+
 private:
 	void initializePipelines();
 	void recreateResources(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput);
@@ -80,4 +83,5 @@ private:
 
 	UniquePtr<Texture>                     opticalFlowVectorTexture;
 	UniquePtr<UnorderedAccessView>         opticalFlowVectorUAV;
+	UniquePtr<ShaderResourceView>          opticalFlowVectorSRV;
 };

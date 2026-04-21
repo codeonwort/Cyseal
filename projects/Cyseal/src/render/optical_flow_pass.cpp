@@ -503,6 +503,16 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	resourceFrameIndex = (resourceFrameIndex + 1) % FFX_OPTICALFLOW_MAX_QUEUED_FRAMES;
 }
 
+Texture* OpticalFlowPass::getOpticalFlowVectorTexture() const
+{
+	return opticalFlowVectorTexture.get();
+}
+
+ShaderResourceView* OpticalFlowPass::getOpticalFlowVectorSRV() const
+{
+	return opticalFlowVectorSRV.get();
+}
+
 void OpticalFlowPass::initializePipelines()
 {
 	const uint32 swapchainCount = device->maxFramesInFlight();
@@ -730,6 +740,18 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 				.format         = opticalFlowVectorTexture->getCreateParams().format,
 				.viewDimension  = EUAVDimension::Texture2D,
 				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+			}
+		));
+		opticalFlowVectorSRV = UniquePtr<ShaderResourceView>(device->createSRV(opticalFlowVectorTexture.get(),
+			ShaderResourceViewDesc{
+				.format              = opticalFlowVectorTexture->getCreateParams().format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = opticalFlowVectorTexture->getCreateParams().mipLevels,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				},
 			}
 		));
 	}
