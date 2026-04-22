@@ -185,7 +185,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	else if (modeEnum == MODE_OPTICAL_FLOW_VECTOR)
 	{
 		uint2 ofvSize = unpackOpticalFlowVectorTextureSize();
-		int2 coord = int2(fullscreenUV * float2(ofvSize.x, ofvSize.y));
+		int2 coord = int2(scaledUV * float2(ofvSize.x, ofvSize.y));
 		int2 flow = opticalFlowVector.Load(int3(coord, 0)).rg;
 		color.r = saturate(abs(float(flow.r)) / 4.0);
 		color.g = saturate(abs(float(flow.g)) / 4.0);

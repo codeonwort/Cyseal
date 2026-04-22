@@ -623,7 +623,7 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 	opticalFlowVectorSizeX = opticalFlowTextureSizes[0].width;
 	opticalFlowVectorSizeY = opticalFlowTextureSizes[0].height;
 
-	// #wip: Use bContainerResolutionChanged?
+	// #todo-fsr3-fg: Use bContainerResolutionChanged?
 	if (bLumaResolutionChanged)
 	{
 		for (uint32 frameIx = 0; frameIx < 2; ++frameIx)
@@ -770,7 +770,7 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 		));
 	}
 
-	if (bContainerResolutionChanged)
+	if (bLumaResolutionChanged)
 	{
 		commandList->enqueueDeferredDealloc(opticalFlowVectorTexture.release(), true);
 		commandList->enqueueDeferredDealloc(opticalFlowVectorUAV.release(), true);
