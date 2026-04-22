@@ -1,6 +1,7 @@
 #include "optical_flow_pass.h"
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
+#include "util/clear_resource_pass.h"
 
 constexpr uint32 OpticalFlowMaxPyramidLevels = 7;
 constexpr uint32 HistogramBins = 256;
@@ -109,12 +110,25 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	const float fMinLuminance = 0.0f;
 	const float fMaxLuminance = 3000.0f;
 
-	// #wip: Reset accumulation, if requested
 	if (passInput.bResetAccumulation || bFirstExecution)
 	{
 		resourceFrameIndex = 0;
 
-		//
+		ClearResourcePass* clearPass = passInput.clearResourcePass;
+		clearPass->enqueueClear(scdTempTexture.get(), scdTempUAV.get());
+		clearPass->enqueueClear(scdOutputTexture.get(), scdOutputUAV.get());
+		for (size_t i = 0; i < scdHistogramTextures.size(); ++i)
+		{
+			clearPass->enqueueClear(scdHistogramTextures[i].get(), scdHistogramUAVs[i].get());
+		}
+		for (size_t i = 0; i < _countof(opticalFlowInputTextures); ++i)
+		{
+			for (size_t j = 0; j < _countof(opticalFlowInputTextures[0]); ++j)
+			{
+				clearPass->enqueueClear(opticalFlowInputTextures[i][j].get(), opticalFlowInputUAVs[i][j].get());
+			}
+		}
+		clearPass->executeClears(commandList, swapchainIndex);
 	}
 	bFirstExecution = false;
 
@@ -625,7 +639,7 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 			{
 				TextureCreateParams texDesc = TextureCreateParams::texture2D(
 					EPixelFormat::R32_UINT, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
-					passInput.lumaResolutionX >> mip, passInput.lumaResolutionY >> mip, 7);
+					passInput.lumaResolutionX >> mip, passInput.lumaResolutionY >> mip, 1);
 
 				Texture* currTexture = device->createTexture(texDesc);
 				opticalFlowInputTextures[frameIx][mip] = UniquePtr<Texture>(currTexture);
@@ -647,7 +661,7 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 						.viewDimension       = ESRVDimension::Texture2D,
 						.texture2D           = Texture2DSRVDesc{
 							.mostDetailedMip = 0,
-							.mipLevels       = currTexture->getCreateParams().mipLevels,
+							.mipLevels       = 1,
 							.planeSlice      = 0,
 							.minLODClamp     = 0.0f,
 						},
@@ -695,7 +709,7 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 						.viewDimension       = ESRVDimension::Texture2D,
 						.texture2D           = Texture2DSRVDesc{
 							.mostDetailedMip = 0,
-							.mipLevels       = currTexture->getCreateParams().mipLevels,
+							.mipLevels       = 1,
 							.planeSlice      = 0,
 							.minLODClamp     = 0.0f,
 						},

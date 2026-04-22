@@ -17,6 +17,7 @@ enum class OpticalFlowBackbufferTransferFunction : uint32
 
 struct OpticalFlowPassInput
 {
+	class ClearResourcePass*              clearResourcePass;
 	OpticalFlowBackbufferTransferFunction transferFunction;
 	bool                                  bResetAccumulation;
 	uint32                                containerSizeX;
