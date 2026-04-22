@@ -105,8 +105,9 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	const int advancedAlgorithmIterations = 7;
 	const uint32 opticalFlowBlockSize = 8;
 
-	// #wip: How to calculate min/max luminance? Just downsample the sceneColor to 1x1?
+	// #todo-fsr3-fg: How to calculate min/max luminance? Just downsample the sceneColor to 1x1?
 	// But how to read it? GPU stall and readback is def not an option :(
+	// If these are not scene luminance min/max but the range in HDR calibration then I should pass them from application logic side.
 	const float fMinLuminance = 0.0f;
 	const float fMaxLuminance = 3000.0f;
 
@@ -147,7 +148,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	uint32 workGroupOffset[2];
 	uint32 numWorkGroupsAndMips[2];
 	const uint32 rectInfo[4] = { 0u, 0u, (uint32)passInput.lumaResolutionX, (uint32)passInput.lumaResolutionY };
-	// #wip: Why mips = 4, not 7? (result is correct based on PIX)
+	// #todo-fsr3-fg: Why mips = 4, not 7? (result is correct based on PIX)
 	ffxSpdSetup(threadGroupSizeOpticalFlowInputPyramid, workGroupOffset, numWorkGroupsAndMips, rectInfo, 4);
 
 	SpdUniform spdUniformData{
