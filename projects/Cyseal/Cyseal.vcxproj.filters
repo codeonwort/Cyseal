@@ -405,6 +405,9 @@
     <ClInclude Include="src\render\combine_lighting_pass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\util\clear_resource_pass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">
@@ -669,6 +672,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\render\combine_lighting_pass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render\util\clear_resource_pass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

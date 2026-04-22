@@ -87,6 +87,7 @@ void OpticalFlowPass::initialize(RenderDevice* inRenderDevice)
 {
 	device = inRenderDevice;
 	resourceFrameIndex = 0;
+	bFirstExecution = true;
 
 	initializePipelines();
 }
@@ -109,9 +110,13 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	const float fMaxLuminance = 3000.0f;
 
 	// #wip: Reset accumulation, if requested
+	if (passInput.bResetAccumulation || bFirstExecution)
 	{
-		// ...
+		resourceFrameIndex = 0;
+
+		//
 	}
+	bFirstExecution = false;
 
 	PassUniform passUniformData{
 		.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
@@ -492,7 +497,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 			SPT.rwTexture("rw_optical_flow_next_level", nextLevelUAV);
 			SPT.rwTexture("rw_optical_flow_scd_output", scdOutputUAV.get());
 
-			volatileDescriptor.resizeDescriptorHeap(swapchainIndex, OpticalFlowMaxPyramidLevels* SPT.totalDescriptors());
+			volatileDescriptor.resizeDescriptorHeap(swapchainIndex, OpticalFlowMaxPyramidLevels * SPT.totalDescriptors());
 			auto descriptorHeap = volatileDescriptor.getDescriptorHeap(swapchainIndex);
 
 			commandList->setComputePipelineState(pipelineState);

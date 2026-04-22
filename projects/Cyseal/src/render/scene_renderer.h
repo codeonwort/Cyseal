@@ -165,6 +165,7 @@ private:
 
 	// ------------------------------------------------------------------------
 	// Render passes
+	class ClearResourcePass*    clearResourcePass     = nullptr;
 	class GPUScene*             gpuScene              = nullptr;
 	class GPUCulling*           gpuCulling            = nullptr;
 	class BilateralBlur*        bilateralBlur         = nullptr;

@@ -16,6 +16,7 @@
 
 #include "render/renderer_constants.h"
 #include "render/static_mesh.h"
+#include "render/util/clear_resource_pass.h"
 #include "render/gpu_scene.h"
 #include "render/gpu_culling.h"
 #include "render/bilateral_blur.h"
@@ -95,6 +96,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 	// Render passes
 	{
+		sceneRenderPasses.push_back(clearResourcePass = new(EMemoryTag::Renderer) ClearResourcePass);
 		sceneRenderPasses.push_back(gpuScene = new(EMemoryTag::Renderer) GPUScene);
 		sceneRenderPasses.push_back(gpuCulling = new(EMemoryTag::Renderer) GPUCulling);
 		sceneRenderPasses.push_back(bilateralBlur = new(EMemoryTag::Renderer) BilateralBlur);
@@ -116,6 +118,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(frameGenPass = new(EMemoryTag::Renderer) FrameGenPass);
 		sceneRenderPasses.push_back(finalBlitPass = new(EMemoryTag::Renderer) FinalBlitPass);
 
+		clearResourcePass->initialize(renderDevice);
 		gpuScene->initialize(renderDevice);
 		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
 		bilateralBlur->initialize(renderDevice);
@@ -234,6 +237,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		&& bRenderPathTracing == false;
 
 	const bool bRenderAnyRaytracingPass = renderOptions.anyRayTracingEnabled();
+
+	clearResourcePass->prepareForFrame(swapchainIndex);
 
 	rebuildFrameResources(commandList, scene);
 
@@ -794,13 +799,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, OpticalFlow);
 
 		OpticalFlowPassInput passInput{
-			.transferFunction  = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance,
-			.containerSizeX    = unscaledRenderWidth,
-			.containerSizeY    = unscaledRenderHeight,
-			.lumaResolutionX   = (int32)sceneWidth,
-			.lumaResolutionY   = (int32)sceneHeight,
-			.sceneColorTexture = RT_sceneColor.get(),
-			.sceneColorSRV     = sceneColorSRV.get(),
+			.transferFunction   = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance,
+			.bResetAccumulation = false,
+			.containerSizeX     = unscaledRenderWidth,
+			.containerSizeY     = unscaledRenderHeight,
+			.lumaResolutionX    = (int32)sceneWidth,
+			.lumaResolutionY    = (int32)sceneHeight,
+			.sceneColorTexture  = RT_sceneColor.get(),
+			.sceneColorSRV      = sceneColorSRV.get(),
 		};
 		opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
 	}

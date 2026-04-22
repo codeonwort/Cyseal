@@ -18,6 +18,7 @@ enum class OpticalFlowBackbufferTransferFunction : uint32
 struct OpticalFlowPassInput
 {
 	OpticalFlowBackbufferTransferFunction transferFunction;
+	bool                                  bResetAccumulation;
 	uint32                                containerSizeX;
 	uint32                                containerSizeY;
 	int32                                 lumaResolutionX;
@@ -45,6 +46,7 @@ private:
 private:
 	RenderDevice* device = nullptr;
 	uint32 resourceFrameIndex = 0;
+	bool bFirstExecution = true;
 
 	// <FidelityFX_SDK>/sdk/src/components/opticalflow/ffx_opticalflow_private.h
 	UniquePtr<ComputePipelineState>        pipelinePrepareLuma;

@@ -94,6 +94,9 @@
       <Filter>amd</Filter>
     </FxCompile>
     <FxCompile Include="..\..\shaders\combine_lighting.hlsl" />
+    <FxCompile Include="..\..\shaders\util\clear_texture.hlsl">
+      <Filter>util</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">
@@ -110,6 +113,9 @@
     </Filter>
     <Filter Include="amd\spd">
       <UniqueIdentifier>{5655f376-a4de-4339-8c12-54c088f6abfa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util">
+      <UniqueIdentifier>{72d53924-84fb-436e-8b61-ce4ee2552275}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

@@ -131,6 +131,7 @@
     <FxCompile Include="..\..\shaders\sky_pass.hlsl" />
     <FxCompile Include="..\..\shaders\store_history.hlsl" />
     <FxCompile Include="..\..\shaders\tone_mapping.hlsl" />
+    <FxCompile Include="..\..\shaders\util\clear_texture.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\shaders\amd\denoiser\ffx_denoiser_reflections_callbacks_hlsl.h" />
