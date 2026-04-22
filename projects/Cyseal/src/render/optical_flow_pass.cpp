@@ -431,7 +431,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 				},
 				{
 					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-					opticalFlowTextures[opticalFlowInputResourceIndexA][level].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+					opticalFlowTextures[opticalFlowResourceIndexA][level].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 				},
 				{
 					EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
