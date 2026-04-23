@@ -58,6 +58,215 @@ uint2 unpackOpticalFlowVectorTextureSize()
 }
 
 // ------------------------------------------------------------------------
+// From ffx_frameinterpolation_common.h
+
+// #wip: Temp copy & paste...
+
+const uint MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT = 32;
+
+// Make sure all bit counts add up to MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT
+const uint MOTION_VECTOR_FIELD_VECTOR_COEFFICIENT_BIT_COUNT = 16;
+const uint MOTION_VECTOR_FIELD_PRIORITY_LOW_BIT_COUNT = 5;
+const uint MOTION_VECTOR_FIELD_PRIORITY_HIGH_BIT_COUNT = 10;
+const uint MOTION_VECTOR_PRIMARY_VECTOR_INDICATION_BIT_COUNT = 1;
+
+const uint MOTION_VECTOR_FIELD_PRIMARY_VECTOR_INDICATION_BIT = (1U << (MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT - 1));
+
+const uint PRIORITY_LOW_MAX = (1U << MOTION_VECTOR_FIELD_PRIORITY_LOW_BIT_COUNT) - 1;
+const uint PRIORITY_HIGH_MAX = (1U << MOTION_VECTOR_FIELD_PRIORITY_HIGH_BIT_COUNT) - 1;
+
+const uint PRIORITY_LOW_OFFSET = MOTION_VECTOR_FIELD_VECTOR_COEFFICIENT_BIT_COUNT;
+const uint PRIORITY_HIGH_OFFSET = PRIORITY_LOW_OFFSET + MOTION_VECTOR_FIELD_PRIORITY_LOW_BIT_COUNT;
+const uint PRIMARY_VECTOR_INDICATION_OFFSET = PRIORITY_HIGH_OFFSET + MOTION_VECTOR_FIELD_PRIORITY_HIGH_BIT_COUNT;
+
+struct VectorFieldEntry
+{
+	float2 fMotionVector;
+	float  uHighPriorityFactor;
+	float  uLowPriorityFactor;
+	bool   bValid;
+	bool   bPrimary;
+	bool   bSecondary;
+	bool   bInPainted;
+	float  fVelocity;
+	bool   bNegOutside;
+	bool   bPosOutside;
+};
+
+struct BilinearSamplingData
+{
+	int2 iOffsets[4];
+	float fWeights[4];
+	int2 iBasePos;
+};
+
+VectorFieldEntry NewVectorFieldEntry()
+{
+	VectorFieldEntry vfe;
+	vfe.fMotionVector = float2(0.0, 0.0);
+	vfe.uHighPriorityFactor = 0.0;
+	vfe.uLowPriorityFactor = 0.0;
+	vfe.bValid = false;
+	vfe.bPrimary = false;
+	vfe.bSecondary = false;
+	vfe.bInPainted = false;
+	vfe.fVelocity = 0.0;
+	vfe.bNegOutside = false;
+	vfe.bPosOutside = false;
+	return vfe;
+}
+
+BilinearSamplingData GetBilinearSamplingData(float2 fUv, int2 iSize)
+{
+	BilinearSamplingData data;
+
+	float2 fPxSample = (fUv * iSize) - float2(0.5f, 0.5f);
+	data.iBasePos = int2(floor(fPxSample));
+	float2 fPxFrac = frac(fPxSample);
+
+	data.iOffsets[0] = int2(0, 0);
+	data.iOffsets[1] = int2(1, 0);
+	data.iOffsets[2] = int2(0, 1);
+	data.iOffsets[3] = int2(1, 1);
+
+	data.fWeights[0] = (1 - fPxFrac.x) * (1 - fPxFrac.y);
+	data.fWeights[1] = (fPxFrac.x) * (1 - fPxFrac.y);
+	data.fWeights[2] = (1 - fPxFrac.x) * (fPxFrac.y);
+	data.fWeights[3] = (fPxFrac.x) * (fPxFrac.y);
+
+	return data;
+}
+
+int2 DisplaySize()
+{
+	return int2(pushConstants.width, pushConstants.height);
+}
+
+float4 getMotionVectorColor(float2 fMotionVector)
+{
+	return float4(0.5f + fMotionVector * DisplaySize() * 0.1f, 0.5f, 1.0f);
+}
+
+int2 GetOpticalFlowSize()
+{
+	const float2 opticalFlowScale = 1.0 / float2(DisplaySize());
+	const int opticalFlowBlockSize = 8;
+	
+	int2 iOpticalFlowSize = (1.0f / opticalFlowScale) / float2(opticalFlowBlockSize.xx);
+
+	return iOpticalFlowSize;
+}
+
+int2 GetOpticalFlowSize2()
+{
+	return GetOpticalFlowSize() * 1;
+}
+
+bool IsOnScreen(int2 pos, int2 size)
+{
+	return all((uint2(pos) < uint2(size)));
+}
+
+bool IsUvInside(float2 fUv)
+{
+	return (fUv.x > 0.0f && fUv.x < 1.0f) && (fUv.y > 0.0f && fUv.y < 1.0f);
+}
+
+uint2 LoadOpticalFlowFieldMv(int2 iPxSample)
+{
+	// FidelityFX SDK uses the following macros in the frame interpolation module:
+	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
+	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
+	// But in optical flow doc the output is a single texture of R16G16 format.
+	// Also I can't find how these resources are actually bound. I searched for the macros in the entire SDK folder but nothing pops up?
+	//
+#if 0
+	// FidelityFX SDK uses the following macros in the frame interpolation module:
+	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
+	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
+	// But I 
+	uint packedX = r_optical_flow_motion_vector_field_x[iPxSample];
+	uint packedY = r_optical_flow_motion_vector_field_y[iPxSample];
+	return uint2(packedX, packedY);
+#else
+	uint2 packedXY = opticalFlowVector.Load(int3(iPxSample, 0)).xy;
+	return packedXY;
+#endif
+}
+
+float2 ffxUnpackF32(uint a)
+{
+	return f16tof32(uint2(a & 0xFFFF, a >> 16));
+}
+
+bool PackedVectorFieldEntryIsPrimary(uint packedEntry)
+{
+	return ((packedEntry & MOTION_VECTOR_FIELD_PRIMARY_VECTOR_INDICATION_BIT) != 0);
+}
+
+void UnpackVectorFieldEntries(uint2 packed, out VectorFieldEntry vfElement)
+{
+	vfElement.uHighPriorityFactor = float((packed.x >> PRIORITY_HIGH_OFFSET) & PRIORITY_HIGH_MAX) / PRIORITY_HIGH_MAX;
+	vfElement.uLowPriorityFactor = float((packed.x >> PRIORITY_LOW_OFFSET) & PRIORITY_LOW_MAX) / PRIORITY_LOW_MAX;
+
+	vfElement.bPrimary = PackedVectorFieldEntryIsPrimary(packed.x);
+	vfElement.bValid = (vfElement.uHighPriorityFactor > 0.0f);
+	vfElement.bSecondary = vfElement.bValid && !vfElement.bPrimary;
+
+	// Reverse priority factor for secondary vectors
+	if (vfElement.bSecondary)
+	{
+		vfElement.uHighPriorityFactor = 1.0f - vfElement.uHighPriorityFactor;
+	}
+
+	vfElement.fMotionVector.x = ffxUnpackF32(packed.x).x;
+	vfElement.fMotionVector.y = ffxUnpackF32(packed.y).x;
+	vfElement.bInPainted = false;
+}
+
+void SampleOpticalFlowMotionVectorField(float2 fUv, out VectorFieldEntry vfElement)
+{
+	const float scaleFactor = 1.0f;
+
+	BilinearSamplingData bilinearInfo = GetBilinearSamplingData(fUv, int2(GetOpticalFlowSize2() * scaleFactor));
+
+	vfElement = NewVectorFieldEntry();
+
+	float fWeightSum = 0.0f;
+	for (int iSampleIndex = 0; iSampleIndex < 4; iSampleIndex++)
+	{
+		const int2 iOffset = bilinearInfo.iOffsets[iSampleIndex];
+		const int2 iSamplePos = bilinearInfo.iBasePos + iOffset;
+
+		if (IsOnScreen(iSamplePos, int2(GetOpticalFlowSize2() * scaleFactor)))
+		{
+			const float fWeight = bilinearInfo.fWeights[iSampleIndex];
+
+			VectorFieldEntry fOfVectorSample = NewVectorFieldEntry();
+			int2 packedOpticalFlowMv = int2(LoadOpticalFlowFieldMv(iSamplePos));
+			UnpackVectorFieldEntries(packedOpticalFlowMv, fOfVectorSample);
+
+			vfElement.fMotionVector += fOfVectorSample.fMotionVector * fWeight;
+			vfElement.uHighPriorityFactor += fOfVectorSample.uHighPriorityFactor * fWeight;
+			vfElement.uLowPriorityFactor += fOfVectorSample.uLowPriorityFactor * fWeight;
+
+			fWeightSum += fWeight;
+		}
+	}
+
+	if (fWeightSum > 0.0f)
+	{
+		vfElement.fMotionVector /= fWeightSum;
+		vfElement.uHighPriorityFactor /= fWeightSum;
+		vfElement.uLowPriorityFactor /= fWeightSum;
+	}
+
+	vfElement.bNegOutside = !IsUvInside(fUv - vfElement.fMotionVector);
+	vfElement.bPosOutside = !IsUvInside(fUv + vfElement.fMotionVector);
+	vfElement.fVelocity = length(vfElement.fMotionVector);
+}
+
+// ------------------------------------------------------------------------
 // Vertex shader
 
 struct Interpolants
@@ -186,10 +395,18 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	{
 		uint2 ofvSize = unpackOpticalFlowVectorTextureSize();
 		int2 coord = int2(scaledUV * float2(ofvSize.x, ofvSize.y));
+		
+#if 0
 		int2 flow = opticalFlowVector.Load(int3(coord, 0)).rg;
 		color.r = saturate(abs(float(flow.r)) / 4.0);
 		color.g = saturate(abs(float(flow.g)) / 4.0);
 		color.b = 0;
+#else
+		VectorFieldEntry ofMv;
+		SampleOpticalFlowMotionVectorField(scaledUV, ofMv);
+		
+		color.rgb = getMotionVectorColor(ofMv.fMotionVector);
+#endif
 	}
 
 	// Gamma correction
