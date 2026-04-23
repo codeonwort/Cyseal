@@ -105,6 +105,11 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	const int advancedAlgorithmIterations = 7;
 	const uint32 opticalFlowBlockSize = 8;
 
+	auto prevScdHistogramTexture = scdHistogramTextures[0].get();
+	auto prevScdHistogramUAV     = scdHistogramUAVs[0].get();
+	auto currScdHistogramTexture = scdHistogramTextures[1].get();
+	auto currScdHistogramUAV     = scdHistogramUAVs[1].get();
+
 	// #todo-fsr3-fg: How to calculate min/max luminance? Just downsample the sceneColor to 1x1?
 	// But how to read it? GPU stall and readback is def not an option :(
 	// If these are not scene luminance min/max but the range in HDR calibration then I should pass them from application logic side.
@@ -251,7 +256,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 			},
 			{
 				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				scdHistogramTextures[currFrame].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				currScdHistogramTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriersBefore), textureBarriersBefore, 0, nullptr);
@@ -259,7 +264,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("cbOF", passUniformCBV);
 		SPT.texture("r_optical_flow_input", opticalFlowInputSRVs[currFrame][0].get());
-		SPT.rwTexture("rw_optical_flow_scd_histogram", scdHistogramUAVs[currFrame].get());
+		SPT.rwTexture("rw_optical_flow_scd_histogram", currScdHistogramUAV);
 
 		genSCDHistogramDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
 		auto descriptorHeap = genSCDHistogramDescriptor.getDescriptorHeap(swapchainIndex);
@@ -287,11 +292,11 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		TextureBarrierAuto textureBarriersBefore[] = {
 			{
 				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				scdHistogramTextures[currFrame].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				currScdHistogramTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 			{
 				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				scdHistogramTextures[prevFrame].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				prevScdHistogramTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 			{
 				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
@@ -306,8 +311,8 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("cbOF", passUniformCBV);
-		SPT.rwTexture("rw_optical_flow_scd_histogram", scdHistogramUAVs[currFrame].get());
-		SPT.rwTexture("rw_optical_flow_scd_previous_histogram", scdHistogramUAVs[prevFrame].get());
+		SPT.rwTexture("rw_optical_flow_scd_histogram", currScdHistogramUAV);
+		SPT.rwTexture("rw_optical_flow_scd_previous_histogram", prevScdHistogramUAV);
 		SPT.rwTexture("rw_optical_flow_scd_temp", scdTempUAV.get());
 		SPT.rwTexture("rw_optical_flow_scd_output", scdOutputUAV.get());
 
@@ -512,14 +517,12 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 			auto& volatileDescriptor = scaleOpticalFlowAdvancedV5Descriptor;
 			auto pipelineState = pipelineScaleOpticalFlowAdvancedV5.get();
 
-			auto nextLevelUAV = opticalFlowUAVs[opticalFlowResourceIndexB][level - 1].get();
-
 			ShaderParameterTable SPT{};
 			SPT.constantBuffer("cbOF", v5PassUniformCBV);
 			SPT.texture("r_optical_flow_input", opticalFlowInputSRVs[opticalFlowInputResourceIndexA][level].get());
 			SPT.texture("r_optical_flow_previous_input", opticalFlowInputSRVs[opticalFlowInputResourceIndexB][level].get());
 			SPT.texture("r_optical_flow", opticalFlowSRVs[opticalFlowResourceIndexB][level].get());
-			SPT.rwTexture("rw_optical_flow_next_level", nextLevelUAV);
+			SPT.rwTexture("rw_optical_flow_next_level", opticalFlowUAVs[opticalFlowResourceIndexB][level - 1].get());
 			SPT.rwTexture("rw_optical_flow_scd_output", scdOutputUAV.get());
 
 			volatileDescriptor.resizeDescriptorHeap(swapchainIndex, OpticalFlowMaxPyramidLevels * SPT.totalDescriptors());
