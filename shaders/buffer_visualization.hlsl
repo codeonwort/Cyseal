@@ -47,7 +47,7 @@ Texture2D<uint>               visibilityBuffer  : register(t7, space0);
 Texture2D                     barycentricCoord  : register(t8, space0);
 Texture2D<GBUFFER0_DATATYPE>  visGBuffer0       : register(t9, space0);
 Texture2D<GBUFFER1_DATATYPE>  visGBuffer1       : register(t10, space0);
-Texture2D<uint2>              opticalFlowVector : register(t11, space0);
+Texture2D<int2>               opticalFlowVector : register(t11, space0);
 
 SamplerState                  textureSampler    : register(s0, space0);
 
@@ -174,7 +174,6 @@ bool IsUvInside(float2 fUv)
 
 uint2 LoadOpticalFlowFieldMv(int2 iPxSample)
 {
-	// #todo-fsr3-fg: Correct format of optical flow vector?
 	// FidelityFX SDK uses the following macros in the frame interpolation module:
 	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
 	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
@@ -186,7 +185,8 @@ uint2 LoadOpticalFlowFieldMv(int2 iPxSample)
 	uint packedY = r_optical_flow_motion_vector_field_y[iPxSample];
 	return uint2(packedX, packedY);
 #else
-	// Are they packed as the FSR3 sample assumes?
+	// #todo-fsr3-fg: Correct format of optical flow vector?
+	// Optical flow vector is a single texture of r16g16_int but this visualization logic requires two uint32 textures?
 	uint2 packedXY = opticalFlowVector.Load(int3(iPxSample, 0)).xy;
 	return packedXY;
 #endif
@@ -394,10 +394,11 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 		uint2 ofvSize = unpackOpticalFlowVectorTextureSize();
 		int2 coord = int2(scaledUV * float2(ofvSize.x, ofvSize.y));
 		
-#if 0
+		// #todo-fsr3-fg: Use my crude visualization for now. See the comment in LoadOpticalFlowFieldMv().
+#if 1
 		int2 flow = opticalFlowVector.Load(int3(coord, 0)).rg;
-		color.r = saturate(abs(float(flow.r)) / 4.0);
-		color.g = saturate(abs(float(flow.g)) / 4.0);
+		color.r = saturate(0.5 + 0.5 * (float(flow.r) / 4.0));
+		color.g = saturate(0.5 + 0.5 * (float(flow.g) / 4.0));
 		color.b = 0;
 #else
 		VectorFieldEntry ofMv;
