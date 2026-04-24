@@ -46,7 +46,8 @@ private:
 
 private:
 	RenderDevice* device = nullptr;
-	uint32 resourceFrameIndex = 0;
+	uint32 resourceFrameIndex = 0; // for CPU
+	uint32 gpuFrameIndex = 0;
 	bool bFirstExecution = true;
 
 	// <FidelityFX_SDK>/sdk/src/components/opticalflow/ffx_opticalflow_private.h

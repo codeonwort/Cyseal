@@ -88,6 +88,7 @@ void OpticalFlowPass::initialize(RenderDevice* inRenderDevice)
 {
 	device = inRenderDevice;
 	resourceFrameIndex = 0;
+	gpuFrameIndex = 0;
 	bFirstExecution = true;
 
 	initializePipelines();
@@ -118,7 +119,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 
 	if (passInput.bResetAccumulation || bFirstExecution)
 	{
-		resourceFrameIndex = 0;
+		gpuFrameIndex = 0;
 
 		ClearResourcePass* clearPass = passInput.clearResourcePass;
 		clearPass->enqueueClear(scdTempTexture.get(), scdTempUAV.get());
@@ -136,13 +137,17 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 		}
 		clearPass->executeClears(commandList, swapchainIndex);
 	}
+	else
+	{
+		gpuFrameIndex += 1;
+	}
 	bFirstExecution = false;
 
 	PassUniform passUniformData{
 		.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
 		.uOpticalFlowPyramidLevel      = 0,
 		.uOpticalFlowPyramidLevelCount = 7,
-		.iFrameIndex                   = resourceFrameIndex,
+		.iFrameIndex                   = gpuFrameIndex,
 		.backbufferTransferFunction    = (uint32)passInput.transferFunction,
 		.minMaxLuminance               = { fMinLuminance, fMaxLuminance },
 	};
@@ -366,7 +371,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 			.iInputLumaResolution          = { passInput.lumaResolutionX, passInput.lumaResolutionY },
 			.uOpticalFlowPyramidLevel      = (uint32)level,
 			.uOpticalFlowPyramidLevelCount = 7,
-			.iFrameIndex                   = resourceFrameIndex,
+			.iFrameIndex                   = gpuFrameIndex,
 			.backbufferTransferFunction    = (uint32)passInput.transferFunction,
 			.minMaxLuminance               = { fMinLuminance, fMaxLuminance },
 		};
