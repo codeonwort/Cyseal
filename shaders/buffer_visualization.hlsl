@@ -60,7 +60,7 @@ uint2 unpackOpticalFlowVectorTextureSize()
 // ------------------------------------------------------------------------
 // From ffx_frameinterpolation_common.h
 
-// #wip: Temp copy & paste...
+// #todo-fsr3-fg: Keep here until integrating frame interpolation.
 
 const uint MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT = 32;
 
@@ -174,6 +174,7 @@ bool IsUvInside(float2 fUv)
 
 uint2 LoadOpticalFlowFieldMv(int2 iPxSample)
 {
+	// #todo-fsr3-fg: Correct format of optical flow vector?
 	// FidelityFX SDK uses the following macros in the frame interpolation module:
 	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
 	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
@@ -181,14 +182,11 @@ uint2 LoadOpticalFlowFieldMv(int2 iPxSample)
 	// Also I can't find how these resources are actually bound. I searched for the macros in the entire SDK folder but nothing pops up?
 	//
 #if 0
-	// FidelityFX SDK uses the following macros in the frame interpolation module:
-	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
-	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
-	// But I 
 	uint packedX = r_optical_flow_motion_vector_field_x[iPxSample];
 	uint packedY = r_optical_flow_motion_vector_field_y[iPxSample];
 	return uint2(packedX, packedY);
 #else
+	// Are they packed as the FSR3 sample assumes?
 	uint2 packedXY = opticalFlowVector.Load(int3(iPxSample, 0)).xy;
 	return packedXY;
 #endif
