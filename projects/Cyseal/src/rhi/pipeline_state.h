@@ -222,6 +222,21 @@ struct BlendDesc
 	RenderTargetBlendDesc renderTarget[8];
 
 	static BlendDesc noBlend() { return BlendDesc(); } // Default value is no blend.
+	static BlendDesc additiveRT0()
+	{
+		BlendDesc desc{};
+		desc.renderTarget[0].blendEnable = true;
+		desc.renderTarget[0].logicOpEnable = false;
+		desc.renderTarget[0].srcBlend = EBlend::One;
+		desc.renderTarget[0].destBlend = EBlend::One;
+		desc.renderTarget[0].blendOp = EBlendOp::Add;
+		desc.renderTarget[0].srcBlendAlpha = EBlend::One;
+		desc.renderTarget[0].destBlendAlpha = EBlend::Zero;
+		desc.renderTarget[0].blendOpAlpha = EBlendOp::Add;
+		desc.renderTarget[0].logicOp = ELogicOp::Noop;
+		desc.renderTarget[0].renderTargetWriteMask = EColorWriteEnable::All;
+		return desc;
+	}
 };
 
 enum class EDepthClearFlags : uint8

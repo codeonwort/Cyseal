@@ -16,6 +16,7 @@
 
 #include "render/renderer_constants.h"
 #include "render/static_mesh.h"
+#include "render/util/clear_resource_pass.h"
 #include "render/gpu_scene.h"
 #include "render/gpu_culling.h"
 #include "render/bilateral_blur.h"
@@ -24,6 +25,7 @@
 #include "render/base_pass.h"
 #include "render/hiz_pass.h"
 #include "render/sky_pass.h"
+#include "render/combine_lighting_pass.h"
 #include "render/tone_mapping.h"
 #include "render/buffer_visualization.h"
 #include "render/store_history_pass.h"
@@ -32,6 +34,7 @@
 #include "render/raytracing/indirect_specular_pass.h"
 #include "render/pathtracing/path_tracing_pass.h"
 #include "render/pathtracing/denoiser_plugin_pass.h"
+#include "render/optical_flow_pass.h"
 #include "render/frame_gen_pass.h"
 #include "render/final_blit_pass.h"
 
@@ -93,6 +96,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 
 	// Render passes
 	{
+		sceneRenderPasses.push_back(clearResourcePass = new(EMemoryTag::Renderer) ClearResourcePass);
 		sceneRenderPasses.push_back(gpuScene = new(EMemoryTag::Renderer) GPUScene);
 		sceneRenderPasses.push_back(gpuCulling = new(EMemoryTag::Renderer) GPUCulling);
 		sceneRenderPasses.push_back(bilateralBlur = new(EMemoryTag::Renderer) BilateralBlur);
@@ -104,14 +108,17 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		sceneRenderPasses.push_back(skyPass = new(EMemoryTag::Renderer) SkyPass);
 		sceneRenderPasses.push_back(indirectDiffusePass = new(EMemoryTag::Renderer) IndirectDiffusePass);
 		sceneRenderPasses.push_back(indirectSpecularPass = new(EMemoryTag::Renderer) IndirecSpecularPass);
+		sceneRenderPasses.push_back(combineLightingPass = new(EMemoryTag::Renderer) CombineLightingPass);
 		sceneRenderPasses.push_back(toneMapping = new(EMemoryTag::Renderer) ToneMapping);
 		sceneRenderPasses.push_back(bufferVisualization = new(EMemoryTag::Renderer) BufferVisualization);
 		sceneRenderPasses.push_back(pathTracingPass = new(EMemoryTag::Renderer) PathTracingPass);
 		sceneRenderPasses.push_back(denoiserPluginPass = new(EMemoryTag::Renderer) DenoiserPluginPass);
 		sceneRenderPasses.push_back(storeHistoryPass = new(EMemoryTag::Renderer) StoreHistoryPass);
+		sceneRenderPasses.push_back(opticalFlowPass = new(EMemoryTag::Renderer) OpticalFlowPass);
 		sceneRenderPasses.push_back(frameGenPass = new(EMemoryTag::Renderer) FrameGenPass);
 		sceneRenderPasses.push_back(finalBlitPass = new(EMemoryTag::Renderer) FinalBlitPass);
 
+		clearResourcePass->initialize(renderDevice);
 		gpuScene->initialize(renderDevice);
 		gpuCulling->initialize(renderDevice, MAX_CULL_OPERATIONS);
 		bilateralBlur->initialize(renderDevice);
@@ -123,11 +130,13 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		skyPass->initialize(renderDevice, PF_sceneColor);
 		indirectDiffusePass->initialize(renderDevice);
 		indirectSpecularPass->initialize(renderDevice);
+		combineLightingPass->initialize(renderDevice, PF_sceneColor);
 		toneMapping->initialize(renderDevice);
 		bufferVisualization->initialize(renderDevice);
 		pathTracingPass->initialize(renderDevice);
 		denoiserPluginPass->initialize(renderDevice);
 		storeHistoryPass->initialize(renderDevice);
+		opticalFlowPass->initialize(renderDevice);
 		frameGenPass->initialize(renderDevice);
 		finalBlitPass->initialize(renderDevice);
 	}
@@ -228,6 +237,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		&& bRenderPathTracing == false;
 
 	const bool bRenderAnyRaytracingPass = renderOptions.anyRayTracingEnabled();
+
+	clearResourcePass->prepareForFrame(swapchainIndex);
 
 	rebuildFrameResources(commandList, scene);
 
@@ -761,6 +772,46 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		indirectSpecularPass->renderIndirectSpecular(commandList, swapchainIndex, passInput);
 	}
 
+	if (!bRenderPathTracing)
+	{
+		SCOPED_DRAW_EVENT(commandList, CombineLighting);
+
+		CombineLightingPassInput passInput{
+			.sceneUniformCBV         = sceneUniformCBV,
+			.sceneColorTexture       = RT_sceneColor.get(),
+			.sceneColorRTV           = sceneColorRTV.get(),
+			.sceneDepthTexture       = RT_sceneDepth.get(),
+			.sceneDepthSRV           = sceneDepthSRV.get(),
+			.gbuffer0Texture         = RT_gbuffers[0].get(),
+			.gbuffer0SRV             = currentGBufferSRV0,
+			.gbuffer1Texture         = RT_gbuffers[1].get(),
+			.gbuffer1SRV             = currentGBufferSRV1,
+			.indirectDiffuseTexture  = RT_indirectDiffuse.get(),
+			.indirectDiffuseSRV      = indirectDiffuseSRV.get(),
+			.indirectSpecularTexture = RT_indirectSpecular.get(),
+			.indirectSpecularSRV     = indirectSpecularSRV.get(),
+		};
+		combineLightingPass->combineLighting(commandList, swapchainIndex, passInput);
+	}
+
+	if (!bRenderPathTracing)
+	{
+		SCOPED_DRAW_EVENT(commandList, OpticalFlow);
+
+		OpticalFlowPassInput passInput{
+			.clearResourcePass  = clearResourcePass,
+			.transferFunction   = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance,
+			.bResetAccumulation = false,
+			.containerSizeX     = unscaledRenderWidth,
+			.containerSizeY     = unscaledRenderHeight,
+			.lumaResolutionX    = (int32)sceneWidth,
+			.lumaResolutionY    = (int32)sceneHeight,
+			.sceneColorTexture  = RT_sceneColor.get(),
+			.sceneColorSRV      = sceneColorSRV.get(),
+		};
+		opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
+	}
+
 	// Set final color as render target.
 	{
 		SCOPED_DRAW_EVENT(commandList, SetFinalColorAsRenderTarget);
@@ -778,29 +829,17 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, ToneMapping);
 
-		TextureBarrierAuto barriersBefore[] = {
+		TextureBarrierAuto barriers[] = {
 			{
 				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				RT_sceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::DEPTH_STENCIL, EBarrierAccess::DEPTH_STENCIL_READ, EBarrierLayout::DepthStencilRead,
-				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_indirectDiffuse.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_indirectSpecular.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 			{
 				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				RT_pathTracing.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
 		};
-		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+		commandList->barrierAuto(0, nullptr, _countof(barriers), barriers, 0, nullptr);
 
 		auto alternateSceneColorSRV = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get();
 
@@ -810,11 +849,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.scissorRect         = fullscreenScissorRect,
 			.sceneUniformCBV     = sceneUniformCBV,
 			.sceneColorSRV       = alternateSceneColorSRV,
-			.sceneDepthSRV       = sceneDepthSRV.get(),
-			.gbuffer0SRV         = currentGBufferSRV0,
-			.gbuffer1SRV         = currentGBufferSRV1,
-			.indirectDiffuseSRV  = indirectDiffuseSRV.get(),
-			.indirectSpecularSRV = indirectSpecularSRV.get(),
 		};
 		toneMapping->renderToneMapping(commandList, swapchainIndex, passInput);
 	}
@@ -869,26 +903,33 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				RT_visGbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
+			{
+				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+				opticalFlowPass->getOpticalFlowVectorTexture(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+			},
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 		BufferVisualizationInput sources{
-			.renderTarget        = RT_finalSceneColor.get(),
-			.mode                = renderOptions.bufferVisualization,
-			.textureWidth        = sceneWidth,
-			.textureHeight       = sceneHeight,
-			.sceneUniformCBV     = sceneUniformCBV,
-			.gbuffer0SRV         = gbufferSRVs[0].get(),
-			.gbuffer1SRV         = gbufferSRVs[1].get(),
-			.sceneColorSRV       = sceneColorSRV.get(),
-			.shadowMaskSRV       = shadowMaskSRV.get(),
-			.indirectDiffuseSRV  = bRenderIndirectDiffuse ? indirectDiffuseSRV.get() : grey2DSRV.get(),
-			.indirectSpecularSRV = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
-			.velocityMapSRV      = velocityMapSRV.get(),
-			.visibilityBufferSRV = visibilityBufferSRV.get(),
-			.barycentricCoordSRV = barycentricCoordSRV.get(),
-			.visGbuffer0SRV      = visGbufferSRVs[0].get(),
-			.visGbuffer1SRV      = visGbufferSRVs[1].get(),
+			.renderTarget           = RT_finalSceneColor.get(),
+			.mode                   = renderOptions.bufferVisualization,
+			.textureWidth           = sceneWidth,
+			.textureHeight          = sceneHeight,
+			.sceneUniformCBV        = sceneUniformCBV,
+			.gbuffer0SRV            = gbufferSRVs[0].get(),
+			.gbuffer1SRV            = gbufferSRVs[1].get(),
+			.sceneColorSRV          = sceneColorSRV.get(),
+			.shadowMaskSRV          = shadowMaskSRV.get(),
+			.indirectDiffuseSRV     = bRenderIndirectDiffuse ? indirectDiffuseSRV.get() : grey2DSRV.get(),
+			.indirectSpecularSRV    = bRenderIndirectSpecular ? indirectSpecularSRV.get() : grey2DSRV.get(),
+			.velocityMapSRV         = velocityMapSRV.get(),
+			.visibilityBufferSRV    = visibilityBufferSRV.get(),
+			.barycentricCoordSRV    = barycentricCoordSRV.get(),
+			.visGbuffer0SRV         = visGbufferSRVs[0].get(),
+			.visGbuffer1SRV         = visGbufferSRVs[1].get(),
+			.opticalFlowVectorSRV   = opticalFlowPass->getOpticalFlowVectorSRV(),
+			.opticalFlowVectorSizeX = opticalFlowPass->getOpticalFlowVectorSizeX(),
+			.opticalFlowVectorSizeY = opticalFlowPass->getOpticalFlowVectorSizeY(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);

@@ -72,6 +72,31 @@
     <FxCompile Include="..\..\shaders\indirect_arguments.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_draw_common.hlsl" />
     <FxCompile Include="..\..\shaders\final_blit.hlsl" />
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_compute_luminance_pyramid_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_compute_optical_flow_advanced_pass_v5.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_compute_scd_divergence_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_filter_optical_flow_pass_v5.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_generate_scd_histogram_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_prepare_luma_pass.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_scale_optical_flow_advanced_pass_v5.hlsl">
+      <Filter>amd</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\combine_lighting.hlsl" />
+    <FxCompile Include="..\..\shaders\util\clear_texture.hlsl">
+      <Filter>util</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">
@@ -82,6 +107,15 @@
     </Filter>
     <Filter Include="amd\frameinterpolation">
       <UniqueIdentifier>{c3177977-771d-4282-ad0f-f3dc9cec6b84}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="amd\opticalflow">
+      <UniqueIdentifier>{0a0c53da-4ca0-490d-ac19-54d746e27fb8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="amd\spd">
+      <UniqueIdentifier>{5655f376-a4de-4339-8c12-54c088f6abfa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util">
+      <UniqueIdentifier>{72d53924-84fb-436e-8b61-ce4ee2552275}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -165,6 +199,51 @@
     </ClInclude>
     <ClInclude Include="..\..\shaders\amd\frameinterpolation\ffx_frameinterpolation_setup.h">
       <Filter>amd\frameinterpolation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\ffx_core_portability.h">
+      <Filter>amd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_callbacks_hlsl.h">
+      <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_common.h">
+      <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_compute_luminance_pyramid.h">
+      <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_compute_optical_flow_v5.h">
+      <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_compute_scd_divergence.h">
+      <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_filter_optical_flow_v5.h">
+      <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_generate_scd_histogram.h">
+      <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_prepare_luma.h">
+      <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_resources.h">
+      <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\opticalflow\ffx_opticalflow_scale_optical_flow_advanced_v5.h">
+      <Filter>amd\opticalflow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\spd\ffx_spd.h">
+      <Filter>amd\spd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\spd\ffx_spd_callbacks_hlsl.h">
+      <Filter>amd\spd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\spd\ffx_spd_downsample.h">
+      <Filter>amd\spd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders\amd\spd\ffx_spd_resources.h">
+      <Filter>amd\spd</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

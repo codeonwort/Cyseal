@@ -165,6 +165,7 @@ private:
 
 	// ------------------------------------------------------------------------
 	// Render passes
+	class ClearResourcePass*    clearResourcePass     = nullptr;
 	class GPUScene*             gpuScene              = nullptr;
 	class GPUCulling*           gpuCulling            = nullptr;
 	class BilateralBlur*        bilateralBlur         = nullptr;
@@ -176,11 +177,13 @@ private:
 	class SkyPass*              skyPass               = nullptr;
 	class IndirectDiffusePass*  indirectDiffusePass   = nullptr;
 	class IndirecSpecularPass*  indirectSpecularPass  = nullptr;
+	class CombineLightingPass*  combineLightingPass   = nullptr;
 	class ToneMapping*          toneMapping           = nullptr;
 	class BufferVisualization*  bufferVisualization   = nullptr;
 	class PathTracingPass*      pathTracingPass       = nullptr;
 	class DenoiserPluginPass*   denoiserPluginPass    = nullptr;
 	class StoreHistoryPass*     storeHistoryPass      = nullptr;
+	class OpticalFlowPass*      opticalFlowPass       = nullptr;
 	class FrameGenPass*         frameGenPass          = nullptr;
 	class FinalBlitPass*        finalBlitPass         = nullptr;
 
