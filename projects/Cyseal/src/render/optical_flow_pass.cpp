@@ -577,7 +577,7 @@ uint32 OpticalFlowPass::getOpticalFlowVectorSizeY() const
 
 void OpticalFlowPass::initializePipelines()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 swapchainCount = 2; // Always need two frames.
 
 	containerResolutionXs.resize(swapchainCount, 0);
 	containerResolutionYs.resize(swapchainCount, 0);
