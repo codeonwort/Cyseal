@@ -51,6 +51,8 @@ public:
 
 	void addStaticMesh(StaticMesh* staticMesh);
 
+	// #wip: Need removeStaticMesh().
+
 public:
 	DirectionalLight sun;
 	SharedPtr<TextureAsset> skyboxTexture;
