@@ -87,9 +87,9 @@ StaticMesh::~StaticMesh()
 	{
 		for (const auto& sec : lod.sections)
 		{
-			sec.positionBuffer->getGPUResource()->destroy();
-			sec.nonPositionBuffer->getGPUResource()->destroy();
-			sec.indexBuffer->getGPUResource()->destroy();
+			sec.positionBuffer->getGPUResource()->removeFromPool();
+			sec.nonPositionBuffer->getGPUResource()->removeFromPool();
+			sec.indexBuffer->getGPUResource()->removeFromPool();
 		}
 	}
 }

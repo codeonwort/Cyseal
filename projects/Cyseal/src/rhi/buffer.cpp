@@ -3,28 +3,35 @@
 
 VertexBuffer::~VertexBuffer()
 {
-	destroy();
+	removeFromPool();
 }
 
-void VertexBuffer::destroy()
+bool VertexBuffer::removeFromPool()
 {
 	if (parentPool != nullptr)
 	{
 		CHECK(parentPool->release(this));
 		parentPool = nullptr;
+		bRemovedFromPool = true;
+		return true;
 	}
+	return false;
 }
 
 IndexBuffer::~IndexBuffer()
 {
-	destroy();
+	removeFromPool();
 }
 
-void IndexBuffer::destroy()
+bool IndexBuffer::removeFromPool()
 {
 	if (parentPool != nullptr)
 	{
 		CHECK(parentPool->release(this));
 		parentPool = nullptr;
+		bRemovedFromPool = true;
+		return true;
 	}
+	return false;
 }
+

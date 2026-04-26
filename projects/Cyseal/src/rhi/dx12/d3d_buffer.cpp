@@ -113,6 +113,7 @@ void D3DVertexBuffer::initializeWithinPool(VertexBufferPool* pool, uint64 offset
 
 void D3DVertexBuffer::updateData(RenderCommandList* commandList, void* data, uint32 strideInBytes)
 {
+	CHECK(!bRemovedFromPool);
 	auto cmdList = static_cast<D3DRenderCommandList*>(commandList)->getRaw();
 
 	updateDefaultBuffer(device, cmdList, defaultBuffer, uploadBuffer,
@@ -158,6 +159,7 @@ void D3DIndexBuffer::initializeWithinPool(IndexBufferPool* pool, uint64 offsetIn
 
 void D3DIndexBuffer::updateData(RenderCommandList* commandList, void* data, EPixelFormat format)
 {
+	CHECK(!bRemovedFromPool);
 	CHECK(indexFormat == format);
 
 	DXGI_FORMAT d3dFormat = DXGI_FORMAT_UNKNOWN;
