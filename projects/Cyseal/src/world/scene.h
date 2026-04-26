@@ -45,13 +45,17 @@ private:
 class Scene
 {
 public:
+	~Scene();
+
 	void updateMeshLODs(const Camera& camera, const RendererOptions& rendererOptions);
 
 	SceneProxy* createProxy();
 
 	void addStaticMesh(StaticMesh* staticMesh);
 
-	// #wip: Need removeStaticMesh().
+	void removeStaticMesh(StaticMesh* staticMesh);
+
+	void clearStaticMeshes();
 
 public:
 	DirectionalLight sun;
@@ -61,6 +65,8 @@ private:
 	std::vector<StaticMesh*> staticMeshes;
 	bool bRebuildGPUScene = false;
 	bool bRebuildRaytracingScene = false;
+
+	std::vector<StaticMesh*> staticMeshesToRemove;
 
 	GPUSceneItemIndexAllocator gpuSceneItemIndexAllocator;
 };

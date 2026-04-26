@@ -128,13 +128,18 @@ void TestApplication::onTick(float deltaSeconds)
 
 	if (bChangeWorld)
 	{
+		// Clear GPU scene residency.
+		scene.clearStaticMeshes();
+		SceneProxy* sceneProxy = scene.createProxy();
+		cysealEngine.renderScene(sceneProxy, &camera, appState.rendererOptions);
+
 		world->onTerminate();
 		delete world;
 
-		// #wip: GPU resources related to current scene objects need to be destroyed.
-		// I even don't have Scene::removeStaticMesh() yet. :(
 		resetSceneAndCamera();
 
+		// #wip: start with world1 -> switch to world2 -> switch2 to world1 crashes.
+		// #wip: start with world1 -> switch to world2 -> terminate then there are live d3d12 objects.
 		world = createWorldInstance((EWorldIndex)appState.currentWorldIndex);
 		world->preinitialize(&scene, &camera, &appState);
 		world->onInitialize();
