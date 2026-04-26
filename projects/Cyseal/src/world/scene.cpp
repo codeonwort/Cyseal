@@ -123,3 +123,8 @@ void Scene::clearStaticMeshes()
 	}
 	staticMeshes.clear();
 }
+
+void Scene::clearSkybox()
+{
+	skyboxTexture.reset();
+}

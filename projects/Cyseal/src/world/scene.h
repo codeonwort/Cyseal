@@ -56,6 +56,7 @@ public:
 	void removeStaticMesh(StaticMesh* staticMesh);
 
 	void clearStaticMeshes();
+	void clearSkybox();
 
 public:
 	DirectionalLight sun;
