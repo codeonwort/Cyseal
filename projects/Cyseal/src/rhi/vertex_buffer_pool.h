@@ -18,8 +18,6 @@ class VertexBuffer;
 class IndexBuffer;
 class ShaderResourceView;
 
-// #todo-vram-pool: Implement free list with this.
-
 struct BufferPoolItem
 {
 	uint64 offset;

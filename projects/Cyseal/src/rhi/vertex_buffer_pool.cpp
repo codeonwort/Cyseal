@@ -17,6 +17,8 @@ static bool rangeOverlaps(uint64 x0, uint64 x1, uint64 y0, uint64 y1)
 	return x1 > y0 && y1 > x0;
 }
 
+// #todo-vram-pool: Implement better data structure.
+// I have other things to do so here's a super naive linked list approach written in 5 minutes :(
 BufferPoolItem BufferPoolAllocator::allocate(uint32 sizeInBytes)
 {
 	uint64 offset = 0;
