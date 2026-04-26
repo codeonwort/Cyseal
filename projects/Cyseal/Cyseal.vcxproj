@@ -268,6 +268,7 @@
     <ClCompile Include="src\render\util\texture_sequence.cpp" />
     <ClCompile Include="src\render\util\volatile_descriptor.cpp" />
     <ClCompile Include="src\rhi\barrier_tracker.cpp" />
+    <ClCompile Include="src\rhi\buffer.cpp" />
     <ClCompile Include="src\rhi\denoiser_device.cpp" />
     <ClCompile Include="src\rhi\dx12\d3d_pipeline_state.cpp" />
     <ClCompile Include="src\rhi\global_descriptor_heaps.cpp" />

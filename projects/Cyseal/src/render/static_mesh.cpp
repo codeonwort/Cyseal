@@ -79,6 +79,21 @@ static Texture* getAlbedoTexture(const SharedPtr<MaterialAsset>& material)
 	return nullptr;
 }
 
+StaticMesh::~StaticMesh()
+{
+	// Just wanna rely on auto destruction but something funky happens :(
+	// Manually unregister buffers from buffer pools before buffer destructors are called.
+	for (const auto& lod : LODs)
+	{
+		for (const auto& sec : lod.sections)
+		{
+			sec.positionBuffer->getGPUResource()->removeFromPool();
+			sec.nonPositionBuffer->getGPUResource()->removeFromPool();
+			sec.indexBuffer->getGPUResource()->removeFromPool();
+		}
+	}
+}
+
 void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemIndexAllocator* gpuSceneItemIndexAllocator)
 {
 	// NOTE: activeLOD should have been updated already.

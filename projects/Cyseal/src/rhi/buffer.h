@@ -60,6 +60,10 @@ class VertexBuffer : public GPUResource
 {
 	friend class VertexBufferPool;
 public:
+	~VertexBuffer();
+
+	bool removeFromPool();
+
 	virtual void initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags) = 0;
 	
 	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
@@ -79,6 +83,7 @@ public:
 protected:
 	// Null if a committed resource.
 	VertexBufferPool* parentPool = nullptr;
+	bool bRemovedFromPool = false;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -96,6 +101,10 @@ class IndexBuffer : public GPUResource
 {
 	friend class IndexBufferPool;
 public:
+	~IndexBuffer();
+
+	bool removeFromPool();
+
 	virtual void initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags) = 0;
 
 	virtual void initializeWithinPool(
@@ -111,11 +120,14 @@ public:
 	virtual uint64 getBufferOffsetInBytes() const = 0; // offsetInPool
 	virtual uint32 getBufferSizeInBytes() const = 0;
 
+	IndexBufferPool* internal_getParentPool() const { return parentPool; }
+
 	virtual uint64 internal_getGPUVirtualAddress() const = 0;
 
 protected:
 	// Null if a committed resource.
 	IndexBufferPool* parentPool = nullptr;
+	bool bRemovedFromPool = false;
 };
 
 //////////////////////////////////////////////////////////////////////////

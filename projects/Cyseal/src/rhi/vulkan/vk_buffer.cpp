@@ -292,6 +292,7 @@ void VulkanVertexBuffer::updateData(
 	void* data,
 	uint32 strideInBytes)
 {
+	CHECK(!bRemovedFromPool);
 	vertexCount = (uint32)(bufferSize / strideInBytes);
 
 	VulkanVertexBuffer* bufferOwner = (parentPool == nullptr) ? this : static_cast<VulkanVertexBuffer*>(parentPool->internal_getPoolBuffer());
@@ -347,6 +348,7 @@ void VulkanIndexBuffer::updateData(
 	void* data,
 	EPixelFormat format)
 {
+	CHECK(!bRemovedFromPool);
 	vkIndexType = VK_INDEX_TYPE_MAX_ENUM;
 	switch (format)
 	{
@@ -366,6 +368,7 @@ void VulkanIndexBuffer::updateData(
 
 VkBuffer VulkanIndexBuffer::getVkBuffer() const
 {
+	CHECK(!bRemovedFromPool);
 	const VulkanIndexBuffer* bufferOwner = (parentPool == nullptr) ? this : static_cast<VulkanIndexBuffer*>(parentPool->internal_getPoolBuffer());
 	return (VkBuffer)bufferOwner->internalBuffer->getRawResource();
 }
