@@ -12,17 +12,47 @@
 #include "gpu_resource_binding.h"
 #include "core/smart_pointer.h"
 
-#include <vector>
+#include <list>
 
 class VertexBuffer;
 class IndexBuffer;
 class ShaderResourceView;
 
 // #todo-vram-pool: Implement free list with this.
+
 struct BufferPoolItem
 {
 	uint64 offset;
 	uint32 size;
+
+	inline bool isValid() const { return size > 0; }
+
+	inline bool operator==(const BufferPoolItem& other) const { return offset == other.offset && size == other.size; }
+	inline bool operator!=(const BufferPoolItem& other) const { return !(*this == other); }
+};
+
+class BufferPoolAllocator
+{
+public:
+	void initialize(uint64 inTotalBytes)
+	{
+		bytesTotal = inTotalBytes;
+		items.clear();
+	}
+
+	BufferPoolItem allocate(uint32 sizeInBytes);
+
+	bool release(const BufferPoolItem& item);
+
+	inline uint64 getTotalBytes() const { return bytesTotal; }
+	inline uint64 getUsedBytes() const { return bytesAllocated; }
+	// Does not guarantee that we can further allocate all of them due to internal fragmentation.
+	inline uint64 getAvailableBytes() const { return bytesTotal - bytesAllocated; }
+
+private:
+	std::list<BufferPoolItem> items; // ascending order by BufferPoolItem::offset.
+	uint64 bytesTotal = 0;
+	uint64 bytesAllocated = 0;
 };
 
 class VertexBufferPool final
@@ -32,13 +62,13 @@ public:
 	void destroy();
 
 	VertexBuffer* suballocate(uint32 sizeInBytes);
-	
-	// #todo-vram-pool: deallocate()
-	// ...
 
-	inline uint64 getTotalBytes() const { return poolSize; }
-	inline uint64 getUsedBytes() const { return currentOffset; }
-	inline uint64 getAvailableBytes() const { return poolSize - currentOffset; }
+	bool release(VertexBuffer* buffer);
+
+	inline uint64 getTotalBytes() const { return allocator.getTotalBytes(); }
+	inline uint64 getUsedBytes() const { return allocator.getUsedBytes(); }
+	// Does not guarantee that we can further allocate all of them due to internal fragmentation.
+	inline uint64 getAvailableBytes() const { return allocator.getAvailableBytes(); }
 
 	ShaderResourceView* getByteAddressBufferView() const;
 	
@@ -46,14 +76,10 @@ public:
 	VertexBuffer* internal_getPoolBuffer() const { return pool; }
 
 private:
-	uint64 poolSize = 0;
 	VertexBuffer* pool = nullptr;
-
 	UniquePtr<ShaderResourceView> srv; // ByteAddressBuffer view
-	
-	// #todo-vram-pool: Only increment for now. Need a free list.
-	uint64 currentOffset = 0;
-	//std::vector<BufferPoolItem> items;
+
+	BufferPoolAllocator allocator;
 };
 
 class IndexBufferPool final
@@ -64,12 +90,12 @@ public:
 
 	IndexBuffer* suballocate(uint32 sizeInBytes, EPixelFormat format);
 
-	// #todo-vram-pool: deallocate()
-	// ...
+	bool release(IndexBuffer* buffer);
 
-	inline uint64 getTotalBytes() const { return poolSize; }
-	inline uint64 getUsedBytes() const { return currentOffset; }
-	inline uint64 getAvailableBytes() const { return poolSize - currentOffset; }
+	inline uint64 getTotalBytes() const { return allocator.getTotalBytes(); }
+	inline uint64 getUsedBytes() const { return allocator.getUsedBytes(); }
+	// Does not guarantee that we can further allocate all of them due to internal fragmentation.
+	inline uint64 getAvailableBytes() const { return allocator.getAvailableBytes(); }
 
 	ShaderResourceView* getByteAddressBufferView() const;
 
@@ -77,14 +103,10 @@ public:
 	IndexBuffer* internal_getPoolBuffer() const { return pool; }
 
 private:
-	uint64 poolSize = 0;
 	IndexBuffer* pool = nullptr;
-
 	UniquePtr<ShaderResourceView> srv; // ByteAddressBuffer view
 
-	// #todo-vram-pool: Only increment for now. Need a free list.
-	uint64 currentOffset = 0;
-	//std::vector<BufferPoolItem> items;
+	BufferPoolAllocator allocator;
 };
 
 extern VertexBufferPool* gVertexBufferPool;

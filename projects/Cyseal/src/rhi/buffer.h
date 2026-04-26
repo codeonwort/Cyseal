@@ -60,6 +60,8 @@ class VertexBuffer : public GPUResource
 {
 	friend class VertexBufferPool;
 public:
+	~VertexBuffer();
+
 	virtual void initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags) = 0;
 	
 	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
@@ -96,6 +98,8 @@ class IndexBuffer : public GPUResource
 {
 	friend class IndexBufferPool;
 public:
+	~IndexBuffer();
+
 	virtual void initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags) = 0;
 
 	virtual void initializeWithinPool(
@@ -110,6 +114,8 @@ public:
 
 	virtual uint64 getBufferOffsetInBytes() const = 0; // offsetInPool
 	virtual uint32 getBufferSizeInBytes() const = 0;
+
+	IndexBufferPool* internal_getParentPool() const { return parentPool; }
 
 	virtual uint64 internal_getGPUVirtualAddress() const = 0;
 
