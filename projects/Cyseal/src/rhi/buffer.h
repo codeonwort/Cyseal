@@ -62,6 +62,8 @@ class VertexBuffer : public GPUResource
 public:
 	~VertexBuffer();
 
+	void destroy();
+
 	virtual void initialize(uint32 sizeInBytes, EBufferAccessFlags usageFlags) = 0;
 	
 	virtual void initializeWithinPool(VertexBufferPool* pool, uint64 offsetInPool, uint32 sizeInBytes) = 0;
@@ -99,6 +101,8 @@ class IndexBuffer : public GPUResource
 	friend class IndexBufferPool;
 public:
 	~IndexBuffer();
+
+	void destroy();
 
 	virtual void initialize(uint32 sizeInBytes, EPixelFormat format, EBufferAccessFlags usageFlags) = 0;
 

@@ -3,18 +3,28 @@
 
 VertexBuffer::~VertexBuffer()
 {
+	destroy();
+}
+
+void VertexBuffer::destroy()
+{
 	if (parentPool != nullptr)
 	{
-		parentPool->release(this);
+		CHECK(parentPool->release(this));
 		parentPool = nullptr;
 	}
 }
 
 IndexBuffer::~IndexBuffer()
 {
+	destroy();
+}
+
+void IndexBuffer::destroy()
+{
 	if (parentPool != nullptr)
 	{
-		parentPool->release(this);
+		CHECK(parentPool->release(this));
 		parentPool = nullptr;
 	}
 }

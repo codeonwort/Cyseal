@@ -45,6 +45,8 @@ struct StaticMeshProxy
 class StaticMesh
 {
 public:
+	~StaticMesh();
+
 	void updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemIndexAllocator* gpuSceneItemIndexAllocator);
 	StaticMeshProxy* createStaticMeshProxy(StackAllocator* allocator) const;
 
