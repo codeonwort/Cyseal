@@ -144,6 +144,7 @@
     <ClCompile Include="src\render\TestVisibilityBuffer.cpp" />
     <ClCompile Include="src\render\test_render_utils.cpp" />
     <ClCompile Include="src\rhi\TestBarrier.cpp" />
+    <ClCompile Include="src\rhi\TestBufferPool.cpp" />
     <ClCompile Include="src\rhi\TestBufferUpload.cpp" />
     <ClCompile Include="src\rhi\test_rhi_utils.cpp" />
     <ClCompile Include="src\shader\TestShaderCodegen.cpp" />
