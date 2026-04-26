@@ -18,7 +18,7 @@ public:
 	uint32 allocateDSVIndex();
 	uint32 allocateUAVIndex();
 
-	// #todo-renderdevice: Free unused descriptors
+	// #wip: Free unused descriptors?
 	//void freeSRVIndex(uint32 index);
 	//void freeRTVIndex(uint32 index);
 	//void freeDSVIndex(uint32 index);

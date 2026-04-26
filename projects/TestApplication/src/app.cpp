@@ -8,6 +8,9 @@
 #include "util/profiling.h"
 #include "imgui.h"
 
+// #wip: Temp include for isEmpty check
+#include "rhi/global_descriptor_heaps.h"
+
 /* -------------------------------------------------------
 					CONFIGURATION
 --------------------------------------------------------*/
@@ -131,6 +134,7 @@ void TestApplication::onTick(float deltaSeconds)
 		// Clear GPU scene residency.
 		scene.clearStaticMeshes();
 		SceneProxy* sceneProxy = scene.createProxy();
+		// #wip: How to update gpu scene only, without executing other render passes?
 		cysealEngine.renderScene(sceneProxy, &camera, appState.rendererOptions);
 
 		world->onTerminate();
@@ -138,8 +142,12 @@ void TestApplication::onTick(float deltaSeconds)
 
 		resetSceneAndCamera();
 
-		// #wip: start with world1 -> switch to world2 -> switch2 to world1 crashes.
-		// #wip: start with world1 -> switch to world2 -> terminate then there are live d3d12 objects.
+		// #wip: Gotcha; start with world1 -> switch to world2 -> terminate then there are live d3d12 objects.
+		CHECK(gDescriptorHeaps->getSRVHeap()->isEmpty());
+		CHECK(gDescriptorHeaps->getRTVHeap()->isEmpty());
+		CHECK(gDescriptorHeaps->getDSVHeap()->isEmpty());
+		CHECK(gDescriptorHeaps->getUAVHeap()->isEmpty());
+
 		world = createWorldInstance((EWorldIndex)appState.currentWorldIndex);
 		world->preinitialize(&scene, &camera, &appState);
 		world->onInitialize();

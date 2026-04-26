@@ -77,6 +77,12 @@ public:
 		return freeNumberList.deallocate(index + 1);
 	}
 
+	// Returns true if no descriptor is allocated.
+	bool isEmpty() const
+	{
+		return freeNumberList.isEmpty();
+	}
+
 	void resetAllDescriptors()
 	{
 		freeNumberList.clear();
