@@ -134,13 +134,14 @@ void TestApplication::onTick(float deltaSeconds)
 		SceneProxy* sceneProxy = scene.createProxy();
 		// #wip: How to update gpu scene only, without executing other render passes?
 		cysealEngine.renderScene(sceneProxy, &camera, appState.rendererOptions);
+		delete sceneProxy;
 
 		world->onTerminate();
 		delete world;
 
 		resetSceneAndCamera();
 
-		// #wip: No d3d12 live objects anymore but memory leak when switching between scenes :(
+		// #wip: memory leak when switching scenes, possibly due to PBRT.
 		world = createWorldInstance((EWorldIndex)appState.currentWorldIndex);
 		world->preinitialize(&scene, &camera, &appState);
 		world->onInitialize();
