@@ -34,6 +34,15 @@ public:
 	StackAllocator* staticMeshProxyAllocator;
 
 public:
+	inline bool hasAnyGPUSceneCommands() const
+	{
+		return gpuSceneEvictCommands.size() > 0
+			|| gpuSceneAllocCommands.size() > 0
+			|| gpuSceneUpdateCommands.size() > 0
+			|| gpuSceneEvictMaterialCommands.size() > 0
+			|| gpuSceneMaterialCommands.size() > 0;
+	}
+
 	std::vector<GPUSceneEvictCommand>         gpuSceneEvictCommands;
 	std::vector<GPUSceneAllocCommand>         gpuSceneAllocCommands;
 	std::vector<GPUSceneUpdateCommand>        gpuSceneUpdateCommands;

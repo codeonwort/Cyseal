@@ -42,9 +42,34 @@
 #define CAMERA_SPEED_UP      20.0f
 #define CAMERA_SPEED_RIGHT   20.0f
 
-// #todo-world: Select world
-#define WORLD_CLASS          World1
-//#define WORLD_CLASS          World2
+enum class EWorldIndex : uint32
+{
+	World1 = 0,
+	World2 = 1,
+
+	Count,
+};
+static const char** getWorldNames()
+{
+	static const char* names[] = {
+		"World1",
+		"World2",
+	};
+	static_assert(_countof(names) == (int)EWorldIndex::Count);
+	return names;
+}
+World* createWorldInstance(EWorldIndex worldIndex)
+{
+	switch (worldIndex)
+	{
+		case EWorldIndex::World1: return new(EMemoryTag::World) World1;
+		case EWorldIndex::World2: return new(EMemoryTag::World) World2;
+		case EWorldIndex::Count:
+		default:
+			CHECK_NO_ENTRY();
+	}
+	return nullptr;
+}
 
 
 /* -------------------------------------------------------
@@ -53,6 +78,16 @@
 CysealEngine cysealEngine;
 
 DEFINE_LOG_CATEGORY_STATIC(LogApplication);
+
+void TestApplication::resetSceneAndCamera()
+{
+	// World instances will add various objects to the scene.
+	scene = Scene{};
+
+	// May overwritten by world.
+	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
+	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
+}
 
 bool TestApplication::onInitialize()
 {
@@ -78,11 +113,9 @@ bool TestApplication::onInitialize()
 	newViewportWidth = getWindowWidth();
 	newViewportHeight = getWindowHeight();
 
-	// May overwritten by world.
-	camera.lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
-	camera.perspective(CAMERA_FOV_Y, getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
+	resetSceneAndCamera();
 
-	world = new(EMemoryTag::World) WORLD_CLASS;
+	world = createWorldInstance((EWorldIndex)appState.currentWorldIndex);
 	world->preinitialize(&scene, &camera, &appState);
 	world->onInitialize();
 
@@ -92,6 +125,26 @@ bool TestApplication::onInitialize()
 void TestApplication::onTick(float deltaSeconds)
 {
 	// #todo-renderthread: Start to render using prev frame's scene proxy.
+
+	if (bChangeWorld)
+	{
+		// Clear GPU scene residency.
+		scene.clearStaticMeshes();
+		scene.clearSkybox();
+		SceneProxy* sceneProxy = scene.createProxy();
+		// #todo-renderer: How to update gpu scene only, without executing other render passes?
+		cysealEngine.renderScene(sceneProxy, &camera, appState.rendererOptions);
+		delete sceneProxy;
+
+		world->onTerminate();
+		delete world;
+
+		resetSceneAndCamera();
+
+		world = createWorldInstance((EWorldIndex)appState.currentWorldIndex);
+		world->preinitialize(&scene, &camera, &appState);
+		world->onInitialize();
+	}
 
 	{
 		SCOPED_CPU_EVENT(WorldLogic);
@@ -305,6 +358,17 @@ void TestApplication::onTick(float deltaSeconds)
 				appState.rendererOptions.bCameraHasMoved = true;
 			}
 			ImGui::Text("Frames: %u", appState.pathTracingNumFrames);
+
+			ImGui::SeparatorText("World");
+			if (ImGui::BeginTable("##World", 2))
+			{
+				int32 oldWorldIndex = appState.currentWorldIndex;
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn(); ImGui::Text("World");
+				ImGui::TableNextColumn(); ImGui::Combo("##World Name", &appState.currentWorldIndex, getWorldNames(), (int32)EWorldIndex::Count);
+				ImGui::EndTable();
+				bChangeWorld = oldWorldIndex != appState.currentWorldIndex;
+			}
 
 			ImGui::SeparatorText("Control");
 			ImGui::Text("WASD : move camera");

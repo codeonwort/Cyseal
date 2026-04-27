@@ -48,6 +48,8 @@ public:
 	~StaticMesh();
 
 	void updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemIndexAllocator* gpuSceneItemIndexAllocator);
+	void markToEvictFromGPUScene();
+	inline bool isMarkedToBeEvictedFromGPUScene() const { return gpuSceneResidency.phase == EGPUResidencyPhase::NeedToEvict; }
 	StaticMeshProxy* createStaticMeshProxy(StackAllocator* allocator) const;
 
 	void addSection(

@@ -18,12 +18,6 @@ public:
 	uint32 allocateDSVIndex();
 	uint32 allocateUAVIndex();
 
-	// #todo-renderdevice: Free unused descriptors
-	//void freeSRVIndex(uint32 index);
-	//void freeRTVIndex(uint32 index);
-	//void freeDSVIndex(uint32 index);
-	//void freeUAVIndex(uint32 index);
-
 	DescriptorHeap* getSRVHeap() const { return srvHeap.get(); }
 	DescriptorHeap* getRTVHeap() const { return rtvHeap.get(); }
 	DescriptorHeap* getDSVHeap() const { return dsvHeap.get(); }

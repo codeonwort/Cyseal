@@ -9,7 +9,7 @@ struct ImageLoadData
 	{
 		if (buffer != nullptr)
 		{
-			free(buffer);
+			delete buffer;
 			buffer = nullptr;
 		}
 	}

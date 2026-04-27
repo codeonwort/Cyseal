@@ -240,6 +240,12 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 	}
 }
 
+void StaticMesh::markToEvictFromGPUScene()
+{
+	CHECK(gpuSceneResidency.phase != EGPUResidencyPhase::NeedToEvict && gpuSceneResidency.phase != EGPUResidencyPhase::NotAllocated);
+	gpuSceneResidency.phase = EGPUResidencyPhase::NeedToEvict;
+}
+
 StaticMeshProxy* StaticMesh::createStaticMeshProxy(StackAllocator* allocator) const
 {
 	StaticMeshProxy* proxy = static_cast<StaticMeshProxy*>(allocator->alloc(sizeof(StaticMeshProxy)));

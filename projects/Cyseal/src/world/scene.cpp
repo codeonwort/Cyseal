@@ -17,6 +17,12 @@ static uint32 calculateLOD(const StaticMesh* mesh, const Camera& camera)
 	return lod;
 }
 
+Scene::~Scene()
+{
+	CHECK(staticMeshes.size() == 0);
+	CHECK(staticMeshesToRemove.size() == 0);
+}
+
 void Scene::updateMeshLODs(const Camera& camera, const RendererOptions& rendererOptions)
 {
 	size_t numStaticMeshes = staticMeshes.size();
@@ -49,6 +55,13 @@ SceneProxy* Scene::createProxy()
 
 	const uint32 stackAllocatorSize = (uint32)(totalActiveMeshSections * sizeof(StaticMeshProxy));
 	proxy->staticMeshProxyAllocator = new(EMemoryTag::Renderer) StackAllocator(stackAllocatorSize);
+
+	for (StaticMesh* sm : staticMeshesToRemove)
+	{
+		CHECK(sm->isMarkedToBeEvictedFromGPUScene());
+		sm->updateGPUSceneResidency(proxy, &gpuSceneItemIndexAllocator);
+	}
+	staticMeshesToRemove.clear();
 
 	std::vector<StaticMeshProxy*> staticMeshProxyList;
 	uint32 totalMeshSectionsLOD0 = 0;
@@ -88,4 +101,30 @@ void Scene::addStaticMesh(StaticMesh* staticMesh)
 	staticMeshes.push_back(staticMesh);
 	bRebuildGPUScene = true;
 	bRebuildRaytracingScene = true;
+}
+
+void Scene::removeStaticMesh(StaticMesh* staticMesh)
+{
+	auto it = std::find(staticMeshes.begin(), staticMeshes.end(), staticMesh);
+	if (it != staticMeshes.end())
+	{
+		staticMeshes.erase(it);
+		staticMeshesToRemove.push_back(staticMesh);
+		staticMesh->markToEvictFromGPUScene();
+	}
+}
+
+void Scene::clearStaticMeshes()
+{
+	staticMeshesToRemove = std::move(staticMeshes);
+	for (StaticMesh* sm : staticMeshesToRemove)
+	{
+		sm->markToEvictFromGPUScene();
+	}
+	staticMeshes.clear();
+}
+
+void Scene::clearSkybox()
+{
+	skyboxTexture.reset();
 }

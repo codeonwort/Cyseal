@@ -159,6 +159,11 @@ public:
 		head = nullptr;
 	}
 
+	bool isEmpty() const
+	{
+		return head == nullptr;
+	}
+
 private:
 	uint32 maxNumber;
 	EMemoryTag memoryTag;

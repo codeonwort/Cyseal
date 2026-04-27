@@ -170,7 +170,7 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 		numMeshSections += (uint32)(sm->getSections().size());
 	}
 
-	if (numMeshSections == 0)
+	if (numMeshSections == 0 && scene->hasAnyGPUSceneCommands() == false)
 	{
 		// #todo-zero-size: Release resources if any.
 		return;

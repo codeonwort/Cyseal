@@ -7,6 +7,7 @@
 
 struct AppState
 {
+	// Rendering related
 	RendererOptions rendererOptions;
 	int32 displayScale                    = 100;
 	int32 renderResolutionScale           = 100;
@@ -19,6 +20,8 @@ struct AppState
 	int32 selectedPathTracingKernel       = 0;
 	uint32 pathTracingNumFrames           = 0;
 	int32 pathTracingMaxFrames            = 64;
+	// World management
+	int32 currentWorldIndex               = 0; // EWorldIndex
 };
 
 class TestApplication : public WindowsApplication
@@ -32,11 +35,15 @@ protected:
 	virtual void onWindowResize(uint32 newWidth, uint32 newHeight) override;
 
 private:
+	void resetSceneAndCamera();
+
+private:
 	Scene scene;
 	Camera camera;
 	AppState appState;
 
 	class World* world = nullptr;
+	bool bChangeWorld = false;
 
 	bool bViewportNeedsResize = false;
 	uint32 newViewportWidth = 0;
