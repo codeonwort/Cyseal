@@ -19,13 +19,14 @@
 #define CAMERA_Z_FAR         10000.0f
 #define BALL_ROWS            4
 #define BALL_COLS            6
-#define BALL_NUM_LOD         3
+#define CREATE_GROUND        1
 
 void World2::onInitialize()
 {
 	camera->lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);
 	camera->perspective(CAMERA_FOV_Y, camera->getAspectRatio(), CAMERA_Z_NEAR, CAMERA_Z_FAR);
 
+#if CREATE_GROUND
 	{
 		Geometry* planeGeometry = new Geometry;
 		ProceduralGeometry::plane(*planeGeometry,
@@ -44,9 +45,9 @@ void World2::onInitialize()
 
 		scene->addStaticMesh(ground);
 	}
+#endif
 	{
 		const uint32 TOTAL_BALLS = BALL_ROWS * BALL_COLS;
-		//const uint32 TOTAL_MESHES = BALL_NUM_LOD * TOTAL_BALLS;
 		
 		SharedPtr<TextureAsset> baseTextures[] = {
 			gTextureManager->getSystemTextureWhite2D(),

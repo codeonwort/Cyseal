@@ -21,6 +21,7 @@
 
 #define LOAD_PBRT_FILE       1
 #define CREATE_TEST_MESHES   1
+#define CREATE_SKYBOX        1
 #define MESH_SPLATTING_DELAY 0
 #define PBRT_LOAD_DELAY      30
 
@@ -60,18 +61,17 @@ void World1::onTick(float deltaSeconds)
 		static float elapsed = 0.0f;
 		elapsed += deltaSeconds;
 
-		if (CREATE_TEST_MESHES)
-		{
-			//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
-			ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 15.0f);
+#if CREATE_TEST_MESHES
+		//ground->getTransform().setScale(1.0f + 0.2f * cosf(elapsed));
+		ground->setRotation(vec3(0.0f, 1.0f, 0.0f), elapsed * 15.0f);
 
-			// Animate balls to see if update of BLAS instance transforms is going well.
-			if (meshSplattingDelay == 0) meshSplatting.tick(deltaSeconds);
-			else if (--meshSplattingDelay == 0)
-			{
-				createMeshSplatting();
-			}
+		// Animate balls to see if update of BLAS instance transforms is going well.
+		if (meshSplattingDelay == 0) meshSplatting.tick(deltaSeconds);
+		else if (--meshSplattingDelay == 0)
+		{
+			createMeshSplatting();
 		}
+#endif
 
 #if LOAD_PBRT_FILE
 		if (pbrtLoadDelay > 0)
@@ -87,14 +87,12 @@ void World1::onTick(float deltaSeconds)
 
 void World1::onTerminate()
 {
-	if (CREATE_TEST_MESHES)
-	{
-		meshSplatting.destroyResources();
-		delete ground;
-		delete wallA;
-		delete glassBox;
-	}
-
+#if CREATE_TEST_MESHES
+	meshSplatting.destroyResources();
+	delete ground;
+	delete wallA;
+	delete glassBox;
+#endif
 #if LOAD_PBRT_FILE
 	for (StaticMesh* pbrtMesh : pbrtMeshes)
 	{
@@ -113,8 +111,12 @@ void World1::onTerminate()
 
 void World1::prepareScene()
 {
-	if (CREATE_TEST_MESHES) createTestMeshes();
+#if CREATE_TEST_MESHES
+	createTestMeshes();
+#endif
+#if CREATE_SKYBOX
 	createSkybox();
+#endif
 #if LOAD_PBRT_FILE
 	if (pbrtLoadDelay == 0) createPbrtResources();
 #endif
