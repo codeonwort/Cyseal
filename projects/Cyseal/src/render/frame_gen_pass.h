@@ -17,7 +17,6 @@ struct FrameGenPassInput
 	int32                                 displaySizeX;
 	int32                                 displaySizeY;
 	float                                 deltaTime;
-	int32                                 opticalFlowBlockSize;
 	uint32                                dispatchFlags;
 	OpticalFlowBackbufferTransferFunction backBufferTransferFunction;
 	bool                                  bReset;

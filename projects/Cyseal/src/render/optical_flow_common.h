@@ -2,6 +2,8 @@
 
 #include "core/int_types.h"
 
+const uint32 kOpticalFlowBlockSize = 8;
+
 // See ffx_opticalflow_prepare_luma.h
 enum class OpticalFlowBackbufferTransferFunction : uint32
 {

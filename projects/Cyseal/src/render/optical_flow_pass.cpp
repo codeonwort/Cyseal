@@ -68,7 +68,6 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	const uint32 prevFrame = isOddFrame ? 0 : 1;
 
 	const int advancedAlgorithmIterations = 7;
-	const uint32 opticalFlowBlockSize = 8;
 
 	auto prevScdHistogramTexture = scdHistogramTextures[0].get();
 	auto prevScdHistogramUAV     = scdHistogramUAVs[0].get();
@@ -305,7 +304,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	const int32 pyramidMaxIterations = advancedAlgorithmIterations;
 	CHECK(pyramidMaxIterations <= OpticalFlowMaxPyramidLevels);
 
-	opticalFlowTextureSizes[0] = GetOpticalFlowTextureSize({ passInput.containerSizeX,passInput.containerSizeY }, opticalFlowBlockSize);
+	opticalFlowTextureSizes[0] = GetOpticalFlowTextureSize({ passInput.containerSizeX,passInput.containerSizeY }, kOpticalFlowBlockSize);
 	for (int32 i = 1; i < pyramidMaxIterations; i++)
 	{
 		opticalFlowTextureSizes[i] = {
@@ -384,7 +383,7 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 			const uint32 inputLumaWidth = std::max(passInput.lumaResolutionX >> level, 1);
 			const uint32 inputLumaHeight = std::max(passInput.lumaResolutionY >> level, 1);
 			const uint32 threadPixels = 4;
-			CHECK(opticalFlowBlockSize >= threadPixels);
+			CHECK(kOpticalFlowBlockSize >= threadPixels);
 			const uint32 threadGroupSizeY = 16;
 			const uint32 threadGroupSize = 64;
 			const uint32 dispatchX = ((inputLumaWidth + threadPixels - 1) / threadPixels * threadGroupSizeY + (threadGroupSize - 1)) / threadGroupSize;
@@ -500,11 +499,11 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 			commandList->setComputePipelineState(pipelineState);
 			commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap, &scaleV5Tracker);
 
-			CHECK(opticalFlowBlockSize >= 2);
+			CHECK(kOpticalFlowBlockSize >= 2);
 			const uint32 nextLevelWidth = opticalFlowTextureSizes[level - 1].width;
 			const uint32 nextLevelHeight = opticalFlowTextureSizes[level - 1].height;
-			const uint32 threadGroupSizeX = opticalFlowBlockSize / 2;
-			const uint32 threadGroupSizeY = opticalFlowBlockSize / 2;
+			const uint32 threadGroupSizeX = kOpticalFlowBlockSize / 2;
+			const uint32 threadGroupSizeY = kOpticalFlowBlockSize / 2;
 			const uint32 threadGroupSizeZ = 4;
 			const uint32 dispatchX = (nextLevelWidth + 3) / 4;
 			const uint32 dispatchY = (nextLevelHeight + 3) / 4;
@@ -587,9 +586,8 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 	const bool bContainerResolutionChanged = containerResolutionXs[swapchainIndex] != passInput.containerSizeX || containerResolutionYs[swapchainIndex] != passInput.containerSizeY;
 	const bool bLumaResolutionChanged = lumaResolutionXs[swapchainIndex] != passInput.lumaResolutionX || lumaResolutionYs[swapchainIndex] != passInput.lumaResolutionY;
 	
-	const uint32 opticalFlowBlockSize = 8;
 	FfxDimensions2D opticalFlowTextureSizes[OpticalFlowMaxPyramidLevels];
-	opticalFlowTextureSizes[0] = GetOpticalFlowTextureSize({ passInput.containerSizeX,passInput.containerSizeY }, opticalFlowBlockSize);
+	opticalFlowTextureSizes[0] = GetOpticalFlowTextureSize({ passInput.containerSizeX,passInput.containerSizeY }, kOpticalFlowBlockSize);
 	for (int32 i = 1; i < OpticalFlowMaxPyramidLevels; i++)
 	{
 		opticalFlowTextureSizes[i] = {
