@@ -176,38 +176,8 @@ void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchain
 // See ffxFrameInterpolationDispatch.
 void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
 {
-	FrameInterpUniform uniformData{
-		.renderSize                 = { passInput.renderSizeX, passInput.renderSizeY },
-		.displaySize                = { passInput.displaySizeX, passInput.displaySizeY },
-		.displaySizeRcp             = { 1.0f / (float)(passInput.displaySizeX), 1.0f / (float)(passInput.displaySizeY) },
-		.cameraNear                 = passInput.camera->getZNear(),
-		.cameraFar                  = passInput.camera->getZFar(),
-		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY }, // #todo-fsr3-framegen: upscale target size
-		.Mode                       = 0, // #todo-fsr3-framegen: What is this? No shader accesses it, even ffx source code does not use it.
-		.reset                      = 0, // #todo-fsr3-framegen: reset, see ffxFrameInterpolationDispatch
-		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // #todo-fsr3-framegen: fDeviceToViewDepth, see setupDeviceDepthToViewSpaceDepthParams
-		.deltaTime                  = passInput.deltaTime, // #todo-fsr3-framegen: Unit of deltaTime?
-		.HUDLessAttachedFactor      = 0,
-		.distortionFieldSize        = { 1, 1 },
-		.opticalFlowScale           = { 1.0f, 1.0f }, // #todo-fsr3-framegen: opticalFlowScale
-		.opticalFlowBlockSize       = passInput.opticalFlowBlockSize,
-		.dispatchFlags              = passInput.dispatchFlags,
-		.maxRenderSize              = { passInput.displaySizeX, passInput.displaySizeY },
-		.opticalFlowHalfResMode     = 0, // #todo-fsr3-framegen: opticalFlowHalfResMode
-		.NumInstances               = 0, // #todo-fsr3-framegen: NumInstances unused?
-		.interpolationRectBase      = { 0, 0 },
-		.interpolationRectSize      = { passInput.renderSizeX, passInput.renderSizeY },
-		.debugBarColor              = { 1.0f, 0.0f, 0.0f },
-		.backBufferTransferFunction = (uint32)passInput.backBufferTransferFunction,
-		.minMaxLuminance            = { 0.0f, 65000.0f }, // #todo-fsr: minMaxLuminance
-		.fTanHalfFOV                = 0.5f * std::tan(2.0f * std::atan(std::tan(passInput.camera->getFovYInRadians() * 0.5f) * passInput.camera->getAspectRatio())),
-		._pad1                      = 0,
-		.fJitter                    = { 0, 0 }, // #todo-fsr3-framegen: jitter
-		.fMotionVectorScale         = { 1.0f, 1.0f },
-	};
-
-	ConstantBufferView* passUniformCBV = frameInterpDescriptor.getUniformCBV(swapchainIndex);
-	passUniformCBV->writeToGPU(commandList, &uniformData, sizeof(uniformData));
+	ConstantBufferView* frameInterpUniformCBV = getCurrentFrameInterpUniformCBV();
+	ConstantBufferView* inpaintingPyramidUniformCBV = getCurrentInpaintingPyramidUniformCBV();
 
 	const uint32 displayDispatchSizeX = (passInput.displaySizeX + 7) / 8;
 	const uint32 displayDispatchSizeY = (passInput.displaySizeY + 7) / 8;
