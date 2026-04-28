@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scene_render_pass.h"
+#include "optical_flow_common.h"
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
 #include "rhi/pipeline_state.h"
@@ -10,16 +11,16 @@ class Camera;
 
 struct FrameGenPassInput
 {
-	const Camera* camera;
-
-	int32  renderSizeX;
-	int32  renderSizeY;
-	int32  displaySizeX;
-	int32  displaySizeY;
-	float  deltaTime;
-	int32  opticalFlowBlockSize;
-	uint32 dispatchFlags;
-	uint32 backBufferTransferFunction;
+	const Camera*                         camera;
+	int32                                 renderSizeX;
+	int32                                 renderSizeY;
+	int32                                 displaySizeX;
+	int32                                 displaySizeY;
+	float                                 deltaTime;
+	int32                                 opticalFlowBlockSize;
+	uint32                                dispatchFlags;
+	OpticalFlowBackbufferTransferFunction backBufferTransferFunction;
+	bool                                  bReset;
 };
 
 class FrameGenPass final : public SceneRenderPass
@@ -32,11 +33,16 @@ public:
 private:
 	void initializePipelines();
 
+	void updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput);
 	void preparePhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
 	void dispatchPhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
 
+	ConstantBufferView* getCurrentFrameInterpUniformCBV();
+	ConstantBufferView* getCurrentInpaintingPyramidUniformCBV();
+
 private:
 	RenderDevice* device = nullptr;
+	uint32 cpuFrameIndex = 0;
 
 	// #todo-fsr3: See FfxFrameInterpolationPass enum in
 	// <FidelityFX_SDK>\sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp

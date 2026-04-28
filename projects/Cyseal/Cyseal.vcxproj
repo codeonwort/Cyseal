@@ -133,6 +133,7 @@
     <ClInclude Include="src\render\hiz_pass.h" />
     <ClInclude Include="src\material\material_shader.h" />
     <ClInclude Include="src\material\material_database.h" />
+    <ClInclude Include="src\render\optical_flow_common.h" />
     <ClInclude Include="src\render\optical_flow_pass.h" />
     <ClInclude Include="src\render\renderer_constants.h" />
     <ClInclude Include="src\render\util\clear_resource_pass.h" />
@@ -256,6 +257,7 @@
     <ClCompile Include="src\render\frame_gen_pass.cpp" />
     <ClCompile Include="src\render\gpu_culling.cpp" />
     <ClCompile Include="src\render\hiz_pass.cpp" />
+    <ClCompile Include="src\render\optical_flow_common.cpp" />
     <ClCompile Include="src\render\optical_flow_pass.cpp" />
     <ClCompile Include="src\render\pathtracing\denoiser_plugin_pass.cpp" />
     <ClCompile Include="src\render\pathtracing\path_tracing_pass.cpp" />

@@ -1,19 +1,10 @@
 #pragma once
 
 #include "scene_render_pass.h"
+#include "optical_flow_common.h"
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
 #include "util/volatile_descriptor.h"
-
-// See ffx_opticalflow_prepare_luma.h
-enum class OpticalFlowBackbufferTransferFunction : uint32
-{
-	LinearLdrToLuminance                  = 0,
-	PQCorrectedHdrToPerceivedLuminance    = 1,
-	SCRGBCorrectedHdrToPerceivedLuminance = 2,
-
-	Count,
-};
 
 struct OpticalFlowPassInput
 {

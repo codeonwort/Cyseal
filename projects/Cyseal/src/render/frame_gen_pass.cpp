@@ -62,19 +62,23 @@ struct InpaintingPyramidUniform
 void FrameGenPass::initialize(RenderDevice* inRenderDevice)
 {
 	device = inRenderDevice;
+	cpuFrameIndex = 0;
 
 	initializePipelines();
 }
 
 void FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
 {
+	updateUniforms(commandList, passInput);
 	//preparePhase(commandList, swapchainIndex, passInput);
 	//dispatchPhase(commandList, swapchainIndex, passInput);
+
+	cpuFrameIndex += 1;
 }
 
 void FrameGenPass::initializePipelines()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 swapchainCount = 2;//device->maxFramesInFlight(); // Always need 2
 
 	frameInterpDescriptor.initialize(L"FSR3_FrameInterpUniform", swapchainCount, sizeof(FrameInterpUniform));
 	inpaintingPyramidDescriptor.initialize(L"FSR3_InpaintingPyramidUniform", swapchainCount, sizeof(InpaintingPyramidUniform));
@@ -106,11 +110,67 @@ void FrameGenPass::initializePipelines()
 	createPipeline("FSR3DebugViewPipelineCS", L"amd/ffx_frameinterpolation_debug_view_pass.hlsl", debugViewPipeline);
 }
 
-// See ffxFrameInterpolationPrepare.
+void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput)
+{
+	ConstantBufferView* frameInterpUniformCBV = getCurrentFrameInterpUniformCBV();
+	ConstantBufferView* inpaintingPyramidUniformCBV = getCurrentInpaintingPyramidUniformCBV();
+
+	FrameInterpUniform fiUniformData{
+		.renderSize                 = { passInput.renderSizeX, passInput.renderSizeY },
+		.displaySize                = { passInput.displaySizeX, passInput.displaySizeY },
+		.displaySizeRcp             = { 1.0f / (float)(passInput.displaySizeX), 1.0f / (float)(passInput.displaySizeY) },
+		.cameraNear                 = passInput.camera->getZNear(),
+		.cameraFar                  = passInput.camera->getZFar(),
+		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY }, // #todo-fsr3-framegen: upscale target size
+		.Mode                       = 0, // #todo-fsr3-framegen: What is this? No shader accesses it, even ffx source code does not use it.
+		.reset                      = 0, // #todo-fsr3-framegen: reset, see ffxFrameInterpolationDispatch
+		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // #todo-fsr3-framegen: fDeviceToViewDepth, see setupDeviceDepthToViewSpaceDepthParams
+		.deltaTime                  = passInput.deltaTime, // #todo-fsr3-framegen: Unit of deltaTime?
+		.HUDLessAttachedFactor      = 0,
+		.distortionFieldSize        = { 1, 1 },
+		.opticalFlowScale           = { 1.0f, 1.0f }, // #todo-fsr3-framegen: opticalFlowScale
+		.opticalFlowBlockSize       = passInput.opticalFlowBlockSize,
+		.dispatchFlags              = passInput.dispatchFlags,
+		.maxRenderSize              = { passInput.displaySizeX, passInput.displaySizeY },
+		.opticalFlowHalfResMode     = 0, // #todo-fsr3-framegen: opticalFlowHalfResMode
+		.NumInstances               = 0, // #todo-fsr3-framegen: NumInstances unused?
+		.interpolationRectBase      = { 0, 0 },
+		.interpolationRectSize      = { passInput.renderSizeX, passInput.renderSizeY },
+		.debugBarColor              = { 1.0f, 0.0f, 0.0f },
+		.backBufferTransferFunction = (uint32)passInput.backBufferTransferFunction,
+		.minMaxLuminance            = { 0.0f, 65000.0f }, // #todo-fsr: minMaxLuminance
+		.fTanHalfFOV                = 0.5f * std::tan(2.0f * std::atan(std::tan(passInput.camera->getFovYInRadians() * 0.5f) * passInput.camera->getAspectRatio())),
+		._pad1                      = 0,
+		.fJitter                    = { 0, 0 }, // #todo-fsr3-framegen: jitter
+		.fMotionVectorScale         = { 1.0f, 1.0f },
+	};
+	frameInterpUniformCBV->writeToGPU(commandList, &fiUniformData, sizeof(fiUniformData));
+
+	uint32 dispatchThreadGroupCountXY[2];
+	uint32 workGroupOffset[2];
+	uint32 numWorkGroupsAndMips[2];
+	uint32 rectInfo[4] = { 0, 0, (uint32)passInput.renderSizeX, (uint32)passInput.renderSizeY };
+	ffxSpdSetup(dispatchThreadGroupCountXY, workGroupOffset, numWorkGroupsAndMips, rectInfo, -1);
+
+	InpaintingPyramidUniform ipUniformData{
+		.mips            = numWorkGroupsAndMips[1],
+		.numWorkGroups   = numWorkGroupsAndMips[0],
+		.workGroupOffset = { workGroupOffset[0], workGroupOffset[1] },
+	};
+	inpaintingPyramidUniformCBV->writeToGPU(commandList, &ipUniformData, sizeof(ipUniformData));
+}
+
+// See ffxFrameInterpolationPrepare().
 // Generate FSR3 upscaler resources.
 void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
 {
 	// #todo-fsr3-framegen: Dispatch reconstructAndDilatePipeline
+	// Texture2D<float4> r_input_motion_vectors (FFX_FRAMEINTERPOLATION_BIND_SRV_INPUT_MOTION_VECTORS)
+	// Texture2D<float> r_input_depth (FFX_FRAMEINTERPOLATION_BIND_SRV_INPUT_DEPTH)
+	// RWTexture2D<uint> rw_reconstructed_depth_previous_frame (FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_PREVIOUS_FRAME)
+	// RWTexture2D<float2> rw_dilated_motion_vectors (FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_MOTION_VECTORS)
+	// RWTexture2D<float> rw_dilated_depth (FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_DEPTH)
+	// cbuffer cbFI (FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION)
 }
 
 // See ffxFrameInterpolationDispatch.
@@ -138,7 +198,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		.interpolationRectBase      = { 0, 0 },
 		.interpolationRectSize      = { passInput.renderSizeX, passInput.renderSizeY },
 		.debugBarColor              = { 1.0f, 0.0f, 0.0f },
-		.backBufferTransferFunction = passInput.backBufferTransferFunction,
+		.backBufferTransferFunction = (uint32)passInput.backBufferTransferFunction,
 		.minMaxLuminance            = { 0.0f, 65000.0f }, // #todo-fsr: minMaxLuminance
 		.fTanHalfFOV                = 0.5f * std::tan(2.0f * std::atan(std::tan(passInput.camera->getFovYInRadians() * 0.5f) * passInput.camera->getAspectRatio())),
 		._pad1                      = 0,
@@ -161,7 +221,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	// #todo-fsr3-framegen: Dispatch setupPipeline (renderDispatchSizeX/Y)
 	// #todo-fsr3-framegen: Dispatch gameVectorFieldInpaintingPyramidPipeline
 
-	if (uniformData.reset == 0)
+	if (passInput.bReset)
 	{
 		// #todo-fsr3-framegen: Clear estimated depth resources
 		// ...
@@ -191,4 +251,14 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	}
 
 	// #todo-fsr3-framegen: Store current buffer
+}
+
+ConstantBufferView* FrameGenPass::getCurrentFrameInterpUniformCBV()
+{
+	return frameInterpDescriptor.getUniformCBV(cpuFrameIndex);
+}
+
+ConstantBufferView* FrameGenPass::getCurrentInpaintingPyramidUniformCBV()
+{
+	return inpaintingPyramidDescriptor.getUniformCBV(cpuFrameIndex);
 }

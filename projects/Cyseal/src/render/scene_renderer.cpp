@@ -798,10 +798,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, OpticalFlow);
 
+		const auto transferFunction = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance;
+		const bool bResetAccumulation = false;
+
 		OpticalFlowPassInput passInput{
 			.clearResourcePass  = clearResourcePass,
-			.transferFunction   = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance,
-			.bResetAccumulation = false,
+			.transferFunction   = transferFunction,
+			.bResetAccumulation = bResetAccumulation,
 			.containerSizeX     = unscaledRenderWidth,
 			.containerSizeY     = unscaledRenderHeight,
 			.lumaResolutionX    = (int32)sceneWidth,
@@ -810,6 +813,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneColorSRV      = sceneColorSRV.get(),
 		};
 		opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
+
+		// #wip: frameGenPass here
 	}
 
 	// Set final color as render target.
