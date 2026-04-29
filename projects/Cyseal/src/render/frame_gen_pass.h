@@ -20,6 +20,10 @@ struct FrameGenPassInput
 	uint32                                dispatchFlags;
 	OpticalFlowBackbufferTransferFunction backBufferTransferFunction;
 	bool                                  bReset;
+	Texture*                              sceneDepthTexture;
+	ShaderResourceView*                   sceneDepthSRV;
+	Texture*                              motionVectorTexture;
+	ShaderResourceView*                   motionVectorSRV;
 };
 
 class FrameGenPass final : public SceneRenderPass
@@ -31,6 +35,8 @@ public:
 
 private:
 	void initializePipelines();
+
+	void recreateResources(RenderCommandList* commandList, const FrameGenPassInput& passInput);
 
 	void updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput);
 	void preparePhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
@@ -45,18 +51,22 @@ private:
 
 	// #todo-fsr3: See FfxFrameInterpolationPass enum in
 	// <FidelityFX_SDK>\sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp
-	UniquePtr<ComputePipelineState> reconstructAndDilatePipeline;
-	UniquePtr<ComputePipelineState> setupPipeline;
-	UniquePtr<ComputePipelineState> reconstructPrevDepthPipeline;
-	UniquePtr<ComputePipelineState> gameMotionVectorFieldPipeline;
-	UniquePtr<ComputePipelineState> opticalFlowVectorFieldPipeline;
-	UniquePtr<ComputePipelineState> disocclusionMaskPipeline;
-	UniquePtr<ComputePipelineState> interpolationPipeline;
-	UniquePtr<ComputePipelineState> inpaintingPyramidPipeline;
-	UniquePtr<ComputePipelineState> inpaintingPipeline;
-	UniquePtr<ComputePipelineState> gameVectorFieldInpaintingPyramidPipeline;
-	UniquePtr<ComputePipelineState> debugViewPipeline;
+	UniquePtr<ComputePipelineState>        reconstructAndDilatePipeline;
+	UniquePtr<ComputePipelineState>        setupPipeline;
+	UniquePtr<ComputePipelineState>        reconstructPrevDepthPipeline;
+	UniquePtr<ComputePipelineState>        gameMotionVectorFieldPipeline;
+	UniquePtr<ComputePipelineState>        opticalFlowVectorFieldPipeline;
+	UniquePtr<ComputePipelineState>        disocclusionMaskPipeline;
+	UniquePtr<ComputePipelineState>        interpolationPipeline;
+	UniquePtr<ComputePipelineState>        inpaintingPyramidPipeline;
+	UniquePtr<ComputePipelineState>        inpaintingPipeline;
+	UniquePtr<ComputePipelineState>        gameVectorFieldInpaintingPyramidPipeline;
+	UniquePtr<ComputePipelineState>        debugViewPipeline;
 
-	VolatileDescriptorHelper        frameInterpDescriptor;
-	VolatileDescriptorHelper        inpaintingPyramidDescriptor;
+	VolatileDescriptorHelper               frameInterpDescriptor;
+	VolatileDescriptorHelper               inpaintingPyramidDescriptor;
+
+	BufferedUniquePtr<Texture>             reconstructedPrevDepthTextures;
+	BufferedUniquePtr<ShaderResourceView>  reconstructedPrevDepthSRVs;
+	BufferedUniquePtr<UnorderedAccessView> reconstructedPrevDepthUAVs;
 };

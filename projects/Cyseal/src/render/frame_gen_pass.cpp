@@ -1,5 +1,6 @@
 #include "frame_gen_pass.h"
 #include "rhi/render_device.h"
+#include "rhi/render_command.h"
 #include "world/camera.h"
 
 // doc: docs/techniques/frame-interpolation.md
@@ -64,11 +65,18 @@ void FrameGenPass::initialize(RenderDevice* inRenderDevice)
 	device = inRenderDevice;
 	cpuFrameIndex = 0;
 
+	const uint32 swapchainCount = 2;
+	reconstructedPrevDepthTextures.initialize(swapchainCount);
+	reconstructedPrevDepthSRVs.initialize(swapchainCount);
+	reconstructedPrevDepthUAVs.initialize(swapchainCount);
+
 	initializePipelines();
 }
 
 void FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
 {
+	recreateResources(commandList, passInput);
+
 	updateUniforms(commandList, passInput);
 	//preparePhase(commandList, swapchainIndex, passInput);
 	//dispatchPhase(commandList, swapchainIndex, passInput);
@@ -108,6 +116,53 @@ void FrameGenPass::initializePipelines()
 	createPipeline("FSR3InpaintingPipelineCS", L"amd/ffx_frameinterpolation_inpainting_pass.hlsl", inpaintingPipeline);
 	createPipeline("FSR3GameVectorFieldInpaintingPyramidPipelineCS", L"amd/ffx_frameinterpolation_compute_game_vector_field_inpainting_pyramid_pass.hlsl", gameVectorFieldInpaintingPyramidPipeline);
 	createPipeline("FSR3DebugViewPipelineCS", L"amd/ffx_frameinterpolation_debug_view_pass.hlsl", debugViewPipeline);
+}
+
+void FrameGenPass::recreateResources(RenderCommandList* commandList, const FrameGenPassInput& passInput)
+{
+	for (size_t i = 0; i < reconstructedPrevDepthTextures.size(); ++i)
+	{
+		if (reconstructedPrevDepthTextures[i] == nullptr
+			|| reconstructedPrevDepthTextures[i]->getCreateParams().width != passInput.displaySizeX
+			|| reconstructedPrevDepthTextures[i]->getCreateParams().height != passInput.displaySizeY)
+		{
+			commandList->enqueueDeferredDealloc(reconstructedPrevDepthTextures[i].release(), true);
+			commandList->enqueueDeferredDealloc(reconstructedPrevDepthSRVs[i].release(), true);
+			commandList->enqueueDeferredDealloc(reconstructedPrevDepthUAVs[i].release(), true);
+
+			TextureCreateParams texDesc = TextureCreateParams::texture2D(
+				EPixelFormat::R32_FLOAT,
+				ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+				passInput.displaySizeX, passInput.displaySizeY);
+			reconstructedPrevDepthTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
+
+			wchar_t debugName[128];
+			std::swprintf(debugName, _countof(debugName), L"RT_ReconstructedPrevDepth_%u", (uint32)i);
+			reconstructedPrevDepthTextures[i]->setDebugName(debugName);
+
+			reconstructedPrevDepthSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
+				reconstructedPrevDepthTextures[i].get(),
+				ShaderResourceViewDesc{
+					.format              = reconstructedPrevDepthTextures[i]->getCreateParams().format,
+					.viewDimension       = ESRVDimension::Texture2D,
+					.texture2D           = Texture2DSRVDesc{
+						.mostDetailedMip = 0,
+						.mipLevels       = 1,
+						.planeSlice      = 0,
+						.minLODClamp     = 0.0f,
+					},
+				}
+			));
+			reconstructedPrevDepthUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
+				reconstructedPrevDepthTextures[i].get(),
+				UnorderedAccessViewDesc{
+					.format         = reconstructedPrevDepthTextures[i]->getCreateParams().format,
+					.viewDimension  = EUAVDimension::Texture2D,
+					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+				}
+			));
+		}
+	}
 }
 
 void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput)
