@@ -69,6 +69,12 @@ void FrameGenPass::initialize(RenderDevice* inRenderDevice)
 	reconstructedPrevDepthTextures.initialize(swapchainCount);
 	reconstructedPrevDepthSRVs.initialize(swapchainCount);
 	reconstructedPrevDepthUAVs.initialize(swapchainCount);
+	dilatedMotionVectorTextures.initialize(swapchainCount);
+	dilatedMotionVectorSRVs.initialize(swapchainCount);
+	dilatedMotionVectorUAVs.initialize(swapchainCount);
+	dilatedDepthTextures.initialize(swapchainCount);
+	dilatedDepthSRVs.initialize(swapchainCount);
+	dilatedDepthUAVs.initialize(swapchainCount);
 
 	initializePipelines();
 }
@@ -157,6 +163,96 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 				reconstructedPrevDepthTextures[i].get(),
 				UnorderedAccessViewDesc{
 					.format         = reconstructedPrevDepthTextures[i]->getCreateParams().format,
+					.viewDimension  = EUAVDimension::Texture2D,
+					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+				}
+			));
+		}
+	}
+
+	for (size_t i = 0; i < dilatedMotionVectorTextures.size(); ++i)
+	{
+		if (dilatedMotionVectorTextures[i] == nullptr
+			|| dilatedMotionVectorTextures[i]->getCreateParams().width != passInput.displaySizeX
+			|| dilatedMotionVectorTextures[i]->getCreateParams().height != passInput.displaySizeY)
+		{
+			commandList->enqueueDeferredDealloc(dilatedMotionVectorTextures[i].release(), true);
+			commandList->enqueueDeferredDealloc(dilatedMotionVectorSRVs[i].release(), true);
+			commandList->enqueueDeferredDealloc(dilatedMotionVectorUAVs[i].release(), true);
+
+			TextureCreateParams texDesc = TextureCreateParams::texture2D(
+				EPixelFormat::R16G16_FLOAT,
+				// #wip: (FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV | FFX_RESOURCE_USAGE_DCC_RENDERTARGET) ???
+				ETextureAccessFlags::RTV | ETextureAccessFlags::UAV,
+				passInput.displaySizeX, passInput.displaySizeY);
+			dilatedMotionVectorTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
+
+			wchar_t debugName[128];
+			std::swprintf(debugName, _countof(debugName), L"RT_DilatedMotionVector_%u", (uint32)i);
+			dilatedMotionVectorTextures[i]->setDebugName(debugName);
+			
+			dilatedMotionVectorSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
+				dilatedMotionVectorTextures[i].get(),
+				ShaderResourceViewDesc{
+					.format              = dilatedMotionVectorTextures[i]->getCreateParams().format,
+					.viewDimension       = ESRVDimension::Texture2D,
+					.texture2D           = Texture2DSRVDesc{
+						.mostDetailedMip = 0,
+						.mipLevels       = 1,
+						.planeSlice      = 0,
+						.minLODClamp     = 0.0f,
+					},
+				}
+			));
+			dilatedMotionVectorUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
+				dilatedMotionVectorTextures[i].get(),
+				UnorderedAccessViewDesc{
+					.format         = dilatedMotionVectorTextures[i]->getCreateParams().format,
+					.viewDimension  = EUAVDimension::Texture2D,
+					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+				}
+			));
+		}
+	}
+
+	for (size_t i = 0; i < dilatedDepthTextures.size(); ++i)
+	{
+		if (dilatedDepthTextures[i] == nullptr
+			|| dilatedDepthTextures[i]->getCreateParams().width != passInput.displaySizeX
+			|| dilatedDepthTextures[i]->getCreateParams().height != passInput.displaySizeY)
+		{
+			commandList->enqueueDeferredDealloc(dilatedDepthTextures[i].release(), true);
+			commandList->enqueueDeferredDealloc(dilatedDepthSRVs[i].release(), true);
+			commandList->enqueueDeferredDealloc(dilatedDepthUAVs[i].release(), true);
+
+			TextureCreateParams texDesc = TextureCreateParams::texture2D(
+				EPixelFormat::R32_FLOAT,
+				// #wip: (FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV | FFX_RESOURCE_USAGE_DCC_RENDERTARGET) ???
+				ETextureAccessFlags::RTV | ETextureAccessFlags::UAV,
+				passInput.displaySizeX, passInput.displaySizeY);
+			dilatedDepthTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
+
+			wchar_t debugName[128];
+			std::swprintf(debugName, _countof(debugName), L"RT_DilatedDepth_%u", (uint32)i);
+			dilatedDepthTextures[i]->setDebugName(debugName);
+			
+			dilatedDepthSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
+				dilatedDepthTextures[i].get(),
+				ShaderResourceViewDesc{
+					.format              = dilatedDepthTextures[i]->getCreateParams().format,
+					.viewDimension       = ESRVDimension::Texture2D,
+					.texture2D           = Texture2DSRVDesc{
+						.mostDetailedMip = 0,
+						.mipLevels       = 1,
+						.planeSlice      = 0,
+						.minLODClamp     = 0.0f,
+					},
+				}
+			));
+			dilatedDepthUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
+				dilatedDepthTextures[i].get(),
+				UnorderedAccessViewDesc{
+					.format         = dilatedDepthTextures[i]->getCreateParams().format,
 					.viewDimension  = EUAVDimension::Texture2D,
 					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
 				}

@@ -69,4 +69,10 @@ private:
 	BufferedUniquePtr<Texture>             reconstructedPrevDepthTextures;
 	BufferedUniquePtr<ShaderResourceView>  reconstructedPrevDepthSRVs;
 	BufferedUniquePtr<UnorderedAccessView> reconstructedPrevDepthUAVs;
+	BufferedUniquePtr<Texture>             dilatedMotionVectorTextures;
+	BufferedUniquePtr<ShaderResourceView>  dilatedMotionVectorSRVs;
+	BufferedUniquePtr<UnorderedAccessView> dilatedMotionVectorUAVs;
+	BufferedUniquePtr<Texture>             dilatedDepthTextures;
+	BufferedUniquePtr<ShaderResourceView>  dilatedDepthSRVs;
+	BufferedUniquePtr<UnorderedAccessView> dilatedDepthUAVs;
 };
