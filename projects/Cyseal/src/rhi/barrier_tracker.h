@@ -57,6 +57,28 @@ struct TextureBarrierAuto
 			texture, subresources, flags
 		};
 	}
+	static TextureBarrierAuto toShaderResource(
+		TextureKind* texture,
+		EBarrierSync syncAfter, // Usually EBarrierSync::COMPUTE_SHADING or EBarrierSync::PIXEL_SHADING
+		BarrierSubresourceRange subresources = BarrierSubresourceRange::allMips(),
+		ETextureBarrierFlags flags = ETextureBarrierFlags::None)
+	{
+		return TextureBarrierAuto{
+			syncAfter, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+			texture, subresources, flags
+		};
+	}
+	static TextureBarrierAuto toUnorderedAccess(
+		TextureKind* texture,
+		EBarrierSync syncAfter = EBarrierSync::COMPUTE_SHADING, // Usually EBarrierSync::COMPUTE_SHADING
+		BarrierSubresourceRange subresources = BarrierSubresourceRange::allMips(),
+		ETextureBarrierFlags flags = ETextureBarrierFlags::None)
+	{
+		return TextureBarrierAuto{
+			syncAfter, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
+			texture, subresources, flags
+		};
+	}
 };
 
 // Tracks resource states for issueing barriers in a render command list.
