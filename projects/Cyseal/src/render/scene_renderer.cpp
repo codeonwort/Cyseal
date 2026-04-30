@@ -794,17 +794,16 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		combineLightingPass->combineLighting(commandList, swapchainIndex, passInput);
 	}
 
+	const auto backbufferTransferFunction = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance;
+	const bool bResetOpticalFlowAccumulation = false;
 	if (!bRenderPathTracing)
 	{
 		SCOPED_DRAW_EVENT(commandList, OpticalFlow);
 
-		const auto transferFunction = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance;
-		const bool bResetAccumulation = false;
-
 		OpticalFlowPassInput passInput{
 			.clearResourcePass  = clearResourcePass,
-			.transferFunction   = transferFunction,
-			.bResetAccumulation = bResetAccumulation,
+			.transferFunction   = backbufferTransferFunction,
+			.bResetAccumulation = bResetOpticalFlowAccumulation,
 			.containerSizeX     = unscaledRenderWidth,
 			.containerSizeY     = unscaledRenderHeight,
 			.lumaResolutionX    = (int32)sceneWidth,
@@ -813,8 +812,29 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneColorSRV      = sceneColorSRV.get(),
 		};
 		opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
+	}
 
-		// #wip: frameGenPass here
+	if (!bRenderPathTracing)
+	{
+		SCOPED_DRAW_EVENT(commandList, FrameGeneration);
+
+		FrameGenPassInput passInput{
+			.clearResourcePass          = clearResourcePass,
+			.camera                     = camera,
+			.renderSizeX                = (int32)sceneWidth,
+			.renderSizeY                = (int32)sceneHeight,
+			.displaySizeX               = (int32)unscaledRenderWidth,
+			.displaySizeY               = (int32)unscaledRenderHeight,
+			.deltaTime                  = 0.0f, // #wip: deltaTime
+			.dispatchFlags              = 0, // #wip: dispatchFlags
+			.backBufferTransferFunction = backbufferTransferFunction,
+			.bReset                     = bResetOpticalFlowAccumulation,
+			.sceneDepthTexture          = RT_sceneDepth.get(),
+			.sceneDepthSRV              = sceneDepthSRV.get(),
+			.motionVectorTexture        = RT_velocityMap.get(),
+			.motionVectorSRV            = velocityMapSRV.get(),
+		};
+		frameGenPass->runFrameGeneration(commandList, swapchainIndex, passInput);
 	}
 
 	// Set final color as render target.

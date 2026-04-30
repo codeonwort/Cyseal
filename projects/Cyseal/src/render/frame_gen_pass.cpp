@@ -86,7 +86,7 @@ void FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swa
 	recreateResources(commandList, passInput);
 
 	updateUniforms(commandList, passInput);
-	//preparePhase(commandList, swapchainIndex, passInput);
+	preparePhase(commandList, swapchainIndex, passInput);
 	//dispatchPhase(commandList, swapchainIndex, passInput);
 
 	cpuFrameIndex += 1;
@@ -96,9 +96,9 @@ void FrameGenPass::initializePipelines()
 {
 	const uint32 swapchainCount = 2;//device->maxFramesInFlight(); // Always need 2
 
-	prepareDescriptor.initialize(L"FSR3_Prepare", swapchainCount, 0);
-	frameInterpDescriptor.initialize(L"FSR3_FrameInterpUniform", swapchainCount, sizeof(FrameInterpUniform));
-	inpaintingPyramidDescriptor.initialize(L"FSR3_InpaintingPyramidUniform", swapchainCount, sizeof(InpaintingPyramidUniform));
+	prepareDescriptor.initialize(device, L"FSR3_Prepare", swapchainCount, 0);
+	frameInterpDescriptor.initialize(device, L"FSR3_FrameInterpUniform", swapchainCount, sizeof(FrameInterpUniform));
+	inpaintingPyramidDescriptor.initialize(device, L"FSR3_InpaintingPyramidUniform", swapchainCount, sizeof(InpaintingPyramidUniform));
 
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)
@@ -417,10 +417,10 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 
 ConstantBufferView* FrameGenPass::getCurrentFrameInterpUniformCBV()
 {
-	return frameInterpDescriptor.getUniformCBV(cpuFrameIndex);
+	return frameInterpDescriptor.getUniformCBV(cpuFrameIndex & 1);
 }
 
 ConstantBufferView* FrameGenPass::getCurrentInpaintingPyramidUniformCBV()
 {
-	return inpaintingPyramidDescriptor.getUniformCBV(cpuFrameIndex);
+	return inpaintingPyramidDescriptor.getUniformCBV(cpuFrameIndex & 1);
 }
