@@ -11,6 +11,7 @@ class Camera;
 
 struct FrameGenPassInput
 {
+	class ClearResourcePass*              clearResourcePass;
 	const Camera*                         camera;
 	int32                                 renderSizeX;
 	int32                                 renderSizeY;
@@ -63,6 +64,7 @@ private:
 	UniquePtr<ComputePipelineState>        gameVectorFieldInpaintingPyramidPipeline;
 	UniquePtr<ComputePipelineState>        debugViewPipeline;
 
+	VolatileDescriptorHelper               prepareDescriptor;
 	VolatileDescriptorHelper               frameInterpDescriptor;
 	VolatileDescriptorHelper               inpaintingPyramidDescriptor;
 

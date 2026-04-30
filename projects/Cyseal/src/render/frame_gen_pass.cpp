@@ -1,4 +1,6 @@
 #include "frame_gen_pass.h"
+#include "render/util/clear_resource_pass.h"
+#include "rhi/rhi_policy.h"
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
 #include "world/camera.h"
@@ -94,6 +96,7 @@ void FrameGenPass::initializePipelines()
 {
 	const uint32 swapchainCount = 2;//device->maxFramesInFlight(); // Always need 2
 
+	prepareDescriptor.initialize(L"FSR3_Prepare", swapchainCount, 0);
 	frameInterpDescriptor.initialize(L"FSR3_FrameInterpUniform", swapchainCount, sizeof(FrameInterpUniform));
 	inpaintingPyramidDescriptor.initialize(L"FSR3_InpaintingPyramidUniform", swapchainCount, sizeof(InpaintingPyramidUniform));
 
@@ -315,13 +318,51 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 // Generate FSR3 upscaler resources.
 void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
 {
-	// #wip: Dispatch reconstructAndDilatePipeline
-	// Texture2D<float4> r_input_motion_vectors (FFX_FRAMEINTERPOLATION_BIND_SRV_INPUT_MOTION_VECTORS)
-	// Texture2D<float> r_input_depth (FFX_FRAMEINTERPOLATION_BIND_SRV_INPUT_DEPTH)
-	// RWTexture2D<uint> rw_reconstructed_depth_previous_frame (FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_PREVIOUS_FRAME)
-	// RWTexture2D<float2> rw_dilated_motion_vectors (FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_MOTION_VECTORS)
-	// RWTexture2D<float> rw_dilated_depth (FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_DEPTH)
-	// cbuffer cbFI (FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION)
+	SCOPED_DRAW_EVENT(commandList, FrameGenPrepare);
+
+	const uint32 currResourceIndex = (cpuFrameIndex & 1);
+	const uint32 prevResourceIndex = ((cpuFrameIndex + 1) & 1);
+
+	auto uniformCBV = getCurrentFrameInterpUniformCBV();
+	auto reconstructedPrevDepthTexture = reconstructedPrevDepthTextures[currResourceIndex].get();
+	auto reconstructedPrevDepthUAV = reconstructedPrevDepthUAVs[currResourceIndex].get();
+	auto dilatedMotionVectorTexture = dilatedMotionVectorTextures[currResourceIndex].get();
+	auto dilatedMotionVectorUAV = dilatedMotionVectorUAVs[currResourceIndex].get();
+	auto dilatedDepthTexture = dilatedDepthTextures[currResourceIndex].get();
+	auto dilatedDepthUAV = dilatedDepthUAVs[currResourceIndex].get();
+
+	// Clear estimated depth resources.
+	auto fClearZero = ClearResourcePass::floatClearValue(getDeviceFarDepth(), 0, 0, 0);
+	passInput.clearResourcePass->enqueueClear(reconstructedPrevDepthTexture, reconstructedPrevDepthUAV, fClearZero);
+	passInput.clearResourcePass->executeClears(commandList, swapchainIndex);
+
+	TextureBarrierAuto textureBarriers[] = {
+		TextureBarrierAuto::toShaderResource(passInput.motionVectorTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(passInput.sceneDepthTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(reconstructedPrevDepthTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(dilatedMotionVectorTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
+	};
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+	ShaderParameterTable SPT{};
+	SPT.constantBuffer("cbFI", uniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+	SPT.texture("r_input_motion_vectors", passInput.motionVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_INPUT_MOTION_VECTORS
+	SPT.texture("r_input_depth", passInput.sceneDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_INPUT_DEPTH
+	SPT.rwTexture("rw_reconstructed_depth_previous_frame", reconstructedPrevDepthUAV); // FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_PREVIOUS_FRAME
+	SPT.rwTexture("rw_dilated_motion_vectors", dilatedMotionVectorUAV); // FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_MOTION_VECTORS
+	SPT.rwTexture("rw_dilated_depth", dilatedDepthUAV); // FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_DEPTH
+
+	prepareDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+	auto descriptorHeap = prepareDescriptor.getDescriptorHeap(swapchainIndex);
+	auto pipeline = reconstructAndDilatePipeline.get();
+
+	commandList->setComputePipelineState(pipeline);
+	commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+
+	uint32 dispatchX = (passInput.renderSizeX + 7) / 8;
+	uint32 dispatchY = (passInput.renderSizeY + 7) / 8;
+	commandList->dispatchCompute(dispatchX, dispatchY, 1);
 }
 
 // See ffxFrameInterpolationDispatch.
