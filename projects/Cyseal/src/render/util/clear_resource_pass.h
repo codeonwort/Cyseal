@@ -33,11 +33,44 @@ enum class EClearTextureFormat : uint32
 class ClearResourcePass final : public SceneRenderPass
 {
 public:
+	enum class EClearValueType { Float, UInt, Int };
+	struct ClearValue
+	{
+		EClearValueType valueType;
+		union
+		{
+			float asFloat[4];
+			uint32 asUInt[4];
+			int asInt[4];
+		};
+	};
+	static ClearValue floatClearValue(float x, float y, float z, float w)
+	{
+		return ClearValue{
+			.valueType = EClearValueType::Float,
+			.asFloat = { x, y, z, w },
+		};
+	}
+	static ClearValue uintClearValue(uint32 x, uint32 y, uint32 z, uint32 w)
+	{
+		return ClearValue{
+			.valueType = EClearValueType::UInt,
+			.asUInt = { x, y, z, w },
+		};
+	}
+	static ClearValue intClearValue(int32 x, int32 y, int32 z, int32 w)
+	{
+		return ClearValue{
+			.valueType = EClearValueType::Int,
+			.asInt = { x, y, z, w },
+		};
+	}
+
 	void initialize(RenderDevice* inRenderDevice);
 
 	void prepareForFrame(uint32 swapchainIndex);
 
-	void enqueueClear(Texture* texture, UnorderedAccessView* uav);
+	void enqueueClear(Texture* texture, UnorderedAccessView* uav, ClearValue clearValue);
 
 	/// CAUTION: No barrier after clear.
 	void executeClears(RenderCommandList* commandList, uint32 swapchainIndex);
@@ -51,4 +84,5 @@ private:
 
 	std::vector<Texture*> texturesToClear;
 	std::vector<UnorderedAccessView*> UAVsToClear;
+	std::vector<ClearValue> clearValues;
 };

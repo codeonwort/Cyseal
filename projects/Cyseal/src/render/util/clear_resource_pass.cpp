@@ -5,6 +5,15 @@
 // #todo-renderer: Support arbitrary number of requests.
 static const uint32 maxTextureClearDescriptorsPerFrame = 1024;
 
+struct ClearResourcePushConstants
+{
+	uint32 width;
+	uint32 height;
+	uint32 depth;
+	uint32 _pad0;
+	uint32 clearValue[4];
+};
+
 static EClearTextureDimension getClearTextureDim(const TextureCreateParams& desc)
 {
 	switch (desc.dimension)
@@ -53,7 +62,7 @@ void ClearResourcePass::initialize(RenderDevice* inRenderDevice)
 		std::wstring wFormat = L"TEXTURE_FORMAT_ENUM=" + std::to_wstring(format);
 
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, debugName);
-		shader->declarePushConstants({ { "pushConstants", 4 } });
+		shader->declarePushConstants({ { "pushConstants", (int32)(sizeof(ClearResourcePushConstants) / 4) } });
 		shader->loadFromFile(filepath, entryName, { wDimension, wFormat });
 
 		pipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
@@ -83,10 +92,11 @@ void ClearResourcePass::prepareForFrame(uint32 swapchainIndex)
 	tracker = DescriptorIndexTracker{};
 }
 
-void ClearResourcePass::enqueueClear(Texture* texture, UnorderedAccessView* uav)
+void ClearResourcePass::enqueueClear(Texture* texture, UnorderedAccessView* uav, ClearValue clearValue)
 {
 	texturesToClear.push_back(texture);
 	UAVsToClear.push_back(uav);
+	clearValues.push_back(clearValue);
 }
 
 void ClearResourcePass::executeClears(RenderCommandList* commandList, uint32 swapchainIndex)
@@ -110,9 +120,27 @@ void ClearResourcePass::executeClears(RenderCommandList* commandList, uint32 swa
 		const auto& desc = texturesToClear[i]->getCreateParams();
 		const EClearTextureDimension dim = getClearTextureDim(desc);
 		const EClearTextureFormat format = getClearTextureFormat(desc);
+		const auto& clearValue = clearValues[i];
+
+		ClearResourcePushConstants pushConstants{};
+		pushConstants.width = desc.width;
+		pushConstants.height = desc.height;
+		pushConstants.depth = desc.depth;
+		if (clearValue.valueType == EClearValueType::Float)
+		{
+			std::memcpy(pushConstants.clearValue, clearValue.asFloat, sizeof(clearValue.asFloat));
+		}
+		else if (clearValue.valueType == EClearValueType::UInt)
+		{
+			std::memcpy(pushConstants.clearValue, clearValue.asUInt, sizeof(clearValue.asUInt));
+		}
+		else if (clearValue.valueType == EClearValueType::Int)
+		{
+			std::memcpy(pushConstants.clearValue, clearValue.asInt, sizeof(clearValue.asInt));
+		}
 
 		ShaderParameterTable SPT{};
-		SPT.pushConstants("pushConstants", { desc.width, desc.height, desc.depth, 0 });
+		SPT.pushConstants("pushConstants", &pushConstants, sizeof(pushConstants));
 		SPT.rwTexture("rwTexture", UAVsToClear[i]);
 
 		// #todo-renderer: Sort requests by dimension and format to minimize pipeline changes?
@@ -139,4 +167,8 @@ void ClearResourcePass::executeClears(RenderCommandList* commandList, uint32 swa
 			commandList->dispatchCompute(dispatchX, dispatchY, dispatchZ);
 		}
 	}
+
+	texturesToClear.clear();
+	UAVsToClear.clear();
+	clearValues.clear();
 }

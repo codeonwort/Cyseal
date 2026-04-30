@@ -84,18 +84,21 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	{
 		gpuFrameIndex = 0;
 
+
 		ClearResourcePass* clearPass = passInput.clearResourcePass;
-		clearPass->enqueueClear(scdTempTexture.get(), scdTempUAV.get());
-		clearPass->enqueueClear(scdOutputTexture.get(), scdOutputUAV.get());
+		auto uintClear = ClearResourcePass::uintClearValue(0, 0, 0, 0);
+
+		clearPass->enqueueClear(scdTempTexture.get(), scdTempUAV.get(), uintClear);
+		clearPass->enqueueClear(scdOutputTexture.get(), scdOutputUAV.get(), uintClear);
 		for (size_t i = 0; i < scdHistogramTextures.size(); ++i)
 		{
-			clearPass->enqueueClear(scdHistogramTextures[i].get(), scdHistogramUAVs[i].get());
+			clearPass->enqueueClear(scdHistogramTextures[i].get(), scdHistogramUAVs[i].get(), uintClear);
 		}
 		for (size_t i = 0; i < _countof(opticalFlowInputTextures); ++i)
 		{
 			for (size_t j = 0; j < _countof(opticalFlowInputTextures[0]); ++j)
 			{
-				clearPass->enqueueClear(opticalFlowInputTextures[i][j].get(), opticalFlowInputUAVs[i][j].get());
+				clearPass->enqueueClear(opticalFlowInputTextures[i][j].get(), opticalFlowInputUAVs[i][j].get(), uintClear);
 			}
 		}
 		clearPass->executeClears(commandList, swapchainIndex);
