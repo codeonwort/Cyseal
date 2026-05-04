@@ -51,6 +51,7 @@ static uint32 fullMipCount(uint32 width, uint32 height)
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
+	frameID = 0;
 
 	// Scene textures: Don't create yet. You invoke recreateSceneTextures() before using scene renderer.
 	// recreateSceneTextures(width, height);
@@ -825,6 +826,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.renderSizeY                = (int32)sceneHeight,
 			.displaySizeX               = (int32)unscaledRenderWidth,
 			.displaySizeY               = (int32)unscaledRenderHeight,
+			.frameID                    = frameID,
 			.deltaTime                  = 0.0f, // #wip: deltaTime
 			.dispatchFlags              = 0, // #wip: dispatchFlags
 			.backBufferTransferFunction = backbufferTransferFunction,
@@ -1073,6 +1075,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		device->flushCommandQueue();
 	}
+
+	frameID += 1;
 
 	// Deallocate memory, a bit messy
 	commandList->executeDeferredDealloc();

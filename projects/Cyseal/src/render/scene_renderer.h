@@ -70,6 +70,8 @@ private:
 	SceneUniform sceneUniformData;
 	SceneUniform prevSceneUniformData;
 
+	uint32 frameID = 0;
+
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.
 

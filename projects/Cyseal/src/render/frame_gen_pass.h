@@ -17,6 +17,7 @@ struct FrameGenPassInput
 	int32                                 renderSizeY;
 	int32                                 displaySizeX;
 	int32                                 displaySizeY;
+	uint32                                frameID;
 	float                                 deltaTime;
 	uint32                                dispatchFlags;
 	OpticalFlowBackbufferTransferFunction backBufferTransferFunction;
@@ -49,6 +50,8 @@ private:
 private:
 	RenderDevice* device = nullptr;
 	uint32 cpuFrameIndex = 0;
+	uint32 prevFrameID = 0; // from FrameGenPassInput
+	uint32 interpolationDispatchCount = 0;
 
 	// #todo-fsr3: See FfxFrameInterpolationPass enum in
 	// <FidelityFX_SDK>\sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp

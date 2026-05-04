@@ -371,6 +371,14 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	ConstantBufferView* frameInterpUniformCBV = getCurrentFrameInterpUniformCBV();
 	ConstantBufferView* inpaintingPyramidUniformCBV = getCurrentInpaintingPyramidUniformCBV();
 
+	const bool bReset = (interpolationDispatchCount == 0) || passInput.bReset;
+
+	const bool bFrameID_decreased = passInput.frameID < prevFrameID;
+	const bool bFrameID_skipped = (passInput.frameID - prevFrameID) > 1;
+	const bool bDisjointFrameID = bFrameID_decreased || bFrameID_skipped;
+	prevFrameID = passInput.frameID;
+	interpolationDispatchCount++;
+
 	const uint32 displayDispatchSizeX = (passInput.displaySizeX + 7) / 8;
 	const uint32 displayDispatchSizeY = (passInput.displaySizeY + 7) / 8;
 
@@ -381,9 +389,37 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	const uint32 opticalFlowDispatchSizeY = (uint32)(passInput.displaySizeY / (float)kOpticalFlowBlockSize + 7) / 8;
 
 	// #wip: Dispatch setupPipeline (renderDispatchSizeX/Y)
+#if 0
+	{
+		SCOPED_DRAW_EVENT(commandList, Setup);
+
+		// #wip: barrier
+		
+		// #wip: SPT
+		ShaderParameterTable SPT{};
+		// FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_SCENE_CHANGE_DETECTION
+		// FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
+		// FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
+		// FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
+		// FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
+		// FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
+		// FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
+		// FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+		
+		frameInterpDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+		auto descriptorHeap = frameInterpDescriptor.getDescriptorHeap(swapchainIndex);
+		auto pipeline = setupPipeline.get();
+
+		commandList->setComputePipelineState(pipeline);
+		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+		
+		commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
+	}
+#endif
+
 	// #wip: Dispatch gameVectorFieldInpaintingPyramidPipeline
 
-	if (passInput.bReset)
+	if (bReset)
 	{
 		// #wip: Clear estimated depth resources
 		// ...
