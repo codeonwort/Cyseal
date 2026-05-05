@@ -181,6 +181,8 @@ uint2 LoadOpticalFlowFieldMv(int2 iPxSample)
 	// Also I can't find how these resources are actually bound. I searched for the macros in the entire SDK folder but nothing pops up?
 	//
 #if 0
+    // #wip: ffx_frameinterpolation generates its own OPTICAL_FLOW_MOTION_VECTOR_FIELD_X/Y.
+    // Then do I not need the optical flow vector texture from the optical flow module???
 	uint packedX = r_optical_flow_motion_vector_field_x[iPxSample];
 	uint packedY = r_optical_flow_motion_vector_field_y[iPxSample];
 	return uint2(packedX, packedY);

@@ -262,6 +262,36 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			));
 		}
 	}
+
+	for (uint32 i = 0; i < 2; ++i)
+	{
+		if (gameMotionVectorFieldTextures[i] == nullptr
+			|| gameMotionVectorFieldTextures[i]->getCreateParams().width != passInput.displaySizeX
+			|| gameMotionVectorFieldTextures[i]->getCreateParams().height != passInput.displaySizeY)
+		{
+			commandList->enqueueDeferredDealloc(gameMotionVectorFieldTextures[i].release(), true);
+			commandList->enqueueDeferredDealloc(gameMotionVectorFieldUAVs[i].release(), true);
+
+			TextureCreateParams texDesc = TextureCreateParams::texture2D(
+				EPixelFormat::R32_UINT,
+				ETextureAccessFlags::UAV,
+				passInput.displaySizeX, passInput.displaySizeY);
+			gameMotionVectorFieldTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
+
+			wchar_t debugName[128];
+			std::swprintf(debugName, _countof(debugName), L"RT_GameMotionVectorField_%s", i == 0 ? L"X" : L"Y");
+			gameMotionVectorFieldTextures[i]->setDebugName(debugName);
+
+			gameMotionVectorFieldUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
+				gameMotionVectorFieldTextures[i].get(),
+				UnorderedAccessViewDesc{
+					.format         = gameMotionVectorFieldTextures[i]->getCreateParams().format,
+					.viewDimension  = EUAVDimension::Texture2D,
+					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+				}
+			));
+		}
+	}
 }
 
 void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput)
@@ -403,8 +433,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
 		SPT.texture("r_optical_flow_scd", passInput.opticalFlowPassOutput->sceneChangeDetectionSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_SCENE_CHANGE_DETECTION
-		// "rw_game_motion_vector_field_x" FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
-		// "rw_game_motion_vector_field_y" FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
+		SPT.rwTexture("rw_game_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
+		SPT.rwTexture("rw_game_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
 		// "rw_optical_flow_motion_vector_field_x" FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
 		// "rw_optical_flow_motion_vector_field_y" FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
 		// "rw_disocclusion_mask" FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
