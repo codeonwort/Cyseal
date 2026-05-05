@@ -530,26 +530,6 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 	};
 }
 
-Texture* OpticalFlowPass::getOpticalFlowVectorTexture() const
-{
-	return opticalFlowVectorTexture.get();
-}
-
-ShaderResourceView* OpticalFlowPass::getOpticalFlowVectorSRV() const
-{
-	return opticalFlowVectorSRV.get();
-}
-
-uint32 OpticalFlowPass::getOpticalFlowVectorSizeX() const
-{
-	return opticalFlowVectorSizeX;
-}
-
-uint32 OpticalFlowPass::getOpticalFlowVectorSizeY() const
-{
-	return opticalFlowVectorSizeY;
-}
-
 void OpticalFlowPass::initializePipelines()
 {
 	const uint32 swapchainCount = 2; // Always need two frames.

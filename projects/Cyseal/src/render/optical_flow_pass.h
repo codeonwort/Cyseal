@@ -26,11 +26,6 @@ public:
 
 	OpticalFlowPassOutput runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput);
 
-	Texture* getOpticalFlowVectorTexture() const;
-	ShaderResourceView* getOpticalFlowVectorSRV() const;
-	uint32 getOpticalFlowVectorSizeX() const;
-	uint32 getOpticalFlowVectorSizeY() const;
-
 private:
 	void initializePipelines();
 	void recreateResources(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput);

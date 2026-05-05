@@ -795,11 +795,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		combineLightingPass->combineLighting(commandList, swapchainIndex, passInput);
 	}
 
+	OpticalFlowPassOutput opticalFlowPassOutput{};
 	if (!bRenderPathTracing)
 	{
 		const auto backbufferTransferFunction = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance;
 		const bool bResetOpticalFlowAccumulation = false;
-		OpticalFlowPassOutput opticalFlowPassOutput{};
 
 		{
 			SCOPED_DRAW_EVENT(commandList, OpticalFlow);
@@ -933,10 +933,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
 				RT_visGbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
 			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				opticalFlowPass->getOpticalFlowVectorTexture(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
+			// #wip: Null if the pass does not run. (enable buffer vis + enable path tracing -> crashes)
+			TextureBarrierAuto::toShaderResource(opticalFlowPassOutput.opticalFlowVectorTexture, EBarrierSync::PIXEL_SHADING),
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
@@ -957,9 +955,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.barycentricCoordSRV    = barycentricCoordSRV.get(),
 			.visGbuffer0SRV         = visGbufferSRVs[0].get(),
 			.visGbuffer1SRV         = visGbufferSRVs[1].get(),
-			.opticalFlowVectorSRV   = opticalFlowPass->getOpticalFlowVectorSRV(),
-			.opticalFlowVectorSizeX = opticalFlowPass->getOpticalFlowVectorSizeX(),
-			.opticalFlowVectorSizeY = opticalFlowPass->getOpticalFlowVectorSizeY(),
+			.opticalFlowVectorSRV   = opticalFlowPassOutput.opticalFlowVectorSRV,
+			.opticalFlowVectorSizeX = opticalFlowPassOutput.opticalFlowVectorSizeX,
+			.opticalFlowVectorSizeY = opticalFlowPassOutput.opticalFlowVectorSizeY,
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
