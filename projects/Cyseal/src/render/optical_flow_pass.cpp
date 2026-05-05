@@ -59,7 +59,7 @@ void OpticalFlowPass::initialize(RenderDevice* inRenderDevice)
 }
 
 // See dispatch() in sdk/src/components/opticalflow/ffx_opticalflow.cpp for dispatch order.
-void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput)
+OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput)
 {
 	recreateResources(commandList, swapchainIndex, passInput);
 
@@ -519,6 +519,15 @@ void OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swap
 	}
 
 	resourceFrameIndex = (resourceFrameIndex + 1) % FFX_OPTICALFLOW_MAX_QUEUED_FRAMES;
+
+	return OpticalFlowPassOutput{
+		.opticalFlowVectorSizeX      = opticalFlowVectorSizeX,
+		.opticalFlowVectorSizeY      = opticalFlowVectorSizeY,
+		.opticalFlowVectorTexture    = opticalFlowVectorTexture.get(),
+		.opticalFlowVectorSRV        = opticalFlowVectorSRV.get(),
+		.sceneChangeDetectionTexture = scdOutputTexture.get(),
+		.sceneChangeDetectionSRV     = scdOutputSRV.get(),
+	};
 }
 
 Texture* OpticalFlowPass::getOpticalFlowVectorTexture() const
@@ -750,6 +759,18 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 				.format         = scdOutputTexture->getCreateParams().format,
 				.viewDimension  = EUAVDimension::Texture2D,
 				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+			}
+		));
+		scdOutputSRV = UniquePtr<ShaderResourceView>(device->createSRV(scdOutputTexture.get(),
+			ShaderResourceViewDesc{
+				.format              = scdOutputTexture->getCreateParams().format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = 1,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				},
 			}
 		));
 	}

@@ -388,23 +388,27 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	const uint32 opticalFlowDispatchSizeX = (uint32)(passInput.displaySizeX / (float)kOpticalFlowBlockSize + 7) / 8;
 	const uint32 opticalFlowDispatchSizeY = (uint32)(passInput.displaySizeY / (float)kOpticalFlowBlockSize + 7) / 8;
 
-	// #wip: Dispatch setupPipeline (renderDispatchSizeX/Y)
+	// #wip: Dispatch setupPipeline
 #if 0
 	{
 		SCOPED_DRAW_EVENT(commandList, Setup);
 
 		// #wip: barrier
+		TextureBarrierAuto textureBarriers[] = {
+			TextureBarrierAuto::toShaderResource(passInput.opticalFlowPassOutput->sceneChangeDetectionTexture, EBarrierSync::COMPUTE_SHADING),
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 		
 		// #wip: SPT
 		ShaderParameterTable SPT{};
-		// FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_SCENE_CHANGE_DETECTION
-		// FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
-		// FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
-		// FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
-		// FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
-		// FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
-		// FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
-		// FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+		SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+		SPT.texture("r_optical_flow_scd", passInput.opticalFlowPassOutput->sceneChangeDetectionSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_SCENE_CHANGE_DETECTION
+		// "rw_game_motion_vector_field_x" FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
+		// "rw_game_motion_vector_field_y" FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
+		// "rw_optical_flow_motion_vector_field_x" FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
+		// "rw_optical_flow_motion_vector_field_y" FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
+		// "rw_disocclusion_mask" FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
+		// "rw_counters" FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
 		
 		frameInterpDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
 		auto descriptorHeap = frameInterpDescriptor.getDescriptorHeap(swapchainIndex);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/int_types.h"
+#include "rhi/rhi_forward.h"
 
 const uint32 kOpticalFlowBlockSize = 8;
 
@@ -12,6 +13,16 @@ enum class OpticalFlowBackbufferTransferFunction : uint32
 	SCRGBCorrectedHdrToPerceivedLuminance = 2,
 
 	Count,
+};
+
+struct OpticalFlowPassOutput
+{
+	uint32              opticalFlowVectorSizeX          = 0;
+	uint32              opticalFlowVectorSizeY          = 0;
+	Texture*            opticalFlowVectorTexture        = nullptr;
+	ShaderResourceView* opticalFlowVectorSRV            = nullptr;
+	Texture*            sceneChangeDetectionTexture     = nullptr;
+	ShaderResourceView* sceneChangeDetectionSRV         = nullptr;
 };
 
 // Ported from <FidelityFX_SDK>/sdk/include/FidelityFX/gpu/spd/ffx_spd.h

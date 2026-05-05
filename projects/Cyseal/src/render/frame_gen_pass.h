@@ -12,6 +12,7 @@ class Camera;
 struct FrameGenPassInput
 {
 	class ClearResourcePass*              clearResourcePass;
+	const OpticalFlowPassOutput*          opticalFlowPassOutput;
 	const Camera*                         camera;
 	int32                                 renderSizeX;
 	int32                                 renderSizeY;

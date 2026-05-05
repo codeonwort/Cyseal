@@ -24,7 +24,7 @@ class OpticalFlowPass final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inRenderDevice);
 
-	void runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput);
+	OpticalFlowPassOutput runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput);
 
 	Texture* getOpticalFlowVectorTexture() const;
 	ShaderResourceView* getOpticalFlowVectorSRV() const;
@@ -77,6 +77,7 @@ private:
 	UniquePtr<UnorderedAccessView>         scdTempUAV;
 	UniquePtr<Texture>                     scdOutputTexture;
 	UniquePtr<UnorderedAccessView>         scdOutputUAV;
+	UniquePtr<ShaderResourceView>          scdOutputSRV;
 
 	uint32                                 opticalFlowVectorSizeX = 0;
 	uint32                                 opticalFlowVectorSizeY = 0;
