@@ -889,50 +889,17 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		SCOPED_DRAW_EVENT(commandList, BufferVisualization);
 
 		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_gbuffers[0].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_gbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_sceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_shadowMask.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_indirectDiffuse.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_indirectSpecular.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_velocityMap.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_visibilityBuffer.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_barycentricCoord.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_visGbuffers[0].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_visGbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
+			TextureBarrierAuto::toShaderResource(RT_gbuffers[0].get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_gbuffers[1].get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_sceneColor.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_shadowMask.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_indirectDiffuse.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_indirectSpecular.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_velocityMap.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_visibilityBuffer.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_barycentricCoord.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_visGbuffers[0].get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_visGbuffers[1].get(), EBarrierSync::PIXEL_SHADING),
 			// #wip: Null if the pass does not run. (enable buffer vis + enable path tracing -> crashes)
 			TextureBarrierAuto::toShaderResource(opticalFlowPassOutput.opticalFlowVectorTexture, EBarrierSync::PIXEL_SHADING),
 		};
