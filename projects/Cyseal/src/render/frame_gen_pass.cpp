@@ -292,6 +292,36 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			));
 		}
 	}
+
+	for (uint32 i = 0; i < 2; ++i)
+	{
+		if (opticalFlowMotionVectorFieldTextures[i] == nullptr
+			|| opticalFlowMotionVectorFieldTextures[i]->getCreateParams().width != passInput.displaySizeX
+			|| opticalFlowMotionVectorFieldTextures[i]->getCreateParams().height != passInput.displaySizeY)
+		{
+			commandList->enqueueDeferredDealloc(opticalFlowMotionVectorFieldTextures[i].release(), true);
+			commandList->enqueueDeferredDealloc(opticalFlowMotionVectorFieldUAVs[i].release(), true);
+
+			TextureCreateParams texDesc = TextureCreateParams::texture2D(
+				EPixelFormat::R32_UINT,
+				ETextureAccessFlags::UAV,
+				passInput.displaySizeX, passInput.displaySizeY);
+			opticalFlowMotionVectorFieldTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
+
+			wchar_t debugName[128];
+			std::swprintf(debugName, _countof(debugName), L"RT_OpticalFlowMotionVectorField_%s", i == 0 ? L"X" : L"Y");
+			opticalFlowMotionVectorFieldTextures[i]->setDebugName(debugName);
+
+			opticalFlowMotionVectorFieldUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
+				opticalFlowMotionVectorFieldTextures[i].get(),
+				UnorderedAccessViewDesc{
+					.format         = opticalFlowMotionVectorFieldTextures[i]->getCreateParams().format,
+					.viewDimension  = EUAVDimension::Texture2D,
+					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+				}
+			));
+		}
+	}
 }
 
 void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput)
@@ -426,6 +456,10 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		// #wip: barrier
 		TextureBarrierAuto textureBarriers[] = {
 			TextureBarrierAuto::toShaderResource(passInput.opticalFlowPassOutput->sceneChangeDetectionTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(gameMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(gameMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(opticalFlowMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(opticalFlowMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 		
@@ -435,8 +469,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		SPT.texture("r_optical_flow_scd", passInput.opticalFlowPassOutput->sceneChangeDetectionSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_SCENE_CHANGE_DETECTION
 		SPT.rwTexture("rw_game_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
 		SPT.rwTexture("rw_game_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
-		// "rw_optical_flow_motion_vector_field_x" FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
-		// "rw_optical_flow_motion_vector_field_y" FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
+		SPT.rwTexture("rw_optical_flow_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
+		SPT.rwTexture("rw_optical_flow_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
 		// "rw_disocclusion_mask" FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
 		// "rw_counters" FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
 		
