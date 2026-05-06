@@ -340,6 +340,33 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			}
 		));
 	}
+
+	// 2 uints. See COUNTER_SPD and COUNTER_FRAME_INDEX_SINCE_LAST_RESET.
+	if (counterBuffer == nullptr)
+	{
+		counterBuffer = UniquePtr<Buffer>(device->createBuffer(
+			BufferCreateParams{
+				.sizeInBytes = 2 * sizeof(uint32),
+				.alignment   = 0,
+				.accessFlags = EBufferAccessFlags::UAV,
+			}
+		));
+		counterBuffer->setDebugName(L"Buffer_FSR3_Counter");
+
+		counterUAV = UniquePtr<UnorderedAccessView>(device->createUAV(counterBuffer.get(),
+			UnorderedAccessViewDesc{
+				.format        = EPixelFormat::UNKNOWN,
+				.viewDimension = EUAVDimension::Buffer,
+				.buffer        = BufferUAVDesc{
+					.firstElement         = 0,
+					.numElements          = 2,
+					.structureByteStride  = sizeof(uint32),
+					.counterOffsetInBytes = 0,
+					.flags                = EBufferUAVFlags::None,
+				}
+			}
+		));
+	}
 }
 
 void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput)
@@ -466,12 +493,12 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	const uint32 opticalFlowDispatchSizeX = (uint32)(passInput.displaySizeX / (float)kOpticalFlowBlockSize + 7) / 8;
 	const uint32 opticalFlowDispatchSizeY = (uint32)(passInput.displaySizeY / (float)kOpticalFlowBlockSize + 7) / 8;
 
-	// #wip: Dispatch setupPipeline
-#if 0
 	{
 		SCOPED_DRAW_EVENT(commandList, Setup);
 
-		// #wip: barrier
+		BufferBarrierAuto bufferBarriers[] = {
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, counterBuffer.get() },
+		};
 		TextureBarrierAuto textureBarriers[] = {
 			TextureBarrierAuto::toShaderResource(passInput.opticalFlowPassOutput->sceneChangeDetectionTexture, EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toUnorderedAccess(gameMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
@@ -480,18 +507,17 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			TextureBarrierAuto::toUnorderedAccess(opticalFlowMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toUnorderedAccess(disocclusionMaskTexture.get(), EBarrierSync::COMPUTE_SHADING),
 		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+		commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
 		
-		// #wip: SPT
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
 		SPT.texture("r_optical_flow_scd", passInput.opticalFlowPassOutput->sceneChangeDetectionSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_SCENE_CHANGE_DETECTION
+		SPT.rwBuffer("rw_counters", counterUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
 		SPT.rwTexture("rw_game_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
 		SPT.rwTexture("rw_game_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
 		SPT.rwTexture("rw_optical_flow_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
 		SPT.rwTexture("rw_optical_flow_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
 		SPT.rwTexture("rw_disocclusion_mask", disocclusionMaskUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
-		// "rw_counters" FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
 		
 		frameInterpDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
 		auto descriptorHeap = frameInterpDescriptor.getDescriptorHeap(swapchainIndex);
@@ -502,7 +528,6 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		
 		commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
 	}
-#endif
 
 	// #wip: Dispatch gameVectorFieldInpaintingPyramidPipeline
 

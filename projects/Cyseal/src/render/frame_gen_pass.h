@@ -88,4 +88,6 @@ private:
 	UniquePtr<UnorderedAccessView>         opticalFlowMotionVectorFieldUAVs[2]; // x, y
 	UniquePtr<Texture>                     disocclusionMaskTexture;
 	UniquePtr<UnorderedAccessView>         disocclusionMaskUAV;
+	UniquePtr<Buffer>                      counterBuffer;
+	UniquePtr<UnorderedAccessView>         counterUAV;
 };
