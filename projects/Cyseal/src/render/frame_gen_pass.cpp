@@ -103,6 +103,7 @@ void FrameGenPass::initializePipelines()
 
 	reconstructPrevDepthDescriptor.initialize(device, L"FSR3_ReconstructPrevDepth", swapchainCount, 0);
 	gameMotionVectorFieldDescriptor.initialize(device, L"FSR3_GameMotionVectorField", swapchainCount, 0);
+	gameMotionVectorFieldInpaintingPyramidDescriptor.initialize(device, L"FSR3_GameMotionVectorFieldInpaintingPyramid", swapchainCount, 0);
 
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)
@@ -487,6 +488,36 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			}
 		));
 	}
+
+	if (nullOrWrongSize(inpaintingPyramidTexture, passInput.displaySizeX, passInput.displaySizeY))
+	{
+		commandList->enqueueDeferredDealloc(inpaintingPyramidTexture.release(), true);
+		for (size_t i = 0; i < _countof(inpaintingPyramidUAVs); ++i)
+		{
+			commandList->enqueueDeferredDealloc(inpaintingPyramidUAVs[i].release(), true);
+		}
+
+		TextureCreateParams texDesc = TextureCreateParams::texture2D(
+			EPixelFormat::R16G16B16A16_FLOAT,
+			ETextureAccessFlags::UAV,
+			// #wip: What if inpaintingPyramid is not large enough to contain 13 mips?
+			passInput.displaySizeX, passInput.displaySizeY, _countof(inpaintingPyramidUAVs));
+
+		inpaintingPyramidTexture = UniquePtr<Texture>(device->createTexture(texDesc));
+		inpaintingPyramidTexture->setDebugName(L"RT_FSR3_InpaintingPyramidTexture");
+		
+		for (size_t i = 0; i < _countof(inpaintingPyramidUAVs); ++i)
+		{
+			inpaintingPyramidUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
+				inpaintingPyramidTexture.get(),
+				UnorderedAccessViewDesc{
+					.format         = inpaintingPyramidTexture->getCreateParams().format,
+					.viewDimension  = EUAVDimension::Texture2D,
+					.texture2D      = Texture2DUAVDesc{ .mipSlice = (uint32)i, .planeSlice = 0 },
+				}
+			));
+		}
+	}
 }
 
 void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput)
@@ -659,12 +690,23 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	{
 		SCOPED_DRAW_EVENT(commandList, GameVectorFieldInpaintingPyramid);
 
+		auto pipeline = gameVectorFieldInpaintingPyramidPipeline.get();
+		auto& passDescriptor = gameMotionVectorFieldInpaintingPyramidDescriptor;
+
+		// Auto exposure
+		uint32 dispatchThreadGroupCountXY[2];
+		uint32 workGroupOffset[2];
+		uint32 numWorkGroupsAndMips[2];
+		uint32 rectInfo[4] = { 0, 0, (uint32)passInput.renderSizeX, (uint32)passInput.renderSizeY };
+		ffxSpdSetup(dispatchThreadGroupCountXY, workGroupOffset, numWorkGroupsAndMips, rectInfo, -1);
+
 		BufferBarrierAuto bufferBarriers[] = {
 			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, counterBuffer.get() },
 		};
 		TextureBarrierAuto textureBarriers[] = {
 			TextureBarrierAuto::toShaderResource(gameMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(gameMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
 		};
 		commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
@@ -674,23 +716,20 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		SPT.texture("r_game_motion_vector_field_x", gameMotionVectorFieldSRVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_GAME_MOTION_VECTOR_FIELD_X
 		SPT.texture("r_game_motion_vector_field_y", gameMotionVectorFieldSRVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_GAME_MOTION_VECTOR_FIELD_Y
 		SPT.rwBuffer("rw_counters", counterUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_0             1
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_1             2
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_2             3
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_3             4
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_4             5
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_5             6
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_6             7
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_7             8
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_8             9
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_9             10
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_10            11
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_11            12
-//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_12            13
+		for (size_t i = 0; i < _countof(inpaintingPyramidUAVs); ++i)
+		{
+			// rw_inpainting_pyramid0 ~ rw_inpainting_pyramidN (FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_0 ~ N)
+			char msg[64];
+			std::snprintf(msg, _countof(msg), "rw_inpainting_pyramid%u", (uint32)i);
+			SPT.rwTexture(msg, inpaintingPyramidUAVs[i].get());
+		}
 
-		// pipeline and parameters
+		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
 
-		// dispatch
+		commandList->setComputePipelineState(pipeline);
+		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+
+		commandList->dispatchCompute(dispatchThreadGroupCountXY[0], dispatchThreadGroupCountXY[1], 1);
 	};
 
 	if (bExecutePreparationPasses)
@@ -779,7 +818,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
 		}
 		
-		//scheduleDispatchGameVectorFieldInpaintingPyramid();
+		scheduleDispatchGameVectorFieldInpaintingPyramid();
 
 		// #wip: Dispatch opticalFlowVectorFieldPipeline
 		// #wip: Dispatch disocclusionMaskPipeline
