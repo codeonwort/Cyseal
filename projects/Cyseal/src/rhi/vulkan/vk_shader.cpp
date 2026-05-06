@@ -62,7 +62,7 @@ VulkanShaderStage::~VulkanShaderStage()
 	}
 }
 
-void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
+void VulkanShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, const std::vector<std::wstring>& defines)
 {
 #if USE_DXC
 	loadFromFileByDxc(inFilename, inEntryPoint, defines);
@@ -79,7 +79,7 @@ void VulkanShaderStage::moveVkDescriptorSetLayouts(std::vector<VkDescriptorSetLa
 	vkDescriptorSetLayouts.clear();
 }
 
-void VulkanShaderStage::loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
+void VulkanShaderStage::loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, const std::vector<std::wstring>& defines)
 {
 	aEntryPoint = inEntryPoint;
 	str_to_wstr(inEntryPoint, wEntryPoint);
@@ -143,7 +143,7 @@ void VulkanShaderStage::loadFromFileByGlslangValidator(const wchar_t* inFilename
 	CHECK(ret == VK_SUCCESS);
 }
 
-void VulkanShaderStage::loadFromFileByDxc(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
+void VulkanShaderStage::loadFromFileByDxc(const wchar_t* inFilename, const char* inEntryPoint, const std::vector<std::wstring>& defines)
 {
 	aEntryPoint = inEntryPoint;
 	str_to_wstr(inEntryPoint, wEntryPoint);

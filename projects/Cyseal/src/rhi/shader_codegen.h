@@ -29,7 +29,7 @@ public:
 		const char* inFilename,
 		const char* inEntryPoint,
 		EShaderStage stageFlag,
-		std::initializer_list<std::wstring> defines);
+		const std::vector<std::wstring>& defines);
 
 private:
 	ShaderCodegen();
