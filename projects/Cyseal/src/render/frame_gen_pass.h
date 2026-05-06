@@ -23,6 +23,8 @@ struct FrameGenPassInput
 	uint32                                dispatchFlags;
 	OpticalFlowBackbufferTransferFunction backBufferTransferFunction;
 	bool                                  bReset;
+	Texture*                              sceneColorTexture;
+	ShaderResourceView*                   sceneColorSRV;
 	Texture*                              sceneDepthTexture;
 	ShaderResourceView*                   sceneDepthSRV;
 	Texture*                              motionVectorTexture;
@@ -72,6 +74,8 @@ private:
 	VolatileDescriptorHelper               frameInterpDescriptor;
 	VolatileDescriptorHelper               inpaintingPyramidDescriptor;
 
+	VolatileDescriptorHelper               reconstructPrevDepthDescriptor;
+
 	// #wip: Remove unnecessary buffering.
 	BufferedUniquePtr<Texture>             reconstructedPrevDepthTextures;
 	BufferedUniquePtr<ShaderResourceView>  reconstructedPrevDepthSRVs;
@@ -94,4 +98,6 @@ private:
 	UniquePtr<UnorderedAccessView>         disocclusionMaskUAV;
 	UniquePtr<Buffer>                      counterBuffer;
 	UniquePtr<UnorderedAccessView>         counterUAV;
+	UniquePtr<Texture>                     defaultDistortionFieldTexture;
+	UniquePtr<ShaderResourceView>          defaultDistortionFieldSRV;
 };

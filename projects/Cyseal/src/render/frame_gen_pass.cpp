@@ -100,12 +100,21 @@ void FrameGenPass::initializePipelines()
 	frameInterpDescriptor.initialize(device, L"FSR3_FrameInterpUniform", swapchainCount, sizeof(FrameInterpUniform));
 	inpaintingPyramidDescriptor.initialize(device, L"FSR3_InpaintingPyramidUniform", swapchainCount, sizeof(InpaintingPyramidUniform));
 
+	reconstructPrevDepthDescriptor.initialize(device, L"FSR3_ReconstructPrevDepth", swapchainCount, 0);
+
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)
 	{
+		std::vector<std::wstring> defines = { L"FFX_GPU", L"FFX_HLSL", L"FFX_HALF" };
+		if (getReverseZPolicy() == EReverseZPolicy::Reverse)
+		{
+			// Not all FSR3 shaders require it, but no harm also.
+			defines.push_back(L"FFX_FRAMEINTERPOLATION_OPTION_INVERTED_DEPTH");
+		}
+
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, debugName);
 		shader->declarePushConstants();
-		shader->loadFromFile(filepath, "CS", { L"FFX_GPU", L"FFX_HLSL", L"FFX_HALF" });
+		shader->loadFromFile(filepath, "CS", defines);
 
 		pipeline = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 			ComputePipelineDesc{ .cs = shader, .nodeMask = 0 }
@@ -184,7 +193,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		commandList->enqueueDeferredDealloc(reconstructedDepthInterpolatedFrameUAV.release(), true);
 
 		TextureCreateParams texDesc = TextureCreateParams::texture2D(
-			EPixelFormat::R32_FLOAT,
+			EPixelFormat::R32_UINT,
 			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			passInput.displaySizeX, passInput.displaySizeY);
 		reconstructedDepthInterpolatedFrameTexture = UniquePtr<Texture>(device->createTexture(texDesc));
@@ -417,6 +426,29 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			}
 		));
 	}
+
+	if (defaultDistortionFieldTexture == nullptr)
+	{
+		TextureCreateParams texDesc = TextureCreateParams::texture2D(
+			EPixelFormat::R8G8_UNORM, ETextureAccessFlags::SRV, 1, 1);
+		texDesc.setOptimalClearColor(0, 0, 0, 0);
+		defaultDistortionFieldTexture = UniquePtr<Texture>(device->createTexture(texDesc));
+		defaultDistortionFieldTexture->setDebugName(L"RT_FSR3_DefaultDistortionField");
+		
+		defaultDistortionFieldSRV = UniquePtr<ShaderResourceView>(device->createSRV(
+			defaultDistortionFieldTexture.get(),
+			ShaderResourceViewDesc{
+				.format              = defaultDistortionFieldTexture->getCreateParams().format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = 1,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				},
+			}
+		));
+	}
 }
 
 void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput)
@@ -526,6 +558,9 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	ConstantBufferView* frameInterpUniformCBV = getCurrentFrameInterpUniformCBV();
 	ConstantBufferView* inpaintingPyramidUniformCBV = getCurrentInpaintingPyramidUniformCBV();
 
+	const uint32 currResourceIndex = (cpuFrameIndex & 1);
+	const uint32 prevResourceIndex = ((cpuFrameIndex + 1) & 1);
+
 	const bool bReset = (interpolationDispatchCount == 0) || passInput.bReset;
 
 	const bool bFrameID_decreased = passInput.frameID < prevFrameID;
@@ -629,7 +664,38 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			ClearResourcePass::floatClearValue(zFar, zFar, zFar, zFar));
 		passInput.clearResourcePass->executeClears(commandList, swapchainIndex);
 
-		// #wip: Dispatch reconstructPrevDepthPipeline
+		{
+			SCOPED_DRAW_EVENT(commandList, ReconstructDepthPrevFrame);
+
+			auto pipeline = reconstructPrevDepthPipeline.get();
+			auto& passDescriptor = reconstructPrevDepthDescriptor;
+
+			TextureBarrierAuto textureBarriers[] = {
+				TextureBarrierAuto::toShaderResource(dilatedMotionVectorTextures[currResourceIndex].get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedDepthTextures[currResourceIndex].get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(passInput.sceneColorTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(defaultDistortionFieldTexture.get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toUnorderedAccess(reconstructedDepthInterpolatedFrameTexture.get(), EBarrierSync::COMPUTE_SHADING),
+			};
+			commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+			ShaderParameterTable SPT{};
+			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRVs[currResourceIndex].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
+			SPT.texture("r_dilated_depth", dilatedDepthSRVs[currResourceIndex].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
+			// #wip: not used but declared in ffx_frameinterpolation_reconstruct_previous_depth_pass.hlsl
+			SPT.texture("r_current_interpolation_source", passInput.sceneColorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
+			SPT.texture("r_input_distortion_field", defaultDistortionFieldSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
+			SPT.rwTexture("rw_reconstructed_depth_interpolated_frame", reconstructedDepthInterpolatedFrameUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_INTERPOLATED_FRAME
+
+			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+
+			commandList->setComputePipelineState(pipeline);
+			commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+
+			commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
+		}
+
 		// #wip: Dispatch gameMotionVectorFieldPipeline
 		
 		//scheduleDispatchGameVectorFieldInpaintingPyramid();
