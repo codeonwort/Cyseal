@@ -104,6 +104,7 @@ void FrameGenPass::initializePipelines()
 	reconstructPrevDepthDescriptor.initialize(device, L"FSR3_ReconstructPrevDepth", swapchainCount, 0);
 	gameMotionVectorFieldDescriptor.initialize(device, L"FSR3_GameMotionVectorField", swapchainCount, 0);
 	gameMotionVectorFieldInpaintingPyramidDescriptor.initialize(device, L"FSR3_GameMotionVectorFieldInpaintingPyramid", swapchainCount, 0);
+	opticalFlowVectorFieldDescriptor.initialize(device, L"FSR3_OpticalFlowVectorField", swapchainCount, 0);
 
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)
@@ -751,6 +752,9 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		Texture* dilatedDepthTexture = dilatedDepthTextures[currResourceIndex].get();
 		ShaderResourceView* dilatedDepthSRV = dilatedDepthSRVs[currResourceIndex].get();
 
+		Texture* currInterpolationSourceTexture = passInput.sceneColorTexture;
+		ShaderResourceView* currInterpolationSourceSRV = passInput.sceneColorSRV;
+
 		{
 			SCOPED_DRAW_EVENT(commandList, ReconstructDepthPrevFrame);
 
@@ -760,7 +764,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			TextureBarrierAuto textureBarriers[] = {
 				TextureBarrierAuto::toShaderResource(dilatedMotionVectorTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toShaderResource(passInput.sceneColorTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(distortionFieldTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toUnorderedAccess(reconstructedDepthInterpolatedFrameTexture.get(), EBarrierSync::COMPUTE_SHADING),
 			};
@@ -771,7 +775,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
 			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
 			// #wip: not used but declared in ffx_frameinterpolation_reconstruct_previous_depth_pass.hlsl
-			SPT.texture("r_current_interpolation_source", passInput.sceneColorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
+			SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
 			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
 			SPT.rwTexture("rw_reconstructed_depth_interpolated_frame", reconstructedDepthInterpolatedFrameUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_INTERPOLATED_FRAME
 
@@ -793,7 +797,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 				TextureBarrierAuto::toShaderResource(dilatedMotionVectorTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(prevInterpolationSourceTexture.get(), EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toShaderResource(passInput.sceneColorTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(distortionFieldTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toUnorderedAccess(gameMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toUnorderedAccess(gameMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
@@ -805,7 +809,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
 			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
 			SPT.texture("r_previous_interpolation_source", prevInterpolationSourceSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_PREVIOUS_INTERPOLATION_SOURCE
-			SPT.texture("r_current_interpolation_source", passInput.sceneColorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
+			SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
 			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
 			SPT.rwTexture("rw_game_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
 			SPT.rwTexture("rw_game_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
@@ -821,7 +825,47 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		scheduleDispatchGameVectorFieldInpaintingPyramid();
 
 		// #wip: Dispatch opticalFlowVectorFieldPipeline
+#if 0
+		{
+			SCOPED_DRAW_EVENT(commandList, OpticalFlowVectorField);
+
+			auto pipeline = opticalFlowVectorFieldPipeline.get();
+			auto& passDescriptor = opticalFlowVectorFieldDescriptor;
+
+			TextureBarrierAuto textureBarriers[] = {
+				TextureBarrierAuto::toShaderResource(passInput.opticalFlowPassOutput->opticalFlowVectorTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(opticalFlowConfidenceTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(prevInterpolationSourceTexture.get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toUnorderedAccess(opticalFlowMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toUnorderedAccess(opticalFlowMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
+			};
+			commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+			ShaderParameterTable SPT{};
+			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+			SPT.texture("r_optical_flow", passInput.opticalFlowPassOutput->opticalFlowVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW
+			SPT.texture("r_optical_flow_confidence", opticalFlowConfidenceSRV/*uint2*/); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_CONFIDENCE
+			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
+			SPT.texture("r_previous_interpolation_source", prevInterpolationSourceSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_PREVIOUS_INTERPOLATION_SOURCE
+			SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
+			SPT.rwTexture("rw_optical_flow_motion_vector_field_x", opticalFlowMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
+			SPT.rwTexture("rw_optical_flow_motion_vector_field_y", opticalFlowMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
+
+			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+
+			commandList->setComputePipelineState(pipeline);
+			commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+
+			commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
+		}
+#endif
+
 		// #wip: Dispatch disocclusionMaskPipeline
+		{
+			//
+		}
 	}
 
 	// #wip: Dispatch interpolationPipeline (pipelineFiScfi in ffx)

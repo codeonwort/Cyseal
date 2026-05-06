@@ -77,6 +77,7 @@ private:
 	VolatileDescriptorHelper               reconstructPrevDepthDescriptor;
 	VolatileDescriptorHelper               gameMotionVectorFieldDescriptor;
 	VolatileDescriptorHelper               gameMotionVectorFieldInpaintingPyramidDescriptor;
+	VolatileDescriptorHelper               opticalFlowVectorFieldDescriptor;
 
 	// #wip: Remove unnecessary buffering.
 	BufferedUniquePtr<Texture>             reconstructedPrevDepthTextures;
