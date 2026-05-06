@@ -76,6 +76,9 @@ private:
 	BufferedUniquePtr<Texture>             reconstructedPrevDepthTextures;
 	BufferedUniquePtr<ShaderResourceView>  reconstructedPrevDepthSRVs;
 	BufferedUniquePtr<UnorderedAccessView> reconstructedPrevDepthUAVs;
+	UniquePtr<Texture>                     reconstructedDepthInterpolatedFrameTexture;
+	UniquePtr<ShaderResourceView>          reconstructedDepthInterpolatedFrameSRV;
+	UniquePtr<UnorderedAccessView>         reconstructedDepthInterpolatedFrameUAV;
 	BufferedUniquePtr<Texture>             dilatedMotionVectorTextures;
 	BufferedUniquePtr<ShaderResourceView>  dilatedMotionVectorSRVs;
 	BufferedUniquePtr<UnorderedAccessView> dilatedMotionVectorUAVs;
@@ -83,6 +86,7 @@ private:
 	BufferedUniquePtr<ShaderResourceView>  dilatedDepthSRVs;
 	BufferedUniquePtr<UnorderedAccessView> dilatedDepthUAVs;
 	UniquePtr<Texture>                     gameMotionVectorFieldTextures[2]; // x, y
+	UniquePtr<ShaderResourceView>          gameMotionVectorFieldSRVs[2]; // x, y
 	UniquePtr<UnorderedAccessView>         gameMotionVectorFieldUAVs[2]; // x, y
 	UniquePtr<Texture>                     opticalFlowMotionVectorFieldTextures[2]; // x, y
 	UniquePtr<UnorderedAccessView>         opticalFlowMotionVectorFieldUAVs[2]; // x, y

@@ -177,6 +177,42 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		}
 	}
 
+	if (nullOrWrongSize(reconstructedDepthInterpolatedFrameTexture, passInput.displaySizeX, passInput.displaySizeY))
+	{
+		commandList->enqueueDeferredDealloc(reconstructedDepthInterpolatedFrameTexture.release(), true);
+		commandList->enqueueDeferredDealloc(reconstructedDepthInterpolatedFrameSRV.release(), true);
+		commandList->enqueueDeferredDealloc(reconstructedDepthInterpolatedFrameUAV.release(), true);
+
+		TextureCreateParams texDesc = TextureCreateParams::texture2D(
+			EPixelFormat::R32_FLOAT,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			passInput.displaySizeX, passInput.displaySizeY);
+		reconstructedDepthInterpolatedFrameTexture = UniquePtr<Texture>(device->createTexture(texDesc));
+		reconstructedDepthInterpolatedFrameTexture->setDebugName(L"RT_FSR3_ReconstructedDepthInterpolatedFrame");
+
+		reconstructedDepthInterpolatedFrameSRV = UniquePtr<ShaderResourceView>(device->createSRV(
+			reconstructedDepthInterpolatedFrameTexture.get(),
+			ShaderResourceViewDesc{
+				.format              = reconstructedDepthInterpolatedFrameTexture->getCreateParams().format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = 1,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				},
+			}
+		));
+		reconstructedDepthInterpolatedFrameUAV = UniquePtr<UnorderedAccessView>(device->createUAV(
+			reconstructedDepthInterpolatedFrameTexture.get(),
+			UnorderedAccessViewDesc{
+				.format         = reconstructedDepthInterpolatedFrameTexture->getCreateParams().format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+			}
+		));
+	}
+
 	for (size_t i = 0; i < dilatedMotionVectorTextures.size(); ++i)
 	{
 		if (nullOrWrongSize(dilatedMotionVectorTextures[i], passInput.displaySizeX, passInput.displaySizeY))
@@ -268,6 +304,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		if (nullOrWrongSize(gameMotionVectorFieldTextures[i], passInput.displaySizeX, passInput.displaySizeY))
 		{
 			commandList->enqueueDeferredDealloc(gameMotionVectorFieldTextures[i].release(), true);
+			commandList->enqueueDeferredDealloc(gameMotionVectorFieldSRVs[i].release(), true);
 			commandList->enqueueDeferredDealloc(gameMotionVectorFieldUAVs[i].release(), true);
 
 			TextureCreateParams texDesc = TextureCreateParams::texture2D(
@@ -280,6 +317,19 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_GameMotionVectorField_%s", i == 0 ? L"X" : L"Y");
 			gameMotionVectorFieldTextures[i]->setDebugName(debugName);
 
+			gameMotionVectorFieldSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
+				gameMotionVectorFieldTextures[i].get(),
+				ShaderResourceViewDesc{
+					.format              = gameMotionVectorFieldTextures[i]->getCreateParams().format,
+					.viewDimension       = ESRVDimension::Texture2D,
+					.texture2D           = Texture2DSRVDesc{
+						.mostDetailedMip = 0,
+						.mipLevels       = 1,
+						.planeSlice      = 0,
+						.minLODClamp     = 0.0f,
+					},
+				}
+			));
 			gameMotionVectorFieldUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
 				gameMotionVectorFieldTextures[i].get(),
 				UnorderedAccessViewDesc{
@@ -420,7 +470,7 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 }
 
 // See ffxFrameInterpolationPrepare().
-// Generate FSR3 upscaler resources.
+// Generate FSR3 upscaler resources. If upscaler was used, then this method is not needed.
 void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, FrameGenPrepare);
@@ -493,6 +543,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	const uint32 opticalFlowDispatchSizeX = (uint32)(passInput.displaySizeX / (float)kOpticalFlowBlockSize + 7) / 8;
 	const uint32 opticalFlowDispatchSizeY = (uint32)(passInput.displaySizeY / (float)kOpticalFlowBlockSize + 7) / 8;
 
+	const bool bExecutePreparationPasses = (false == bReset);
+
 	{
 		SCOPED_DRAW_EVENT(commandList, Setup);
 
@@ -530,16 +582,57 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	}
 
 	// #wip: Dispatch gameVectorFieldInpaintingPyramidPipeline
-
-	if (bReset)
+	auto scheduleDispatchGameVectorFieldInpaintingPyramid = [&]()
 	{
-		// #wip: Clear estimated depth resources
-		// ...
+		SCOPED_DRAW_EVENT(commandList, GameVectorFieldInpaintingPyramid);
+
+		BufferBarrierAuto bufferBarriers[] = {
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, counterBuffer.get() },
+		};
+		TextureBarrierAuto textureBarriers[] = {
+			TextureBarrierAuto::toShaderResource(gameMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toShaderResource(gameMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
+		};
+		commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+		SPT.constantBuffer("cbInpaintingPyramid", inpaintingPyramidUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_INPAINTING_PYRAMID
+		SPT.texture("r_game_motion_vector_field_x", gameMotionVectorFieldSRVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_GAME_MOTION_VECTOR_FIELD_X
+		SPT.texture("r_game_motion_vector_field_y", gameMotionVectorFieldSRVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_GAME_MOTION_VECTOR_FIELD_Y
+		SPT.rwBuffer("rw_counters", counterUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_0             1
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_1             2
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_2             3
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_3             4
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_4             5
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_5             6
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_6             7
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_7             8
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_8             9
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_9             10
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_10            11
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_11            12
+//#define FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_12            13
+
+		// pipeline and parameters
+
+		// dispatch
+	};
+
+	if (bExecutePreparationPasses)
+	{
+		constexpr float zFar = getDeviceFarDepth();
+		passInput.clearResourcePass->enqueueClear(
+			reconstructedDepthInterpolatedFrameTexture.get(),
+			reconstructedDepthInterpolatedFrameUAV.get(),
+			ClearResourcePass::floatClearValue(zFar, zFar, zFar, zFar));
+		passInput.clearResourcePass->executeClears(commandList, swapchainIndex);
 
 		// #wip: Dispatch reconstructPrevDepthPipeline
 		// #wip: Dispatch gameMotionVectorFieldPipeline
 		
-		// #wip: scheduleDispatchGameVectorFieldInpaintingPyramid()
+		//scheduleDispatchGameVectorFieldInpaintingPyramid();
 
 		// #wip: Dispatch opticalFlowVectorFieldPipeline
 		// #wip: Dispatch disocclusionMaskPipeline
