@@ -11,7 +11,6 @@
 
 // Input: 2 back buffers + several resources shared with FSR3Upscaler and FfxOpticalFlow
 // Output: An interpolated image between the 2 back buffers
-// 
 
 // FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION)
 struct FrameInterpUniform
@@ -27,7 +26,7 @@ struct FrameInterpUniform
 	int32           Mode;
 	int32           reset;
 
-	float           fDeviceToViewDepth[4]; // #wip: setupDeviceDepthToViewSpaceDepthParams
+	float           fDeviceToViewDepth[4]; // See setupDeviceDepthToViewSpaceDepthParams
 
 	float           deltaTime; // In milliseconds
 	int32           HUDLessAttachedFactor; // 1 or 0 (#wip: Is it for HUD upscaling?)
@@ -62,6 +61,60 @@ struct InpaintingPyramidUniform
 	uint32          numWorkGroups;
 	uint32          workGroupOffset[2];
 };
+
+// Ported from ffx_frameinterpolation.cpp
+static void setupDeviceDepthToViewSpaceDepthParams(const Camera* camera, float viewSpaceToMetersFactor, float outDeviceToViewDepth[4])
+{
+	const bool bInverted = getReverseZPolicy() == EReverseZPolicy::Reverse;
+	// #wip: reverse-z with non-infinite depth range?
+	const bool bInfinite = bInverted; //(context->contextDescription.flags & FFX_FRAMEINTERPOLATION_ENABLE_DEPTH_INFINITE) == FFX_FRAMEINTERPOLATION_ENABLE_DEPTH_INFINITE;
+
+	// make sure it has no impact if near and far plane values are swapped in dispatch params
+	// the flags "inverted" and "infinite" will decide what transform to use
+	float fMin = std::min(camera->getZNear(), camera->getZFar());
+	float fMax = std::max(camera->getZNear(), camera->getZFar());
+
+	if (bInverted)
+	{
+		float tmp = fMin;
+		fMin = fMax;
+		fMax = tmp;
+	}
+
+	// a 0 0 0   x
+	// 0 b 0 0   y
+	// 0 0 c d   z
+	// 0 0 e 0   1
+
+	const float fQ = fMax / (fMin - fMax);
+	const float d = -1.0f; // for clarity
+
+	const float matrix_elem_c[2][2] = {
+		fQ,                     // non reversed, non infinite
+		-1.0f - FLT_EPSILON,    // non reversed, infinite
+		fQ,                     // reversed, non infinite
+		0.0f + FLT_EPSILON      // reversed, infinite
+	};
+
+	const float matrix_elem_e[2][2] = {
+		fQ * fMin,              // non reversed, non infinite
+		-fMin - FLT_EPSILON,    // non reversed, infinite
+		fQ * fMin,              // reversed, non infinite
+		fMax,                   // reversed, infinite
+	};
+
+	outDeviceToViewDepth[0] = d * matrix_elem_c[bInverted][bInfinite];
+	outDeviceToViewDepth[1] = matrix_elem_e[bInverted][bInfinite] * viewSpaceToMetersFactor;
+
+	// revert x and y coords
+	const float aspect = camera->getAspectRatio();
+	const float cotHalfFovY = cosf(0.5f * camera->getFovYInRadians()) / sinf(0.5f * camera->getFovYInRadians());
+	const float a = cotHalfFovY / aspect;
+	const float b = cotHalfFovY;
+
+	outDeviceToViewDepth[2] = (1.0f / a);
+	outDeviceToViewDepth[3] = (1.0f / b);
+}
 
 void FrameGenPass::initialize(RenderDevice* inRenderDevice)
 {
@@ -105,6 +158,7 @@ void FrameGenPass::initializePipelines()
 	gameMotionVectorFieldDescriptor.initialize(device, L"FSR3_GameMotionVectorField", swapchainCount, 0);
 	gameMotionVectorFieldInpaintingPyramidDescriptor.initialize(device, L"FSR3_GameMotionVectorFieldInpaintingPyramid", swapchainCount, 0);
 	opticalFlowVectorFieldDescriptor.initialize(device, L"FSR3_OpticalFlowVectorField", swapchainCount, 0);
+	disocclusionMaskDescriptor.initialize(device, L"FSR3_DisocclusionMask", swapchainCount, 0);
 
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)
@@ -507,6 +561,20 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 		inpaintingPyramidTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		inpaintingPyramidTexture->setDebugName(L"RT_FSR3_InpaintingPyramidTexture");
+
+		inpaintingPyramidSRV = UniquePtr<ShaderResourceView>(device->createSRV(
+			inpaintingPyramidTexture.get(),
+			ShaderResourceViewDesc{
+				.format              = inpaintingPyramidTexture->getCreateParams().format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = inpaintingPyramidTexture->getCreateParams().mipLevels,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				},
+			}
+		));
 		
 		for (size_t i = 0; i < _countof(inpaintingPyramidUAVs); ++i)
 		{
@@ -571,7 +639,7 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY }, // #wip: upscale target size
 		.Mode                       = 0, // #wip: What is this? No shader accesses it, even ffx source code does not use it.
 		.reset                      = passInput.bReset,
-		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // #wip: fDeviceToViewDepth, see setupDeviceDepthToViewSpaceDepthParams
+		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // Set below
 		.deltaTime                  = passInput.deltaTime, // #wip: Unit of deltaTime?
 		.HUDLessAttachedFactor      = 0,
 		.distortionFieldSize        = { 1, 1 },
@@ -591,6 +659,8 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.fJitter                    = { 0, 0 }, // #wip: jitter
 		.fMotionVectorScale         = { 1.0f, 1.0f },
 	};
+	setupDeviceDepthToViewSpaceDepthParams(passInput.camera, 1.0f, fiUniformData.fDeviceToViewDepth);
+
 	frameInterpUniformCBV->writeToGPU(commandList, &fiUniformData, sizeof(fiUniformData));
 
 	uint32 dispatchThreadGroupCountXY[2];
@@ -782,14 +852,17 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		Texture* distortionFieldTexture = defaultDistortionFieldTexture.get();
 		ShaderResourceView* distortionFieldSRV = defaultDistortionFieldSRV.get();
 
-		Texture* dilatedMotionVectorTexture = dilatedMotionVectorTextures[currResourceIndex].get();
-		ShaderResourceView* dilatedMotionVectorSRV = dilatedMotionVectorSRVs[currResourceIndex].get();
-
-		Texture* dilatedDepthTexture = dilatedDepthTextures[currResourceIndex].get();
-		ShaderResourceView* dilatedDepthSRV = dilatedDepthSRVs[currResourceIndex].get();
-
-		Texture* currInterpolationSourceTexture = passInput.sceneColorTexture;
-		ShaderResourceView* currInterpolationSourceSRV = passInput.sceneColorSRV;
+		auto reconstructedPrevDepthTexture = reconstructedPrevDepthTextures[currResourceIndex].get();
+		auto reconstructedPrevDepthSRV = reconstructedPrevDepthSRVs[currResourceIndex].get();
+		auto reconstructedPrevDepthUAV = reconstructedPrevDepthUAVs[currResourceIndex].get();
+		auto dilatedMotionVectorTexture = dilatedMotionVectorTextures[currResourceIndex].get();
+		auto dilatedMotionVectorSRV = dilatedMotionVectorSRVs[currResourceIndex].get();
+		auto dilatedMotionVectorUAV = dilatedMotionVectorUAVs[currResourceIndex].get();
+		auto dilatedDepthTexture = dilatedDepthTextures[currResourceIndex].get();
+		auto dilatedDepthSRV = dilatedDepthSRVs[currResourceIndex].get();
+		auto dilatedDepthUAV = dilatedDepthUAVs[currResourceIndex].get();
+		auto currInterpolationSourceTexture = passInput.sceneColorTexture;
+		auto currInterpolationSourceSRV = passInput.sceneColorSRV;
 
 		{
 			SCOPED_DRAW_EVENT(commandList, ReconstructDepthPrevFrame);
@@ -895,9 +968,41 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
 		}
 
-		// #wip: Dispatch disocclusionMaskPipeline
 		{
-			//
+			SCOPED_DRAW_EVENT(commandList, DisocclusionMask);
+
+			auto pipeline = disocclusionMaskPipeline.get();
+			auto& passDescriptor = disocclusionMaskDescriptor;
+
+			TextureBarrierAuto textureBarriers[] = {
+				TextureBarrierAuto::toShaderResource(gameMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(gameMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(reconstructedPrevDepthTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(reconstructedDepthInterpolatedFrameTexture.get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(distortionFieldTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toUnorderedAccess(disocclusionMaskTexture.get(), EBarrierSync::COMPUTE_SHADING),
+			};
+			commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+			ShaderParameterTable SPT{};
+			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+			SPT.texture("r_game_motion_vector_field_x", gameMotionVectorFieldSRVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_GAME_MOTION_VECTOR_FIELD_X
+			SPT.texture("r_game_motion_vector_field_y", gameMotionVectorFieldSRVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_GAME_MOTION_VECTOR_FIELD_Y
+			SPT.texture("r_reconstructed_depth_previous_frame", reconstructedPrevDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_RECONSTRUCTED_DEPTH_PREVIOUS_FRAME
+			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
+			SPT.texture("r_reconstructed_depth_interpolated_frame", reconstructedDepthInterpolatedFrameSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_RECONSTRUCTED_DEPTH_INTERPOLATED_FRAME
+			SPT.texture("r_inpainting_pyramid", inpaintingPyramidSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_INPAINTING_PYRAMID
+			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
+			SPT.rwTexture("rw_disocclusion_mask", disocclusionMaskUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
+
+			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+
+			commandList->setComputePipelineState(pipeline);
+			commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+
+			commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
 		}
 	}
 
