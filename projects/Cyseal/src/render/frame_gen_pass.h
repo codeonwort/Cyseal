@@ -108,4 +108,6 @@ private:
 	UniquePtr<UnorderedAccessView>         prevInterpolationSourceUAV;
 	UniquePtr<Texture>                     inpaintingPyramidTexture;
 	UniquePtr<UnorderedAccessView>         inpaintingPyramidUAVs[13];
+	UniquePtr<Texture>                     opticalFlowConfidenceTexture; // #wip: This is not used at all in FidelityFX. Possibly dead code.
+	UniquePtr<ShaderResourceView>          opticalFlowConfidenceSRV;
 };

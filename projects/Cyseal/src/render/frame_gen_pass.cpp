@@ -361,6 +361,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			commandList->enqueueDeferredDealloc(opticalFlowMotionVectorFieldTextures[i].release(), true);
 			commandList->enqueueDeferredDealloc(opticalFlowMotionVectorFieldUAVs[i].release(), true);
 
+			// #wip: Too big? (xy + 7) / 8 is enough?
 			TextureCreateParams texDesc = TextureCreateParams::texture2D(
 				EPixelFormat::R32_UINT,
 				ETextureAccessFlags::UAV,
@@ -519,6 +520,41 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			));
 		}
 	}
+
+	// #wip: I don't know what this is. FidelityFX does not fill this texture.
+	// The way this resource is used makes no sense.
+	// It's declared as uint2, but LoadOpticalFlowConfidence() reads its y channel and return as float.
+	// Then fConfidenceFactor = ffxMax(FFX_FRAMEINTERPOLATION_EPSILON, LoadOpticalFlowConfidence(samplePos)).
+	// Finally, fConfidenceFactor is just not used at all :(
+	// Let's just assume it's dead code and bind a black texture.
+	if (nullOrWrongSize(opticalFlowConfidenceTexture, passInput.displaySizeX, passInput.displaySizeY))
+	{
+		commandList->enqueueDeferredDealloc(opticalFlowConfidenceTexture.release(), true);
+		commandList->enqueueDeferredDealloc(opticalFlowConfidenceSRV.release(), true);
+
+		TextureCreateParams texDesc = TextureCreateParams::texture2D(
+			EPixelFormat::R16G16_UINT,
+			ETextureAccessFlags::SRV,
+			passInput.displaySizeX, passInput.displaySizeY);
+		texDesc.setOptimalClearColor(0, 0, 0, 0);
+
+		opticalFlowConfidenceTexture = UniquePtr<Texture>(device->createTexture(texDesc));
+		opticalFlowConfidenceTexture->setDebugName(L"RT_FSR3_OpticalFlowConfidence");
+
+		opticalFlowConfidenceSRV = UniquePtr<ShaderResourceView>(device->createSRV(
+			opticalFlowConfidenceTexture.get(),
+			ShaderResourceViewDesc{
+				.format              = opticalFlowConfidenceTexture->getCreateParams().format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = 1,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				},
+			}
+		));
+	}
 }
 
 void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput)
@@ -534,12 +570,12 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.cameraFar                  = passInput.camera->getZFar(),
 		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY }, // #wip: upscale target size
 		.Mode                       = 0, // #wip: What is this? No shader accesses it, even ffx source code does not use it.
-		.reset                      = 0, // #wip: reset, see ffxFrameInterpolationDispatch
+		.reset                      = passInput.bReset,
 		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // #wip: fDeviceToViewDepth, see setupDeviceDepthToViewSpaceDepthParams
 		.deltaTime                  = passInput.deltaTime, // #wip: Unit of deltaTime?
 		.HUDLessAttachedFactor      = 0,
 		.distortionFieldSize        = { 1, 1 },
-		.opticalFlowScale           = { 1.0f, 1.0f }, // #wip: opticalFlowScale
+		.opticalFlowScale           = { 1.0f / (float)(passInput.displaySizeX), 1.0f / (float)(passInput.displaySizeY) },
 		.opticalFlowBlockSize       = kOpticalFlowBlockSize,
 		.dispatchFlags              = passInput.dispatchFlags,
 		.maxRenderSize              = { passInput.displaySizeX, passInput.displaySizeY },
@@ -824,8 +860,6 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		
 		scheduleDispatchGameVectorFieldInpaintingPyramid();
 
-		// #wip: Dispatch opticalFlowVectorFieldPipeline
-#if 0
 		{
 			SCOPED_DRAW_EVENT(commandList, OpticalFlowVectorField);
 
@@ -834,7 +868,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 
 			TextureBarrierAuto textureBarriers[] = {
 				TextureBarrierAuto::toShaderResource(passInput.opticalFlowPassOutput->opticalFlowVectorTexture, EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toShaderResource(opticalFlowConfidenceTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(opticalFlowConfidenceTexture.get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(prevInterpolationSourceTexture.get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),
@@ -846,7 +880,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			ShaderParameterTable SPT{};
 			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
 			SPT.texture("r_optical_flow", passInput.opticalFlowPassOutput->opticalFlowVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW
-			SPT.texture("r_optical_flow_confidence", opticalFlowConfidenceSRV/*uint2*/); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_CONFIDENCE
+			SPT.texture("r_optical_flow_confidence", opticalFlowConfidenceSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_CONFIDENCE
 			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
 			SPT.texture("r_previous_interpolation_source", prevInterpolationSourceSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_PREVIOUS_INTERPOLATION_SOURCE
 			SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
@@ -860,7 +894,6 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 
 			commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
 		}
-#endif
 
 		// #wip: Dispatch disocclusionMaskPipeline
 		{
