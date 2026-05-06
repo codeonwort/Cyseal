@@ -22,6 +22,8 @@ enum class EPixelFormat : uint8
 	// UNORM
 	R8G8B8A8_UNORM,
 	B8G8R8A8_UNORM,
+	R8G8_UNORM,
+	R8_UNORM,
 	
 	// FLOAT
 	R32_FLOAT,
@@ -58,6 +60,8 @@ inline uint32 getPixelFormatBytes(EPixelFormat format)
 		case EPixelFormat::R32_FLOAT_X8X24_TYPELESS : return 8;
 		case EPixelFormat::R8G8B8A8_UNORM           : return 4;
 		case EPixelFormat::B8G8R8A8_UNORM           : return 4;
+		case EPixelFormat::R8G8_UNORM               : return 2;
+		case EPixelFormat::R8_UNORM                 : return 1;
 		case EPixelFormat::R32_FLOAT                : return 4;
 		case EPixelFormat::R32G32_FLOAT             : return 8;
 		case EPixelFormat::R32G32B32_FLOAT          : return 12;

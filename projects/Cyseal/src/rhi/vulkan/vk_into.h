@@ -514,6 +514,8 @@ namespace into_vk
 			case EPixelFormat::R32_FLOAT_X8X24_TYPELESS : CHECK_NO_ENTRY(); return VkFormat::VK_FORMAT_R64_SFLOAT;
 			case EPixelFormat::R8G8B8A8_UNORM           : return VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
 			case EPixelFormat::B8G8R8A8_UNORM           : return VkFormat::VK_FORMAT_B8G8R8A8_UNORM;
+			case EPixelFormat::R8G8_UNORM               : return VkFormat::VK_FORMAT_R8G8_UNORM;
+			case EPixelFormat::R8_UNORM                 : return VkFormat::VK_FORMAT_R8_UNORM;
 			case EPixelFormat::R32_FLOAT                : return VkFormat::VK_FORMAT_R32_SFLOAT;
 			case EPixelFormat::R32G32_FLOAT             : return VkFormat::VK_FORMAT_R32G32_SFLOAT;
 			case EPixelFormat::R32G32B32_FLOAT          : return VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
