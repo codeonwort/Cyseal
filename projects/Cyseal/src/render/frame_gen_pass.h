@@ -75,6 +75,7 @@ private:
 	VolatileDescriptorHelper               inpaintingPyramidDescriptor;
 
 	VolatileDescriptorHelper               reconstructPrevDepthDescriptor;
+	VolatileDescriptorHelper               gameMotionVectorFieldDescriptor;
 
 	// #wip: Remove unnecessary buffering.
 	BufferedUniquePtr<Texture>             reconstructedPrevDepthTextures;
@@ -100,4 +101,7 @@ private:
 	UniquePtr<UnorderedAccessView>         counterUAV;
 	UniquePtr<Texture>                     defaultDistortionFieldTexture;
 	UniquePtr<ShaderResourceView>          defaultDistortionFieldSRV;
+	UniquePtr<Texture>                     prevInterpolationSourceTexture;
+	UniquePtr<ShaderResourceView>          prevInterpolationSourceSRV;
+	UniquePtr<UnorderedAccessView>         prevInterpolationSourceUAV;
 };

@@ -833,8 +833,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.dispatchFlags              = 0, // #wip: dispatchFlags
 				.backBufferTransferFunction = backbufferTransferFunction,
 				.bReset                     = bResetOpticalFlowAccumulation,
-				.sceneColorTexture          = RT_finalSceneColor.get(),
-				.sceneColorSRV              = finalSceneColorSRV.get(),
+				.sceneColorTexture          = RT_sceneColor.get(),
+				.sceneColorSRV              = sceneColorSRV.get(),
 				.sceneDepthTexture          = RT_sceneDepth.get(),
 				.sceneDepthSRV              = sceneDepthSRV.get(),
 				.motionVectorTexture        = RT_velocityMap.get(),

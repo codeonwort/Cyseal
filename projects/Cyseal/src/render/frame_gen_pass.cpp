@@ -1,5 +1,6 @@
 #include "frame_gen_pass.h"
 #include "render/util/clear_resource_pass.h"
+#include "render/renderer_constants.h"
 #include "rhi/rhi_policy.h"
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
@@ -101,6 +102,7 @@ void FrameGenPass::initializePipelines()
 	inpaintingPyramidDescriptor.initialize(device, L"FSR3_InpaintingPyramidUniform", swapchainCount, sizeof(InpaintingPyramidUniform));
 
 	reconstructPrevDepthDescriptor.initialize(device, L"FSR3_ReconstructPrevDepth", swapchainCount, 0);
+	gameMotionVectorFieldDescriptor.initialize(device, L"FSR3_GameMotionVectorField", swapchainCount, 0);
 
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)
@@ -449,6 +451,42 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			}
 		));
 	}
+
+	if (nullOrWrongSize(prevInterpolationSourceTexture, passInput.displaySizeX, passInput.displaySizeY))
+	{
+		commandList->enqueueDeferredDealloc(prevInterpolationSourceTexture.release(), true);
+		commandList->enqueueDeferredDealloc(prevInterpolationSourceSRV.release(), true);
+		commandList->enqueueDeferredDealloc(prevInterpolationSourceUAV.release(), true);
+
+		TextureCreateParams texDesc = TextureCreateParams::texture2D(
+			PF_sceneColor,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			passInput.displaySizeX, passInput.displaySizeY);
+		prevInterpolationSourceTexture = UniquePtr<Texture>(device->createTexture(texDesc));
+		prevInterpolationSourceTexture->setDebugName(L"RT_FSR3_PrevInterpolationSource");
+		
+		prevInterpolationSourceSRV = UniquePtr<ShaderResourceView>(device->createSRV(
+			prevInterpolationSourceTexture.get(),
+			ShaderResourceViewDesc{
+				.format              = prevInterpolationSourceTexture->getCreateParams().format,
+				.viewDimension       = ESRVDimension::Texture2D,
+				.texture2D           = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = 1,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				},
+			}
+		));
+		prevInterpolationSourceUAV = UniquePtr<UnorderedAccessView>(device->createUAV(
+			prevInterpolationSourceTexture.get(),
+			UnorderedAccessViewDesc{
+				.format         = prevInterpolationSourceTexture->getCreateParams().format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+			}
+		));
+	}
 }
 
 void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput)
@@ -664,6 +702,16 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			ClearResourcePass::floatClearValue(zFar, zFar, zFar, zFar));
 		passInput.clearResourcePass->executeClears(commandList, swapchainIndex);
 
+		// #wip: distortion field texture from passInput
+		Texture* distortionFieldTexture = defaultDistortionFieldTexture.get();
+		ShaderResourceView* distortionFieldSRV = defaultDistortionFieldSRV.get();
+
+		Texture* dilatedMotionVectorTexture = dilatedMotionVectorTextures[currResourceIndex].get();
+		ShaderResourceView* dilatedMotionVectorSRV = dilatedMotionVectorSRVs[currResourceIndex].get();
+
+		Texture* dilatedDepthTexture = dilatedDepthTextures[currResourceIndex].get();
+		ShaderResourceView* dilatedDepthSRV = dilatedDepthSRVs[currResourceIndex].get();
+
 		{
 			SCOPED_DRAW_EVENT(commandList, ReconstructDepthPrevFrame);
 
@@ -671,21 +719,21 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			auto& passDescriptor = reconstructPrevDepthDescriptor;
 
 			TextureBarrierAuto textureBarriers[] = {
-				TextureBarrierAuto::toShaderResource(dilatedMotionVectorTextures[currResourceIndex].get(), EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toShaderResource(dilatedDepthTextures[currResourceIndex].get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedMotionVectorTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(passInput.sceneColorTexture, EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toShaderResource(defaultDistortionFieldTexture.get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(distortionFieldTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toUnorderedAccess(reconstructedDepthInterpolatedFrameTexture.get(), EBarrierSync::COMPUTE_SHADING),
 			};
 			commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 			ShaderParameterTable SPT{};
 			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
-			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRVs[currResourceIndex].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
-			SPT.texture("r_dilated_depth", dilatedDepthSRVs[currResourceIndex].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
+			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
+			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
 			// #wip: not used but declared in ffx_frameinterpolation_reconstruct_previous_depth_pass.hlsl
 			SPT.texture("r_current_interpolation_source", passInput.sceneColorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
-			SPT.texture("r_input_distortion_field", defaultDistortionFieldSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
+			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
 			SPT.rwTexture("rw_reconstructed_depth_interpolated_frame", reconstructedDepthInterpolatedFrameUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_INTERPOLATED_FRAME
 
 			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
@@ -696,7 +744,40 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
 		}
 
-		// #wip: Dispatch gameMotionVectorFieldPipeline
+		{
+			SCOPED_DRAW_EVENT(commandList, GameMotionVector);
+
+			auto pipeline = gameMotionVectorFieldPipeline.get();
+			auto& passDescriptor = gameMotionVectorFieldDescriptor;
+
+			TextureBarrierAuto textureBarriers[] = {
+				TextureBarrierAuto::toShaderResource(dilatedMotionVectorTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(prevInterpolationSourceTexture.get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(passInput.sceneColorTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(distortionFieldTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toUnorderedAccess(gameMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toUnorderedAccess(gameMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
+			};
+			commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+			ShaderParameterTable SPT{};
+			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
+			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
+			SPT.texture("r_previous_interpolation_source", prevInterpolationSourceSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_PREVIOUS_INTERPOLATION_SOURCE
+			SPT.texture("r_current_interpolation_source", passInput.sceneColorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
+			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
+			SPT.rwTexture("rw_game_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
+			SPT.rwTexture("rw_game_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
+
+			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+
+			commandList->setComputePipelineState(pipeline);
+			commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+
+			commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
+		}
 		
 		//scheduleDispatchGameVectorFieldInpaintingPyramid();
 
