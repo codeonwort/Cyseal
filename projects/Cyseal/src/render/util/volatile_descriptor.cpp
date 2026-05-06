@@ -74,11 +74,11 @@ void VolatileDescriptorHelper::destroy()
 	uniformCBVs.clear();
 }
 
-void VolatileDescriptorHelper::resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors)
+DescriptorHeap* VolatileDescriptorHelper::resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors)
 {
 	if (maxDescriptors <= totalDescriptor[swapchainIndex])
 	{
-		return;
+		return descriptorHeap[swapchainIndex].get();
 	}
 	totalDescriptor[swapchainIndex] = maxDescriptors;
 
@@ -97,4 +97,6 @@ void VolatileDescriptorHelper::resizeDescriptorHeap(uint32 swapchainIndex, uint3
 	descriptorHeap[swapchainIndex]->setDebugName(debugName);
 
 	CYLOG(LogRHI, Log, L"Resize [%s]: %u descriptors", debugName, maxDescriptors);
+
+	return descriptorHeap[swapchainIndex].get();
 }

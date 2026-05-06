@@ -24,7 +24,13 @@ public:
 	// It uses gRenderDevice and does not take RenderDevice parameter.
 	void initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize, uint32 uniformChunkCount = 1);
 	
-	void resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors);
+	/// <summary>
+	/// Recreate descriptor heap if current one is smaller than required.
+	/// </summary>
+	/// <param name="swapchainIndex"></param>
+	/// <param name="maxDescriptors"></param>
+	/// <returns>Current descriptor heap or recreated one.</returns>
+	DescriptorHeap* resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors);
 	
 	inline DescriptorHeap* getDescriptorHeap(uint32 swapchainIndex) const { return descriptorHeap.at(swapchainIndex); }
 	
