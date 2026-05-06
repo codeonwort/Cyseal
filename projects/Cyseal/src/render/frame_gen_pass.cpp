@@ -87,7 +87,7 @@ void FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swa
 
 	updateUniforms(commandList, passInput);
 	preparePhase(commandList, swapchainIndex, passInput);
-	//dispatchPhase(commandList, swapchainIndex, passInput);
+	dispatchPhase(commandList, swapchainIndex, passInput);
 
 	cpuFrameIndex += 1;
 }
@@ -129,11 +129,15 @@ void FrameGenPass::initializePipelines()
 
 void FrameGenPass::recreateResources(RenderCommandList* commandList, const FrameGenPassInput& passInput)
 {
+	auto nullOrWrongSize = [](const UniquePtr<Texture>& texture, uint32 width, uint32 height) -> bool {
+		return texture == nullptr
+			|| texture->getCreateParams().width != width
+			|| texture->getCreateParams().height != height;
+	};
+
 	for (size_t i = 0; i < reconstructedPrevDepthTextures.size(); ++i)
 	{
-		if (reconstructedPrevDepthTextures[i] == nullptr
-			|| reconstructedPrevDepthTextures[i]->getCreateParams().width != passInput.displaySizeX
-			|| reconstructedPrevDepthTextures[i]->getCreateParams().height != passInput.displaySizeY)
+		if (nullOrWrongSize(reconstructedPrevDepthTextures[i], passInput.displaySizeX, passInput.displaySizeY))
 		{
 			commandList->enqueueDeferredDealloc(reconstructedPrevDepthTextures[i].release(), true);
 			commandList->enqueueDeferredDealloc(reconstructedPrevDepthSRVs[i].release(), true);
@@ -146,7 +150,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			reconstructedPrevDepthTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
 
 			wchar_t debugName[128];
-			std::swprintf(debugName, _countof(debugName), L"RT_ReconstructedPrevDepth_%u", (uint32)i);
+			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_ReconstructedPrevDepth_%u", (uint32)i);
 			reconstructedPrevDepthTextures[i]->setDebugName(debugName);
 
 			reconstructedPrevDepthSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
@@ -175,9 +179,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 	for (size_t i = 0; i < dilatedMotionVectorTextures.size(); ++i)
 	{
-		if (dilatedMotionVectorTextures[i] == nullptr
-			|| dilatedMotionVectorTextures[i]->getCreateParams().width != passInput.displaySizeX
-			|| dilatedMotionVectorTextures[i]->getCreateParams().height != passInput.displaySizeY)
+		if (nullOrWrongSize(dilatedMotionVectorTextures[i], passInput.displaySizeX, passInput.displaySizeY))
 		{
 			commandList->enqueueDeferredDealloc(dilatedMotionVectorTextures[i].release(), true);
 			commandList->enqueueDeferredDealloc(dilatedMotionVectorSRVs[i].release(), true);
@@ -191,7 +193,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			dilatedMotionVectorTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
 
 			wchar_t debugName[128];
-			std::swprintf(debugName, _countof(debugName), L"RT_DilatedMotionVector_%u", (uint32)i);
+			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_DilatedMotionVector_%u", (uint32)i);
 			dilatedMotionVectorTextures[i]->setDebugName(debugName);
 			
 			dilatedMotionVectorSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
@@ -220,9 +222,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 	for (size_t i = 0; i < dilatedDepthTextures.size(); ++i)
 	{
-		if (dilatedDepthTextures[i] == nullptr
-			|| dilatedDepthTextures[i]->getCreateParams().width != passInput.displaySizeX
-			|| dilatedDepthTextures[i]->getCreateParams().height != passInput.displaySizeY)
+		if (nullOrWrongSize(dilatedDepthTextures[i], passInput.displaySizeX, passInput.displaySizeY))
 		{
 			commandList->enqueueDeferredDealloc(dilatedDepthTextures[i].release(), true);
 			commandList->enqueueDeferredDealloc(dilatedDepthSRVs[i].release(), true);
@@ -236,7 +236,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			dilatedDepthTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
 
 			wchar_t debugName[128];
-			std::swprintf(debugName, _countof(debugName), L"RT_DilatedDepth_%u", (uint32)i);
+			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_DilatedDepth_%u", (uint32)i);
 			dilatedDepthTextures[i]->setDebugName(debugName);
 			
 			dilatedDepthSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
@@ -265,9 +265,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 	for (uint32 i = 0; i < 2; ++i)
 	{
-		if (gameMotionVectorFieldTextures[i] == nullptr
-			|| gameMotionVectorFieldTextures[i]->getCreateParams().width != passInput.displaySizeX
-			|| gameMotionVectorFieldTextures[i]->getCreateParams().height != passInput.displaySizeY)
+		if (nullOrWrongSize(gameMotionVectorFieldTextures[i], passInput.displaySizeX, passInput.displaySizeY))
 		{
 			commandList->enqueueDeferredDealloc(gameMotionVectorFieldTextures[i].release(), true);
 			commandList->enqueueDeferredDealloc(gameMotionVectorFieldUAVs[i].release(), true);
@@ -279,7 +277,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			gameMotionVectorFieldTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
 
 			wchar_t debugName[128];
-			std::swprintf(debugName, _countof(debugName), L"RT_GameMotionVectorField_%s", i == 0 ? L"X" : L"Y");
+			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_GameMotionVectorField_%s", i == 0 ? L"X" : L"Y");
 			gameMotionVectorFieldTextures[i]->setDebugName(debugName);
 
 			gameMotionVectorFieldUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
@@ -295,9 +293,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 	for (uint32 i = 0; i < 2; ++i)
 	{
-		if (opticalFlowMotionVectorFieldTextures[i] == nullptr
-			|| opticalFlowMotionVectorFieldTextures[i]->getCreateParams().width != passInput.displaySizeX
-			|| opticalFlowMotionVectorFieldTextures[i]->getCreateParams().height != passInput.displaySizeY)
+		if (nullOrWrongSize(opticalFlowMotionVectorFieldTextures[i], passInput.displaySizeX, passInput.displaySizeY))
 		{
 			commandList->enqueueDeferredDealloc(opticalFlowMotionVectorFieldTextures[i].release(), true);
 			commandList->enqueueDeferredDealloc(opticalFlowMotionVectorFieldUAVs[i].release(), true);
@@ -309,7 +305,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			opticalFlowMotionVectorFieldTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
 
 			wchar_t debugName[128];
-			std::swprintf(debugName, _countof(debugName), L"RT_OpticalFlowMotionVectorField_%s", i == 0 ? L"X" : L"Y");
+			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_OpticalFlowMotionVectorField_%s", i == 0 ? L"X" : L"Y");
 			opticalFlowMotionVectorFieldTextures[i]->setDebugName(debugName);
 
 			opticalFlowMotionVectorFieldUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
@@ -321,6 +317,28 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 				}
 			));
 		}
+	}
+
+	if (nullOrWrongSize(disocclusionMaskTexture, passInput.displaySizeX, passInput.displaySizeY))
+	{
+		commandList->enqueueDeferredDealloc(disocclusionMaskTexture.release(), true);
+		commandList->enqueueDeferredDealloc(disocclusionMaskUAV.release(), true);
+
+		TextureCreateParams texDesc = TextureCreateParams::texture2D(
+			EPixelFormat::R8G8_UNORM,
+			ETextureAccessFlags::UAV,
+			passInput.displaySizeX, passInput.displaySizeY);
+		disocclusionMaskTexture = UniquePtr<Texture>(device->createTexture(texDesc));
+		disocclusionMaskTexture->setDebugName(L"RT_FSR3_DisocclusionMask");
+
+		disocclusionMaskUAV = UniquePtr<UnorderedAccessView>(device->createUAV(
+			disocclusionMaskTexture.get(),
+			UnorderedAccessViewDesc{
+				.format         = disocclusionMaskTexture->getCreateParams().format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+			}
+		));
 	}
 }
 
@@ -460,6 +478,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			TextureBarrierAuto::toUnorderedAccess(gameMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toUnorderedAccess(opticalFlowMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toUnorderedAccess(opticalFlowMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(disocclusionMaskTexture.get(), EBarrierSync::COMPUTE_SHADING),
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 		
@@ -471,7 +490,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		SPT.rwTexture("rw_game_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
 		SPT.rwTexture("rw_optical_flow_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
 		SPT.rwTexture("rw_optical_flow_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
-		// "rw_disocclusion_mask" FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
+		SPT.rwTexture("rw_disocclusion_mask", disocclusionMaskUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
 		// "rw_counters" FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
 		
 		frameInterpDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());

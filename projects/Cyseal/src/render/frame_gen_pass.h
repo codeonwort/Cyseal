@@ -86,4 +86,6 @@ private:
 	UniquePtr<UnorderedAccessView>         gameMotionVectorFieldUAVs[2]; // x, y
 	UniquePtr<Texture>                     opticalFlowMotionVectorFieldTextures[2]; // x, y
 	UniquePtr<UnorderedAccessView>         opticalFlowMotionVectorFieldUAVs[2]; // x, y
+	UniquePtr<Texture>                     disocclusionMaskTexture;
+	UniquePtr<UnorderedAccessView>         disocclusionMaskUAV;
 };
