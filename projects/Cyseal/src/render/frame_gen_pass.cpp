@@ -451,12 +451,11 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		}
 	}
 
-	// #wip: I don't know what this is. FidelityFX does not fill this texture.
-	// The way this resource is used makes no sense.
-	// It's declared as uint2, but LoadOpticalFlowConfidence() reads its y channel and return as float.
+	// #todo-fsr3: Included in FidelityFX but not used. Probably dead code but create and bind it anyway.
+	// See r_optical_flow_confidence and FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_CONFIDENCE.
+	// It's declared as uint2, but LoadOpticalFlowConfidence() reads its y channel and returns it as float.
 	// Then fConfidenceFactor = ffxMax(FFX_FRAMEINTERPOLATION_EPSILON, LoadOpticalFlowConfidence(samplePos)).
-	// Finally, fConfidenceFactor is just not used at all :(
-	// Let's just assume it's dead code and bind a black texture.
+	// Finally, fConfidenceFactor is just not used at all.
 	if (nullOrWrongSize(opticalFlowConfidenceTexture, passInput.displaySizeX, passInput.displaySizeY))
 	{
 		commandList->enqueueDeferredDealloc(opticalFlowConfidenceTexture.release(), true);
