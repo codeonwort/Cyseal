@@ -80,6 +80,7 @@ private:
 	VolatileDescriptorHelper               opticalFlowVectorFieldDescriptor;
 	VolatileDescriptorHelper               disocclusionMaskDescriptor;
 	VolatileDescriptorHelper               interpolationDescriptor;
+	VolatileDescriptorHelper               inpaintingDescriptor;
 
 	// #wip: Remove unnecessary buffering.
 	BufferedUniquePtr<Texture>             reconstructedPrevDepthTextures;

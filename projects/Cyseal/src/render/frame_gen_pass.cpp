@@ -151,8 +151,8 @@ void FrameGenPass::initializePipelines()
 	const uint32 swapchainCount = 2;//device->maxFramesInFlight(); // Always need 2
 
 	prepareDescriptor.initialize(device, L"FSR3_Prepare", swapchainCount, 0);
-	frameInterpDescriptor.initialize(device, L"FSR3_FrameInterpUniform", swapchainCount, sizeof(FrameInterpUniform));
-	inpaintingPyramidDescriptor.initialize(device, L"FSR3_InpaintingPyramidUniform", swapchainCount, sizeof(InpaintingPyramidUniform));
+	frameInterpDescriptor.initialize(device, L"FSR3_FrameInterp", swapchainCount, sizeof(FrameInterpUniform));
+	inpaintingPyramidDescriptor.initialize(device, L"FSR3_InpaintingPyramid", swapchainCount, sizeof(InpaintingPyramidUniform));
 
 	reconstructPrevDepthDescriptor.initialize(device, L"FSR3_ReconstructPrevDepth", swapchainCount, 0);
 	gameMotionVectorFieldDescriptor.initialize(device, L"FSR3_GameMotionVectorField", swapchainCount, 0);
@@ -160,6 +160,7 @@ void FrameGenPass::initializePipelines()
 	opticalFlowVectorFieldDescriptor.initialize(device, L"FSR3_OpticalFlowVectorField", swapchainCount, 0);
 	disocclusionMaskDescriptor.initialize(device, L"FSR3_DisocclusionMask", swapchainCount, 0);
 	interpolationDescriptor.initialize(device, L"FSR3_Interpolation", swapchainCount, 0);
+	inpaintingDescriptor.initialize(device, L"FSR3_Inpainting", swapchainCount, 0);
 
 	auto createPipeline = [device = this->device]
 		(const char* debugName, const wchar_t* filepath, UniquePtr<ComputePipelineState>& pipeline)
@@ -1126,57 +1127,80 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
 	}
 
-	// inpainting pyramid
 	{
+		SCOPED_DRAW_EVENT(commandList, InpaintingPyramid);
+
+		uint32 dispatchThreadGroupCountXY[2];
+		uint32 workGroupOffset[2];
+		uint32 numWorkGroupsAndMips[2];
+		uint32 rectInfo[4] = { 0, 0, (uint32)passInput.displaySizeX, (uint32)passInput.displaySizeY };
+		ffxSpdSetup(dispatchThreadGroupCountXY, workGroupOffset, numWorkGroupsAndMips, rectInfo, -1);
+
+		auto pipeline = inpaintingPyramidPipeline.get();
+		auto& passDescriptor = inpaintingPyramidDescriptor;
+
+		BufferBarrierAuto bufferBarriers[] = {
+			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, counterBuffer.get() },
+		};
+		TextureBarrierAuto textureBarriers[] = {
+			TextureBarrierAuto::toShaderResource(interpolationOutputTexture.get(), EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
+		};
+		commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+		SPT.constantBuffer("cbInpaintingPyramid", inpaintingPyramidUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_INPAINTING_PYRAMID
+		SPT.texture("r_output", interpolationOutputSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_OUTPUT
+		SPT.rwBuffer("rw_counters", counterUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
+		for (size_t i = 0; i < _countof(inpaintingPyramidUAVs); ++i)
 		{
-			SCOPED_DRAW_EVENT(commandList, InpaintingPyramid);
-
-			uint32 dispatchThreadGroupCountXY[2];
-			uint32 workGroupOffset[2];
-			uint32 numWorkGroupsAndMips[2];
-			uint32 rectInfo[4] = { 0, 0, (uint32)passInput.displaySizeX, (uint32)passInput.displaySizeY };
-			ffxSpdSetup(dispatchThreadGroupCountXY, workGroupOffset, numWorkGroupsAndMips, rectInfo, -1);
-
-			auto pipeline = inpaintingPyramidPipeline.get();
-			auto& passDescriptor = inpaintingPyramidDescriptor;
-
-			BufferBarrierAuto bufferBarriers[] = {
-				{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, counterBuffer.get() },
-			};
-			TextureBarrierAuto textureBarriers[] = {
-				TextureBarrierAuto::toShaderResource(interpolationOutputTexture.get(), EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toUnorderedAccess(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
-			};
-			commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
-
-			ShaderParameterTable SPT{};
-			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
-			SPT.constantBuffer("cbInpaintingPyramid", inpaintingPyramidUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_INPAINTING_PYRAMID
-			SPT.texture("r_output", interpolationOutputSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_OUTPUT
-			SPT.rwBuffer("rw_counters", counterUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
-			for (size_t i = 0; i < _countof(inpaintingPyramidUAVs); ++i)
-			{
-				// rw_inpainting_pyramid0 ~ rw_inpainting_pyramidN (FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_0 ~ N)
-				char msg[64];
-				std::snprintf(msg, _countof(msg), "rw_inpainting_pyramid%u", (uint32)i);
-				SPT.rwTexture(msg, inpaintingPyramidUAVs[i].get());
-			}
-
-			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
-
-			commandList->setComputePipelineState(pipeline);
-			commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
-
-			commandList->dispatchCompute(dispatchThreadGroupCountXY[0], dispatchThreadGroupCountXY[1], 1);
+			// rw_inpainting_pyramid0 ~ rw_inpainting_pyramidN (FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_0 ~ N)
+			char msg[64];
+			std::snprintf(msg, _countof(msg), "rw_inpainting_pyramid%u", (uint32)i);
+			SPT.rwTexture(msg, inpaintingPyramidUAVs[i].get());
 		}
 
-		// #wip: Dispatch inpaintingPyramidPipeline
-		{
-			//
-		}
+		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+
+		commandList->setComputePipelineState(pipeline);
+		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+
+		commandList->dispatchCompute(dispatchThreadGroupCountXY[0], dispatchThreadGroupCountXY[1], 1);
 	}
 
-	// #wip: inpaintingPipeline
+	{
+		SCOPED_DRAW_EVENT(commandList, Inpainting);
+
+		auto pipeline = inpaintingPipeline.get();
+		auto& passDescriptor = inpaintingDescriptor;
+
+		// #wip: Assumes PRESENT_BACKBUFFER == currInterpolationSourceTexture
+		auto presentBackbufferSRV = currInterpolationSourceSRV;
+
+		TextureBarrierAuto textureBarriers[] = {
+			TextureBarrierAuto::toShaderResource(passInput.opticalFlowPassOutput->sceneChangeDetectionTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toShaderResource(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(interpolationOutputTexture.get(), EBarrierSync::COMPUTE_SHADING),
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+		SPT.texture("r_optical_flow_scd", passInput.opticalFlowPassOutput->sceneChangeDetectionSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_SCENE_CHANGE_DETECTION
+		SPT.texture("r_inpainting_pyramid", inpaintingPyramidSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_INPAINTING_PYRAMID
+		SPT.texture("r_present_backbuffer", presentBackbufferSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_PRESENT_BACKBUFFER
+		SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
+		SPT.rwTexture("rw_output", interpolationOutputUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OUTPUT
+
+		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+
+		commandList->setComputePipelineState(pipeline);
+		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+
+		commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
+	}
 
 	if (false /* draw debug view */)
 	{
