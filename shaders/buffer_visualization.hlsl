@@ -29,7 +29,7 @@ struct PushConstants
 	uint modeEnum;
 	uint width;
 	uint height;
-	uint opticalFlowVectorPackedSize; // high 16-bit: width, low 16-bit: height
+	uint opticalFlowVectorPackedSize; // low 16-bit: width, high 16-bit: height
 };
 
 [[vk::push_constant]]

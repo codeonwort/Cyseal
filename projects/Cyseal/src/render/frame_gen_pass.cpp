@@ -34,7 +34,7 @@ struct FrameInterpUniform
 
 	float           opticalFlowScale[2];
 	int32           opticalFlowBlockSize;
-	uint32          dispatchFlags; // #wip: FfxFrameInterpolationDispatchFlags (FFX_FRAMEINTERPOLATION_DISPATCH_DRAW_DEBUG_TEAR_LINES, FFX_FRAMEINTERPOLATION_DISPATCH_DRAW_DEBUG_VIEW)
+	uint32          dispatchFlags;
 
 	int32           maxRenderSize[2];
 	int32           opticalFlowHalfResMode;
