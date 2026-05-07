@@ -299,8 +299,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 			TextureCreateParams texDesc = TextureCreateParams::texture2D(
 				EPixelFormat::R16G16_FLOAT,
-				// #wip: (FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV | FFX_RESOURCE_USAGE_DCC_RENDERTARGET) ???
-				ETextureAccessFlags::RTV | ETextureAccessFlags::UAV,
+				ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 				passInput.displaySizeX, passInput.displaySizeY);
 			dilatedMotionVectorTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
 
@@ -342,8 +341,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 			TextureCreateParams texDesc = TextureCreateParams::texture2D(
 				EPixelFormat::R32_FLOAT,
-				// #wip: (FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV | FFX_RESOURCE_USAGE_DCC_RENDERTARGET) ???
-				ETextureAccessFlags::RTV | ETextureAccessFlags::UAV,
+				ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 				passInput.displaySizeX, passInput.displaySizeY);
 			dilatedDepthTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
 
@@ -385,7 +383,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 			TextureCreateParams texDesc = TextureCreateParams::texture2D(
 				EPixelFormat::R32_UINT,
-				ETextureAccessFlags::UAV,
+				ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 				passInput.displaySizeX, passInput.displaySizeY);
 			gameMotionVectorFieldTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
 
@@ -419,17 +417,18 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 	for (uint32 i = 0; i < 2; ++i)
 	{
-		if (nullOrWrongSize(opticalFlowMotionVectorFieldTextures[i], passInput.displaySizeX, passInput.displaySizeY))
+		const uint32 targetSizeX = (passInput.displaySizeX + 7) / 8;
+		const uint32 targetSizeY = (passInput.displaySizeY + 7) / 8;
+		if (nullOrWrongSize(opticalFlowMotionVectorFieldTextures[i], targetSizeX, targetSizeY))
 		{
 			commandList->enqueueDeferredDealloc(opticalFlowMotionVectorFieldTextures[i].release(), true);
 			commandList->enqueueDeferredDealloc(opticalFlowMotionVectorFieldSRVs[i].release(), true);
 			commandList->enqueueDeferredDealloc(opticalFlowMotionVectorFieldUAVs[i].release(), true);
 
-			// #wip: Too big? (xy + 7) / 8 is enough?
 			TextureCreateParams texDesc = TextureCreateParams::texture2D(
 				EPixelFormat::R32_UINT,
-				ETextureAccessFlags::UAV,
-				passInput.displaySizeX, passInput.displaySizeY);
+				ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+				targetSizeX, targetSizeY);
 			opticalFlowMotionVectorFieldTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
 
 			wchar_t debugName[128];
@@ -468,7 +467,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 		TextureCreateParams texDesc = TextureCreateParams::texture2D(
 			EPixelFormat::R8G8_UNORM,
-			ETextureAccessFlags::UAV,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			passInput.displaySizeX, passInput.displaySizeY);
 		disocclusionMaskTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		disocclusionMaskTexture->setDebugName(L"RT_FSR3_DisocclusionMask");
@@ -594,7 +593,9 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		));
 	}
 
-	if (nullOrWrongSize(inpaintingPyramidTexture, passInput.displaySizeX, passInput.displaySizeY))
+	const uint32 inpaintingPyramidSizeX = passInput.displaySizeX / 2;
+	const uint32 inpaintingPyramidSizeY = passInput.displaySizeY / 2;
+	if (nullOrWrongSize(inpaintingPyramidTexture, inpaintingPyramidSizeX, inpaintingPyramidSizeY))
 	{
 		commandList->enqueueDeferredDealloc(inpaintingPyramidTexture.release(), true);
 		for (size_t i = 0; i < _countof(inpaintingPyramidUAVs); ++i)
@@ -604,9 +605,9 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 
 		TextureCreateParams texDesc = TextureCreateParams::texture2D(
 			EPixelFormat::R16G16B16A16_FLOAT,
-			ETextureAccessFlags::UAV,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			// #wip: What if inpaintingPyramid is not large enough to contain 13 mips?
-			passInput.displaySizeX / 2, passInput.displaySizeY / 2, _countof(inpaintingPyramidUAVs));
+			inpaintingPyramidSizeX, inpaintingPyramidSizeY, _countof(inpaintingPyramidUAVs));
 
 		inpaintingPyramidTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		inpaintingPyramidTexture->setDebugName(L"RT_FSR3_InpaintingPyramidTexture");
