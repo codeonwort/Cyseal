@@ -831,6 +831,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		{
 			SCOPED_DRAW_EVENT(commandList, FrameGeneration);
 
+			// #wip: dispatchFlags
+			//DRAW_DEBUG_TEAR_LINES       = (1 << 0),
+			//DRAW_DEBUG_RESET_INDICATORS = (1 << 1),
+			//DRAW_DEBUG_VIEW             = (1 << 2),
+			const EFrameGenDispatchFlags dispatchFlags = EFrameGenDispatchFlags::NONE;
+
 			FrameGenPassInput passInput{
 				.clearResourcePass          = clearResourcePass,
 				.opticalFlowPassOutput      = &opticalFlowPassOutput,
@@ -840,8 +846,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.displaySizeX               = (int32)unscaledRenderWidth,
 				.displaySizeY               = (int32)unscaledRenderHeight,
 				.frameID                    = frameID,
-				.deltaTime                  = 0.0f, // #wip: deltaTime
-				.dispatchFlags              = 0, // #wip: dispatchFlags
+				.dispatchFlags              = dispatchFlags,
 				.backBufferTransferFunction = backbufferTransferFunction,
 				.bReset                     = bResetOpticalFlowAccumulation,
 				.minLuminance               = fMinLuminance,

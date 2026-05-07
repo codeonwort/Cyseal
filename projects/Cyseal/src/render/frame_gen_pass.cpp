@@ -438,7 +438,6 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		TextureCreateParams texDesc = TextureCreateParams::texture2D(
 			EPixelFormat::R16G16B16A16_FLOAT,
 			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
-			// #wip: What if inpaintingPyramid is not large enough to contain 13 mips?
 			inpaintingPyramidSizeX, inpaintingPyramidSizeY, _countof(inpaintingPyramidUAVs));
 
 		inpaintingPyramidTexture = UniquePtr<Texture>(device->createTexture(texDesc));
@@ -514,12 +513,12 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.Mode                       = 0, // #todo-fsr3: FidelityFX defines but does not use it.
 		.reset                      = bResetCurrentFrame || bDisjointFrameID,
 		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // Set below
-		.deltaTime                  = passInput.deltaTime, // #wip: Unit of deltaTime?
+		.deltaTime                  = 0, // #todo-fsr3: FidelityFX defines but does not use it.
 		.HUDLessAttachedFactor      = 0,
 		.distortionFieldSize        = { 1, 1 },
 		.opticalFlowScale           = { 1.0f / (float)(passInput.displaySizeX), 1.0f / (float)(passInput.displaySizeY) },
 		.opticalFlowBlockSize       = kOpticalFlowBlockSize,
-		.dispatchFlags              = passInput.dispatchFlags,
+		.dispatchFlags              = (uint32)passInput.dispatchFlags,
 		.maxRenderSize              = { passInput.displaySizeX, passInput.displaySizeY },
 		.opticalFlowHalfResMode     = 0, // #todo-fsr3: FidelityFX defines but does not use it.
 		.NumInstances               = 0, // #todo-fsr3: FidelityFX defines but does not use it.
@@ -726,7 +725,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
 			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
 			SPT.texture("r_dilated_depth", dilatedDepthSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
-			// #wip: not used but declared in ffx_frameinterpolation_reconstruct_previous_depth_pass.hlsl
+			// #todo-fsr3: declared but not used in ffx_frameinterpolation_reconstruct_previous_depth_pass.hlsl
 			SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
 			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
 			SPT.rwTexture("rw_reconstructed_depth_interpolated_frame", reconstructedDepthInterpolatedFrameUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_INTERPOLATED_FRAME

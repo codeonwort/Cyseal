@@ -9,6 +9,15 @@
 
 class Camera;
 
+enum class EFrameGenDispatchFlags : uint32
+{
+	NONE                        = 0,
+	DRAW_DEBUG_TEAR_LINES       = (1 << 0),
+	DRAW_DEBUG_RESET_INDICATORS = (1 << 1),
+	DRAW_DEBUG_VIEW             = (1 << 2),
+};
+ENUM_CLASS_FLAGS(EFrameGenDispatchFlags);
+
 struct FrameGenPassInput
 {
 	class ClearResourcePass*              clearResourcePass;
@@ -19,8 +28,7 @@ struct FrameGenPassInput
 	int32                                 displaySizeX;
 	int32                                 displaySizeY;
 	uint32                                frameID;
-	float                                 deltaTime;
-	uint32                                dispatchFlags;
+	EFrameGenDispatchFlags                dispatchFlags;
 	OpticalFlowBackbufferTransferFunction backBufferTransferFunction;
 	bool                                  bReset;
 	float                                 minLuminance;
