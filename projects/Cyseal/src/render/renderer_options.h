@@ -206,6 +206,9 @@ struct RendererOptions
 	bool                      bEnableDepthPrepass = true;
 	bool                      bEnableVisibilityBuffer = true;
 
+	// Frame generation
+	bool                      bGenerateFrame = true;
+
 	// Debug visualization
 	EBufferVisualizationMode  bufferVisualization = EBufferVisualizationMode::None;
 

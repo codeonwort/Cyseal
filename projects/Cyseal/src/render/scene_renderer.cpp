@@ -239,7 +239,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	const bool bRenderAnyRaytracingPass = renderOptions.anyRayTracingEnabled();
 
-	const bool bRenderOpticalFlow = !bRenderPathTracing;
+	const bool bRenderFrameGeneration = renderOptions.bGenerateFrame && !bRenderPathTracing;
 
 	clearResourcePass->prepareForFrame(swapchainIndex);
 
@@ -799,7 +799,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	OpticalFlowPassOutput opticalFlowPassOutput{};
 	FrameGenPassOutput frameGenPassOutput{};
-	if (bRenderOpticalFlow)
+	if (bRenderFrameGeneration)
 	{
 		const auto backbufferTransferFunction = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance;
 		const bool bResetOpticalFlowAccumulation = false;
@@ -921,7 +921,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			TextureBarrierAuto::toShaderResource(RT_visGbuffers[0].get(), EBarrierSync::PIXEL_SHADING),
 			TextureBarrierAuto::toShaderResource(RT_visGbuffers[1].get(), EBarrierSync::PIXEL_SHADING),
 		};
-		if (bRenderOpticalFlow)
+		if (bRenderFrameGeneration)
 		{
 			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(frameGenPassOutput.opticalFlowMotionVectorFieldTextures[0], EBarrierSync::PIXEL_SHADING));
 			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(frameGenPassOutput.opticalFlowMotionVectorFieldTextures[1], EBarrierSync::PIXEL_SHADING));
@@ -946,11 +946,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.barycentricCoordSRV    = barycentricCoordSRV.get(),
 			.visGbuffer0SRV         = visGbufferSRVs[0].get(),
 			.visGbuffer1SRV         = visGbufferSRVs[1].get(),
-			.opticalFlowVectorXSRV  = bRenderOpticalFlow ? frameGenPassOutput.opticalFlowMotionVectorFieldSRVs[0] : grey2DSRV.get(),
-			.opticalFlowVectorYSRV  = bRenderOpticalFlow ? frameGenPassOutput.opticalFlowMotionVectorFieldSRVs[1] : grey2DSRV.get(),
-			.opticalFlowVectorSizeX = bRenderOpticalFlow ? opticalFlowPassOutput.opticalFlowVectorSizeX : 1,
-			.opticalFlowVectorSizeY = bRenderOpticalFlow ? opticalFlowPassOutput.opticalFlowVectorSizeY : 1,
-			.interpolatedFrameSRV   = bRenderOpticalFlow ? frameGenPassOutput.interpolatedFrameSRV : grey2DSRV.get(),
+			.opticalFlowVectorXSRV  = bRenderFrameGeneration ? frameGenPassOutput.opticalFlowMotionVectorFieldSRVs[0] : grey2DSRV.get(),
+			.opticalFlowVectorYSRV  = bRenderFrameGeneration ? frameGenPassOutput.opticalFlowMotionVectorFieldSRVs[1] : grey2DSRV.get(),
+			.opticalFlowVectorSizeX = bRenderFrameGeneration ? opticalFlowPassOutput.opticalFlowVectorSizeX : 1,
+			.opticalFlowVectorSizeY = bRenderFrameGeneration ? opticalFlowPassOutput.opticalFlowVectorSizeY : 1,
+			.interpolatedFrameSRV   = bRenderFrameGeneration ? frameGenPassOutput.interpolatedFrameSRV : grey2DSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
