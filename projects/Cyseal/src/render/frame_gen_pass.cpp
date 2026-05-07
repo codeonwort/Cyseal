@@ -598,7 +598,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			EPixelFormat::R16G16B16A16_FLOAT,
 			ETextureAccessFlags::UAV,
 			// #wip: What if inpaintingPyramid is not large enough to contain 13 mips?
-			passInput.displaySizeX, passInput.displaySizeY, _countof(inpaintingPyramidUAVs));
+			passInput.displaySizeX / 2, passInput.displaySizeY / 2, _countof(inpaintingPyramidUAVs));
 
 		inpaintingPyramidTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		inpaintingPyramidTexture->setDebugName(L"RT_FSR3_InpaintingPyramidTexture");
@@ -885,7 +885,6 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		commandList->dispatchCompute(renderDispatchSizeX, renderDispatchSizeY, 1);
 	}
 
-	// #wip: Dispatch gameVectorFieldInpaintingPyramidPipeline
 	auto scheduleDispatchGameVectorFieldInpaintingPyramid = [&]()
 	{
 		SCOPED_DRAW_EVENT(commandList, GameVectorFieldInpaintingPyramid);
@@ -1129,8 +1128,52 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 
 	// inpainting pyramid
 	{
-		// #wip: Auto exposure via SPD
+		{
+			SCOPED_DRAW_EVENT(commandList, InpaintingPyramid);
+
+			uint32 dispatchThreadGroupCountXY[2];
+			uint32 workGroupOffset[2];
+			uint32 numWorkGroupsAndMips[2];
+			uint32 rectInfo[4] = { 0, 0, (uint32)passInput.displaySizeX, (uint32)passInput.displaySizeY };
+			ffxSpdSetup(dispatchThreadGroupCountXY, workGroupOffset, numWorkGroupsAndMips, rectInfo, -1);
+
+			auto pipeline = inpaintingPyramidPipeline.get();
+			auto& passDescriptor = inpaintingPyramidDescriptor;
+
+			BufferBarrierAuto bufferBarriers[] = {
+				{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, counterBuffer.get() },
+			};
+			TextureBarrierAuto textureBarriers[] = {
+				TextureBarrierAuto::toShaderResource(interpolationOutputTexture.get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toUnorderedAccess(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
+			};
+			commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+			ShaderParameterTable SPT{};
+			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
+			SPT.constantBuffer("cbInpaintingPyramid", inpaintingPyramidUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_INPAINTING_PYRAMID
+			SPT.texture("r_output", interpolationOutputSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_OUTPUT
+			SPT.rwBuffer("rw_counters", counterUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
+			for (size_t i = 0; i < _countof(inpaintingPyramidUAVs); ++i)
+			{
+				// rw_inpainting_pyramid0 ~ rw_inpainting_pyramidN (FFX_FRAMEINTERPOLATION_BIND_UAV_INPAINTING_PYRAMID_MIPMAP_0 ~ N)
+				char msg[64];
+				std::snprintf(msg, _countof(msg), "rw_inpainting_pyramid%u", (uint32)i);
+				SPT.rwTexture(msg, inpaintingPyramidUAVs[i].get());
+			}
+
+			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+
+			commandList->setComputePipelineState(pipeline);
+			commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
+
+			commandList->dispatchCompute(dispatchThreadGroupCountXY[0], dispatchThreadGroupCountXY[1], 1);
+		}
+
 		// #wip: Dispatch inpaintingPyramidPipeline
+		{
+			//
+		}
 	}
 
 	// #wip: inpaintingPipeline
