@@ -152,7 +152,7 @@ PixelOutput mainPS(Interpolants interpolants)
 	//if (dot(viewDir, N) > 0) N *= -1;
 
 	// Material properties
-	Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
+	Texture2D albedoTex = albedoTextures[NonUniformResourceIndex(material.albedoTextureIndex)];
 	float3 albedo = albedoTex.SampleLevel(albedoSampler, interpolants.texcoord, 0.0).rgb;
 	albedo *= material.albedoMultiplier.rgb;
 
