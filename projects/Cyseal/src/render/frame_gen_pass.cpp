@@ -211,6 +211,30 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			|| texture->getCreateParams().height != height;
 	};
 
+	auto createAllMipsSRV = [device = device](Texture* texture) -> UniquePtr<ShaderResourceView> {
+		return UniquePtr<ShaderResourceView>(device->createSRV(texture,
+			ShaderResourceViewDesc{
+				.format        = texture->getCreateParams().format,
+				.viewDimension = ESRVDimension::Texture2D,
+				.texture2D     = Texture2DSRVDesc{
+					.mostDetailedMip = 0,
+					.mipLevels       = texture->getCreateParams().mipLevels,
+					.planeSlice      = 0,
+					.minLODClamp     = 0.0f,
+				},
+			}
+		));
+	};
+	auto createSingleMipUAV = [device = device](Texture* texture, uint32 mip) -> UniquePtr<UnorderedAccessView> {
+		return UniquePtr<UnorderedAccessView>(device->createUAV(texture,
+			UnorderedAccessViewDesc{
+				.format         = texture->getCreateParams().format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{ .mipSlice = mip, .planeSlice = 0 },
+			}
+		));
+	};
+
 	for (size_t i = 0; i < reconstructedPrevDepthTextures.size(); ++i)
 	{
 		if (nullOrWrongSize(reconstructedPrevDepthTextures[i], passInput.displaySizeX, passInput.displaySizeY))
@@ -229,27 +253,8 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_ReconstructedPrevDepth_%u", (uint32)i);
 			reconstructedPrevDepthTextures[i]->setDebugName(debugName);
 
-			reconstructedPrevDepthSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
-				reconstructedPrevDepthTextures[i].get(),
-				ShaderResourceViewDesc{
-					.format              = reconstructedPrevDepthTextures[i]->getCreateParams().format,
-					.viewDimension       = ESRVDimension::Texture2D,
-					.texture2D           = Texture2DSRVDesc{
-						.mostDetailedMip = 0,
-						.mipLevels       = 1,
-						.planeSlice      = 0,
-						.minLODClamp     = 0.0f,
-					},
-				}
-			));
-			reconstructedPrevDepthUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
-				reconstructedPrevDepthTextures[i].get(),
-				UnorderedAccessViewDesc{
-					.format         = reconstructedPrevDepthTextures[i]->getCreateParams().format,
-					.viewDimension  = EUAVDimension::Texture2D,
-					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-				}
-			));
+			reconstructedPrevDepthSRVs[i] = createAllMipsSRV(reconstructedPrevDepthTextures[i].get());
+			reconstructedPrevDepthUAVs[i] = createSingleMipUAV(reconstructedPrevDepthTextures[i].get(), 0);
 		}
 	}
 
@@ -266,27 +271,8 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		reconstructedDepthInterpolatedFrameTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		reconstructedDepthInterpolatedFrameTexture->setDebugName(L"RT_FSR3_ReconstructedDepthInterpolatedFrame");
 
-		reconstructedDepthInterpolatedFrameSRV = UniquePtr<ShaderResourceView>(device->createSRV(
-			reconstructedDepthInterpolatedFrameTexture.get(),
-			ShaderResourceViewDesc{
-				.format              = reconstructedDepthInterpolatedFrameTexture->getCreateParams().format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = 1,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
-		reconstructedDepthInterpolatedFrameUAV = UniquePtr<UnorderedAccessView>(device->createUAV(
-			reconstructedDepthInterpolatedFrameTexture.get(),
-			UnorderedAccessViewDesc{
-				.format         = reconstructedDepthInterpolatedFrameTexture->getCreateParams().format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-			}
-		));
+		reconstructedDepthInterpolatedFrameSRV = createAllMipsSRV(reconstructedDepthInterpolatedFrameTexture.get());
+		reconstructedDepthInterpolatedFrameUAV = createSingleMipUAV(reconstructedDepthInterpolatedFrameTexture.get(), 0);
 	}
 
 	for (size_t i = 0; i < dilatedMotionVectorTextures.size(); ++i)
@@ -307,27 +293,8 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_DilatedMotionVector_%u", (uint32)i);
 			dilatedMotionVectorTextures[i]->setDebugName(debugName);
 			
-			dilatedMotionVectorSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
-				dilatedMotionVectorTextures[i].get(),
-				ShaderResourceViewDesc{
-					.format              = dilatedMotionVectorTextures[i]->getCreateParams().format,
-					.viewDimension       = ESRVDimension::Texture2D,
-					.texture2D           = Texture2DSRVDesc{
-						.mostDetailedMip = 0,
-						.mipLevels       = 1,
-						.planeSlice      = 0,
-						.minLODClamp     = 0.0f,
-					},
-				}
-			));
-			dilatedMotionVectorUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
-				dilatedMotionVectorTextures[i].get(),
-				UnorderedAccessViewDesc{
-					.format         = dilatedMotionVectorTextures[i]->getCreateParams().format,
-					.viewDimension  = EUAVDimension::Texture2D,
-					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-				}
-			));
+			dilatedMotionVectorSRVs[i] = createAllMipsSRV(dilatedMotionVectorTextures[i].get());
+			dilatedMotionVectorUAVs[i] = createSingleMipUAV(dilatedMotionVectorTextures[i].get(), 0);
 		}
 	}
 
@@ -349,27 +316,8 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_DilatedDepth_%u", (uint32)i);
 			dilatedDepthTextures[i]->setDebugName(debugName);
 			
-			dilatedDepthSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
-				dilatedDepthTextures[i].get(),
-				ShaderResourceViewDesc{
-					.format              = dilatedDepthTextures[i]->getCreateParams().format,
-					.viewDimension       = ESRVDimension::Texture2D,
-					.texture2D           = Texture2DSRVDesc{
-						.mostDetailedMip = 0,
-						.mipLevels       = 1,
-						.planeSlice      = 0,
-						.minLODClamp     = 0.0f,
-					},
-				}
-			));
-			dilatedDepthUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
-				dilatedDepthTextures[i].get(),
-				UnorderedAccessViewDesc{
-					.format         = dilatedDepthTextures[i]->getCreateParams().format,
-					.viewDimension  = EUAVDimension::Texture2D,
-					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-				}
-			));
+			dilatedDepthSRVs[i] = createAllMipsSRV(dilatedDepthTextures[i].get());
+			dilatedDepthUAVs[i] = createSingleMipUAV(dilatedDepthTextures[i].get(), 0);
 		}
 	}
 
@@ -391,27 +339,8 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_GameMotionVectorField_%s", i == 0 ? L"X" : L"Y");
 			gameMotionVectorFieldTextures[i]->setDebugName(debugName);
 
-			gameMotionVectorFieldSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
-				gameMotionVectorFieldTextures[i].get(),
-				ShaderResourceViewDesc{
-					.format              = gameMotionVectorFieldTextures[i]->getCreateParams().format,
-					.viewDimension       = ESRVDimension::Texture2D,
-					.texture2D           = Texture2DSRVDesc{
-						.mostDetailedMip = 0,
-						.mipLevels       = 1,
-						.planeSlice      = 0,
-						.minLODClamp     = 0.0f,
-					},
-				}
-			));
-			gameMotionVectorFieldUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
-				gameMotionVectorFieldTextures[i].get(),
-				UnorderedAccessViewDesc{
-					.format         = gameMotionVectorFieldTextures[i]->getCreateParams().format,
-					.viewDimension  = EUAVDimension::Texture2D,
-					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-				}
-			));
+			gameMotionVectorFieldSRVs[i] = createAllMipsSRV(gameMotionVectorFieldTextures[i].get());
+			gameMotionVectorFieldUAVs[i] = createSingleMipUAV(gameMotionVectorFieldTextures[i].get(), 0);
 		}
 	}
 
@@ -435,27 +364,8 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_OpticalFlowMotionVectorField_%s", i == 0 ? L"X" : L"Y");
 			opticalFlowMotionVectorFieldTextures[i]->setDebugName(debugName);
 
-			opticalFlowMotionVectorFieldSRVs[i] = UniquePtr<ShaderResourceView>(device->createSRV(
-				opticalFlowMotionVectorFieldTextures[i].get(),
-				ShaderResourceViewDesc{
-					.format              = opticalFlowMotionVectorFieldTextures[i]->getCreateParams().format,
-					.viewDimension       = ESRVDimension::Texture2D,
-					.texture2D           = Texture2DSRVDesc{
-						.mostDetailedMip = 0,
-						.mipLevels       = 1,
-						.planeSlice      = 0,
-						.minLODClamp     = 0.0f,
-					},
-				}
-			));
-			opticalFlowMotionVectorFieldUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
-				opticalFlowMotionVectorFieldTextures[i].get(),
-				UnorderedAccessViewDesc{
-					.format         = opticalFlowMotionVectorFieldTextures[i]->getCreateParams().format,
-					.viewDimension  = EUAVDimension::Texture2D,
-					.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-				}
-			));
+			opticalFlowMotionVectorFieldSRVs[i] = createAllMipsSRV(opticalFlowMotionVectorFieldTextures[i].get());
+			opticalFlowMotionVectorFieldUAVs[i] = createSingleMipUAV(opticalFlowMotionVectorFieldTextures[i].get(), 0);
 		}
 	}
 
@@ -472,27 +382,8 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		disocclusionMaskTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		disocclusionMaskTexture->setDebugName(L"RT_FSR3_DisocclusionMask");
 
-		disocclusionMaskSRV = UniquePtr<ShaderResourceView>(device->createSRV(
-			disocclusionMaskTexture.get(),
-			ShaderResourceViewDesc{
-				.format              = disocclusionMaskTexture->getCreateParams().format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = 1,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
-		disocclusionMaskUAV = UniquePtr<UnorderedAccessView>(device->createUAV(
-			disocclusionMaskTexture.get(),
-			UnorderedAccessViewDesc{
-				.format         = disocclusionMaskTexture->getCreateParams().format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-			}
-		));
+		disocclusionMaskSRV = createAllMipsSRV(disocclusionMaskTexture.get());
+		disocclusionMaskUAV = createSingleMipUAV(disocclusionMaskTexture.get(), 0);
 	}
 
 	// 2 uints. See COUNTER_SPD and COUNTER_FRAME_INDEX_SINCE_LAST_RESET.
@@ -542,19 +433,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		defaultDistortionFieldTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		defaultDistortionFieldTexture->setDebugName(L"RT_FSR3_DefaultDistortionField");
 		
-		defaultDistortionFieldSRV = UniquePtr<ShaderResourceView>(device->createSRV(
-			defaultDistortionFieldTexture.get(),
-			ShaderResourceViewDesc{
-				.format              = defaultDistortionFieldTexture->getCreateParams().format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = 1,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
+		defaultDistortionFieldSRV = createAllMipsSRV(defaultDistortionFieldTexture.get());
 	}
 
 	if (nullOrWrongSize(prevInterpolationSourceTexture, passInput.displaySizeX, passInput.displaySizeY))
@@ -570,27 +449,8 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		prevInterpolationSourceTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		prevInterpolationSourceTexture->setDebugName(L"RT_FSR3_PrevInterpolationSource");
 		
-		prevInterpolationSourceSRV = UniquePtr<ShaderResourceView>(device->createSRV(
-			prevInterpolationSourceTexture.get(),
-			ShaderResourceViewDesc{
-				.format              = prevInterpolationSourceTexture->getCreateParams().format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = 1,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
-		prevInterpolationSourceUAV = UniquePtr<UnorderedAccessView>(device->createUAV(
-			prevInterpolationSourceTexture.get(),
-			UnorderedAccessViewDesc{
-				.format         = prevInterpolationSourceTexture->getCreateParams().format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-			}
-		));
+		prevInterpolationSourceSRV = createAllMipsSRV(prevInterpolationSourceTexture.get());
+		prevInterpolationSourceUAV = createSingleMipUAV(prevInterpolationSourceTexture.get(), 0);
 	}
 
 	const uint32 inpaintingPyramidSizeX = passInput.displaySizeX / 2;
@@ -598,6 +458,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 	if (nullOrWrongSize(inpaintingPyramidTexture, inpaintingPyramidSizeX, inpaintingPyramidSizeY))
 	{
 		commandList->enqueueDeferredDealloc(inpaintingPyramidTexture.release(), true);
+		commandList->enqueueDeferredDealloc(inpaintingPyramidSRV.release(), true);
 		for (size_t i = 0; i < _countof(inpaintingPyramidUAVs); ++i)
 		{
 			commandList->enqueueDeferredDealloc(inpaintingPyramidUAVs[i].release(), true);
@@ -612,30 +473,10 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		inpaintingPyramidTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		inpaintingPyramidTexture->setDebugName(L"RT_FSR3_InpaintingPyramidTexture");
 
-		inpaintingPyramidSRV = UniquePtr<ShaderResourceView>(device->createSRV(
-			inpaintingPyramidTexture.get(),
-			ShaderResourceViewDesc{
-				.format              = inpaintingPyramidTexture->getCreateParams().format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = inpaintingPyramidTexture->getCreateParams().mipLevels,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
-		
+		inpaintingPyramidSRV = createAllMipsSRV(inpaintingPyramidTexture.get());
 		for (size_t i = 0; i < _countof(inpaintingPyramidUAVs); ++i)
 		{
-			inpaintingPyramidUAVs[i] = UniquePtr<UnorderedAccessView>(device->createUAV(
-				inpaintingPyramidTexture.get(),
-				UnorderedAccessViewDesc{
-					.format         = inpaintingPyramidTexture->getCreateParams().format,
-					.viewDimension  = EUAVDimension::Texture2D,
-					.texture2D      = Texture2DUAVDesc{ .mipSlice = (uint32)i, .planeSlice = 0 },
-				}
-			));
+			inpaintingPyramidUAVs[i] = createSingleMipUAV(inpaintingPyramidTexture.get(), (uint32)i);
 		}
 	}
 
@@ -659,19 +500,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		opticalFlowConfidenceTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		opticalFlowConfidenceTexture->setDebugName(L"RT_FSR3_OpticalFlowConfidence");
 
-		opticalFlowConfidenceSRV = UniquePtr<ShaderResourceView>(device->createSRV(
-			opticalFlowConfidenceTexture.get(),
-			ShaderResourceViewDesc{
-				.format              = opticalFlowConfidenceTexture->getCreateParams().format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = 1,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
+		opticalFlowConfidenceSRV = createAllMipsSRV(opticalFlowConfidenceTexture.get());
 	}
 
 	if (nullOrWrongSize(interpolationOutputTexture, passInput.displaySizeX, passInput.displaySizeY))
@@ -687,27 +516,8 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		interpolationOutputTexture = UniquePtr<Texture>(device->createTexture(texDesc));
 		interpolationOutputTexture->setDebugName(L"RT_FSR3_InterpolationOutput");
 		
-		interpolationOutputSRV = UniquePtr<ShaderResourceView>(device->createSRV(
-			interpolationOutputTexture.get(),
-			ShaderResourceViewDesc{
-				.format              = interpolationOutputTexture->getCreateParams().format,
-				.viewDimension       = ESRVDimension::Texture2D,
-				.texture2D           = Texture2DSRVDesc{
-					.mostDetailedMip = 0,
-					.mipLevels       = 1,
-					.planeSlice      = 0,
-					.minLODClamp     = 0.0f,
-				},
-			}
-		));
-		interpolationOutputUAV = UniquePtr<UnorderedAccessView>(device->createUAV(
-			interpolationOutputTexture.get(),
-			UnorderedAccessViewDesc{
-				.format         = interpolationOutputTexture->getCreateParams().format,
-				.viewDimension  = EUAVDimension::Texture2D,
-				.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-			}
-		));
+		interpolationOutputSRV = createAllMipsSRV(interpolationOutputTexture.get());
+		interpolationOutputUAV = createSingleMipUAV(interpolationOutputTexture.get(), 0);
 	}
 }
 
