@@ -1207,7 +1207,17 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		// #wip: Dispatch debugViewPipeline
 	}
 
-	// #wip: Store current buffer
+	{
+		SCOPED_DRAW_EVENT(commandList, StoreInterpolationSource);
+
+		TextureBarrierAuto barriersBefore[] = {
+			TextureBarrierAuto::toCopySource(currInterpolationSourceTexture),
+			TextureBarrierAuto::toCopyDest(prevInterpolationSourceTexture.get()),
+		};
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+
+		commandList->copyTexture2D(currInterpolationSourceTexture, prevInterpolationSourceTexture.get());
+	}
 }
 
 ConstantBufferView* FrameGenPass::getCurrentFrameInterpUniformCBV()
