@@ -63,6 +63,7 @@ private:
 	uint32 cpuFrameIndex = 0;
 	uint32 prevFrameID = 0; // from FrameGenPassInput
 	uint32 interpolationDispatchCount = 0;
+	bool bResetCurrentFrame = false;
 
 	// #todo-fsr3: See FfxFrameInterpolationPass enum in
 	// <FidelityFX_SDK>\sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp

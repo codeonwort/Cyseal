@@ -496,6 +496,14 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 	ConstantBufferView* frameInterpUniformCBV = getCurrentFrameInterpUniformCBV();
 	ConstantBufferView* inpaintingPyramidUniformCBV = getCurrentInpaintingPyramidUniformCBV();
 
+	bResetCurrentFrame = (interpolationDispatchCount == 0) || passInput.bReset;
+
+	const bool bFrameID_decreased = passInput.frameID < prevFrameID;
+	const bool bFrameID_skipped = (passInput.frameID - prevFrameID) > 1;
+	const bool bDisjointFrameID = bFrameID_decreased || bFrameID_skipped;
+	prevFrameID = passInput.frameID;
+	interpolationDispatchCount++;
+
 	FrameInterpUniform fiUniformData{
 		.renderSize                 = { passInput.renderSizeX, passInput.renderSizeY },
 		.displaySize                = { passInput.displaySizeX, passInput.displaySizeY },
@@ -504,7 +512,7 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.cameraFar                  = passInput.camera->getZFar(),
 		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY }, // #wip: upscale target size
 		.Mode                       = 0, // #wip: What is this? No shader accesses it, even ffx source code does not use it.
-		.reset                      = passInput.bReset,
+		.reset                      = bResetCurrentFrame || bDisjointFrameID,
 		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // Set below
 		.deltaTime                  = passInput.deltaTime, // #wip: Unit of deltaTime?
 		.HUDLessAttachedFactor      = 0,
@@ -591,14 +599,6 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	ConstantBufferView* frameInterpUniformCBV = getCurrentFrameInterpUniformCBV();
 	ConstantBufferView* inpaintingPyramidUniformCBV = getCurrentInpaintingPyramidUniformCBV();
 
-	const bool bReset = (interpolationDispatchCount == 0) || passInput.bReset;
-
-	const bool bFrameID_decreased = passInput.frameID < prevFrameID;
-	const bool bFrameID_skipped = (passInput.frameID - prevFrameID) > 1;
-	const bool bDisjointFrameID = bFrameID_decreased || bFrameID_skipped;
-	prevFrameID = passInput.frameID;
-	interpolationDispatchCount++;
-
 	const uint32 displayDispatchSizeX = (passInput.displaySizeX + 7) / 8;
 	const uint32 displayDispatchSizeY = (passInput.displaySizeY + 7) / 8;
 
@@ -608,7 +608,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	const uint32 opticalFlowDispatchSizeX = (uint32)(passInput.displaySizeX / (float)kOpticalFlowBlockSize + 7) / 8;
 	const uint32 opticalFlowDispatchSizeY = (uint32)(passInput.displaySizeY / (float)kOpticalFlowBlockSize + 7) / 8;
 
-	const bool bExecutePreparationPasses = (false == bReset);
+	const bool bExecutePreparationPasses = (false == bResetCurrentFrame);
 
 	// #wip: distortion field texture from passInput
 	auto distortionFieldTexture            = defaultDistortionFieldTexture.get();
