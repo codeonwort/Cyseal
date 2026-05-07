@@ -121,17 +121,6 @@ void FrameGenPass::initialize(RenderDevice* inRenderDevice)
 	device = inRenderDevice;
 	cpuFrameIndex = 0;
 
-	const uint32 swapchainCount = 2;
-	reconstructedPrevDepthTextures.initialize(swapchainCount);
-	reconstructedPrevDepthSRVs.initialize(swapchainCount);
-	reconstructedPrevDepthUAVs.initialize(swapchainCount);
-	dilatedMotionVectorTextures.initialize(swapchainCount);
-	dilatedMotionVectorSRVs.initialize(swapchainCount);
-	dilatedMotionVectorUAVs.initialize(swapchainCount);
-	dilatedDepthTextures.initialize(swapchainCount);
-	dilatedDepthSRVs.initialize(swapchainCount);
-	dilatedDepthUAVs.initialize(swapchainCount);
-
 	initializePipelines();
 }
 
@@ -235,27 +224,21 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		));
 	};
 
-	for (size_t i = 0; i < reconstructedPrevDepthTextures.size(); ++i)
+	if (nullOrWrongSize(reconstructedPrevDepthTexture, passInput.displaySizeX, passInput.displaySizeY))
 	{
-		if (nullOrWrongSize(reconstructedPrevDepthTextures[i], passInput.displaySizeX, passInput.displaySizeY))
-		{
-			commandList->enqueueDeferredDealloc(reconstructedPrevDepthTextures[i].release(), true);
-			commandList->enqueueDeferredDealloc(reconstructedPrevDepthSRVs[i].release(), true);
-			commandList->enqueueDeferredDealloc(reconstructedPrevDepthUAVs[i].release(), true);
+		commandList->enqueueDeferredDealloc(reconstructedPrevDepthTexture.release(), true);
+		commandList->enqueueDeferredDealloc(reconstructedPrevDepthSRV.release(), true);
+		commandList->enqueueDeferredDealloc(reconstructedPrevDepthUAV.release(), true);
 
-			TextureCreateParams texDesc = TextureCreateParams::texture2D(
-				EPixelFormat::R32_FLOAT,
-				ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
-				passInput.displaySizeX, passInput.displaySizeY);
-			reconstructedPrevDepthTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
+		TextureCreateParams texDesc = TextureCreateParams::texture2D(
+			EPixelFormat::R32_FLOAT,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			passInput.displaySizeX, passInput.displaySizeY);
+		reconstructedPrevDepthTexture = UniquePtr<Texture>(device->createTexture(texDesc));
+		reconstructedPrevDepthTexture->setDebugName(L"RT_FSR3_ReconstructedPrevDepth");
 
-			wchar_t debugName[128];
-			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_ReconstructedPrevDepth_%u", (uint32)i);
-			reconstructedPrevDepthTextures[i]->setDebugName(debugName);
-
-			reconstructedPrevDepthSRVs[i] = createAllMipsSRV(reconstructedPrevDepthTextures[i].get());
-			reconstructedPrevDepthUAVs[i] = createSingleMipUAV(reconstructedPrevDepthTextures[i].get(), 0);
-		}
+		reconstructedPrevDepthSRV = createAllMipsSRV(reconstructedPrevDepthTexture.get());
+		reconstructedPrevDepthUAV = createSingleMipUAV(reconstructedPrevDepthTexture.get(), 0);
 	}
 
 	if (nullOrWrongSize(reconstructedDepthInterpolatedFrameTexture, passInput.displaySizeX, passInput.displaySizeY))
@@ -275,50 +258,38 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		reconstructedDepthInterpolatedFrameUAV = createSingleMipUAV(reconstructedDepthInterpolatedFrameTexture.get(), 0);
 	}
 
-	for (size_t i = 0; i < dilatedMotionVectorTextures.size(); ++i)
+	if (nullOrWrongSize(dilatedMotionVectorTexture, passInput.displaySizeX, passInput.displaySizeY))
 	{
-		if (nullOrWrongSize(dilatedMotionVectorTextures[i], passInput.displaySizeX, passInput.displaySizeY))
-		{
-			commandList->enqueueDeferredDealloc(dilatedMotionVectorTextures[i].release(), true);
-			commandList->enqueueDeferredDealloc(dilatedMotionVectorSRVs[i].release(), true);
-			commandList->enqueueDeferredDealloc(dilatedMotionVectorUAVs[i].release(), true);
+		commandList->enqueueDeferredDealloc(dilatedMotionVectorTexture.release(), true);
+		commandList->enqueueDeferredDealloc(dilatedMotionVectorSRV.release(), true);
+		commandList->enqueueDeferredDealloc(dilatedMotionVectorUAV.release(), true);
 
-			TextureCreateParams texDesc = TextureCreateParams::texture2D(
-				EPixelFormat::R16G16_FLOAT,
-				ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
-				passInput.displaySizeX, passInput.displaySizeY);
-			dilatedMotionVectorTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
-
-			wchar_t debugName[128];
-			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_DilatedMotionVector_%u", (uint32)i);
-			dilatedMotionVectorTextures[i]->setDebugName(debugName);
-			
-			dilatedMotionVectorSRVs[i] = createAllMipsSRV(dilatedMotionVectorTextures[i].get());
-			dilatedMotionVectorUAVs[i] = createSingleMipUAV(dilatedMotionVectorTextures[i].get(), 0);
-		}
+		TextureCreateParams texDesc = TextureCreateParams::texture2D(
+			EPixelFormat::R16G16_FLOAT,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			passInput.displaySizeX, passInput.displaySizeY);
+		dilatedMotionVectorTexture = UniquePtr<Texture>(device->createTexture(texDesc));
+		dilatedMotionVectorTexture->setDebugName(L"RT_FSR3_DilatedMotionVector");
+		
+		dilatedMotionVectorSRV = createAllMipsSRV(dilatedMotionVectorTexture.get());
+		dilatedMotionVectorUAV = createSingleMipUAV(dilatedMotionVectorTexture.get(), 0);
 	}
 
-	for (size_t i = 0; i < dilatedDepthTextures.size(); ++i)
+	if (nullOrWrongSize(dilatedDepthTexture, passInput.displaySizeX, passInput.displaySizeY))
 	{
-		if (nullOrWrongSize(dilatedDepthTextures[i], passInput.displaySizeX, passInput.displaySizeY))
-		{
-			commandList->enqueueDeferredDealloc(dilatedDepthTextures[i].release(), true);
-			commandList->enqueueDeferredDealloc(dilatedDepthSRVs[i].release(), true);
-			commandList->enqueueDeferredDealloc(dilatedDepthUAVs[i].release(), true);
+		commandList->enqueueDeferredDealloc(dilatedDepthTexture.release(), true);
+		commandList->enqueueDeferredDealloc(dilatedDepthSRV.release(), true);
+		commandList->enqueueDeferredDealloc(dilatedDepthUAV.release(), true);
 
-			TextureCreateParams texDesc = TextureCreateParams::texture2D(
-				EPixelFormat::R32_FLOAT,
-				ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
-				passInput.displaySizeX, passInput.displaySizeY);
-			dilatedDepthTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
-
-			wchar_t debugName[128];
-			std::swprintf(debugName, _countof(debugName), L"RT_FSR3_DilatedDepth_%u", (uint32)i);
-			dilatedDepthTextures[i]->setDebugName(debugName);
+		TextureCreateParams texDesc = TextureCreateParams::texture2D(
+			EPixelFormat::R32_FLOAT,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			passInput.displaySizeX, passInput.displaySizeY);
+		dilatedDepthTexture = UniquePtr<Texture>(device->createTexture(texDesc));
+		dilatedDepthTexture->setDebugName(L"RT_FSR3_DilatedDepth");
 			
-			dilatedDepthSRVs[i] = createAllMipsSRV(dilatedDepthTextures[i].get());
-			dilatedDepthUAVs[i] = createSingleMipUAV(dilatedDepthTextures[i].get(), 0);
-		}
+		dilatedDepthSRV = createAllMipsSRV(dilatedDepthTexture.get());
+		dilatedDepthUAV = createSingleMipUAV(dilatedDepthTexture.get(), 0);
 	}
 
 	for (uint32 i = 0; i < 2; ++i)
@@ -579,28 +550,19 @@ void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchain
 {
 	SCOPED_DRAW_EVENT(commandList, FrameGenPrepare);
 
-	const uint32 currResourceIndex = (cpuFrameIndex & 1);
-	const uint32 prevResourceIndex = ((cpuFrameIndex + 1) & 1);
-
 	auto uniformCBV = getCurrentFrameInterpUniformCBV();
-	auto reconstructedPrevDepthTexture = reconstructedPrevDepthTextures[currResourceIndex].get();
-	auto reconstructedPrevDepthUAV = reconstructedPrevDepthUAVs[currResourceIndex].get();
-	auto dilatedMotionVectorTexture = dilatedMotionVectorTextures[currResourceIndex].get();
-	auto dilatedMotionVectorUAV = dilatedMotionVectorUAVs[currResourceIndex].get();
-	auto dilatedDepthTexture = dilatedDepthTextures[currResourceIndex].get();
-	auto dilatedDepthUAV = dilatedDepthUAVs[currResourceIndex].get();
 
 	// Clear estimated depth resources.
 	auto fClearZero = ClearResourcePass::floatClearValue(getDeviceFarDepth(), 0, 0, 0);
-	passInput.clearResourcePass->enqueueClear(reconstructedPrevDepthTexture, reconstructedPrevDepthUAV, fClearZero);
+	passInput.clearResourcePass->enqueueClear(reconstructedPrevDepthTexture.get(), reconstructedPrevDepthUAV.get(), fClearZero);
 	passInput.clearResourcePass->executeClears(commandList, swapchainIndex);
 
 	TextureBarrierAuto textureBarriers[] = {
 		TextureBarrierAuto::toShaderResource(passInput.motionVectorTexture, EBarrierSync::COMPUTE_SHADING),
 		TextureBarrierAuto::toShaderResource(passInput.sceneDepthTexture, EBarrierSync::COMPUTE_SHADING),
-		TextureBarrierAuto::toUnorderedAccess(reconstructedPrevDepthTexture, EBarrierSync::COMPUTE_SHADING),
-		TextureBarrierAuto::toUnorderedAccess(dilatedMotionVectorTexture, EBarrierSync::COMPUTE_SHADING),
-		TextureBarrierAuto::toUnorderedAccess(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(reconstructedPrevDepthTexture.get(), EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(dilatedMotionVectorTexture.get(), EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(dilatedDepthTexture.get(), EBarrierSync::COMPUTE_SHADING),
 	};
 	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
@@ -608,9 +570,9 @@ void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchain
 	SPT.constantBuffer("cbFI", uniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
 	SPT.texture("r_input_motion_vectors", passInput.motionVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_INPUT_MOTION_VECTORS
 	SPT.texture("r_input_depth", passInput.sceneDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_INPUT_DEPTH
-	SPT.rwTexture("rw_reconstructed_depth_previous_frame", reconstructedPrevDepthUAV); // FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_PREVIOUS_FRAME
-	SPT.rwTexture("rw_dilated_motion_vectors", dilatedMotionVectorUAV); // FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_MOTION_VECTORS
-	SPT.rwTexture("rw_dilated_depth", dilatedDepthUAV); // FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_DEPTH
+	SPT.rwTexture("rw_reconstructed_depth_previous_frame", reconstructedPrevDepthUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_PREVIOUS_FRAME
+	SPT.rwTexture("rw_dilated_motion_vectors", dilatedMotionVectorUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_MOTION_VECTORS
+	SPT.rwTexture("rw_dilated_depth", dilatedDepthUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_DEPTH
 
 	prepareDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
 	auto descriptorHeap = prepareDescriptor.getDescriptorHeap(swapchainIndex);
@@ -629,9 +591,6 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 {
 	ConstantBufferView* frameInterpUniformCBV = getCurrentFrameInterpUniformCBV();
 	ConstantBufferView* inpaintingPyramidUniformCBV = getCurrentInpaintingPyramidUniformCBV();
-
-	const uint32 currResourceIndex = (cpuFrameIndex & 1);
-	const uint32 prevResourceIndex = ((cpuFrameIndex + 1) & 1);
 
 	const bool bReset = (interpolationDispatchCount == 0) || passInput.bReset;
 
@@ -655,16 +614,6 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 	// #wip: distortion field texture from passInput
 	auto distortionFieldTexture            = defaultDistortionFieldTexture.get();
 	auto distortionFieldSRV                = defaultDistortionFieldSRV.get();
-
-	auto reconstructedPrevDepthTexture     = reconstructedPrevDepthTextures[currResourceIndex].get();
-	auto reconstructedPrevDepthSRV         = reconstructedPrevDepthSRVs[currResourceIndex].get();
-	auto reconstructedPrevDepthUAV         = reconstructedPrevDepthUAVs[currResourceIndex].get();
-	auto dilatedMotionVectorTexture        = dilatedMotionVectorTextures[currResourceIndex].get();
-	auto dilatedMotionVectorSRV            = dilatedMotionVectorSRVs[currResourceIndex].get();
-	auto dilatedMotionVectorUAV            = dilatedMotionVectorUAVs[currResourceIndex].get();
-	auto dilatedDepthTexture               = dilatedDepthTextures[currResourceIndex].get();
-	auto dilatedDepthSRV                   = dilatedDepthSRVs[currResourceIndex].get();
-	auto dilatedDepthUAV                   = dilatedDepthUAVs[currResourceIndex].get();
 	auto currInterpolationSourceTexture    = passInput.sceneColorTexture;
 	auto currInterpolationSourceSRV        = passInput.sceneColorSRV;
 
@@ -766,8 +715,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			auto& passDescriptor = reconstructPrevDepthDescriptor;
 
 			TextureBarrierAuto textureBarriers[] = {
-				TextureBarrierAuto::toShaderResource(dilatedMotionVectorTexture, EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedMotionVectorTexture.get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedDepthTexture.get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(distortionFieldTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toUnorderedAccess(reconstructedDepthInterpolatedFrameTexture.get(), EBarrierSync::COMPUTE_SHADING),
@@ -776,8 +725,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 
 			ShaderParameterTable SPT{};
 			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
-			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
-			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
+			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
+			SPT.texture("r_dilated_depth", dilatedDepthSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
 			// #wip: not used but declared in ffx_frameinterpolation_reconstruct_previous_depth_pass.hlsl
 			SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
 			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
@@ -798,8 +747,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			auto& passDescriptor = gameMotionVectorFieldDescriptor;
 
 			TextureBarrierAuto textureBarriers[] = {
-				TextureBarrierAuto::toShaderResource(dilatedMotionVectorTexture, EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedMotionVectorTexture.get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedDepthTexture.get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(prevInterpolationSourceTexture.get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(distortionFieldTexture, EBarrierSync::COMPUTE_SHADING),
@@ -810,8 +759,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 
 			ShaderParameterTable SPT{};
 			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
-			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
-			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
+			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
+			SPT.texture("r_dilated_depth", dilatedDepthSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
 			SPT.texture("r_previous_interpolation_source", prevInterpolationSourceSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_PREVIOUS_INTERPOLATION_SOURCE
 			SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
 			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
@@ -837,7 +786,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			TextureBarrierAuto textureBarriers[] = {
 				TextureBarrierAuto::toShaderResource(passInput.opticalFlowPassOutput->opticalFlowVectorTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(opticalFlowConfidenceTexture.get(), EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedDepthTexture.get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(prevInterpolationSourceTexture.get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toUnorderedAccess(opticalFlowMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
@@ -849,7 +798,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
 			SPT.texture("r_optical_flow", passInput.opticalFlowPassOutput->opticalFlowVectorSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW
 			SPT.texture("r_optical_flow_confidence", opticalFlowConfidenceSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_OPTICAL_FLOW_CONFIDENCE
-			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
+			SPT.texture("r_dilated_depth", dilatedDepthSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
 			SPT.texture("r_previous_interpolation_source", prevInterpolationSourceSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_PREVIOUS_INTERPOLATION_SOURCE
 			SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
 			SPT.rwTexture("rw_optical_flow_motion_vector_field_x", opticalFlowMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
@@ -872,8 +821,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			TextureBarrierAuto textureBarriers[] = {
 				TextureBarrierAuto::toShaderResource(gameMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(gameMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toShaderResource(reconstructedPrevDepthTexture, EBarrierSync::COMPUTE_SHADING),
-				TextureBarrierAuto::toShaderResource(dilatedDepthTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(reconstructedPrevDepthTexture.get(), EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toShaderResource(dilatedDepthTexture.get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(reconstructedDepthInterpolatedFrameTexture.get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
 				TextureBarrierAuto::toShaderResource(distortionFieldTexture, EBarrierSync::COMPUTE_SHADING),
@@ -885,8 +834,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
 			SPT.texture("r_game_motion_vector_field_x", gameMotionVectorFieldSRVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_GAME_MOTION_VECTOR_FIELD_X
 			SPT.texture("r_game_motion_vector_field_y", gameMotionVectorFieldSRVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_GAME_MOTION_VECTOR_FIELD_Y
-			SPT.texture("r_reconstructed_depth_previous_frame", reconstructedPrevDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_RECONSTRUCTED_DEPTH_PREVIOUS_FRAME
-			SPT.texture("r_dilated_depth", dilatedDepthSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
+			SPT.texture("r_reconstructed_depth_previous_frame", reconstructedPrevDepthSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_RECONSTRUCTED_DEPTH_PREVIOUS_FRAME
+			SPT.texture("r_dilated_depth", dilatedDepthSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
 			SPT.texture("r_reconstructed_depth_interpolated_frame", reconstructedDepthInterpolatedFrameSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_RECONSTRUCTED_DEPTH_INTERPOLATED_FRAME
 			SPT.texture("r_inpainting_pyramid", inpaintingPyramidSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_INPAINTING_PYRAMID
 			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD

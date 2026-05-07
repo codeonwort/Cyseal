@@ -90,19 +90,19 @@ private:
 	VolatileDescriptorHelper               interpolationDescriptor;
 	VolatileDescriptorHelper               inpaintingDescriptor;
 
-	// #wip: Remove unnecessary buffering.
-	BufferedUniquePtr<Texture>             reconstructedPrevDepthTextures;
-	BufferedUniquePtr<ShaderResourceView>  reconstructedPrevDepthSRVs;
-	BufferedUniquePtr<UnorderedAccessView> reconstructedPrevDepthUAVs;
+	
+	UniquePtr<Texture>                     reconstructedPrevDepthTexture;
+	UniquePtr<ShaderResourceView>          reconstructedPrevDepthSRV;
+	UniquePtr<UnorderedAccessView>         reconstructedPrevDepthUAV;
 	UniquePtr<Texture>                     reconstructedDepthInterpolatedFrameTexture;
 	UniquePtr<ShaderResourceView>          reconstructedDepthInterpolatedFrameSRV;
 	UniquePtr<UnorderedAccessView>         reconstructedDepthInterpolatedFrameUAV;
-	BufferedUniquePtr<Texture>             dilatedMotionVectorTextures;
-	BufferedUniquePtr<ShaderResourceView>  dilatedMotionVectorSRVs;
-	BufferedUniquePtr<UnorderedAccessView> dilatedMotionVectorUAVs;
-	BufferedUniquePtr<Texture>             dilatedDepthTextures;
-	BufferedUniquePtr<ShaderResourceView>  dilatedDepthSRVs;
-	BufferedUniquePtr<UnorderedAccessView> dilatedDepthUAVs;
+	UniquePtr<Texture>                     dilatedMotionVectorTexture;
+	UniquePtr<ShaderResourceView>          dilatedMotionVectorSRV;
+	UniquePtr<UnorderedAccessView>         dilatedMotionVectorUAV;
+	UniquePtr<Texture>                     dilatedDepthTexture;
+	UniquePtr<ShaderResourceView>          dilatedDepthSRV;
+	UniquePtr<UnorderedAccessView>         dilatedDepthUAV;
 	UniquePtr<Texture>                     gameMotionVectorFieldTextures[2]; // x, y
 	UniquePtr<ShaderResourceView>          gameMotionVectorFieldSRVs[2]; // x, y
 	UniquePtr<UnorderedAccessView>         gameMotionVectorFieldUAVs[2]; // x, y
