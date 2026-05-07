@@ -229,7 +229,7 @@ void mainCS(uint3 tid: SV_DispatchThreadID)
 	// #todo-visibility: Redundant with base_pass.hlsl
 	// Material properties
 	Material material = materialBuffer.Load(visUnpacked.objectID);
-	Texture2D albedoTex = albedoTextures[material.albedoTextureIndex];
+	Texture2D albedoTex = albedoTextures[NonUniformResourceIndex(material.albedoTextureIndex)];
 	float3 albedo = albedoTex.SampleLevel(albedoSampler, hitResult.texcoord, 0.0).rgb;
 	albedo *= material.albedoMultiplier.rgb;
 	
