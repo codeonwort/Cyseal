@@ -19,6 +19,7 @@
 #define MODE_VIS_ROUGHNESS       15
 #define MODE_VIS_METAL_MASK      16
 #define MODE_OPTICAL_FLOW_VECTOR 17
+#define MODE_INTERPOLATED_FRAME  18
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -48,6 +49,7 @@ Texture2D                     barycentricCoord  : register(t8, space0);
 Texture2D<GBUFFER0_DATATYPE>  visGBuffer0       : register(t9, space0);
 Texture2D<GBUFFER1_DATATYPE>  visGBuffer1       : register(t10, space0);
 Texture2D<int2>               opticalFlowVector : register(t11, space0);
+Texture2D                     interpolatedFrame : register(t12, space0);
 
 SamplerState                  textureSampler    : register(s0, space0);
 
@@ -181,8 +183,8 @@ uint2 LoadOpticalFlowFieldMv(int2 iPxSample)
 	// Also I can't find how these resources are actually bound. I searched for the macros in the entire SDK folder but nothing pops up?
 	//
 #if 0
-    // #wip: ffx_frameinterpolation generates its own OPTICAL_FLOW_MOTION_VECTOR_FIELD_X/Y.
-    // Then do I not need the optical flow vector texture from the optical flow module???
+	// #wip: ffx_frameinterpolation generates its own OPTICAL_FLOW_MOTION_VECTOR_FIELD_X/Y.
+	// Then do I not need the optical flow vector texture from the optical flow module???
 	uint packedX = r_optical_flow_motion_vector_field_x[iPxSample];
 	uint packedY = r_optical_flow_motion_vector_field_y[iPxSample];
 	return uint2(packedX, packedY);
@@ -408,6 +410,10 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 		
 		color.rgb = getMotionVectorColor(ofMv.fMotionVector);
 #endif
+	}
+	else if (modeEnum == MODE_INTERPOLATED_FRAME)
+	{
+		color.rgb = interpolatedFrame.SampleLevel(textureSampler, scaledUV, 0.0).rgb;
 	}
 
 	// Gamma correction

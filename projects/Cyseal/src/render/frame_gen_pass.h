@@ -31,12 +31,18 @@ struct FrameGenPassInput
 	ShaderResourceView*                   motionVectorSRV;
 };
 
+struct FrameGenPassOutput
+{
+	Texture*                              interpolatedFrameTexture = nullptr;
+	ShaderResourceView*                   interpolatedFrameSRV     = nullptr;
+};
+
 class FrameGenPass final : public SceneRenderPass
 {
 public:
 	void initialize(RenderDevice* inRenderDevice);
 
-	void runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
+	FrameGenPassOutput runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
 
 private:
 	void initializePipelines();

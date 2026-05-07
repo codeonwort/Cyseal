@@ -32,6 +32,7 @@ struct BufferVisualizationInput
 	ShaderResourceView*      opticalFlowVectorSRV   = nullptr;
 	uint32                   opticalFlowVectorSizeX = 0;
 	uint32                   opticalFlowVectorSizeY = 0;
+	ShaderResourceView*      interpolatedFrameSRV   = nullptr;
 };
 
 // Visualize intermediate rendering data during frame rendering.

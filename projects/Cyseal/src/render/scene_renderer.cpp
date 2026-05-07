@@ -239,6 +239,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	const bool bRenderAnyRaytracingPass = renderOptions.anyRayTracingEnabled();
 
+	const bool bRenderOpticalFlow = !bRenderPathTracing;
+
 	clearResourcePass->prepareForFrame(swapchainIndex);
 
 	rebuildFrameResources(commandList, scene);
@@ -796,7 +798,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 
 	OpticalFlowPassOutput opticalFlowPassOutput{};
-	if (!bRenderPathTracing)
+	FrameGenPassOutput frameGenPassOutput{};
+	if (bRenderOpticalFlow)
 	{
 		const auto backbufferTransferFunction = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance;
 		const bool bResetOpticalFlowAccumulation = false;
@@ -840,7 +843,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.motionVectorTexture        = RT_velocityMap.get(),
 				.motionVectorSRV            = velocityMapSRV.get(),
 			};
-			frameGenPass->runFrameGeneration(commandList, swapchainIndex, passInput);
+			frameGenPassOutput = frameGenPass->runFrameGeneration(commandList, swapchainIndex, passInput);
 		}
 	}
 
@@ -890,7 +893,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, BufferVisualization);
 
-		TextureBarrierAuto textureBarriers[] = {
+		std::vector<TextureBarrierAuto> textureBarriers = {
 			TextureBarrierAuto::toShaderResource(RT_gbuffers[0].get(), EBarrierSync::PIXEL_SHADING),
 			TextureBarrierAuto::toShaderResource(RT_gbuffers[1].get(), EBarrierSync::PIXEL_SHADING),
 			TextureBarrierAuto::toShaderResource(RT_sceneColor.get(), EBarrierSync::PIXEL_SHADING),
@@ -902,10 +905,13 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			TextureBarrierAuto::toShaderResource(RT_barycentricCoord.get(), EBarrierSync::PIXEL_SHADING),
 			TextureBarrierAuto::toShaderResource(RT_visGbuffers[0].get(), EBarrierSync::PIXEL_SHADING),
 			TextureBarrierAuto::toShaderResource(RT_visGbuffers[1].get(), EBarrierSync::PIXEL_SHADING),
-			// #wip: Null if the pass does not run. (enable buffer vis + enable path tracing -> crashes)
-			TextureBarrierAuto::toShaderResource(opticalFlowPassOutput.opticalFlowVectorTexture, EBarrierSync::PIXEL_SHADING),
 		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+		if (bRenderOpticalFlow)
+		{
+			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(opticalFlowPassOutput.opticalFlowVectorTexture, EBarrierSync::PIXEL_SHADING));
+			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(frameGenPassOutput.interpolatedFrameTexture, EBarrierSync::PIXEL_SHADING));
+		}
+		commandList->barrierAuto(0, nullptr, (uint32)textureBarriers.size(), textureBarriers.data(), 0, nullptr);
 
 		BufferVisualizationInput sources{
 			.renderTarget           = RT_finalSceneColor.get(),
@@ -924,9 +930,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.barycentricCoordSRV    = barycentricCoordSRV.get(),
 			.visGbuffer0SRV         = visGbufferSRVs[0].get(),
 			.visGbuffer1SRV         = visGbufferSRVs[1].get(),
-			.opticalFlowVectorSRV   = opticalFlowPassOutput.opticalFlowVectorSRV,
-			.opticalFlowVectorSizeX = opticalFlowPassOutput.opticalFlowVectorSizeX,
-			.opticalFlowVectorSizeY = opticalFlowPassOutput.opticalFlowVectorSizeY,
+			.opticalFlowVectorSRV   = bRenderOpticalFlow ? opticalFlowPassOutput.opticalFlowVectorSRV : grey2DSRV.get(),
+			.opticalFlowVectorSizeX = bRenderOpticalFlow ? opticalFlowPassOutput.opticalFlowVectorSizeX : 1,
+			.opticalFlowVectorSizeY = bRenderOpticalFlow ? opticalFlowPassOutput.opticalFlowVectorSizeY : 1,
+			.interpolatedFrameSRV   = bRenderOpticalFlow ? frameGenPassOutput.interpolatedFrameSRV : grey2DSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);

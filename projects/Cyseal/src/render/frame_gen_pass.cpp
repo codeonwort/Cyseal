@@ -135,7 +135,7 @@ void FrameGenPass::initialize(RenderDevice* inRenderDevice)
 	initializePipelines();
 }
 
-void FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
+FrameGenPassOutput FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
 {
 	recreateResources(commandList, passInput);
 
@@ -144,6 +144,11 @@ void FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swa
 	dispatchPhase(commandList, swapchainIndex, passInput);
 
 	cpuFrameIndex += 1;
+
+	return FrameGenPassOutput{
+		.interpolatedFrameTexture = interpolationOutputTexture.get(),
+		.interpolatedFrameSRV     = interpolationOutputSRV.get(),
+	};
 }
 
 void FrameGenPass::initializePipelines()
