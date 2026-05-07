@@ -510,8 +510,8 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.displaySizeRcp             = { 1.0f / (float)(passInput.displaySizeX), 1.0f / (float)(passInput.displaySizeY) },
 		.cameraNear                 = passInput.camera->getZNear(),
 		.cameraFar                  = passInput.camera->getZFar(),
-		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY }, // #wip: upscale target size
-		.Mode                       = 0, // #wip: What is this? No shader accesses it, even ffx source code does not use it.
+		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY },
+		.Mode                       = 0, // #todo-fsr3: FidelityFX defines but does not use it.
 		.reset                      = bResetCurrentFrame || bDisjointFrameID,
 		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // Set below
 		.deltaTime                  = passInput.deltaTime, // #wip: Unit of deltaTime?
@@ -521,13 +521,13 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.opticalFlowBlockSize       = kOpticalFlowBlockSize,
 		.dispatchFlags              = passInput.dispatchFlags,
 		.maxRenderSize              = { passInput.displaySizeX, passInput.displaySizeY },
-		.opticalFlowHalfResMode     = 0, // #wip: opticalFlowHalfResMode
-		.NumInstances               = 0, // #wip: NumInstances unused?
+		.opticalFlowHalfResMode     = 0, // #todo-fsr3: FidelityFX defines but does not use it.
+		.NumInstances               = 0, // #todo-fsr3: FidelityFX defines but does not use it.
 		.interpolationRectBase      = { 0, 0 },
 		.interpolationRectSize      = { passInput.renderSizeX, passInput.renderSizeY },
 		.debugBarColor              = { 1.0f, 0.0f, 0.0f },
 		.backBufferTransferFunction = (uint32)passInput.backBufferTransferFunction,
-		.minMaxLuminance            = { 0.0f, 65000.0f }, // #wip: minMaxLuminance
+		.minMaxLuminance            = { passInput.minLuminance, passInput.maxLuminance },
 		.fTanHalfFOV                = 0.5f * std::tan(2.0f * std::atan(std::tan(passInput.camera->getFovYInRadians() * 0.5f) * passInput.camera->getAspectRatio())),
 		._pad1                      = 0,
 		.fJitter                    = { 0, 0 }, // #wip: jitter

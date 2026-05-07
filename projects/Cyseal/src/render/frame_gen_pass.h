@@ -23,6 +23,8 @@ struct FrameGenPassInput
 	uint32                                dispatchFlags;
 	OpticalFlowBackbufferTransferFunction backBufferTransferFunction;
 	bool                                  bReset;
+	float                                 minLuminance;
+	float                                 maxLuminance;
 	Texture*                              sceneColorTexture;
 	ShaderResourceView*                   sceneColorSRV;
 	Texture*                              sceneDepthTexture;

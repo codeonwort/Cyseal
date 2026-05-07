@@ -804,6 +804,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		const auto backbufferTransferFunction = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance;
 		const bool bResetOpticalFlowAccumulation = false;
 
+		// #todo-fsr3: How to calculate min/max luminance? Just downsample the sceneColor to 1x1?
+		// But how to read it? GPU stall and readback is def not an option :(
+		// If these are not scene luminance min/max but the range in HDR calibration then I should pass them from application logic side.
+		const float fMinLuminance = 0.0f;
+		const float fMaxLuminance = 3000.0f;
+
 		{
 			SCOPED_DRAW_EVENT(commandList, OpticalFlow);
 
@@ -815,6 +821,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.containerSizeY     = unscaledRenderHeight,
 				.lumaResolutionX    = (int32)sceneWidth,
 				.lumaResolutionY    = (int32)sceneHeight,
+				.minLuminance       = fMinLuminance,
+				.maxLuminance       = fMaxLuminance,
 				.sceneColorTexture  = RT_sceneColor.get(),
 				.sceneColorSRV      = sceneColorSRV.get(),
 			};
@@ -836,6 +844,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.dispatchFlags              = 0, // #wip: dispatchFlags
 				.backBufferTransferFunction = backbufferTransferFunction,
 				.bReset                     = bResetOpticalFlowAccumulation,
+				.minLuminance               = fMinLuminance,
+				.maxLuminance               = fMaxLuminance,
 				.sceneColorTexture          = RT_sceneColor.get(),
 				.sceneColorSRV              = sceneColorSRV.get(),
 				.sceneDepthTexture          = RT_sceneDepth.get(),

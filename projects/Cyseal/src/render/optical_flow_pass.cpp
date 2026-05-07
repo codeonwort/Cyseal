@@ -74,12 +74,6 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 	auto currScdHistogramTexture = scdHistogramTextures[1].get();
 	auto currScdHistogramUAV     = scdHistogramUAVs[1].get();
 
-	// #todo-fsr3-fg: How to calculate min/max luminance? Just downsample the sceneColor to 1x1?
-	// But how to read it? GPU stall and readback is def not an option :(
-	// If these are not scene luminance min/max but the range in HDR calibration then I should pass them from application logic side.
-	const float fMinLuminance = 0.0f;
-	const float fMaxLuminance = 3000.0f;
-
 	if (passInput.bResetAccumulation || bFirstExecution)
 	{
 		gpuFrameIndex = 0;
@@ -115,7 +109,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 		.uOpticalFlowPyramidLevelCount = 7,
 		.iFrameIndex                   = gpuFrameIndex,
 		.backbufferTransferFunction    = (uint32)passInput.transferFunction,
-		.minMaxLuminance               = { fMinLuminance, fMaxLuminance },
+		.minMaxLuminance               = { passInput.minLuminance, passInput.maxLuminance },
 	};
 	ConstantBufferView* passUniformCBV = prepareLumaDescriptor.getUniformCBV(swapchainIndex);
 	passUniformCBV->writeToGPU(commandList, &passUniformData, sizeof(passUniformData));
@@ -339,7 +333,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 			.uOpticalFlowPyramidLevelCount = 7,
 			.iFrameIndex                   = gpuFrameIndex,
 			.backbufferTransferFunction    = (uint32)passInput.transferFunction,
-			.minMaxLuminance               = { fMinLuminance, fMaxLuminance },
+			.minMaxLuminance               = { passInput.minLuminance, passInput.maxLuminance },
 		};
 		ConstantBufferView* v5PassUniformCBV = computeOpticalFlowAdvancedV5Descriptor.getUniformChunkCBV(swapchainIndex, level);
 		v5PassUniformCBV->writeToGPU(commandList, &v5PassUniformData, sizeof(v5PassUniformData));

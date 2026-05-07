@@ -15,6 +15,8 @@ struct OpticalFlowPassInput
 	uint32                                containerSizeY;
 	int32                                 lumaResolutionX;
 	int32                                 lumaResolutionY;
+	float                                 minLuminance;
+	float                                 maxLuminance;
 	Texture*                              sceneColorTexture;
 	ShaderResourceView*                   sceneColorSRV;
 };
