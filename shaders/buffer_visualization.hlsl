@@ -20,6 +20,7 @@
 #define MODE_VIS_METAL_MASK      16
 #define MODE_OPTICAL_FLOW_VECTOR 17
 #define MODE_INTERPOLATED_FRAME  18
+#define MODE_FRAMEGEN_DEBUG_VIEW 19
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -403,7 +404,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 		color.rgb = getMotionVectorColor(ofMv.fMotionVector);
 #endif
 	}
-	else if (modeEnum == MODE_INTERPOLATED_FRAME)
+	else if (modeEnum == MODE_INTERPOLATED_FRAME || modeEnum == MODE_FRAMEGEN_DEBUG_VIEW)
 	{
 		color.rgb = interpolatedFrame.SampleLevel(textureSampler, scaledUV, 0.0).rgb;
 	}

@@ -831,11 +831,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		{
 			SCOPED_DRAW_EVENT(commandList, FrameGeneration);
 
-			// #wip: dispatchFlags
-			//DRAW_DEBUG_TEAR_LINES       = (1 << 0),
-			//DRAW_DEBUG_RESET_INDICATORS = (1 << 1),
-			//DRAW_DEBUG_VIEW             = (1 << 2),
-			const EFrameGenDispatchFlags dispatchFlags = EFrameGenDispatchFlags::NONE;
+			EFrameGenDispatchFlags dispatchFlags = EFrameGenDispatchFlags::NONE;
+			if (renderOptions.bufferVisualization == EBufferVisualizationMode::FrameGenerationDebugView)
+			{
+				dispatchFlags |= EFrameGenDispatchFlags::DRAW_DEBUG_VIEW;
+			}
 
 			FrameGenPassInput passInput{
 				.clearResourcePass          = clearResourcePass,

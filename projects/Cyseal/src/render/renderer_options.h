@@ -33,6 +33,7 @@ enum class EBufferVisualizationMode : uint32
 	VisibilityBufferMetalMask     = 16,
 	OpticalFlowVector             = 17,
 	InterpolatedFrame             = 18,
+	FrameGenerationDebugView      = 19,
 
 	Count,
 };
@@ -120,6 +121,7 @@ inline const char** getBufferVisualizationModeNames()
 		"VisibilityBufferMetalMask",
 		"OpticalFlowVector",
 		"InterpolatedFrame",
+		"FrameGenerationDebugView",
 	};
 	static_assert(_countof(strings) == (int)EBufferVisualizationMode::Count);
 	return strings;

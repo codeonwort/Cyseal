@@ -100,6 +100,7 @@ private:
 	VolatileDescriptorHelper               disocclusionMaskDescriptor;
 	VolatileDescriptorHelper               interpolationDescriptor;
 	VolatileDescriptorHelper               inpaintingDescriptor;
+	VolatileDescriptorHelper               debugViewDescriptor;
 
 	UniquePtr<Texture>                     reconstructedPrevDepthTexture;
 	UniquePtr<ShaderResourceView>          reconstructedPrevDepthSRV;
