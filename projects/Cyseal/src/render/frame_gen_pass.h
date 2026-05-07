@@ -79,6 +79,7 @@ private:
 	VolatileDescriptorHelper               gameMotionVectorFieldInpaintingPyramidDescriptor;
 	VolatileDescriptorHelper               opticalFlowVectorFieldDescriptor;
 	VolatileDescriptorHelper               disocclusionMaskDescriptor;
+	VolatileDescriptorHelper               interpolationDescriptor;
 
 	// #wip: Remove unnecessary buffering.
 	BufferedUniquePtr<Texture>             reconstructedPrevDepthTextures;
@@ -97,10 +98,13 @@ private:
 	UniquePtr<ShaderResourceView>          gameMotionVectorFieldSRVs[2]; // x, y
 	UniquePtr<UnorderedAccessView>         gameMotionVectorFieldUAVs[2]; // x, y
 	UniquePtr<Texture>                     opticalFlowMotionVectorFieldTextures[2]; // x, y
+	UniquePtr<ShaderResourceView>          opticalFlowMotionVectorFieldSRVs[2]; // x, y
 	UniquePtr<UnorderedAccessView>         opticalFlowMotionVectorFieldUAVs[2]; // x, y
 	UniquePtr<Texture>                     disocclusionMaskTexture;
+	UniquePtr<ShaderResourceView>          disocclusionMaskSRV;
 	UniquePtr<UnorderedAccessView>         disocclusionMaskUAV;
 	UniquePtr<Buffer>                      counterBuffer;
+	UniquePtr<ShaderResourceView>          counterSRV;
 	UniquePtr<UnorderedAccessView>         counterUAV;
 	UniquePtr<Texture>                     defaultDistortionFieldTexture;
 	UniquePtr<ShaderResourceView>          defaultDistortionFieldSRV;
@@ -112,4 +116,7 @@ private:
 	UniquePtr<UnorderedAccessView>         inpaintingPyramidUAVs[13];
 	UniquePtr<Texture>                     opticalFlowConfidenceTexture; // #wip: This is not used at all in FidelityFX. Possibly dead code.
 	UniquePtr<ShaderResourceView>          opticalFlowConfidenceSRV;
+	UniquePtr<Texture>                     interpolationOutputTexture;
+	UniquePtr<ShaderResourceView>          interpolationOutputSRV;
+	UniquePtr<UnorderedAccessView>         interpolationOutputUAV;
 };
