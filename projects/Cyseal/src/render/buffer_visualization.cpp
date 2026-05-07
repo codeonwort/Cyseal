@@ -95,7 +95,8 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 	SPT.texture("barycentricCoord", passInput.barycentricCoordSRV);
 	SPT.texture("visGBuffer0", passInput.visGbuffer0SRV);
 	SPT.texture("visGBuffer1", passInput.visGbuffer1SRV);
-	SPT.texture("opticalFlowVector", passInput.opticalFlowVectorSRV);
+	SPT.texture("opticalFlowVectorX", passInput.opticalFlowVectorXSRV);
+	SPT.texture("opticalFlowVectorY", passInput.opticalFlowVectorYSRV);
 	SPT.texture("interpolatedFrame", passInput.interpolatedFrameSRV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();

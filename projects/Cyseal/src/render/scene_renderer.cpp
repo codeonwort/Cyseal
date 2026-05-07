@@ -908,7 +908,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		};
 		if (bRenderOpticalFlow)
 		{
-			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(opticalFlowPassOutput.opticalFlowVectorTexture, EBarrierSync::PIXEL_SHADING));
+			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(frameGenPassOutput.opticalFlowMotionVectorFieldTextures[0], EBarrierSync::PIXEL_SHADING));
+			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(frameGenPassOutput.opticalFlowMotionVectorFieldTextures[1], EBarrierSync::PIXEL_SHADING));
 			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(frameGenPassOutput.interpolatedFrameTexture, EBarrierSync::PIXEL_SHADING));
 		}
 		commandList->barrierAuto(0, nullptr, (uint32)textureBarriers.size(), textureBarriers.data(), 0, nullptr);
@@ -930,7 +931,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.barycentricCoordSRV    = barycentricCoordSRV.get(),
 			.visGbuffer0SRV         = visGbufferSRVs[0].get(),
 			.visGbuffer1SRV         = visGbufferSRVs[1].get(),
-			.opticalFlowVectorSRV   = bRenderOpticalFlow ? opticalFlowPassOutput.opticalFlowVectorSRV : grey2DSRV.get(),
+			.opticalFlowVectorXSRV  = bRenderOpticalFlow ? frameGenPassOutput.opticalFlowMotionVectorFieldSRVs[0] : grey2DSRV.get(),
+			.opticalFlowVectorYSRV  = bRenderOpticalFlow ? frameGenPassOutput.opticalFlowMotionVectorFieldSRVs[1] : grey2DSRV.get(),
 			.opticalFlowVectorSizeX = bRenderOpticalFlow ? opticalFlowPassOutput.opticalFlowVectorSizeX : 1,
 			.opticalFlowVectorSizeY = bRenderOpticalFlow ? opticalFlowPassOutput.opticalFlowVectorSizeY : 1,
 			.interpolatedFrameSRV   = bRenderOpticalFlow ? frameGenPassOutput.interpolatedFrameSRV : grey2DSRV.get(),

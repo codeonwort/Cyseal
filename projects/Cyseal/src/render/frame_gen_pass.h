@@ -33,8 +33,10 @@ struct FrameGenPassInput
 
 struct FrameGenPassOutput
 {
-	Texture*                              interpolatedFrameTexture = nullptr;
-	ShaderResourceView*                   interpolatedFrameSRV     = nullptr;
+	Texture*               interpolatedFrameTexture                = nullptr;
+	ShaderResourceView*    interpolatedFrameSRV                    = nullptr;
+	Texture*               opticalFlowMotionVectorFieldTextures[2] = { nullptr, nullptr };
+	ShaderResourceView*    opticalFlowMotionVectorFieldSRVs[2]     = { nullptr, nullptr };
 };
 
 class FrameGenPass final : public SceneRenderPass

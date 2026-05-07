@@ -33,25 +33,26 @@ struct PushConstants
 };
 
 [[vk::push_constant]]
-ConstantBuffer<PushConstants> pushConstants     : register(b0, space0);
+ConstantBuffer<PushConstants> pushConstants      : register(b0, space0);
 
 ConstantBuffer<SceneUniform>  sceneUniform;
 
-Texture2D<GBUFFER0_DATATYPE>  gbuffer0          : register(t0, space0);
-Texture2D<GBUFFER1_DATATYPE>  gbuffer1          : register(t1, space0);
-Texture2D                     sceneColor        : register(t2, space0);
-Texture2D                     shadowMask        : register(t3, space0);
-Texture2D                     indirectDiffuse   : register(t4, space0);
-Texture2D                     indirectSpecular  : register(t5, space0);
-Texture2D                     velocityMap       : register(t6, space0);
-Texture2D<uint>               visibilityBuffer  : register(t7, space0);
-Texture2D                     barycentricCoord  : register(t8, space0);
-Texture2D<GBUFFER0_DATATYPE>  visGBuffer0       : register(t9, space0);
-Texture2D<GBUFFER1_DATATYPE>  visGBuffer1       : register(t10, space0);
-Texture2D<int2>               opticalFlowVector : register(t11, space0);
-Texture2D                     interpolatedFrame : register(t12, space0);
+Texture2D<GBUFFER0_DATATYPE>  gbuffer0           : register(t0, space0);
+Texture2D<GBUFFER1_DATATYPE>  gbuffer1           : register(t1, space0);
+Texture2D                     sceneColor         : register(t2, space0);
+Texture2D                     shadowMask         : register(t3, space0);
+Texture2D                     indirectDiffuse    : register(t4, space0);
+Texture2D                     indirectSpecular   : register(t5, space0);
+Texture2D                     velocityMap        : register(t6, space0);
+Texture2D<uint>               visibilityBuffer   : register(t7, space0);
+Texture2D                     barycentricCoord   : register(t8, space0);
+Texture2D<GBUFFER0_DATATYPE>  visGBuffer0        : register(t9, space0);
+Texture2D<GBUFFER1_DATATYPE>  visGBuffer1        : register(t10, space0);
+Texture2D<uint>               opticalFlowVectorX : register(t11, space0);
+Texture2D<uint>               opticalFlowVectorY : register(t12, space0);
+Texture2D                     interpolatedFrame  : register(t13, space0);
 
-SamplerState                  textureSampler    : register(s0, space0);
+SamplerState                  textureSampler     : register(s0, space0);
 
 uint2 unpackOpticalFlowVectorTextureSize()
 {
@@ -62,7 +63,7 @@ uint2 unpackOpticalFlowVectorTextureSize()
 // ------------------------------------------------------------------------
 // From ffx_frameinterpolation_common.h
 
-// #todo-fsr3-fg: Keep here until integrating frame interpolation.
+// #wip: Cleanup.
 
 const uint MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT = 32;
 
@@ -176,21 +177,13 @@ bool IsUvInside(float2 fUv)
 
 uint2 LoadOpticalFlowFieldMv(int2 iPxSample)
 {
-	// FidelityFX SDK uses the following macros in the frame interpolation module:
-	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
-	// - FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
-	// But in optical flow doc the output is a single texture of R16G16 format.
-	// Also I can't find how these resources are actually bound. I searched for the macros in the entire SDK folder but nothing pops up?
-	//
-#if 0
-	// #wip: ffx_frameinterpolation generates its own OPTICAL_FLOW_MOTION_VECTOR_FIELD_X/Y.
-	// Then do I not need the optical flow vector texture from the optical flow module???
-	uint packedX = r_optical_flow_motion_vector_field_x[iPxSample];
-	uint packedY = r_optical_flow_motion_vector_field_y[iPxSample];
+	// optical flow pass generates a single int2 texture.
+	// frame gen pass takes it and generates two uint textures, each for x and y.
+#if 1
+	uint packedX = opticalFlowVectorX[iPxSample];
+	uint packedY = opticalFlowVectorY[iPxSample];
 	return uint2(packedX, packedY);
 #else
-	// #todo-fsr3-fg: Correct format of optical flow vector?
-	// Optical flow vector is a single texture of r16g16_int but this visualization logic requires two uint32 textures?
 	uint2 packedXY = opticalFlowVector.Load(int3(iPxSample, 0)).xy;
 	return packedXY;
 #endif
@@ -395,11 +388,10 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	}
 	else if (modeEnum == MODE_OPTICAL_FLOW_VECTOR)
 	{
+#if 0
 		uint2 ofvSize = unpackOpticalFlowVectorTextureSize();
 		int2 coord = int2(scaledUV * float2(ofvSize.x, ofvSize.y));
-		
-		// #todo-fsr3-fg: Use my crude visualization for now. See the comment in LoadOpticalFlowFieldMv().
-#if 1
+
 		int2 flow = opticalFlowVector.Load(int3(coord, 0)).rg;
 		color.r = saturate(0.5 + 0.5 * (float(flow.r) / 4.0));
 		color.g = saturate(0.5 + 0.5 * (float(flow.g) / 4.0));

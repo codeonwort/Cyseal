@@ -13,26 +13,27 @@ class ShaderResourceView;
 
 struct BufferVisualizationInput
 {
-	Texture*                 renderTarget           = nullptr;
-	EBufferVisualizationMode mode                   = EBufferVisualizationMode::None;
-	uint32                   textureWidth           = 0;
-	uint32                   textureHeight          = 0;
-	ConstantBufferView*      sceneUniformCBV        = nullptr;
-	ShaderResourceView*      gbuffer0SRV            = nullptr;
-	ShaderResourceView*      gbuffer1SRV            = nullptr;
-	ShaderResourceView*      sceneColorSRV          = nullptr;
-	ShaderResourceView*      shadowMaskSRV          = nullptr;
-	ShaderResourceView*      indirectDiffuseSRV     = nullptr;
-	ShaderResourceView*      indirectSpecularSRV    = nullptr;
-	ShaderResourceView*      velocityMapSRV         = nullptr;
-	ShaderResourceView*      visibilityBufferSRV    = nullptr;
-	ShaderResourceView*      barycentricCoordSRV    = nullptr;
-	ShaderResourceView*      visGbuffer0SRV         = nullptr;
-	ShaderResourceView*      visGbuffer1SRV         = nullptr;
-	ShaderResourceView*      opticalFlowVectorSRV   = nullptr;
-	uint32                   opticalFlowVectorSizeX = 0;
-	uint32                   opticalFlowVectorSizeY = 0;
-	ShaderResourceView*      interpolatedFrameSRV   = nullptr;
+	Texture*                 renderTarget             = nullptr;
+	EBufferVisualizationMode mode                     = EBufferVisualizationMode::None;
+	uint32                   textureWidth             = 0;
+	uint32                   textureHeight            = 0;
+	ConstantBufferView*      sceneUniformCBV          = nullptr;
+	ShaderResourceView*      gbuffer0SRV              = nullptr;
+	ShaderResourceView*      gbuffer1SRV              = nullptr;
+	ShaderResourceView*      sceneColorSRV            = nullptr;
+	ShaderResourceView*      shadowMaskSRV            = nullptr;
+	ShaderResourceView*      indirectDiffuseSRV       = nullptr;
+	ShaderResourceView*      indirectSpecularSRV      = nullptr;
+	ShaderResourceView*      velocityMapSRV           = nullptr;
+	ShaderResourceView*      visibilityBufferSRV      = nullptr;
+	ShaderResourceView*      barycentricCoordSRV      = nullptr;
+	ShaderResourceView*      visGbuffer0SRV           = nullptr;
+	ShaderResourceView*      visGbuffer1SRV           = nullptr;
+	ShaderResourceView*      opticalFlowVectorXSRV    = nullptr;
+	ShaderResourceView*      opticalFlowVectorYSRV    = nullptr;
+	uint32                   opticalFlowVectorSizeX   = 0;
+	uint32                   opticalFlowVectorSizeY   = 0;
+	ShaderResourceView*      interpolatedFrameSRV     = nullptr;
 };
 
 // Visualize intermediate rendering data during frame rendering.

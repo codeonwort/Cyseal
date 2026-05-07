@@ -146,8 +146,10 @@ FrameGenPassOutput FrameGenPass::runFrameGeneration(RenderCommandList* commandLi
 	cpuFrameIndex += 1;
 
 	return FrameGenPassOutput{
-		.interpolatedFrameTexture = interpolationOutputTexture.get(),
-		.interpolatedFrameSRV     = interpolationOutputSRV.get(),
+		.interpolatedFrameTexture             = interpolationOutputTexture.get(),
+		.interpolatedFrameSRV                 = interpolationOutputSRV.get(),
+		.opticalFlowMotionVectorFieldTextures = { opticalFlowMotionVectorFieldTextures[0].get(), opticalFlowMotionVectorFieldTextures[1].get() },
+		.opticalFlowMotionVectorFieldSRVs     = { opticalFlowMotionVectorFieldSRVs[0].get(), opticalFlowMotionVectorFieldSRVs[1].get() },
 	};
 }
 
@@ -877,8 +879,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		SPT.rwBuffer("rw_counters", counterUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_COUNTERS
 		SPT.rwTexture("rw_game_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
 		SPT.rwTexture("rw_game_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
-		SPT.rwTexture("rw_optical_flow_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
-		SPT.rwTexture("rw_optical_flow_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
+		SPT.rwTexture("rw_optical_flow_motion_vector_field_x", opticalFlowMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
+		SPT.rwTexture("rw_optical_flow_motion_vector_field_y", opticalFlowMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
 		SPT.rwTexture("rw_disocclusion_mask", disocclusionMaskUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
 		
 		frameInterpDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
