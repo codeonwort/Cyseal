@@ -70,7 +70,7 @@ static std::wstring getPDBDirectory()
 }
 #endif
 
-void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines)
+void D3DShaderStage::loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, const std::vector<std::wstring>& defines)
 {
 	IDxcUtils* utils = device->getDxcUtils();
 	IDxcCompiler3* compiler = device->getDxcCompiler();

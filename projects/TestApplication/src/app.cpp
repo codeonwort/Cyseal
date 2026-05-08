@@ -289,7 +289,6 @@ void TestApplication::onTick(float deltaSeconds)
 			}
 
 			ImGui::SeparatorText("Depth and Visibility");
-
 			ImGui::Checkbox("Depth Prepass", &appState.rendererOptions.bEnableDepthPrepass);
 			if (!appState.rendererOptions.bEnableDepthPrepass)
 			{
@@ -297,6 +296,17 @@ void TestApplication::onTick(float deltaSeconds)
 			}
 			ImGui::Checkbox("Depth Prepass - Visibility Buffer", &appState.rendererOptions.bEnableVisibilityBuffer);
 			if (!appState.rendererOptions.bEnableDepthPrepass)
+			{
+				ImGui::EndDisabled();
+			}
+
+			ImGui::SeparatorText("Frame Generation");
+			if (appState.rendererOptions.pathTracing != EPathTracingMode::Disabled)
+			{
+				ImGui::BeginDisabled();
+			}
+			ImGui::Checkbox("Generate frames", &appState.rendererOptions.bGenerateFrame);
+			if (appState.rendererOptions.pathTracing != EPathTracingMode::Disabled)
 			{
 				ImGui::EndDisabled();
 			}

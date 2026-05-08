@@ -32,6 +32,8 @@ enum class EBufferVisualizationMode : uint32
 	VisibilityBufferRoughness     = 15,
 	VisibilityBufferMetalMask     = 16,
 	OpticalFlowVector             = 17,
+	InterpolatedFrame             = 18,
+	FrameGenerationDebugView      = 19,
 
 	Count,
 };
@@ -118,6 +120,8 @@ inline const char** getBufferVisualizationModeNames()
 		"VisibilityBufferRoughness",
 		"VisibilityBufferMetalMask",
 		"OpticalFlowVector",
+		"InterpolatedFrame",
+		"FrameGenerationDebugView",
 	};
 	static_assert(_countof(strings) == (int)EBufferVisualizationMode::Count);
 	return strings;
@@ -203,6 +207,9 @@ struct RendererOptions
 	// Depth and visibility pass
 	bool                      bEnableDepthPrepass = true;
 	bool                      bEnableVisibilityBuffer = true;
+
+	// Frame generation
+	bool                      bGenerateFrame = true;
 
 	// Debug visualization
 	EBufferVisualizationMode  bufferVisualization = EBufferVisualizationMode::None;

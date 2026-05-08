@@ -39,7 +39,7 @@ public:
 	VulkanShaderStage(VulkanDevice* inDevice, EShaderStage inStageFlag, const char* inDebugName);
 	~VulkanShaderStage();
 
-	virtual void loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines) override;
+	virtual void loadFromFile(const wchar_t* inFilename, const char* inEntryPoint, const std::vector<std::wstring>& defines) override;
 
 	virtual const wchar_t* getEntryPointW() override { return wEntryPoint.c_str(); }
 	virtual const char* getEntryPointA() override { return aEntryPoint.c_str(); }
@@ -52,8 +52,8 @@ public:
 	void moveVkDescriptorSetLayouts(std::vector<VkDescriptorSetLayout>& target);
 
 private:
-	void loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
-	void loadFromFileByDxc(const wchar_t* inFilename, const char* inEntryPoint, std::initializer_list<std::wstring> defines);
+	void loadFromFileByGlslangValidator(const wchar_t* inFilename, const char* inEntryPoint, const std::vector<std::wstring>& defines);
+	void loadFromFileByDxc(const wchar_t* inFilename, const char* inEntryPoint, const std::vector<std::wstring>& defines);
 
 	void readShaderReflection(const void* spirv_code, size_t spirv_nbytes);
 	void addToShaderParameterTable(const VulkanShaderParameter& inParam);

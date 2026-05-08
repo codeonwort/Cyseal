@@ -51,6 +51,7 @@ static uint32 fullMipCount(uint32 width, uint32 height)
 void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
+	frameID = 0;
 
 	// Scene textures: Don't create yet. You invoke recreateSceneTextures() before using scene renderer.
 	// recreateSceneTextures(width, height);
@@ -237,6 +238,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		&& bRenderPathTracing == false;
 
 	const bool bRenderAnyRaytracingPass = renderOptions.anyRayTracingEnabled();
+
+	const bool bRenderFrameGeneration = renderOptions.bGenerateFrame && !bRenderPathTracing;
 
 	clearResourcePass->prepareForFrame(swapchainIndex);
 
@@ -794,22 +797,69 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		combineLightingPass->combineLighting(commandList, swapchainIndex, passInput);
 	}
 
-	if (!bRenderPathTracing)
+	OpticalFlowPassOutput opticalFlowPassOutput{};
+	FrameGenPassOutput frameGenPassOutput{};
+	if (bRenderFrameGeneration)
 	{
-		SCOPED_DRAW_EVENT(commandList, OpticalFlow);
+		const auto backbufferTransferFunction = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance;
+		const bool bResetOpticalFlowAccumulation = false;
 
-		OpticalFlowPassInput passInput{
-			.clearResourcePass  = clearResourcePass,
-			.transferFunction   = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance,
-			.bResetAccumulation = false,
-			.containerSizeX     = unscaledRenderWidth,
-			.containerSizeY     = unscaledRenderHeight,
-			.lumaResolutionX    = (int32)sceneWidth,
-			.lumaResolutionY    = (int32)sceneHeight,
-			.sceneColorTexture  = RT_sceneColor.get(),
-			.sceneColorSRV      = sceneColorSRV.get(),
-		};
-		opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
+		// #todo-fsr3: How to calculate min/max luminance? Just downsample the sceneColor to 1x1?
+		// But how to read it? GPU stall and readback is def not an option :(
+		// If these are not scene luminance min/max but the range in HDR calibration then I should pass them from application logic side.
+		const float fMinLuminance = 0.0f;
+		const float fMaxLuminance = 3000.0f;
+
+		{
+			SCOPED_DRAW_EVENT(commandList, OpticalFlow);
+
+			OpticalFlowPassInput passInput{
+				.clearResourcePass  = clearResourcePass,
+				.transferFunction   = backbufferTransferFunction,
+				.bResetAccumulation = bResetOpticalFlowAccumulation,
+				.containerSizeX     = unscaledRenderWidth,
+				.containerSizeY     = unscaledRenderHeight,
+				.lumaResolutionX    = (int32)sceneWidth,
+				.lumaResolutionY    = (int32)sceneHeight,
+				.minLuminance       = fMinLuminance,
+				.maxLuminance       = fMaxLuminance,
+				.sceneColorTexture  = RT_sceneColor.get(),
+				.sceneColorSRV      = sceneColorSRV.get(),
+			};
+			opticalFlowPassOutput = opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
+		}
+		{
+			SCOPED_DRAW_EVENT(commandList, FrameGeneration);
+
+			EFrameGenDispatchFlags dispatchFlags = EFrameGenDispatchFlags::NONE;
+			if (renderOptions.bufferVisualization == EBufferVisualizationMode::FrameGenerationDebugView)
+			{
+				dispatchFlags |= EFrameGenDispatchFlags::DRAW_DEBUG_VIEW;
+			}
+
+			FrameGenPassInput passInput{
+				.clearResourcePass          = clearResourcePass,
+				.opticalFlowPassOutput      = &opticalFlowPassOutput,
+				.camera                     = camera,
+				.renderSizeX                = (int32)sceneWidth,
+				.renderSizeY                = (int32)sceneHeight,
+				.displaySizeX               = (int32)unscaledRenderWidth,
+				.displaySizeY               = (int32)unscaledRenderHeight,
+				.frameID                    = frameID,
+				.dispatchFlags              = dispatchFlags,
+				.backBufferTransferFunction = backbufferTransferFunction,
+				.bReset                     = bResetOpticalFlowAccumulation,
+				.minLuminance               = fMinLuminance,
+				.maxLuminance               = fMaxLuminance,
+				.sceneColorTexture          = RT_sceneColor.get(),
+				.sceneColorSRV              = sceneColorSRV.get(),
+				.sceneDepthTexture          = RT_sceneDepth.get(),
+				.sceneDepthSRV              = sceneDepthSRV.get(),
+				.motionVectorTexture        = RT_velocityMap.get(),
+				.motionVectorSRV            = velocityMapSRV.get(),
+			};
+			frameGenPassOutput = frameGenPass->runFrameGeneration(commandList, swapchainIndex, passInput);
+		}
 	}
 
 	// Set final color as render target.
@@ -858,57 +908,26 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, BufferVisualization);
 
-		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_gbuffers[0].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_gbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_sceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_shadowMask.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_indirectDiffuse.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_indirectSpecular.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_velocityMap.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_visibilityBuffer.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_barycentricCoord.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_visGbuffers[0].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_visGbuffers[1].get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				opticalFlowPass->getOpticalFlowVectorTexture(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
+		std::vector<TextureBarrierAuto> textureBarriers = {
+			TextureBarrierAuto::toShaderResource(RT_gbuffers[0].get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_gbuffers[1].get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_sceneColor.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_shadowMask.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_indirectDiffuse.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_indirectSpecular.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_velocityMap.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_visibilityBuffer.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_barycentricCoord.get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_visGbuffers[0].get(), EBarrierSync::PIXEL_SHADING),
+			TextureBarrierAuto::toShaderResource(RT_visGbuffers[1].get(), EBarrierSync::PIXEL_SHADING),
 		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+		if (bRenderFrameGeneration)
+		{
+			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(frameGenPassOutput.opticalFlowMotionVectorFieldTextures[0], EBarrierSync::PIXEL_SHADING));
+			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(frameGenPassOutput.opticalFlowMotionVectorFieldTextures[1], EBarrierSync::PIXEL_SHADING));
+			textureBarriers.push_back(TextureBarrierAuto::toShaderResource(frameGenPassOutput.interpolatedFrameTexture, EBarrierSync::PIXEL_SHADING));
+		}
+		commandList->barrierAuto(0, nullptr, (uint32)textureBarriers.size(), textureBarriers.data(), 0, nullptr);
 
 		BufferVisualizationInput sources{
 			.renderTarget           = RT_finalSceneColor.get(),
@@ -927,9 +946,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.barycentricCoordSRV    = barycentricCoordSRV.get(),
 			.visGbuffer0SRV         = visGbufferSRVs[0].get(),
 			.visGbuffer1SRV         = visGbufferSRVs[1].get(),
-			.opticalFlowVectorSRV   = opticalFlowPass->getOpticalFlowVectorSRV(),
-			.opticalFlowVectorSizeX = opticalFlowPass->getOpticalFlowVectorSizeX(),
-			.opticalFlowVectorSizeY = opticalFlowPass->getOpticalFlowVectorSizeY(),
+			.opticalFlowVectorXSRV  = bRenderFrameGeneration ? frameGenPassOutput.opticalFlowMotionVectorFieldSRVs[0] : grey2DSRV.get(),
+			.opticalFlowVectorYSRV  = bRenderFrameGeneration ? frameGenPassOutput.opticalFlowMotionVectorFieldSRVs[1] : grey2DSRV.get(),
+			.opticalFlowVectorSizeX = bRenderFrameGeneration ? opticalFlowPassOutput.opticalFlowVectorSizeX : 1,
+			.opticalFlowVectorSizeY = bRenderFrameGeneration ? opticalFlowPassOutput.opticalFlowVectorSizeY : 1,
+			.interpolatedFrameSRV   = bRenderFrameGeneration ? frameGenPassOutput.interpolatedFrameSRV : grey2DSRV.get(),
 		};
 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
@@ -1048,6 +1069,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		device->flushCommandQueue();
 	}
+
+	frameID += 1;
 
 	// Deallocate memory, a bit messy
 	commandList->executeDeferredDealloc();

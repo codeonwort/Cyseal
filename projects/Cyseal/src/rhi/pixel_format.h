@@ -22,6 +22,8 @@ enum class EPixelFormat : uint8
 	// UNORM
 	R8G8B8A8_UNORM,
 	B8G8R8A8_UNORM,
+	R8G8_UNORM,
+	R8_UNORM,
 	
 	// FLOAT
 	R32_FLOAT,
@@ -36,6 +38,7 @@ enum class EPixelFormat : uint8
 	R32_UINT,
 	R16_UINT,
 	R8_UINT,
+	R16G16_UINT,
 	R32G32B32A32_UINT,
 
 	// SINT
@@ -51,13 +54,18 @@ inline uint32 getPixelFormatBytes(EPixelFormat format)
 	// #todo-rhi: Ignore depth formats?
 	switch (format)
 	{
+		// TYPELESS
 		case EPixelFormat::R32_TYPELESS             : return 4;
 		case EPixelFormat::R24G8_TYPELESS           : return 4;
 		case EPixelFormat::R24_UNORM_X8_TYPELESS    : return 4;
 		case EPixelFormat::R32G8X24_TYPELESS        : return 8;
 		case EPixelFormat::R32_FLOAT_X8X24_TYPELESS : return 8;
+		// UNORM
 		case EPixelFormat::R8G8B8A8_UNORM           : return 4;
 		case EPixelFormat::B8G8R8A8_UNORM           : return 4;
+		case EPixelFormat::R8G8_UNORM               : return 2;
+		case EPixelFormat::R8_UNORM                 : return 1;
+		// FLOAT
 		case EPixelFormat::R32_FLOAT                : return 4;
 		case EPixelFormat::R32G32_FLOAT             : return 8;
 		case EPixelFormat::R32G32B32_FLOAT          : return 12;
@@ -65,10 +73,13 @@ inline uint32 getPixelFormatBytes(EPixelFormat format)
 		case EPixelFormat::R16G16B16A16_FLOAT       : return 8;
 		case EPixelFormat::R16G16_FLOAT             : return 4;
 		case EPixelFormat::R16_FLOAT                : return 2;
+		// UINT
 		case EPixelFormat::R32_UINT                 : return 4;
 		case EPixelFormat::R16_UINT                 : return 2;
 		case EPixelFormat::R8_UINT                  : return 1;
+		case EPixelFormat::R16G16_UINT              : return 4;
 		case EPixelFormat::R32G32B32A32_UINT        : return 16;
+		// SINT
 		case EPixelFormat::R16G16_SINT              : return 4;
 		default: CHECK_NO_ENTRY();
 	}

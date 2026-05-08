@@ -30,7 +30,7 @@ std::string ShaderCodegen::hlslToSpirv(
 	const char* inFilename,
 	const char* inEntryPoint,
 	EShaderStage stageFlag,
-	std::initializer_list<std::wstring> defines)
+	const std::vector<std::wstring>& defines)
 {
 	std::wstring targetProfileW = getD3DShaderProfile(D3D_SHADER_MODEL_FOR_SPIRV, stageFlag);
 	std::string targetProfile;

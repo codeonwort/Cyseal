@@ -1,19 +1,10 @@
 #pragma once
 
 #include "scene_render_pass.h"
+#include "optical_flow_common.h"
 #include "core/smart_pointer.h"
 #include "rhi/rhi_forward.h"
 #include "util/volatile_descriptor.h"
-
-// See ffx_opticalflow_prepare_luma.h
-enum class OpticalFlowBackbufferTransferFunction : uint32
-{
-	LinearLdrToLuminance                  = 0,
-	PQCorrectedHdrToPerceivedLuminance    = 1,
-	SCRGBCorrectedHdrToPerceivedLuminance = 2,
-
-	Count,
-};
 
 struct OpticalFlowPassInput
 {
@@ -24,6 +15,8 @@ struct OpticalFlowPassInput
 	uint32                                containerSizeY;
 	int32                                 lumaResolutionX;
 	int32                                 lumaResolutionY;
+	float                                 minLuminance;
+	float                                 maxLuminance;
 	Texture*                              sceneColorTexture;
 	ShaderResourceView*                   sceneColorSRV;
 };
@@ -33,12 +26,7 @@ class OpticalFlowPass final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inRenderDevice);
 
-	void runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput);
-
-	Texture* getOpticalFlowVectorTexture() const;
-	ShaderResourceView* getOpticalFlowVectorSRV() const;
-	uint32 getOpticalFlowVectorSizeX() const;
-	uint32 getOpticalFlowVectorSizeY() const;
+	OpticalFlowPassOutput runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput);
 
 private:
 	void initializePipelines();
@@ -86,6 +74,7 @@ private:
 	UniquePtr<UnorderedAccessView>         scdTempUAV;
 	UniquePtr<Texture>                     scdOutputTexture;
 	UniquePtr<UnorderedAccessView>         scdOutputUAV;
+	UniquePtr<ShaderResourceView>          scdOutputSRV;
 
 	uint32                                 opticalFlowVectorSizeX = 0;
 	uint32                                 opticalFlowVectorSizeY = 0;
