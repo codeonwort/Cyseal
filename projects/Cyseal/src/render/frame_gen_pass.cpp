@@ -66,7 +66,7 @@ struct InpaintingPyramidUniform
 static void setupDeviceDepthToViewSpaceDepthParams(const Camera* camera, float viewSpaceToMetersFactor, float outDeviceToViewDepth[4])
 {
 	const bool bInverted = getReverseZPolicy() == EReverseZPolicy::Reverse;
-	// #wip: reverse-z with non-infinite depth range?
+	// #todo-fsr3: reverse-z with non-infinite depth range?
 	const bool bInfinite = bInverted; //(context->contextDescription.flags & FFX_FRAMEINTERPOLATION_ENABLE_DEPTH_INFINITE) == FFX_FRAMEINTERPOLATION_ENABLE_DEPTH_INFINITE;
 
 	// make sure it has no impact if near and far plane values are swapped in dispatch params
@@ -610,7 +610,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 
 	const bool bExecutePreparationPasses = (false == bResetCurrentFrame);
 
-	// #wip: distortion field texture from passInput
+	// #todo-fsr3: distortion field texture from passInput
 	auto distortionFieldTexture            = defaultDistortionFieldTexture.get();
 	auto distortionFieldSRV                = defaultDistortionFieldSRV.get();
 	auto currInterpolationSourceTexture    = passInput.sceneColorTexture;

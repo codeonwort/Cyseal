@@ -64,202 +64,199 @@ uint2 unpackOpticalFlowVectorTextureSize()
 // ------------------------------------------------------------------------
 // From ffx_frameinterpolation_common.h
 
-// #wip: Cleanup.
-
-const uint MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT = 32;
-
-// Make sure all bit counts add up to MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT
-const uint MOTION_VECTOR_FIELD_VECTOR_COEFFICIENT_BIT_COUNT = 16;
-const uint MOTION_VECTOR_FIELD_PRIORITY_LOW_BIT_COUNT = 5;
-const uint MOTION_VECTOR_FIELD_PRIORITY_HIGH_BIT_COUNT = 10;
-const uint MOTION_VECTOR_PRIMARY_VECTOR_INDICATION_BIT_COUNT = 1;
-
-const uint MOTION_VECTOR_FIELD_PRIMARY_VECTOR_INDICATION_BIT = (1U << (MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT - 1));
-
-const uint PRIORITY_LOW_MAX = (1U << MOTION_VECTOR_FIELD_PRIORITY_LOW_BIT_COUNT) - 1;
-const uint PRIORITY_HIGH_MAX = (1U << MOTION_VECTOR_FIELD_PRIORITY_HIGH_BIT_COUNT) - 1;
-
-const uint PRIORITY_LOW_OFFSET = MOTION_VECTOR_FIELD_VECTOR_COEFFICIENT_BIT_COUNT;
-const uint PRIORITY_HIGH_OFFSET = PRIORITY_LOW_OFFSET + MOTION_VECTOR_FIELD_PRIORITY_LOW_BIT_COUNT;
-const uint PRIMARY_VECTOR_INDICATION_OFFSET = PRIORITY_HIGH_OFFSET + MOTION_VECTOR_FIELD_PRIORITY_HIGH_BIT_COUNT;
-
-struct VectorFieldEntry
+namespace opticalFlow
 {
-	float2 fMotionVector;
-	float  uHighPriorityFactor;
-	float  uLowPriorityFactor;
-	bool   bValid;
-	bool   bPrimary;
-	bool   bSecondary;
-	bool   bInPainted;
-	float  fVelocity;
-	bool   bNegOutside;
-	bool   bPosOutside;
-};
+	const uint MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT               = 32;
+	// Make sure all bit counts add up to MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT
+	const uint MOTION_VECTOR_FIELD_VECTOR_COEFFICIENT_BIT_COUNT  = 16;
+	const uint MOTION_VECTOR_FIELD_PRIORITY_LOW_BIT_COUNT        = 5;
+	const uint MOTION_VECTOR_FIELD_PRIORITY_HIGH_BIT_COUNT       = 10;
+	const uint MOTION_VECTOR_PRIMARY_VECTOR_INDICATION_BIT_COUNT = 1;
+	const uint MOTION_VECTOR_FIELD_PRIMARY_VECTOR_INDICATION_BIT = (1U << (MOTION_VECTOR_FIELD_ENTRY_BIT_COUNT - 1));
+	const uint PRIORITY_LOW_MAX                                  = (1U << MOTION_VECTOR_FIELD_PRIORITY_LOW_BIT_COUNT) - 1;
+	const uint PRIORITY_HIGH_MAX                                 = (1U << MOTION_VECTOR_FIELD_PRIORITY_HIGH_BIT_COUNT) - 1;
+	const uint PRIORITY_LOW_OFFSET                               = MOTION_VECTOR_FIELD_VECTOR_COEFFICIENT_BIT_COUNT;
+	const uint PRIORITY_HIGH_OFFSET                              = PRIORITY_LOW_OFFSET + MOTION_VECTOR_FIELD_PRIORITY_LOW_BIT_COUNT;
+	const uint PRIMARY_VECTOR_INDICATION_OFFSET                  = PRIORITY_HIGH_OFFSET + MOTION_VECTOR_FIELD_PRIORITY_HIGH_BIT_COUNT;
 
-struct BilinearSamplingData
-{
-	int2 iOffsets[4];
-	float fWeights[4];
-	int2 iBasePos;
-};
+	struct VectorFieldEntry
+	{
+		float2 fMotionVector;
+		float  uHighPriorityFactor;
+		float  uLowPriorityFactor;
+		bool   bValid;
+		bool   bPrimary;
+		bool   bSecondary;
+		bool   bInPainted;
+		float  fVelocity;
+		bool   bNegOutside;
+		bool   bPosOutside;
+	};
 
-VectorFieldEntry NewVectorFieldEntry()
-{
-	VectorFieldEntry vfe;
-	vfe.fMotionVector = float2(0.0, 0.0);
-	vfe.uHighPriorityFactor = 0.0;
-	vfe.uLowPriorityFactor = 0.0;
-	vfe.bValid = false;
-	vfe.bPrimary = false;
-	vfe.bSecondary = false;
-	vfe.bInPainted = false;
-	vfe.fVelocity = 0.0;
-	vfe.bNegOutside = false;
-	vfe.bPosOutside = false;
-	return vfe;
-}
+	struct BilinearSamplingData
+	{
+		int2  iOffsets[4];
+		float fWeights[4];
+		int2  iBasePos;
+	};
 
-BilinearSamplingData GetBilinearSamplingData(float2 fUv, int2 iSize)
-{
-	BilinearSamplingData data;
+	VectorFieldEntry NewVectorFieldEntry()
+	{
+		VectorFieldEntry vfe;
+		vfe.fMotionVector = float2(0.0, 0.0);
+		vfe.uHighPriorityFactor = 0.0;
+		vfe.uLowPriorityFactor = 0.0;
+		vfe.bValid = false;
+		vfe.bPrimary = false;
+		vfe.bSecondary = false;
+		vfe.bInPainted = false;
+		vfe.fVelocity = 0.0;
+		vfe.bNegOutside = false;
+		vfe.bPosOutside = false;
+		return vfe;
+	}
 
-	float2 fPxSample = (fUv * iSize) - float2(0.5f, 0.5f);
-	data.iBasePos = int2(floor(fPxSample));
-	float2 fPxFrac = frac(fPxSample);
+	BilinearSamplingData GetBilinearSamplingData(float2 fUv, int2 iSize)
+	{
+		BilinearSamplingData data;
 
-	data.iOffsets[0] = int2(0, 0);
-	data.iOffsets[1] = int2(1, 0);
-	data.iOffsets[2] = int2(0, 1);
-	data.iOffsets[3] = int2(1, 1);
+		float2 fPxSample = (fUv * iSize) - float2(0.5f, 0.5f);
+		data.iBasePos = int2(floor(fPxSample));
+		float2 fPxFrac = frac(fPxSample);
 
-	data.fWeights[0] = (1 - fPxFrac.x) * (1 - fPxFrac.y);
-	data.fWeights[1] = (fPxFrac.x) * (1 - fPxFrac.y);
-	data.fWeights[2] = (1 - fPxFrac.x) * (fPxFrac.y);
-	data.fWeights[3] = (fPxFrac.x) * (fPxFrac.y);
+		data.iOffsets[0] = int2(0, 0);
+		data.iOffsets[1] = int2(1, 0);
+		data.iOffsets[2] = int2(0, 1);
+		data.iOffsets[3] = int2(1, 1);
 
-	return data;
-}
+		data.fWeights[0] = (1 - fPxFrac.x) * (1 - fPxFrac.y);
+		data.fWeights[1] = (fPxFrac.x) * (1 - fPxFrac.y);
+		data.fWeights[2] = (1 - fPxFrac.x) * (fPxFrac.y);
+		data.fWeights[3] = (fPxFrac.x) * (fPxFrac.y);
 
-int2 DisplaySize()
-{
-	return int2(pushConstants.width, pushConstants.height);
-}
+		return data;
+	}
 
-float4 getMotionVectorColor(float2 fMotionVector)
-{
-	return float4(0.5f + fMotionVector * DisplaySize() * 0.1f, 0.5f, 1.0f);
-}
+	int2 DisplaySize()
+	{
+		return int2(pushConstants.width, pushConstants.height);
+	}
 
-int2 GetOpticalFlowSize()
-{
-	const float2 opticalFlowScale = 1.0 / float2(DisplaySize());
-	const int opticalFlowBlockSize = 8;
+	float4 getMotionVectorColor(float2 fMotionVector)
+	{
+		return float4(0.5f + fMotionVector * DisplaySize() * 0.1f, 0.5f, 1.0f);
+	}
+
+	int2 GetOpticalFlowSize()
+	{
+		const float2 opticalFlowScale = 1.0 / float2(DisplaySize());
+		const int opticalFlowBlockSize = 8;
 	
-	int2 iOpticalFlowSize = (1.0f / opticalFlowScale) / float2(opticalFlowBlockSize.xx);
+		int2 iOpticalFlowSize = (1.0f / opticalFlowScale) / float2(opticalFlowBlockSize.xx);
 
-	return iOpticalFlowSize;
-}
+		return iOpticalFlowSize;
+	}
 
-int2 GetOpticalFlowSize2()
-{
-	return GetOpticalFlowSize() * 1;
-}
+	int2 GetOpticalFlowSize2()
+	{
+		return GetOpticalFlowSize() * 1;
+	}
 
-bool IsOnScreen(int2 pos, int2 size)
-{
-	return all((uint2(pos) < uint2(size)));
-}
+	bool IsOnScreen(int2 pos, int2 size)
+	{
+		return all((uint2(pos) < uint2(size)));
+	}
 
-bool IsUvInside(float2 fUv)
-{
-	return (fUv.x > 0.0f && fUv.x < 1.0f) && (fUv.y > 0.0f && fUv.y < 1.0f);
-}
+	bool IsUvInside(float2 fUv)
+	{
+		return (fUv.x > 0.0f && fUv.x < 1.0f) && (fUv.y > 0.0f && fUv.y < 1.0f);
+	}
 
-uint2 LoadOpticalFlowFieldMv(int2 iPxSample)
-{
+	uint2 LoadOpticalFlowFieldMv(int2 iPxSample)
+	{
 	// optical flow pass generates a single int2 texture.
 	// frame gen pass takes it and generates two uint textures, each for x and y.
 #if 1
-	uint packedX = opticalFlowVectorX[iPxSample];
-	uint packedY = opticalFlowVectorY[iPxSample];
-	return uint2(packedX, packedY);
+		uint packedX = opticalFlowVectorX[iPxSample];
+		uint packedY = opticalFlowVectorY[iPxSample];
+		return uint2(packedX, packedY);
 #else
 	uint2 packedXY = opticalFlowVector.Load(int3(iPxSample, 0)).xy;
 	return packedXY;
 #endif
-}
+	}
 
-float2 ffxUnpackF32(uint a)
-{
-	return f16tof32(uint2(a & 0xFFFF, a >> 16));
-}
+	float2 ffxUnpackF32(uint a)
+	{
+		return f16tof32(uint2(a & 0xFFFF, a >> 16));
+	}
 
-bool PackedVectorFieldEntryIsPrimary(uint packedEntry)
-{
-	return ((packedEntry & MOTION_VECTOR_FIELD_PRIMARY_VECTOR_INDICATION_BIT) != 0);
-}
+	bool PackedVectorFieldEntryIsPrimary(uint packedEntry)
+	{
+		return ((packedEntry & MOTION_VECTOR_FIELD_PRIMARY_VECTOR_INDICATION_BIT) != 0);
+	}
 
-void UnpackVectorFieldEntries(uint2 packed, out VectorFieldEntry vfElement)
-{
-	vfElement.uHighPriorityFactor = float((packed.x >> PRIORITY_HIGH_OFFSET) & PRIORITY_HIGH_MAX) / PRIORITY_HIGH_MAX;
-	vfElement.uLowPriorityFactor = float((packed.x >> PRIORITY_LOW_OFFSET) & PRIORITY_LOW_MAX) / PRIORITY_LOW_MAX;
+	void UnpackVectorFieldEntries(uint2 packed, out VectorFieldEntry vfElement)
+	{
+		vfElement.uHighPriorityFactor = float((packed.x >> PRIORITY_HIGH_OFFSET) & PRIORITY_HIGH_MAX) / PRIORITY_HIGH_MAX;
+		vfElement.uLowPriorityFactor = float((packed.x >> PRIORITY_LOW_OFFSET) & PRIORITY_LOW_MAX) / PRIORITY_LOW_MAX;
 
-	vfElement.bPrimary = PackedVectorFieldEntryIsPrimary(packed.x);
-	vfElement.bValid = (vfElement.uHighPriorityFactor > 0.0f);
-	vfElement.bSecondary = vfElement.bValid && !vfElement.bPrimary;
+		vfElement.bPrimary = PackedVectorFieldEntryIsPrimary(packed.x);
+		vfElement.bValid = (vfElement.uHighPriorityFactor > 0.0f);
+		vfElement.bSecondary = vfElement.bValid && !vfElement.bPrimary;
 
 	// Reverse priority factor for secondary vectors
-	if (vfElement.bSecondary)
-	{
-		vfElement.uHighPriorityFactor = 1.0f - vfElement.uHighPriorityFactor;
-	}
-
-	vfElement.fMotionVector.x = ffxUnpackF32(packed.x).x;
-	vfElement.fMotionVector.y = ffxUnpackF32(packed.y).x;
-	vfElement.bInPainted = false;
-}
-
-void SampleOpticalFlowMotionVectorField(float2 fUv, out VectorFieldEntry vfElement)
-{
-	const float scaleFactor = 1.0f;
-
-	BilinearSamplingData bilinearInfo = GetBilinearSamplingData(fUv, int2(GetOpticalFlowSize2() * scaleFactor));
-
-	vfElement = NewVectorFieldEntry();
-
-	float fWeightSum = 0.0f;
-	for (int iSampleIndex = 0; iSampleIndex < 4; iSampleIndex++)
-	{
-		const int2 iOffset = bilinearInfo.iOffsets[iSampleIndex];
-		const int2 iSamplePos = bilinearInfo.iBasePos + iOffset;
-
-		if (IsOnScreen(iSamplePos, int2(GetOpticalFlowSize2() * scaleFactor)))
+		if (vfElement.bSecondary)
 		{
-			const float fWeight = bilinearInfo.fWeights[iSampleIndex];
-
-			VectorFieldEntry fOfVectorSample = NewVectorFieldEntry();
-			int2 packedOpticalFlowMv = int2(LoadOpticalFlowFieldMv(iSamplePos));
-			UnpackVectorFieldEntries(packedOpticalFlowMv, fOfVectorSample);
-
-			vfElement.fMotionVector += fOfVectorSample.fMotionVector * fWeight;
-			vfElement.uHighPriorityFactor += fOfVectorSample.uHighPriorityFactor * fWeight;
-			vfElement.uLowPriorityFactor += fOfVectorSample.uLowPriorityFactor * fWeight;
-
-			fWeightSum += fWeight;
+			vfElement.uHighPriorityFactor = 1.0f - vfElement.uHighPriorityFactor;
 		}
+
+		vfElement.fMotionVector.x = ffxUnpackF32(packed.x).x;
+		vfElement.fMotionVector.y = ffxUnpackF32(packed.y).x;
+		vfElement.bInPainted = false;
 	}
 
-	if (fWeightSum > 0.0f)
+	void SampleOpticalFlowMotionVectorField(float2 fUv, out VectorFieldEntry vfElement)
 	{
-		vfElement.fMotionVector /= fWeightSum;
-		vfElement.uHighPriorityFactor /= fWeightSum;
-		vfElement.uLowPriorityFactor /= fWeightSum;
-	}
+		const float scaleFactor = 1.0f;
 
-	vfElement.bNegOutside = !IsUvInside(fUv - vfElement.fMotionVector);
-	vfElement.bPosOutside = !IsUvInside(fUv + vfElement.fMotionVector);
-	vfElement.fVelocity = length(vfElement.fMotionVector);
+		BilinearSamplingData bilinearInfo = GetBilinearSamplingData(fUv, int2(GetOpticalFlowSize2() * scaleFactor));
+
+		vfElement = NewVectorFieldEntry();
+
+		float fWeightSum = 0.0f;
+		for (int iSampleIndex = 0; iSampleIndex < 4; iSampleIndex++)
+		{
+			const int2 iOffset = bilinearInfo.iOffsets[iSampleIndex];
+			const int2 iSamplePos = bilinearInfo.iBasePos + iOffset;
+
+			if (IsOnScreen(iSamplePos, int2(GetOpticalFlowSize2() * scaleFactor)))
+			{
+				const float fWeight = bilinearInfo.fWeights[iSampleIndex];
+
+				VectorFieldEntry fOfVectorSample = NewVectorFieldEntry();
+				int2 packedOpticalFlowMv = int2(LoadOpticalFlowFieldMv(iSamplePos));
+				UnpackVectorFieldEntries(packedOpticalFlowMv, fOfVectorSample);
+
+				vfElement.fMotionVector += fOfVectorSample.fMotionVector * fWeight;
+				vfElement.uHighPriorityFactor += fOfVectorSample.uHighPriorityFactor * fWeight;
+				vfElement.uLowPriorityFactor += fOfVectorSample.uLowPriorityFactor * fWeight;
+
+				fWeightSum += fWeight;
+			}
+		}
+
+		if (fWeightSum > 0.0f)
+		{
+			vfElement.fMotionVector /= fWeightSum;
+			vfElement.uHighPriorityFactor /= fWeightSum;
+			vfElement.uLowPriorityFactor /= fWeightSum;
+		}
+
+		vfElement.bNegOutside = !IsUvInside(fUv - vfElement.fMotionVector);
+		vfElement.bPosOutside = !IsUvInside(fUv + vfElement.fMotionVector);
+		vfElement.fVelocity = length(vfElement.fMotionVector);
+	}
 }
 
 // ------------------------------------------------------------------------
@@ -398,10 +395,10 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 		color.g = saturate(0.5 + 0.5 * (float(flow.g) / 4.0));
 		color.b = 0;
 #else
-		VectorFieldEntry ofMv;
-		SampleOpticalFlowMotionVectorField(scaledUV, ofMv);
+		opticalFlow::VectorFieldEntry ofMv;
+		opticalFlow::SampleOpticalFlowMotionVectorField(scaledUV, ofMv);
 		
-		color.rgb = getMotionVectorColor(ofMv.fMotionVector);
+		color.rgb = opticalFlow::getMotionVectorColor(ofMv.fMotionVector);
 #endif
 	}
 	else if (modeEnum == MODE_INTERPOLATED_FRAME || modeEnum == MODE_FRAMEGEN_DEBUG_VIEW)
