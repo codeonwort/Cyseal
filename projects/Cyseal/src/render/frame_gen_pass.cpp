@@ -29,7 +29,7 @@ struct FrameInterpUniform
 	float           fDeviceToViewDepth[4]; // See setupDeviceDepthToViewSpaceDepthParams
 
 	float           deltaTime; // In milliseconds
-	int32           HUDLessAttachedFactor; // 1 or 0 (#wip: Is it for HUD upscaling?)
+	int32           HUDLessAttachedFactor; // 1 or 0
 	int32           distortionFieldSize[2];
 
 	float           opticalFlowScale[2];
@@ -515,7 +515,7 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.reset                      = bResetCurrentFrame || bDisjointFrameID,
 		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // Set below
 		.deltaTime                  = 0, // #todo-fsr3: FidelityFX defines but does not use it.
-		.HUDLessAttachedFactor      = 0,
+		.HUDLessAttachedFactor      = 0, // #todo-fsr3: HUDLessAttachedFactor
 		.distortionFieldSize        = { 1, 1 },
 		.opticalFlowScale           = { 1.0f / (float)(passInput.displaySizeX), 1.0f / (float)(passInput.displaySizeY) },
 		.opticalFlowBlockSize       = kOpticalFlowBlockSize,
@@ -530,7 +530,7 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.minMaxLuminance            = { passInput.minLuminance, passInput.maxLuminance },
 		.fTanHalfFOV                = 0.5f * std::tan(2.0f * std::atan(std::tan(passInput.camera->getFovYInRadians() * 0.5f) * passInput.camera->getAspectRatio())),
 		._pad1                      = 0,
-		.fJitter                    = { 0, 0 }, // #wip: jitter
+		.fJitter                    = { 0, 0 }, // #todo-fsr3: Probably needed when doing super resolution AND interpolation.
 		.fMotionVectorScale         = { 1.0f, 1.0f },
 	};
 	setupDeviceDepthToViewSpaceDepthParams(passInput.camera, 1.0f, fiUniformData.fDeviceToViewDepth);
@@ -935,7 +935,8 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		commandList->dispatchCompute(dispatchThreadGroupCountXY[0], dispatchThreadGroupCountXY[1], 1);
 	}
 
-	// #wip: Assumes PRESENT_BACKBUFFER == currInterpolationSourceTexture
+	// #todo-fsr3-presentbackbuffer: Revisit when dealing with swapchain interaction.
+	// Currently just assume that PRESENT_BACKBUFFER == currInterpolationSourceTexture.
 	auto presentBackbufferSRV = currInterpolationSourceSRV;
 
 	{
@@ -947,7 +948,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		TextureBarrierAuto textureBarriers[] = {
 			TextureBarrierAuto::toShaderResource(passInput.opticalFlowPassOutput->sceneChangeDetectionTexture, EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
-			// #wip: Assumes PRESENT_BACKBUFFER == currInterpolationSourceTexture
+			// #todo-fsr3-presentbackbuffer
 			//TextureBarrierAuto::toShaderResource(presentBackbufferTexture, EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toUnorderedAccess(interpolationOutputTexture.get(), EBarrierSync::COMPUTE_SHADING),
@@ -983,7 +984,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			TextureBarrierAuto::toShaderResource(opticalFlowMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(opticalFlowMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(disocclusionMaskTexture.get(), EBarrierSync::COMPUTE_SHADING),
-			// #wip: Assumes PRESENT_BACKBUFFER == currInterpolationSourceTexture
+			// #todo-fsr3-presentbackbuffer
 			//TextureBarrierAuto::toShaderResource(presentBackbufferTexture, EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),

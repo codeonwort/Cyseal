@@ -75,8 +75,7 @@ private:
 	uint32 interpolationDispatchCount = 0;
 	bool bResetCurrentFrame = false;
 
-	// #todo-fsr3: See FfxFrameInterpolationPass enum in
-	// <FidelityFX_SDK>\sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp
+	// See FfxFrameInterpolationPass enum in <FidelityFX_SDK>\sdk\src\components\frameinterpolation\ffx_frameinterpolation.cpp
 	UniquePtr<ComputePipelineState>        reconstructAndDilatePipeline;
 	UniquePtr<ComputePipelineState>        setupPipeline;
 	UniquePtr<ComputePipelineState>        reconstructPrevDepthPipeline;
