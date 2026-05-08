@@ -3,6 +3,7 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using UnitLogger = Microsoft::VisualStudio::CppUnitTestFramework::Logger;
 
+#include "material/material_database.h"
 #include "loader/pbrt_scanner.h"
 #include "loader/pbrt_parser.h"
 #include "util/resource_finder.h"
@@ -148,6 +149,8 @@ namespace UnitTest
 			ResourceFinder::get().addBaseDirectory(L"../../");
 			ResourceFinder::get().addBaseDirectory(L"../../external/");
 
+			MaterialShaderDatabase::get().compileMaterials(nullptr, true);
+
 			std::wstring wFilepath = ResourceFinder::get().find(PBRT_FILEPATH);
 			Assert::IsTrue(wFilepath.size() != 0, L"Can't find the file");
 
@@ -161,6 +164,8 @@ namespace UnitTest
 			pbrt::PBRT4Parser parser;
 			pbrt::PBRT4ParserOutput parserOutput = parser.parse(&scanner);
 			Assert::IsTrue(parserOutput.bValid, L"Parser reported errors");
+
+			MaterialShaderDatabase::get().destroyMaterials();
 		}
 
 		TEST_METHOD(TestRecursiveInclude)
@@ -169,9 +174,13 @@ namespace UnitTest
 			ResourceFinder::get().addBaseDirectory(L"../../");
 			ResourceFinder::get().addBaseDirectory(L"../../external/");
 
+			MaterialShaderDatabase::get().compileMaterials(nullptr, true);
+
 			std::vector<std::string> lines;
 			bool bSuccess = pbrt::readFileRecursive(PBRT_FILEPATH_SANMIGUEL, lines);
 			Assert::IsTrue(bSuccess, L"Couldn't open all files");
+
+			MaterialShaderDatabase::get().destroyMaterials();
 		}
 
 		TEST_METHOD(TestParserWithRecursiveFiles)
@@ -179,6 +188,8 @@ namespace UnitTest
 			ResourceFinder::get().addBaseDirectory(L"../");
 			ResourceFinder::get().addBaseDirectory(L"../../");
 			ResourceFinder::get().addBaseDirectory(L"../../external/");
+
+			MaterialShaderDatabase::get().compileMaterials(nullptr, true);
 
 			std::vector<std::string> lines;
 			bool bSuccess = pbrt::readFileRecursive(PBRT_FILEPATH_SANMIGUEL, lines);
@@ -196,6 +207,8 @@ namespace UnitTest
 			}
 
 			Assert::IsTrue(parserOutput.bValid, L"Parser reported errors");
+
+			MaterialShaderDatabase::get().destroyMaterials();
 		}
 	};
 }
