@@ -73,7 +73,7 @@ public:
 
 	virtual void resize(uint32 newWidth, uint32 newHeight) override;
 
-	virtual void present() override;
+	virtual void present(bool vsync) override;
 	virtual void prepareBackbuffer() override;
 	virtual uint32 getBufferCount() const override { return swapchainImageCount; }
 

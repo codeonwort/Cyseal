@@ -42,6 +42,7 @@
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
+#define MAX_FINAL_BLIT_OPERATIONS      2 // Actual count: 2 if frame generation is enabled, 1 otherwise.
 
 static uint32 fullMipCount(uint32 width, uint32 height)
 {
@@ -139,7 +140,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		storeHistoryPass->initialize(renderDevice);
 		opticalFlowPass->initialize(renderDevice);
 		frameGenPass->initialize(renderDevice, PF_finalSceneColor);
-		finalBlitPass->initialize(renderDevice);
+		finalBlitPass->initialize(renderDevice, MAX_FINAL_BLIT_OPERATIONS);
 	}
 }
 
@@ -986,8 +987,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	// -----------------------------------------------------------------------
 	// Internal rendering is done. Prepare to blit to the final render target.
 
-	// #wip: Run the below passes and present at most twice using this struct.
-#if 0
 	struct ScenePresentInfo
 	{
 		bool                bRealFrame;
@@ -1000,103 +999,115 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
 			.bRealFrame   = false,
-			.colorTexture = frameGenPassOutput.interpolatedFrameTexture,
-			.colorSRV     = frameGenPassOutput.interpolatedFrameSRV,
+			.colorTexture = RT_finalSceneColor.get(),
+			.colorSRV     = finalSceneColorSRV.get(),
 		};
 	}
 	scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
 		.bRealFrame   = true,
-		.colorTexture = bRenderPathTracing ? RT_pathTracing.get() : RT_sceneColor.get(),
-		.colorSRV     = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get(),
+		.colorTexture = RT_finalSceneColor.get(),
+		.colorSRV     = finalSceneColorSRV.get(),
 	};
-#endif
 
-	// #wip: start new command list for each present.
+	finalBlitPass->resetBlitResources();
 
-	// Set final render target.
+	for (uint32 presentIx = 0; presentIx < scenePresentCount; ++presentIx)
 	{
-		SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
+		const ScenePresentInfo& presentInfo = scenePresentInfoArray[presentIx];
 
-		const Viewport finalBlitViewport{
-			.topLeftX = 0,
-			.topLeftY = 0,
-			.width    = static_cast<float>(finalBlitWidth),
-			.height   = static_cast<float>(finalBlitHeight),
-			.minDepth = 0.0f,
-			.maxDepth = 1.0f,
-		};
-		const ScissorRect finalBlitScissorRect{
-			.left   = 0,
-			.top    = 0,
-			.right  = finalBlitWidth,
-			.bottom = finalBlitHeight,
-		};
-		commandList->rsSetViewport(finalBlitViewport);
-		commandList->rsSetScissorRect(finalBlitScissorRect);
+		// #wip: Crashes for interp frame; maybe need to renew swapchainBuffer?
+		if (presentInfo.bRealFrame == false) continue;
 
-		TextureBarrierAuto barrier{
-			EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
-			finalBlitTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-		};
-		commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
+		// Set final render target.
+		{
+			SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
 
-		commandList->omSetRenderTarget(finalBlitRTV, nullptr);
-	}
+			const Viewport finalBlitViewport{
+				.topLeftX = 0,
+				.topLeftY = 0,
+				.width    = static_cast<float>(finalBlitWidth),
+				.height   = static_cast<float>(finalBlitHeight),
+				.minDepth = 0.0f,
+				.maxDepth = 1.0f,
+			};
+			const ScissorRect finalBlitScissorRect{
+				.left   = 0,
+				.top    = 0,
+				.right  = finalBlitWidth,
+				.bottom = finalBlitHeight,
+			};
+			commandList->rsSetViewport(finalBlitViewport);
+			commandList->rsSetScissorRect(finalBlitScissorRect);
 
-	{
-		SCOPED_DRAW_EVENT(commandList, FinalBlit);
+			TextureBarrierAuto barrier{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				finalBlitTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			};
+			commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
 
-		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_finalSceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+			commandList->omSetRenderTarget(finalBlitRTV, nullptr);
+		}
 
-		FinalBlitPassInput passInput{
-			.sceneUniformCBV    = sceneUniformCBV,
-			.renderTarget       = renderOptions.finalRenderTarget,
-			.finalSceneColorSRV = finalSceneColorSRV.get(),
-		};
-		finalBlitPass->renderFinalBlit(commandList, swapchainIndex, passInput);
-	}
+		{
+			SCOPED_DRAW_EVENT(commandList, FinalBlit);
 
-	// Dear Imgui: Record commands
-	if (device->isHeadless() == false)
-	{
-		SCOPED_DRAW_EVENT(commandList, DearImgui);
+			TextureBarrierAuto textureBarriers[] = {
+				{
+					EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+					presentInfo.colorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				},
+			};
+			commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+			FinalBlitPassInput passInput{
+				.sceneUniformCBV    = sceneUniformCBV,
+				.renderTarget       = renderOptions.finalRenderTarget,
+				.finalSceneColorSRV = presentInfo.colorSRV,
+			};
+			finalBlitPass->renderFinalBlit(commandList, swapchainIndex, passInput);
+		}
+
+		// Dear Imgui: Record commands
+		if (device->isHeadless() == false)
+		{
+			SCOPED_DRAW_EVENT(commandList, DearImgui);
 		
-		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
-		commandList->setDescriptorHeaps(1, imguiHeaps);
-		device->renderDearImgui(commandList, swapchainBuffer);
-	}
+			DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
+			commandList->setDescriptorHeaps(1, imguiHeaps);
+			device->renderDearImgui(commandList, swapchainBuffer);
+		}
 
-	//////////////////////////////////////////////////////////////////////////
-	// Finalize
+		//////////////////////////////////////////////////////////////////////////
+		// Finalize
 
-	if (bRenderToBackbuffer)
-	{
-		TextureBarrierAuto presentBarrier = {
-			EBarrierSync::DRAW, EBarrierAccess::COMMON, EBarrierLayout::Present,
-			swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-		};
-		commandList->barrierAuto(0, nullptr, 1, &presentBarrier, 0, nullptr);
-	}
+		if (bRenderToBackbuffer)
+		{
+			TextureBarrierAuto presentBarrier = {
+				EBarrierSync::DRAW, EBarrierAccess::COMMON, EBarrierLayout::Present,
+				swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			};
+			commandList->barrierAuto(0, nullptr, 1, &presentBarrier, 0, nullptr);
+		}
 
-	commandList->close();
-	commandAllocator->markValid();
-	commandQueue->executeCommandList(commandList, swapChain);
-	{
-		SCOPED_CPU_EVENT(WaitForGPU);
-		device->flushCommandQueue();
-	}
+		commandList->close();
+		commandAllocator->markValid();
+		commandQueue->executeCommandList(commandList, swapChain);
+		{
+			SCOPED_CPU_EVENT(WaitForGPU);
+			device->flushCommandQueue();
+		}
 
-	if (bRenderToBackbuffer)
-	{
-		// #wip: Present without vsync and force wait if about to present an interpolated frame.
+		if (bRenderToBackbuffer)
+		{
+			bool bVSync = scenePresentInfoArray[presentIx].bRealFrame;
+			swapChain->present(bVSync);
+			// #wip: Force wait if about to present an interpolated frame. Calculate the wait time with moving-average-thing.
+		}
 
-		swapChain->present();
+		if (presentIx != scenePresentCount - 1)
+		{
+			resetCommandList(commandAllocator, commandList);
+		}
 	}
 
 	frameID += 1;

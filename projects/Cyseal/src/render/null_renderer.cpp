@@ -76,7 +76,7 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 
 	commandQueue->executeCommandList(commandList, swapChain);
 
-	swapChain->present();
+	swapChain->present(true);
 
 	device->flushCommandQueue();
 

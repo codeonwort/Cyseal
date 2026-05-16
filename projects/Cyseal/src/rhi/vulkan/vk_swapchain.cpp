@@ -299,8 +299,10 @@ void VulkanSwapchain::resize(uint32 newWidth, uint32 newHeight)
 	CHECK_NO_ENTRY();
 }
 
-void VulkanSwapchain::present()
+void VulkanSwapchain::present(bool vsync)
 {
+	// #todo-vulkan: Handle vsync parameter
+
 	VkSemaphore waitSemaphores[] = { deviceWrapper->getVkRenderFinishedSemaphore() };
 	VkSwapchainKHR swapchains[] = { swapchainKHR };
 	uint32 swapchainIndices[] = { backbufferInFlight };

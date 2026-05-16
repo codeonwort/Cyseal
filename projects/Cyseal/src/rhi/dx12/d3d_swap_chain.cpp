@@ -161,9 +161,9 @@ void D3DSwapChain::createSwapchainImages()
 	}
 }
 
-void D3DSwapChain::present()
+void D3DSwapChain::present(bool vsync)
 {
-	UINT syncInterval = 1;
+	UINT syncInterval = vsync ? 1 : 0;
 	UINT flags = 0;
 	HRESULT hResult = rawSwapChain->Present(syncInterval, flags);
 
