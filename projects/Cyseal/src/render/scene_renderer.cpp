@@ -239,7 +239,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	const bool bRenderAnyRaytracingPass = renderOptions.anyRayTracingEnabled();
 
-	const bool bRenderFrameGeneration = renderOptions.bGenerateFrame && !bRenderPathTracing;
+	const bool bRenderFrameGeneration = renderOptions.bGenerateFrame && !bRenderPathTracing && bRenderToBackbuffer;
 
 	clearResourcePass->prepareForFrame(swapchainIndex);
 
@@ -860,7 +860,57 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			};
 			frameGenPassOutput = frameGenPass->runFrameGeneration(commandList, swapchainIndex, passInput);
 		}
+		{
+			// #wip: Hmm framegen output is not tone mapped just because how my renderer is configured :(
+			// Then just run tone mapping one more here?
+		}
 	}
+
+	// Store history pass (step 2)
+	{
+		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Prev);
+
+		TextureBarrierAuto textureBarriers[] = {
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
+				RT_prevSceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
+
+		storeHistoryPass->copyCurrentToPrev(commandList, swapchainIndex);
+	}
+
+	// #wip: Run the below passes and present at most twice using this struct.
+#if 0
+	struct ScenePresentInfo
+	{
+		bool                bRealFrame;
+		Texture*            colorTexture;
+		ShaderResourceView* colorSRV;
+	} scenePresentInfoArray[2];
+
+	uint32 scenePresentCount = 0;
+	if (bRenderFrameGeneration)
+	{
+		scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
+			.bRealFrame   = false,
+			.colorTexture = frameGenPassOutput.interpolatedFrameTexture,
+			.colorSRV     = frameGenPassOutput.interpolatedFrameSRV,
+		};
+	}
+	scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
+		.bRealFrame   = true,
+		.colorTexture = bRenderPathTracing ? RT_pathTracing.get() : RT_sceneColor.get(),
+		.colorSRV     = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get(),
+	};
+#endif
 
 	// Set final color as render target.
 	{
@@ -956,29 +1006,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
 	}
 
-	// Store history pass (step 2)
-	{
-		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Prev);
-
-		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
-				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-			},
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
-				RT_prevSceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-			},
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
-
-		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
-
-		storeHistoryPass->copyCurrentToPrev(commandList, swapchainIndex);
-	}
-
 	// -----------------------------------------------------------------------
 	// Internal rendering is done. Prepare to blit to the final render target.
+
+	// #wip: flush the commands here and start new command list for each present.
 
 	// Set final render target.
 	{
@@ -1029,9 +1060,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		finalBlitPass->renderFinalBlit(commandList, swapchainIndex, passInput);
 	}
 
-	prevScaledRenderResolutionX = sceneWidth;
-	prevScaledRenderResolutionY = sceneHeight;
-
 	// Dear Imgui: Record commands
 	if (device->isHeadless() == false)
 	{
@@ -1059,18 +1087,22 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	commandQueue->executeCommandList(commandList, swapChain);
 
-	if (bRenderToBackbuffer)
-	{
-		swapChain->present();
-	}
-
 	{
 		SCOPED_CPU_EVENT(WaitForGPU);
-
 		device->flushCommandQueue();
 	}
 
+	if (bRenderToBackbuffer)
+	{
+		// #wip: Present without vsync and force wait if about to present an interpolated frame.
+
+		swapChain->present();
+	}
+
 	frameID += 1;
+
+	prevScaledRenderResolutionX = sceneWidth;
+	prevScaledRenderResolutionY = sceneHeight;
 
 	// Deallocate memory, a bit messy
 	commandList->executeDeferredDealloc();
