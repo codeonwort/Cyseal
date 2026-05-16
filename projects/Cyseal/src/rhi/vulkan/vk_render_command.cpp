@@ -379,7 +379,7 @@ void VulkanRenderCommandList::omSetRenderTargets(uint32 numRTVs, RenderTargetVie
 	currentDSV = DSV;
 }
 
-void VulkanRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap)
+void VulkanRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap, DescriptorIndexTracker* tracker)
 {
 	// #todo-vulkan
 	CHECK_NO_ENTRY();

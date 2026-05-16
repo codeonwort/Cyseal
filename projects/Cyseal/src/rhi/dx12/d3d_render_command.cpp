@@ -400,7 +400,7 @@ void D3DRenderCommandList::setDescriptorHeaps(uint32 count, DescriptorHeap* cons
 }
 
 // #todo-dx12: bindGraphicsShaderParameters(), bindComputeShaderParameters(), and bindRaytracingShaderParameters() are almost same, but a little hard to extract common part.
-void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* inParameters, DescriptorHeap* descriptorHeap)
+void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* inParameters, DescriptorHeap* descriptorHeap, DescriptorIndexTracker* tracker)
 {
 	D3DGraphicsPipelineState* d3dPipelineState = static_cast<D3DGraphicsPipelineState*>(pipelineState);
 	ID3D12RootSignature* d3dRootSig = d3dPipelineState->getRootSignature();
@@ -438,7 +438,7 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 
 	// #todo-dx12: Root Descriptor vs Descriptor Table
 	// For now, always use descriptor table.
-	uint32 descriptorIx = 0;
+	uint32 descriptorIx = (tracker == nullptr) ? 0 : tracker->lastIndex;
 
 	for (const auto& inParam : inParameters->_pushConstants)
 	{
@@ -465,6 +465,8 @@ void D3DRenderCommandList::bindGraphicsShaderParameters(PipelineState* pipelineS
 	setRootDescriptorTables(commandList.Get(), inParameters->textures, &descriptorIx);
 	setRootDescriptorTables(commandList.Get(), inParameters->rwTextures, &descriptorIx);
 	CHECK(inParameters->accelerationStructures.size() == 0); // Not allowed in graphics pipeline.
+
+	if (tracker != nullptr) tracker->lastIndex = descriptorIx;
 }
 
 void D3DRenderCommandList::updateGraphicsRootConstants(PipelineState* pipelineState, const ShaderParameterTable* inParameters)
