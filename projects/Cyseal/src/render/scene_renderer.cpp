@@ -926,31 +926,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		}
 	}
 
-	// #wip: Run the below passes and present at most twice using this struct.
-#if 0
-	struct ScenePresentInfo
-	{
-		bool                bRealFrame;
-		Texture*            colorTexture;
-		ShaderResourceView* colorSRV;
-	} scenePresentInfoArray[2];
-
-	uint32 scenePresentCount = 0;
-	if (bRenderFrameGeneration)
-	{
-		scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
-			.bRealFrame   = false,
-			.colorTexture = frameGenPassOutput.interpolatedFrameTexture,
-			.colorSRV     = frameGenPassOutput.interpolatedFrameSRV,
-		};
-	}
-	scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
-		.bRealFrame   = true,
-		.colorTexture = bRenderPathTracing ? RT_pathTracing.get() : RT_sceneColor.get(),
-		.colorSRV     = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get(),
-	};
-#endif
-
 	// Buffer visualization
 	if (renderOptions.bufferVisualization != EBufferVisualizationMode::None)
 	{
@@ -1004,10 +979,39 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
 	}
 
+	// Flush GPU before present work.
+	immediateFlushCommandQueue(commandQueue, commandAllocator, commandList);
+	resetCommandList(commandAllocator, commandList);
+
 	// -----------------------------------------------------------------------
 	// Internal rendering is done. Prepare to blit to the final render target.
 
-	// #wip: flush the commands here and start new command list for each present.
+	// #wip: Run the below passes and present at most twice using this struct.
+#if 0
+	struct ScenePresentInfo
+	{
+		bool                bRealFrame;
+		Texture*            colorTexture;
+		ShaderResourceView* colorSRV;
+	} scenePresentInfoArray[2];
+
+	uint32 scenePresentCount = 0;
+	if (bRenderFrameGeneration)
+	{
+		scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
+			.bRealFrame   = false,
+			.colorTexture = frameGenPassOutput.interpolatedFrameTexture,
+			.colorSRV     = frameGenPassOutput.interpolatedFrameSRV,
+		};
+	}
+	scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
+		.bRealFrame   = true,
+		.colorTexture = bRenderPathTracing ? RT_pathTracing.get() : RT_sceneColor.get(),
+		.colorSRV     = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get(),
+	};
+#endif
+
+	// #wip: start new command list for each present.
 
 	// Set final render target.
 	{
@@ -1082,9 +1086,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	commandList->close();
 	commandAllocator->markValid();
-
 	commandQueue->executeCommandList(commandList, swapChain);
-
 	{
 		SCOPED_CPU_EVENT(WaitForGPU);
 		device->flushCommandQueue();
