@@ -138,7 +138,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		denoiserPluginPass->initialize(renderDevice);
 		storeHistoryPass->initialize(renderDevice);
 		opticalFlowPass->initialize(renderDevice);
-		frameGenPass->initialize(renderDevice);
+		frameGenPass->initialize(renderDevice, PF_finalSceneColor);
 		finalBlitPass->initialize(renderDevice);
 	}
 }
@@ -797,75 +797,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		combineLightingPass->combineLighting(commandList, swapchainIndex, passInput);
 	}
 
-	OpticalFlowPassOutput opticalFlowPassOutput{};
-	FrameGenPassOutput frameGenPassOutput{};
-	if (bRenderFrameGeneration)
-	{
-		const auto backbufferTransferFunction = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance;
-		const bool bResetOpticalFlowAccumulation = false;
-
-		// #todo-fsr3: How to calculate min/max luminance? Just downsample the sceneColor to 1x1?
-		// But how to read it? GPU stall and readback is def not an option :(
-		// If these are not scene luminance min/max but the range in HDR calibration then I should pass them from application logic side.
-		const float fMinLuminance = 0.0f;
-		const float fMaxLuminance = 3000.0f;
-
-		{
-			SCOPED_DRAW_EVENT(commandList, OpticalFlow);
-
-			OpticalFlowPassInput passInput{
-				.clearResourcePass  = clearResourcePass,
-				.transferFunction   = backbufferTransferFunction,
-				.bResetAccumulation = bResetOpticalFlowAccumulation,
-				.containerSizeX     = unscaledRenderWidth,
-				.containerSizeY     = unscaledRenderHeight,
-				.lumaResolutionX    = (int32)sceneWidth,
-				.lumaResolutionY    = (int32)sceneHeight,
-				.minLuminance       = fMinLuminance,
-				.maxLuminance       = fMaxLuminance,
-				.sceneColorTexture  = RT_sceneColor.get(),
-				.sceneColorSRV      = sceneColorSRV.get(),
-			};
-			opticalFlowPassOutput = opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
-		}
-		{
-			SCOPED_DRAW_EVENT(commandList, FrameGeneration);
-
-			EFrameGenDispatchFlags dispatchFlags = EFrameGenDispatchFlags::NONE;
-			if (renderOptions.bufferVisualization == EBufferVisualizationMode::FrameGenerationDebugView)
-			{
-				dispatchFlags |= EFrameGenDispatchFlags::DRAW_DEBUG_VIEW;
-			}
-
-			FrameGenPassInput passInput{
-				.clearResourcePass          = clearResourcePass,
-				.opticalFlowPassOutput      = &opticalFlowPassOutput,
-				.camera                     = camera,
-				.renderSizeX                = (int32)sceneWidth,
-				.renderSizeY                = (int32)sceneHeight,
-				.displaySizeX               = (int32)unscaledRenderWidth,
-				.displaySizeY               = (int32)unscaledRenderHeight,
-				.frameID                    = frameID,
-				.dispatchFlags              = dispatchFlags,
-				.backBufferTransferFunction = backbufferTransferFunction,
-				.bReset                     = bResetOpticalFlowAccumulation,
-				.minLuminance               = fMinLuminance,
-				.maxLuminance               = fMaxLuminance,
-				.sceneColorTexture          = RT_sceneColor.get(),
-				.sceneColorSRV              = sceneColorSRV.get(),
-				.sceneDepthTexture          = RT_sceneDepth.get(),
-				.sceneDepthSRV              = sceneDepthSRV.get(),
-				.motionVectorTexture        = RT_velocityMap.get(),
-				.motionVectorSRV            = velocityMapSRV.get(),
-			};
-			frameGenPassOutput = frameGenPass->runFrameGeneration(commandList, swapchainIndex, passInput);
-		}
-		{
-			// #wip: Hmm framegen output is not tone mapped just because how my renderer is configured :(
-			// Then just run tone mapping one more here?
-		}
-	}
-
 	// Store history pass (step 2)
 	{
 		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Prev);
@@ -886,31 +817,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		storeHistoryPass->copyCurrentToPrev(commandList, swapchainIndex);
 	}
-
-	// #wip: Run the below passes and present at most twice using this struct.
-#if 0
-	struct ScenePresentInfo
-	{
-		bool                bRealFrame;
-		Texture*            colorTexture;
-		ShaderResourceView* colorSRV;
-	} scenePresentInfoArray[2];
-
-	uint32 scenePresentCount = 0;
-	if (bRenderFrameGeneration)
-	{
-		scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
-			.bRealFrame   = false,
-			.colorTexture = frameGenPassOutput.interpolatedFrameTexture,
-			.colorSRV     = frameGenPassOutput.interpolatedFrameSRV,
-		};
-	}
-	scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
-		.bRealFrame   = true,
-		.colorTexture = bRenderPathTracing ? RT_pathTracing.get() : RT_sceneColor.get(),
-		.colorSRV     = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get(),
-	};
-#endif
 
 	// Set final color as render target.
 	{
@@ -952,6 +858,98 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		};
 		toneMapping->renderToneMapping(commandList, swapchainIndex, passInput);
 	}
+
+	OpticalFlowPassOutput opticalFlowPassOutput{};
+	FrameGenPassOutput frameGenPassOutput{};
+	if (bRenderFrameGeneration)
+	{
+		const bool bResetOpticalFlowAccumulation = false;
+
+		// #todo-fsr3: Change transfer func and min/max luminance when HDR display support is implemented.
+		// Currently backbuffer is always in LDR so just hard-code them.
+		const auto backbufferTransferFunction = OpticalFlowBackbufferTransferFunction::LinearLdrToLuminance;
+		const float fMinLuminance = 0.0f;
+		const float fMaxLuminance = 1.0f;
+
+		auto frameGenInputColorTexture = RT_finalSceneColor.get();
+		auto frameGenInputColorSRV = finalSceneColorSRV.get();
+
+		{
+			SCOPED_DRAW_EVENT(commandList, OpticalFlow);
+
+			OpticalFlowPassInput passInput{
+				.clearResourcePass  = clearResourcePass,
+				.transferFunction   = backbufferTransferFunction,
+				.bResetAccumulation = bResetOpticalFlowAccumulation,
+				.containerSizeX     = unscaledRenderWidth,
+				.containerSizeY     = unscaledRenderHeight,
+				.lumaResolutionX    = (int32)sceneWidth,
+				.lumaResolutionY    = (int32)sceneHeight,
+				.minLuminance       = fMinLuminance,
+				.maxLuminance       = fMaxLuminance,
+				.sceneColorTexture  = frameGenInputColorTexture,
+				.sceneColorSRV      = frameGenInputColorSRV,
+			};
+			opticalFlowPassOutput = opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
+		}
+		{
+			SCOPED_DRAW_EVENT(commandList, FrameGeneration);
+
+			EFrameGenDispatchFlags dispatchFlags = EFrameGenDispatchFlags::NONE;
+			if (renderOptions.bufferVisualization == EBufferVisualizationMode::FrameGenerationDebugView)
+			{
+				dispatchFlags |= EFrameGenDispatchFlags::DRAW_DEBUG_VIEW;
+			}
+
+			FrameGenPassInput passInput{
+				.clearResourcePass          = clearResourcePass,
+				.opticalFlowPassOutput      = &opticalFlowPassOutput,
+				.camera                     = camera,
+				.renderSizeX                = (int32)sceneWidth,
+				.renderSizeY                = (int32)sceneHeight,
+				.displaySizeX               = (int32)unscaledRenderWidth,
+				.displaySizeY               = (int32)unscaledRenderHeight,
+				.frameID                    = frameID,
+				.dispatchFlags              = dispatchFlags,
+				.backBufferTransferFunction = backbufferTransferFunction,
+				.bReset                     = bResetOpticalFlowAccumulation,
+				.minLuminance               = fMinLuminance,
+				.maxLuminance               = fMaxLuminance,
+				.sceneColorTexture          = frameGenInputColorTexture,
+				.sceneColorSRV              = frameGenInputColorSRV,
+				.sceneDepthTexture          = RT_sceneDepth.get(),
+				.sceneDepthSRV              = sceneDepthSRV.get(),
+				.motionVectorTexture        = RT_velocityMap.get(),
+				.motionVectorSRV            = velocityMapSRV.get(),
+			};
+			frameGenPassOutput = frameGenPass->runFrameGeneration(commandList, swapchainIndex, passInput);
+		}
+	}
+
+	// #wip: Run the below passes and present at most twice using this struct.
+#if 0
+	struct ScenePresentInfo
+	{
+		bool                bRealFrame;
+		Texture*            colorTexture;
+		ShaderResourceView* colorSRV;
+	} scenePresentInfoArray[2];
+
+	uint32 scenePresentCount = 0;
+	if (bRenderFrameGeneration)
+	{
+		scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
+			.bRealFrame   = false,
+			.colorTexture = frameGenPassOutput.interpolatedFrameTexture,
+			.colorSRV     = frameGenPassOutput.interpolatedFrameSRV,
+		};
+	}
+	scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
+		.bRealFrame   = true,
+		.colorTexture = bRenderPathTracing ? RT_pathTracing.get() : RT_sceneColor.get(),
+		.colorSRV     = bRenderPathTracing ? pathTracingSRV.get() : sceneColorSRV.get(),
+	};
+#endif
 
 	// Buffer visualization
 	if (renderOptions.bufferVisualization != EBufferVisualizationMode::None)

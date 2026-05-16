@@ -116,9 +116,11 @@ static void setupDeviceDepthToViewSpaceDepthParams(const Camera* camera, float v
 	outDeviceToViewDepth[3] = (1.0f / b);
 }
 
-void FrameGenPass::initialize(RenderDevice* inRenderDevice)
+void FrameGenPass::initialize(RenderDevice* inRenderDevice, EPixelFormat inSourceColorFormat)
 {
 	device = inRenderDevice;
+	sourceColorFormat = inSourceColorFormat;
+
 	cpuFrameIndex = 0;
 
 	initializePipelines();
@@ -415,7 +417,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		commandList->enqueueDeferredDealloc(prevInterpolationSourceUAV.release(), true);
 
 		TextureCreateParams texDesc = TextureCreateParams::texture2D(
-			PF_sceneColor,
+			sourceColorFormat,
 			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			passInput.displaySizeX, passInput.displaySizeY);
 		prevInterpolationSourceTexture = UniquePtr<Texture>(device->createTexture(texDesc));
@@ -480,7 +482,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		commandList->enqueueDeferredDealloc(interpolationOutputUAV.release(), true);
 
 		TextureCreateParams texDesc = TextureCreateParams::texture2D(
-			PF_sceneColor,
+			sourceColorFormat,
 			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			passInput.displaySizeX, passInput.displaySizeY);
 		interpolationOutputTexture = UniquePtr<Texture>(device->createTexture(texDesc));
