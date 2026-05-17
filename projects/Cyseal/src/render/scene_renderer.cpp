@@ -40,8 +40,12 @@
 
 #include "util/profiling.h"
 
+#include <thread>
+
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
+#define MAX_FINAL_BLIT_OPERATIONS      2 // Actual count: 2 if frame generation is enabled, 1 otherwise.
+#define AVG_RENDER_TIME_WINDOW_SIZE    16
 
 static uint32 fullMipCount(uint32 width, uint32 height)
 {
@@ -52,6 +56,8 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
 	frameID = 0;
+
+	avgRenderTime.init(AVG_RENDER_TIME_WINDOW_SIZE);
 
 	// Scene textures: Don't create yet. You invoke recreateSceneTextures() before using scene renderer.
 	// recreateSceneTextures(width, height);
@@ -138,8 +144,8 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		denoiserPluginPass->initialize(renderDevice);
 		storeHistoryPass->initialize(renderDevice);
 		opticalFlowPass->initialize(renderDevice);
-		frameGenPass->initialize(renderDevice);
-		finalBlitPass->initialize(renderDevice);
+		frameGenPass->initialize(renderDevice, PF_finalSceneColor);
+		finalBlitPass->initialize(renderDevice, MAX_FINAL_BLIT_OPERATIONS);
 	}
 }
 
@@ -169,6 +175,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 {
 	bool bRenderToBackbuffer = renderOptions.renderToBackbuffer();
 
+	// #todo-renderer: Refactor swapchainIndex.
+	// - I'm using swapchainIndex for buffered resources in various render passes,
+	//   but they are not really related to specific swapchain index anymore.
+	// - By introduction of frame generation, they became even more irrelevant because 'current backbuffer index'
+	//   now changes twice per render().
 	uint32            swapchainIndex     = 0;
 	SwapChain*        swapChain          = nullptr;
 	SwapChainImage*   swapchainBuffer    = nullptr;
@@ -239,7 +250,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	const bool bRenderAnyRaytracingPass = renderOptions.anyRayTracingEnabled();
 
-	const bool bRenderFrameGeneration = renderOptions.bGenerateFrame && !bRenderPathTracing;
+	const bool bRenderFrameGeneration = renderOptions.bGenerateFrame && !bRenderPathTracing && bRenderToBackbuffer;
 
 	clearResourcePass->prepareForFrame(swapchainIndex);
 
@@ -797,69 +808,25 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		combineLightingPass->combineLighting(commandList, swapchainIndex, passInput);
 	}
 
-	OpticalFlowPassOutput opticalFlowPassOutput{};
-	FrameGenPassOutput frameGenPassOutput{};
-	if (bRenderFrameGeneration)
+	// Store history pass (step 2)
 	{
-		const auto backbufferTransferFunction = OpticalFlowBackbufferTransferFunction::PQCorrectedHdrToPerceivedLuminance;
-		const bool bResetOpticalFlowAccumulation = false;
+		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Prev);
 
-		// #todo-fsr3: How to calculate min/max luminance? Just downsample the sceneColor to 1x1?
-		// But how to read it? GPU stall and readback is def not an option :(
-		// If these are not scene luminance min/max but the range in HDR calibration then I should pass them from application logic side.
-		const float fMinLuminance = 0.0f;
-		const float fMaxLuminance = 3000.0f;
-
-		{
-			SCOPED_DRAW_EVENT(commandList, OpticalFlow);
-
-			OpticalFlowPassInput passInput{
-				.clearResourcePass  = clearResourcePass,
-				.transferFunction   = backbufferTransferFunction,
-				.bResetAccumulation = bResetOpticalFlowAccumulation,
-				.containerSizeX     = unscaledRenderWidth,
-				.containerSizeY     = unscaledRenderHeight,
-				.lumaResolutionX    = (int32)sceneWidth,
-				.lumaResolutionY    = (int32)sceneHeight,
-				.minLuminance       = fMinLuminance,
-				.maxLuminance       = fMaxLuminance,
-				.sceneColorTexture  = RT_sceneColor.get(),
-				.sceneColorSRV      = sceneColorSRV.get(),
-			};
-			opticalFlowPassOutput = opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
-		}
-		{
-			SCOPED_DRAW_EVENT(commandList, FrameGeneration);
-
-			EFrameGenDispatchFlags dispatchFlags = EFrameGenDispatchFlags::NONE;
-			if (renderOptions.bufferVisualization == EBufferVisualizationMode::FrameGenerationDebugView)
+		TextureBarrierAuto textureBarriers[] = {
 			{
-				dispatchFlags |= EFrameGenDispatchFlags::DRAW_DEBUG_VIEW;
-			}
+				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
+				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+			{
+				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
+				RT_prevSceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			},
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
-			FrameGenPassInput passInput{
-				.clearResourcePass          = clearResourcePass,
-				.opticalFlowPassOutput      = &opticalFlowPassOutput,
-				.camera                     = camera,
-				.renderSizeX                = (int32)sceneWidth,
-				.renderSizeY                = (int32)sceneHeight,
-				.displaySizeX               = (int32)unscaledRenderWidth,
-				.displaySizeY               = (int32)unscaledRenderHeight,
-				.frameID                    = frameID,
-				.dispatchFlags              = dispatchFlags,
-				.backBufferTransferFunction = backbufferTransferFunction,
-				.bReset                     = bResetOpticalFlowAccumulation,
-				.minLuminance               = fMinLuminance,
-				.maxLuminance               = fMaxLuminance,
-				.sceneColorTexture          = RT_sceneColor.get(),
-				.sceneColorSRV              = sceneColorSRV.get(),
-				.sceneDepthTexture          = RT_sceneDepth.get(),
-				.sceneDepthSRV              = sceneDepthSRV.get(),
-				.motionVectorTexture        = RT_velocityMap.get(),
-				.motionVectorSRV            = velocityMapSRV.get(),
-			};
-			frameGenPassOutput = frameGenPass->runFrameGeneration(commandList, swapchainIndex, passInput);
-		}
+		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
+
+		storeHistoryPass->copyCurrentToPrev(commandList, swapchainIndex);
 	}
 
 	// Set final color as render target.
@@ -901,6 +868,73 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneColorSRV       = alternateSceneColorSRV,
 		};
 		toneMapping->renderToneMapping(commandList, swapchainIndex, passInput);
+	}
+
+	OpticalFlowPassOutput opticalFlowPassOutput{};
+	FrameGenPassOutput frameGenPassOutput{};
+	if (bRenderFrameGeneration)
+	{
+		const bool bResetOpticalFlowAccumulation = false;
+
+		// #todo-fsr3: Change transfer func and min/max luminance when HDR display support is implemented.
+		// Currently backbuffer is always in LDR so just hard-code them.
+		const auto backbufferTransferFunction = OpticalFlowBackbufferTransferFunction::LinearLdrToLuminance;
+		const float fMinLuminance = 0.0f;
+		const float fMaxLuminance = 1.0f;
+
+		auto frameGenInputColorTexture = RT_finalSceneColor.get();
+		auto frameGenInputColorSRV = finalSceneColorSRV.get();
+
+		{
+			SCOPED_DRAW_EVENT(commandList, OpticalFlow);
+
+			OpticalFlowPassInput passInput{
+				.clearResourcePass  = clearResourcePass,
+				.transferFunction   = backbufferTransferFunction,
+				.bResetAccumulation = bResetOpticalFlowAccumulation,
+				.containerSizeX     = unscaledRenderWidth,
+				.containerSizeY     = unscaledRenderHeight,
+				.lumaResolutionX    = (int32)sceneWidth,
+				.lumaResolutionY    = (int32)sceneHeight,
+				.minLuminance       = fMinLuminance,
+				.maxLuminance       = fMaxLuminance,
+				.sceneColorTexture  = frameGenInputColorTexture,
+				.sceneColorSRV      = frameGenInputColorSRV,
+			};
+			opticalFlowPassOutput = opticalFlowPass->runOpticalFlow(commandList, swapchainIndex, passInput);
+		}
+		{
+			SCOPED_DRAW_EVENT(commandList, FrameGeneration);
+
+			EFrameGenDispatchFlags dispatchFlags = EFrameGenDispatchFlags::NONE;
+			if (renderOptions.bufferVisualization == EBufferVisualizationMode::FrameGenerationDebugView)
+			{
+				dispatchFlags |= EFrameGenDispatchFlags::DRAW_DEBUG_VIEW;
+			}
+
+			FrameGenPassInput passInput{
+				.clearResourcePass          = clearResourcePass,
+				.opticalFlowPassOutput      = &opticalFlowPassOutput,
+				.camera                     = camera,
+				.renderSizeX                = (int32)sceneWidth,
+				.renderSizeY                = (int32)sceneHeight,
+				.displaySizeX               = (int32)unscaledRenderWidth,
+				.displaySizeY               = (int32)unscaledRenderHeight,
+				.frameID                    = frameID,
+				.dispatchFlags              = dispatchFlags,
+				.backBufferTransferFunction = backbufferTransferFunction,
+				.bReset                     = bResetOpticalFlowAccumulation,
+				.minLuminance               = fMinLuminance,
+				.maxLuminance               = fMaxLuminance,
+				.sceneColorTexture          = frameGenInputColorTexture,
+				.sceneColorSRV              = frameGenInputColorSRV,
+				.sceneDepthTexture          = RT_sceneDepth.get(),
+				.sceneDepthSRV              = sceneDepthSRV.get(),
+				.motionVectorTexture        = RT_velocityMap.get(),
+				.motionVectorSRV            = velocityMapSRV.get(),
+			};
+			frameGenPassOutput = frameGenPass->runFrameGeneration(commandList, swapchainIndex, passInput);
+		}
 	}
 
 	// Buffer visualization
@@ -956,121 +990,161 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		bufferVisualization->renderVisualization(commandList, swapchainIndex, sources);
 	}
 
-	// Store history pass (step 2)
-	{
-		SCOPED_DRAW_EVENT(commandList, StoreHistoryPass_Prev);
-
-		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
-				RT_sceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-			},
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
-				RT_prevSceneDepth.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-			},
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
-
-		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
-
-		storeHistoryPass->copyCurrentToPrev(commandList, swapchainIndex);
-	}
+	// Flush GPU before present work.
+	immediateFlushCommandQueue(commandQueue, commandAllocator, commandList);
+	resetCommandList(commandAllocator, commandList);
 
 	// -----------------------------------------------------------------------
 	// Internal rendering is done. Prepare to blit to the final render target.
 
-	// Set final render target.
+	struct ScenePresentInfo
 	{
-		SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
+		bool                bRealFrame;
+		Texture*            colorTexture;
+		ShaderResourceView* colorSRV;
+	} scenePresentInfoArray[2];
 
-		const Viewport finalBlitViewport{
-			.topLeftX = 0,
-			.topLeftY = 0,
-			.width    = static_cast<float>(finalBlitWidth),
-			.height   = static_cast<float>(finalBlitHeight),
-			.minDepth = 0.0f,
-			.maxDepth = 1.0f,
+	uint32 scenePresentCount = 0;
+	if (bRenderFrameGeneration)
+	{
+		scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
+			.bRealFrame   = false,
+			.colorTexture = RT_finalSceneColor.get(),
+			.colorSRV     = finalSceneColorSRV.get(),
 		};
-		const ScissorRect finalBlitScissorRect{
-			.left   = 0,
-			.top    = 0,
-			.right  = finalBlitWidth,
-			.bottom = finalBlitHeight,
-		};
-		commandList->rsSetViewport(finalBlitViewport);
-		commandList->rsSetScissorRect(finalBlitScissorRect);
-
-		TextureBarrierAuto barrier{
-			EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
-			finalBlitTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-		};
-		commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
-
-		commandList->omSetRenderTarget(finalBlitRTV, nullptr);
 	}
+	scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
+		.bRealFrame   = true,
+		.colorTexture = RT_finalSceneColor.get(),
+		.colorSRV     = finalSceneColorSRV.get(),
+	};
 
+	finalBlitPass->resetBlitResources();
+
+	for (uint32 presentIx = 0; presentIx < scenePresentCount; ++presentIx)
 	{
-		SCOPED_DRAW_EVENT(commandList, FinalBlit);
+		const ScenePresentInfo& presentInfo = scenePresentInfoArray[presentIx];
 
-		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				RT_finalSceneColor.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+		// Debugging: Show only interpolated frame or real frame.
+		//if (presentInfo.bRealFrame == true) continue;
+		//if (presentInfo.bRealFrame == false) continue;
 
-		FinalBlitPassInput passInput{
-			.sceneUniformCBV    = sceneUniformCBV,
-			.renderTarget       = renderOptions.finalRenderTarget,
-			.finalSceneColorSRV = finalSceneColorSRV.get(),
-		};
-		finalBlitPass->renderFinalBlit(commandList, swapchainIndex, passInput);
-	}
+		// Set final render target.
+		{
+			SCOPED_DRAW_EVENT(commandList, SetFinalRenderTarget);
 
-	prevScaledRenderResolutionX = sceneWidth;
-	prevScaledRenderResolutionY = sceneHeight;
+			const Viewport finalBlitViewport{
+				.topLeftX = 0,
+				.topLeftY = 0,
+				.width    = static_cast<float>(finalBlitWidth),
+				.height   = static_cast<float>(finalBlitHeight),
+				.minDepth = 0.0f,
+				.maxDepth = 1.0f,
+			};
+			const ScissorRect finalBlitScissorRect{
+				.left   = 0,
+				.top    = 0,
+				.right  = finalBlitWidth,
+				.bottom = finalBlitHeight,
+			};
+			commandList->rsSetViewport(finalBlitViewport);
+			commandList->rsSetScissorRect(finalBlitScissorRect);
 
-	// Dear Imgui: Record commands
-	if (device->isHeadless() == false)
-	{
-		SCOPED_DRAW_EVENT(commandList, DearImgui);
+			TextureBarrierAuto barrier{
+				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
+				finalBlitTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			};
+			commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
+
+			commandList->omSetRenderTarget(finalBlitRTV, nullptr);
+		}
+
+		{
+			SCOPED_DRAW_EVENT(commandList, FinalBlit);
+
+			TextureBarrierAuto textureBarriers[] = {
+				{
+					EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
+					presentInfo.colorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
+				},
+			};
+			commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+			FinalBlitPassInput passInput{
+				.sceneUniformCBV    = sceneUniformCBV,
+				.renderTarget       = renderOptions.finalRenderTarget,
+				.finalSceneColorSRV = presentInfo.colorSRV,
+			};
+			finalBlitPass->renderFinalBlit(commandList, swapchainIndex, passInput);
+		}
+
+		// Dear Imgui: Record commands
+		if (device->isHeadless() == false)
+		{
+			SCOPED_DRAW_EVENT(commandList, DearImgui);
 		
-		DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
-		commandList->setDescriptorHeaps(1, imguiHeaps);
-		device->renderDearImgui(commandList, swapchainBuffer);
-	}
+			DescriptorHeap* imguiHeaps[] = { device->getDearImguiSRVHeap() };
+			commandList->setDescriptorHeaps(1, imguiHeaps);
+			device->renderDearImgui(commandList, swapchainBuffer);
+		}
 
-	//////////////////////////////////////////////////////////////////////////
-	// Finalize
+		//////////////////////////////////////////////////////////////////////////
+		// Finalize
 
-	if (bRenderToBackbuffer)
-	{
-		TextureBarrierAuto presentBarrier = {
-			EBarrierSync::DRAW, EBarrierAccess::COMMON, EBarrierLayout::Present,
-			swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-		};
-		commandList->barrierAuto(0, nullptr, 1, &presentBarrier, 0, nullptr);
-	}
+		if (bRenderToBackbuffer)
+		{
+			TextureBarrierAuto presentBarrier = {
+				EBarrierSync::DRAW, EBarrierAccess::COMMON, EBarrierLayout::Present,
+				swapchainBuffer, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
+			};
+			commandList->barrierAuto(0, nullptr, 1, &presentBarrier, 0, nullptr);
+		}
 
-	commandList->close();
-	commandAllocator->markValid();
+		commandList->close();
+		commandAllocator->markValid();
+		commandQueue->executeCommandList(commandList, swapChain);
+		{
+			SCOPED_CPU_EVENT(WaitForGPU);
+			device->flushCommandQueue();
+		}
 
-	commandQueue->executeCommandList(commandList, swapChain);
+		if (bRenderToBackbuffer)
+		{
+			bool bVSync = scenePresentInfoArray[presentIx].bRealFrame;
+			swapChain->present(bVSync);
 
-	if (bRenderToBackbuffer)
-	{
-		swapChain->present();
-	}
+			if (scenePresentInfoArray[presentIx].bRealFrame == false)
+			{
+				// #todo-fsr3-present: My measurement includes the time to present interpolated frame so can't use 0.5f * frameMS.
+				// Not intuitive but it kinda works so leave it be?
+				const float frameMS = avgRenderTime.getAverage();
+				std::this_thread::sleep_for(std::chrono::milliseconds((uint32)(0.25f * frameMS)));
+			}
+		}
 
-	{
-		SCOPED_CPU_EVENT(WaitForGPU);
+		if (presentIx != scenePresentCount - 1)
+		{
+			resetCommandList(commandAllocator, commandList);
 
-		device->flushCommandQueue();
+			if (bRenderToBackbuffer)
+			{
+				swapChain->prepareBackbuffer();
+
+				swapchainIndex     = swapChain->getCurrentBackbufferIndex();
+				swapchainBuffer    = swapChain->getSwapchainBuffer(swapchainIndex);
+				swapchainBufferRTV = swapChain->getSwapchainBufferRTV(swapchainIndex);
+
+				finalBlitTarget    = swapchainBuffer;
+				finalBlitRTV       = swapchainBufferRTV;
+			}
+		}
 	}
 
 	frameID += 1;
+	avgRenderTime.push(renderOptions.prevRenderTime);
+
+	prevScaledRenderResolutionX = sceneWidth;
+	prevScaledRenderResolutionY = sceneHeight;
 
 	// Deallocate memory, a bit messy
 	commandList->executeDeferredDealloc();

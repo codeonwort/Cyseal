@@ -411,6 +411,9 @@
     <ClInclude Include="src\render\optical_flow_common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\core\high_freq_counter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\memory\mem_alloc.cpp">

@@ -149,11 +149,15 @@ void TestApplication::onTick(float deltaSeconds)
 	{
 		SCOPED_CPU_EVENT(WorldLogic);
 
-		wchar_t buf[256];
-		float newFPS = 1.0f / deltaSeconds;
-		framesPerSecond += 0.05f * (newFPS - framesPerSecond);
-		swprintf_s(buf, L"Hello World / FPS: %.2f", framesPerSecond);
-		setWindowTitle(std::wstring(buf));
+		{
+			wchar_t buf[256];
+			float newFPS = 1.0f / deltaSeconds;
+			// #todo-fsr3-present: 1 frame time includes 1 interpolated frame + 1 real frame, so not precise but...
+			if (appState.rendererOptions.bGenerateFrame) newFPS *= 2.0f;
+			framesPerSecond += 0.05f * (newFPS - framesPerSecond);
+			swprintf_s(buf, L"Hello World / FPS: %.2f", framesPerSecond);
+			setWindowTitle(std::wstring(buf));
+		}
 
 		// Control camera by user input.
 		bool bCameraHasMoved = false;
@@ -229,6 +233,8 @@ void TestApplication::onTick(float deltaSeconds)
 
 		world->onTick(deltaSeconds);
 	}
+
+	renderTimeCounter.start();
 
 	// #todo: Move rendering loop to engine
 	{
@@ -404,10 +410,13 @@ void TestApplication::onTick(float deltaSeconds)
 		}
 		cysealEngine.renderImgui();
 
+		appState.rendererOptions.prevRenderTime = prevRenderTime;
 		cysealEngine.renderScene(sceneProxy, &camera, appState.rendererOptions);
 
 		delete sceneProxy;
 	}
+
+	prevRenderTime = (float)renderTimeCounter.stopWithMilliseconds();
 }
 
 void TestApplication::onTerminate()

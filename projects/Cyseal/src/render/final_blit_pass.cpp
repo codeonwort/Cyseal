@@ -6,9 +6,10 @@
 #include "rhi/render_command.h"
 #include "rhi/texture_manager.h"
 
-void FinalBlitPass::initialize(RenderDevice* inDevice)
+void FinalBlitPass::initialize(RenderDevice* inDevice, uint32 inMaxBlitOperationsPerFrame)
 {
 	device = inDevice;
+	maxBlitOperationsPerFrame = inMaxBlitOperationsPerFrame;
 
 	const uint32 swapchainCount = device->maxFramesInFlight();
 	if (device->getCreateParams().swapChainParams.bHeadless == false)
@@ -81,15 +82,24 @@ void FinalBlitPass::initialize(RenderDevice* inDevice)
 	}
 }
 
+void FinalBlitPass::resetBlitResources()
+{
+	descriptorIndexTracker.lastIndex = 0;
+	currentBlitOperations = 0;
+}
+
 void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, uint32 swapchainIndex, const FinalBlitPassInput& passInput)
 {
+	CHECK(currentBlitOperations < maxBlitOperationsPerFrame);
+	currentBlitOperations += 1;
+
 	GraphicsPipelineState* pipelineState = getPipelineState(passInput.renderTarget);
 
 	ShaderParameterTable SPT{};
 	SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 	SPT.texture("sourceTexture", passInput.finalSceneColorSRV);
 
-	uint32 requiredVolatiles = SPT.totalDescriptors();
+	uint32 requiredVolatiles = SPT.totalDescriptors() * maxBlitOperationsPerFrame;
 	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
 
@@ -98,7 +108,7 @@ void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, uint32 swapc
 	//commandList->rsSetScissorRect(passInput.scissorRect);
 
 	commandList->setGraphicsPipelineState(pipelineState);
-	commandList->bindGraphicsShaderParameters(pipelineState, &SPT, volatileHeap);
+	commandList->bindGraphicsShaderParameters(pipelineState, &SPT, volatileHeap, &descriptorIndexTracker);
 	commandList->iaSetPrimitiveTopology(EPrimitiveTopology::TRIANGLELIST);
 
 	commandList->beginRenderPass();

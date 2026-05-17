@@ -116,9 +116,11 @@ static void setupDeviceDepthToViewSpaceDepthParams(const Camera* camera, float v
 	outDeviceToViewDepth[3] = (1.0f / b);
 }
 
-void FrameGenPass::initialize(RenderDevice* inRenderDevice)
+void FrameGenPass::initialize(RenderDevice* inRenderDevice, EPixelFormat inSourceColorFormat)
 {
 	device = inRenderDevice;
+	sourceColorFormat = inSourceColorFormat;
+
 	cpuFrameIndex = 0;
 
 	initializePipelines();
@@ -415,7 +417,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		commandList->enqueueDeferredDealloc(prevInterpolationSourceUAV.release(), true);
 
 		TextureCreateParams texDesc = TextureCreateParams::texture2D(
-			PF_sceneColor,
+			sourceColorFormat,
 			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			passInput.displaySizeX, passInput.displaySizeY);
 		prevInterpolationSourceTexture = UniquePtr<Texture>(device->createTexture(texDesc));
@@ -451,7 +453,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		}
 	}
 
-	// #todo-fsr3: Included in FidelityFX but not used. Probably dead code but create and bind it anyway.
+	// #todo-fsr3-unused: Included in FidelityFX but not used. Probably dead code but create and bind it anyway.
 	// See r_optical_flow_confidence and FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_OPTICAL_FLOW_CONFIDENCE.
 	// It's declared as uint2, but LoadOpticalFlowConfidence() reads its y channel and returns it as float.
 	// Then fConfidenceFactor = ffxMax(FFX_FRAMEINTERPOLATION_EPSILON, LoadOpticalFlowConfidence(samplePos)).
@@ -480,7 +482,7 @@ void FrameGenPass::recreateResources(RenderCommandList* commandList, const Frame
 		commandList->enqueueDeferredDealloc(interpolationOutputUAV.release(), true);
 
 		TextureCreateParams texDesc = TextureCreateParams::texture2D(
-			PF_sceneColor,
+			sourceColorFormat,
 			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
 			passInput.displaySizeX, passInput.displaySizeY);
 		interpolationOutputTexture = UniquePtr<Texture>(device->createTexture(texDesc));
@@ -511,18 +513,18 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.cameraNear                 = passInput.camera->getZNear(),
 		.cameraFar                  = passInput.camera->getZFar(),
 		.upscalerTargetSize         = { passInput.renderSizeX, passInput.renderSizeY },
-		.Mode                       = 0, // #todo-fsr3: FidelityFX defines but does not use it.
+		.Mode                       = 0, // #todo-fsr3-unused: FidelityFX defines but does not use it.
 		.reset                      = bResetCurrentFrame || bDisjointFrameID,
 		.fDeviceToViewDepth         = { 0, 0, 0, 0 }, // Set below
-		.deltaTime                  = 0, // #todo-fsr3: FidelityFX defines but does not use it.
+		.deltaTime                  = 0, // #todo-fsr3-unused: FidelityFX defines but does not use it.
 		.HUDLessAttachedFactor      = 0, // #todo-fsr3: HUDLessAttachedFactor
 		.distortionFieldSize        = { 1, 1 },
 		.opticalFlowScale           = { 1.0f / (float)(passInput.displaySizeX), 1.0f / (float)(passInput.displaySizeY) },
 		.opticalFlowBlockSize       = kOpticalFlowBlockSize,
 		.dispatchFlags              = (uint32)passInput.dispatchFlags,
 		.maxRenderSize              = { passInput.displaySizeX, passInput.displaySizeY },
-		.opticalFlowHalfResMode     = 0, // #todo-fsr3: FidelityFX defines but does not use it.
-		.NumInstances               = 0, // #todo-fsr3: FidelityFX defines but does not use it.
+		.opticalFlowHalfResMode     = 0, // #todo-fsr3-unused: FidelityFX defines but does not use it.
+		.NumInstances               = 0, // #todo-fsr3-unused: FidelityFX defines but does not use it.
 		.interpolationRectBase      = { 0, 0 },
 		.interpolationRectSize      = { passInput.renderSizeX, passInput.renderSizeY },
 		.debugBarColor              = { 1.0f, 0.0f, 0.0f },
@@ -726,7 +728,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.constantBuffer("cbFI", frameInterpUniformCBV); // FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION
 			SPT.texture("r_dilated_motion_vectors", dilatedMotionVectorSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_MOTION_VECTORS
 			SPT.texture("r_dilated_depth", dilatedDepthSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_DILATED_DEPTH
-			// #todo-fsr3: declared but not used in ffx_frameinterpolation_reconstruct_previous_depth_pass.hlsl
+			// #todo-fsr3-unused: declared but not used in ffx_frameinterpolation_reconstruct_previous_depth_pass.hlsl
 			SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
 			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
 			SPT.rwTexture("rw_reconstructed_depth_interpolated_frame", reconstructedDepthInterpolatedFrameUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_INTERPOLATED_FRAME
@@ -935,7 +937,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		commandList->dispatchCompute(dispatchThreadGroupCountXY[0], dispatchThreadGroupCountXY[1], 1);
 	}
 
-	// #todo-fsr3-presentbackbuffer: Revisit when dealing with swapchain interaction.
+	// #todo-fsr3-present: Revisit when dealing with swapchain interaction.
 	// Currently just assume that PRESENT_BACKBUFFER == currInterpolationSourceTexture.
 	auto presentBackbufferSRV = currInterpolationSourceSRV;
 
@@ -948,7 +950,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		TextureBarrierAuto textureBarriers[] = {
 			TextureBarrierAuto::toShaderResource(passInput.opticalFlowPassOutput->sceneChangeDetectionTexture, EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
-			// #todo-fsr3-presentbackbuffer
+			// #todo-fsr3-present
 			//TextureBarrierAuto::toShaderResource(presentBackbufferTexture, EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toUnorderedAccess(interpolationOutputTexture.get(), EBarrierSync::COMPUTE_SHADING),
@@ -984,7 +986,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			TextureBarrierAuto::toShaderResource(opticalFlowMotionVectorFieldTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(opticalFlowMotionVectorFieldTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(disocclusionMaskTexture.get(), EBarrierSync::COMPUTE_SHADING),
-			// #todo-fsr3-presentbackbuffer
+			// #todo-fsr3-present
 			//TextureBarrierAuto::toShaderResource(presentBackbufferTexture, EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(inpaintingPyramidTexture.get(), EBarrierSync::COMPUTE_SHADING),
 			TextureBarrierAuto::toShaderResource(currInterpolationSourceTexture, EBarrierSync::COMPUTE_SHADING),

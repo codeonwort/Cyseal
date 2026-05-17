@@ -20,7 +20,10 @@ struct FinalBlitPassInput
 class FinalBlitPass final : public SceneRenderPass
 {
 public:
-	void initialize(RenderDevice* inRenderDevice);
+	void initialize(RenderDevice* inRenderDevice, uint32 inMaxBlitOperationsPerFrame);
+
+	// Invoke every frame before calling renderFinalBlit().
+	void resetBlitResources();
 
 	void renderFinalBlit(RenderCommandList* commandList, uint32 swapchainIndex, const FinalBlitPassInput& passInput);
 
@@ -36,4 +39,7 @@ private:
 
 	VertexInputLayout                        inputLayout;
 	VolatileDescriptorHelper                 passDescriptor;
+	DescriptorIndexTracker                   descriptorIndexTracker;
+	uint32                                   maxBlitOperationsPerFrame = 1;
+	uint32                                   currentBlitOperations = 0xffffffff;
 };

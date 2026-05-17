@@ -52,7 +52,7 @@ struct FrameGenPassOutput
 class FrameGenPass final : public SceneRenderPass
 {
 public:
-	void initialize(RenderDevice* inRenderDevice);
+	void initialize(RenderDevice* inRenderDevice, EPixelFormat inSourceColorFormat);
 
 	FrameGenPassOutput runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
 
@@ -70,6 +70,8 @@ private:
 
 private:
 	RenderDevice* device = nullptr;
+	EPixelFormat sourceColorFormat;
+
 	uint32 cpuFrameIndex = 0;
 	uint32 prevFrameID = 0; // from FrameGenPassInput
 	uint32 interpolationDispatchCount = 0;
@@ -133,7 +135,7 @@ private:
 	UniquePtr<Texture>                     inpaintingPyramidTexture;
 	UniquePtr<ShaderResourceView>          inpaintingPyramidSRV;
 	UniquePtr<UnorderedAccessView>         inpaintingPyramidUAVs[13];
-	UniquePtr<Texture>                     opticalFlowConfidenceTexture; // #todo-fsr3: Probably dead code.
+	UniquePtr<Texture>                     opticalFlowConfidenceTexture;
 	UniquePtr<ShaderResourceView>          opticalFlowConfidenceSRV;
 	UniquePtr<Texture>                     interpolationOutputTexture;
 	UniquePtr<ShaderResourceView>          interpolationOutputSRV;

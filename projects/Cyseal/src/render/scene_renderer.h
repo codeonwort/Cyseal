@@ -28,6 +28,33 @@ struct SceneUniform
 	vec3          sunIlluminance; float _pad2;
 };
 
+class SimpleMovingAverage
+{
+public:
+	void init(uint32 windowSize)
+	{
+		values.resize(windowSize);
+	}
+	void push(float x)
+	{
+		values[currIx] = x;
+		currIx = (currIx + 1) % values.size();
+		itemCount = itemCount + 1;
+		if (itemCount > (uint32)values.size()) itemCount = (uint32)values.size();
+	}
+	float getAverage() const
+	{
+		float avg = 0.0f;
+		for (uint32 i = 0; i < itemCount; ++i) avg += values[i];
+		avg /= (float)itemCount;
+		return avg;
+	}
+private:
+	uint32 itemCount = 0;
+	uint32 currIx = 0;
+	std::vector<float> values;
+};
+
 // Render a 3D scene with hybrid rendering. (rasterization + raytracing)
 class SceneRenderer final : public Renderer
 {
@@ -71,6 +98,7 @@ private:
 	SceneUniform prevSceneUniformData;
 
 	uint32 frameID = 0;
+	SimpleMovingAverage avgRenderTime;
 
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.

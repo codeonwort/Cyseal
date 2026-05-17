@@ -86,7 +86,7 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 	SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 	SPT.texture("gbuffer0", passInput.gbuffer0SRV);
 	SPT.texture("gbuffer1", passInput.gbuffer1SRV);
-	SPT.texture("sceneColor", passInput.sceneColorSRV);
+	SPT.texture("sceneColor", passInput.sceneColorSRV); // #todo-renderer: This is not direct lighting anymore ever since CombineLightingPass was introduced.
 	SPT.texture("shadowMask", passInput.shadowMaskSRV);
 	SPT.texture("indirectDiffuse", passInput.indirectDiffuseSRV);
 	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);

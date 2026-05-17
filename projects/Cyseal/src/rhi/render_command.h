@@ -122,7 +122,7 @@ public:
 	virtual void omSetRenderTarget(RenderTargetView* RTV, DepthStencilView* DSV) = 0;
 	virtual void omSetRenderTargets(uint32 numRTVs, RenderTargetView* const* RTVs, DepthStencilView* DSV) = 0;
 
-	virtual void bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap) = 0;
+	virtual void bindGraphicsShaderParameters(PipelineState* pipelineState, const ShaderParameterTable* parameters, DescriptorHeap* descriptorHeap, DescriptorIndexTracker* tracker = nullptr) = 0;
 
 	// When a graphics PSO is already bound, only update root constants for fast path.
 	// - pipelineState must have been bound with bindGraphicsShaderParameters().
