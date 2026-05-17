@@ -34,6 +34,14 @@ Use gbuffers to generate rays starting from surfaces. Accumulate lighting at hit
 
 Generate rays starting from camera for full path tracing. Run offline denoiser.
 
+**Frame Generation**
+
+<img src="https://github.com/user-attachments/assets/7c79d346-97e2-49e1-9aa1-b4dfd13f95b8" width="49%" />
+
+Integrate Optical Flow and Frame Generation modules in AMD FidelityFX SDK 1.1.4 to generate interpolated frames.
+
+Present interpolated frames between real frames.
+
 # Features
 
 * GPU-driven rendering
@@ -46,3 +54,5 @@ Generate rays starting from camera for full path tracing. Run offline denoiser.
   * Raytraced indirect diffuse reflection
   * Raytraced indirect specular reflection and refraction with AMD FidelityFX Reflection Denoiser
   * Monte Carlo path tracing with Intel OpenImageDenoise
+* Frame Generation
+  * FSR3 compute based frame generation in AMD FidelityFX SDK 1.1.4.
