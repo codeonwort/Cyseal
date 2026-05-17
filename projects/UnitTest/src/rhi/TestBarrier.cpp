@@ -10,9 +10,6 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #define TEST_SHADERS_DIR L"../../projects/UnitTest/src/rhi/"
 
-// #todo-test: Can I define a macro for parameterized test without modifying original headers?
-// ...
-
 namespace UnitTest
 {
 	template<ERenderDeviceRawAPI graphicsAPI>

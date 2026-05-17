@@ -5,9 +5,6 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "rhi/dx12/d3d_device.h"
 #include "rhi/vulkan/vk_device.h"
 
-// #todo-test: Can I define a macro for parameterized test without modifying original headers?
-// ...
-
 namespace UnitTest
 {
 	template<ERenderDeviceRawAPI graphicsAPI>

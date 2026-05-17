@@ -255,7 +255,7 @@ HWND Win32InitInstance(
 		return NULL;
 	}
 
-	// #todo-application: Hmm... sometimes the window is minimized at startup. Does this always solve it?
+	// Prevents a case that the window is sometimes minimized at startup.
 	::BringWindowToTop(hWnd);
 
 	::ShowWindow(hWnd, SW_SHOW);

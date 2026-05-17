@@ -3,13 +3,6 @@
 #include "int_types.h"
 #include <string>
 
-// #todo-application: Needs?
-//enum class EApplicationInterface : uint8
-//{
-//	GUI = 0,
-//	CUI = 1,
-//};
-
 enum class EApplicationReturnCode : int32
 {
 	Ok          = 0,
