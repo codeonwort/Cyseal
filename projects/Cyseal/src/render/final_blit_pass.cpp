@@ -99,7 +99,7 @@ void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, uint32 swapc
 	SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 	SPT.texture("sourceTexture", passInput.finalSceneColorSRV);
 
-	uint32 requiredVolatiles = SPT.totalDescriptors();
+	uint32 requiredVolatiles = SPT.totalDescriptors() * maxBlitOperationsPerFrame;
 	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
 	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
 
