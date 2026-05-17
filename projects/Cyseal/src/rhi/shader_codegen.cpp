@@ -101,7 +101,7 @@ std::string ShaderCodegen::readProcessOutput(const std::string& cmd, bool bEmitB
 			&siStartInfo,
 			&piProcInfo));
 
-		CHECK(WAIT_OBJECT_0 == ::WaitForSingleObject(piProcInfo.hProcess, 3000));
+		CHECK(WAIT_OBJECT_0 == ::WaitForSingleObject(piProcInfo.hProcess, INFINITE));
 
 		std::stringstream ss;
 		CHAR buf[4096];
