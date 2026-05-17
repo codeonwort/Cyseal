@@ -152,7 +152,7 @@ void TestApplication::onTick(float deltaSeconds)
 		{
 			wchar_t buf[256];
 			float newFPS = 1.0f / deltaSeconds;
-			// 1 frame time includes 1 interpolated frame + 1 real frame, so not precise but...
+			// #todo-fsr3-present: 1 frame time includes 1 interpolated frame + 1 real frame, so not precise but...
 			if (appState.rendererOptions.bGenerateFrame) newFPS *= 2.0f;
 			framesPerSecond += 0.05f * (newFPS - framesPerSecond);
 			swprintf_s(buf, L"Hello World / FPS: %.2f", framesPerSecond);

@@ -118,7 +118,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 	uint32 workGroupOffset[2];
 	uint32 numWorkGroupsAndMips[2];
 	const uint32 rectInfo[4] = { 0u, 0u, (uint32)passInput.lumaResolutionX, (uint32)passInput.lumaResolutionY };
-	// #todo-fsr3-fg: Why mips = 4, not 7? (result is correct based on PIX)
+	// #todo-fsr3: Why mips = 4, not 7? (result is correct based on PIX)
 	ffxSpdSetup(threadGroupSizeOpticalFlowInputPyramid, workGroupOffset, numWorkGroupsAndMips, rectInfo, 4);
 
 	SpdUniform spdUniformData{
@@ -442,7 +442,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 			};
 		}
 
-		// #todo-fsr3-fg: What is this?
+		// #todo-fsr3-unused: What is this?
 #if 0
 		if (level > 0)
 		{
@@ -614,7 +614,7 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 		));
 	};
 
-	// #todo-fsr3-fg: Use bContainerResolutionChanged?
+	// #todo-fsr3: Use bContainerResolutionChanged?
 	if (bLumaResolutionChanged)
 	{
 		for (uint32 frameIx = 0; frameIx < 2; ++frameIx)

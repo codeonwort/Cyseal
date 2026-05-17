@@ -1115,7 +1115,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 			if (scenePresentInfoArray[presentIx].bRealFrame == false)
 			{
-				// #wip: My measurement includes the time to present interpolated frame so can't use 0.5f * frameMS.
+				// #todo-fsr3-present: My measurement includes the time to present interpolated frame so can't use 0.5f * frameMS.
 				// Not intuitive but it kinda works so leave it be?
 				const float frameMS = avgRenderTime.getAverage();
 				std::this_thread::sleep_for(std::chrono::milliseconds((uint32)(0.25f * frameMS)));

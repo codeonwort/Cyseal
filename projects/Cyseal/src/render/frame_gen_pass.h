@@ -135,7 +135,7 @@ private:
 	UniquePtr<Texture>                     inpaintingPyramidTexture;
 	UniquePtr<ShaderResourceView>          inpaintingPyramidSRV;
 	UniquePtr<UnorderedAccessView>         inpaintingPyramidUAVs[13];
-	UniquePtr<Texture>                     opticalFlowConfidenceTexture; // #todo-fsr3: Probably dead code.
+	UniquePtr<Texture>                     opticalFlowConfidenceTexture;
 	UniquePtr<ShaderResourceView>          opticalFlowConfidenceSRV;
 	UniquePtr<Texture>                     interpolationOutputTexture;
 	UniquePtr<ShaderResourceView>          interpolationOutputSRV;
