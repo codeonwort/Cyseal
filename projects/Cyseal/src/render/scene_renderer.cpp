@@ -40,6 +40,8 @@
 
 #include "util/profiling.h"
 
+#include <thread>
+
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
 #define MAX_FINAL_BLIT_OPERATIONS      2 // Actual count: 2 if frame generation is enabled, 1 otherwise.
@@ -170,6 +172,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 {
 	bool bRenderToBackbuffer = renderOptions.renderToBackbuffer();
 
+	// #todo-renderer: Refactor swapchainIndex.
+	// - I'm using swapchainIndex for buffered resources in various render passes,
+	//   but they are not really related to specific swapchain index anymore.
+	// - By introduction of frame generation, they became even more irrelevant because 'current backbuffer index'
+	//   now changes twice per render().
 	uint32            swapchainIndex     = 0;
 	SwapChain*        swapChain          = nullptr;
 	SwapChainImage*   swapchainBuffer    = nullptr;
@@ -1015,8 +1022,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		const ScenePresentInfo& presentInfo = scenePresentInfoArray[presentIx];
 
-		// #wip: Crashes for interp frame; maybe need to renew swapchainBuffer?
-		if (presentInfo.bRealFrame == false) continue;
+		// Debugging: Show only interpolated frame or real frame.
+		//if (presentInfo.bRealFrame == true) continue;
+		//if (presentInfo.bRealFrame == false) continue;
 
 		// Set final render target.
 		{
@@ -1101,12 +1109,31 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		{
 			bool bVSync = scenePresentInfoArray[presentIx].bRealFrame;
 			swapChain->present(bVSync);
-			// #wip: Force wait if about to present an interpolated frame. Calculate the wait time with moving-average-thing.
+
+			if (scenePresentInfoArray[presentIx].bRealFrame == false)
+			{
+				// #wip: Force wait if about to present an interpolated frame. Calculate the wait time with moving-average-thing.
+				const float targetFPS = 120.0f;
+				const float frameMS = 1000.0f / targetFPS;
+				std::this_thread::sleep_for(std::chrono::milliseconds((uint32)(0.5f * frameMS)));
+			}
 		}
 
 		if (presentIx != scenePresentCount - 1)
 		{
 			resetCommandList(commandAllocator, commandList);
+
+			if (bRenderToBackbuffer)
+			{
+				swapChain->prepareBackbuffer();
+
+				swapchainIndex     = swapChain->getCurrentBackbufferIndex();
+				swapchainBuffer    = swapChain->getSwapchainBuffer(swapchainIndex);
+				swapchainBufferRTV = swapChain->getSwapchainBufferRTV(swapchainIndex);
+
+				finalBlitTarget    = swapchainBuffer;
+				finalBlitRTV       = swapchainBufferRTV;
+			}
 		}
 	}
 
