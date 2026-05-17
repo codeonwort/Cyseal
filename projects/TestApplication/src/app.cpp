@@ -149,11 +149,15 @@ void TestApplication::onTick(float deltaSeconds)
 	{
 		SCOPED_CPU_EVENT(WorldLogic);
 
-		wchar_t buf[256];
-		float newFPS = 1.0f / deltaSeconds;
-		framesPerSecond += 0.05f * (newFPS - framesPerSecond);
-		swprintf_s(buf, L"Hello World / FPS: %.2f", framesPerSecond);
-		setWindowTitle(std::wstring(buf));
+		{
+			wchar_t buf[256];
+			float newFPS = 1.0f / deltaSeconds;
+			// 1 frame time includes 1 interpolated frame + 1 real frame, so not precise but...
+			if (appState.rendererOptions.bGenerateFrame) newFPS *= 2.0f;
+			framesPerSecond += 0.05f * (newFPS - framesPerSecond);
+			swprintf_s(buf, L"Hello World / FPS: %.2f", framesPerSecond);
+			setWindowTitle(std::wstring(buf));
+		}
 
 		// Control camera by user input.
 		bool bCameraHasMoved = false;
