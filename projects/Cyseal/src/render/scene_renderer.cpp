@@ -45,6 +45,7 @@
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
 #define MAX_FINAL_BLIT_OPERATIONS      2 // Actual count: 2 if frame generation is enabled, 1 otherwise.
+#define AVG_RENDER_TIME_WINDOW_SIZE    16
 
 static uint32 fullMipCount(uint32 width, uint32 height)
 {
@@ -55,6 +56,8 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
 	frameID = 0;
+
+	avgRenderTime.init(AVG_RENDER_TIME_WINDOW_SIZE);
 
 	// Scene textures: Don't create yet. You invoke recreateSceneTextures() before using scene renderer.
 	// recreateSceneTextures(width, height);
@@ -1112,10 +1115,10 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 			if (scenePresentInfoArray[presentIx].bRealFrame == false)
 			{
-				// #wip: Force wait if about to present an interpolated frame. Calculate the wait time with moving-average-thing.
-				const float targetFPS = 120.0f;
-				const float frameMS = 1000.0f / targetFPS;
-				std::this_thread::sleep_for(std::chrono::milliseconds((uint32)(0.5f * frameMS)));
+				// #wip: My measurement includes the time to present interpolated frame so can't use 0.5f * frameMS.
+				// Not intuitive but it kinda works so leave it be?
+				const float frameMS = avgRenderTime.getAverage();
+				std::this_thread::sleep_for(std::chrono::milliseconds((uint32)(0.25f * frameMS)));
 			}
 		}
 
@@ -1138,6 +1141,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 
 	frameID += 1;
+	avgRenderTime.push(renderOptions.prevRenderTime);
 
 	prevScaledRenderResolutionX = sceneWidth;
 	prevScaledRenderResolutionY = sceneHeight;

@@ -230,6 +230,8 @@ void TestApplication::onTick(float deltaSeconds)
 		world->onTick(deltaSeconds);
 	}
 
+	renderTimeCounter.start();
+
 	// #todo: Move rendering loop to engine
 	{
 		SCOPED_CPU_EVENT(ExecuteRenderer);
@@ -404,10 +406,13 @@ void TestApplication::onTick(float deltaSeconds)
 		}
 		cysealEngine.renderImgui();
 
+		appState.rendererOptions.prevRenderTime = prevRenderTime;
 		cysealEngine.renderScene(sceneProxy, &camera, appState.rendererOptions);
 
 		delete sceneProxy;
 	}
+
+	prevRenderTime = (float)renderTimeCounter.stopWithMilliseconds();
 }
 
 void TestApplication::onTerminate()

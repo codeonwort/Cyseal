@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/win/windows_application.h"
+#include "core/high_freq_counter.h"
 #include "render/renderer_options.h"
 #include "world/scene.h"
 #include "world/camera.h"
@@ -50,4 +51,7 @@ private:
 	uint32 newViewportHeight = 0;
 
 	float framesPerSecond = 0.0f;
+
+	float prevRenderTime = 0.0f;
+	HighFrequencyCounter renderTimeCounter;
 };
