@@ -173,17 +173,15 @@ void SceneRenderer::destroy()
 
 void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const RendererOptions& renderOptions)
 {
-	bool bRenderToBackbuffer = renderOptions.renderToBackbuffer();
+	const bool bRenderToBackbuffer = renderOptions.renderToBackbuffer();
 
-	// #todo-renderer: Refactor swapchainIndex.
-	// - I'm using swapchainIndex for buffered resources in various render passes,
-	//   but they are not really related to specific swapchain index anymore.
-	// - By introduction of frame generation, they became even more irrelevant because 'current backbuffer index'
-	//   now changes twice per render().
-	uint32            swapchainIndex     = 0;
+	// #wip: Rename realSwapchainIndex and swapchainIndex...
+	uint32            realSwapchainIndex     = 0;
 	SwapChain*        swapChain          = nullptr;
 	SwapChainImage*   swapchainBuffer    = nullptr;
 	RenderTargetView* swapchainBufferRTV = nullptr;
+
+	uint32            swapchainIndex = (frameID % device->maxFramesInFlight());
 
 	if (bRenderToBackbuffer)
 	{
@@ -192,9 +190,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		swapChain->prepareBackbuffer();
 
-		swapchainIndex     = swapChain->getCurrentBackbufferIndex();
-		swapchainBuffer    = swapChain->getSwapchainBuffer(swapchainIndex);
-		swapchainBufferRTV = swapChain->getSwapchainBufferRTV(swapchainIndex);
+		realSwapchainIndex = swapChain->getCurrentBackbufferIndex();
+		swapchainBuffer    = swapChain->getSwapchainBuffer(realSwapchainIndex);
+		swapchainBufferRTV = swapChain->getSwapchainBufferRTV(realSwapchainIndex);
 	}
 
 	auto commandAllocator  = device->getCommandAllocator(swapchainIndex);
@@ -261,7 +259,11 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	// Just execute prior to any standard renderer works.
 	// If some custom commands should execute in midst of frame rendering,
 	// I need to insert delegates here and there of this SceneRenderer::render() function.
-	commandList->executeCustomCommands();
+	for (RenderCommandList::CustomCommandType lambda : customCommands)
+	{
+		lambda(*commandList);
+	}
+	customCommands.clear();
 
 	// #todo-renderer: In future each render pass might write to RTs of different dimensions.
 	// Currently all passes work at full resolution.
@@ -1130,9 +1132,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			{
 				swapChain->prepareBackbuffer();
 
-				swapchainIndex     = swapChain->getCurrentBackbufferIndex();
-				swapchainBuffer    = swapChain->getSwapchainBuffer(swapchainIndex);
-				swapchainBufferRTV = swapChain->getSwapchainBufferRTV(swapchainIndex);
+				realSwapchainIndex = swapChain->getCurrentBackbufferIndex();
+				swapchainBuffer    = swapChain->getSwapchainBuffer(realSwapchainIndex);
+				swapchainBufferRTV = swapChain->getSwapchainBufferRTV(realSwapchainIndex);
 
 				finalBlitTarget    = swapchainBuffer;
 				finalBlitRTV       = swapchainBufferRTV;
@@ -1666,6 +1668,11 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			},
 		}
 	));
+}
+
+void SceneRenderer::enqueueCustomCommands(std::vector<RenderCommandList::CustomCommandType>&& inCommands)
+{
+	customCommands = inCommands;
 }
 
 void SceneRenderer::resetCommandList(RenderCommandAllocator* commandAllocator, RenderCommandList* commandList)

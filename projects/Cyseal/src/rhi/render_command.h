@@ -186,11 +186,6 @@ public:
 	virtual void beginEventMarker(const char* eventName) = 0; // For GPU debuggers
 	virtual void endEventMarker() = 0;
 
-	void enqueueCustomCommand(CustomCommandType lambda);
-	void executeCustomCommands();
-
-	inline bool hasCustomCommands() const { return customCommands.size() > 0; }
-
 	template<typename T>
 	void enqueueDeferredDealloc(T* addrToDelete, bool ignoreNullPtr = false)
 	{
@@ -211,31 +206,6 @@ private:
 	std::vector<CustomCommandType> customCommands;
 	std::vector<std::function<void()>> deferredDeallocs; // Free'd after all GPU works for this command list is done.
 };
-
-// #todo-rendercommand: Currently every custom commands are executed prior to whole internal rendering pipeline.
-// Needs a lambda wrapper for each internal command for perfect queueing.
-struct EnqueueCustomRenderCommand
-{
-	EnqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda);
-};
-
-// Enqueues custom render commands that will be executed at next frame rendering.
-// Search for executeCustomCommands() from SceneRenderer or NullRenderer.
-// Only works if render device is not headless and renderer is running.
-#define ENQUEUE_RENDER_COMMAND(CommandName) EnqueueCustomRenderCommand CommandName
-
-#if 0
-// #todo-rendercommand: Resets the list and only executes custom commands registered so far.
-// Just a hack due to incomplete render command list support.
-struct FlushRenderCommands
-{
-	FlushRenderCommands();
-};
-
-#define FLUSH_RENDER_COMMANDS_INTERNAL(x, y) x ## y
-#define FLUSH_RENDER_COMMANDS_INTERNAL2(x, y) FLUSH_RENDER_COMMANDS_INTERNAL(x, y)
-#define FLUSH_RENDER_COMMANDS() FlushRenderCommands FLUSH_RENDER_COMMANDS_INTERNAL2(flushRenderCommands_, __LINE__)
-#endif
 
 struct ScopedDrawEvent
 {

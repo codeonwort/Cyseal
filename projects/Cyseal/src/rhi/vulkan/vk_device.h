@@ -105,8 +105,6 @@ public:
 	// ------------------------------------------------------------------------
 	// Getters
 
-	virtual RenderCommandList* getCommandListForCustomCommand() const override;
-
 	virtual uint32 getMultiSampleQuality(EMultiSampleLevel level) const override { return msaaQualityLevels[(uint32)level]; }
 	virtual bool supportsMultiSampleLevel(EMultiSampleLevel level) const override { return msaaQualityLevels[(uint32)level] > 0; }
 

@@ -2,6 +2,7 @@
 #include "render_device.h"
 #include "render_command.h"
 #include "gpu_resource.h"
+#include "core/engine.h"
 #include "core/assertion.h"
 #include "util/resource_finder.h"
 #include "loader/image_loader.h"

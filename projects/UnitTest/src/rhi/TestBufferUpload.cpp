@@ -18,7 +18,7 @@ namespace UnitTest
 		{
 			RenderDevice* renderDevice = rhi_test::createHeadlessDevice(graphicsAPI);
 
-			auto commandList = renderDevice->getCommandListForCustomCommand();
+			auto commandList = renderDevice->getCommandList(0);
 			auto commandAllocator = renderDevice->getCommandAllocator(0);
 			auto commandQueue = renderDevice->getCommandQueue();
 			SwapChain* nullSwapChain = nullptr;

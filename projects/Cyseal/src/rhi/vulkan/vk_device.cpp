@@ -1496,23 +1496,6 @@ void VulkanDevice::copyDescriptors(
 	CHECK_NO_ENTRY();
 }
 
-RenderCommandList* VulkanDevice::getCommandListForCustomCommand() const
-{
-	const bool bHeadless = getCreateParams().swapChainParams.bHeadless;
-
-	uint32 swapchainIx = bHeadless
-		? 0
-		: getSwapChain()->getCurrentBackbufferIndex();
-
-	if (!bHeadless && getSwapChain()->getCurrentBackbufferIndex() == 0xffffffff)
-	{
-		swapchainIx = 0;
-	}
-
-	RenderCommandList* commandList = getCommandList(swapchainIx);
-	return commandList;
-}
-
 void VulkanDevice::beginVkDebugMarker(
 	VkCommandBuffer& cmdBuffer,
 	const char* debugName,
