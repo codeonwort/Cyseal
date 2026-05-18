@@ -258,7 +258,7 @@ private:
 
 	RenderCommandList* beginRendering()
 	{
-		RenderCommandList* commandList = gRenderDevice->getCommandListForCustomCommand();
+		RenderCommandList* commandList = gRenderDevice->getCommandList(0);
 		RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator(0);
 
 		commandList->reset(commandAllocator);

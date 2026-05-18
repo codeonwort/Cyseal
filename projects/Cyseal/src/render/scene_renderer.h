@@ -75,12 +75,14 @@ public:
 	/// <param name="sceneWidth">Width of new render resolution.</param>
 	/// <param name="sceneHeight">Height of new render resolution.</param>
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) override;
+
+	virtual void enqueueCustomCommands(std::vector<RenderCommandList::CustomCommandType>&& inCommands) override;
 	
 private:
 	void resetCommandList(RenderCommandAllocator* commandAllocator, RenderCommandList* commandList);
 	void immediateFlushCommandQueue(RenderCommandQueue* commandQueue, RenderCommandAllocator* commandAllocator, RenderCommandList* commandList);
 
-	void updateSceneUniform(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene, const Camera* camera, uint32 sceneWidth, uint32 sceneHeight);
+	void updateSceneUniform(RenderCommandList* commandList, uint32 frameIndex, const SceneProxy* scene, const Camera* camera, uint32 sceneWidth, uint32 sceneHeight);
 
 	void rebuildFrameResources(RenderCommandList* commandList, const SceneProxy* scene);
 
@@ -90,6 +92,8 @@ private:
 
 private:
 	RenderDevice* device = nullptr;
+
+	std::vector<RenderCommandList::CustomCommandType> customCommands;
 
 	struct DeferredCleanup { GPUResource* resource; /*uint32 count;*/ }; // Don't remember why I put 'count' there...?
 	std::vector<DeferredCleanup> deferredCleanupList;

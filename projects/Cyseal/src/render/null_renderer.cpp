@@ -8,6 +8,7 @@
 void NullRenderer::initialize(RenderDevice* renderDevice)
 {
 	device = renderDevice;
+	frameID = 0;
 }
 
 void NullRenderer::destroy()
@@ -22,7 +23,7 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	SwapChain* swapChain      = device->getSwapChain();
 	swapChain->prepareBackbuffer();
 
-	uint32 swapchainIndex     = swapChain->getCurrentBackbufferIndex();
+	uint32 swapchainIndex     = (frameID % device->maxFramesInFlight());
 	auto swapchainBuffer      = swapChain->getSwapchainBuffer(swapchainIndex);
 	auto swapchainBufferRTV   = swapChain->getSwapchainBufferRTV(swapchainIndex);
 	auto commandAllocator     = device->getCommandAllocator(swapchainIndex);
@@ -32,7 +33,11 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 	commandAllocator->reset();
 	commandList->reset(commandAllocator);
 
-	commandList->executeCustomCommands();
+	for (RenderCommandList::CustomCommandType lambda : customCommands)
+	{
+		lambda(*commandList);
+	}
+	customCommands.clear();
 
 	TextureBarrierAuto renderToBackbufferBarrier = {
 		EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
@@ -82,4 +87,11 @@ void NullRenderer::render(const SceneProxy* scene, const Camera* camera, const R
 
 	commandList->executeDeferredDealloc();
 #endif
+	
+	frameID += 1;
+}
+
+void NullRenderer::enqueueCustomCommands(std::vector<RenderCommandList::CustomCommandType>&& inCommands)
+{
+	customCommands = inCommands;
 }

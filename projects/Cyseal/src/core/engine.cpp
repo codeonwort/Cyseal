@@ -33,6 +33,38 @@
 
 DEFINE_LOG_CATEGORY(LogEngine);
 
+CysealEngine* gEngine = nullptr;
+
+// ---------------------------------------------------------------------
+// EnqueueCustomRenderCommand
+
+EnqueueCustomRenderCommand::EnqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda)
+{
+	gEngine->enqueueCustomRenderCommand(inLambda);
+}
+
+#if 0
+FlushRenderCommands::FlushRenderCommands()
+{
+	uint32 swapchainIx = gRenderDevice->getSwapChain()->getCurrentBackbufferIndex();
+
+	RenderCommandAllocator* commandAllocator = gRenderDevice->getCommandAllocator(swapchainIx);
+	RenderCommandList* commandList = gRenderDevice->getCommandList(swapchainIx);
+	RenderCommandQueue* commandQueue = gRenderDevice->getCommandQueue();
+
+	commandAllocator->reset();
+	commandList->reset(commandAllocator);
+	commandList->executeCustomCommands();
+	commandList->close();
+	commandQueue->executeCommandList(commandList);
+
+	gRenderDevice->flushCommandQueue();
+}
+#endif
+
+// ---------------------------------------------------------------------
+// CysealEngine
+
 CysealEngine::~CysealEngine()
 {
 	CHECK(state == EEngineState::SHUTDOWN);
@@ -55,6 +87,10 @@ void CysealEngine::startup(const CysealEngineCreateParams& inCreateParams)
 
 	// Core
 	createRenderDevice(createParams.renderDevice); // gRenderDevice is now available.
+
+	// #todo: Ideally do this at the end so that subsystems do not access gEngine at their initialization,
+	// but subsystems that use ENQUEUE_RENDER_COMMAND requires gEngine :(
+	gEngine = this;
 
 	// Subsystems
 	{
@@ -157,6 +193,8 @@ void CysealEngine::shutdown()
 	// Shutdown is finished.
 	state = EEngineState::SHUTDOWN;
 
+	gEngine = nullptr;
+
 	CYLOG(LogEngine, Log, TEXT("Engine has been fully terminated."));
 }
 
@@ -190,7 +228,14 @@ void CysealEngine::renderScene(SceneProxy* sceneProxy, Camera* camera, const Ren
 {
 	CHECK(state == EEngineState::RUNNING);
 
+	renderer->enqueueCustomCommands(std::move(customRenderCommands));
+	customRenderCommands.clear();
 	renderer->render(sceneProxy, camera, rendererOptions);
+}
+
+void CysealEngine::enqueueCustomRenderCommand(RenderCommandList::CustomCommandType inLambda)
+{
+	customRenderCommands.push_back(inLambda);
 }
 
 void CysealEngine::setRenderResolution(uint32 newWidth, uint32 newHeight)

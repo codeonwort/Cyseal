@@ -202,8 +202,6 @@ public:
 	inline RenderCommandList* getCommandList(uint32 swapchainIndex) const { return commandLists[swapchainIndex]; }
 	inline RenderCommandQueue* getCommandQueue() const { return commandQueue; }
 
-	virtual RenderCommandList* getCommandListForCustomCommand() const = 0;
-
 	virtual uint32 getMultiSampleQuality(EMultiSampleLevel level) const = 0;
 	virtual bool supportsMultiSampleLevel(EMultiSampleLevel level) const = 0;
 

@@ -131,7 +131,7 @@ namespace UnitTest
 	private:
 		RenderCommandList* getCommandList()
 		{
-			return renderDevice->getCommandListForCustomCommand();
+			return renderDevice->getCommandList(0);
 		}
 		void beginRendering()
 		{
