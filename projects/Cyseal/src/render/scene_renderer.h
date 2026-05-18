@@ -82,7 +82,7 @@ private:
 	void resetCommandList(RenderCommandAllocator* commandAllocator, RenderCommandList* commandList);
 	void immediateFlushCommandQueue(RenderCommandQueue* commandQueue, RenderCommandAllocator* commandAllocator, RenderCommandList* commandList);
 
-	void updateSceneUniform(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene, const Camera* camera, uint32 sceneWidth, uint32 sceneHeight);
+	void updateSceneUniform(RenderCommandList* commandList, uint32 frameIndex, const SceneProxy* scene, const Camera* camera, uint32 sceneWidth, uint32 sceneHeight);
 
 	void rebuildFrameResources(RenderCommandList* commandList, const SceneProxy* scene);
 
