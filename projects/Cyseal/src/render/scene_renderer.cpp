@@ -195,13 +195,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		acquireSwapchainResources(swapchainBuffer, swapchainBufferRTV);
 	}
 
-	// #todo-renderer: The length of all buffered resources in each render pass is 2 for now, so I can just modulo 2 here.
-	// Ideally, I just pass frameID to render passes and they do modulo themselves, if I ever have a buffered resource of length >= 3.
-	const uint32 frameIndex = (frameID % 2);
+	// #todo-renderer: Ideally, I just pass frameID to render passes and they do modulo themselves.
+	const uint32 frameIndex = (frameID % device->maxFramesInFlight());
 
-	auto commandAllocator   = device->getCommandAllocator(frameIndex);
-	auto commandList        = device->getCommandList(frameIndex);
-	auto commandQueue       = device->getCommandQueue();
+	auto commandAllocator     = device->getCommandAllocator(frameIndex);
+	auto commandList          = device->getCommandList(frameIndex);
+	auto commandQueue         = device->getCommandQueue();
 
 	createFinalBlitRTV(commandList, renderOptions);
 
