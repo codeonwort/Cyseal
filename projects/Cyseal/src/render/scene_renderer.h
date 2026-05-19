@@ -77,7 +77,7 @@ public:
 	virtual void recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight) override;
 
 	virtual void enqueueCustomCommands(std::vector<RenderCommandList::CustomCommandType>&& inCommands) override;
-	
+
 private:
 	void resetCommandList(RenderCommandAllocator* commandAllocator, RenderCommandList* commandList);
 	void immediateFlushCommandQueue(RenderCommandQueue* commandQueue, RenderCommandAllocator* commandAllocator, RenderCommandList* commandList);
@@ -102,7 +102,8 @@ private:
 	SceneUniform prevSceneUniformData;
 
 	uint32 frameID = 0;
-	SimpleMovingAverage avgRenderTime;
+	SimpleMovingAverage avgFrameTime;
+	float prevInterpTime = 0.0f;
 
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.

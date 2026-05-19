@@ -11,11 +11,11 @@ public:
 		startTime = std::chrono::system_clock::now();
 	}
 
-	uint64 stopWithMilliseconds()
+	float stopWithMilliseconds()
 	{
 		auto endTime = std::chrono::system_clock::now();
-		auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-		return diff;
+		auto diff = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+		return (float)diff / 1000.0f;
 	}
 
 private:

@@ -52,7 +52,7 @@ void D3DSwapChain::initialize(
 		.Scaling     = DXGI_SCALING_STRETCH, // #todo-swapchain: Scaling method
 		.SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD,
 		.AlphaMode   = DXGI_ALPHA_MODE_UNSPECIFIED,
-		.Flags       = 0,
+		.Flags       = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING,
 	};
 
 	// #todo-swapchain: Support fullscreen
@@ -164,7 +164,7 @@ void D3DSwapChain::createSwapchainImages()
 void D3DSwapChain::present(bool vsync)
 {
 	UINT syncInterval = vsync ? 1 : 0;
-	UINT flags = 0;
+	UINT flags = vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING;
 	HRESULT hResult = rawSwapChain->Present(syncInterval, flags);
 
 	// #todo-dx12: Report DRED log
