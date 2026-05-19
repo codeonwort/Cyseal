@@ -631,7 +631,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.gbuffer1SRV           = currentGBufferSRV1,
 				.skyboxSRV             = skyboxSRV.get(),
 			};
-			pathTracingPass->renderPathTracing(commandList, oldFrameIndex, passInput);
+			pathTracingPass->renderPathTracing(commandList, frameInfo, passInput);
 		}
 	}
 	// Path Tracing Denoising
@@ -725,7 +725,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.indirectDiffuseTexture = RT_indirectDiffuse.get(),
 			.indirectDiffuseUAV     = indirectDiffuseUAV.get(),
 		};
-		indirectDiffusePass->renderIndirectDiffuse(commandList, oldFrameIndex, passInput);
+		indirectDiffusePass->renderIndirectDiffuse(commandList, frameInfo, passInput);
 	}
 
 	// Indirect Specular Reflection

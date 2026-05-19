@@ -18,7 +18,7 @@ struct BlurUniform
 void BilateralBlur::initialize(RenderDevice* inDevice)
 {
 	device = inDevice;
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
 	// Blur pipeline
 	{
@@ -33,10 +33,10 @@ void BilateralBlur::initialize(RenderDevice* inDevice)
 		delete shader;
 	}
 
-	passDescriptor.initialize(L"BilateralBlur", swapchainCount, sizeof(BlurUniform));
+	passDescriptor.initialize(L"BilateralBlur", maxFramesInFlight, sizeof(BlurUniform));
 }
 
-void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, uint32 swapchainIndex, const BilateralBlurInput& passInput)
+void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, const FrameInfo& frameInfo, const BilateralBlurInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, BilateralBlur);
 
@@ -56,7 +56,7 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, uint32 s
 		requiredVolatiles += 1; // inDepthTexture
 		requiredVolatiles += 1; // outputTexture
 
-		passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles * passInput.blurCount);
+		passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles * passInput.blurCount);
 	}
 
 	// Update uniforms.
@@ -82,15 +82,15 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, uint32 s
 		uboData.textureHeight = passInput.imageHeight;
 		uboData.bSkipBlur = (uint32)false;
 
-		auto uniformCBV = passDescriptor.getUniformCBV(swapchainIndex);
+		auto uniformCBV = passDescriptor.getUniformCBV(frameInfo);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(BlurUniform));
 	}
 
 	commandList->setComputePipelineState(pipelineState.get());
 
 	// Bind shader parameters.
-	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
-	ConstantBufferView* uniformCBV = passDescriptor.getUniformCBV(swapchainIndex);
+	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(frameInfo);
+	ConstantBufferView* uniformCBV = passDescriptor.getUniformCBV(frameInfo);
 	DescriptorIndexTracker tracker;
 	UnorderedAccessView* blurInput = passInput.inColorUAV;
 	UnorderedAccessView* blurOutput = colorScratchUAV.get();

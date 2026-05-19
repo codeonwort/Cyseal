@@ -27,7 +27,7 @@ class BilateralBlur : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inDevice);
 
-	void renderBilateralBlur(RenderCommandList* commandList, uint32 swapchainIndex, const BilateralBlurInput& passInput);
+	void renderBilateralBlur(RenderCommandList* commandList, const FrameInfo& frameInfo, const BilateralBlurInput& passInput);
 
 private:
 	void resizeTexture(RenderCommandList* commandList, uint32 width, uint32 height);

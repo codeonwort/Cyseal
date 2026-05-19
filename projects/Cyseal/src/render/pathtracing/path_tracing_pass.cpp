@@ -30,6 +30,8 @@
 #define PF_colorHistory                       EPixelFormat::R32G32B32A32_FLOAT
 #define PF_momentHistory                      EPixelFormat::R16G16B16A16_FLOAT
 
+static const uint32 MAX_FRAMES_IN_FLIGHT = 2;
+
 static const int32 BLUR_COUNT = 3;
 static float const cPhi       = 1.0f;
 static float const nPhi       = 1.0f;
@@ -139,7 +141,7 @@ bool PathTracingPass::isAvailable() const
 	return device->getRaytracingTier() != ERaytracingTier::NotSupported;
 }
 
-void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 swapchainIndex, const PathTracingInput& passInput)
+void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput)
 {
 	auto sceneWidth         = passInput.sceneWidth;
 	auto sceneHeight        = passInput.sceneHeight;
@@ -165,8 +167,8 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		rng.resetSeed(passInput.randomSeed);
 	}
 
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const uint32 currFrame = frameInfo.frameID % 2;
+	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
 
 	auto currentColorTexture  = colorHistory.getTexture(currFrame);
 	auto prevColorTexture     = colorHistory.getTexture(prevFrame);
@@ -183,7 +185,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 
 	if (passInput.kernel == EPathTracingKernel::MegaKernel)
 	{
-		executeMegaKernel(commandList, swapchainIndex, passInput);
+		executeMegaKernel(commandList, frameInfo, passInput);
 	}
 	else
 	{
@@ -204,13 +206,13 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		uboData.bInvalidateHistory = passInput.bCameraHasMoved && passInput.mode == EPathTracingMode::Offline;
 		uboData.bLimitHistory = passInput.mode == EPathTracingMode::Realtime;
 
-		auto uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+		auto uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
 	}
 
 	// Bind global shader parameters.
 	{
-		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
 
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
@@ -225,11 +227,9 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 		SPT.rwTexture("currentMomentTexture", currentMomentUAV);
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		temporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = temporalPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
 		commandList->setComputePipelineState(temporalPipeline.get());
-
-		DescriptorHeap* volatileHeap = temporalPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
 	}
 
@@ -309,18 +309,16 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, uint32 s
 			.outColorTexture = passInput.sceneColorTexture,
 			.outColorUAV     = passInput.sceneColorUAV,
 		};
-		passInput.bilateralBlur->renderBilateralBlur(commandList, swapchainIndex, blurPassInput);
+		passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, blurPassInput);
 	}
 }
 
 void PathTracingPass::initializeRaytracingPipeline()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	rayPassDescriptor.initialize(L"PathTracing_RayPass", MAX_FRAMES_IN_FLIGHT, sizeof(RayPassUniform));
 
-	rayPassDescriptor.initialize(L"PathTracing_RayPass", swapchainCount, sizeof(RayPassUniform));
-
-	totalHitGroupShaderRecord.resize(swapchainCount, 0);
-	hitGroupShaderTable.initialize(swapchainCount);
+	totalHitGroupShaderRecord.resize(MAX_FRAMES_IN_FLIGHT, 0);
+	hitGroupShaderTable.initialize(MAX_FRAMES_IN_FLIGHT);
 
 	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_PathTracingColorHistory");
 	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_PathTracingMomentHistory");
@@ -412,9 +410,7 @@ void PathTracingPass::initializeRaytracingPipeline()
 
 void PathTracingPass::initializeTemporalPipeline()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
-
-	temporalPassDescriptor.initialize(L"PathTracing_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
+	temporalPassDescriptor.initialize(L"PathTracing_TemporalPass", MAX_FRAMES_IN_FLIGHT, sizeof(TemporalPassUniform));
 
 	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "PathTracingTemporalCS");
 	shader->declarePushConstants();
@@ -435,15 +431,15 @@ void PathTracingPass::initializeTemporalPipeline()
 	delete shader;
 }
 
-void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, uint32 swapchainIndex, const PathTracingInput& passInput)
+void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput)
 {
 	auto scene              = passInput.scene;
 	auto sceneWidth         = passInput.sceneWidth;
 	auto sceneHeight        = passInput.sceneHeight;
 	auto gpuSceneDesc       = passInput.gpuScene->queryMaterialDescriptors();
 
-	const uint32 currFrame  = swapchainIndex % 2;
-	const uint32 prevFrame  = (swapchainIndex + 1) % 2;
+	const uint32 currFrame  = frameInfo.frameID % 2;
+	const uint32 prevFrame  = (frameInfo.frameID + 1) % 2;
 	auto prevColorTexture   = colorHistory.getTexture(prevFrame);
 	auto prevMomentTexture  = momentHistory.getTexture(prevFrame);
 
@@ -459,23 +455,23 @@ void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, uint32 s
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;
 
-		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
+		auto uniformCBV = rayPassDescriptor.getUniformCBV(currFrame);
 		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
 
 		delete uboData;
 	}
 
 	// Resize hit group shader table if needed.
-	if (scene->bRebuildGPUScene || hitGroupShaderTable[swapchainIndex] == nullptr)
+	if (scene->bRebuildGPUScene || hitGroupShaderTable[currFrame] == nullptr)
 	{
-		resizeHitGroupShaderTable(swapchainIndex, scene);
+		resizeHitGroupShaderTable(currFrame, scene);
 	}
 
 	commandList->setRaytracingPipelineState(RTPSO.get());
 
 	// Bind global shader parameters.
 	{
-		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
+		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(currFrame);
 
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
@@ -492,16 +488,15 @@ void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, uint32 s
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = rayPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
-		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
 	}
 	
 	DispatchRaysDesc dispatchDesc{
 		.raygenShaderTable = raygenShaderTable.get(),
 		.missShaderTable   = missShaderTable.get(),
-		.hitGroupTable     = hitGroupShaderTable.at(swapchainIndex),
+		.hitGroupTable     = hitGroupShaderTable.at(currFrame),
 		.width             = sceneWidth,
 		.height            = sceneHeight,
 		.depth             = 1,
@@ -561,17 +556,17 @@ void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newW
 	));
 }
 
-void PathTracingPass::resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene)
+void PathTracingPass::resizeHitGroupShaderTable(uint32 resourceIndex, const SceneProxy* scene)
 {
 	const uint32 totalRecords = scene->totalMeshSectionsLOD0;
-	totalHitGroupShaderRecord[swapchainIndex] = totalRecords;
+	totalHitGroupShaderRecord[resourceIndex] = totalRecords;
 
 	struct RootArguments
 	{
 		ClosestHitPushConstants pushConstants;
 	};
 
-	hitGroupShaderTable[swapchainIndex] = UniquePtr<RaytracingShaderTable>(
+	hitGroupShaderTable[resourceIndex] = UniquePtr<RaytracingShaderTable>(
 		device->createRaytracingShaderTable(
 			RTPSO.get(), totalRecords, sizeof(RootArguments), L"PathTracing_HitGroupShaderTable"));
 
@@ -588,10 +583,10 @@ void PathTracingPass::resizeHitGroupShaderTable(uint32 swapchainIndex, const Sce
 				}
 			};
 
-			hitGroupShaderTable[swapchainIndex]->uploadRecord(recordIx, PATH_TRACING_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
+			hitGroupShaderTable[resourceIndex]->uploadRecord(recordIx, PATH_TRACING_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
 			++recordIx;
 		}
 	}
 
-	CYLOG(LogPathTracing, Log, L"Resize hit group shader table [%u]: %u records", swapchainIndex, totalRecords);
+	CYLOG(LogPathTracing, Log, L"Resize hit group shader table [%u]: %u records", resourceIndex, totalRecords);
 }

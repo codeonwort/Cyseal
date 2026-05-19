@@ -48,16 +48,16 @@ public:
 
 	bool isAvailable() const;
 
-	void renderPathTracing(RenderCommandList* commandList, uint32 swapchainIndex, const PathTracingInput& passInput);
+	void renderPathTracing(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput);
 
 private:
 	void initializeRaytracingPipeline();
 	void initializeTemporalPipeline();
 
-	void executeMegaKernel(RenderCommandList* commandList, uint32 swapchainIndex, const PathTracingInput& passInput);
+	void executeMegaKernel(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput);
 
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
-	void resizeHitGroupShaderTable(uint32 swapchainIndex, const SceneProxy* scene);
+	void resizeHitGroupShaderTable(uint32 resourceIndex, const SceneProxy* scene);
 
 private:
 	RenderDevice*                            device = nullptr;

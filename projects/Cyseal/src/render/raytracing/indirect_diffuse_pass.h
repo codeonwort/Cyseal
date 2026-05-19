@@ -46,14 +46,14 @@ public:
 
 	bool isAvailable() const;
 
-	void renderIndirectDiffuse(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectDiffuseInput& passInput);
+	void renderIndirectDiffuse(RenderCommandList* commandList, const FrameInfo& frameInfo, const IndirectDiffuseInput& passInput);
 
 private:
 	void initializeRaytracingPipeline();
 	void initializeTemporalPipeline();
 
 	void resizeTextures(RenderCommandList* commandList, uint32 newUnscaledWidth, uint32 newUnscaledHeight);
-	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
+	void resizeHitGroupShaderTable(uint32 resourceIndex, uint32 maxRecords);
 
 private:
 	RenderDevice*                            device = nullptr;
