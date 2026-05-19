@@ -814,7 +814,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.indirectSpecularTexture = RT_indirectSpecular.get(),
 			.indirectSpecularSRV     = indirectSpecularSRV.get(),
 		};
-		combineLightingPass->combineLighting(commandList, oldFrameIndex, passInput);
+		combineLightingPass->combineLighting(commandList, frameInfo, passInput);
 	}
 
 	// Store history pass (step 2)
