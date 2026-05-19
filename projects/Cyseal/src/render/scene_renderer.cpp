@@ -469,7 +469,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.raytracingScene    = accelStructure.get(),
 			.shadowMaskUAV      = shadowMaskUAV.get(),
 		};
-		rayTracedShadowsPass->renderRayTracedShadows(commandList, oldFrameIndex, passInput);
+		rayTracedShadowsPass->renderRayTracedShadows(commandList, frameInfo, passInput);
 	}
 
 	// Base pass

@@ -33,10 +33,10 @@ public:
 
 	bool isAvailable() const;
 
-	void renderRayTracedShadows(RenderCommandList* commandList, uint32 swapchainIndex, const RayTracedShadowsInput& passInput);
+	void renderRayTracedShadows(RenderCommandList* commandList, const FrameInfo& frameInfo, const RayTracedShadowsInput& passInput);
 
 private:
-	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
+	void resizeHitGroupShaderTable(uint32 resourceIndex, uint32 maxRecords);
 
 private:
 	RenderDevice*                            device = nullptr;
