@@ -195,8 +195,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		acquireSwapchainResources(swapchainBuffer, swapchainBufferRTV);
 	}
 
-	// #wip: Replace all frameIndex accesses with frameInfo.
-	const uint32 oldFrameIndex = (frameID % device->maxFramesInFlight());
 	const FrameInfo frameInfo{
 		.frameID    = frameID,
 		.frameIndex = (frameID % device->maxFramesInFlight()),
@@ -1084,7 +1082,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.renderTarget       = renderOptions.finalRenderTarget,
 				.finalSceneColorSRV = presentInfo.colorSRV,
 			};
-			finalBlitPass->renderFinalBlit(commandList, oldFrameIndex, passInput);
+			finalBlitPass->renderFinalBlit(commandList, frameInfo, passInput);
 		}
 
 		// Dear Imgui: Record commands

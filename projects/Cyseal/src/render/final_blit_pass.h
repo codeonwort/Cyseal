@@ -25,7 +25,7 @@ public:
 	// Invoke every frame before calling renderFinalBlit().
 	void resetBlitResources();
 
-	void renderFinalBlit(RenderCommandList* commandList, uint32 swapchainIndex, const FinalBlitPassInput& passInput);
+	void renderFinalBlit(RenderCommandList* commandList, const FrameInfo& frameInfo, const FinalBlitPassInput& passInput);
 
 private:
 	GraphicsPipelineState* getPipelineState(Texture* renderTarget) const;
