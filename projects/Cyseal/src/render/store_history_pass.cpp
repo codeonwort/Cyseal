@@ -7,8 +7,8 @@
 
 void StoreHistoryPass::initialize(RenderDevice* renderDevice)
 {
-	const uint32 swapchainCount = renderDevice->maxFramesInFlight();
-	passDescriptor.initialize(L"StoreHistoryPass", swapchainCount, 0);
+	const uint32 historyLength = 2;
+	passDescriptor.initialize(L"StoreHistoryPass", historyLength, 0);
 
 	const ETextureAccessFlags historyFlags = ETextureAccessFlags::UAV | ETextureAccessFlags::SRV;
 	normalHistory.initialize(PF_normalHistory, historyFlags, L"RT_NormalHistory");
@@ -26,12 +26,12 @@ void StoreHistoryPass::initialize(RenderDevice* renderDevice)
 	delete copyCS; // No use after PSO creation.
 }
 
-void StoreHistoryPass::extractCurrent(RenderCommandList* commandList, uint32 swapchainIndex, const StoreHistoryPassInput& passInput)
+void StoreHistoryPass::extractCurrent(RenderCommandList* commandList, const FrameInfo& frameInfo, const StoreHistoryPassInput& passInput)
 {
 	resizeTextures(commandList, passInput.textureWidth, passInput.textureHeight);
 
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const uint32 currFrame = frameInfo.frameID % 2;
+	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
 
 	auto currNormalTexture    = normalHistory.getTexture(currFrame);
 	auto currNormalUAV        = normalHistory.getUAV(currFrame);
@@ -66,11 +66,9 @@ void StoreHistoryPass::extractCurrent(RenderCommandList* commandList, uint32 swa
 	SPT.rwTexture("rwRoughness", currRoughnessUAV);
 
 	const uint32 requiredVolatiles = SPT.totalDescriptors();
-	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	DescriptorHeap* volatileHeap = passDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
 	commandList->setComputePipelineState(copyPipeline.get());
-
-	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
 	commandList->bindComputeShaderParameters(copyPipeline.get(), &SPT, volatileHeap);
 
 	uint32 dispatchX = (passInput.textureWidth + 7) / 8;
@@ -78,10 +76,10 @@ void StoreHistoryPass::extractCurrent(RenderCommandList* commandList, uint32 swa
 	commandList->dispatchCompute(dispatchX, dispatchY, 1);
 }
 
-void StoreHistoryPass::copyCurrentToPrev(RenderCommandList* commandList, uint32 swapchainIndex)
+void StoreHistoryPass::copyCurrentToPrev(RenderCommandList* commandList, const FrameInfo& frameInfo)
 {
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const uint32 currFrame = frameInfo.frameID % 2;
+	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
 
 	auto currNormal    = normalHistory.getTexture(currFrame);
 	auto prevNormal    = normalHistory.getTexture(prevFrame);
@@ -112,10 +110,10 @@ void StoreHistoryPass::copyCurrentToPrev(RenderCommandList* commandList, uint32 
 	commandList->copyTexture2D(currRoughness, prevRoughness);
 }
 
-StoreHistoryPassResources StoreHistoryPass::getResources(uint32 swapchainIndex) const
+StoreHistoryPassResources StoreHistoryPass::getResources(const FrameInfo& frameInfo) const
 {
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const uint32 currFrame = frameInfo.frameID % 2;
+	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
 
 	return StoreHistoryPassResources{
 		normalHistory.getTexture(currFrame),

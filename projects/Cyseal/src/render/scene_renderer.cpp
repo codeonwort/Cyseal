@@ -560,7 +560,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gbuffer0SRV          = currentGBufferSRV0,
 			.gbuffer1SRV          = currentGBufferSRV1,
 		};
-		storeHistoryPass->extractCurrent(commandList, oldFrameIndex, passInput);
+		storeHistoryPass->extractCurrent(commandList, frameInfo, passInput);
 	}
 
 	// HiZ pass
@@ -749,7 +749,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, IndirectSpecular);
 
-		StoreHistoryPassResources historyResources = storeHistoryPass->getResources(oldFrameIndex);
+		StoreHistoryPassResources historyResources = storeHistoryPass->getResources(frameInfo);
 		
 		IndirectSpecularInput passInput{
 			.scene                   = scene,
@@ -835,7 +835,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
 
-		storeHistoryPass->copyCurrentToPrev(commandList, oldFrameIndex);
+		storeHistoryPass->copyCurrentToPrev(commandList, frameInfo);
 	}
 
 	// Set final color as render target.

@@ -155,7 +155,7 @@ void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList
 		SPT.rwTexture("renderTarget", passInput.shadowMaskUAV);
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		DescriptorHeap* volatileHeap = rayPassDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
+		DescriptorHeap* volatileHeap = rayPassDescriptor.resizeDescriptorHeap(resourceIndex, requiredVolatiles);
 
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
 	}
