@@ -195,7 +195,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		acquireSwapchainResources(swapchainBuffer, swapchainBufferRTV);
 	}
 
-	// #todo-renderer: Ideally, I just pass frameID to render passes and they do modulo themselves.
+	// #wip: Replace all frameIndex accesses with frameInfo.
 	const uint32 frameIndex = (frameID % device->maxFramesInFlight());
 
 	auto commandAllocator     = device->getCommandAllocator(frameIndex);
@@ -253,7 +253,12 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	const bool bRenderFrameGeneration = renderOptions.bGenerateFrame && !bRenderPathTracing && bRenderToBackbuffer;
 
-	clearResourcePass->prepareForFrame(frameIndex);
+	const FrameInfo frameInfo{
+		.frameID    = frameID,
+		.frameIndex = (frameID % device->maxFramesInFlight()),
+	};
+
+	clearResourcePass->prepareForFrame(frameInfo);
 
 	rebuildFrameResources(commandList, scene);
 
@@ -906,7 +911,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.sceneColorTexture  = frameGenInputColorTexture,
 				.sceneColorSRV      = frameGenInputColorSRV,
 			};
-			opticalFlowPassOutput = opticalFlowPass->runOpticalFlow(commandList, frameIndex, passInput);
+			opticalFlowPassOutput = opticalFlowPass->runOpticalFlow(commandList, frameInfo, passInput);
 		}
 		{
 			SCOPED_DRAW_EVENT(commandList, FrameGeneration);
@@ -938,7 +943,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.motionVectorTexture        = RT_velocityMap.get(),
 				.motionVectorSRV            = velocityMapSRV.get(),
 			};
-			frameGenPassOutput = frameGenPass->runFrameGeneration(commandList, frameIndex, passInput);
+			frameGenPassOutput = frameGenPass->runFrameGeneration(commandList, frameInfo, passInput);
 		}
 	}
 

@@ -54,7 +54,7 @@ class FrameGenPass final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inRenderDevice, EPixelFormat inSourceColorFormat);
 
-	FrameGenPassOutput runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
+	FrameGenPassOutput runFrameGeneration(RenderCommandList* commandList, const FrameInfo& frameInfo, const FrameGenPassInput& passInput);
 
 private:
 	void initializePipelines();
@@ -62,8 +62,8 @@ private:
 	void recreateResources(RenderCommandList* commandList, const FrameGenPassInput& passInput);
 
 	void updateUniforms(RenderCommandList* commandList, const FrameGenPassInput& passInput);
-	void preparePhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
-	void dispatchPhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput);
+	void preparePhase(RenderCommandList* commandList, const FrameInfo& frameInfo, const FrameGenPassInput& passInput);
+	void dispatchPhase(RenderCommandList* commandList, const FrameInfo& frameInfo, const FrameGenPassInput& passInput);
 
 	ConstantBufferView* getCurrentFrameInterpUniformCBV();
 	ConstantBufferView* getCurrentInpaintingPyramidUniformCBV();

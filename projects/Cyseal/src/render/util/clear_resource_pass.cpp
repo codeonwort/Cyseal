@@ -86,9 +86,9 @@ void ClearResourcePass::initialize(RenderDevice* inRenderDevice)
 	}
 }
 
-void ClearResourcePass::prepareForFrame(uint32 swapchainIndex)
+void ClearResourcePass::prepareForFrame(const FrameInfo& frameInfo)
 {
-	passDescriptor.resizeDescriptorHeap(swapchainIndex, maxTextureClearDescriptorsPerFrame);
+	passDescriptor.resizeDescriptorHeap(frameInfo, maxTextureClearDescriptorsPerFrame);
 	tracker = DescriptorIndexTracker{};
 }
 
@@ -99,7 +99,7 @@ void ClearResourcePass::enqueueClear(Texture* texture, UnorderedAccessView* uav,
 	clearValues.push_back(clearValue);
 }
 
-void ClearResourcePass::executeClears(RenderCommandList* commandList, uint32 swapchainIndex)
+void ClearResourcePass::executeClears(RenderCommandList* commandList, const FrameInfo& frameInfo)
 {
 	std::vector<TextureBarrierAuto> textureBarriers;
 	textureBarriers.reserve(texturesToClear.size());
@@ -113,7 +113,7 @@ void ClearResourcePass::executeClears(RenderCommandList* commandList, uint32 swa
 	}
 	commandList->barrierAuto(0, nullptr, (uint32)textureBarriers.size(), textureBarriers.data(), 0, nullptr);
 
-	DescriptorHeap* descriptorHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+	DescriptorHeap* descriptorHeap = passDescriptor.getDescriptorHeap(frameInfo);
 
 	for (size_t i = 0; i < texturesToClear.size(); ++i)
 	{

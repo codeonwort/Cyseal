@@ -6,18 +6,18 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogRHI)
 
-void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize, uint32 uniformChunkCount)
+void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wchar_t* inPassName, uint32 maxFramesInFlight, uint32 uniformTotalSize, uint32 uniformChunkCount)
 {
 	renderDevice = inRenderDevice;
 	passName = inPassName;
-	totalDescriptor.resize(swapchainCount, 0);
-	descriptorHeap.initialize(swapchainCount);
+	totalDescriptor.resize(maxFramesInFlight, 0);
+	descriptorHeap.initialize(maxFramesInFlight);
 	chunkCount = uniformChunkCount;
 
 	// Uniforms
 	if (uniformTotalSize > 0)
 	{
-		CHECK(uniformTotalSize * swapchainCount <= UNIFORM_MEMORY_POOL_SIZE);
+		CHECK(uniformTotalSize * maxFramesInFlight <= UNIFORM_MEMORY_POOL_SIZE);
 		CHECK(uniformTotalSize % uniformChunkCount == 0);
 		CHECK(uniformChunkCount > 0);
 
@@ -32,7 +32,7 @@ void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wc
 		uniformDescriptorHeap = UniquePtr<DescriptorHeap>(renderDevice->createDescriptorHeap(
 			DescriptorHeapDesc{
 				.type           = EDescriptorHeapType::CBV,
-				.numDescriptors = swapchainCount * chunkCount,
+				.numDescriptors = maxFramesInFlight * chunkCount,
 				.flags          = EDescriptorHeapFlags::None,
 				.nodeMask       = 0,
 				.purpose        = EDescriptorHeapPurpose::Volatile,
@@ -41,8 +41,8 @@ void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wc
 
 		const uint32 alignment = renderDevice->getConstantBufferDataAlignment();
 		uint32 bufferOffset = 0;
-		uniformCBVs.initialize(swapchainCount);
-		for (uint32 i = 0; i < swapchainCount; ++i)
+		uniformCBVs.initialize(maxFramesInFlight);
+		for (uint32 i = 0; i < maxFramesInFlight; ++i)
 		{
 			uniformCBVs[i].resize(uniformChunkCount);
 			for (uint32 j = 0; j < uniformChunkCount; ++j)
@@ -60,10 +60,10 @@ void VolatileDescriptorHelper::initialize(RenderDevice* inRenderDevice, const wc
 	}
 }
 
-void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 swapchainCount, uint32 uniformTotalSize, uint32 uniformChunkCount)
+void VolatileDescriptorHelper::initialize(const wchar_t* inPassName, uint32 maxFramesInFlight, uint32 uniformTotalSize, uint32 uniformChunkCount)
 {
 	CHECK(gRenderDevice != nullptr);
-	initialize(gRenderDevice, inPassName, swapchainCount, uniformTotalSize, uniformChunkCount);
+	initialize(gRenderDevice, inPassName, maxFramesInFlight, uniformTotalSize, uniformChunkCount);
 }
 
 void VolatileDescriptorHelper::destroy()
@@ -74,15 +74,15 @@ void VolatileDescriptorHelper::destroy()
 	uniformCBVs.clear();
 }
 
-DescriptorHeap* VolatileDescriptorHelper::resizeDescriptorHeap(uint32 swapchainIndex, uint32 maxDescriptors)
+DescriptorHeap* VolatileDescriptorHelper::resizeDescriptorHeap(uint32 frameIndex, uint32 maxDescriptors)
 {
-	if (maxDescriptors <= totalDescriptor[swapchainIndex])
+	if (maxDescriptors <= totalDescriptor[frameIndex])
 	{
-		return descriptorHeap[swapchainIndex].get();
+		return descriptorHeap[frameIndex].get();
 	}
-	totalDescriptor[swapchainIndex] = maxDescriptors;
+	totalDescriptor[frameIndex] = maxDescriptors;
 
-	descriptorHeap[swapchainIndex] = UniquePtr<DescriptorHeap>(renderDevice->createDescriptorHeap(
+	descriptorHeap[frameIndex] = UniquePtr<DescriptorHeap>(renderDevice->createDescriptorHeap(
 		DescriptorHeapDesc{
 			.type           = EDescriptorHeapType::CBV_SRV_UAV,
 			.numDescriptors = maxDescriptors,
@@ -93,10 +93,15 @@ DescriptorHeap* VolatileDescriptorHelper::resizeDescriptorHeap(uint32 swapchainI
 	));
 
 	wchar_t debugName[256];
-	swprintf_s(debugName, L"%s_VolatileDescriptors_%u", passName.c_str(), swapchainIndex);
-	descriptorHeap[swapchainIndex]->setDebugName(debugName);
+	swprintf_s(debugName, L"%s_VolatileDescriptors_%u", passName.c_str(), frameIndex);
+	descriptorHeap[frameIndex]->setDebugName(debugName);
 
 	CYLOG(LogRHI, Log, L"Resize [%s]: %u descriptors", debugName, maxDescriptors);
 
-	return descriptorHeap[swapchainIndex].get();
+	return descriptorHeap[frameIndex].get();
+}
+
+DescriptorHeap* VolatileDescriptorHelper::resizeDescriptorHeap(const FrameInfo& frameInfo, uint32 maxDescriptors)
+{
+	return resizeDescriptorHeap(frameInfo.frameIndex, maxDescriptors);
 }

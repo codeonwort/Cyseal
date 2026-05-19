@@ -126,13 +126,13 @@ void FrameGenPass::initialize(RenderDevice* inRenderDevice, EPixelFormat inSourc
 	initializePipelines();
 }
 
-FrameGenPassOutput FrameGenPass::runFrameGeneration(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
+FrameGenPassOutput FrameGenPass::runFrameGeneration(RenderCommandList* commandList, const FrameInfo& frameInfo, const FrameGenPassInput& passInput)
 {
 	recreateResources(commandList, passInput);
 
 	updateUniforms(commandList, passInput);
-	preparePhase(commandList, swapchainIndex, passInput);
-	dispatchPhase(commandList, swapchainIndex, passInput);
+	preparePhase(commandList, frameInfo, passInput);
+	dispatchPhase(commandList, frameInfo, passInput);
 
 	cpuFrameIndex += 1;
 
@@ -555,7 +555,7 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 
 // See ffxFrameInterpolationPrepare().
 // Generate FSR3 upscaler resources. If upscaler was used, then this method is not needed.
-void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
+void FrameGenPass::preparePhase(RenderCommandList* commandList, const FrameInfo& frameInfo, const FrameGenPassInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, FrameGenPrepare);
 
@@ -564,7 +564,7 @@ void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchain
 	// Clear estimated depth resources.
 	auto fClearZero = ClearResourcePass::floatClearValue(getDeviceFarDepth(), 0, 0, 0);
 	passInput.clearResourcePass->enqueueClear(reconstructedPrevDepthTexture.get(), reconstructedPrevDepthUAV.get(), fClearZero);
-	passInput.clearResourcePass->executeClears(commandList, swapchainIndex);
+	passInput.clearResourcePass->executeClears(commandList, frameInfo);
 
 	TextureBarrierAuto textureBarriers[] = {
 		TextureBarrierAuto::toShaderResource(passInput.motionVectorTexture, EBarrierSync::COMPUTE_SHADING),
@@ -583,8 +583,7 @@ void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchain
 	SPT.rwTexture("rw_dilated_motion_vectors", dilatedMotionVectorUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_MOTION_VECTORS
 	SPT.rwTexture("rw_dilated_depth", dilatedDepthUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_DILATED_DEPTH
 
-	prepareDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
-	auto descriptorHeap = prepareDescriptor.getDescriptorHeap(swapchainIndex);
+	auto descriptorHeap = prepareDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 	auto pipeline = reconstructAndDilatePipeline.get();
 
 	commandList->setComputePipelineState(pipeline);
@@ -596,7 +595,7 @@ void FrameGenPass::preparePhase(RenderCommandList* commandList, uint32 swapchain
 }
 
 // See ffxFrameInterpolationDispatch.
-void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchainIndex, const FrameGenPassInput& passInput)
+void FrameGenPass::dispatchPhase(RenderCommandList* commandList, const FrameInfo& frameInfo, const FrameGenPassInput& passInput)
 {
 	ConstantBufferView* frameInterpUniformCBV = getCurrentFrameInterpUniformCBV();
 	ConstantBufferView* inpaintingPyramidUniformCBV = getCurrentInpaintingPyramidUniformCBV();
@@ -644,8 +643,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		SPT.rwTexture("rw_optical_flow_motion_vector_field_y", opticalFlowMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
 		SPT.rwTexture("rw_disocclusion_mask", disocclusionMaskUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
 		
-		frameInterpDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
-		auto descriptorHeap = frameInterpDescriptor.getDescriptorHeap(swapchainIndex);
+		auto descriptorHeap = frameInterpDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 		auto pipeline = setupPipeline.get();
 
 		commandList->setComputePipelineState(pipeline);
@@ -692,7 +690,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.rwTexture(msg, inpaintingPyramidUAVs[i].get());
 		}
 
-		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 		commandList->setComputePipelineState(pipeline);
 		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
@@ -707,7 +705,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			reconstructedDepthInterpolatedFrameTexture.get(),
 			reconstructedDepthInterpolatedFrameUAV.get(),
 			ClearResourcePass::floatClearValue(zFar, zFar, zFar, zFar));
-		passInput.clearResourcePass->executeClears(commandList, swapchainIndex);
+		passInput.clearResourcePass->executeClears(commandList, frameInfo);
 
 		{
 			SCOPED_DRAW_EVENT(commandList, ReconstructDepthPrevFrame);
@@ -733,7 +731,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
 			SPT.rwTexture("rw_reconstructed_depth_interpolated_frame", reconstructedDepthInterpolatedFrameUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_RECONSTRUCTED_DEPTH_INTERPOLATED_FRAME
 
-			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 			commandList->setComputePipelineState(pipeline);
 			commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
@@ -768,7 +766,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.rwTexture("rw_game_motion_vector_field_x", gameMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_X
 			SPT.rwTexture("rw_game_motion_vector_field_y", gameMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_GAME_MOTION_VECTOR_FIELD_Y
 
-			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 			commandList->setComputePipelineState(pipeline);
 			commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
@@ -805,7 +803,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.rwTexture("rw_optical_flow_motion_vector_field_x", opticalFlowMotionVectorFieldUAVs[0].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_X
 			SPT.rwTexture("rw_optical_flow_motion_vector_field_y", opticalFlowMotionVectorFieldUAVs[1].get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OPTICAL_FLOW_MOTION_VECTOR_FIELD_Y
 
-			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 			commandList->setComputePipelineState(pipeline);
 			commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
@@ -842,7 +840,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
 			SPT.rwTexture("rw_disocclusion_mask", disocclusionMaskUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_DISOCCLUSION_MASK
 
-			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+			auto descriptorHeap = passDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 			commandList->setComputePipelineState(pipeline);
 			commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
@@ -887,7 +885,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		SPT.texture("r_inpainting_pyramid", inpaintingPyramidSRV.get()); // FFX_FRAMEINTERPOLATION_BIND_SRV_INPAINTING_PYRAMID
 		SPT.rwTexture("rw_output", interpolationOutputUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OUTPUT
 
-		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 		commandList->setComputePipelineState(pipeline);
 		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
@@ -929,7 +927,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 			SPT.rwTexture(msg, inpaintingPyramidUAVs[i].get());
 		}
 
-		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 		commandList->setComputePipelineState(pipeline);
 		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
@@ -965,7 +963,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		SPT.texture("r_current_interpolation_source", currInterpolationSourceSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_CURRENT_INTERPOLATION_SOURCE
 		SPT.rwTexture("rw_output", interpolationOutputUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OUTPUT
 
-		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 		commandList->setComputePipelineState(pipeline);
 		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
@@ -1008,7 +1006,7 @@ void FrameGenPass::dispatchPhase(RenderCommandList* commandList, uint32 swapchai
 		SPT.texture("r_input_distortion_field", distortionFieldSRV); // FFX_FRAMEINTERPOLATION_BIND_SRV_DISTORTION_FIELD
 		SPT.rwTexture("rw_output", interpolationOutputUAV.get()); // FFX_FRAMEINTERPOLATION_BIND_UAV_OUTPUT
 
-		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
+		auto descriptorHeap = passDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 		commandList->setComputePipelineState(pipeline);
 		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap);
