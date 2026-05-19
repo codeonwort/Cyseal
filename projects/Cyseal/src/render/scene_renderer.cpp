@@ -576,7 +576,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.hizSRV            = hizSRV.get(),
 			.hizUAVs           = hizUAVs,
 		};
-		hizPass->renderHiZ(commandList, oldFrameIndex, passInput);
+		hizPass->renderHiZ(commandList, frameInfo, passInput);
 	}
 
 	// Sky pass

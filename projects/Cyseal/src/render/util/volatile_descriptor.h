@@ -35,6 +35,9 @@ public:
 
 	/// <summary>
 	/// Convenience method that takes frameInfo and uses frameInfo.frameIndex.
+	/// #wip: Hmm I was so close to make a mistake that in a temporal render pass I just pass frameInfo instead of (frameInfo.frameID % 2).
+	///       It's wrong because frameInfo.frameIndex could result in always zero.
+	///       Should I just remove all overloaded functions that take FrameInfo to avoid any mistakes?
 	/// </summary>
 	/// <param name="frameInfo"></param>
 	/// <param name="maxDescriptors"></param>
