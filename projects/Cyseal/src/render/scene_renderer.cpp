@@ -658,7 +658,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 					.gbuffer0SRV   = currentGBufferSRV0,
 					.gbuffer1SRV   = currentGBufferSRV1,
 				};
-				denoiserPluginPass->blitTextures(commandList, oldFrameIndex, passInput);
+				denoiserPluginPass->blitTextures(commandList, frameInfo, passInput);
 			}
 			{
 				SCOPED_DRAW_EVENT(commandList, FlushCommandQueue);

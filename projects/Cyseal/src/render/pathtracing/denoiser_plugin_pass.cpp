@@ -38,8 +38,8 @@ void DenoiserPluginPass::initialize(RenderDevice* inDevice)
 		delete blitShader;
 	}
 
-	const uint32 swapchainCount = device->maxFramesInFlight();
-	blitPassDescriptor.initialize(L"DenoiserPlugin_BlitPass", swapchainCount, 0);
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
+	blitPassDescriptor.initialize(L"DenoiserPlugin_BlitPass", maxFramesInFlight, 0);
 }
 
 bool DenoiserPluginPass::isAvailable() const
@@ -47,7 +47,7 @@ bool DenoiserPluginPass::isAvailable() const
 	return device->getDenoiserDevice()->isValid();
 }
 
-void DenoiserPluginPass::blitTextures(RenderCommandList* commandList, uint32 swapchainIndex, const DenoiserPluginInput& passInput)
+void DenoiserPluginPass::blitTextures(RenderCommandList* commandList, const FrameInfo& frameInfo, const DenoiserPluginInput& passInput)
 {
 	const uint32 width = passInput.imageWidth;
 	const uint32 height = passInput.imageHeight;
@@ -84,11 +84,9 @@ void DenoiserPluginPass::blitTextures(RenderCommandList* commandList, uint32 swa
 	SPT.rwTexture("outNormal", normalUAV.get());
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	blitPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	DescriptorHeap* descriptorHeap = blitPassDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
 	commandList->setComputePipelineState(blitPipelineState.get());
-
-	DescriptorHeap* descriptorHeap = blitPassDescriptor.getDescriptorHeap(swapchainIndex);
 	commandList->bindComputeShaderParameters(blitPipelineState.get(), &SPT, descriptorHeap);
 
 	const uint32 dispatchX = (width + 7) / 8, dispatchY = (height + 7) / 8;
