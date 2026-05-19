@@ -24,7 +24,7 @@ class SkyPass final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* device, EPixelFormat sceneColorFormat);
 
-	void renderSky(RenderCommandList* commandList, uint32 swapchainIndex, const SkyPassInput& passInput);
+	void renderSky(RenderCommandList* commandList, const FrameInfo& frameInfo, const SkyPassInput& passInput);
 
 private:
 	UniquePtr<GraphicsPipelineState> pipelineState;

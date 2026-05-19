@@ -35,7 +35,7 @@ void BasePass::initialize(RenderDevice* inRenderDevice, EPixelFormat inSceneColo
 	}
 }
 
-void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput)
+void BasePass::renderBasePass(RenderCommandList* commandList, const FrameInfo& frameInfo, const BasePassInput& passInput)
 {
 	auto scene    = passInput.scene;
 	auto gpuScene = passInput.gpuScene;
@@ -62,9 +62,8 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
-		DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindGraphicsShaderParameters(defaultPipeline, &SPT, volatileHeap);
 	}
 
@@ -77,5 +76,5 @@ void BasePass::renderBasePass(RenderCommandList* commandList, uint32 swapchainIn
 		.gpuCulling       = passInput.gpuCulling,
 		.psoPermutation   = &pipelinePermutation,
 	};
-	StaticMeshRendering::renderStaticMeshes(commandList, swapchainIndex, meshDrawInput);
+	StaticMeshRendering::renderStaticMeshes(commandList, frameInfo, meshDrawInput);
 }

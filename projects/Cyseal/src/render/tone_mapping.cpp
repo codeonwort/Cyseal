@@ -8,12 +8,12 @@
 void ToneMapping::initialize(RenderDevice* inDevice)
 {
 	RenderDevice* device = inDevice;
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
 	rtvFormats.push_back(PF_finalSceneColor);
 	pipelineStates.initialize((uint32)rtvFormats.size());
 
-	passDescriptor.initialize(L"ToneMapping", swapchainCount, 0);
+	passDescriptor.initialize(L"ToneMapping", maxFramesInFlight, 0);
 
 	// Create input layout
 	inputLayout = {
@@ -72,7 +72,7 @@ void ToneMapping::initialize(RenderDevice* inDevice)
 	}
 }
 
-void ToneMapping::renderToneMapping(RenderCommandList* commandList, uint32 swapchainIndex, const ToneMappingInput& passInput)
+void ToneMapping::renderToneMapping(RenderCommandList* commandList, const FrameInfo& frameInfo, const ToneMappingInput& passInput)
 {
 	GraphicsPipelineState* pipelineState = getPipelineState(passInput.renderTarget);
 
@@ -81,8 +81,7 @@ void ToneMapping::renderToneMapping(RenderCommandList* commandList, uint32 swapc
 	SPT.texture("sceneColor", passInput.sceneColorSRV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+	DescriptorHeap* volatileHeap = passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
 	commandList->rsSetViewport(passInput.viewport);
 	commandList->rsSetScissorRect(passInput.scissorRect);

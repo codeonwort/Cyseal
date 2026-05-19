@@ -7,9 +7,9 @@
 void CombineLightingPass::initialize(RenderDevice* inRenderDevice, EPixelFormat PF_sceneColor)
 {
 	RenderDevice* device = inRenderDevice;
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
-	passDescriptor.initialize(L"CombineLighting", swapchainCount, 0);
+	passDescriptor.initialize(L"CombineLighting", maxFramesInFlight, 0);
 
 	// Create input layout
 	VertexInputLayout inputLayout{
@@ -63,7 +63,7 @@ void CombineLightingPass::initialize(RenderDevice* inRenderDevice, EPixelFormat 
 	delete shaderPS;
 }
 
-void CombineLightingPass::combineLighting(RenderCommandList* commandList, uint32 swapchainIndex, const CombineLightingPassInput& passInput)
+void CombineLightingPass::combineLighting(RenderCommandList* commandList, const FrameInfo& frameInfo, const CombineLightingPassInput& passInput)
 {
 	TextureBarrierAuto barriers[] = {
 		{
@@ -94,8 +94,7 @@ void CombineLightingPass::combineLighting(RenderCommandList* commandList, uint32
 	SPT.texture("indirectSpecular", passInput.indirectSpecularSRV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+	DescriptorHeap* volatileHeap = passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
 	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, volatileHeap);

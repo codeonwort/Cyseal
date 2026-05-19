@@ -70,17 +70,17 @@ void GPUScene::initialize(RenderDevice* renderDevice)
 
 void GPUScene::initializeSceneBufferPipeline()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
-	gpuSceneEvictCommandBuffer.initialize(swapchainCount);
-	gpuSceneAllocCommandBuffer.initialize(swapchainCount);
-	gpuSceneUpdateCommandBuffer.initialize(swapchainCount);
+	gpuSceneEvictCommandBuffer.initialize(maxFramesInFlight);
+	gpuSceneAllocCommandBuffer.initialize(maxFramesInFlight);
+	gpuSceneUpdateCommandBuffer.initialize(maxFramesInFlight);
 
-	gpuSceneEvictCommandBufferSRV.initialize(swapchainCount);
-	gpuSceneAllocCommandBufferSRV.initialize(swapchainCount);
-	gpuSceneUpdateCommandBufferSRV.initialize(swapchainCount);
+	gpuSceneEvictCommandBufferSRV.initialize(maxFramesInFlight);
+	gpuSceneAllocCommandBufferSRV.initialize(maxFramesInFlight);
+	gpuSceneUpdateCommandBufferSRV.initialize(maxFramesInFlight);
 
-	passDescriptor.initialize(L"GPUScene", swapchainCount, 0);
+	passDescriptor.initialize(L"GPUScene", maxFramesInFlight, 0);
 
 	// Shaders
 	{
@@ -120,11 +120,11 @@ void GPUScene::initializeSceneBufferPipeline()
 
 void GPUScene::initializeMaterialBufferPipeline()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
-	materialPassDescriptor.initialize(L"GPUSceneMaterial", swapchainCount, 0);
-	materialCommandBuffer.initialize(swapchainCount);
-	materialCommandSRV.initialize(swapchainCount);
+	materialPassDescriptor.initialize(L"GPUSceneMaterial", maxFramesInFlight, 0);
+	materialCommandBuffer.initialize(maxFramesInFlight);
+	materialCommandSRV.initialize(maxFramesInFlight);
 
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneMaterialUpdateCS");
@@ -141,9 +141,9 @@ void GPUScene::initializeMaterialBufferPipeline()
 
 void GPUScene::initializeDrawcallPipeline()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
-	drawcallPassDescriptor.initialize(L"DrawcallGen", swapchainCount, sizeof(DrawcallPassUniform));
+	drawcallPassDescriptor.initialize(L"DrawcallGen", maxFramesInFlight, sizeof(DrawcallPassUniform));
 
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "GPUSceneDrawcallCS");
@@ -158,7 +158,7 @@ void GPUScene::initializeDrawcallPipeline()
 	}
 }
 
-void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput)
+void GPUScene::renderGPUScene(RenderCommandList* commandList, const FrameInfo& frameInfo, const GPUSceneInput& passInput)
 {
 	const SceneProxy* scene = passInput.scene;
 
@@ -183,17 +183,17 @@ void GPUScene::renderGPUScene(RenderCommandList* commandList, uint32 swapchainIn
 	}
 
 	resizeGPUSceneBuffer(commandList, maxElements);
-	resizeGPUSceneCommandBuffers(swapchainIndex, scene);
+	resizeGPUSceneCommandBuffers(frameInfo, scene);
 
 	resizeMaterialBuffer(commandList, maxElements);
 	resizeBindlessTextures(commandList, maxElements);
-	resizeMaterialCommandBuffer(swapchainIndex, scene);
+	resizeMaterialCommandBuffer(frameInfo, scene);
 	
-	executeGPUSceneCommands(commandList, swapchainIndex, scene);
-	executeMaterialCommands(commandList, swapchainIndex, scene);
+	executeGPUSceneCommands(commandList, frameInfo, scene);
+	executeMaterialCommands(commandList, frameInfo, scene);
 }
 
-void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput)
+void GPUScene::generateDrawcalls(RenderCommandList* commandList, const FrameInfo& frameInfo, const GPUSceneInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, GenerateDrawcall);
 
@@ -228,7 +228,7 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 		.rawDeviceFormatR32UInt  = device->getRawFormatR32UInt(),
 		.maxDrawcalls            = maxDrawcalls,
 	};
-	ConstantBufferView* passUniformCBV = drawcallPassDescriptor.getUniformCBV(swapchainIndex);
+	ConstantBufferView* passUniformCBV = drawcallPassDescriptor.getUniformCBV(frameInfo);
 	passUniformCBV->writeToGPU(commandList, &passUniformData, sizeof(passUniformData));
 
 	BufferBarrierAuto bufferBarriers[] = {
@@ -248,10 +248,8 @@ void GPUScene::generateDrawcalls(RenderCommandList* commandList, uint32 swapchai
 	SPT.rwStructuredBuffer("drawCommandBuffer", drawcallBufferUAV.get());
 	SPT.rwStructuredBuffer("drawCounterBuffer", drawcallCounterBufferUAV.get());
 
-	drawcallPassDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
-
+	auto descriptorHeap = drawcallPassDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 	auto pipelineState = drawcallPipelineState.get();
-	auto descriptorHeap = drawcallPassDescriptor.getDescriptorHeap(swapchainIndex);
 
 	const uint32 dispatchX = std::min(maxDrawcalls, 1024u);
 	commandList->setComputePipelineState(pipelineState);
@@ -374,7 +372,7 @@ void GPUScene::resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxEl
 		device->createUAV(gpuSceneBuffer.get(), uavDesc));
 }
 
-void GPUScene::resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene)
+void GPUScene::resizeGPUSceneCommandBuffers(const FrameInfo& frameInfo, const SceneProxy* scene)
 {
 	auto fn = [device = this->device](UniquePtr<Buffer>& buffer, UniquePtr<ShaderResourceView>& srv,
 		size_t stride, size_t count, const wchar_t* debugName)
@@ -413,20 +411,20 @@ void GPUScene::resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const ScenePr
 
 	wchar_t debugName[256];
 
-	swprintf_s(debugName, L"Buffer_GPUSceneEvictCommand_%u", swapchainIndex);
-	fn(gpuSceneEvictCommandBuffer[swapchainIndex], gpuSceneEvictCommandBufferSRV[swapchainIndex],
+	swprintf_s(debugName, L"Buffer_GPUSceneEvictCommand_%u", frameInfo.frameIndex);
+	fn(gpuSceneEvictCommandBuffer[frameInfo.frameIndex], gpuSceneEvictCommandBufferSRV[frameInfo.frameIndex],
 		sizeof(GPUSceneEvictCommand), scene->gpuSceneEvictCommands.size(), debugName);
 
-	swprintf_s(debugName, L"Buffer_GPUSceneAllocCommand_%u", swapchainIndex);
-	fn(gpuSceneAllocCommandBuffer[swapchainIndex], gpuSceneAllocCommandBufferSRV[swapchainIndex],
+	swprintf_s(debugName, L"Buffer_GPUSceneAllocCommand_%u", frameInfo.frameIndex);
+	fn(gpuSceneAllocCommandBuffer[frameInfo.frameIndex], gpuSceneAllocCommandBufferSRV[frameInfo.frameIndex],
 		sizeof(GPUSceneAllocCommand), scene->gpuSceneAllocCommands.size(), debugName);
 
-	swprintf_s(debugName, L"Buffer_GPUSceneUpdateCommand_%u", swapchainIndex);
-	fn(gpuSceneUpdateCommandBuffer[swapchainIndex], gpuSceneUpdateCommandBufferSRV[swapchainIndex],
+	swprintf_s(debugName, L"Buffer_GPUSceneUpdateCommand_%u", frameInfo.frameIndex);
+	fn(gpuSceneUpdateCommandBuffer[frameInfo.frameIndex], gpuSceneUpdateCommandBufferSRV[frameInfo.frameIndex],
 		sizeof(GPUSceneUpdateCommand), scene->gpuSceneUpdateCommands.size(), debugName);
 }
 
-void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene)
+void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, const FrameInfo& frameInfo, const SceneProxy* scene)
 {
 	SCOPED_DRAW_EVENT(commandList, ExecuteGPUSceneCommands);
 
@@ -434,9 +432,9 @@ void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, uint32 sw
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, gpuSceneBuffer.get() }
 	};
 	Buffer* buffers[] = {
-		gpuSceneEvictCommandBuffer.at(swapchainIndex),
-		gpuSceneAllocCommandBuffer.at(swapchainIndex),
-		gpuSceneUpdateCommandBuffer.at(swapchainIndex),
+		gpuSceneEvictCommandBuffer.at(frameInfo.frameIndex),
+		gpuSceneAllocCommandBuffer.at(frameInfo.frameIndex),
+		gpuSceneUpdateCommandBuffer.at(frameInfo.frameIndex),
 	};
 	for (size_t i = 0; i < _countof(buffers); ++i)
 	{
@@ -449,11 +447,11 @@ void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, uint32 sw
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 1; // gpuSceneBuffer
 		requiredVolatiles += 1; // commandBuffer
-		passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles * 3);
+		passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles * 3);
 	}
 
 	auto sceneBufferUAV = gpuSceneBufferUAV.get();
-	auto descriptorHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+	auto descriptorHeap = passDescriptor.getDescriptorHeap(frameInfo);
 	DescriptorIndexTracker tracker{};
 
 	auto fn = [commandList, descriptorHeap, sceneBufferUAV, &tracker]<typename TCommandType>(
@@ -499,14 +497,14 @@ void GPUScene::executeGPUSceneCommands(RenderCommandList* commandList, uint32 sw
 		}
 	};
 
-	fn(scene->gpuSceneEvictCommands, gpuSceneEvictCommandBuffer.at(swapchainIndex),
-		gpuSceneEvictCommandBufferSRV.at(swapchainIndex), evictPipelineState.get(),
+	fn(scene->gpuSceneEvictCommands, gpuSceneEvictCommandBuffer.at(frameInfo.frameIndex),
+		gpuSceneEvictCommandBufferSRV.at(frameInfo.frameIndex), evictPipelineState.get(),
 		"GPUSceneEvictItems");
-	fn(scene->gpuSceneAllocCommands, gpuSceneAllocCommandBuffer.at(swapchainIndex),
-		gpuSceneAllocCommandBufferSRV.at(swapchainIndex), allocPipelineState.get(),
+	fn(scene->gpuSceneAllocCommands, gpuSceneAllocCommandBuffer.at(frameInfo.frameIndex),
+		gpuSceneAllocCommandBufferSRV.at(frameInfo.frameIndex), allocPipelineState.get(),
 		"GPUSceneAllocItems");
-	fn(scene->gpuSceneUpdateCommands, gpuSceneUpdateCommandBuffer.at(swapchainIndex),
-		gpuSceneUpdateCommandBufferSRV.at(swapchainIndex), updatePipelineState.get(),
+	fn(scene->gpuSceneUpdateCommands, gpuSceneUpdateCommandBuffer.at(frameInfo.frameIndex),
+		gpuSceneUpdateCommandBufferSRV.at(frameInfo.frameIndex), updatePipelineState.get(),
 		"GPUSceneUpdateItems");
 
 	BufferBarrierAuto barriersAfter[] = {
@@ -629,7 +627,7 @@ void GPUScene::resizeBindlessTextures(RenderCommandList* commandList, uint32 max
 	}
 }
 
-void GPUScene::resizeMaterialCommandBuffer(uint32 swapchainIndex, const SceneProxy* scene)
+void GPUScene::resizeMaterialCommandBuffer(const FrameInfo& frameInfo, const SceneProxy* scene)
 {
 	auto fn = [device = this->device](UniquePtr<Buffer>& buffer, UniquePtr<ShaderResourceView>& srv,
 		size_t stride, size_t count, const wchar_t* debugName)
@@ -667,12 +665,12 @@ void GPUScene::resizeMaterialCommandBuffer(uint32 swapchainIndex, const ScenePro
 	};
 
 	wchar_t debugName[256];
-	swprintf_s(debugName, L"Buffer_GPUSceneMaterialCommand_%u", swapchainIndex);
-	fn(materialCommandBuffer[swapchainIndex], materialCommandSRV[swapchainIndex],
+	swprintf_s(debugName, L"Buffer_GPUSceneMaterialCommand_%u", frameInfo.frameIndex);
+	fn(materialCommandBuffer[frameInfo.frameIndex], materialCommandSRV[frameInfo.frameIndex],
 		sizeof(GPUSceneMaterialCommand), scene->gpuSceneMaterialCommands.size(), debugName);
 }
 
-void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene)
+void GPUScene::executeMaterialCommands(RenderCommandList* commandList, const FrameInfo& frameInfo, const SceneProxy* scene)
 {
 	SCOPED_DRAW_EVENT(commandList, ExecuteGPUSceneMaterialCommands);
 
@@ -680,7 +678,7 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, materialConstantsBuffer.get() },
 	};
 	Buffer* buffers[] = {
-		materialCommandBuffer.at(swapchainIndex),
+		materialCommandBuffer.at(frameInfo.frameIndex),
 	};
 	for (size_t i = 0; i < _countof(buffers); ++i)
 	{
@@ -738,11 +736,11 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		uint32 requiredVolatiles = 0;
 		requiredVolatiles += 1; // material buffer
 		requiredVolatiles += 1; // command buffer
-		materialPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		materialPassDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 	}
 
 	auto materialBufferUAV = materialConstantsUAV.get();
-	auto descriptorHeap = materialPassDescriptor.getDescriptorHeap(swapchainIndex);
+	auto descriptorHeap = materialPassDescriptor.getDescriptorHeap(frameInfo);
 
 	auto fn = [commandList, descriptorHeap, materialBufferUAV]<typename TCommandType>(
 		const std::vector<TCommandType>& sceneCommands,
@@ -787,8 +785,8 @@ void GPUScene::executeMaterialCommands(RenderCommandList* commandList, uint32 sw
 		}
 	};
 
-	fn(materialCommands, materialCommandBuffer.at(swapchainIndex),
-		materialCommandSRV.at(swapchainIndex), materialPipelineState.get(),
+	fn(materialCommands, materialCommandBuffer.at(frameInfo.frameIndex),
+		materialCommandSRV.at(frameInfo.frameIndex), materialPipelineState.get(),
 		"GPUSceneUpdateMaterials");
 
 	BufferBarrierAuto barriersAfter[] = {

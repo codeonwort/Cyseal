@@ -39,11 +39,11 @@ class StoreHistoryPass : public SceneRenderPass
 public:
 	void initialize(RenderDevice* renderDevice);
 
-	void extractCurrent(RenderCommandList* commandList, uint32 swapchainIndex, const StoreHistoryPassInput& passInput);
+	void extractCurrent(RenderCommandList* commandList, const FrameInfo& frameInfo, const StoreHistoryPassInput& passInput);
 
-	void copyCurrentToPrev(RenderCommandList* commandList, uint32 swapchainIndex);
+	void copyCurrentToPrev(RenderCommandList* commandList, const FrameInfo& frameInfo);
 
-	StoreHistoryPassResources getResources(uint32 swapchainIndex) const;
+	StoreHistoryPassResources getResources(const FrameInfo& frameInfo) const;
 
 private:
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);

@@ -31,7 +31,7 @@ class DecodeVisBufferPass final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inRenderDevice);
 
-	void decodeVisBuffer(RenderCommandList* commandList, uint32 swapchainIndex, const DecodeVisBufferPassInput& passInput);
+	void decodeVisBuffer(RenderCommandList* commandList, const FrameInfo& frameInfo, const DecodeVisBufferPassInput& passInput);
 
 private:
 	RenderDevice* device = nullptr;

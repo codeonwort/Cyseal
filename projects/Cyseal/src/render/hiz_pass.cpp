@@ -5,10 +5,10 @@
 
 void HiZPass::initialize(RenderDevice* device)
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
-	copyPassDescriptor.initialize(L"HiZ_CopyMip0Pass", swapchainCount, 0);
-	downsamplePassDescriptor.initialize(L"HiZ_DownsamplePass", swapchainCount, 0);
+	copyPassDescriptor.initialize(L"HiZ_CopyMip0Pass", maxFramesInFlight, 0);
+	downsamplePassDescriptor.initialize(L"HiZ_DownsamplePass", maxFramesInFlight, 0);
 
 	ShaderStage* copyShader = device->createShader(EShaderStage::COMPUTE_SHADER, "HiZCopyMip0CS");
 	copyShader->declarePushConstants({ { "pushConstants", 3 } });
@@ -30,7 +30,7 @@ void HiZPass::initialize(RenderDevice* device)
 	delete downsampleShader;
 }
 
-void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, const HiZPassInput& passInput)
+void HiZPass::renderHiZ(RenderCommandList* commandList, const FrameInfo& frameInfo, const HiZPassInput& passInput)
 {
 	// sceneDepth is in PIXEL_SHADER_RESOURCE state.
 	// Currently all mips of HiZ are in UNORDERED_ACCESS state.
@@ -46,11 +46,9 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 
 		// Resize volatile heaps if needed.
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		copyPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = copyPassDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
 		commandList->setComputePipelineState(copyPipeline.get());
-
-		DescriptorHeap* volatileHeap = copyPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindComputeShaderParameters(copyPipeline.get(), &SPT, volatileHeap);
 
 		uint32 dispatchX = (passInput.textureWidth + 7) / 8;
@@ -90,11 +88,9 @@ void HiZPass::renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, c
 
 		// Resize volatile heaps if needed.
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		downsamplePassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles * mipCount);
+		DescriptorHeap* volatileHeap = downsamplePassDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles * mipCount);
 
 		commandList->setComputePipelineState(downsamplePipeline.get());
-
-		DescriptorHeap* volatileHeap = downsamplePassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindComputeShaderParameters(downsamplePipeline.get(), &SPT, volatileHeap, &tracker);
 
 		uint32 dispatchX = (currWidth + 7) / 8;

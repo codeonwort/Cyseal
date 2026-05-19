@@ -64,12 +64,18 @@ struct IndirectSpecularInput
 
 class IndirecSpecularPass final : public SceneRenderPass
 {
+	struct PassFrameInfo
+	{
+		uint32 currFrame;
+		uint32 prevFrame;
+	};
+
 public:
 	void initialize(RenderDevice* inRenderDevice);
 
 	bool isAvailable() const;
 
-	void renderIndirectSpecular(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
+	void renderIndirectSpecular(RenderCommandList* commandList, const FrameInfo& frameInfo, const IndirectSpecularInput& passInput);
 
 private:
 	void initializeClassifierPipeline();
@@ -80,20 +86,20 @@ private:
 	void initializeAMDFinalizeColor();
 
 	void resizeTextures(RenderCommandList* commandList, uint32 newUnscaledWidth, uint32 newUnscaledHeight);
-	void resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords);
+	void resizeHitGroupShaderTable(const PassFrameInfo& passFrameInfo, uint32 maxRecords);
 
 	// classifierPhase requires some resources that are created by raytracingPhase.
 	// But classifierPhase runs first, so prepare such resources here.
-	void prepareRaytracingResources(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
+	void prepareRaytracingResources(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
 
-	void classifierPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
-	void raytracingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
-	void legacyDenoisingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
+	void classifierPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
+	void raytracingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
+	void legacyDenoisingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
 
-	void amdReprojPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
-	void amdPrefilterPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
-	void amdResolveTemporalPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
-	void amdFinalizeOutputPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput);
+	void amdReprojPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
+	void amdPrefilterPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
+	void amdResolveTemporalPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
+	void amdFinalizeOutputPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
 
 private:
 	RenderDevice*                            device = nullptr;

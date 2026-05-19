@@ -26,11 +26,11 @@ class OpticalFlowPass final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inRenderDevice);
 
-	OpticalFlowPassOutput runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput);
+	OpticalFlowPassOutput runOpticalFlow(RenderCommandList* commandList, const FrameInfo& frameInfo, const OpticalFlowPassInput& passInput);
 
 private:
 	void initializePipelines();
-	void recreateResources(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput);
+	void recreateResources(RenderCommandList* commandList, const FrameInfo& frameInfo, const OpticalFlowPassInput& passInput);
 
 private:
 	RenderDevice* device = nullptr;

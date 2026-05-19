@@ -31,7 +31,7 @@ class DepthPrepass final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inRenderDevice, EPixelFormat inVisBufferFormat);
 
-	void renderDepthPrepass(RenderCommandList* commandList, uint32 swapchainIndex, const DepthPrepassInput& passInput);
+	void renderDepthPrepass(RenderCommandList* commandList, const FrameInfo& frameInfo, const DepthPrepassInput& passInput);
 
 private:
 	RenderDevice*                    device = nullptr;

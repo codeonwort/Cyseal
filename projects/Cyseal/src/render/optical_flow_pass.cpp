@@ -59,9 +59,9 @@ void OpticalFlowPass::initialize(RenderDevice* inRenderDevice)
 }
 
 // See dispatch() in sdk/src/components/opticalflow/ffx_opticalflow.cpp for dispatch order.
-OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput)
+OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* commandList, const FrameInfo& frameInfo, const OpticalFlowPassInput& passInput)
 {
-	recreateResources(commandList, swapchainIndex, passInput);
+	recreateResources(commandList, frameInfo, passInput);
 
 	const bool isOddFrame = !!(resourceFrameIndex & 1);
 	const uint32 currFrame = isOddFrame ? 1 : 0;
@@ -95,7 +95,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 				clearPass->enqueueClear(opticalFlowInputTextures[i][j].get(), opticalFlowInputUAVs[i][j].get(), uintClear);
 			}
 		}
-		clearPass->executeClears(commandList, swapchainIndex);
+		clearPass->executeClears(commandList, frameInfo);
 	}
 	else
 	{
@@ -111,7 +111,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 		.backbufferTransferFunction    = (uint32)passInput.transferFunction,
 		.minMaxLuminance               = { passInput.minLuminance, passInput.maxLuminance },
 	};
-	ConstantBufferView* passUniformCBV = prepareLumaDescriptor.getUniformCBV(swapchainIndex);
+	ConstantBufferView* passUniformCBV = prepareLumaDescriptor.getUniformCBV(frameInfo);
 	passUniformCBV->writeToGPU(commandList, &passUniformData, sizeof(passUniformData));
 
 	uint32 threadGroupSizeOpticalFlowInputPyramid[2];
@@ -130,7 +130,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 		.pad1_                               = 0,
 		.pad2_                               = 0,
 	};
-	ConstantBufferView* spdUniformCBV = genInputPyramidDescriptor.getUniformCBV(swapchainIndex);
+	ConstantBufferView* spdUniformCBV = genInputPyramidDescriptor.getUniformCBV(frameInfo);
 	spdUniformCBV->writeToGPU(commandList, &spdUniformData, sizeof(spdUniformData));
 
 	{
@@ -153,8 +153,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 		SPT.texture("r_input_color", passInput.sceneColorSRV);
 		SPT.rwTexture("rw_optical_flow_input", opticalFlowInputUAVs[currFrame][0].get());
 
-		prepareLumaDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
-		auto descriptorHeap = prepareLumaDescriptor.getDescriptorHeap(swapchainIndex);
+		auto descriptorHeap = prepareLumaDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 		commandList->setComputePipelineState(pipelinePrepareLuma.get());
 		commandList->bindComputeShaderParameters(pipelinePrepareLuma.get(), &SPT, descriptorHeap);
@@ -196,8 +195,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 		SPT.rwTexture("rw_optical_flow_input_level_5", opticalFlowInputUAVs[currFrame][5].get());
 		SPT.rwTexture("rw_optical_flow_input_level_6", opticalFlowInputUAVs[currFrame][6].get());
 
-		genInputPyramidDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
-		auto descriptorHeap = genInputPyramidDescriptor.getDescriptorHeap(swapchainIndex);
+		auto descriptorHeap = genInputPyramidDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 		commandList->setComputePipelineState(pipelineGenerateOpticalFlowInputPyramid.get());
 		commandList->bindComputeShaderParameters(pipelineGenerateOpticalFlowInputPyramid.get(), &SPT, descriptorHeap);
@@ -231,8 +229,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 		SPT.texture("r_optical_flow_input", opticalFlowInputSRVs[currFrame][0].get());
 		SPT.rwTexture("rw_optical_flow_scd_histogram", currScdHistogramUAV);
 
-		genSCDHistogramDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
-		auto descriptorHeap = genSCDHistogramDescriptor.getDescriptorHeap(swapchainIndex);
+		auto descriptorHeap = genSCDHistogramDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 		commandList->setComputePipelineState(pipelineGenerateSCDHistogram.get());
 		commandList->bindComputeShaderParameters(pipelineGenerateSCDHistogram.get(), &SPT, descriptorHeap);
@@ -281,8 +278,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 		SPT.rwTexture("rw_optical_flow_scd_temp", scdTempUAV.get());
 		SPT.rwTexture("rw_optical_flow_scd_output", scdOutputUAV.get());
 
-		computeSCDDivergenceDescriptor.resizeDescriptorHeap(swapchainIndex, SPT.totalDescriptors());
-		auto descriptorHeap = computeSCDDivergenceDescriptor.getDescriptorHeap(swapchainIndex);
+		auto descriptorHeap = computeSCDDivergenceDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
 
 		commandList->setComputePipelineState(pipelineComputeSCDDivergence.get());
 		commandList->bindComputeShaderParameters(pipelineComputeSCDDivergence.get(), &SPT, descriptorHeap);
@@ -335,7 +331,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 			.backbufferTransferFunction    = (uint32)passInput.transferFunction,
 			.minMaxLuminance               = { passInput.minLuminance, passInput.maxLuminance },
 		};
-		ConstantBufferView* v5PassUniformCBV = computeOpticalFlowAdvancedV5Descriptor.getUniformChunkCBV(swapchainIndex, level);
+		ConstantBufferView* v5PassUniformCBV = computeOpticalFlowAdvancedV5Descriptor.getUniformChunkCBV(frameInfo, level);
 		v5PassUniformCBV->writeToGPU(commandList, &v5PassUniformData, sizeof(v5PassUniformData));
 
 		{
@@ -371,8 +367,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 			SPT.rwTexture("rw_optical_flow", opticalFlowUAVs[opticalFlowResourceIndexA][level].get());
 			SPT.rwTexture("rw_optical_flow_scd_output", scdOutputUAV.get());
 
-			volatileDescriptor.resizeDescriptorHeap(swapchainIndex, OpticalFlowMaxPyramidLevels * SPT.totalDescriptors());
-			auto descriptorHeap = volatileDescriptor.getDescriptorHeap(swapchainIndex);
+			auto descriptorHeap = volatileDescriptor.resizeDescriptorHeap(frameInfo, OpticalFlowMaxPyramidLevels * SPT.totalDescriptors());
 
 			commandList->setComputePipelineState(pipelineState);
 			commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap, &computeAdvancedV5Tracker);
@@ -423,8 +418,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 			SPT.texture("r_optical_flow_previous", r_optical_flow_previous);
 			SPT.rwTexture("rw_optical_flow", rw_optical_flow);
 
-			volatileDescriptor.resizeDescriptorHeap(swapchainIndex, OpticalFlowMaxPyramidLevels* SPT.totalDescriptors());
-			auto descriptorHeap = volatileDescriptor.getDescriptorHeap(swapchainIndex);
+			auto descriptorHeap = volatileDescriptor.resizeDescriptorHeap(frameInfo, OpticalFlowMaxPyramidLevels* SPT.totalDescriptors());
 
 			commandList->setComputePipelineState(pipelineState);
 			commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap, &filterV5Tracker);
@@ -490,8 +484,7 @@ OpticalFlowPassOutput OpticalFlowPass::runOpticalFlow(RenderCommandList* command
 			SPT.rwTexture("rw_optical_flow_next_level", opticalFlowUAVs[opticalFlowResourceIndexB][level - 1].get());
 			SPT.rwTexture("rw_optical_flow_scd_output", scdOutputUAV.get());
 
-			volatileDescriptor.resizeDescriptorHeap(swapchainIndex, OpticalFlowMaxPyramidLevels * SPT.totalDescriptors());
-			auto descriptorHeap = volatileDescriptor.getDescriptorHeap(swapchainIndex);
+			auto descriptorHeap = volatileDescriptor.resizeDescriptorHeap(frameInfo, OpticalFlowMaxPyramidLevels * SPT.totalDescriptors());
 
 			commandList->setComputePipelineState(pipelineState);
 			commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap, &scaleV5Tracker);
@@ -567,10 +560,12 @@ void OpticalFlowPass::initializePipelines()
 	createPipeline("OpticalFlowScaleAdvancedV5", L"amd/ffx_opticalflow_scale_optical_flow_advanced_pass_v5.hlsl", pipelineScaleOpticalFlowAdvancedV5);
 }
 
-void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 swapchainIndex, const OpticalFlowPassInput& passInput)
+void OpticalFlowPass::recreateResources(RenderCommandList* commandList, const FrameInfo& frameInfo, const OpticalFlowPassInput& passInput)
 {
-	const bool bContainerResolutionChanged = containerResolutionXs[swapchainIndex] != passInput.containerSizeX || containerResolutionYs[swapchainIndex] != passInput.containerSizeY;
-	const bool bLumaResolutionChanged = lumaResolutionXs[swapchainIndex] != passInput.lumaResolutionX || lumaResolutionYs[swapchainIndex] != passInput.lumaResolutionY;
+	const uint32 resourceIndex = (frameInfo.frameID % 2);
+
+	const bool bContainerResolutionChanged = containerResolutionXs[resourceIndex] != passInput.containerSizeX || containerResolutionYs[resourceIndex] != passInput.containerSizeY;
+	const bool bLumaResolutionChanged = lumaResolutionXs[resourceIndex] != passInput.lumaResolutionX || lumaResolutionYs[resourceIndex] != passInput.lumaResolutionY;
 	
 	FfxDimensions2D opticalFlowTextureSizes[OpticalFlowMaxPyramidLevels];
 	opticalFlowTextureSizes[0] = GetOpticalFlowTextureSize({ passInput.containerSizeX,passInput.containerSizeY }, kOpticalFlowBlockSize);
@@ -583,10 +578,10 @@ void OpticalFlowPass::recreateResources(RenderCommandList* commandList, uint32 s
 	}
 
 	// Update member variables.
-	containerResolutionXs[swapchainIndex] = passInput.containerSizeX;
-	containerResolutionYs[swapchainIndex] = passInput.containerSizeY;
-	lumaResolutionXs[swapchainIndex] = passInput.lumaResolutionX;
-	lumaResolutionYs[swapchainIndex] = passInput.lumaResolutionY;
+	containerResolutionXs[resourceIndex] = passInput.containerSizeX;
+	containerResolutionYs[resourceIndex] = passInput.containerSizeY;
+	lumaResolutionXs[resourceIndex] = passInput.lumaResolutionX;
+	lumaResolutionYs[resourceIndex] = passInput.lumaResolutionY;
 	opticalFlowVectorSizeX = opticalFlowTextureSizes[0].width;
 	opticalFlowVectorSizeY = opticalFlowTextureSizes[0].height;
 

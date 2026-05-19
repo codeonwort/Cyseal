@@ -23,7 +23,7 @@ class HiZPass final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inDevice);
 
-	void renderHiZ(RenderCommandList* commandList, uint32 swapchainIndex, const HiZPassInput& passInput);
+	void renderHiZ(RenderCommandList* commandList, const FrameInfo& frameInfo, const HiZPassInput& passInput);
 
 private:
 	UniquePtr<ComputePipelineState> copyPipeline;

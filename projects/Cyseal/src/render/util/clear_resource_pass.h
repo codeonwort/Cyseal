@@ -68,12 +68,12 @@ public:
 
 	void initialize(RenderDevice* inRenderDevice);
 
-	void prepareForFrame(uint32 swapchainIndex);
+	void prepareForFrame(const FrameInfo& frameInfo);
 
 	void enqueueClear(Texture* texture, UnorderedAccessView* uav, ClearValue clearValue);
 
 	/// CAUTION: No barrier after clear.
-	void executeClears(RenderCommandList* commandList, uint32 swapchainIndex);
+	void executeClears(RenderCommandList* commandList, const FrameInfo& frameInfo);
 
 private:
 	RenderDevice* device = nullptr;

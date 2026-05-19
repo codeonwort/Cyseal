@@ -45,6 +45,7 @@ void RayTracedShadowsPass::initialize(RenderDevice* inDevice)
 		return;
 	}
 
+	// #todo-shadows: Force 2 if gonna implement soft shadows using temporal accumulation.
 	const uint32 swapchainCount = device->maxFramesInFlight();
 
 	rayPassDescriptor.initialize(L"RayTracedShadows_RayPass", swapchainCount, 0);
@@ -101,7 +102,7 @@ bool RayTracedShadowsPass::isAvailable() const
 	return device->getRaytracingTier() != ERaytracingTier::NotSupported;
 }
 
-void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList, uint32 swapchainIndex, const RayTracedShadowsInput& passInput)
+void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList, const FrameInfo& frameInfo, const RayTracedShadowsInput& passInput)
 {
 	auto scene               = passInput.scene;
 	auto camera              = passInput.camera;
@@ -125,7 +126,8 @@ void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList
 	// -------------------------------------------------------------------
 	// Phase: Setup
 
-	// ...
+	// #todo-shadows: (frameInfo.frameID % 2) if gonna implement soft shadows using temporal accumulation.
+	const uint32 resourceIndex = frameInfo.frameIndex;
 
 	// -------------------------------------------------------------------
 	// Phase: Raytracing
@@ -134,9 +136,9 @@ void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList
 	{
 		// #todo-lod: Raytracing does not support LOD...
 		uint32 requiredRecordCount = scene->totalMeshSectionsLOD0;
-		if (requiredRecordCount > totalHitGroupShaderRecord[swapchainIndex])
+		if (requiredRecordCount > totalHitGroupShaderRecord[resourceIndex])
 		{
-			resizeHitGroupShaderTable(swapchainIndex, requiredRecordCount);
+			resizeHitGroupShaderTable(resourceIndex, requiredRecordCount);
 		}
 	}
 
@@ -153,16 +155,15 @@ void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList
 		SPT.rwTexture("renderTarget", passInput.shadowMaskUAV);
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = rayPassDescriptor.resizeDescriptorHeap(resourceIndex, requiredVolatiles);
 
-		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
 	}
 
 	DispatchRaysDesc dispatchDesc{
 		.raygenShaderTable = raygenShaderTable.get(),
 		.missShaderTable   = missShaderTable.get(),
-		.hitGroupTable     = hitGroupShaderTable.at(swapchainIndex),
+		.hitGroupTable     = hitGroupShaderTable.at(resourceIndex),
 		.width             = sceneWidth,
 		.height            = sceneHeight,
 		.depth             = 1,
@@ -170,16 +171,16 @@ void RayTracedShadowsPass::renderRayTracedShadows(RenderCommandList* commandList
 	commandList->dispatchRays(dispatchDesc);
 }
 
-void RayTracedShadowsPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords)
+void RayTracedShadowsPass::resizeHitGroupShaderTable(uint32 resourceIndex, uint32 maxRecords)
 {
-	totalHitGroupShaderRecord[swapchainIndex] = maxRecords;
+	totalHitGroupShaderRecord[resourceIndex] = maxRecords;
 
 	struct RootArguments
 	{
 		ClosestHitPushConstants pushConstants;
 	};
 
-	hitGroupShaderTable[swapchainIndex] = UniquePtr<RaytracingShaderTable>(
+	hitGroupShaderTable[resourceIndex] = UniquePtr<RaytracingShaderTable>(
 		device->createRaytracingShaderTable(RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
 
 	for (uint32 i = 0; i < maxRecords; ++i)
@@ -188,8 +189,8 @@ void RayTracedShadowsPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint
 			.pushConstants = ClosestHitPushConstants{ .objectID = i }
 		};
 
-		hitGroupShaderTable[swapchainIndex]->uploadRecord(i, RAY_TRACED_SHADOWS_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
+		hitGroupShaderTable[resourceIndex]->uploadRecord(i, RAY_TRACED_SHADOWS_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
 	}
 
-	CYLOG(LogRayTracedShadows, Log, L"Resize hit group shader table [%u]: %u records", swapchainIndex, maxRecords);
+	CYLOG(LogRayTracedShadows, Log, L"Resize hit group shader table [%u]: %u records", resourceIndex, maxRecords);
 }

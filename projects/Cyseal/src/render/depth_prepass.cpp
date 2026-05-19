@@ -19,8 +19,8 @@ void DepthPrepass::initialize(RenderDevice* inRenderDevice, EPixelFormat inVisBu
 	device = inRenderDevice;
 	visBufferFormat = inVisBufferFormat;
 
-	const uint32 swapchainCount = device->maxFramesInFlight();
-	passDescriptor.initialize(L"DepthPrepass", swapchainCount, 0);
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
+	passDescriptor.initialize(L"DepthPrepass", maxFramesInFlight, 0);
 
 	// Standard pipeline
 	for (size_t i = 0; i < GraphicsPipelineKeyDesc::numPipelineKeyDescs(); ++i)
@@ -46,7 +46,7 @@ void DepthPrepass::initialize(RenderDevice* inRenderDevice, EPixelFormat inVisBu
 	}
 }
 
-void DepthPrepass::renderDepthPrepass(RenderCommandList* commandList, uint32 swapchainIndex, const DepthPrepassInput& passInput)
+void DepthPrepass::renderDepthPrepass(RenderCommandList* commandList, const FrameInfo& frameInfo, const DepthPrepassInput& passInput)
 {
 	if (passInput.gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
@@ -69,9 +69,9 @@ void DepthPrepass::renderDepthPrepass(RenderCommandList* commandList, uint32 swa
 		SPT.structuredBuffer("gpuSceneBuffer", passInput.gpuScene->getGPUSceneBufferSRV());
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
-		DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+		DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(frameInfo);
 		commandList->bindGraphicsShaderParameters(defaultPipeline, &SPT, volatileHeap);
 	}
 
@@ -84,5 +84,5 @@ void DepthPrepass::renderDepthPrepass(RenderCommandList* commandList, uint32 swa
 		.gpuCulling       = passInput.gpuCulling,
 		.psoPermutation   = passInput.bVisibilityBuffer ? &visPipelinePermutation : &pipelinePermutation,
 	};
-	StaticMeshRendering::renderStaticMeshes(commandList, swapchainIndex, meshDrawInput);
+	StaticMeshRendering::renderStaticMeshes(commandList, frameInfo, meshDrawInput);
 }

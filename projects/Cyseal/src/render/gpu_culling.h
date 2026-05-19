@@ -37,7 +37,7 @@ public:
 	// Can be invoked multiple times within a frame.
 	// Draw commands are accumulated from the start of passInput.culledIndirectDrawBuffer,
 	// so you need to provide different culledIndirectDrawBuffer and culledDrawCounterBuffer in passInput for each invocation.
-	void cullDrawCommands(RenderCommandList* commandList, uint32 swapchainIndex, const GPUCullingInput& passInput);
+	void cullDrawCommands(RenderCommandList* commandList, const FrameInfo& frameInfo, const GPUCullingInput& passInput);
 
 private:
 	UniquePtr<ComputePipelineState> pipelineState;

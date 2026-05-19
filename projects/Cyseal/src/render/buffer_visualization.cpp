@@ -8,12 +8,12 @@
 void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 {
 	RenderDevice* device = inRenderDevice;
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
 	rtvFormats.push_back(PF_finalSceneColor);
 	pipelineStates.initialize((uint32)rtvFormats.size());
 
-	passDescriptor.initialize(L"BufferVisualization", swapchainCount, 0);
+	passDescriptor.initialize(L"BufferVisualization", maxFramesInFlight, 0);
 
 	// Create input layout.
 	VertexInputLayout inputLayout = {
@@ -75,7 +75,7 @@ void BufferVisualization::initialize(RenderDevice* inRenderDevice)
 	}
 }
 
-void BufferVisualization::renderVisualization(RenderCommandList* commandList, uint32 swapchainIndex, const BufferVisualizationInput& passInput)
+void BufferVisualization::renderVisualization(RenderCommandList* commandList, const FrameInfo& frameInfo, const BufferVisualizationInput& passInput)
 {
 	GraphicsPipelineState* pipelineState = getPipelineState(passInput.renderTarget);
 
@@ -100,8 +100,7 @@ void BufferVisualization::renderVisualization(RenderCommandList* commandList, ui
 	SPT.texture("interpolatedFrame", passInput.interpolatedFrameSRV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+	DescriptorHeap* volatileHeap = passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
 	commandList->setGraphicsPipelineState(pipelineState);
 	commandList->bindGraphicsShaderParameters(pipelineState, &SPT, volatileHeap);

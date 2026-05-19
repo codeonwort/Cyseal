@@ -11,7 +11,7 @@ void FinalBlitPass::initialize(RenderDevice* inDevice, uint32 inMaxBlitOperation
 	device = inDevice;
 	maxBlitOperationsPerFrame = inMaxBlitOperationsPerFrame;
 
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 	if (device->getCreateParams().swapChainParams.bHeadless == false)
 	{
 		rtvFormats.push_back(device->getSwapChain()->getBackbufferFormat());
@@ -23,7 +23,7 @@ void FinalBlitPass::initialize(RenderDevice* inDevice, uint32 inMaxBlitOperation
 
 	pipelineStates.initialize((uint32)rtvFormats.size());
 
-	passDescriptor.initialize(device, L"FinalBlitPass", swapchainCount, 0);
+	passDescriptor.initialize(device, L"FinalBlitPass", maxFramesInFlight, 0);
 
 	// Create input layout
 	inputLayout = {
@@ -88,7 +88,7 @@ void FinalBlitPass::resetBlitResources()
 	currentBlitOperations = 0;
 }
 
-void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, uint32 swapchainIndex, const FinalBlitPassInput& passInput)
+void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, const FrameInfo& frameInfo, const FinalBlitPassInput& passInput)
 {
 	CHECK(currentBlitOperations < maxBlitOperationsPerFrame);
 	currentBlitOperations += 1;
@@ -100,8 +100,7 @@ void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, uint32 swapc
 	SPT.texture("sourceTexture", passInput.finalSceneColorSRV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors() * maxBlitOperationsPerFrame;
-	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+	DescriptorHeap* volatileHeap = passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
 	// Assumes set by caller.
 	//commandList->rsSetViewport(passInput.viewport);

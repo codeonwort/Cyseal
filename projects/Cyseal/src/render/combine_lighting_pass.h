@@ -28,7 +28,7 @@ class CombineLightingPass final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inRenderDevice, EPixelFormat PF_sceneColor);
 
-	void combineLighting(RenderCommandList* commandList, uint32 swapchainIndex, const CombineLightingPassInput& passInput);
+	void combineLighting(RenderCommandList* commandList, const FrameInfo& frameInfo, const CombineLightingPassInput& passInput);
 
 private:
 	UniquePtr<GraphicsPipelineState> pipelineState;

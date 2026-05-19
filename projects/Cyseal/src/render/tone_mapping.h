@@ -24,7 +24,7 @@ class ToneMapping final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inRenderDevice);
 
-	void renderToneMapping(RenderCommandList* commandList, uint32 swapchainIndex, const ToneMappingInput& passInput);
+	void renderToneMapping(RenderCommandList* commandList, const FrameInfo& frameInfo, const ToneMappingInput& passInput);
 
 private:
 	GraphicsPipelineState* getPipelineState(Texture* renderTarget) const;

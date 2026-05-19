@@ -26,6 +26,8 @@
 #define PF_colorHistory                     EPixelFormat::R16G16B16A16_FLOAT
 #define PF_momentHistory                    EPixelFormat::R16G16B16A16_FLOAT
 
+static const uint32 MAX_FRAMES_IN_FLIGHT = 2;
+
 static const int32 BLUR_COUNT = 3;
 static float const cPhi       = 1.0f;
 static float const nPhi       = 1.0f;
@@ -124,12 +126,10 @@ void IndirectDiffusePass::initialize(RenderDevice* inDevice)
 
 void IndirectDiffusePass::initializeRaytracingPipeline()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	rayPassDescriptor.initialize(L"IndirectDiffuse_RayPass", MAX_FRAMES_IN_FLIGHT, sizeof(RayPassUniform));
 
-	rayPassDescriptor.initialize(L"IndirectDiffuse_RayPass", swapchainCount, sizeof(RayPassUniform));
-
-	totalHitGroupShaderRecord.resize(swapchainCount, 0);
-	hitGroupShaderTable.initialize(swapchainCount);
+	totalHitGroupShaderRecord.resize(MAX_FRAMES_IN_FLIGHT, 0);
+	hitGroupShaderTable.initialize(MAX_FRAMES_IN_FLIGHT);
 
 	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_DiffuseColorHistory");
 	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_DiffuseMomentHistory");
@@ -220,9 +220,7 @@ void IndirectDiffusePass::initializeRaytracingPipeline()
 
 void IndirectDiffusePass::initializeTemporalPipeline()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
-
-	temporalPassDescriptor.initialize(L"IndirectDiffuse_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
+	temporalPassDescriptor.initialize(L"IndirectDiffuse_TemporalPass", MAX_FRAMES_IN_FLIGHT, sizeof(TemporalPassUniform));
 
 	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "IndirectDiffuseTemporalCS");
 	shader->declarePushConstants();
@@ -248,7 +246,7 @@ bool IndirectDiffusePass::isAvailable() const
 	return device->getRaytracingTier() != ERaytracingTier::NotSupported;
 }
 
-void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectDiffuseInput& passInput)
+void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, const FrameInfo& frameInfo, const IndirectDiffuseInput& passInput)
 {
 	auto scene               = passInput.scene;
 	auto sceneWidth          = passInput.sceneWidth;
@@ -278,8 +276,8 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 
 	resizeTextures(commandList, passInput.unscaledRenderWidth, passInput.unscaledRenderHeight);
 
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const uint32 currFrame = frameInfo.frameID % 2;
+	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
 
 	actualHistoryWidth[currFrame] = passInput.sceneWidth;
 	actualHistoryHeight[currFrame] = passInput.sceneHeight;
@@ -312,7 +310,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		uboData->frameCounter = frameCounter;
 		uboData->mode = (uint32)passInput.mode;
 
-		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
+		auto uniformCBV = rayPassDescriptor.getUniformCBV(currFrame);
 		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
 
 		frameCounter = (frameCounter + 1) & 63;
@@ -324,9 +322,9 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 	{
 		// #todo-lod: Raytracing does not support LOD...
 		uint32 requiredRecordCount = scene->totalMeshSectionsLOD0;
-		if (requiredRecordCount > totalHitGroupShaderRecord[swapchainIndex])
+		if (requiredRecordCount > totalHitGroupShaderRecord[currFrame])
 		{
-			resizeHitGroupShaderTable(swapchainIndex, requiredRecordCount);
+			resizeHitGroupShaderTable(currFrame, requiredRecordCount);
 		}
 	}
 
@@ -334,7 +332,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 
 	// Bind global shader parameters.
 	{
-		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
+		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(currFrame);
 
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
@@ -354,9 +352,8 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = rayPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
-		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
 	}
 	
@@ -367,7 +364,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		DispatchRaysDesc dispatchDesc{
 			.raygenShaderTable = raygenShaderTable.get(),
 			.missShaderTable   = missShaderTable.get(),
-			.hitGroupTable     = hitGroupShaderTable.at(swapchainIndex),
+			.hitGroupTable     = hitGroupShaderTable.at(currFrame),
 			.width             = sceneWidth,
 			.height            = sceneHeight,
 			.depth             = 1,
@@ -404,13 +401,13 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		uboData.prevInvScreenSize[0] = 1.0f / (float)actualHistoryWidth[prevFrame];
 		uboData.prevInvScreenSize[1] = 1.0f / (float)actualHistoryHeight[prevFrame];
 
-		auto uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+		auto uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
 	}
 
 	// Bind global shader parameters.
 	{
-		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
 
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
@@ -425,11 +422,9 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		SPT.rwTexture("currentMomentTexture", currMomentUAV);
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		temporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = temporalPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
 		commandList->setComputePipelineState(temporalPipeline.get());
-
-		DescriptorHeap* volatileHeap = temporalPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
 	}
 
@@ -491,7 +486,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 		.outColorTexture = passInput.indirectDiffuseTexture,
 		.outColorUAV     = passInput.indirectDiffuseUAV,
 	};
-	passInput.bilateralBlur->renderBilateralBlur(commandList, swapchainIndex, blurPassInput);
+	passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, blurPassInput);
 }
 
 void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 newUnscaledWidth, uint32 newUnscaledHeight)
