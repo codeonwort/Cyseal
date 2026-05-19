@@ -8,9 +8,9 @@
 void DecodeVisBufferPass::initialize(RenderDevice* inRenderDevice)
 {
 	device = inRenderDevice;
-	const uint32 swapchainCount = device->maxFramesInFlight();
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
-	decodePassDescriptor.initialize(L"DecodeVisBufferPass", swapchainCount, 0);
+	decodePassDescriptor.initialize(L"DecodeVisBufferPass", maxFramesInFlight, 0);
 
 	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "DecodeVisBufferCS");
 	shader->declarePushConstants({ { "pushConstants", 1 } });
@@ -46,7 +46,7 @@ void DecodeVisBufferPass::initialize(RenderDevice* inRenderDevice)
 
 void DecodeVisBufferPass::decodeVisBuffer(
 	RenderCommandList* commandList,
-	uint32 swapchainIndex,
+	const FrameInfo& frameInfo,
 	const DecodeVisBufferPassInput& passInput)
 {
 	// #todo-renderer: Assumes no gpu scene buffer == no meshes to draw.
@@ -97,11 +97,9 @@ void DecodeVisBufferPass::decodeVisBuffer(
 	SPT.rwTexture("rwVisGBuffer1Texture", passInput.visGBuffer1UAV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	decodePassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+	DescriptorHeap* volatileHeap = decodePassDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
 	commandList->setComputePipelineState(decodePipeline.get());
-
-	DescriptorHeap* volatileHeap = decodePassDescriptor.getDescriptorHeap(swapchainIndex);
 	commandList->bindComputeShaderParameters(decodePipeline.get(), &SPT, volatileHeap);
 
 	uint32 dispatchX = (passInput.textureWidth + 7) / 8;

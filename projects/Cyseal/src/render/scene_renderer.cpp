@@ -426,7 +426,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.visGBuffer1UAV     = visGbufferUAVs[1].get(),
 		};
 
-		decodeVisBufferPass->decodeVisBuffer(commandList, oldFrameIndex, passInput);
+		decodeVisBufferPass->decodeVisBuffer(commandList, frameInfo, passInput);
 	}
 
 	// Ray Traced Shadows
