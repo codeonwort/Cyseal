@@ -52,7 +52,4 @@ private:
 	uint32 newViewportHeight = 0;
 
 	float framesPerSecond = 0.0f;
-
-	float prevRenderTime = 0.0f;
-	HighFrequencyCounter renderTimeCounter;
 };

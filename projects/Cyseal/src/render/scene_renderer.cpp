@@ -46,7 +46,7 @@
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
 #define MAX_FINAL_BLIT_OPERATIONS      2 // Actual count: 2 if frame generation is enabled, 1 otherwise.
-#define AVG_RENDER_TIME_WINDOW_SIZE    16
+#define AVG_FRAME_TIME_WINDOW_SIZE     16
 
 static uint32 fullMipCount(uint32 width, uint32 height)
 {
@@ -58,7 +58,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 	device = renderDevice;
 	frameID = 0;
 
-	avgRenderTime.init(AVG_RENDER_TIME_WINDOW_SIZE);
+	avgFrameTime.init(AVG_FRAME_TIME_WINDOW_SIZE);
 
 	// Scene textures: Don't create yet. You invoke recreateSceneTextures() before using scene renderer.
 	// recreateSceneTextures(width, height);
@@ -1128,18 +1128,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			{
 				interpFrameCounter.start();
 
-				const float frameMS = avgRenderTime.getAverage();
+				const float frameMS = avgFrameTime.getAverage();
 
 				// Accuracy of std::this_thread::sleep_for() is too bad. Do spin wait.
-#if 1
 				HighFrequencyCounter spinWait;
 				spinWait.start();
 				while (spinWait.stopWithMilliseconds() < frameMS);
-#else
-				std::this_thread::sleep_for(std::chrono::milliseconds((uint32)(frameMS)));
-#endif
 
-				interpTimeMS += (float)interpFrameCounter.stopWithMilliseconds();
+				interpTimeMS += interpFrameCounter.stopWithMilliseconds();
 			}
 		}
 
@@ -1160,7 +1156,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 
 	frameID += 1;
-	avgRenderTime.push(renderOptions.prevRenderTime - prevInterpTime);
+	avgFrameTime.push(renderOptions.prevFrameTime - prevInterpTime);
 	prevInterpTime = interpTimeMS;
 
 	prevScaledRenderResolutionX = sceneWidth;

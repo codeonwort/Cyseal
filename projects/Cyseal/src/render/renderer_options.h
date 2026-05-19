@@ -213,7 +213,7 @@ struct RendererOptions
 
 	// Frame generation
 	bool                      bGenerateFrame = true;
-	float                     prevRenderTime = 0.0f; // In milliseconds, used for frame pacing.
+	float                     prevFrameTime = 0.0f; // In milliseconds, used for frame pacing.
 
 	// Debug visualization
 	EBufferVisualizationMode  bufferVisualization = EBufferVisualizationMode::None;
