@@ -876,7 +876,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneUniformCBV     = sceneUniformCBV,
 			.sceneColorSRV       = alternateSceneColorSRV,
 		};
-		toneMapping->renderToneMapping(commandList, oldFrameIndex, passInput);
+		toneMapping->renderToneMapping(commandList, frameInfo, passInput);
 	}
 
 	OpticalFlowPassOutput opticalFlowPassOutput{};
