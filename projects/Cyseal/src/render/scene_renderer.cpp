@@ -792,7 +792,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.tileCounterBufferUAV    = indirectSpecularTileCounterBufferUAV.get(),
 			.indirectSpecularTexture = RT_indirectSpecular.get(),
 		};
-		indirectSpecularPass->renderIndirectSpecular(commandList, oldFrameIndex, passInput);
+		indirectSpecularPass->renderIndirectSpecular(commandList, frameInfo, passInput);
 	}
 
 	if (!bRenderPathTracing)

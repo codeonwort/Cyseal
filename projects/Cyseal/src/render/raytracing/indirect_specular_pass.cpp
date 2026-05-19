@@ -49,6 +49,8 @@
 #define AMD_TEMPORAL_STABILITY_FACTOR       0.7f
 #define AMD_ROUGHNESS_THRESHOLD             0.22f
 
+static const uint32 MAX_FRAMES_IN_FLIGHT = 2;
+
 DEFINE_LOG_CATEGORY_STATIC(LogIndirectSpecular);
 
 struct RayPassUniform
@@ -194,7 +196,7 @@ bool IndirecSpecularPass::isAvailable() const
 	return device->getRaytracingTier() != ERaytracingTier::NotSupported;
 }
 
-void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList, const FrameInfo& frameInfo, const IndirectSpecularInput& passInput)
 {
 	auto scene               = passInput.scene;
 	auto sceneWidth          = passInput.sceneWidth;
@@ -215,25 +217,27 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		rng.resetSeed(passInput.randomSeed);
 	}
 
-	prepareRaytracingResources(commandList, swapchainIndex, passInput);
+	const PassFrameInfo passFrameInfo{
+		.currFrame = frameInfo.frameID % 2,
+		.prevFrame = (frameInfo.frameID + 1) % 2,
+	};
 
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	prepareRaytracingResources(commandList, passFrameInfo, passInput);
 
-	actualHistoryWidth[currFrame] = passInput.sceneWidth;
-	actualHistoryHeight[currFrame] = passInput.sceneHeight;
+	actualHistoryWidth[passFrameInfo.currFrame] = passInput.sceneWidth;
+	actualHistoryHeight[passFrameInfo.currFrame] = passInput.sceneHeight;
 
-	auto currColorTexture  = colorHistory.getTexture(currFrame);
-	auto prevColorTexture  = colorHistory.getTexture(prevFrame);
-	auto currMomentTexture = momentHistory.getTexture(currFrame);
-	auto prevMomentTexture = momentHistory.getTexture(prevFrame);
+	auto currColorTexture  = colorHistory.getTexture(passFrameInfo.currFrame);
+	auto prevColorTexture  = colorHistory.getTexture(passFrameInfo.prevFrame);
+	auto currMomentTexture = momentHistory.getTexture(passFrameInfo.currFrame);
+	auto prevMomentTexture = momentHistory.getTexture(passFrameInfo.prevFrame);
 
-	classifierPhase(commandList, swapchainIndex, passInput);
+	classifierPhase(commandList, passFrameInfo, passInput);
 
-	raytracingPhase(commandList, swapchainIndex, passInput);
+	raytracingPhase(commandList, passFrameInfo, passInput);
 
 #if !USE_AMD_DENOISER
-	legacyDenoisingPhase(commandList, swapchainIndex, passInput);
+	legacyDenoisingPhase(commandList, passFrameInfo, passInput);
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
@@ -246,10 +250,10 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		commandList->copyTexture2D(currColorTexture, passInput.indirectSpecularTexture);
 	}
 #else
-	amdReprojPhase(commandList, swapchainIndex, passInput);
-	amdPrefilterPhase(commandList, swapchainIndex, passInput);
-	amdResolveTemporalPhase(commandList, swapchainIndex, passInput);
-	amdFinalizeOutputPhase(commandList, swapchainIndex, passInput);
+	amdReprojPhase(commandList, passFrameInfo, passInput);
+	amdPrefilterPhase(commandList, passFrameInfo, passInput);
+	amdResolveTemporalPhase(commandList, passFrameInfo, passInput);
+	amdFinalizeOutputPhase(commandList, passFrameInfo, passInput);
 	{
 		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
@@ -270,10 +274,8 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 void IndirecSpecularPass::initializeClassifierPipeline()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
-
-	classifierPassDescriptor.initialize(L"IndirectSpecular_ClassifierPass", swapchainCount, 0);
-	indirectRaysPassDescriptor.initialize(L"IndirectSpecular_PrepareDispatch", swapchainCount, 0);
+	classifierPassDescriptor.initialize(L"IndirectSpecular_ClassifierPass", MAX_FRAMES_IN_FLIGHT, 0);
+	indirectRaysPassDescriptor.initialize(L"IndirectSpecular_PrepareDispatch", MAX_FRAMES_IN_FLIGHT, 0);
 
 	ShaderStage* tileShader = device->createShader(EShaderStage::COMPUTE_SHADER, "IndirectSpecularClassifierCS");
 	tileShader->declarePushConstants({ {"pushConstants", 1} });
@@ -305,16 +307,14 @@ void IndirecSpecularPass::initializeClassifierPipeline()
 
 void IndirecSpecularPass::initializeRaytracingPipeline()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
-
-	rayPassDescriptor.initialize(L"IndirectSpecular_RayPass", swapchainCount, sizeof(RayPassUniform));
+	rayPassDescriptor.initialize(L"IndirectSpecular_RayPass", MAX_FRAMES_IN_FLIGHT, sizeof(RayPassUniform));
 
 	colorHistory.initialize(PF_colorHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularColorHistory");
 	momentHistory.initialize(PF_momentHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularMomentHistory");
 	sampleCountHistory.initialize(PF_sampleCountHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularSampleCountHistory");
 
-	totalHitGroupShaderRecord.resize(swapchainCount, 0);
-	hitGroupShaderTable.initialize(swapchainCount);
+	totalHitGroupShaderRecord.resize(MAX_FRAMES_IN_FLIGHT, 0);
+	hitGroupShaderTable.initialize(MAX_FRAMES_IN_FLIGHT);
 
 	ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen");
 	ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit");
@@ -428,9 +428,7 @@ void IndirecSpecularPass::initializeRaytracingPipeline()
 
 void IndirecSpecularPass::initializeTemporalPipeline()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
-
-	temporalPassDescriptor.initialize(L"IndirectSpecular_TemporalPass", swapchainCount, sizeof(TemporalPassUniform));
+	temporalPassDescriptor.initialize(L"IndirectSpecular_TemporalPass", MAX_FRAMES_IN_FLIGHT, sizeof(TemporalPassUniform));
 
 	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "IndirectSpecularTemporalCS");
 	shader->declarePushConstants();
@@ -449,8 +447,6 @@ void IndirecSpecularPass::initializeTemporalPipeline()
 
 void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
-
 	const auto historyFlags = ETextureAccessFlags::SRV | ETextureAccessFlags::UAV;
 	amdRadianceHistory.initialize(PF_amdRadiance, historyFlags, L"RT_SpecularAmdRadianceHistory");
 	amdVarianceHistory.initialize(PF_amdVariance, historyFlags, L"RT_SpecularAmdVarianceHistory");
@@ -470,7 +466,7 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 		));
 
 		// All 3 passes use the same cbuffer. Let's maintain it in the first pass.
-		amdReprojectPassDescriptor.initialize(L"IndirectSpecular_AMDReprojectPass", swapchainCount, sizeof(AMDDenoiserUniform));
+		amdReprojectPassDescriptor.initialize(L"IndirectSpecular_AMDReprojectPass", MAX_FRAMES_IN_FLIGHT, sizeof(AMDDenoiserUniform));
 
 		delete shader;
 	}
@@ -488,7 +484,7 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 		));
 
 		// cbuffer will be borrowed from first pass.
-		amdPrefilterPassDescriptor.initialize(L"IndirectSpecular_AMDPrefilterPass", swapchainCount, 0);
+		amdPrefilterPassDescriptor.initialize(L"IndirectSpecular_AMDPrefilterPass", MAX_FRAMES_IN_FLIGHT, 0);
 
 		delete shader;
 	}
@@ -506,7 +502,7 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 		));
 
 		// cbuffer will be borrowed from first pass.
-		amdResolveTemporalPassDescriptor.initialize(L"IndirectSpecular_AMDResolveTemporalPass", swapchainCount, 0);
+		amdResolveTemporalPassDescriptor.initialize(L"IndirectSpecular_AMDResolveTemporalPass", MAX_FRAMES_IN_FLIGHT, 0);
 
 		delete shader;
 	}
@@ -543,8 +539,6 @@ void IndirecSpecularPass::initializeAMDReflectionDenoiser()
 
 void IndirecSpecularPass::initializeAMDFinalizeColor()
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
-
 	ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "AMDSpecularFinalizeColorCS");
 	shader->declarePushConstants({ {"pushConstants", 2} });
 	shader->loadFromFile(L"indirect_specular_amd_temp_finalize.hlsl", "finalizeColorCS");
@@ -557,7 +551,7 @@ void IndirecSpecularPass::initializeAMDFinalizeColor()
 		}
 	));
 
-	amdFinalizePassDescriptor.initialize(L"IndirectSpecular_AMDFinalizeColorPass", swapchainCount, 0);
+	amdFinalizePassDescriptor.initialize(L"IndirectSpecular_AMDFinalizeColorPass", MAX_FRAMES_IN_FLIGHT, 0);
 
 	delete shader;
 }
@@ -714,16 +708,18 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 	));
 }
 
-void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint32 maxRecords)
+void IndirecSpecularPass::resizeHitGroupShaderTable(const PassFrameInfo& passFrameInfo, uint32 maxRecords)
 {
-	totalHitGroupShaderRecord[swapchainIndex] = maxRecords;
+	const uint32 resourceIndex = passFrameInfo.currFrame;
+
+	totalHitGroupShaderRecord[resourceIndex] = maxRecords;
 
 	struct RootArguments
 	{
 		ClosestHitPushConstants pushConstants;
 	};
 
-	hitGroupShaderTable[swapchainIndex] = UniquePtr<RaytracingShaderTable>(
+	hitGroupShaderTable[resourceIndex] = UniquePtr<RaytracingShaderTable>(
 		device->createRaytracingShaderTable(RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
 
 	for (uint32 i = 0; i < maxRecords; ++i)
@@ -732,28 +728,30 @@ void IndirecSpecularPass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint3
 			.pushConstants = ClosestHitPushConstants{ .objectID = i }
 		};
 
-		hitGroupShaderTable[swapchainIndex]->uploadRecord(i, INDIRECT_SPECULAR_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
+		hitGroupShaderTable[resourceIndex]->uploadRecord(i, INDIRECT_SPECULAR_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
 	}
 
-	CYLOG(LogIndirectSpecular, Log, L"Resize hit group shader table [%u]: %u records", swapchainIndex, maxRecords);
+	CYLOG(LogIndirectSpecular, Log, L"Resize hit group shader table [%u]: %u records", resourceIndex, maxRecords);
 }
 
-void IndirecSpecularPass::prepareRaytracingResources(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::prepareRaytracingResources(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput)
 {
+	const uint32 resourceIndex = passFrameInfo.currFrame;
+
 	resizeTextures(commandList, passInput.unscaledRenderWidth, passInput.unscaledRenderHeight);
 
 	// Resize hit group shader table if needed.
 	// #todo-lod: Raytracing does not support LOD...
 	uint32 requiredRecordCount = passInput.scene->totalMeshSectionsLOD0;
-	if (requiredRecordCount > totalHitGroupShaderRecord[swapchainIndex])
+	if (requiredRecordCount > totalHitGroupShaderRecord[resourceIndex])
 	{
-		resizeHitGroupShaderTable(swapchainIndex, requiredRecordCount);
+		resizeHitGroupShaderTable(passFrameInfo, requiredRecordCount);
 	}
 
 	DispatchRaysDesc dispatchDesc{
 		.raygenShaderTable = raygenShaderTable.get(),
 		.missShaderTable   = missShaderTable.get(),
-		.hitGroupTable     = hitGroupShaderTable.at(swapchainIndex),
+		.hitGroupTable     = hitGroupShaderTable.at(resourceIndex),
 		.width             = passInput.sceneWidth,
 		.height            = passInput.sceneHeight,
 		.depth             = 1,
@@ -764,8 +762,10 @@ void IndirecSpecularPass::prepareRaytracingResources(RenderCommandList* commandL
 	rayCommandGenerator->copyToBuffer(commandList, 1, rayCommandBuffer.get(), 0);
 }
 
-void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput)
 {
+	const uint32 resourceIndex = passFrameInfo.currFrame;
+
 	{
 		SCOPED_DRAW_EVENT(commandList, TileClassification);
 
@@ -795,11 +795,9 @@ void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32
 		SPT.rwBuffer("rwTileCounterBuffer", passInput.tileCounterBufferUAV);
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		classifierPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = classifierPassDescriptor.resizeDescriptorHeap(resourceIndex, requiredVolatiles);
 
 		commandList->setComputePipelineState(classifierPipeline.get());
-
-		DescriptorHeap* volatileHeap = classifierPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindComputeShaderParameters(classifierPipeline.get(), &SPT, volatileHeap);
 
 		uint32 dispatchX = (passInput.sceneWidth + 7) / 8;
@@ -827,11 +825,9 @@ void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32
 		SPT.rwBuffer("rwAmdReprojArgumentBuffer", amdCommandBufferUAV.get());
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		indirectRaysPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = indirectRaysPassDescriptor.resizeDescriptorHeap(resourceIndex, requiredVolatiles);
 
 		commandList->setComputePipelineState(indirectRaysPipeline.get());
-
-		DescriptorHeap* volatileHeap = indirectRaysPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindComputeShaderParameters(indirectRaysPipeline.get(), &SPT, volatileHeap);
 
 		commandList->dispatchCompute(1, 1, 1);
@@ -844,16 +840,16 @@ void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, uint32
 	}
 }
 
-void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, SpecularRaytracing);
-
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
 
 	uint32 sceneWidth = passInput.sceneWidth;
 	uint32 sceneHeight = passInput.sceneHeight;
 	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = passInput.gpuScene->queryMaterialDescriptors();
+
+	const uint32 currFrame = passFrameInfo.currFrame;
+	const uint32 prevFrame = passFrameInfo.prevFrame;
 
 	// Update uniforms.
 	{
@@ -868,7 +864,7 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 		uboData->renderTargetHeight = sceneHeight;
 		uboData->traceMode = (uint32)passInput.mode;
 
-		auto uniformCBV = rayPassDescriptor.getUniformCBV(swapchainIndex);
+		auto uniformCBV = rayPassDescriptor.getUniformCBV(currFrame);
 		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
 
 		delete uboData;
@@ -897,7 +893,7 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 	{
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
-		SPT.constantBuffer("passUniform", rayPassDescriptor.getUniformCBV(swapchainIndex));
+		SPT.constantBuffer("passUniform", rayPassDescriptor.getUniformCBV(currFrame));
 		SPT.accelerationStructure("rtScene", passInput.raytracingScene->getSRV());
 		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
 		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
@@ -918,9 +914,8 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 
 		// Resize volatile heaps if needed.
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		rayPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
+		DescriptorHeap* volatileHeap = rayPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
-		DescriptorHeap* volatileHeap = rayPassDescriptor.getDescriptorHeap(swapchainIndex);
 		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
 	}
 	
@@ -958,7 +953,7 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 	DispatchRaysDesc dispatchDesc{
 		.raygenShaderTable = raygenShaderTable.get(),
 		.missShaderTable   = missShaderTable.get(),
-		.hitGroupTable     = hitGroupShaderTable.at(swapchainIndex),
+		.hitGroupTable     = hitGroupShaderTable.at(currFrame),
 		.width             = sceneWidth,
 		.height            = sceneHeight,
 		.depth             = 1,
@@ -967,12 +962,12 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, uint32
 #endif
 }
 
-void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, TemporalReprojection);
 
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const uint32 currFrame = passFrameInfo.currFrame;
+	const uint32 prevFrame = passFrameInfo.prevFrame;
 
 	auto currColorTexture = colorHistory.getTexture(currFrame);
 	auto prevColorTexture = colorHistory.getTexture(prevFrame);
@@ -1032,7 +1027,7 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 		uboData.bInvalidateHistory = (passInput.mode == EIndirectSpecularMode::ForceMirror);
 		uboData.bLimitHistory = (passInput.mode == EIndirectSpecularMode::BRDF);
 
-		auto uniformCBV = temporalPassDescriptor.getUniformCBV(swapchainIndex);
+		auto uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
 	}
 
@@ -1040,7 +1035,7 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 	{
 		ShaderParameterTable SPT{};
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
-		SPT.constantBuffer("passUniform", temporalPassDescriptor.getUniformCBV(swapchainIndex));
+		SPT.constantBuffer("passUniform", temporalPassDescriptor.getUniformCBV(currFrame));
 		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
 		SPT.texture("raytracingTexture", raytracingSRV.get());
 		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
@@ -1054,8 +1049,7 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 
 		// Resize volatile heaps if needed.
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		temporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-		DescriptorHeap* volatileHeap = temporalPassDescriptor.getDescriptorHeap(swapchainIndex);
+		DescriptorHeap* volatileHeap = temporalPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
 		commandList->setComputePipelineState(temporalPipeline.get());
 		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
@@ -1079,12 +1073,12 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, u
 	// #todo-specular: Spatial filter
 }
 
-void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, AMDReproject);
 
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const uint32 currFrame = passFrameInfo.currFrame;
+	const uint32 prevFrame = passFrameInfo.prevFrame;
 
 	auto currRadianceTexture = amdRadianceHistory.getTexture(currFrame);
 	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
@@ -1101,7 +1095,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	auto currVarianceSRV = amdVarianceHistory.getSRV(currFrame);
 	auto prevVarianceUAV = amdVarianceHistory.getUAV(prevFrame);
 
-	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(swapchainIndex);
+	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(currFrame);
 	
 	AMDDenoiserUniform uniformData{
 		.invProjection           = passInput.invProjection.transpose(),
@@ -1224,8 +1218,7 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	SPT.rwTexture("rw_reprojected_radiance", reprojRadianceUAV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	amdReprojectPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	DescriptorHeap* volatileHeap = amdReprojectPassDescriptor.getDescriptorHeap(swapchainIndex);
+	DescriptorHeap* volatileHeap = amdReprojectPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
 	commandList->setComputePipelineState(amdReprojectPipeline.get());
 	commandList->bindComputeShaderParameters(amdReprojectPipeline.get(), &SPT, volatileHeap);
@@ -1240,12 +1233,12 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, uint32 
 	commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 }
 
-void IndirecSpecularPass::amdPrefilterPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::amdPrefilterPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, AMDPrefilter);
 
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const uint32 currFrame = passFrameInfo.currFrame;
+	const uint32 prevFrame = passFrameInfo.prevFrame;
 
 	auto currRadianceTexture = amdRadianceHistory.getTexture(currFrame);
 	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
@@ -1258,7 +1251,7 @@ void IndirecSpecularPass::amdPrefilterPhase(RenderCommandList* commandList, uint
 	auto prevVarianceSRV = amdVarianceHistory.getSRV(prevFrame);
 
 	// Reuse CBV from reproj phase.
-	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(swapchainIndex);
+	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(currFrame);
 
 	BufferBarrierAuto bufferBarriers[] = {
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
@@ -1324,8 +1317,7 @@ void IndirecSpecularPass::amdPrefilterPhase(RenderCommandList* commandList, uint
 	SPT.rwStructuredBuffer("rw_denoiser_tile_list", denoiserTileListUAV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	amdPrefilterPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	DescriptorHeap* volatileHeap = amdPrefilterPassDescriptor.getDescriptorHeap(swapchainIndex);
+	DescriptorHeap* volatileHeap = amdPrefilterPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
 	commandList->setComputePipelineState(amdPrefilterPipeline.get());
 	commandList->bindComputeShaderParameters(amdPrefilterPipeline.get(), &SPT, volatileHeap);
@@ -1340,12 +1332,12 @@ void IndirecSpecularPass::amdPrefilterPhase(RenderCommandList* commandList, uint
 	commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 }
 
-void IndirecSpecularPass::amdResolveTemporalPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::amdResolveTemporalPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, AMDResolveTemporal);
 
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const uint32 currFrame = passFrameInfo.currFrame;
+	const uint32 prevFrame = passFrameInfo.prevFrame;
 
 	auto currRadianceTexture = amdRadianceHistory.getTexture(currFrame);
 	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
@@ -1361,7 +1353,7 @@ void IndirecSpecularPass::amdResolveTemporalPhase(RenderCommandList* commandList
 	auto currSampleCountSRV = amdSampleCountHistory.getSRV(currFrame);
 
 	// Reuse CBV from reproj phase.
-	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(swapchainIndex);
+	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(currFrame);
 
 	BufferBarrierAuto bufferBarriers[] = {
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
@@ -1427,8 +1419,7 @@ void IndirecSpecularPass::amdResolveTemporalPhase(RenderCommandList* commandList
 	SPT.rwStructuredBuffer("rw_denoiser_tile_list", denoiserTileListUAV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	amdResolveTemporalPassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	DescriptorHeap* volatileHeap = amdResolveTemporalPassDescriptor.getDescriptorHeap(swapchainIndex);
+	DescriptorHeap* volatileHeap = amdResolveTemporalPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
 	commandList->setComputePipelineState(amdResolveTemporalPipeline.get());
 	commandList->bindComputeShaderParameters(amdResolveTemporalPipeline.get(), &SPT, volatileHeap);
@@ -1443,12 +1434,12 @@ void IndirecSpecularPass::amdResolveTemporalPhase(RenderCommandList* commandList
 	commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 }
 
-void IndirecSpecularPass::amdFinalizeOutputPhase(RenderCommandList* commandList, uint32 swapchainIndex, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::amdFinalizeOutputPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, AMDFinalizeOutput);
 
-	const uint32 currFrame = swapchainIndex % 2;
-	const uint32 prevFrame = (swapchainIndex + 1) % 2;
+	const uint32 currFrame = passFrameInfo.currFrame;
+	const uint32 prevFrame = passFrameInfo.prevFrame;
 
 	auto prevRadianceTexture = amdRadianceHistory.getTexture(prevFrame);
 	auto prevRadianceSRV = amdRadianceHistory.getSRV(prevFrame);
@@ -1486,8 +1477,7 @@ void IndirecSpecularPass::amdFinalizeOutputPhase(RenderCommandList* commandList,
 		SPT.rwTexture("rwRadiance", amdFinalColorUAV.get());
 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
-		amdFinalizePassDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-		DescriptorHeap* volatileHeap = amdFinalizePassDescriptor.getDescriptorHeap(swapchainIndex);
+		DescriptorHeap* volatileHeap = amdFinalizePassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
 		commandList->setComputePipelineState(amdFinalizePipeline.get());
 		commandList->bindComputeShaderParameters(amdFinalizePipeline.get(), &SPT, volatileHeap);
