@@ -3,6 +3,7 @@
 #include "core/assertion.h"
 #include "core/platform.h"
 #include "core/plane.h"
+#include "core/high_freq_counter.h"
 
 #include "rhi/rhi_policy.h"
 #include "rhi/render_command.h"
@@ -1016,8 +1017,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
 			.bRealFrame   = false,
-			.colorTexture = RT_finalSceneColor.get(),
-			.colorSRV     = finalSceneColorSRV.get(),
+			.colorTexture = (renderOptions.bufferVisualization != EBufferVisualizationMode::None) ? RT_finalSceneColor.get() : frameGenPassOutput.interpolatedFrameTexture,
+			.colorSRV     = (renderOptions.bufferVisualization != EBufferVisualizationMode::None) ? finalSceneColorSRV.get() : frameGenPassOutput.interpolatedFrameSRV,
 		};
 	}
 	scenePresentInfoArray[scenePresentCount++] = ScenePresentInfo{
@@ -1027,6 +1028,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	};
 
 	finalBlitPass->resetBlitResources();
+
+	HighFrequencyCounter interpFrameCounter;
+	float interpTimeMS = 0.0f;
 
 	for (uint32 presentIx = 0; presentIx < scenePresentCount; ++presentIx)
 	{
@@ -1117,15 +1121,25 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		if (bRenderToBackbuffer)
 		{
-			bool bVSync = scenePresentInfoArray[presentIx].bRealFrame;
+			bool bVSync = scenePresentInfoArray[presentIx].bRealFrame && renderOptions.bForceVSync;
 			swapChain->present(bVSync);
 
 			if (scenePresentInfoArray[presentIx].bRealFrame == false)
 			{
-				// #todo-fsr3-present: My measurement includes the time to present interpolated frame so can't use 0.5f * frameMS.
-				// Not intuitive but it kinda works so leave it be?
+				interpFrameCounter.start();
+
 				const float frameMS = avgRenderTime.getAverage();
-				std::this_thread::sleep_for(std::chrono::milliseconds((uint32)(0.25f * frameMS)));
+
+				// Accuracy of std::this_thread::sleep_for() is too bad. Do spin wait.
+#if 1
+				HighFrequencyCounter spinWait;
+				spinWait.start();
+				while (spinWait.stopWithMilliseconds() < frameMS);
+#else
+				std::this_thread::sleep_for(std::chrono::milliseconds((uint32)(frameMS)));
+#endif
+
+				interpTimeMS += (float)interpFrameCounter.stopWithMilliseconds();
 			}
 		}
 
@@ -1146,7 +1160,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 
 	frameID += 1;
-	avgRenderTime.push(renderOptions.prevRenderTime);
+	avgRenderTime.push(renderOptions.prevRenderTime - prevInterpTime);
+	prevInterpTime = interpTimeMS;
 
 	prevScaledRenderResolutionX = sceneWidth;
 	prevScaledRenderResolutionY = sceneHeight;

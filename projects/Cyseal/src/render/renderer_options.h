@@ -200,6 +200,9 @@ inline const char** getPathTracingKernelNames()
 
 struct RendererOptions
 {
+	// Presentation
+	bool                      bForceVSync = true;
+
 	// Indirect draw
 	EIndirectDrawMode         indirectDrawMode = EIndirectDrawMode::PopulateOnGPU;
 	bool                      bEnableGPUCulling = true;

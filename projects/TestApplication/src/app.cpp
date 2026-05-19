@@ -152,8 +152,10 @@ void TestApplication::onTick(float deltaSeconds)
 		{
 			wchar_t buf[256];
 			float newFPS = 1.0f / deltaSeconds;
-			// #todo-fsr3-present: 1 frame time includes 1 interpolated frame + 1 real frame, so not precise but...
+
+			// 1 frame time includes 1 interpolated frame + 1 real frame, so 2x frame rate.
 			if (appState.rendererOptions.bGenerateFrame) newFPS *= 2.0f;
+
 			framesPerSecond += 0.05f * (newFPS - framesPerSecond);
 			swprintf_s(buf, L"Hello World / FPS: %.2f", framesPerSecond);
 			setWindowTitle(std::wstring(buf));
@@ -307,6 +309,12 @@ void TestApplication::onTick(float deltaSeconds)
 			}
 
 			ImGui::SeparatorText("Frame Generation");
+			const bool bMaxFpsChanged = ImGui::SliderFloat("Max FPS", &appState.maxFrameRate, 30.0f, 480.0f);
+			if (bMaxFpsChanged)
+			{
+				setFPSLimit(appState.maxFrameRate);
+			}
+			ImGui::Checkbox("Force VSync", &appState.rendererOptions.bForceVSync);
 			if (appState.rendererOptions.pathTracing != EPathTracingMode::Disabled)
 			{
 				ImGui::BeginDisabled();

@@ -103,6 +103,7 @@ private:
 
 	uint32 frameID = 0;
 	SimpleMovingAverage avgRenderTime;
+	float prevInterpTime = 0.0f;
 
 	// ------------------------------------------------------------------------
 	// #todo-renderer: Temporarily manage render targets in the renderer.

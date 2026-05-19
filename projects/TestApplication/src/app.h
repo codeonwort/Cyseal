@@ -12,6 +12,7 @@ struct AppState
 	RendererOptions rendererOptions;
 	int32 displayScale                    = 100;
 	int32 renderResolutionScale           = 100;
+	float maxFrameRate                    = 120.0f;
 	int32 selectedIndirectDrawMode        = (int32)EIndirectDrawMode::PopulateOnGPU;
 	int32 selectedBufferVisualizationMode = 0;
 	int32 selectedRayTracedShadowsMode    = 0;
