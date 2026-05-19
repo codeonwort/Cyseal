@@ -196,10 +196,14 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	}
 
 	// #wip: Replace all frameIndex accesses with frameInfo.
-	const uint32 frameIndex = (frameID % device->maxFramesInFlight());
+	const uint32 oldFrameIndex = (frameID % device->maxFramesInFlight());
+	const FrameInfo frameInfo{
+		.frameID    = frameID,
+		.frameIndex = (frameID % device->maxFramesInFlight()),
+	};
 
-	auto commandAllocator     = device->getCommandAllocator(frameIndex);
-	auto commandList          = device->getCommandList(frameIndex);
+	auto commandAllocator     = device->getCommandAllocator(frameInfo.frameIndex);
+	auto commandList          = device->getCommandList(frameInfo.frameIndex);
 	auto commandQueue         = device->getCommandQueue();
 
 	createFinalBlitRTV(commandList, renderOptions);
@@ -253,11 +257,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	const bool bRenderFrameGeneration = renderOptions.bGenerateFrame && !bRenderPathTracing && bRenderToBackbuffer;
 
-	const FrameInfo frameInfo{
-		.frameID    = frameID,
-		.frameIndex = (frameID % device->maxFramesInFlight()),
-	};
-
 	clearResourcePass->prepareForFrame(frameInfo);
 
 	rebuildFrameResources(commandList, scene);
@@ -292,8 +291,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	commandList->rsSetViewport(fullscreenViewport);
 	commandList->rsSetScissorRect(fullscreenScissorRect);
 
-	updateSceneUniform(commandList, frameIndex, scene, camera, sceneWidth, sceneHeight);
-	auto sceneUniformCBV = sceneUniformCBVs.at(frameIndex);
+	updateSceneUniform(commandList, oldFrameIndex, scene, camera, sceneWidth, sceneHeight);
+	auto sceneUniformCBV = sceneUniformCBVs.at(oldFrameIndex);
 
 	{
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
@@ -302,8 +301,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.scene  = scene,
 			.camera = camera,
 		};
-		gpuScene->renderGPUScene(commandList, frameIndex, passInput);
-		gpuScene->generateDrawcalls(commandList, frameIndex, passInput);
+		gpuScene->renderGPUScene(commandList, oldFrameIndex, passInput);
+		gpuScene->generateDrawcalls(commandList, oldFrameIndex, passInput);
 	}
 
 	if (renderOptions.bEnableGPUCulling)
@@ -403,7 +402,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gpuScene           = gpuScene,
 			.gpuCulling         = gpuCulling,
 		};
-		depthPrepass->renderDepthPrepass(commandList, frameIndex, passInput);
+		depthPrepass->renderDepthPrepass(commandList, oldFrameIndex, passInput);
 	}
 
 	if (bRenderVisibilityBuffer)
@@ -427,7 +426,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.visGBuffer1UAV     = visGbufferUAVs[1].get(),
 		};
 
-		decodeVisBufferPass->decodeVisBuffer(commandList, frameIndex, passInput);
+		decodeVisBufferPass->decodeVisBuffer(commandList, oldFrameIndex, passInput);
 	}
 
 	// Ray Traced Shadows
@@ -470,7 +469,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.raytracingScene    = accelStructure.get(),
 			.shadowMaskUAV      = shadowMaskUAV.get(),
 		};
-		rayTracedShadowsPass->renderRayTracedShadows(commandList, frameIndex, passInput);
+		rayTracedShadowsPass->renderRayTracedShadows(commandList, oldFrameIndex, passInput);
 	}
 
 	// Base pass
@@ -527,7 +526,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gpuCulling         = gpuCulling,
 			.shadowMaskSRV      = shadowMaskSRV.get(),
 		};
-		basePass->renderBasePass(commandList, frameIndex, passInput);
+		basePass->renderBasePass(commandList, oldFrameIndex, passInput);
 	}
 
 	Texture* currentGBufferTexture0 = nullptr;
@@ -561,7 +560,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gbuffer0SRV          = currentGBufferSRV0,
 			.gbuffer1SRV          = currentGBufferSRV1,
 		};
-		storeHistoryPass->extractCurrent(commandList, frameIndex, passInput);
+		storeHistoryPass->extractCurrent(commandList, oldFrameIndex, passInput);
 	}
 
 	// HiZ pass
@@ -577,7 +576,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.hizSRV            = hizSRV.get(),
 			.hizUAVs           = hizUAVs,
 		};
-		hizPass->renderHiZ(commandList, frameIndex, passInput);
+		hizPass->renderHiZ(commandList, oldFrameIndex, passInput);
 	}
 
 	// Sky pass
@@ -591,7 +590,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneUniformBuffer = sceneUniformCBV,
 			.skyboxSRV          = skyboxSRV.get(),
 		};
-		skyPass->renderSky(commandList, frameIndex, passInput);
+		skyPass->renderSky(commandList, oldFrameIndex, passInput);
 	}
 
 	// Path Tracing
@@ -632,7 +631,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.gbuffer1SRV           = currentGBufferSRV1,
 				.skyboxSRV             = skyboxSRV.get(),
 			};
-			pathTracingPass->renderPathTracing(commandList, frameIndex, passInput);
+			pathTracingPass->renderPathTracing(commandList, oldFrameIndex, passInput);
 		}
 	}
 	// Path Tracing Denoising
@@ -659,7 +658,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 					.gbuffer0SRV   = currentGBufferSRV0,
 					.gbuffer1SRV   = currentGBufferSRV1,
 				};
-				denoiserPluginPass->blitTextures(commandList, frameIndex, passInput);
+				denoiserPluginPass->blitTextures(commandList, oldFrameIndex, passInput);
 			}
 			{
 				SCOPED_DRAW_EVENT(commandList, FlushCommandQueue);
@@ -726,7 +725,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.indirectDiffuseTexture = RT_indirectDiffuse.get(),
 			.indirectDiffuseUAV     = indirectDiffuseUAV.get(),
 		};
-		indirectDiffusePass->renderIndirectDiffuse(commandList, frameIndex, passInput);
+		indirectDiffusePass->renderIndirectDiffuse(commandList, oldFrameIndex, passInput);
 	}
 
 	// Indirect Specular Reflection
@@ -750,7 +749,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	{
 		SCOPED_DRAW_EVENT(commandList, IndirectSpecular);
 
-		StoreHistoryPassResources historyResources = storeHistoryPass->getResources(frameIndex);
+		StoreHistoryPassResources historyResources = storeHistoryPass->getResources(oldFrameIndex);
 		
 		IndirectSpecularInput passInput{
 			.scene                   = scene,
@@ -793,7 +792,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.tileCounterBufferUAV    = indirectSpecularTileCounterBufferUAV.get(),
 			.indirectSpecularTexture = RT_indirectSpecular.get(),
 		};
-		indirectSpecularPass->renderIndirectSpecular(commandList, frameIndex, passInput);
+		indirectSpecularPass->renderIndirectSpecular(commandList, oldFrameIndex, passInput);
 	}
 
 	if (!bRenderPathTracing)
@@ -815,7 +814,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.indirectSpecularTexture = RT_indirectSpecular.get(),
 			.indirectSpecularSRV     = indirectSpecularSRV.get(),
 		};
-		combineLightingPass->combineLighting(commandList, frameIndex, passInput);
+		combineLightingPass->combineLighting(commandList, oldFrameIndex, passInput);
 	}
 
 	// Store history pass (step 2)
@@ -836,7 +835,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		commandList->copyTexture2D(RT_sceneDepth.get(), RT_prevSceneDepth.get());
 
-		storeHistoryPass->copyCurrentToPrev(commandList, frameIndex);
+		storeHistoryPass->copyCurrentToPrev(commandList, oldFrameIndex);
 	}
 
 	// Set final color as render target.
@@ -877,7 +876,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneUniformCBV     = sceneUniformCBV,
 			.sceneColorSRV       = alternateSceneColorSRV,
 		};
-		toneMapping->renderToneMapping(commandList, frameIndex, passInput);
+		toneMapping->renderToneMapping(commandList, oldFrameIndex, passInput);
 	}
 
 	OpticalFlowPassOutput opticalFlowPassOutput{};
@@ -997,7 +996,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.interpolatedFrameSRV   = bRenderFrameGeneration ? frameGenPassOutput.interpolatedFrameSRV : grey2DSRV.get(),
 		};
 
-		bufferVisualization->renderVisualization(commandList, frameIndex, sources);
+		bufferVisualization->renderVisualization(commandList, oldFrameIndex, sources);
 	}
 
 	// Flush GPU before present work.
@@ -1085,7 +1084,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.renderTarget       = renderOptions.finalRenderTarget,
 				.finalSceneColorSRV = presentInfo.colorSRV,
 			};
-			finalBlitPass->renderFinalBlit(commandList, frameIndex, passInput);
+			finalBlitPass->renderFinalBlit(commandList, oldFrameIndex, passInput);
 		}
 
 		// Dear Imgui: Record commands
