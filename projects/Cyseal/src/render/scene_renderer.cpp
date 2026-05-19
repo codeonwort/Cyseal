@@ -402,7 +402,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gpuScene           = gpuScene,
 			.gpuCulling         = gpuCulling,
 		};
-		depthPrepass->renderDepthPrepass(commandList, oldFrameIndex, passInput);
+		depthPrepass->renderDepthPrepass(commandList, frameInfo, passInput);
 	}
 
 	if (bRenderVisibilityBuffer)
@@ -526,7 +526,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.gpuCulling         = gpuCulling,
 			.shadowMaskSRV      = shadowMaskSRV.get(),
 		};
-		basePass->renderBasePass(commandList, oldFrameIndex, passInput);
+		basePass->renderBasePass(commandList, frameInfo, passInput);
 	}
 
 	Texture* currentGBufferTexture0 = nullptr;

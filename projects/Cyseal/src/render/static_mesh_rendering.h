@@ -1,6 +1,7 @@
 #pragma once
 
 #include "renderer_options.h"
+#include "scene_render_pass.h"
 #include "rhi/rhi_forward.h"
 #include "rhi/gpu_resource_binding.h"
 #include "rhi/gpu_resource.h"
@@ -24,7 +25,7 @@ struct IndirectDrawHelper
 		GraphicsPipelineKey inPipelineKey,
 		const wchar_t* inDebugName);
 
-	void resizeResources(uint32 swapchainIndex, uint32 maxDrawCount);
+	void resizeResources(const FrameInfo& frameInfo, uint32 maxDrawCount);
 
 	RenderDevice*                          device = nullptr;
 	GraphicsPipelineKey                    pipelineKey;
@@ -96,13 +97,13 @@ class StaticMeshRendering final
 public:
 	static void renderStaticMeshes(
 		RenderCommandList* commandList,
-		uint32 swapchainIndex,
+		const FrameInfo& frameInfo,
 		const StaticMeshRenderingInput& input);
 
 private:
 	static void renderForPipeline(
 		RenderCommandList* commandList,
-		uint32 swapchainIndex,
+		const FrameInfo& frameInfo,
 		const StaticMeshRenderingInput& input,
 		GraphicsPipelineKey pipelineKey,
 		const StaticMeshDrawList& drawList);

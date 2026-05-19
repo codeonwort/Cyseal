@@ -34,7 +34,7 @@ class BasePass final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inRenderDevice, EPixelFormat sceneColorFormat, const EPixelFormat gbufferForamts[], uint32 numGBuffers, EPixelFormat velocityMapFormat);
 
-	void renderBasePass(RenderCommandList* commandList, uint32 swapchainIndex, const BasePassInput& passInput);
+	void renderBasePass(RenderCommandList* commandList, const FrameInfo& frameInfo, const BasePassInput& passInput);
 
 private:
 	RenderDevice*                    device = nullptr;

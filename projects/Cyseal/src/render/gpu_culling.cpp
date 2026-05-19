@@ -18,8 +18,8 @@ void GPUCulling::initialize(RenderDevice* inRenderDevice, uint32 inMaxCullOperat
 {
 	maxCullOperationsPerFrame = inMaxCullOperationsPerFrame;
 
-	const uint32 swapchainCount = inRenderDevice->maxFramesInFlight();
-	passDescriptor.initialize(L"GPUCulling", swapchainCount, 0);
+	const uint32 maxFramesInFlight = inRenderDevice->maxFramesInFlight();
+	passDescriptor.initialize(L"GPUCulling", maxFramesInFlight, 0);
 
 	// Shader
 	ShaderStage* gpuCullingShader = inRenderDevice->createShader(EShaderStage::COMPUTE_SHADER, "GPUCullingCS");
@@ -39,7 +39,7 @@ void GPUCulling::resetCullingResources()
 	currentCullOperations = 0;
 }
 
-void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapchainIndex, const GPUCullingInput& passInput)
+void GPUCulling::cullDrawCommands(RenderCommandList* commandList, const FrameInfo& frameInfo, const GPUCullingInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, GPUCulling);
 
@@ -80,8 +80,7 @@ void GPUCulling::cullDrawCommands(RenderCommandList* commandList, uint32 swapcha
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
 	requiredVolatiles *= maxCullOperationsPerFrame; // #todo-gpuscene: Optimize if permutation blows up
-	passDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(swapchainIndex);
+	DescriptorHeap* volatileHeap = passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
 	commandList->setComputePipelineState(pipelineState.get());
 	commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileHeap, &descriptorIndexTracker);
