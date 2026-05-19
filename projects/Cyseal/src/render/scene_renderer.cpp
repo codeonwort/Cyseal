@@ -996,7 +996,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.interpolatedFrameSRV   = bRenderFrameGeneration ? frameGenPassOutput.interpolatedFrameSRV : grey2DSRV.get(),
 		};
 
-		bufferVisualization->renderVisualization(commandList, oldFrameIndex, sources);
+		bufferVisualization->renderVisualization(commandList, frameInfo, sources);
 	}
 
 	// Flush GPU before present work.

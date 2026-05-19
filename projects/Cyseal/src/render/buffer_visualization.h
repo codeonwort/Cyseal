@@ -42,7 +42,7 @@ class BufferVisualization final : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inRenderDevice);
 
-	void renderVisualization(RenderCommandList* commandList, uint32 swapchainIndex, const BufferVisualizationInput& passInput);
+	void renderVisualization(RenderCommandList* commandList, const FrameInfo& frameInfo, const BufferVisualizationInput& passInput);
 
 private:
 	GraphicsPipelineState* getPipelineState(Texture* renderTarget) const;
