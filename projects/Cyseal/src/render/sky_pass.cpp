@@ -9,8 +9,8 @@
 
 void SkyPass::initialize(RenderDevice* device, EPixelFormat sceneColorFormat)
 {
-	const uint32 swapchainCount = device->maxFramesInFlight();
-	volatileDescriptor.initialize(L"SkyPass", swapchainCount, 0);
+	const uint32 maxFramesInFlight = device->maxFramesInFlight();
+	volatileDescriptor.initialize(L"SkyPass", maxFramesInFlight, 0);
 
 	// Create input layout.
 	VertexInputLayout inputLayout = {
@@ -92,16 +92,14 @@ void SkyPass::initialize(RenderDevice* device, EPixelFormat sceneColorFormat)
 	}
 }
 
-void SkyPass::renderSky(RenderCommandList* commandList, uint32 swapchainIndex, const SkyPassInput& passInput)
+void SkyPass::renderSky(RenderCommandList* commandList, const FrameInfo& frameInfo, const SkyPassInput& passInput)
 {
 	ShaderParameterTable SPT{};
 	SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
 	SPT.texture("skybox", passInput.skyboxSRV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors();
-	volatileDescriptor.resizeDescriptorHeap(swapchainIndex, requiredVolatiles);
-
-	auto descriptorHeap = volatileDescriptor.getDescriptorHeap(swapchainIndex);
+	auto descriptorHeap = volatileDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
 
 	commandList->setGraphicsPipelineState(pipelineState.get());
 	commandList->bindGraphicsShaderParameters(pipelineState.get(), &SPT, descriptorHeap);

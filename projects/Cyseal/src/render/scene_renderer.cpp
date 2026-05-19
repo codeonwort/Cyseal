@@ -590,7 +590,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.sceneUniformBuffer = sceneUniformCBV,
 			.skyboxSRV          = skyboxSRV.get(),
 		};
-		skyPass->renderSky(commandList, oldFrameIndex, passInput);
+		skyPass->renderSky(commandList, frameInfo, passInput);
 	}
 
 	// Path Tracing
