@@ -30,9 +30,9 @@ public:
 	void initialize(RenderDevice* renderDevice);
 
 	// Update GPU scene buffer.
-	void renderGPUScene(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput);
+	void renderGPUScene(RenderCommandList* commandList, const FrameInfo& frameInfo, const GPUSceneInput& passInput);
 
-	void generateDrawcalls(RenderCommandList* commandList, uint32 swapchainIndex, const GPUSceneInput& passInput);
+	void generateDrawcalls(RenderCommandList* commandList, const FrameInfo& frameInfo, const GPUSceneInput& passInput);
 
 	// Might return null if no gpu scene item was allocated yet.
 	ShaderResourceView* getGPUSceneBufferSRV() const;
@@ -55,13 +55,13 @@ private:
 	void initializeDrawcallPipeline();
 
 	void resizeGPUSceneBuffer(RenderCommandList* commandList, uint32 maxElements);
-	void resizeGPUSceneCommandBuffers(uint32 swapchainIndex, const SceneProxy* scene);
-	void executeGPUSceneCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
+	void resizeGPUSceneCommandBuffers(const FrameInfo& frameInfo, const SceneProxy* scene);
+	void executeGPUSceneCommands(RenderCommandList* commandList, const FrameInfo& frameInfo, const SceneProxy* scene);
 
 	void resizeMaterialBuffer(RenderCommandList* commandList, uint32 maxElements);
 	void resizeBindlessTextures(RenderCommandList* commandList, uint32 maxElements);
-	void resizeMaterialCommandBuffer(uint32 swapchainIndex, const SceneProxy* scene);
-	void executeMaterialCommands(RenderCommandList* commandList, uint32 swapchainIndex, const SceneProxy* scene);
+	void resizeMaterialCommandBuffer(const FrameInfo& frameInfo, const SceneProxy* scene);
+	void executeMaterialCommands(RenderCommandList* commandList, const FrameInfo& frameInfo, const SceneProxy* scene);
 
 	void resizeDrawcallBuffer(RenderCommandList* commandList, const SceneProxy* scene);
 

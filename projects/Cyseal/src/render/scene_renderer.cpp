@@ -291,8 +291,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	commandList->rsSetViewport(fullscreenViewport);
 	commandList->rsSetScissorRect(fullscreenScissorRect);
 
-	updateSceneUniform(commandList, oldFrameIndex, scene, camera, sceneWidth, sceneHeight);
-	auto sceneUniformCBV = sceneUniformCBVs.at(oldFrameIndex);
+	updateSceneUniform(commandList, frameInfo.frameIndex, scene, camera, sceneWidth, sceneHeight);
+	auto sceneUniformCBV = sceneUniformCBVs.at(frameInfo.frameIndex);
 
 	{
 		SCOPED_DRAW_EVENT(commandList, GPUScene);
@@ -301,8 +301,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.scene  = scene,
 			.camera = camera,
 		};
-		gpuScene->renderGPUScene(commandList, oldFrameIndex, passInput);
-		gpuScene->generateDrawcalls(commandList, oldFrameIndex, passInput);
+		gpuScene->renderGPUScene(commandList, frameInfo, passInput);
+		gpuScene->generateDrawcalls(commandList, frameInfo, passInput);
 	}
 
 	if (renderOptions.bEnableGPUCulling)
