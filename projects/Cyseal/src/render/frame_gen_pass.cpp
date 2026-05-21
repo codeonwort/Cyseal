@@ -9,8 +9,14 @@
 // doc: docs/techniques/frame-interpolation.md
 // src: sdk/src/components/frameinterpolation/ffx_frameinterpolation.cpp
 
-// Input: 2 back buffers + several resources shared with FSR3Upscaler and FfxOpticalFlow
-// Output: An interpolated image between the 2 back buffers
+// Input:
+// - Current frame final color image (sceneColorTexture in FrameGenPassInput).
+// - Prev frame final color image (prevInterpolationSourceTexture in FramGenPass class).
+// - Several resources shared with FSR3Upscaler and FfxOpticalFlow.
+
+// Output:
+// - An interpolated image between the 2 color images.
+// - SceneRenderer will present both the interpolated image and current final color image in that order.
 
 // FFX_DECLARE_CB(FFX_FRAMEINTERPOLATION_BIND_CB_FRAMEINTERPOLATION)
 struct FrameInterpUniform
@@ -44,7 +50,7 @@ struct FrameInterpUniform
 	int32           interpolationRectSize[2];
 
 	float           debugBarColor[3];
-	uint32          backBufferTransferFunction; // Transfer fn to convert interpolation source color data to linear RGB
+	uint32          backBufferTransferFunction; // See OpticalFlowBackbufferTransferFunction
 
 	float           minMaxLuminance[2]; // Used when converting HDR colors to linear RGB
 	float           fTanHalfFOV;
@@ -533,7 +539,7 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.fTanHalfFOV                = 0.5f * std::tan(2.0f * std::atan(std::tan(passInput.camera->getFovYInRadians() * 0.5f) * passInput.camera->getAspectRatio())),
 		._pad1                      = 0,
 		.fJitter                    = { 0, 0 }, // #todo-fsr3: Probably needed when doing super resolution AND interpolation.
-		.fMotionVectorScale         = { 1.0f, 1.0f },
+		.fMotionVectorScale         = { -1, -1 },
 	};
 	setupDeviceDepthToViewSpaceDepthParams(passInput.camera, 1.0f, fiUniformData.fDeviceToViewDepth);
 
