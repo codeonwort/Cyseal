@@ -533,7 +533,7 @@ void FrameGenPass::updateUniforms(RenderCommandList* commandList, const FrameGen
 		.fTanHalfFOV                = 0.5f * std::tan(2.0f * std::atan(std::tan(passInput.camera->getFovYInRadians() * 0.5f) * passInput.camera->getAspectRatio())),
 		._pad1                      = 0,
 		.fJitter                    = { 0, 0 }, // #todo-fsr3: Probably needed when doing super resolution AND interpolation.
-		.fMotionVectorScale         = { 1.0f, 1.0f },
+		.fMotionVectorScale         = { -1, -1 },
 	};
 	setupDeviceDepthToViewSpaceDepthParams(passInput.camera, 1.0f, fiUniformData.fDeviceToViewDepth);
 
