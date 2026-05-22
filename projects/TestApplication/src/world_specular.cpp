@@ -21,6 +21,11 @@
 #define BALL_COLS            6
 #define CREATE_GROUND        1
 
+// #wip: Fix known issues
+// - Find out why a path that bounces at both mirror and glass is black.
+// - Black fireflies in world1. Different issue than (mirror + glass) above.
+// - Artifacts at screen edge in world1. Even repro in perfect mirror mode.
+
 void World_Specular::onInitialize()
 {
 	camera->lookAt(CAMERA_POSITION, CAMERA_LOOKAT, CAMERA_UP);

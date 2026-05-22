@@ -43,10 +43,10 @@
 
 #define USE_AMD_DENOISER                    1
 
-// 1 means roughness values are perceptual, so need to be squred for linear roughness.
-// BRDF functions expect linear roughness values.
+// If 1, AMD denoiser assumes that roughness texture contains perceptual roughness values. See material.h
 #define AMD_IS_ROUGHNESS_PERCEPTUAL         0
 #define AMD_TEMPORAL_STABILITY_FACTOR       0.7f
+// Linear roughness 0.22 ~= percetual roughness 0.47
 #define AMD_ROUGHNESS_THRESHOLD             0.22f
 
 static const uint32 MAX_FRAMES_IN_FLIGHT = 2;
@@ -923,7 +923,8 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, const 
 	// With indirect dispatch we don't write to all pixels anymore, so need to explicitly clear the texture.
 	{
 		SCOPED_DRAW_EVENT(commandList, ClearIndirectSpecularRaytracing);
-
+		
+		// #wip: Now I have clearResourcePass
 		// #todo-rhi: ID3D12GraphicsCommandList::ClearUnorderedAccessViewFloat() requires TWO descriptor heaps for a single UAV?
 		// Well let's just adopt the most lazy way...
 
@@ -986,30 +987,12 @@ void IndirecSpecularPass::legacyDenoisingPhase(RenderCommandList* commandList, c
 
 	{
 		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				currColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				currMomentTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				currSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				prevColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				prevMomentTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				prevSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
+			TextureBarrierAuto::toUnorderedAccess(currColorTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(currMomentTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(currSampleCountTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toShaderResource(prevColorTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toShaderResource(prevMomentTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toShaderResource(prevSampleCountTexture, EBarrierSync::COMPUTE_SHADING),
 		};
 		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 	}
@@ -1116,66 +1099,21 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, const P
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
 	};
 	TextureBarrierAuto textureBarriers[] = {
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.hizTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.velocityMapTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.normalTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			currRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			prevRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			currVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			currSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.roughnessTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.prevSceneDepthTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.prevNormalTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.prevRoughnessTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			prevVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			prevSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			avgRadianceTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			reprojectedRadianceTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
+		TextureBarrierAuto::toShaderResource(passInput.hizTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(passInput.velocityMapTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(passInput.normalTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(currRadianceTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(prevRadianceTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(currVarianceTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(currSampleCountTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(passInput.roughnessTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(passInput.prevSceneDepthTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(passInput.prevNormalTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(passInput.prevRoughnessTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(prevVarianceTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(prevSampleCountTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(avgRadianceTexture.get(), EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(reprojectedRadianceTexture.get(), EBarrierSync::COMPUTE_SHADING),
 	};
 	commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
@@ -1257,38 +1195,14 @@ void IndirecSpecularPass::amdPrefilterPhase(RenderCommandList* commandList, cons
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
 	};
 	TextureBarrierAuto textureBarriers[] = {
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.hizTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.normalTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			prevRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			prevVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			avgRadianceTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.roughnessTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			currRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			currVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
+		TextureBarrierAuto::toShaderResource(passInput.hizTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(passInput.normalTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(prevRadianceTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(prevVarianceTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(avgRadianceTexture.get(), EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(passInput.roughnessTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(currRadianceTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(currVarianceTexture, EBarrierSync::COMPUTE_SHADING),
 	};
 	commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
@@ -1359,38 +1273,14 @@ void IndirecSpecularPass::amdResolveTemporalPhase(RenderCommandList* commandList
 		{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
 	};
 	TextureBarrierAuto textureBarriers[] = {
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			currRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			currVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			currSampleCountTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			avgRadianceTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			passInput.roughnessTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-			reprojectedRadianceTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			prevRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
-		{
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			prevVarianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		},
+		TextureBarrierAuto::toShaderResource(currRadianceTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(currVarianceTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(currSampleCountTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(avgRadianceTexture.get(), EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(passInput.roughnessTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(reprojectedRadianceTexture.get(), EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(prevRadianceTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(prevVarianceTexture, EBarrierSync::COMPUTE_SHADING),
 	};
 	commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
@@ -1459,14 +1349,8 @@ void IndirecSpecularPass::amdFinalizeOutputPhase(RenderCommandList* commandList,
 			{ EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, passInput.tileCoordBuffer },
 		};
 		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				prevRadianceTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				amdFinalColorTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
+			TextureBarrierAuto::toShaderResource(prevRadianceTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(amdFinalColorTexture.get(), EBarrierSync::COMPUTE_SHADING),
 		};
 		commandList->barrierAuto(_countof(bufferBarriers), bufferBarriers, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
