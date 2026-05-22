@@ -1,6 +1,7 @@
 #include "app.h"
 #include "world1.h"
 #include "world2.h"
+#include "world_specular.h"
 
 #include "core/core_minimal.h"
 #include "memory/memory_tracker.h"
@@ -44,8 +45,9 @@
 
 enum class EWorldIndex : uint32
 {
-	World1 = 0,
-	World2 = 1,
+	World1         = 0,
+	World2         = 1,
+	World_Specular = 2,
 
 	Count,
 };
@@ -54,6 +56,7 @@ static const char** getWorldNames()
 	static const char* names[] = {
 		"World1",
 		"World2",
+		"World_Specular",
 	};
 	static_assert(_countof(names) == (int)EWorldIndex::Count);
 	return names;
@@ -62,8 +65,10 @@ World* createWorldInstance(EWorldIndex worldIndex)
 {
 	switch (worldIndex)
 	{
-		case EWorldIndex::World1: return new(EMemoryTag::World) World1;
-		case EWorldIndex::World2: return new(EMemoryTag::World) World2;
+		case EWorldIndex::World1         : return new(EMemoryTag::World) World1;
+		case EWorldIndex::World2         : return new(EMemoryTag::World) World2;
+		case EWorldIndex::World_Specular : return new(EMemoryTag::World) World_Specular;
+
 		case EWorldIndex::Count:
 		default:
 			CHECK_NO_ENTRY();
