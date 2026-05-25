@@ -3,6 +3,9 @@
 
 #include "common.hlsl"
 
+// #wip: Workaround but check again
+#define MIRROR_REFLECTION_ROUGHNESS 0.01
+
 // ---------------------------------------------------------
 // Definitions
 
@@ -158,8 +161,17 @@ MicrofacetBRDFOutput microfacetBRDF(MicrofacetBRDFInput input)
 	// Wh = normalized half-vector
 	float3 N = float3(0, 0, 1); // #todo-pathtracing: No bump mapping yet
 	float3 Wo = rotateVector(-inRayDir, worldToLocal);
-	float3 Wh = sampleGGXVNDF(Wo, roughness, roughness, rand0, rand1);
-	float3 Wi = reflect(-Wo, Wh);
+	float3 Wh, Wi;
+	if (roughness < MIRROR_REFLECTION_ROUGHNESS)
+	{
+		Wi = reflect(-Wo, N);
+		Wh = normalize(Wo + Wi);
+	}
+	else
+	{
+		Wh = sampleGGXVNDF(Wo, roughness, roughness, rand0, rand1);
+		Wi = reflect(-Wo, Wh);
+	}
 
 	// As I'm sampling Wh and deriving Wi from Wo and Wh, Wi actually can go other side of the surface.
 	// In that case, invalidate current sample by setting pdf = 0.
@@ -181,8 +193,17 @@ MicrofacetBRDFOutput microfacetBRDF(MicrofacetBRDFInput input)
 	float3 F0 = lerp(float3(0.04, 0.04, 0.04), baseColor, metallic);
 
 	float3 F = fresnelSchlick(dot(Wh, Wi), F0);
-	float G = geometrySmithGGX(Wh, Wo, Wi, roughness);
-	float NDF = distributionGGX(N, Wh, roughness);
+	float G, NDF;
+	if (roughness < MIRROR_REFLECTION_ROUGHNESS)
+	{
+		G = 1;
+		NDF = 1;
+	}
+	else
+	{
+		G = geometrySmithGGX(Wh, Wo, Wi, roughness);
+		NDF = distributionGGX(N, Wh, roughness);
+	}
 
 	float3 kS = F;
 	float3 kD = 1.0 - kS;
@@ -191,9 +212,17 @@ MicrofacetBRDFOutput microfacetBRDF(MicrofacetBRDFInput input)
 
 	MicrofacetBRDFOutput output;
 	output.diffuseReflectance = (kD * diffuse) * NdotWi;
-	output.specularReflectance = (kS * specular) * NdotWi;
 	output.outRayDir = rotateVector(Wi, localToWorld);
-	output.pdf = 1.0 / (0.001 + 4.0 * dot(Wh, Wo));
+	if (roughness < MIRROR_REFLECTION_ROUGHNESS)
+	{
+		output.specularReflectance = NdotWi;
+		output.pdf = 1.0;
+	}
+	else
+	{
+		output.specularReflectance = kS * specular * NdotWi;
+		output.pdf = 1.0 / (0.001 + 4.0 * dot(Wh, Wo));
+	}
 	return output;
 }
 

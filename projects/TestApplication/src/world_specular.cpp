@@ -62,8 +62,8 @@ void World_Specular::onInitialize()
 		};
 
 		std::vector<BoxSpawnParams> boxSpawnParams = {
-			{ .scale = vec3(15, 15, 15), .position = vec3(-20, -5, 30), .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.05f },
-			{ .scale = vec3(10, 10, 10), .position = vec3(10, -5, 30) , .albedo = vec3(0.1f, 0.9f, 0.1f), .roughness = 0.05f },
+			{ .scale = vec3(15, 15, 15), .position = vec3(-20, -5, 30), .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.001f },
+			{ .scale = vec3(10, 10, 10), .position = vec3(10, -5, 30) , .albedo = vec3(0.1f, 0.9f, 0.1f), .roughness = 0.001f },
 		};
 
 		for (const BoxSpawnParams& params : boxSpawnParams)
