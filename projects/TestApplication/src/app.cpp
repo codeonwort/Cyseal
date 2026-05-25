@@ -120,6 +120,9 @@ bool TestApplication::onInitialize()
 
 	resetSceneAndCamera();
 
+	// #wip: Temp change start world.
+	appState.currentWorldIndex = (int32)EWorldIndex::World_Specular;
+
 	world = createWorldInstance((EWorldIndex)appState.currentWorldIndex);
 	world->preinitialize(&scene, &camera, &appState);
 	world->onInitialize();
@@ -159,6 +162,7 @@ void TestApplication::onTick(float deltaSeconds)
 			float newFPS = 1.0f / deltaSeconds;
 
 			// 1 frame time includes 1 interpolated frame + 1 real frame, so 2x frame rate.
+			// #todo-fsr3-present: Need to measure real FPS. Inaccurate e.g., if vsync is enabled and base framerate is already as fast as monitor refresh rate.
 			if (appState.rendererOptions.bGenerateFrame) newFPS *= 2.0f;
 
 			framesPerSecond += 0.05f * (newFPS - framesPerSecond);

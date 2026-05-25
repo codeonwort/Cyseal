@@ -2,6 +2,8 @@
 
 #include "world.h"
 
+#include <vector>
+
 class StaticMesh;
 
 // World to test specular lighting.
@@ -14,4 +16,5 @@ public:
 
 private:
 	StaticMesh* ground = nullptr;
+	std::vector<StaticMesh*> boxes;
 };
