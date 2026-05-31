@@ -38,8 +38,8 @@ void World_Specular::onInitialize()
 		ProceduralGeometry::plane(*planeGeometry, 100.0f, 100.0f, 2, 2, ProceduralGeometry::EPlaneNormal::Y);
 
 		auto material = makeShared<MaterialAsset>();
-		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
-		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
+		material->albedoMultiplier = vec3(0.05f, 0.05f, 0.05f);
+		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
 		material->roughness = 0.05f;
 
 		ground = new StaticMesh;
@@ -62,8 +62,10 @@ void World_Specular::onInitialize()
 		};
 
 		std::vector<BoxSpawnParams> boxSpawnParams = {
-			{ .scale = vec3(15, 15, 15), .position = vec3(-20, -5, 30), .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.001f },
-			{ .scale = vec3(10, 10, 10), .position = vec3(10, -5, 30) , .albedo = vec3(0.1f, 0.9f, 0.1f), .roughness = 0.001f },
+			{ .scale = vec3(15, 15, 15), .position = vec3(-30, -5, 30), .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.9f },
+			{ .scale = vec3(10, 10, 10), .position = vec3(-10, -5, 30), .albedo = vec3(0.1f, 0.9f, 0.1f), .roughness = 0.9f },
+			{ .scale = vec3(10, 10, 10), .position = vec3(5, -5, 30),   .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.01f },
+			{ .scale = vec3(20, 20, 20), .position = vec3(30, -5, 30) , .albedo = vec3(0.1f, 0.9f, 0.1f), .roughness = 0.01f },
 		};
 
 		for (const BoxSpawnParams& params : boxSpawnParams)

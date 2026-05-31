@@ -82,7 +82,7 @@ namespace hwrt
 
 		return microfacetBRDF(brdfInput);
 	}
-
+	
 	MicrofacetBRDFOutput evaluateMirror(float3 inRayDir, float3 surfaceNormal)
 	{
 		MicrofacetBRDFOutput brdfOutput;

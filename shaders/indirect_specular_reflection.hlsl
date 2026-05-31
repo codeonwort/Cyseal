@@ -443,8 +443,13 @@ void MainRaygen()
 		rayLength = LiAndRayLen.w;
 	}
 	
-	if (any(isnan(Wo))) Wo = 0;
+	if (microfacetBRDFOutputIsInvalid(brdfOutput) || any(isnan(Wo)))
+	{
+		Wo = 0;
+		rayLength = 0;
+	}
 
+	// #wip: If invalid sample was generated, then write Wo = 0 but temporal accumulation averages it anyway, so it gets darker I guess...
 	rwRaytracingTexture[texel] = float4(Wo, rayLength);
 	rwRadianceTexture[texel] = float4(Wo, rayLength);
 	rwVarianceTexture[texel] = rayLength;

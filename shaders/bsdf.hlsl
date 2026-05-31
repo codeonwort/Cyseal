@@ -64,10 +64,25 @@ float3 getRefractedDirection(float3 V, float3 N, float ior)
 	return ior * V + (ior * inCosTheta - sqrt(1 - outSinThetaSq)) * N;
 }
 
+// #wip: Deprecate?
+// cosTheta = dot(incident_or_exitant_light, half_vector)
+float3 fresnelSchlick(float cosTheta, float3 F0)
+{
+	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+// #wip: Deprecate?
+float3 fresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
+{
+	return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
 // ---------------------------------------------------------
 // BSDF
 
 #if REWORK_SPECULAR_BRDF
+
+float square(float x) { return x * x; }
 
 namespace bsdf_private
 {
@@ -100,7 +115,7 @@ namespace bsdf_private
 	{
 		float t = tan2Theta(w);
 		if (isinf(t)) return 0;
-		float alpha2 = sqrt(cosPhi(w) * alpha_x) + sqrt(sinPhi(w) * alpha_y);
+		float alpha2 = square(cosPhi(w) * alpha_x) + square(sinPhi(w) * alpha_y);
 		return 0.5 * (sqrt(1 + alpha2 * t) - 1);
 	}
 	
@@ -110,140 +125,167 @@ namespace bsdf_private
 	}
 }
 
-float trowbridgeReitzDistribution(float3 wm, float alpha_x, float alpha_y)
+namespace specular_brdf
 {
-	float t = bsdf_private::tan2Theta(wm);
-	if (isinf(t)) return 0;
-	float cos4Theta = sqrt(bsdf_private::cos2Theta(wm));
-	float e = t * (sqrt(bsdf_private::cosPhi(wm) / alpha_x) + sqrt(bsdf_private::sinPhi(wm) / alpha_y));
-	return 1 / (PI * alpha_x * alpha_y * cos4Theta * sqrt(1 + e));
-}
-
-// Masking-shadowing function.
-// All vectors are in local space.
-// Wo      : incoming path direction
-// Wi      : scattered direction
-// alpha_x : roughnessX
-// alpha_y : roughnessY
-float geometrySmithGGX(float3 Wo, float3 Wi, float alpha_x, float alpha_y)
-{
-	float a1 = bsdf_private::geometry1_lambda(Wo, alpha_x, alpha_y);
-	float a2 = bsdf_private::geometry1_lambda(Wi, alpha_x, alpha_y);
-	return 1 / (1 + a1 + a2);
-}
-
-// https://pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#SamplingtheDistributionofVisibleNormals
-// 9.6.4 Sampling the Distribution of Visible Normals
-float D(float3 w, float3 wm, float alpha_x, float alpha_y)
-{
-	float d = trowbridgeReitzDistribution(wm, alpha_x, alpha_y);
-	return (bsdf_private::geometry1(w, alpha_x, alpha_y) / bsdf_private::absCosTheta(w)) * d * abs(dot(w, wm));
-}
-float PDF(float3 w, float3 wm, float alpha_x, float alpha_y)
-{
-	return D(w, wm, alpha_x, alpha_y);
-}
-
-float2 sampleUniformDiskPolar(float2 u)
-{
-	float r = sqrt(u.x);
-	float theta = 2 * PI * u.y;
-	return float2(r * cos(theta), r * sin(theta));
-}
-
-float3 sample_wm(float3 w, float2 u, float alpha_x, float alpha_y)
-{
-	// Transform w to hemispherical config.
-	float3 wh = normalize(float3(alpha_x * w.x, alpha_y * w.y, w.z));
-	if (wh.z < 0)
-		wh = -wh;
-	// Find orthonormal basis for visible normal sampling.
-	float3 T1 = (wh.z < 0.99999) ? normalize(cross(float3(0, 0, 1), wh)) : float3(1, 0, 0);
-	float3 T2 = cross(wh, T1);
-	// Generate uniformly distributed points on the unit disk.
-	float2 p = sampleUniformDiskPolar(u);
-	// Warp hemispherical projection for visible normal sampling.
-	float h = sqrt(1 - sqrt(p.x));
-	p.y = lerp((1 + wh.z) / 2, h, p.y);
-	// Reproject to hemisphere and transform normal to ellipsoid config.
-	float pz = sqrt(max(0, 1 - dot(p, p)));
-	float3 nh = p.x * T1 + p.y * T2 + pz * wh;
-	return normalize(float3(alpha_x * nh.x, alpha_y * nh.y, max(1e-6, nh.z)));
-}
-
-MicrofacetBRDFOutput microfacetBRDF(MicrofacetBRDFInput input)
-{
-	float3 inRayDir = input.inRayDir;
-	// #todo-pathtracing: Transform surfaceNormal properly when normalmap is introduced.
-	float3 surfaceNormal = input.surfaceNormal;
-	float3 baseColor = input.baseColor;
-	float roughness = input.roughness;
-	float metallic = input.metallic;
-	float rand0 = input.rand0;
-	float rand1 = input.rand1;
-
-	// Incoming ray can hit any side of the surface, so if hit backface, then rather flip the surfaceNormal.
-	if (dot(surfaceNormal, inRayDir) > 0.0)
+	float trowbridgeReitzDistribution(float3 wm, float alpha_x, float alpha_y)
 	{
-		surfaceNormal *= -1;
+		float t = bsdf_private::tan2Theta(wm);
+		if (isinf(t)) return 0;
+		float cos4Theta = square(bsdf_private::cos2Theta(wm));
+		float e = t * (square(bsdf_private::cosPhi(wm) / alpha_x) + square(bsdf_private::sinPhi(wm) / alpha_y));
+		return 1 / (PI * alpha_x * alpha_y * cos4Theta * square(1 + e));
 	}
 
-	// Do all BRDF calculations in local space where macrosurface normal is z-axis (0, 0, 1).
-	// Pick random tangent and bitangent in xy-plane.
-	float3 worldT, worldB;
-	computeTangentFrame(surfaceNormal, worldT, worldB);
-	float3x3 localToWorld = float3x3(worldT, worldB, surfaceNormal);
-	float3x3 worldToLocal = transpose(localToWorld);
+	// Masking-shadowing function.
+	// All vectors are in local space.
+	// Wo      : incoming path direction
+	// Wi      : scattered direction
+	// alpha_x : roughnessX
+	// alpha_y : roughnessY
+	float geometrySmithGGX(float3 Wo, float3 Wi, float alpha_x, float alpha_y)
+	{
+		float a1 = bsdf_private::geometry1_lambda(Wo, alpha_x, alpha_y);
+		float a2 = bsdf_private::geometry1_lambda(Wi, alpha_x, alpha_y);
+		return 1 / (1 + a1 + a2);
+	}
+
+	// https://pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#SamplingtheDistributionofVisibleNormals
+	// 9.6.4 Sampling the Distribution of Visible Normals
+	float D(float3 w, float3 wm, float alpha_x, float alpha_y)
+	{
+		float d = trowbridgeReitzDistribution(wm, alpha_x, alpha_y);
+		return (bsdf_private::geometry1(w, alpha_x, alpha_y) / bsdf_private::absCosTheta(w)) * d * abs(dot(w, wm));
+	}
+	float PDF(float3 w, float3 wm, float alpha_x, float alpha_y)
+	{
+		return D(w, wm, alpha_x, alpha_y);
+	}
+
+	float2 sampleUniformDiskPolar(float2 u)
+	{
+		float r = sqrt(u.x);
+		float theta = 2 * PI * u.y;
+		return float2(r * cos(theta), r * sin(theta));
+	}
+
+	// w = Wo
+	// u = uniform random x, y
+	// alpha_x, alpha_y = roughnessX,Y
+	float3 sample_wm(float3 w, float2 u, float alpha_x, float alpha_y)
+	{
+		// Transform w to hemispherical config.
+		float3 wh = normalize(float3(alpha_x * w.x, alpha_y * w.y, w.z));
+		if (wh.z < 0)
+			wh = -wh;
+		// Find orthonormal basis for visible normal sampling.
+		float3 T1 = (wh.z < 0.99999) ? normalize(cross(float3(0, 0, 1), wh)) : float3(1, 0, 0);
+		float3 T2 = cross(wh, T1);
+		// Generate uniformly distributed points on the unit disk.
+		float2 p = sampleUniformDiskPolar(u);
+		// Warp hemispherical projection for visible normal sampling.
+		float h = sqrt(1 - (p.x * p.x));
+		p.y = lerp((1 + wh.z) / 2, h, p.y);
+		// Reproject to hemisphere and transform normal to ellipsoid config.
+		float pz = sqrt(max(0, 1 - dot(p, p)));
+		float3 nh = p.x * T1 + p.y * T2 + pz * wh;
+		return normalize(float3(alpha_x * nh.x, alpha_y * nh.y, max(1e-6, nh.z)));
+	}
+
+	MicrofacetBRDFOutput specularBRDF(MicrofacetBRDFInput input)
+	{
+		// 1. Transform to local space.
 	
-	// Wo, Wi faces outwards.
-	// Wh = normalized half-vector
-	float3 N = float3(0, 0, 1);
-	float3 Wo = rotateVector(-inRayDir, worldToLocal);
-	float3 Wh, Wi;
-	if (roughness < MIRROR_REFLECTION_ROUGHNESS)
-	{
-		Wi = reflect(-Wo, N);
-		Wh = normalize(Wo + Wi);
-	}
-	else
-	{
-		Wh = sample_wm(Wo, float2(rand0, rand1), roughness, roughness);
-		Wi = reflect(-Wo, Wh);
-	}
+		float3 inRayDir = input.inRayDir;
+		// #todo-pathtracing: Transform surfaceNormal properly when normalmap is introduced.
+		float3 surfaceNormal = input.surfaceNormal;
+		float3 baseColor = input.baseColor;
+		float roughness = input.roughness;
+		float metallic = input.metallic;
+		float rand0 = input.rand0;
+		float rand1 = input.rand1;
 
-	// As I'm sampling Wh and deriving Wi from Wo and Wh, Wi actually can go other side of the surface.
-	// In that case, invalidate current sample by setting pdf = 0.
-	// The integrator will reject a sample with zero probability.
-	bool bInvalidWi = Wi.z <= 0.0;
-	if (bInvalidWi)
-	{
+		// Incoming ray can hit any side of the surface, so if hit backface, then rather flip the surfaceNormal.
+		if (dot(surfaceNormal, inRayDir) > 0.0)
+		{
+			surfaceNormal *= -1;
+		}
+
+		// Do all BRDF calculations in local space where macrosurface normal is z-axis (0, 0, 1).
+		// Pick random tangent and bitangent in xy-plane.
+		float3 worldT, worldB;
+		computeTangentFrame(surfaceNormal, worldT, worldB);
+		float3x3 localToWorld = float3x3(worldT, worldB, surfaceNormal);
+		float3x3 worldToLocal = transpose(localToWorld);
+	
+		// 2. Find Wh and Wi from Wo.
+	
+		// Wo, Wi faces outwards. Wh is normalized half-vector.
+		float3 N = float3(0, 0, 1);
+		float3 Wo = rotateVector(-inRayDir, worldToLocal);
+		float3 Wh, Wi;
+		if (roughness < MIRROR_REFLECTION_ROUGHNESS)
+		{
+			Wi = reflect(-Wo, N);
+			Wh = normalize(Wo + Wi);
+		}
+		else
+		{
+			Wh = sample_wm(Wo, float2(rand0, rand1), roughness, roughness);
+			Wi = reflect(-Wo, Wh);
+		}
+
+		// As I'm sampling Wh and deriving Wi from Wo and Wh, Wi can go other side of the surface.
+		// In that case, invalidate current sample by setting pdf = 0.
+		// The integrator should reject an invalid sample on its own.
+		if (Wi.z <= 0.0)
+		{
+			MicrofacetBRDFOutput output;
+			output.diffuseReflectance = 0;
+			output.specularReflectance = 0;
+			output.outRayDir = rotateVector(Wi, localToWorld);
+			output.pdf = 0;
+			return output;
+		}
+		
+		// 3. Compute PDF of Wi.
+		
+		float pdf = PDF(Wo, Wh, roughness, roughness) / (4 * abs(dot(Wo, Wh)));
+		
+		// 4. Compute specular BRDF.
+		
+		float cosTheta_o = bsdf_private::absCosTheta(Wo);
+		float cosTheta_i = bsdf_private::absCosTheta(Wi);
+		
+		float3 F0 = lerp(float3(0.04, 0.04, 0.04), baseColor, metallic);
+		float3 _f = fresnelSchlick(dot(Wh, Wi), F0);
+		float _d = trowbridgeReitzDistribution(Wh, roughness, roughness);
+		float _g = geometrySmithGGX(Wo, Wi, roughness, roughness);
+		
+		float3 specularBRDF = (_d * _f * _g) / (4 * cosTheta_i * cosTheta_o);
+		
+		// 5. Return the result.
+		
 		MicrofacetBRDFOutput output;
 		output.diffuseReflectance = 0;
-		output.specularReflectance = 0;
 		output.outRayDir = rotateVector(Wi, localToWorld);
-		output.pdf = 0;
+		if (roughness < MIRROR_REFLECTION_ROUGHNESS)
+		{
+			output.specularReflectance = cosTheta_i;
+			output.pdf = 1.0;
+		}
+		else
+		{
+			output.specularReflectance = specularBRDF * cosTheta_i;
+			output.pdf = pdf;
+		}
+
 		return output;
 	}
-	
-	// #wip: Torrance-Sparrow sampling here
-	// ...
-
-	MicrofacetBRDFOutput output;
-	return output;
 }
 
-#else // REWORK_SPECULAR_BRDF
+#endif
 
-// cosTheta = dot(incident_or_exitant_light, half_vector)
-float3 fresnelSchlick(float cosTheta, float3 F0)
-{
-	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}
-
-float3 fresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
-{
-	return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);
-}
+#if 1
 
 // All vectors are in local space.
 // N     : macrosurface normal
