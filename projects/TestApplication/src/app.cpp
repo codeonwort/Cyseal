@@ -254,6 +254,11 @@ void TestApplication::onTick(float deltaSeconds)
 
 		cysealEngine.beginImguiNewFrame();
 		{
+			if (world != nullptr)
+			{
+				world->onRenderGUI();
+			}
+
 			//ImGui::ShowDemoWindow(0);
 
 			ImGui::Begin("Cyseal");

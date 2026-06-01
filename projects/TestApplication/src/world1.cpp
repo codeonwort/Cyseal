@@ -14,6 +14,8 @@
 #include "loader/pbrt_loader.h"
 #include "loader/ply_loader.h"
 
+#include "imgui.h"
+
 #include <array>
 
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
@@ -45,6 +47,15 @@ struct PBRTLoadDesc
 PBRTLoadDesc pbrtLoadDesc  = PBRT_LOAD_DESC;
 
 #define CRUMPLED_MESHES      0
+
+struct CameraAnim
+{
+	float period = 1.0f;
+	vec3 startPos = vec3(60.0f, 0.0f, 30.0f);
+	vec3 endPos = vec3(60.0f, 0.0f, 10.0f);
+	vec3 lookAt = vec3(50.0f, 0.0f, 0.0f);
+	vec3 up = vec3(0.0f, 1.0f, 0.0f);
+} cameraAnim;
 
 void World1::onInitialize()
 {
@@ -82,6 +93,16 @@ void World1::onTick(float deltaSeconds)
 			}
 		}
 #endif
+
+		if (cameraAnimTimer > 0.0f)
+		{
+			cameraAnimTimer -= deltaSeconds;
+			if (cameraAnimTimer < 0.0f) cameraAnimTimer = 0.0f;
+
+			const float k = cameraAnimTimer / cameraAnim.period;
+			vec3 pos = cameraAnim.startPos * k + cameraAnim.endPos * (1 - k);
+			camera->setPosition(pos);
+		}
 	}
 }
 
@@ -107,6 +128,24 @@ void World1::onTerminate()
 #endif
 
 	scene->skyboxTexture.reset();
+}
+
+void World1::onRenderGUI()
+{
+	const char* windowName = "World1";
+
+	ImGui::Begin(windowName);
+
+	if (ImGui::Button("Animate"))
+	{
+		cameraAnimTimer = cameraAnim.period;
+		camera->lookAt(cameraAnim.startPos, cameraAnim.lookAt, cameraAnim.up);
+	}
+
+	float windowX = ImGui::GetMainViewport()->Size.x - ImGui::GetWindowSize().x - 10.0f;
+	ImGui::SetWindowPos(windowName, ImVec2(windowX, 10.0f));
+
+	ImGui::End();
 }
 
 void World1::prepareScene()

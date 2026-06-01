@@ -22,6 +22,8 @@ public:
 	virtual void onTick(float deltaSeconds) = 0;
 	virtual void onTerminate() = 0;
 
+	virtual void onRenderGUI() {}
+
 protected:
 	Scene* scene = nullptr;
 	Camera* camera = nullptr;

@@ -12,6 +12,8 @@ public:
 	virtual void onTick(float deltaSeconds) override;
 	virtual void onTerminate() override;
 
+	virtual void onRenderGUI() override;
+
 private:
 	void prepareScene();
 	void createTestMeshes();
@@ -29,4 +31,6 @@ private:
 	uint32 pbrtLoadDelay = 0;
 	std::vector<StaticMesh*> pbrtMeshes;
 	std::vector<StaticMesh*> pbrtInstancedMeshes;
+
+	float cameraAnimTimer = 0.0f;
 };
