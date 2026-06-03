@@ -272,158 +272,189 @@ void TestApplication::onTick(float deltaSeconds)
 
 			ImGui::Begin("Cyseal");
 
-			ImGui::SeparatorText("Resolution");
-			int32 oldDisplayScale = appState.displayScale;
-			ImGui::SliderInt("Display Scale", &appState.displayScale, 25, 200, "%d percent", ImGuiSliderFlags_AlwaysClamp);
-			bViewportNeedsResize = oldDisplayScale != appState.displayScale;
-			if (!appState.rendererOptions.resolutionScaleAvailable())
+			ImGuiTreeNodeFlags sectionDefaultFlags = 0; //ImGuiTreeNodeFlags_DefaultOpen;
+
+			if (ImGui::CollapsingHeader("Resolution", sectionDefaultFlags))
 			{
-				ImGui::BeginDisabled();
-			}
-			ImGui::SliderInt("Render Scale", &appState.renderResolutionScale, 25, 100, "%d percent", ImGuiSliderFlags_AlwaysClamp);
-			appState.rendererOptions.setResolutionScale(appState.renderResolutionScale);
-			if (!appState.rendererOptions.resolutionScaleAvailable())
-			{
-				ImGui::Text("Render Scale is unavailable for path tracing");
-				ImGui::EndDisabled();
+				int32 oldDisplayScale = appState.displayScale;
+				ImGui::SliderInt("Display Scale", &appState.displayScale, 25, 200, "%d percent", ImGuiSliderFlags_AlwaysClamp);
+				bViewportNeedsResize = oldDisplayScale != appState.displayScale;
+				if (!appState.rendererOptions.resolutionScaleAvailable())
+				{
+					ImGui::BeginDisabled();
+				}
+				ImGui::SliderInt("Render Scale", &appState.renderResolutionScale, 25, 100, "%d percent", ImGuiSliderFlags_AlwaysClamp);
+				appState.rendererOptions.setResolutionScale(appState.renderResolutionScale);
+				if (!appState.rendererOptions.resolutionScaleAvailable())
+				{
+					ImGui::Text("Render Scale is unavailable for path tracing");
+					ImGui::EndDisabled();
+				}
 			}
 
-			ImGui::SeparatorText("Indirect Draw");
-			if (ImGui::BeginTable("##Indirect Draw", 2))
+			if (ImGui::CollapsingHeader("Indirect Draw", sectionDefaultFlags))
 			{
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn(); ImGui::Text("Indirect Draw Mode");
-				ImGui::TableNextColumn(); ImGui::Combo("##Indirect Draw Mode", &appState.selectedIndirectDrawMode, getIndirectDrawModeNames(), (int32)EIndirectDrawMode::Count);
-				ImGui::EndTable();
-			}
-			appState.rendererOptions.indirectDrawMode = (EIndirectDrawMode)appState.selectedIndirectDrawMode;
+				if (ImGui::BeginTable("##Indirect Draw", 2))
+				{
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("Indirect Draw Mode");
+					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Draw Mode", &appState.selectedIndirectDrawMode, getIndirectDrawModeNames(), (int32)EIndirectDrawMode::Count);
+					ImGui::EndTable();
+				}
+				appState.rendererOptions.indirectDrawMode = (EIndirectDrawMode)appState.selectedIndirectDrawMode;
 
-			if (appState.rendererOptions.indirectDrawMode == EIndirectDrawMode::Disabled)
-			{
-				ImGui::BeginDisabled();
-			}
-			ImGui::Checkbox("GPU Culling", &appState.rendererOptions.bEnableGPUCulling);
-			if (appState.rendererOptions.indirectDrawMode == EIndirectDrawMode::Disabled)
-			{
-				ImGui::EndDisabled();
-			}
-
-			ImGui::SeparatorText("Depth and Visibility");
-			ImGui::Checkbox("Depth Prepass", &appState.rendererOptions.bEnableDepthPrepass);
-			if (!appState.rendererOptions.bEnableDepthPrepass)
-			{
-				ImGui::BeginDisabled();
-			}
-			ImGui::Checkbox("Depth Prepass - Visibility Buffer", &appState.rendererOptions.bEnableVisibilityBuffer);
-			if (!appState.rendererOptions.bEnableDepthPrepass)
-			{
-				ImGui::EndDisabled();
+				if (appState.rendererOptions.indirectDrawMode == EIndirectDrawMode::Disabled)
+				{
+					ImGui::BeginDisabled();
+				}
+				ImGui::Checkbox("GPU Culling", &appState.rendererOptions.bEnableGPUCulling);
+				if (appState.rendererOptions.indirectDrawMode == EIndirectDrawMode::Disabled)
+				{
+					ImGui::EndDisabled();
+				}
 			}
 
-			ImGui::SeparatorText("Frame Generation");
-			const bool bMaxFpsChanged = ImGui::SliderFloat("Max FPS", &appState.maxFrameRate, 30.0f, 480.0f);
-			if (bMaxFpsChanged)
+			if (ImGui::CollapsingHeader("Depth and Visibility", sectionDefaultFlags))
 			{
-				setFPSLimit(appState.maxFrameRate);
-			}
-			ImGui::Checkbox("Force VSync", &appState.rendererOptions.bForceVSync);
-			if (appState.rendererOptions.pathTracing != EPathTracingMode::Disabled)
-			{
-				ImGui::BeginDisabled();
-			}
-			ImGui::Checkbox("Generate frames", &appState.rendererOptions.bGenerateFrame);
-			if (appState.rendererOptions.pathTracing != EPathTracingMode::Disabled)
-			{
-				ImGui::EndDisabled();
+				ImGui::Checkbox("Depth Prepass", &appState.rendererOptions.bEnableDepthPrepass);
+				if (!appState.rendererOptions.bEnableDepthPrepass)
+				{
+					ImGui::BeginDisabled();
+				}
+				ImGui::Checkbox("Depth Prepass - Visibility Buffer", &appState.rendererOptions.bEnableVisibilityBuffer);
+				if (!appState.rendererOptions.bEnableDepthPrepass)
+				{
+					ImGui::EndDisabled();
+				}
 			}
 
-			ImGui::SeparatorText("Debug Visualization");
-			if (ImGui::BeginTable("##Debug Visualization", 2))
+			if (ImGui::CollapsingHeader("Frame Generation", sectionDefaultFlags))
 			{
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn(); ImGui::Text("Mode");
-				ImGui::TableNextColumn(); ImGui::Combo("##Debug Visualization Mode", &appState.selectedBufferVisualizationMode, getBufferVisualizationModeNames(), (int32)EBufferVisualizationMode::Count);
-				ImGui::EndTable();
+				const bool bMaxFpsChanged = ImGui::SliderFloat("Max FPS", &appState.maxFrameRate, 30.0f, 480.0f);
+				if (bMaxFpsChanged)
+				{
+					setFPSLimit(appState.maxFrameRate);
+				}
+				ImGui::Checkbox("Force VSync", &appState.rendererOptions.bForceVSync);
+				if (appState.rendererOptions.pathTracing != EPathTracingMode::Disabled)
+				{
+					ImGui::BeginDisabled();
+				}
+				ImGui::Checkbox("Generate frames", &appState.rendererOptions.bGenerateFrame);
+				if (appState.rendererOptions.pathTracing != EPathTracingMode::Disabled)
+				{
+					ImGui::EndDisabled();
+				}
 			}
-			appState.rendererOptions.bufferVisualization = (EBufferVisualizationMode)appState.selectedBufferVisualizationMode;
 
-			ImGui::SeparatorText("Ray Tracing");
-			if (ImGui::BeginTable("##Ray Tracing", 2))
+			if (ImGui::CollapsingHeader("Debug Visualization", sectionDefaultFlags))
 			{
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn(); ImGui::Text("Ray Traced Shadows");
-				ImGui::TableNextColumn(); ImGui::Combo("##Ray Traced Shadows", &appState.selectedRayTracedShadowsMode, getRayTracedShadowsModeNames(), (int32)ERayTracedShadowsMode::Count);
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn(); ImGui::Text("Indirect Diffuse Reflection");
-				ImGui::TableNextColumn(); ImGui::Combo("##Indirect Diffuse Reflection", &appState.selectedIndirectDiffuseMode, getIndirectDiffuseModeNames(), (int32)EIndirectDiffuseMode::Count);
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn(); ImGui::Text("Indirect Specular Reflection");
-				ImGui::TableNextColumn(); ImGui::Combo("##Indirect Specular Reflection", &appState.selectedIndirectSpecularMode, getIndirectSpecularModeNames(), (int32)EIndirectSpecularMode::Count);
-				ImGui::EndTable();
+				if (ImGui::BeginTable("##Debug Visualization", 2))
+				{
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("Mode");
+					ImGui::TableNextColumn(); ImGui::Combo("##Debug Visualization Mode", &appState.selectedBufferVisualizationMode, getBufferVisualizationModeNames(), (int32)EBufferVisualizationMode::Count);
+					ImGui::EndTable();
+				}
+				appState.rendererOptions.bufferVisualization = (EBufferVisualizationMode)appState.selectedBufferVisualizationMode;
 			}
-			appState.rendererOptions.rayTracedShadows = (ERayTracedShadowsMode)appState.selectedRayTracedShadowsMode;
-			appState.rendererOptions.indirectDiffuse = (EIndirectDiffuseMode)appState.selectedIndirectDiffuseMode;
-			appState.rendererOptions.indirectSpecular = (EIndirectSpecularMode)appState.selectedIndirectSpecularMode;
+
+			if (ImGui::CollapsingHeader("Ray Tracing", sectionDefaultFlags))
+			{
+				if (ImGui::BeginTable("##Ray Tracing", 2))
+				{
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("Ray Traced Shadows");
+					ImGui::TableNextColumn(); ImGui::Combo("##Ray Traced Shadows", &appState.selectedRayTracedShadowsMode, getRayTracedShadowsModeNames(), (int32)ERayTracedShadowsMode::Count);
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("Indirect Diffuse Reflection");
+					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Diffuse Reflection", &appState.selectedIndirectDiffuseMode, getIndirectDiffuseModeNames(), (int32)EIndirectDiffuseMode::Count);
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("Indirect Specular Reflection");
+					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Specular Reflection", &appState.selectedIndirectSpecularMode, getIndirectSpecularModeNames(), (int32)EIndirectSpecularMode::Count);
+					ImGui::EndTable();
+				}
+				appState.rendererOptions.rayTracedShadows = (ERayTracedShadowsMode)appState.selectedRayTracedShadowsMode;
+				appState.rendererOptions.indirectDiffuse = (EIndirectDiffuseMode)appState.selectedIndirectDiffuseMode;
+				appState.rendererOptions.indirectSpecular = (EIndirectSpecularMode)appState.selectedIndirectSpecularMode;
+			}
 
 			const int32 pathTracingModeOld = appState.selectedPathTracingMode;
 			const int32 pathTracingMaxFramesOld = appState.pathTracingMaxFrames;
-			ImGui::SeparatorText("Path Tracing");
-			if (ImGui::BeginTable("##Path Tracing", 2))
+			const bool bShowPathTracingSection = ImGui::CollapsingHeader("Path Tracing", sectionDefaultFlags);
+			if (bShowPathTracingSection)
 			{
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn(); ImGui::Text("Mode");
-				ImGui::TableNextColumn(); ImGui::Combo("##Path Tracing Mode", &appState.selectedPathTracingMode, getPathTracingModeNames(), (int32)EPathTracingMode::Count);
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn(); ImGui::Text("Max Frames");
-				ImGui::TableNextColumn(); ImGui::InputInt("##Path Tracing Max Frames", &appState.pathTracingMaxFrames);
-				// #todo-pathtracing: UI for Wavefront Path Tracing.
-				#if 0
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn(); ImGui::Text("Path Tracing Kernel");
-				ImGui::TableNextColumn(); ImGui::Combo("##Path Tracing Kernel", &appState.selectedPathTracingKernel, getPathTracingKernelNames(), (int32)EPathTracingKernel::Count);
-				#endif
-				ImGui::EndTable();
+				if (ImGui::BeginTable("##Path Tracing", 2))
+				{
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("Mode");
+					ImGui::TableNextColumn(); ImGui::Combo("##Path Tracing Mode", &appState.selectedPathTracingMode, getPathTracingModeNames(), (int32)EPathTracingMode::Count);
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("Max Frames");
+					ImGui::TableNextColumn(); ImGui::InputInt("##Path Tracing Max Frames", &appState.pathTracingMaxFrames);
+					// #todo-pathtracing: UI for Wavefront Path Tracing.
+#if 0
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("Path Tracing Kernel");
+					ImGui::TableNextColumn(); ImGui::Combo("##Path Tracing Kernel", &appState.selectedPathTracingKernel, getPathTracingKernelNames(), (int32)EPathTracingKernel::Count);
+#endif
+					ImGui::EndTable();
+				}
 			}
-			appState.rendererOptions.pathTracing = (EPathTracingMode)appState.selectedPathTracingMode;
-			appState.rendererOptions.pathTracingKernel = (EPathTracingKernel)appState.selectedPathTracingKernel;
-			appState.pathTracingMaxFrames = (std::max)(appState.pathTracingMaxFrames, 1);
-			if (pathTracingModeOld != appState.selectedPathTracingMode || pathTracingMaxFramesOld != appState.pathTracingMaxFrames)
+			// Run this part regardless of the section's visibility.
 			{
-				appState.pathTracingNumFrames = 0;
-				appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
-				appState.rendererOptions.bCameraHasMoved = true;
+				appState.rendererOptions.pathTracing = (EPathTracingMode)appState.selectedPathTracingMode;
+				appState.rendererOptions.pathTracingKernel = (EPathTracingKernel)appState.selectedPathTracingKernel;
+				appState.pathTracingMaxFrames = (std::max)(appState.pathTracingMaxFrames, 1);
+				if (pathTracingModeOld != appState.selectedPathTracingMode || pathTracingMaxFramesOld != appState.pathTracingMaxFrames)
+				{
+					appState.pathTracingNumFrames = 0;
+					appState.rendererOptions.pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
+					appState.rendererOptions.bCameraHasMoved = true;
+				}
 			}
-			ImGui::Text("Frames: %u", appState.pathTracingNumFrames);
-
-			ImGui::SeparatorText("World");
-			if (ImGui::BeginTable("##World", 2))
+			if (bShowPathTracingSection)
 			{
-				int32 oldWorldIndex = appState.currentWorldIndex;
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn(); ImGui::Text("World");
-				ImGui::TableNextColumn(); ImGui::Combo("##World Name", &appState.currentWorldIndex, getWorldNames(), (int32)EWorldIndex::Count);
-				ImGui::EndTable();
-				bChangeWorld = oldWorldIndex != appState.currentWorldIndex;
+				ImGui::Text("Frames: %u", appState.pathTracingNumFrames);
 			}
 
-			ImGui::SeparatorText("Control");
-			ImGui::Text("WASD : move camera");
-			ImGui::Text("QE   : rotate camera");
-
-			ImGui::SeparatorText("Info");
-			if (appState.rendererOptions.anyRayTracingEnabled())
+			if (ImGui::CollapsingHeader("World", sectionDefaultFlags))
 			{
-				ImGui::Text("Static Mesh LOD is disabled if any raytracing is enabled");
+				if (ImGui::BeginTable("##World", 2))
+				{
+					int32 oldWorldIndex = appState.currentWorldIndex;
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("World");
+					ImGui::TableNextColumn(); ImGui::Combo("##World Name", &appState.currentWorldIndex, getWorldNames(), (int32)EWorldIndex::Count);
+					ImGui::EndTable();
+					bChangeWorld = oldWorldIndex != appState.currentWorldIndex;
+				}
 			}
-			else
+
+			if (ImGui::CollapsingHeader("Control", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::Text("Static Mesh LOD is enabled");
+				ImGui::Text("WASD : move camera");
+				ImGui::Text("QE   : rotate camera");
 			}
 
-			ImGui::SeparatorText("Memory");
-			for (uint32 i = 0; i < (uint32)EMemoryTag::Count; ++i)
+			if (ImGui::CollapsingHeader("Info", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::Text("Tag: %u, bytes = %u", i, MemoryTracker::get().getTotalBytes((EMemoryTag)i));
+				if (appState.rendererOptions.anyRayTracingEnabled())
+				{
+					ImGui::Text("Static Mesh LOD is disabled if any raytracing is enabled");
+				}
+				else
+				{
+					ImGui::Text("Static Mesh LOD is enabled");
+				}
+			}
+
+			if (ImGui::CollapsingHeader("Memory", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				for (uint32 i = 0; i < (uint32)EMemoryTag::Count; ++i)
+				{
+					ImGui::Text("Tag: %u, bytes = %u", i, MemoryTracker::get().getTotalBytes((EMemoryTag)i));
+				}
 			}
 			
 			ImGui::End();
