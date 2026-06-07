@@ -37,7 +37,7 @@ void World2::onInitialize()
 		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
-		material->roughness = 1.0f;
+		material->setRoughness(1.0f);
 
 		ground = new StaticMesh;
 		ground->setPosition(vec3(0.0f, -10.0f, 0.0f));
@@ -61,7 +61,7 @@ void World2::onInitialize()
 			auto material = makeShared<MaterialAsset>();
 			material->albedoTexture = baseTex;
 			material->albedoMultiplier = vec3(0.5f, 0.5f, 0.5f);
-			material->roughness = 1.0f;
+			material->setRoughness(1.0f);
 			baseMaterials.push_back(material);
 		}
 

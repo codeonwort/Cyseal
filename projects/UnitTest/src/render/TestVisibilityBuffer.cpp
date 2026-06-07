@@ -214,7 +214,7 @@ private:
 			auto material = makeShared<MaterialAsset>();
 			material->albedoTexture = baseTextures[i];
 			material->albedoMultiplier = vec3(0.9f);
-			material->roughness = 0.1f + 0.1f * (float)i;
+			material->setRoughness(0.1f + 0.1f * (float)i);
 			material->metalMask = (i % 2) ? 0.3f : 0.7f;
 			material->materialID = (i % 2) ? EMaterialId::DefaultLit : EMaterialId::Glass;
 			baseMaterials.push_back(material);

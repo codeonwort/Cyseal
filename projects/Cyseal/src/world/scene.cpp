@@ -92,6 +92,10 @@ SceneProxy* Scene::createProxy()
 	{
 		sm->clearDirtyFlags();
 	}
+	for (MaterialAsset* mat : proxy->dirtyMaterials)
+	{
+		mat->clearDirtyFlag();
+	}
 
 	return proxy;
 }

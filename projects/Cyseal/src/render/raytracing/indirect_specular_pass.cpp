@@ -41,7 +41,7 @@
 // Should match with INDIRECT_DISPATCH_RAYS in shader side.
 #define INDIRECT_DISPATCH_RAYS              1
 
-#define USE_AMD_DENOISER                    0
+#define USE_AMD_DENOISER                    1
 
 // If 1, AMD denoiser assumes that roughness texture contains perceptual roughness values. See material.h
 #define AMD_IS_ROUGHNESS_PERCEPTUAL         0

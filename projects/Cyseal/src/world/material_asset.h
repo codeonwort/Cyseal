@@ -12,6 +12,12 @@ public:
 	uint32 getPipelineKey() const;
 	uint32 getPipelineFreeNumber() const;
 
+	inline bool isDirty() const { return bDirty; }
+	inline void clearDirtyFlag() { bDirty = false; }
+
+	inline float getRoughness() const { return roughness; }
+	void setRoughness(float value);
+
 	inline bool getDoubleSided() const { return bDoubleSided; }
 	void setDoubleSided(bool value);
 
@@ -22,14 +28,15 @@ public:
 	EMaterialId             materialID        = EMaterialId::DefaultLit;
 	SharedPtr<TextureAsset> albedoTexture;
 	vec3                    albedoMultiplier  = vec3(1.0f, 1.0f, 1.0f);
-	float                   roughness         = 0.0f;
 	vec3                    emission          = vec3(0.0f);
 	float                   metalMask         = 0.0f;
 	float                   indexOfRefraction = IoR::Air;
 	vec3                    transmittance     = vec3(0.0f);
 private:
+	float                   roughness         = 0.0f;
 	bool                    bDoubleSided      = false;
 
 	GraphicsPipelineKey     pipelineKey;
 	uint32                  pipelineFreeNumber;
+	bool                    bDirty = true;
 };

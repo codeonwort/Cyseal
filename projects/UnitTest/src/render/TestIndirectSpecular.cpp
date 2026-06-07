@@ -208,7 +208,7 @@ private:
 			auto material = makeShared<MaterialAsset>();
 			material->albedoTexture = baseTex;
 			material->albedoMultiplier = vec3(0.2f);
-			material->roughness = 0.1f;
+			material->setRoughness(0.1f);
 			baseMaterials.push_back(material);
 		}
 
@@ -273,7 +273,7 @@ private:
 			auto M_ground = makeShared<MaterialAsset>();
 			M_ground->albedoTexture = baseTextures[0];
 			M_ground->albedoMultiplier = vec3(0.2f, 0.1f, 0.1f);
-			M_ground->roughness = 0.05f;
+			M_ground->setRoughness(0.05f);
 
 			MesoGeometryAssets::addStaticMeshSections(staticMesh, 0, geomAssets, M_ground);
 

@@ -9,6 +9,8 @@
 #include "geometry/meso_geometry.h"
 #include "world/material_asset.h"
 
+#include "imgui.h"
+
 #define SUN_DIRECTION        normalize(vec3(-1.0f, -1.0f, -1.0f))
 #define SUN_ILLUMINANCE      (2.0f * vec3(1.0f, 1.0f, 1.0f))
 
@@ -40,7 +42,7 @@ void World_Specular::onInitialize()
 		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(0.05f, 0.05f, 0.05f);
 		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
-		material->roughness = 0.05f;
+		material->setRoughness(0.05f);
 
 		ground = new StaticMesh;
 		ground->setPosition(vec3(0.0f, -10.0f, 0.0f));
@@ -53,15 +55,7 @@ void World_Specular::onInitialize()
 
 	// Spawn boxes
 	{
-		struct BoxSpawnParams
-		{
-			vec3 scale      = vec3(1, 1, 1);
-			vec3 position   = vec3(0, 0, 0);
-			vec3 albedo     = vec3(0.9f, 0.9f, 0.9f);
-			float roughness = 1.0f;
-		};
-
-		std::vector<BoxSpawnParams> boxSpawnParams = {
+		boxSpawnParams = {
 			{ .scale = vec3(15, 15, 15), .position = vec3(-30, -5, 30), .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.9f },
 			{ .scale = vec3(10, 10, 10), .position = vec3(-10, -5, 30), .albedo = vec3(0.1f, 0.9f, 0.1f), .roughness = 0.9f },
 			{ .scale = vec3(10, 10, 10), .position = vec3(5, -5, 30),   .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.01f },
@@ -76,7 +70,7 @@ void World_Specular::onInitialize()
 			auto material = makeShared<MaterialAsset>();
 			material->albedoMultiplier = params.albedo;
 			material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
-			material->roughness = params.roughness;
+			material->setRoughness(params.roughness);
 
 			auto box = new StaticMesh;
 			box->setScale(params.scale);
@@ -100,6 +94,28 @@ void World_Specular::onTerminate()
 {
 	delete ground;
 	for (StaticMesh* box : boxes) delete box;
+}
+
+void World_Specular::onRenderGUI()
+{
+	const char* windowName = "World_Specular";
+
+	ImGui::Begin(windowName);
+
+	for (uint32 i = 0; i < boxSpawnParams.size(); ++i)
+	{
+		std::string label = "box" + std::to_string(i) + " roughness";
+		if (ImGui::SliderFloat(label.c_str(), &boxSpawnParams[i].roughness, 0.0f, 1.0f, "%.2f"))
+		{
+			MaterialAsset* mat = boxes[i]->getSections(0)[0].material.get();
+			mat->setRoughness(boxSpawnParams[i].roughness);
+		}
+	}
+
+	float windowX = ImGui::GetMainViewport()->Size.x - ImGui::GetWindowSize().x - 10.0f;
+	ImGui::SetWindowPos(windowName, ImVec2(windowX, 10.0f));
+
+	ImGui::End();
 }
 
 void World_Specular::onTick(float deltaSeconds)

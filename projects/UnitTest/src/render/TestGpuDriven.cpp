@@ -197,7 +197,7 @@ private:
 			auto material = makeShared<MaterialAsset>();
 			material->albedoTexture = baseTex;
 			material->albedoMultiplier = vec3(0.2f);
-			material->roughness = 0.1f;
+			material->setRoughness(0.1f);
 			baseMaterials.push_back(material);
 		}
 
