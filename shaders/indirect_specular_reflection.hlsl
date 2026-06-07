@@ -302,6 +302,13 @@ float4 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		{
 			rayLength = length(rayOrigin - surfacePosition);
 		}
+		
+#if ENABLE_DEBUG_MODE
+		if (getDebugMode() == DEBUG_MODE_ALBEDO_ON_SECONDARY_HIT)
+		{
+			return float4(currentRayPayload.albedo, rayLength);
+		}
+#endif
 
 		float2 randoms = getRandoms(texel, pathLen);
 
@@ -437,8 +444,13 @@ void MainRaygen()
 		float3 relaxedPositionWS = normalWS * GBUFFER_NORMAL_OFFSET + positionWS;
 		float4 LiAndRayLen = traceIncomingRadiance(texel, relaxedPositionWS, brdfOutput.outRayDir);
 		
+#if ENABLE_DEBUG_MODE
+		Wo = LiAndRayLen.xyz;
+		rayLength = LiAndRayLen.w;
+#else
 		Wo = (brdfOutput.specularReflectance / brdfOutput.pdf) * LiAndRayLen.xyz;
 		rayLength = LiAndRayLen.w;
+#endif
 	}
 	else if (gbufferData.materialID == MATERIAL_ID_GLASS)
 	{
@@ -449,8 +461,13 @@ void MainRaygen()
 		float3 relaxedPositionWS = positionWS + (brdfOutput.outRayDir * REFRACTION_START_OFFSET);
 		float4 LiAndRayLen = traceIncomingRadiance(texel, relaxedPositionWS, brdfOutput.outRayDir);
 
+#if ENABLE_DEBUG_MODE
+		Wo = LiAndRayLen.xyz;
+		rayLength = LiAndRayLen.w;
+#else
 		Wo = (brdfOutput.specularReflectance / brdfOutput.pdf) * LiAndRayLen.xyz;
 		rayLength = LiAndRayLen.w;
+#endif
 	}
 	
 	if (microfacetBRDFOutputIsInvalid(brdfOutput) || any(isnan(Wo)))
@@ -467,12 +484,11 @@ void MainRaygen()
 		rwRadianceTexture[texel] = float4(color, rayLength);
 		rwVarianceTexture[texel] = rayLength;
 	}
-	else
+	else if (getDebugMode() == DEBUG_MODE_ALBEDO_ON_SECONDARY_HIT)
 	{
-		// #wip-debug: albedo on secondary hit
-		rwRaytracingTexture[texel] = 0;
-		rwRadianceTexture[texel] = 0;
-		rwVarianceTexture[texel] = 0;
+		rwRaytracingTexture[texel] = float4(Wo, rayLength);
+		rwRadianceTexture[texel] = float4(Wo, rayLength);
+		rwVarianceTexture[texel] = rayLength;
 	}
 #else
 	// #wip: If invalid sample was generated, then write Wo = 0 but temporal accumulation averages it anyway, so it gets darker I guess...
