@@ -60,7 +60,7 @@ struct RayPassUniform
 	uint32   renderTargetWidth;
 	uint32   renderTargetHeight;
 	uint32   traceMode;
-	uint32   _pad0;
+	uint32   debugMode;
 };
 struct TemporalPassUniform
 {
@@ -202,6 +202,8 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	auto sceneWidth          = passInput.sceneWidth;
 	auto sceneHeight         = passInput.sceneHeight;
 
+	RaytracingPipelineResources& rayPipelineResources = raytracingPipelineResources[(passInput.debugMode == EIndirectSpecularDebugMode::None) ? 0 : 1];
+
 	if (isAvailable() == false)
 	{
 		return;
@@ -222,7 +224,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 		.prevFrame = (frameInfo.frameID + 1) % 2,
 	};
 
-	prepareRaytracingResources(commandList, passFrameInfo, passInput);
+	prepareRaytracingResources(commandList, passFrameInfo, passInput, rayPipelineResources);
 
 	actualHistoryWidth[passFrameInfo.currFrame] = passInput.sceneWidth;
 	actualHistoryHeight[passFrameInfo.currFrame] = passInput.sceneHeight;
@@ -234,7 +236,7 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 
 	classifierPhase(commandList, passFrameInfo, passInput);
 
-	raytracingPhase(commandList, passFrameInfo, passInput);
+	raytracingPhase(commandList, passFrameInfo, passInput, rayPipelineResources);
 
 #if !USE_AMD_DENOISER
 	legacyDenoisingPhase(commandList, passFrameInfo, passInput);
@@ -314,15 +316,21 @@ void IndirecSpecularPass::initializeRaytracingPipeline()
 	sampleCountHistory.initialize(PF_sampleCountHistory, ETextureAccessFlags::UAV | ETextureAccessFlags::SRV, L"RT_SpecularSampleCountHistory");
 
 	totalHitGroupShaderRecord.resize(MAX_FRAMES_IN_FLIGHT, 0);
-	hitGroupShaderTable.initialize(MAX_FRAMES_IN_FLIGHT);
+	for (size_t i = 0; i < _countof(raytracingPipelineResources); ++i)
+	{
+		raytracingPipelineResources[i].hitGroupShaderTable.initialize(MAX_FRAMES_IN_FLIGHT);
+	}
 
 	ShaderStage* raygenShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen");
+	ShaderStage* raygenDebugShader = device->createShader(EShaderStage::RT_RAYGEN_SHADER, "RTR_Raygen_Debug");
 	ShaderStage* closestHitShader = device->createShader(EShaderStage::RT_CLOSESTHIT_SHADER, "RTR_ClosestHit");
 	ShaderStage* missShader = device->createShader(EShaderStage::RT_MISS_SHADER, "RTR_Miss");
 	raygenShader->declarePushConstants();
+	raygenDebugShader->declarePushConstants();
 	closestHitShader->declarePushConstants({ { "g_closestHitCB", 1} });
 	missShader->declarePushConstants();
 	raygenShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainRaygen");
+	raygenDebugShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainRaygen", { L"ENABLE_DEBUG_MODE=1" });
 	closestHitShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainClosestHit");
 	missShader->loadFromFile(L"indirect_specular_reflection.hlsl", "MainMiss");
 
@@ -358,41 +366,49 @@ void IndirecSpecularPass::initializeRaytracingPipeline()
 		},
 		getLinearSamplerDesc(),
 	};
-	RaytracingPipelineStateObjectDesc pipelineDesc{
-		.hitGroupName                 = INDIRECT_SPECULAR_HIT_GROUP_NAME,
-		.hitGroupType                 = ERaytracingHitGroupType::Triangles,
-		.raygenShader                 = raygenShader,
-		.closestHitShader             = closestHitShader,
-		.missShader                   = missShader,
-		.raygenLocalParameters        = {},
-		.closestHitLocalParameters    = { "g_closestHitCB" },
-		.missLocalParameters          = {},
-		.maxPayloadSizeInBytes        = sizeof(RayPayload),
-		.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
-		.maxTraceRecursionDepth       = INDIRECT_SPECULAR_MAX_RECURSION,
-		.staticSamplers               = std::move(staticSamplers),
-	};
-	RTPSO = UniquePtr<RaytracingPipelineStateObject>(device->createRaytracingPipelineStateObject(pipelineDesc));
 
-	// Raygen shader table
+	// Raytracing pipelines
+	ShaderStage* raygenShaders[] = { raygenShader, raygenDebugShader };
+	static_assert(_countof(raygenShaders) == _countof(raytracingPipelineResources));
+	for (size_t i = 0; i < _countof(raytracingPipelineResources); ++i)
 	{
-		uint32 numShaderRecords = 1;
-		raygenShaderTable = UniquePtr<RaytracingShaderTable>(
-			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"RayGenShaderTable"));
+		RaytracingPipelineStateObjectDesc pipelineDesc{
+			.hitGroupName                 = INDIRECT_SPECULAR_HIT_GROUP_NAME,
+			.hitGroupType                 = ERaytracingHitGroupType::Triangles,
+			.raygenShader                 = raygenShaders[i],
+			.closestHitShader             = closestHitShader,
+			.missShader                   = missShader,
+			.raygenLocalParameters        = {},
+			.closestHitLocalParameters    = { "g_closestHitCB" },
+			.missLocalParameters          = {},
+			.maxPayloadSizeInBytes        = sizeof(RayPayload),
+			.maxAttributeSizeInBytes      = sizeof(TriangleIntersectionAttributes),
+			.maxTraceRecursionDepth       = INDIRECT_SPECULAR_MAX_RECURSION,
+			.staticSamplers               = staticSamplers,
+		};
+		RaytracingPipelineStateObject* pso = device->createRaytracingPipelineStateObject(pipelineDesc);
+
+		const uint32 numShaderRecords = 1;
+		wchar_t debugName[128];
+		std::swprintf(debugName, _countof(debugName), L"IndirectSpecular_RayGenShaderTable_%u", (uint32)i);
+
+		RaytracingShaderTable* raygenShaderTable = device->createRaytracingShaderTable(pso, numShaderRecords, 0, debugName);
 		raygenShaderTable->uploadRecord(0, raygenShader, nullptr, 0);
-	}
-	// Miss shader table
-	{
-		uint32 numShaderRecords = 1;
-		missShaderTable = UniquePtr<RaytracingShaderTable>(
-			device->createRaytracingShaderTable(RTPSO.get(), numShaderRecords, 0, L"MissShaderTable"));
+
+		std::swprintf(debugName, _countof(debugName), L"IndirectSpecular_MissShaderTable_%u", (uint32)i);
+
+		RaytracingShaderTable* missShaderTable = device->createRaytracingShaderTable(pso, numShaderRecords, 0, debugName);
 		missShaderTable->uploadRecord(0, missShader, nullptr, 0);
+
+		raytracingPipelineResources[i].pipelineStateObject = UniquePtr<RaytracingPipelineStateObject>(pso);
+		raytracingPipelineResources[i].raygenShaderTable = UniquePtr<RaytracingShaderTable>(raygenShaderTable);
+		raytracingPipelineResources[i].missShaderTable = UniquePtr<RaytracingShaderTable>(missShaderTable);
+		// Hit group shader table is created in resizeHitGroupShaderTable().
 	}
-	// Hit group shader table is created in resizeHitGroupShaderTable().
-	// ...
 
 	// Cleanup
 	delete raygenShader;
+	delete raygenDebugShader;
 	delete closestHitShader;
 	delete missShader;
 
@@ -719,22 +735,30 @@ void IndirecSpecularPass::resizeHitGroupShaderTable(const PassFrameInfo& passFra
 		ClosestHitPushConstants pushConstants;
 	};
 
-	hitGroupShaderTable[resourceIndex] = UniquePtr<RaytracingShaderTable>(
-		device->createRaytracingShaderTable(RTPSO.get(), maxRecords, sizeof(RootArguments), L"HitGroupShaderTable"));
-
-	for (uint32 i = 0; i < maxRecords; ++i)
+	for (size_t pipelineIx = 0; pipelineIx < _countof(raytracingPipelineResources); ++pipelineIx)
 	{
-		RootArguments rootArguments{
-			.pushConstants = ClosestHitPushConstants{ .objectID = i }
-		};
+		auto& hitGroupShaderTable = raytracingPipelineResources[pipelineIx].hitGroupShaderTable;
+		auto pso = raytracingPipelineResources[pipelineIx].pipelineStateObject.get();
 
-		hitGroupShaderTable[resourceIndex]->uploadRecord(i, INDIRECT_SPECULAR_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
+		wchar_t debugName[128];
+		std::swprintf(debugName, _countof(debugName), L"IndirectSpecular_HitGroupShaderTable_%u", (uint32)pipelineIx);
+
+		hitGroupShaderTable[resourceIndex] = UniquePtr<RaytracingShaderTable>(
+			device->createRaytracingShaderTable(pso, maxRecords, sizeof(RootArguments), debugName));
+
+		for (uint32 recordIx = 0; recordIx < maxRecords; ++recordIx)
+		{
+			RootArguments rootArguments{
+				.pushConstants = ClosestHitPushConstants{ .objectID = recordIx }
+			};
+			hitGroupShaderTable[resourceIndex]->uploadRecord(recordIx, INDIRECT_SPECULAR_HIT_GROUP_NAME, &rootArguments, sizeof(rootArguments));
+		}
+
+		CYLOG(LogIndirectSpecular, Log, L"Resize hit group shader table [pipelineIx=%u][resourceIndex=%u]: %u records", (uint32)pipelineIx, resourceIndex, maxRecords);
 	}
-
-	CYLOG(LogIndirectSpecular, Log, L"Resize hit group shader table [%u]: %u records", resourceIndex, maxRecords);
 }
 
-void IndirecSpecularPass::prepareRaytracingResources(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::prepareRaytracingResources(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput, const RaytracingPipelineResources& rayResources)
 {
 	const uint32 resourceIndex = passFrameInfo.currFrame;
 
@@ -749,9 +773,9 @@ void IndirecSpecularPass::prepareRaytracingResources(RenderCommandList* commandL
 	}
 
 	DispatchRaysDesc dispatchDesc{
-		.raygenShaderTable = raygenShaderTable.get(),
-		.missShaderTable   = missShaderTable.get(),
-		.hitGroupTable     = hitGroupShaderTable.at(resourceIndex),
+		.raygenShaderTable = rayResources.raygenShaderTable.get(),
+		.missShaderTable   = rayResources.missShaderTable.get(),
+		.hitGroupTable     = rayResources.hitGroupShaderTable.at(resourceIndex),
 		.width             = passInput.sceneWidth,
 		.height            = passInput.sceneHeight,
 		.depth             = 1,
@@ -840,7 +864,7 @@ void IndirecSpecularPass::classifierPhase(RenderCommandList* commandList, const 
 	}
 }
 
-void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput)
+void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput, const RaytracingPipelineResources& rayResources)
 {
 	SCOPED_DRAW_EVENT(commandList, SpecularRaytracing);
 
@@ -863,6 +887,7 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, const 
 		uboData->renderTargetWidth = sceneWidth;
 		uboData->renderTargetHeight = sceneHeight;
 		uboData->traceMode = (uint32)passInput.mode;
+		uboData->debugMode = (uint32)passInput.debugMode;
 
 		auto uniformCBV = rayPassDescriptor.getUniformCBV(currFrame);
 		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
@@ -870,7 +895,7 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, const 
 		delete uboData;
 	}
 
-	commandList->setRaytracingPipelineState(RTPSO.get());
+	commandList->setRaytracingPipelineState(rayResources.pipelineStateObject.get());
 
 	auto radianceTexture = amdRadianceHistory.getTexture(prevFrame);
 	auto radianceUAV     = amdRadianceHistory.getUAV(prevFrame);
@@ -916,7 +941,7 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, const 
 		uint32 requiredVolatiles = SPT.totalDescriptors();
 		DescriptorHeap* volatileHeap = rayPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
 
-		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
+		commandList->bindRaytracingShaderParameters(rayResources.pipelineStateObject.get(), &SPT, volatileHeap);
 	}
 	
 #if INDIRECT_DISPATCH_RAYS

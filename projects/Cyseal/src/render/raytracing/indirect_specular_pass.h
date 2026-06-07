@@ -70,6 +70,13 @@ class IndirecSpecularPass final : public SceneRenderPass
 		uint32 currFrame;
 		uint32 prevFrame;
 	};
+	struct RaytracingPipelineResources
+	{
+		UniquePtr<RaytracingPipelineStateObject> pipelineStateObject;
+		UniquePtr<RaytracingShaderTable>         raygenShaderTable;
+		UniquePtr<RaytracingShaderTable>         missShaderTable;
+		BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
+	};
 
 public:
 	void initialize(RenderDevice* inRenderDevice);
@@ -91,10 +98,10 @@ private:
 
 	// classifierPhase requires some resources that are created by raytracingPhase.
 	// But classifierPhase runs first, so prepare such resources here.
-	void prepareRaytracingResources(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
+	void prepareRaytracingResources(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput, const RaytracingPipelineResources& rayResources);
 
 	void classifierPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
-	void raytracingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
+	void raytracingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput, const RaytracingPipelineResources& rayResources);
 	void legacyDenoisingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
 
 	void amdReprojPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
@@ -114,12 +121,12 @@ private:
 	VolatileDescriptorHelper                 indirectRaysPassDescriptor;
 
 	// Ray pass
-	UniquePtr<RaytracingPipelineStateObject> RTPSO;
-	UniquePtr<RaytracingShaderTable>         raygenShaderTable;
-	UniquePtr<RaytracingShaderTable>         missShaderTable;
-	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
+	RaytracingPipelineResources              raytracingPipelineResources[2]; // standard, debug mode
 	std::vector<uint32>                      totalHitGroupShaderRecord;
 	VolatileDescriptorHelper                 rayPassDescriptor;
+
+	// Ray debug pass (reuses ray pass resources other than raygen shader)
+	UniquePtr<RaytracingPipelineStateObject> rayDebugPipeline;
 
 	// Ray pass indirect dispatch
 	UniquePtr<CommandSignature>              rayCommandSignature;

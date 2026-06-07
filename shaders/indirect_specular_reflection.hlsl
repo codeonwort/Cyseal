@@ -13,6 +13,10 @@
 
 // ---------------------------------------------------------
 
+#ifndef ENABLE_DEBUG_MODE
+	#define ENABLE_DEBUG_MODE     0
+#endif
+
 // Should match with INDIRECT_DISPATCH_RAYS in C++ side.
 #define INDIRECT_DISPATCH_RAYS    1
 
@@ -57,7 +61,7 @@ struct PassUniform
 	uint        renderTargetWidth;
 	uint        renderTargetHeight;
 	uint        traceMode;
-	uint        _pad0;
+	uint        debugMode;
 };
 
 struct ClosestHitPushConstants
