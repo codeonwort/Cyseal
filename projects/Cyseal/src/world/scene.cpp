@@ -21,6 +21,7 @@ Scene::~Scene()
 {
 	CHECK(staticMeshes.size() == 0);
 	CHECK(staticMeshesToRemove.size() == 0);
+	CHECK(skyboxTexture == nullptr);
 }
 
 void Scene::updateMeshLODs(const Camera& camera, const RendererOptions& rendererOptions)

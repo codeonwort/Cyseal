@@ -94,6 +94,7 @@ void World_Specular::onTerminate()
 {
 	delete ground;
 	for (StaticMesh* box : boxes) delete box;
+	scene->skyboxTexture.reset();
 }
 
 void World_Specular::onRenderGUI()
