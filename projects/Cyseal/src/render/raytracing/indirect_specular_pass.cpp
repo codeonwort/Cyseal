@@ -41,7 +41,7 @@
 // Should match with INDIRECT_DISPATCH_RAYS in shader side.
 #define INDIRECT_DISPATCH_RAYS              1
 
-#define USE_AMD_DENOISER                    1
+#define USE_AMD_DENOISER                    0
 
 // If 1, AMD denoiser assumes that roughness texture contains perceptual roughness values. See material.h
 #define AMD_IS_ROUGHNESS_PERCEPTUAL         0
@@ -202,7 +202,8 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	auto sceneWidth          = passInput.sceneWidth;
 	auto sceneHeight         = passInput.sceneHeight;
 
-	RaytracingPipelineResources& rayPipelineResources = raytracingPipelineResources[(passInput.debugMode == EIndirectSpecularDebugMode::None) ? 0 : 1];
+	bool bAnyDebugMode = (passInput.debugMode != EIndirectSpecularDebugMode::None);
+	RaytracingPipelineResources& rayPipelineResources = raytracingPipelineResources[bAnyDebugMode ? 1 : 0];
 
 	if (isAvailable() == false)
 	{
@@ -229,49 +230,63 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	actualHistoryWidth[passFrameInfo.currFrame] = passInput.sceneWidth;
 	actualHistoryHeight[passFrameInfo.currFrame] = passInput.sceneHeight;
 
-	auto currColorTexture  = colorHistory.getTexture(passFrameInfo.currFrame);
-	auto prevColorTexture  = colorHistory.getTexture(passFrameInfo.prevFrame);
-	auto currMomentTexture = momentHistory.getTexture(passFrameInfo.currFrame);
-	auto prevMomentTexture = momentHistory.getTexture(passFrameInfo.prevFrame);
-
 	classifierPhase(commandList, passFrameInfo, passInput);
 
 	raytracingPhase(commandList, passFrameInfo, passInput, rayPipelineResources);
 
+	if (bAnyDebugMode)
+	{
+		SCOPED_DRAW_EVENT(commandList, CopyDebugColorToFinalColor);
+
+		Texture* const src = raytracingTexture.get();
+		Texture* const dst = passInput.indirectSpecularTexture;
+
+		TextureBarrierAuto textureBarriers[] = { TextureBarrierAuto::toCopySource(src), TextureBarrierAuto::toCopyDest(dst), };
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+		commandList->copyTexture2D(src, dst);
+	}
+	else
+	{
 #if !USE_AMD_DENOISER
-	legacyDenoisingPhase(commandList, passFrameInfo, passInput);
-	{
-		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
+		auto currColorTexture = colorHistory.getTexture(passFrameInfo.currFrame);
 
-		TextureBarrierAuto barriersBefore[] = {
-			TextureBarrierAuto::toCopySource(currColorTexture),
-			TextureBarrierAuto::toCopyDest(passInput.indirectSpecularTexture),
-		};
-		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+		legacyDenoisingPhase(commandList, passFrameInfo, passInput);
 
-		commandList->copyTexture2D(currColorTexture, passInput.indirectSpecularTexture);
-	}
+		{
+			SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
+
+			TextureBarrierAuto barriersBefore[] = {
+				TextureBarrierAuto::toCopySource(currColorTexture),
+				TextureBarrierAuto::toCopyDest(passInput.indirectSpecularTexture),
+			};
+			commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+
+			commandList->copyTexture2D(currColorTexture, passInput.indirectSpecularTexture);
+		}
 #else
-	amdReprojPhase(commandList, passFrameInfo, passInput);
-	amdPrefilterPhase(commandList, passFrameInfo, passInput);
-	amdResolveTemporalPhase(commandList, passFrameInfo, passInput);
-	amdFinalizeOutputPhase(commandList, passFrameInfo, passInput);
-	{
-		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
+		amdReprojPhase(commandList, passFrameInfo, passInput);
+		amdPrefilterPhase(commandList, passFrameInfo, passInput);
+		amdResolveTemporalPhase(commandList, passFrameInfo, passInput);
+		amdFinalizeOutputPhase(commandList, passFrameInfo, passInput);
 
-		// It ended up that amdRadianceHistory.getTexture(prevFrame) stores the denoising result... oops :p
-		//auto amdResult = amdRadianceHistory.getTexture(prevFrame);
-		auto amdResult = amdFinalColorTexture.get();
+		{
+			SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
 
-		TextureBarrierAuto barriersBefore[] = {
-			TextureBarrierAuto::toCopySource(amdResult),
-			TextureBarrierAuto::toCopyDest(passInput.indirectSpecularTexture),
-		};
-		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+			// It ended up that amdRadianceHistory.getTexture(prevFrame) stores the denoising result... oops :p
+			//auto amdResult = amdRadianceHistory.getTexture(prevFrame);
+			Texture* amdResult = amdFinalColorTexture.get();
 
-		commandList->copyTexture2D(amdResult, passInput.indirectSpecularTexture);
-	}
+			TextureBarrierAuto barriersBefore[] = {
+				TextureBarrierAuto::toCopySource(amdResult),
+				TextureBarrierAuto::toCopyDest(passInput.indirectSpecularTexture),
+			};
+			commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+
+			commandList->copyTexture2D(amdResult, passInput.indirectSpecularTexture);
+		}
 #endif
+	}
 }
 
 void IndirecSpecularPass::initializeClassifierPipeline()

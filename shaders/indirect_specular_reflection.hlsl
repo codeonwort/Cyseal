@@ -11,6 +11,10 @@
 //#define SHADER_STAGE_CLOSESTHIT 2
 //#define SHADER_STAGE_MISS       3
 
+#define DEBUG_MODE_NONE                                     0
+#define DEBUG_MODE_REFLECTED_DIRECTION_ON_PRIMARY_HIT       1
+#define DEBUG_MODE_ALBEDO_ON_SECONDARY_HIT                  2
+
 // ---------------------------------------------------------
 
 #ifndef ENABLE_DEBUG_MODE
@@ -99,6 +103,8 @@ Texture2D albedoTextures[TEMP_MAX_SRVS]     : register(t0, space3); // bindless 
 SamplerState albedoSampler : register(s0, space0);
 SamplerState skyboxSampler : register(s1, space0);
 SamplerState linearSampler : register(s2, space0);
+
+uint getDebugMode() { return passUniform.debugMode; }
 
 uint2 unpackCurrentTexel(uint2 dispatchRaysIndex)
 {
@@ -452,11 +458,28 @@ void MainRaygen()
 		Wo = 0;
 		rayLength = 0;
 	}
-
+	
+#if ENABLE_DEBUG_MODE
+	if (getDebugMode() == DEBUG_MODE_REFLECTED_DIRECTION_ON_PRIMARY_HIT)
+	{
+		float3 color = 0.5 + 0.5 * brdfOutput.outRayDir;
+		rwRaytracingTexture[texel] = float4(color, rayLength);
+		rwRadianceTexture[texel] = float4(color, rayLength);
+		rwVarianceTexture[texel] = rayLength;
+	}
+	else
+	{
+		// #wip-debug: albedo on secondary hit
+		rwRaytracingTexture[texel] = 0;
+		rwRadianceTexture[texel] = 0;
+		rwVarianceTexture[texel] = 0;
+	}
+#else
 	// #wip: If invalid sample was generated, then write Wo = 0 but temporal accumulation averages it anyway, so it gets darker I guess...
 	rwRaytracingTexture[texel] = float4(Wo, rayLength);
 	rwRadianceTexture[texel] = float4(Wo, rayLength);
 	rwVarianceTexture[texel] = rayLength;
+#endif
 }
 
 [shader("closesthit")]
