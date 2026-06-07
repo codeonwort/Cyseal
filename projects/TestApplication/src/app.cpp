@@ -369,14 +369,23 @@ void TestApplication::onTick(float deltaSeconds)
 					ImGui::TableNextRow();
 					ImGui::TableNextColumn(); ImGui::Text("Indirect Diffuse Reflection");
 					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Diffuse Reflection", &appState.selectedIndirectDiffuseMode, getIndirectDiffuseModeNames(), (int32)EIndirectDiffuseMode::Count);
-					ImGui::TableNextRow();
-					ImGui::TableNextColumn(); ImGui::Text("Indirect Specular Reflection");
-					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Specular Reflection", &appState.selectedIndirectSpecularMode, getIndirectSpecularModeNames(), (int32)EIndirectSpecularMode::Count);
 					ImGui::EndTable();
 				}
 				appState.rendererOptions.rayTracedShadows = (ERayTracedShadowsMode)appState.selectedRayTracedShadowsMode;
 				appState.rendererOptions.indirectDiffuse = (EIndirectDiffuseMode)appState.selectedIndirectDiffuseMode;
+
+				ImGui::SeparatorText("Indirect Specular Reflection");
+				if (ImGui::BeginTable("##Indirect Specular Reflection", 2))
+				{
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("Mode");
+					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Specular Reflection Mode", &appState.selectedIndirectSpecularMode, getIndirectSpecularModeNames(), (int32)EIndirectSpecularMode::Count);
+					ImGui::TableNextColumn(); ImGui::Text("Debug Mode");
+					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Specular Reflection Debug Mode", &appState.selectedIndirectSpecularDebugMode, getIndirectSpecularDebugModeNames(), (int32)EIndirectSpecularDebugMode::Count);
+					ImGui::EndTable();
+				}
 				appState.rendererOptions.indirectSpecular = (EIndirectSpecularMode)appState.selectedIndirectSpecularMode;
+				appState.rendererOptions.indirectSpecularDebugMode = (EIndirectSpecularDebugMode)appState.selectedIndirectSpecularDebugMode;
 			}
 
 			const int32 pathTracingModeOld = appState.selectedPathTracingMode;
