@@ -323,12 +323,14 @@ void PBRT4Loader::loadMaterials(const pbrt::PBRT4ParserOutput& parserOutput)
 		
 		if (desc.bUseAnisotropicRoughness)
 		{
-			material->setRoughness(0.5f * (desc.uroughness + desc.vroughness));
+			float roughness = 0.5f * (desc.uroughness + desc.vroughness);
+			if (desc.bRemapRoughness) roughness *= roughness;
+			material->setRoughness(roughness);
 			CYLOG(LogPBRT, Error, L"Material '%S' uses anisotropic roughness but not supported", debugName.c_str());
 		}
 		else
 		{
-			material->setRoughness(desc.roughness);
+			material->setRoughness(desc.bRemapRoughness ? desc.roughness * desc.roughness : desc.roughness);
 		}
 
 		// #todo-pbrt-material: diffusetransmission material needs different materialID

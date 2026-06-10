@@ -74,7 +74,7 @@ namespace pbrt
 			vec3             rgbReflectance           = vec3(1.0f);
 			std::string      textureReflectance;
 			bool             bUseAnisotropicRoughness = false;
-			bool             bRemapRoughness          = false;
+			bool             bRemapRoughness          = false; // true: perceptual, false: linear
 			float            roughness                = 1.0f;
 			float            vroughness               = 1.0f;
 			float            uroughness               = 1.0f;
