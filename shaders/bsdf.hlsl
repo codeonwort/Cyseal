@@ -4,7 +4,7 @@
 #include "common.hlsl"
 
 // #wip: Handle as a corner case in BRDF library or handle separately from outside.
-#define MIRROR_REFLECTION_ROUGHNESS 0.01
+#define MIRROR_REFLECTION_ROUGHNESS 0.001
 
 // #wip: Replace specular BRDF impl...
 #define REWORK_SPECULAR_BRDF 1
@@ -261,8 +261,6 @@ namespace specular_brdf
 		float _d = trowbridgeReitzDistribution(Wh, roughness, roughness);
 		float _g = geometrySmithGGX(Wo, Wi, roughness, roughness);
 		
-		float3 specularBRDF = (_d * _f * _g) / (4 * cosTheta_i * cosTheta_o);
-		
 		// 5. Return the result.
 		
 		MicrofacetBRDFOutput output;
@@ -270,11 +268,12 @@ namespace specular_brdf
 		output.outRayDir = rotateVector(Wi, localToWorld);
 		if (roughness < MIRROR_REFLECTION_ROUGHNESS)
 		{
-			output.specularReflectance = cosTheta_i;
+			output.specularReflectance = _f * cosTheta_i;
 			output.pdf = 1.0;
 		}
 		else
 		{
+			float3 specularBRDF = (_d * _f * _g) / (4 * cosTheta_i * cosTheta_o);
 			output.specularReflectance = specularBRDF * cosTheta_i;
 			output.pdf = pdf;
 		}
