@@ -7,7 +7,7 @@
 #define MIRROR_REFLECTION_ROUGHNESS 0.01
 
 // #wip: Replace specular BRDF impl...
-#define REWORK_SPECULAR_BRDF 0
+#define REWORK_SPECULAR_BRDF 1
 
 // ---------------------------------------------------------
 // Definitions
@@ -184,7 +184,7 @@ namespace specular_brdf
 		float2 p = sampleUniformDiskPolar(u);
 		// Warp hemispherical projection for visible normal sampling.
 		float h = sqrt(1 - (p.x * p.x));
-		p.y = lerp((1 + wh.z) / 2, h, p.y);
+		p.y = lerp(h, p.y, (1 + wh.z) / 2);
 		// Reproject to hemisphere and transform normal to ellipsoid config.
 		float pz = sqrt(max(0, 1 - dot(p, p)));
 		float3 nh = p.x * T1 + p.y * T2 + pz * wh;
@@ -218,7 +218,7 @@ namespace specular_brdf
 		float3x3 worldToLocal = transpose(localToWorld);
 	
 		// 2. Find Wh and Wi from Wo.
-	
+		
 		// Wo, Wi faces outwards. Wh is normalized half-vector.
 		float3 N = float3(0, 0, 1);
 		float3 Wo = rotateVector(-inRayDir, worldToLocal);
