@@ -14,7 +14,7 @@ class World_Specular : public World
 		vec3 scale      = vec3(1, 1, 1);
 		vec3 position   = vec3(0, 0, 0);
 		vec3 albedo     = vec3(0.9f, 0.9f, 0.9f);
-		float roughness = 1.0f;
+		float roughness = 1.0f; // Perceptual (CAUTION: the system expects linear !!!)
 	};
 
 public:

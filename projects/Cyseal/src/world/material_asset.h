@@ -15,7 +15,9 @@ public:
 	inline bool isDirty() const { return bDirty; }
 	inline void clearDirtyFlag() { bDirty = false; }
 
+	// Returns linear roughness.
 	inline float getRoughness() const { return roughness; }
+	// Set linear roughness. If your value is a perceptual roughness, pass (value * value).
 	void setRoughness(float value);
 
 	inline bool getDoubleSided() const { return bDoubleSided; }
@@ -33,7 +35,7 @@ public:
 	float                   indexOfRefraction = IoR::Air;
 	vec3                    transmittance     = vec3(0.0f);
 private:
-	float                   roughness         = 0.0f;
+	float                   roughness         = 0.0f; // Linear roughness.
 	bool                    bDoubleSided      = false;
 
 	GraphicsPipelineKey     pipelineKey;
