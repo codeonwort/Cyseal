@@ -19,6 +19,8 @@ class GPUScene;
 
 struct IndirectSpecularInput
 {
+	class ClearResourcePass*   clearResourcePass;
+
 	const SceneProxy*          scene;
 	EIndirectSpecularMode      mode;
 	EIndirectSpecularDebugMode debugMode;
@@ -149,7 +151,6 @@ private:
 	UniquePtr<Texture>                       raytracingTexture;
 	UniquePtr<ShaderResourceView>            raytracingSRV;
 	UniquePtr<UnorderedAccessView>           raytracingUAV;
-	UniquePtr<RenderTargetView>              raytracingRTV;
 
 // Only for AMD reflection denoiser
 private:

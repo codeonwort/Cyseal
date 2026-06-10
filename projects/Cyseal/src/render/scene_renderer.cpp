@@ -751,6 +751,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		StoreHistoryPassResources historyResources = storeHistoryPass->getResources(frameInfo);
 		
 		IndirectSpecularInput passInput{
+			.clearResourcePass       = clearResourcePass,
 			.scene                   = scene,
 			.mode                    = renderOptions.indirectSpecular,
 			.debugMode               = renderOptions.indirectSpecularDebugMode,

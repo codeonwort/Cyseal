@@ -2,6 +2,7 @@
 
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
+#include "render/util/clear_resource_pass.h"
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
@@ -198,7 +199,6 @@ bool IndirecSpecularPass::isAvailable() const
 
 void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList, const FrameInfo& frameInfo, const IndirectSpecularInput& passInput)
 {
-	auto scene               = passInput.scene;
 	auto sceneWidth          = passInput.sceneWidth;
 	auto sceneHeight         = passInput.sceneHeight;
 
@@ -231,6 +231,17 @@ void IndirecSpecularPass::renderIndirectSpecular(RenderCommandList* commandList,
 	actualHistoryHeight[passFrameInfo.currFrame] = passInput.sceneHeight;
 
 	classifierPhase(commandList, passFrameInfo, passInput);
+
+#if INDIRECT_DISPATCH_RAYS
+	// With indirect dispatch we don't write to all pixels anymore, so need to explicitly clear the texture.
+	{
+		SCOPED_DRAW_EVENT(commandList, ClearIndirectSpecularRaytracing);
+
+		auto fClearZero = ClearResourcePass::floatClearValue(0, 0, 0, 0);
+		passInput.clearResourcePass->enqueueClear(raytracingTexture.get(), raytracingUAV.get(), fClearZero);
+		passInput.clearResourcePass->executeClears(commandList, frameInfo);
+	}
+#endif
 
 	raytracingPhase(commandList, passFrameInfo, passInput, rayPipelineResources);
 
@@ -615,10 +626,6 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 
 	TextureCreateParams rayTexDesc = TextureCreateParams::texture2D(
 		PF_raytracing, ETextureAccessFlags::SRV | ETextureAccessFlags::UAV, unscaledHistoryWidth, unscaledHistoryHeight);
-#if INDIRECT_DISPATCH_RAYS
-	// Lazy way to clear the texture.
-	rayTexDesc.accessFlags = rayTexDesc.accessFlags | ETextureAccessFlags::RTV;
-#endif
 
 	commandList->enqueueDeferredDealloc(raytracingTexture.release(), true);
 	raytracingTexture = UniquePtr<Texture>(device->createTexture(rayTexDesc));
@@ -643,18 +650,6 @@ void IndirecSpecularPass::resizeTextures(RenderCommandList* commandList, uint32 
 			.texture2D = Texture2DUAVDesc{.mipSlice = 0, .planeSlice = 0 },
 		}
 	));
-#if INDIRECT_DISPATCH_RAYS
-	raytracingRTV = UniquePtr<RenderTargetView>(device->createRTV(raytracingTexture.get(),
-		RenderTargetViewDesc{
-			.format            = raytracingTexture->getCreateParams().format,
-			.viewDimension     = ERTVDimension::Texture2D,
-			.texture2D         = Texture2DRTVDesc{
-				.mipSlice      = 0,
-				.planeSlice    = 0,
-			},
-		}
-	));
-#endif
 
 	commandList->enqueueDeferredDealloc(avgRadianceTexture.release(), true);
 	avgRadianceTexture = UniquePtr<Texture>(device->createTexture(
@@ -960,27 +955,6 @@ void IndirecSpecularPass::raytracingPhase(RenderCommandList* commandList, const 
 	}
 	
 #if INDIRECT_DISPATCH_RAYS
-	// With indirect dispatch we don't write to all pixels anymore, so need to explicitly clear the texture.
-	{
-		SCOPED_DRAW_EVENT(commandList, ClearIndirectSpecularRaytracing);
-		
-		// #wip: Now I have clearResourcePass
-		// #todo-rhi: ID3D12GraphicsCommandList::ClearUnorderedAccessViewFloat() requires TWO descriptor heaps for a single UAV?
-		// Well let's just adopt the most lazy way...
-
-		TextureBarrierAuto barriersBefore = TextureBarrierAuto::toRenderTarget(raytracingTexture.get());
-		commandList->barrierAuto(0, nullptr, 1, &barriersBefore, 0, nullptr);
-
-		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		commandList->clearRenderTargetView(raytracingRTV.get(), clearColor);
-
-		TextureBarrierAuto barriersAfter = {
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			raytracingTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		};
-		commandList->barrierAuto(0, nullptr, 1, &barriersAfter, 0, nullptr);
-	}
-
 	commandList->executeIndirect(rayCommandSignature.get(), 1, rayCommandBuffer.get(), 0);
 
 	{
