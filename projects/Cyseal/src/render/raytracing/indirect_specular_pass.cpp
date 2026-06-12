@@ -1094,13 +1094,23 @@ void IndirecSpecularPass::amdReprojPhase(RenderCommandList* commandList, const P
 
 	auto passUniformCBV = amdReprojectPassDescriptor.getUniformCBV(currFrame);
 	
+	// About matrix convention //
+	// - Multiplication order in HLSL
+	//   - Cyseal : mul(position, M)
+	//   - ffx    : mul(M_transposed, position)
+	// - So a single matrix can be transposed before upload.
+	// - For view projection matrix
+	//   - Cyseal : mul(position, V * P)
+	//   - ffx    : mul(P_transposed * V_transposed, position)
+	// - But transpose(A * B) = transpose(B) * transpose(A), so transpose(P) * transpose(V) = transpose(VP)
+
 	AMDDenoiserUniform uniformData{
 		.invProjection           = passInput.invProjection.transpose(),
 		.invView                 = passInput.invView.transpose(),
 		.prevViewProjection      = passInput.prevViewProjection.transpose(),
 		.renderSize              = { passInput.unscaledRenderWidth, passInput.unscaledRenderHeight },
 		.invRenderSize           = { 1.0f / (float)passInput.unscaledRenderWidth, 1.0f / (float)passInput.unscaledRenderHeight },
-		.motionVectorScale       = { 1.0f, 1.0f },
+		.motionVectorScale       = { -1.0f, -1.0f },
 		.normalsUnpackMul        = 1.0f,
 		.normalsUnpackAdd        = 0.0f,
 		.isRoughnessPerceptual   = AMD_IS_ROUGHNESS_PERCEPTUAL,

@@ -15,8 +15,9 @@
 #define DEBUG_MODE_REFLECTED_DIRECTION_ON_PRIMARY_HIT       1
 #define DEBUG_MODE_ALBEDO_ON_SECONDARY_HIT                  2
 
-// #wip: Use new specularBRDF
-#define USE_REWORK_SPECULAR_BRDF 1
+// #wip: Use new specularBRDF... but then no diffuse at all?
+#define PRIMARY_USE_REWORK_SPECULAR_BRDF   1
+#define SECONDARY_USE_REWORK_SPECULAR_BRDF 1
 
 // ---------------------------------------------------------
 
@@ -321,7 +322,7 @@ float4 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		{
 			if (passUniform.traceMode == TRACE_BRDF)
 			{
-#if USE_REWORK_SPECULAR_BRDF
+#if SECONDARY_USE_REWORK_SPECULAR_BRDF
 				MicrofacetBRDFInput brdfInput;
 				brdfInput.inRayDir      = currentRay.Direction;
 				brdfInput.surfaceNormal = surfaceNormal;
@@ -447,7 +448,7 @@ void MainRaygen()
 	{
 		if (passUniform.traceMode == TRACE_BRDF)
 		{
-#if USE_REWORK_SPECULAR_BRDF
+#if PRIMARY_USE_REWORK_SPECULAR_BRDF
 			MicrofacetBRDFInput brdfInput;
 			brdfInput.inRayDir = viewDirection;
 			brdfInput.surfaceNormal = normalWS;
