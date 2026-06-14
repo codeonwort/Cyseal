@@ -26,6 +26,8 @@ void TextureSequence::resizeTextures(RenderCommandList* commandList, uint32 inWi
 			if (history[i] != nullptr)
 			{
 				commandList->enqueueDeferredDealloc(history[i].release());
+				commandList->enqueueDeferredDealloc(historySRV[i].release());
+				commandList->enqueueDeferredDealloc(historyUAV[i].release());
 			}
 
 			std::wstring debugName = debugNameBase + std::to_wstring(i);

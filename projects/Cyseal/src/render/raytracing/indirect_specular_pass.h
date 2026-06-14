@@ -168,9 +168,7 @@ private:
 	UniquePtr<Buffer>                        amdCommandBuffer;
 	UniquePtr<UnorderedAccessView>           amdCommandBufferUAV;
 
-	UniquePtr<Texture>                       avgRadianceTexture;
-	UniquePtr<ShaderResourceView>            avgRadianceSRV;
-	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
+	TextureSequence                          avgRadianceHistory;
 	UniquePtr<Texture>                       reprojectedRadianceTexture;
 	UniquePtr<ShaderResourceView>            reprojectedRadianceSRV;
 	UniquePtr<UnorderedAccessView>           reprojectedRadianceUAV;
