@@ -519,7 +519,7 @@ void MainRaygen()
 		rwVarianceTexture[texel] = rayLength;
 	}
 #else
-	// #wip: If invalid sample was generated, then write Wo = 0 but temporal accumulation averages it anyway, so it gets darker I guess...
+	// #todo-specular: If invalid sample was generated, then write Wo = 0 but temporal accumulation averages it anyway, so it could get darker.
 	rwRaytracingTexture[texel] = float4(Wo, rayLength);
 	rwRadianceTexture[texel] = float4(Wo, rayLength);
 	rwVarianceTexture[texel] = rayLength;

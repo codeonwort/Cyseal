@@ -21,11 +21,6 @@
 #define CAMERA_Z_NEAR        0.01f
 #define CAMERA_Z_FAR         10000.0f
 
-// #wip: Fix known issues
-// - Find out why a path that bounces at both mirror and glass is black.
-// - Black fireflies in world1. Different issue than (mirror + glass) above.
-// - Artifacts at screen edge in world1. Even repro in perfect mirror mode. -> Only repro if use AMD denoiser?
-
 void World_Specular::onInitialize()
 {
 	appState->selectedIndirectSpecularMode = (int32)EIndirectSpecularMode::BRDF;

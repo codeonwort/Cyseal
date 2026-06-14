@@ -243,7 +243,7 @@ struct RendererOptions
 	ERayTracedShadowsMode      rayTracedShadows = ERayTracedShadowsMode::Disabled;
 	EIndirectDiffuseMode       indirectDiffuse = EIndirectDiffuseMode::Disabled;
 	uint32                     indirectDiffuseRandomSeed = 0;
-	EIndirectSpecularMode      indirectSpecular = EIndirectSpecularMode::ForceMirror;
+	EIndirectSpecularMode      indirectSpecular = EIndirectSpecularMode::Disabled;
 	EIndirectSpecularDebugMode indirectSpecularDebugMode = EIndirectSpecularDebugMode::None;
 	uint32                     indirectSpecularRandomSeed = 0;
 

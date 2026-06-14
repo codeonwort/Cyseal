@@ -14,12 +14,12 @@ struct AppState
 	int32 renderResolutionScale             = 100;
 	float maxFrameRate                      = 120.0f;
 	int32 selectedIndirectDrawMode          = (int32)EIndirectDrawMode::PopulateOnGPU;
-	int32 selectedBufferVisualizationMode   = 0;
-	int32 selectedRayTracedShadowsMode      = 0;
-	int32 selectedIndirectDiffuseMode       = 0;
-	int32 selectedIndirectSpecularMode      = 0;
+	int32 selectedBufferVisualizationMode   = (int32)EBufferVisualizationMode::None;
+	int32 selectedRayTracedShadowsMode      = (int32)ERayTracedShadowsMode::Disabled;
+	int32 selectedIndirectDiffuseMode       = (int32)EIndirectDiffuseMode::Disabled;
+	int32 selectedIndirectSpecularMode      = (int32)EIndirectSpecularMode::Disabled;
 	int32 selectedIndirectSpecularDebugMode = (int32)EIndirectSpecularDebugMode::None;
-	int32 selectedPathTracingMode           = 0;
+	int32 selectedPathTracingMode           = (int32)EPathTracingMode::Disabled;
 	int32 selectedPathTracingKernel         = 0;
 	uint32 pathTracingNumFrames             = 0;
 	int32 pathTracingMaxFrames              = 64;

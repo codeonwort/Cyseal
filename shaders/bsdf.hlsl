@@ -3,7 +3,6 @@
 
 #include "common.hlsl"
 
-// #wip: Handle as a corner case in BRDF library or handle separately from outside.
 #define MIRROR_REFLECTION_ROUGHNESS 0.001
 
 // #wip: Replace specular BRDF impl...
@@ -82,10 +81,10 @@ float3 fresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
 
 #if REWORK_SPECULAR_BRDF
 
-float square(float x) { return x * x; }
-
 namespace bsdf_private
 {
+	float square(float x) { return x * x; }
+	
 	float cosTheta(float3 w) { return w.z; }
 	float cos2Theta(float3 w) { return sqrt(w.z); }
 	float absCosTheta(float3 w) { return abs(w.z); }
@@ -131,9 +130,9 @@ namespace specular_brdf
 	{
 		float t = bsdf_private::tan2Theta(wm);
 		if (isinf(t)) return 0;
-		float cos4Theta = square(bsdf_private::cos2Theta(wm));
-		float e = t * (square(bsdf_private::cosPhi(wm) / alpha_x) + square(bsdf_private::sinPhi(wm) / alpha_y));
-		return 1 / (PI * alpha_x * alpha_y * cos4Theta * square(1 + e));
+		float cos4Theta = bsdf_private::square(bsdf_private::cos2Theta(wm));
+		float e = t * (bsdf_private::square(bsdf_private::cosPhi(wm) / alpha_x) + bsdf_private::square(bsdf_private::sinPhi(wm) / alpha_y));
+		return 1 / (PI * alpha_x * alpha_y * cos4Theta * bsdf_private::square(1 + e));
 	}
 
 	// Masking-shadowing function.

@@ -120,9 +120,6 @@ bool TestApplication::onInitialize()
 
 	resetSceneAndCamera();
 
-	// #wip: Temp change start world.
-	appState.currentWorldIndex = (int32)EWorldIndex::World_Specular;
-
 	world = createWorldInstance((EWorldIndex)appState.currentWorldIndex);
 	world->preinitialize(&scene, &camera, &appState);
 	world->onInitialize();
