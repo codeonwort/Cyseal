@@ -15,7 +15,7 @@
 #define DEBUG_MODE_REFLECTED_DIRECTION_ON_PRIMARY_HIT       1
 #define DEBUG_MODE_ALBEDO_ON_SECONDARY_HIT                  2
 
-// #wip: Use new specularBRDF... but then no diffuse at all?
+// #todo-specular: Some passes (e.g., CombineLighting and PathTracing passes) still use old BRDF.
 #define PRIMARY_USE_REWORK_SPECULAR_BRDF   1
 #define SECONDARY_USE_REWORK_SPECULAR_BRDF 1
 

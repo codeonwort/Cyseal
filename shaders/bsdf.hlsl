@@ -5,7 +5,7 @@
 
 #define MIRROR_REFLECTION_ROUGHNESS 0.001
 
-// #wip: Replace specular BRDF impl...
+// #todo-specular: Some passes (e.g., CombineLighting and PathTracing passes) still use old BRDF.
 #define REWORK_SPECULAR_BRDF 1
 
 // ---------------------------------------------------------
@@ -63,14 +63,12 @@ float3 getRefractedDirection(float3 V, float3 N, float ior)
 	return ior * V + (ior * inCosTheta - sqrt(1 - outSinThetaSq)) * N;
 }
 
-// #wip: Deprecate?
 // cosTheta = dot(incident_or_exitant_light, half_vector)
 float3 fresnelSchlick(float cosTheta, float3 F0)
 {
 	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-// #wip: Deprecate?
 float3 fresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
 {
 	return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);
