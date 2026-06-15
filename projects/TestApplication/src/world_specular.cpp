@@ -37,7 +37,7 @@ void World_Specular::onInitialize()
 		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(0.05f, 0.05f, 0.05f);
 		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
-		material->setRoughness(0.05f);
+		material->setPerceptualRoughness(0.2f);
 
 		ground = new StaticMesh;
 		ground->setPosition(vec3(0.0f, -10.0f, 0.0f));
@@ -65,7 +65,7 @@ void World_Specular::onInitialize()
 			auto material = makeShared<MaterialAsset>();
 			material->albedoMultiplier = params.albedo;
 			material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
-			material->setRoughness(params.roughness * params.roughness);
+			material->setPerceptualRoughness(params.roughness);
 			material->metalMask = 1.0f;
 
 			auto box = new StaticMesh;
@@ -105,8 +105,7 @@ void World_Specular::onRenderGUI()
 		if (ImGui::SliderFloat(label.c_str(), &boxSpawnParams[i].roughness, 0.0f, 1.0f, "%.2f"))
 		{
 			MaterialAsset* mat = boxes[i]->getSections(0)[0].material.get();
-			float perceptualR = boxSpawnParams[i].roughness;
-			mat->setRoughness(perceptualR * perceptualR);
+			mat->setPerceptualRoughness(boxSpawnParams[i].roughness);
 		}
 	}
 

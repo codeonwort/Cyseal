@@ -237,7 +237,7 @@ void World1::createTestMeshes()
 		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(0.1f);
 		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
-		material->setRoughness(0.05f);
+		material->setPerceptualRoughness(0.05f);
 		material->setDoubleSided(true);
 
 		ground = new StaticMesh;
@@ -265,7 +265,7 @@ void World1::createTestMeshes()
 		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(0.1f);
 		material->albedoTexture = albedoTexture;
-		material->setRoughness(0.1f);
+		material->setPerceptualRoughness(0.1f);
 		material->setDoubleSided(true);
 
 		wallA = new StaticMesh;
@@ -286,7 +286,7 @@ void World1::createTestMeshes()
 		material->materialID = EMaterialId::Glass;
 		material->albedoMultiplier = vec3(0.0f);
 		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
-		material->setRoughness(0.1f);
+		material->setPerceptualRoughness(0.1f);
 		material->indexOfRefraction = IoR::CrownGlass;
 
 		MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(geometry);

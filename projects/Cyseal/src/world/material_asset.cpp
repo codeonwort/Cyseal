@@ -23,6 +23,16 @@ void MaterialAsset::setRoughness(float value)
 	roughness = value;
 }
 
+float MaterialAsset::getPerceptualRoughness() const
+{
+	return Cymath::sqrt(getRoughness());
+}
+
+void MaterialAsset::setPerceptualRoughness(float value)
+{
+	setRoughness(value * value);
+}
+
 void MaterialAsset::setDoubleSided(bool value)
 {
 	const auto& desc = value

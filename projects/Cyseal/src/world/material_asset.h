@@ -20,6 +20,9 @@ public:
 	// Set linear roughness. If your value is a perceptual roughness, pass (value * value).
 	void setRoughness(float value);
 
+	float getPerceptualRoughness() const;
+	void setPerceptualRoughness(float value);
+
 	inline bool getDoubleSided() const { return bDoubleSided; }
 	void setDoubleSided(bool value);
 
