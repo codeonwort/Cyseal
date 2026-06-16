@@ -56,7 +56,7 @@ static MaterialConstants createMaterialConstants(MaterialAsset* material, uint32
 	{
 		constants.albedoMultiplier   = material->albedoMultiplier;
 		constants.roughness          = material->getRoughness();
-		constants.emission           = material->emission;
+		constants.emission           = material->getEmission();
 		constants.metalMask          = material->metalMask;
 		constants.materialID         = (uint32)material->materialID;
 		constants.indexOfRefraction  = material->indexOfRefraction;

@@ -15,6 +15,9 @@ public:
 	inline bool isDirty() const { return bDirty; }
 	inline void clearDirtyFlag() { bDirty = false; }
 
+	inline vec3 getEmission() const { return emission; }
+	void setEmission(const vec3& value);
+
 	// Returns linear roughness.
 	inline float getRoughness() const { return roughness; }
 	// Set linear roughness. If your value is a perceptual roughness, pass (value * value).
@@ -33,11 +36,11 @@ public:
 	EMaterialId             materialID        = EMaterialId::DefaultLit;
 	SharedPtr<TextureAsset> albedoTexture;
 	vec3                    albedoMultiplier  = vec3(1.0f, 1.0f, 1.0f);
-	vec3                    emission          = vec3(0.0f);
 	float                   metalMask         = 0.0f;
 	float                   indexOfRefraction = IoR::Air;
 	vec3                    transmittance     = vec3(0.0f);
 private:
+	vec3                    emission          = vec3(0.0f);
 	float                   roughness         = 0.0f; // Linear roughness.
 	bool                    bDoubleSided      = false;
 

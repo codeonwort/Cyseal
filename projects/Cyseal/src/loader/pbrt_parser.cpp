@@ -1025,7 +1025,7 @@ namespace pbrt
 			COMPILER_CHECK_PARAMETER(pIndices, PBRT4ParameterType::IntArray);
 
 			SharedPtr<MaterialAsset> material = makeShared<MaterialAsset>();
-			material->emission = graphicsState.emission;
+			material->setEmission(graphicsState.emission);
 
 			PBRT4ParserOutput::TriangleMeshDesc outDesc{
 				.positionBuffer = toFloat3Array(std::move(pPositions->asFloatArray)),
