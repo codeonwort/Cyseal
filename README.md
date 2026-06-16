@@ -28,7 +28,12 @@ Write visibility buffer (objectID + primID) in depth prepass. Calculate barycent
 **Hardware Raytracing**
 
 <img src="https://user-images.githubusercontent.com/11644393/196040224-dafb600b-1be4-46e3-aa16-5335859c9e76.jpg" width="33%" /><img src="https://user-images.githubusercontent.com/11644393/201951222-44803f65-1d79-4691-bbe2-04a782dc515c.jpg" width="33%" /><img src="https://user-images.githubusercontent.com/11644393/202848012-1d8ebcf2-53fc-4f08-b61b-4199d5fefa55.jpg" width="33%" />
-<img src="https://user-images.githubusercontent.com/11644393/211977004-d3ec684f-cc0c-4958-b378-a961caedfd8c.jpg" width="33%" /><img src="https://user-images.githubusercontent.com/11644393/234315027-8311aee9-5662-43f2-a47e-02080d452031.jpg" width="33%" /><img src="https://user-images.githubusercontent.com/11644393/234315105-bdb18772-7ab5-419e-9a52-4c7f07cfafe7.jpg" width="33%" /><img src="https://github.com/user-attachments/assets/867901d4-5547-4020-9f93-7f233a99acbb" width="33%" />
+<img src="https://user-images.githubusercontent.com/11644393/211977004-d3ec684f-cc0c-4958-b378-a961caedfd8c.jpg" width="33%" /><img src="https://user-images.githubusercontent.com/11644393/234315027-8311aee9-5662-43f2-a47e-02080d452031.jpg" width="33%" /><img src="./document/media/readme_main/pbrt4_bedroom_pathtracing.jpg" width="33%" />
+
+<!--
+<img src="https://user-images.githubusercontent.com/11644393/234315105-bdb18772-7ab5-419e-9a52-4c7f07cfafe7.jpg" width="33%" />
+<img src="https://github.com/user-attachments/assets/867901d4-5547-4020-9f93-7f233a99acbb" width="33%" />
+-->
 
 Use gbuffers to generate rays starting from surfaces. Accumulate lighting at hit points to generate indirect diffuse/specular reflection textures. Run realtime denoiser.
 
