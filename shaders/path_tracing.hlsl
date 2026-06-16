@@ -268,10 +268,23 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		if (materialID == MATERIAL_ID_DEFAULT_LIT)
 		{
 			float2 randoms = getRandoms(targetTexel, pathLen);
-
+			
+			// #wip: Replace BRDF for path tracing
+#if 1
+			MicrofacetBRDFInput brdfInput;
+			brdfInput.inRayDir      = currentRay.Direction;
+			brdfInput.surfaceNormal = surfaceNormal;
+			brdfInput.baseColor     = currentRayPayload.albedo;
+			brdfInput.roughness     = currentRayPayload.roughness;
+			brdfInput.metallic      = currentRayPayload.metalMask;
+			brdfInput.rand0         = randoms.x;
+			brdfInput.rand1         = randoms.y;
+			brdfOutput = specular_brdf::specularBRDF(brdfInput);
+#else
 			brdfOutput = hwrt::evaluateDefaultLit(currentRay.Direction, surfaceNormal,
 				currentRayPayload.albedo, currentRayPayload.roughness,
 				currentRayPayload.metalMask, randoms);
+#endif
 
 			nextRayOffset = SURFACE_NORMAL_OFFSET * surfaceNormal;
 		}

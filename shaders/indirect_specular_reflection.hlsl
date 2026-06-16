@@ -450,7 +450,7 @@ void MainRaygen()
 		{
 #if PRIMARY_USE_REWORK_SPECULAR_BRDF
 			MicrofacetBRDFInput brdfInput;
-			brdfInput.inRayDir = viewDirection;
+			brdfInput.inRayDir      = viewDirection;
 			brdfInput.surfaceNormal = normalWS;
 			brdfInput.baseColor     = albedo;
 			brdfInput.roughness     = roughness;

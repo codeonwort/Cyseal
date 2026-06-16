@@ -258,10 +258,15 @@ namespace specular_brdf
 		float _d = trowbridgeReitzDistribution(Wh, roughness, roughness);
 		float _g = geometrySmithGGX(Wo, Wi, roughness, roughness);
 		
-		// 5. Return the result.
+		// 5. Compute diffuse BRDF.
+		
+		float3 kD = 1.0 - _f;
+		float3 diffuse = baseColor * (1.0 - metallic);
+		
+		// 6. Return the result.
 		
 		MicrofacetBRDFOutput output;
-		output.diffuseReflectance = 0;
+		output.diffuseReflectance = (kD * diffuse) * cosTheta_i;
 		output.outRayDir = rotateVector(Wi, localToWorld);
 		if (roughness < MIRROR_REFLECTION_ROUGHNESS)
 		{
@@ -430,7 +435,7 @@ MicrofacetBRDFOutput microfacetBRDF(MicrofacetBRDFInput input)
 	output.outRayDir = rotateVector(Wi, localToWorld);
 	if (roughness < MIRROR_REFLECTION_ROUGHNESS)
 	{
-		output.specularReflectance = NdotWi;
+		output.specularReflectance = kS * NdotWi;
 		output.pdf = 1.0;
 	}
 	else
