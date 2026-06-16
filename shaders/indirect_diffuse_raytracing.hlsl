@@ -174,7 +174,7 @@ float3 traceSun(float3 rayOrigin)
 
 	RayDesc rayDesc;
 	rayDesc.Origin = rayOrigin;
-	rayDesc.Direction = sceneUniform.sunDirection.xyz;
+	rayDesc.Direction = -(sceneUniform.sunDirection.xyz);
 	rayDesc.TMin = RAYGEN_T_MIN;
 	rayDesc.TMax = RAYGEN_T_MAX;
 

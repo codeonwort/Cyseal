@@ -48,7 +48,7 @@ namespace IoR
 struct MaterialConstants
 {
 	vec3   albedoMultiplier   = vec3(1.0f, 1.0f, 1.0f);
-	float  roughness          = 0.0f;
+	float  roughness          = 0.0f; // Linear roughness (= perceptualRoughness * perceptualRoughness). BRDF expects linear roughness.
 
 	uint32 albedoTextureIndex = 0xffffffff;
 	vec3   emission           = vec3(0.0f, 0.0f, 0.0f);

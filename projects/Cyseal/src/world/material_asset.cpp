@@ -17,6 +17,22 @@ uint32 MaterialAsset::getPipelineFreeNumber() const
 	return pipelineFreeNumber;
 }
 
+void MaterialAsset::setRoughness(float value)
+{
+	bDirty = roughness != value;
+	roughness = value;
+}
+
+float MaterialAsset::getPerceptualRoughness() const
+{
+	return Cymath::sqrt(getRoughness());
+}
+
+void MaterialAsset::setPerceptualRoughness(float value)
+{
+	setRoughness(value * value);
+}
+
 void MaterialAsset::setDoubleSided(bool value)
 {
 	const auto& desc = value
@@ -24,10 +40,7 @@ void MaterialAsset::setDoubleSided(bool value)
 		: GraphicsPipelineKeyDesc::kDefaultPipelineKeyDesc;
 	updatePipelineKey(desc);
 
-	// #todo-gpuscene: Need to update material data buffer if it's changed after first upload.
-	// Not fixed yet because material buffer management could be refactored.
-	// Currently gpu scene item and material data item has 1:1 mapping,
-	// but material buffer could be deduplicated in future.
+	bDirty = bDoubleSided != value;
 	bDoubleSided = value;
 }
 

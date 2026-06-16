@@ -73,6 +73,15 @@ enum class EIndirectSpecularMode : uint32
 	Count
 };
 
+enum EIndirectSpecularDebugMode : uint32
+{
+	None                              = 0,
+	ReflectedDirectionOnPrimaryHit    = 1,
+	AlbedoOnSecondaryHit              = 2,
+
+	Count,
+};
+
 enum class EPathTracingMode : uint32
 {
 	Disabled          = 0,
@@ -174,6 +183,18 @@ inline const char** getIndirectSpecularModeNames()
 	return strings;
 }
 
+inline const char** getIndirectSpecularDebugModeNames()
+{
+	static const char* strings[] =
+	{
+		"None",
+		"ReflectedDirectionOnPrimaryHit",
+		"AlbedoOnSecondaryHit",
+	};
+	static_assert(_countof(strings) == (int)EIndirectSpecularDebugMode::Count);
+	return strings;
+}
+
 inline const char** getPathTracingModeNames()
 {
 	static const char* strings[] =
@@ -201,44 +222,45 @@ inline const char** getPathTracingKernelNames()
 struct RendererOptions
 {
 	// Presentation
-	bool                      bForceVSync = true;
+	bool                       bForceVSync = true;
 
 	// Indirect draw
-	EIndirectDrawMode         indirectDrawMode = EIndirectDrawMode::PopulateOnGPU;
-	bool                      bEnableGPUCulling = true;
+	EIndirectDrawMode          indirectDrawMode = EIndirectDrawMode::PopulateOnGPU;
+	bool                       bEnableGPUCulling = true;
 
 	// Depth and visibility pass
-	bool                      bEnableDepthPrepass = true;
-	bool                      bEnableVisibilityBuffer = true;
+	bool                       bEnableDepthPrepass = true;
+	bool                       bEnableVisibilityBuffer = true;
 
 	// Frame generation
-	bool                      bGenerateFrame = true;
-	float                     prevFrameTime = 0.0f; // In milliseconds, used for frame pacing.
+	bool                       bGenerateFrame = true;
+	float                      prevFrameTime = 0.0f; // In milliseconds, used for frame pacing.
 
 	// Debug visualization
-	EBufferVisualizationMode  bufferVisualization = EBufferVisualizationMode::None;
+	EBufferVisualizationMode   bufferVisualization = EBufferVisualizationMode::None;
 
 	// Ray tracing
-	ERayTracedShadowsMode     rayTracedShadows = ERayTracedShadowsMode::Disabled;
-	EIndirectDiffuseMode      indirectDiffuse = EIndirectDiffuseMode::Disabled;
-	uint32                    indirectDiffuseRandomSeed = 0;
-	EIndirectSpecularMode     indirectSpecular = EIndirectSpecularMode::ForceMirror;
-	uint32                    indirectSpecularRandomSeed = 0;
+	ERayTracedShadowsMode      rayTracedShadows = ERayTracedShadowsMode::Disabled;
+	EIndirectDiffuseMode       indirectDiffuse = EIndirectDiffuseMode::Disabled;
+	uint32                     indirectDiffuseRandomSeed = 0;
+	EIndirectSpecularMode      indirectSpecular = EIndirectSpecularMode::Disabled;
+	EIndirectSpecularDebugMode indirectSpecularDebugMode = EIndirectSpecularDebugMode::None;
+	uint32                     indirectSpecularRandomSeed = 0;
 
 	// Path tracing
-	EPathTracingMode          pathTracing = EPathTracingMode::Disabled;
-	uint32                    pathTracingRandomSeed = 0;
-	bool                      bCameraHasMoved = false;
-	EPathTracingDenoiserState pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
-	EPathTracingKernel        pathTracingKernel = EPathTracingKernel::MegaKernel;
+	EPathTracingMode           pathTracing = EPathTracingMode::Disabled;
+	uint32                     pathTracingRandomSeed = 0;
+	bool                       bCameraHasMoved = false;
+	EPathTracingDenoiserState  pathTracingDenoiserState = EPathTracingDenoiserState::WaitForFrameAccumulation;
+	EPathTracingKernel         pathTracingKernel = EPathTracingKernel::MegaKernel;
 
 	// Render target
-	class Texture*            finalRenderTarget = nullptr; // If specified, render the result to it. If null, render to backbuffer.
-	inline uint32             getResolutionScale() const { return resolutionScaleAvailable() ? resolutionScale : 100; }
-	void                      setResolutionScale(uint32 value) { resolutionScale = value; }
+	class Texture*             finalRenderTarget = nullptr; // If specified, render the result to it. If null, render to backbuffer.
+	inline uint32              getResolutionScale() const { return resolutionScaleAvailable() ? resolutionScale : 100; }
+	void                       setResolutionScale(uint32 value) { resolutionScale = value; }
 
 private:
-	Clamped<uint32>           resolutionScale{ 100, 25, 100 }; // Without resizing internal render targets, control the scale of render resolution.
+	Clamped<uint32>            resolutionScale{ 100, 25, 100 }; // Without resizing internal render targets, control the scale of render resolution.
 
 public:
 	inline bool anyRayTracingEnabled() const

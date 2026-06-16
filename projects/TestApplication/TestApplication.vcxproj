@@ -91,6 +91,8 @@
     <ClCompile Include="src\unit_tests.cpp" />
     <ClCompile Include="src\world1.cpp" />
     <ClCompile Include="src\world2.cpp" />
+    <ClCompile Include="src\world_specular.cpp" />
+    <ClCompile Include="src\world_utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\app.h" />
@@ -98,6 +100,8 @@
     <ClInclude Include="src\world.h" />
     <ClInclude Include="src\world1.h" />
     <ClInclude Include="src\world2.h" />
+    <ClInclude Include="src\world_utils.h" />
+    <ClInclude Include="src\world_specular.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

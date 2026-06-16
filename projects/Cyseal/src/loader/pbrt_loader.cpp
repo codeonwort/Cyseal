@@ -58,7 +58,7 @@ PBRT4Scene::ToCyseal PBRT4Scene::toCyseal(PBRT4Scene* pbrtScene)
 	auto fallbackMaterial = makeShared<MaterialAsset>();
 	fallbackMaterial->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
 	fallbackMaterial->albedoTexture = gTextureManager->getSystemTextureGrey2D();
-	fallbackMaterial->roughness = 1.0f;
+	fallbackMaterial->setRoughness(1.0f);
 
 	ToCyseal ret;
 
@@ -323,12 +323,14 @@ void PBRT4Loader::loadMaterials(const pbrt::PBRT4ParserOutput& parserOutput)
 		
 		if (desc.bUseAnisotropicRoughness)
 		{
-			material->roughness = 0.5f * (desc.uroughness + desc.vroughness);
+			float roughness = 0.5f * (desc.uroughness + desc.vroughness);
+			if (desc.bRemapRoughness) roughness *= roughness;
+			material->setRoughness(roughness);
 			CYLOG(LogPBRT, Error, L"Material '%S' uses anisotropic roughness but not supported", debugName.c_str());
 		}
 		else
 		{
-			material->roughness = desc.roughness;
+			material->setRoughness(desc.bRemapRoughness ? desc.roughness * desc.roughness : desc.roughness);
 		}
 
 		// #todo-pbrt-material: diffusetransmission material needs different materialID

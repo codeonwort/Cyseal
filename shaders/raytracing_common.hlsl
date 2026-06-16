@@ -80,9 +80,12 @@ namespace hwrt
 		brdfInput.rand0         = randoms.x;
 		brdfInput.rand1         = randoms.y;
 
-		return microfacetBRDF(brdfInput);
+		// #todo-deprecated: Search for LEGACY_SPECULAR_BRDF. Delete together.
+		//return legacyMicrofacetBRDF(brdfInput);
+		
+		return torranceSparrowBrdf::microfacetBRDF(brdfInput);
 	}
-
+	
 	MicrofacetBRDFOutput evaluateMirror(float3 inRayDir, float3 surfaceNormal)
 	{
 		MicrofacetBRDFOutput brdfOutput;

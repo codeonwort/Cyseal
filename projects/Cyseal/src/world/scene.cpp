@@ -21,6 +21,7 @@ Scene::~Scene()
 {
 	CHECK(staticMeshes.size() == 0);
 	CHECK(staticMeshesToRemove.size() == 0);
+	CHECK(skyboxTexture == nullptr);
 }
 
 void Scene::updateMeshLODs(const Camera& camera, const RendererOptions& rendererOptions)
@@ -91,6 +92,10 @@ SceneProxy* Scene::createProxy()
 	for (StaticMesh* sm : staticMeshes)
 	{
 		sm->clearDirtyFlags();
+	}
+	for (MaterialAsset* mat : proxy->dirtyMaterials)
+	{
+		mat->clearDirtyFlag();
 	}
 
 	return proxy;

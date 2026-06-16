@@ -55,7 +55,7 @@ static MaterialConstants createMaterialConstants(MaterialAsset* material, uint32
 	if (material != nullptr)
 	{
 		constants.albedoMultiplier   = material->albedoMultiplier;
-		constants.roughness          = material->roughness;
+		constants.roughness          = material->getRoughness();
 		constants.emission           = material->emission;
 		constants.metalMask          = material->metalMask;
 		constants.materialID         = (uint32)material->materialID;
@@ -101,13 +101,19 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 	const std::vector<StaticMeshSection>& sections = LODs[activeLOD].sections;
 	const size_t numSections = sections.size();
 
+	bool isMaterialDirty = false;
+	for (const auto& section : sections)
+	{
+		isMaterialDirty = isMaterialDirty || section.material->isDirty();
+	}
+
 	if (gpuSceneResidency.phase == EGPUResidencyPhase::Allocated)
 	{
 		if (bLodDirty)
 		{
 			gpuSceneResidency.phase = EGPUResidencyPhase::NeedToReallocate;
 		}
-		else if (isTransformDirty())
+		else if (isTransformDirty() || isMaterialDirty)
 		{
 			gpuSceneResidency.phase = EGPUResidencyPhase::NeedToUpdate;
 		}
@@ -217,12 +223,15 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 			}
 			gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			break;
+		// #todo-gpuscene: Separate transform update and material update.
+		// Also, update materials smarter. Currently doing ad-hoc and causing descriptor overhead.
 		case EGPUResidencyPhase::NeedToUpdate:
-			// #todo-gpuscene: What if geometry or material changes while the section count remains same?
+			
 			// MaterialAsset needs to hide its public fields and provide public methods for dirty flags.
 			// Same for StaticMeshSection.
 			for (size_t i = 0; i < numSections; ++i)
 			{
+				const StaticMeshSection& section = sections[i];
 				const uint32 itemIx = gpuSceneResidency.itemIndices[i];
 
 				GPUSceneUpdateCommand cmd{
@@ -231,6 +240,18 @@ void StaticMesh::updateGPUSceneResidency(SceneProxy* sceneProxy, GPUSceneItemInd
 					.prevLocalToWorld = prevModelMatrix,
 				};
 				sceneProxy->gpuSceneUpdateCommands.emplace_back(cmd);
+
+				GPUSceneEvictMaterialCommand evictMaterialCmd{
+					.sceneItemIndex = itemIx
+				};
+				GPUSceneMaterialCommand materialCmd{
+					.sceneItemIndex = itemIx,
+					.materialData   = createMaterialConstants(section.material.get(), itemIx)
+				};
+				sceneProxy->gpuSceneEvictMaterialCommands.emplace_back(evictMaterialCmd);
+				sceneProxy->gpuSceneMaterialCommands.emplace_back(materialCmd);
+				sceneProxy->gpuSceneAlbedoTextures.push_back(getAlbedoTexture(section.material));
+				sceneProxy->dirtyMaterials.push_back(section.material.get());
 			}
 			gpuSceneResidency.phase = EGPUResidencyPhase::Allocated;
 			break;

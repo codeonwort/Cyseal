@@ -19,47 +19,50 @@ class GPUScene;
 
 struct IndirectSpecularInput
 {
-	const SceneProxy*      scene;
-	EIndirectSpecularMode  mode;
-	uint32                 randomSeed;
+	class ClearResourcePass*   clearResourcePass;
 
-	uint32                 unscaledRenderWidth;
-	uint32                 unscaledRenderHeight;
-	uint32                 sceneWidth;
-	uint32                 sceneHeight;
-	Float4x4               invProjection;
-	Float4x4               invView;
-	Float4x4               prevViewProjection;
+	const SceneProxy*          scene;
+	EIndirectSpecularMode      mode;
+	EIndirectSpecularDebugMode debugMode;
+	uint32                     randomSeed;
 
-	ConstantBufferView*    sceneUniformBuffer;
-	GPUScene*              gpuScene;
-	AccelerationStructure* raytracingScene;
-	ShaderResourceView*    skyboxSRV;
-	Texture*               gbuffer0Texture;
-	Texture*               gbuffer1Texture;
-	ShaderResourceView*    gbuffer0SRV;
-	ShaderResourceView*    gbuffer1SRV;
-	Texture*               normalTexture;
-	ShaderResourceView*    normalSRV;
-	Texture*               roughnessTexture;
-	ShaderResourceView*    roughnessSRV;
-	Texture*               prevNormalTexture;
-	ShaderResourceView*    prevNormalSRV;
-	Texture*               prevRoughnessTexture;
-	ShaderResourceView*    prevRoughnessSRV;
-	Texture*               sceneDepthTexture;
-	ShaderResourceView*    sceneDepthSRV;
-	Texture*               prevSceneDepthTexture;
-	ShaderResourceView*    prevSceneDepthSRV;
-	Texture*               hizTexture;
-	ShaderResourceView*    hizSRV;
-	Texture*               velocityMapTexture;
-	ShaderResourceView*    velocityMapSRV;
-	Buffer*                tileCoordBuffer;
-	Buffer*                tileCounterBuffer;
-	UnorderedAccessView*   tileCoordBufferUAV;
-	UnorderedAccessView*   tileCounterBufferUAV;
-	Texture*               indirectSpecularTexture;
+	uint32                     unscaledRenderWidth;
+	uint32                     unscaledRenderHeight;
+	uint32                     sceneWidth;
+	uint32                     sceneHeight;
+	Float4x4                   invProjection;
+	Float4x4                   invView;
+	Float4x4                   prevViewProjection;
+
+	ConstantBufferView*        sceneUniformBuffer;
+	GPUScene*                  gpuScene;
+	AccelerationStructure*     raytracingScene;
+	ShaderResourceView*        skyboxSRV;
+	Texture*                   gbuffer0Texture;
+	Texture*                   gbuffer1Texture;
+	ShaderResourceView*        gbuffer0SRV;
+	ShaderResourceView*        gbuffer1SRV;
+	Texture*                   normalTexture;
+	ShaderResourceView*        normalSRV;
+	Texture*                   roughnessTexture;
+	ShaderResourceView*        roughnessSRV;
+	Texture*                   prevNormalTexture;
+	ShaderResourceView*        prevNormalSRV;
+	Texture*                   prevRoughnessTexture;
+	ShaderResourceView*        prevRoughnessSRV;
+	Texture*                   sceneDepthTexture;
+	ShaderResourceView*        sceneDepthSRV;
+	Texture*                   prevSceneDepthTexture;
+	ShaderResourceView*        prevSceneDepthSRV;
+	Texture*                   hizTexture;
+	ShaderResourceView*        hizSRV;
+	Texture*                   velocityMapTexture;
+	ShaderResourceView*        velocityMapSRV;
+	Buffer*                    tileCoordBuffer;
+	Buffer*                    tileCounterBuffer;
+	UnorderedAccessView*       tileCoordBufferUAV;
+	UnorderedAccessView*       tileCounterBufferUAV;
+	Texture*                   indirectSpecularTexture;
 };
 
 class IndirecSpecularPass final : public SceneRenderPass
@@ -68,6 +71,13 @@ class IndirecSpecularPass final : public SceneRenderPass
 	{
 		uint32 currFrame;
 		uint32 prevFrame;
+	};
+	struct RaytracingPipelineResources
+	{
+		UniquePtr<RaytracingPipelineStateObject> pipelineStateObject;
+		UniquePtr<RaytracingShaderTable>         raygenShaderTable;
+		UniquePtr<RaytracingShaderTable>         missShaderTable;
+		BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
 	};
 
 public:
@@ -90,10 +100,10 @@ private:
 
 	// classifierPhase requires some resources that are created by raytracingPhase.
 	// But classifierPhase runs first, so prepare such resources here.
-	void prepareRaytracingResources(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
+	void prepareRaytracingResources(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput, const RaytracingPipelineResources& rayResources);
 
 	void classifierPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
-	void raytracingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
+	void raytracingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput, const RaytracingPipelineResources& rayResources);
 	void legacyDenoisingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
 
 	void amdReprojPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectSpecularInput& passInput);
@@ -113,12 +123,12 @@ private:
 	VolatileDescriptorHelper                 indirectRaysPassDescriptor;
 
 	// Ray pass
-	UniquePtr<RaytracingPipelineStateObject> RTPSO;
-	UniquePtr<RaytracingShaderTable>         raygenShaderTable;
-	UniquePtr<RaytracingShaderTable>         missShaderTable;
-	BufferedUniquePtr<RaytracingShaderTable> hitGroupShaderTable;
+	RaytracingPipelineResources              raytracingPipelineResources[2]; // standard, debug mode
 	std::vector<uint32>                      totalHitGroupShaderRecord;
 	VolatileDescriptorHelper                 rayPassDescriptor;
+
+	// Ray debug pass (reuses ray pass resources other than raygen shader)
+	UniquePtr<RaytracingPipelineStateObject> rayDebugPipeline;
 
 	// Ray pass indirect dispatch
 	UniquePtr<CommandSignature>              rayCommandSignature;
@@ -141,7 +151,6 @@ private:
 	UniquePtr<Texture>                       raytracingTexture;
 	UniquePtr<ShaderResourceView>            raytracingSRV;
 	UniquePtr<UnorderedAccessView>           raytracingUAV;
-	UniquePtr<RenderTargetView>              raytracingRTV;
 
 // Only for AMD reflection denoiser
 private:
@@ -159,9 +168,7 @@ private:
 	UniquePtr<Buffer>                        amdCommandBuffer;
 	UniquePtr<UnorderedAccessView>           amdCommandBufferUAV;
 
-	UniquePtr<Texture>                       avgRadianceTexture;
-	UniquePtr<ShaderResourceView>            avgRadianceSRV;
-	UniquePtr<UnorderedAccessView>           avgRadianceUAV;
+	TextureSequence                          avgRadianceHistory;
 	UniquePtr<Texture>                       reprojectedRadianceTexture;
 	UniquePtr<ShaderResourceView>            reprojectedRadianceSRV;
 	UniquePtr<UnorderedAccessView>           reprojectedRadianceUAV;

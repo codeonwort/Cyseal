@@ -50,4 +50,6 @@ public:
 	std::vector<GPUSceneEvictMaterialCommand> gpuSceneEvictMaterialCommands;
 	std::vector<GPUSceneMaterialCommand>      gpuSceneMaterialCommands;
 	std::vector<Texture*>                     gpuSceneAlbedoTextures; // For each material command
+
+	std::vector<class MaterialAsset*>         dirtyMaterials; // Duplicate items might exist
 };

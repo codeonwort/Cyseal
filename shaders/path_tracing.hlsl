@@ -174,7 +174,7 @@ float3 traceSun(float3 rayOrigin, float3 surfaceNormal)
 
 	RayDesc rayDesc;
 	rayDesc.Origin = rayOrigin;
-	rayDesc.Direction = sceneUniform.sunDirection.xyz;
+	rayDesc.Direction = -(sceneUniform.sunDirection.xyz);
 	rayDesc.TMin = RAYGEN_T_MIN;
 	rayDesc.TMax = RAYGEN_T_MAX;
 
@@ -268,8 +268,9 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		if (materialID == MATERIAL_ID_DEFAULT_LIT)
 		{
 			float2 randoms = getRandoms(targetTexel, pathLen);
-
-			brdfOutput = hwrt::evaluateDefaultLit(currentRay.Direction, surfaceNormal,
+			
+			brdfOutput = hwrt::evaluateDefaultLit(
+				currentRay.Direction, surfaceNormal,
 				currentRayPayload.albedo, currentRayPayload.roughness,
 				currentRayPayload.metalMask, randoms);
 

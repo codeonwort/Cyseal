@@ -61,7 +61,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 
     color.rgb += kD * gbufferData.albedo * indirectDiffuse.SampleLevel(pointSampler, screenUV, 0).rgb;
     
-	// #todo: Apply specular coefficient
+	// #todo-specular: Apply specular coefficient?
     color.rgb += indirectSpecular.SampleLevel(pointSampler, screenUV, 0).rgb;
 
     return color;
