@@ -15,10 +15,6 @@
 #define DEBUG_MODE_REFLECTED_DIRECTION_ON_PRIMARY_HIT       1
 #define DEBUG_MODE_ALBEDO_ON_SECONDARY_HIT                  2
 
-// #todo-specular: Some passes (e.g., CombineLighting and PathTracing passes) still use old BRDF.
-#define PRIMARY_USE_REWORK_SPECULAR_BRDF   1
-#define SECONDARY_USE_REWORK_SPECULAR_BRDF 1
-
 // ---------------------------------------------------------
 
 #ifndef ENABLE_DEBUG_MODE
@@ -322,21 +318,10 @@ float4 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		{
 			if (passUniform.traceMode == TRACE_BRDF)
 			{
-#if SECONDARY_USE_REWORK_SPECULAR_BRDF
-				MicrofacetBRDFInput brdfInput;
-				brdfInput.inRayDir      = currentRay.Direction;
-				brdfInput.surfaceNormal = surfaceNormal;
-				brdfInput.baseColor     = currentRayPayload.albedo;
-				brdfInput.roughness     = currentRayPayload.roughness;
-				brdfInput.metallic      = currentRayPayload.metalMask;
-				brdfInput.rand0         = randoms.x;
-				brdfInput.rand1         = randoms.y;
-				brdfOutput = specular_brdf::specularBRDF(brdfInput);
-#else
-				brdfOutput = hwrt::evaluateDefaultLit(currentRay.Direction, surfaceNormal,
+				brdfOutput = hwrt::evaluateDefaultLit(
+					currentRay.Direction, surfaceNormal,
 					currentRayPayload.albedo, currentRayPayload.roughness,
 					currentRayPayload.metalMask, randoms);
-#endif
 				
 				if (currentRayPayload.roughness < 0.01)
 				{
@@ -448,19 +433,7 @@ void MainRaygen()
 	{
 		if (passUniform.traceMode == TRACE_BRDF)
 		{
-#if PRIMARY_USE_REWORK_SPECULAR_BRDF
-			MicrofacetBRDFInput brdfInput;
-			brdfInput.inRayDir      = viewDirection;
-			brdfInput.surfaceNormal = normalWS;
-			brdfInput.baseColor     = albedo;
-			brdfInput.roughness     = roughness;
-			brdfInput.metallic      = metalMask;
-			brdfInput.rand0         = randoms.x;
-			brdfInput.rand1         = randoms.y;
-			brdfOutput = specular_brdf::specularBRDF(brdfInput);
-#else
 			brdfOutput = hwrt::evaluateDefaultLit(viewDirection, normalWS, albedo, roughness, metalMask, randoms);
-#endif
 
 			// #todo: Sometimes surfaceNormal is NaN so brdfOutput is also NaN.
 			if (microfacetBRDFOutputHasNaN(brdfOutput)) brdfOutput.pdf = 0.0;

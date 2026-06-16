@@ -5,8 +5,9 @@
 
 #define MIRROR_REFLECTION_ROUGHNESS 0.001
 
-// #todo-specular: Some passes (e.g., CombineLighting and PathTracing passes) still use old BRDF.
+// #todo-deprecated: Keep legacy code for future reference. Cleanup someday.
 #define REWORK_SPECULAR_BRDF 1
+#define LEGACY_SPECULAR_BRDF 0
 
 // ---------------------------------------------------------
 // Definitions
@@ -122,7 +123,9 @@ namespace bsdf_private
 	}
 }
 
-namespace specular_brdf
+// Torrance-Sparrow specular BRDF
+// Reference: https://pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory
+namespace torranceSparrowBrdf
 {
 	float trowbridgeReitzDistribution(float3 wm, float alpha_x, float alpha_y)
 	{
@@ -188,7 +191,7 @@ namespace specular_brdf
 		return normalize(float3(alpha_x * nh.x, alpha_y * nh.y, max(1e-6, nh.z)));
 	}
 
-	MicrofacetBRDFOutput specularBRDF(MicrofacetBRDFInput input)
+	MicrofacetBRDFOutput microfacetBRDF(MicrofacetBRDFInput input)
 	{
 		// 1. Transform to local space.
 	
@@ -286,7 +289,7 @@ namespace specular_brdf
 
 #endif
 
-#if 1
+#if LEGACY_SPECULAR_BRDF
 
 // All vectors are in local space.
 // N     : macrosurface normal
@@ -353,7 +356,7 @@ float3 sampleGGXVNDF(float3 V_, float alpha_x, float alpha_y, float U1, float U2
 }
 
 // "Microfacet Models for Refraction through Rough Surfaces"
-MicrofacetBRDFOutput microfacetBRDF(MicrofacetBRDFInput input)
+MicrofacetBRDFOutput legacyMicrofacetBRDF(MicrofacetBRDFInput input)
 {
 	float3 inRayDir      = input.inRayDir;
 	// #todo-pathtracing: Transform surfaceNormal properly when normalmap is introduced.
@@ -446,6 +449,6 @@ MicrofacetBRDFOutput microfacetBRDF(MicrofacetBRDFInput input)
 	return output;
 }
 
-#endif // REWORK_SPECULAR_BRDF
+#endif // LEGACY_SPECULAR_BRDF
 
 #endif // _BSDF_H
