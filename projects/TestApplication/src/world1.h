@@ -33,4 +33,5 @@ private:
 	std::vector<StaticMesh*> pbrtInstancedMeshes;
 
 	float cameraAnimTimer = 0.0f;
+	std::vector<class MaterialAsset*> pbrtEmissives; // For PBRT_LOAD_DESC_01 only
 };

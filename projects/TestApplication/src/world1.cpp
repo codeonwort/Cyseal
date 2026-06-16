@@ -48,6 +48,8 @@ PBRTLoadDesc pbrtLoadDesc  = PBRT_LOAD_DESC;
 
 #define CRUMPLED_MESHES      0
 
+static const bool bIsPbrtBedroomUsed = LOAD_PBRT_FILE && (PBRT_LOAD_DESC.filename == PBRT_LOAD_DESC_01.filename);
+
 struct CameraAnim
 {
 	float period = 1.0f;
@@ -134,7 +136,7 @@ void World1::onRenderGUI()
 {
 	const char* windowName = "World1";
 
-	ImGui::Begin(windowName);
+	ImGui::Begin(windowName, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
 	if (ImGui::Button("Animate"))
 	{
@@ -142,6 +144,24 @@ void World1::onRenderGUI()
 		camera->lookAt(cameraAnim.startPos, cameraAnim.lookAt, cameraAnim.up);
 	}
 
+	if (bIsPbrtBedroomUsed)
+	{
+		for (size_t i = 0; i < pbrtEmissives.size(); ++i)
+		{
+			ImGui::SeparatorText("PBRT emissive");
+
+			std::string r = "R" + std::to_string(i);
+			std::string g = "G" + std::to_string(i);
+			std::string b = "B" + std::to_string(i);
+
+			vec3 em = pbrtEmissives[i]->getEmission();
+			bool xc = ImGui::SliderFloat(r.data(), &em.x, 0.0f, 10.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
+			bool yc = ImGui::SliderFloat(g.data(), &em.y, 0.0f, 10.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
+			bool zc = ImGui::SliderFloat(b.data(), &em.z, 0.0f, 10.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
+			if (xc || yc || zc) pbrtEmissives[i]->setEmission(em);
+		}
+	}
+	
 	float windowX = ImGui::GetMainViewport()->Size.x - ImGui::GetWindowSize().x - 10.0f;
 	ImGui::SetWindowPos(windowName, ImVec2(windowX, 10.0f));
 
@@ -379,6 +399,18 @@ void World1::createPbrtResources()
 	// It's highly suspicious that mesh index, gpu scene item index, and material index are out of sync.
 	PBRT4Loader pbrtLoader;
 	PBRT4Scene* pbrtScene = pbrtLoader.loadFromFile(pbrtLoadDesc.filename);
+
+	if (bIsPbrtBedroomUsed)
+	{
+		for (size_t i = 0; i < pbrtScene->triangleMeshes.size(); ++i)
+		{
+			MaterialAsset* mat = pbrtScene->triangleMeshes[i].material.get();
+			if (mat->getEmission().x > 0.0f)
+			{
+				pbrtEmissives.push_back(mat);
+			}
+		}
+	}
 	
 	MaterialAsset* M_curtains = pbrtLoader.findNamedMaterial("Curtains");
 	if (M_curtains != nullptr)
