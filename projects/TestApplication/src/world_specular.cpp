@@ -51,10 +51,10 @@ void World_Specular::onInitialize()
 	// Spawn boxes
 	{
 		boxSpawnParams = {
-			{ .scale = vec3(15, 15, 15), .position = vec3(-30, -5, 30), .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.9f },
-			{ .scale = vec3(10, 10, 10), .position = vec3(-10, -5, 30), .albedo = vec3(0.1f, 0.9f, 0.1f), .roughness = 0.9f },
-			{ .scale = vec3(10, 10, 10), .position = vec3(5, -5, 30),   .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.01f },
-			{ .scale = vec3(20, 20, 20), .position = vec3(30, -5, 30) , .albedo = vec3(0.1f, 0.9f, 0.1f), .roughness = 0.01f },
+			{ .scale = vec3(15, 15, 15), .position = vec3(-30, -5, 30), .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.9f , .metalMask = 1.0f },
+			{ .scale = vec3(10, 10, 10), .position = vec3(-10, -5, 30), .albedo = vec3(0.1f, 0.9f, 0.1f), .roughness = 0.9f , .metalMask = 0.0f },
+			{ .scale = vec3(10, 10, 10), .position = vec3(5, -5, 30),   .albedo = vec3(0.9f, 0.1f, 0.1f), .roughness = 0.01f, .metalMask = 1.0f },
+			{ .scale = vec3(20, 20, 20), .position = vec3(30, -5, 30) , .albedo = vec3(0.1f, 0.9f, 0.1f), .roughness = 0.01f, .metalMask = 0.0f },
 		};
 
 		for (const BoxSpawnParams& params : boxSpawnParams)
@@ -66,7 +66,7 @@ void World_Specular::onInitialize()
 			material->albedoMultiplier = params.albedo;
 			material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
 			material->setPerceptualRoughness(params.roughness);
-			material->metalMask = 1.0f;
+			material->metalMask = params.metalMask;
 
 			auto box = new StaticMesh;
 			box->setScale(params.scale);

@@ -237,7 +237,7 @@ void World1::createTestMeshes()
 		auto material = makeShared<MaterialAsset>();
 		material->albedoMultiplier = vec3(0.1f);
 		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
-		material->setPerceptualRoughness(0.05f);
+		material->setPerceptualRoughness(0.005f);
 		material->setDoubleSided(true);
 
 		ground = new StaticMesh;
