@@ -35,8 +35,8 @@ void World2::onInitialize()
 		MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(planeGeometry);
 
 		auto material = makeShared<MaterialAsset>();
-		material->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
-		material->albedoTexture = gTextureManager->getSystemTextureGrey2D();
+		material->setAlbedoMultiplier(vec3(1.0f, 1.0f, 1.0f));
+		material->setAlbedoTexture(gTextureManager->getSystemTextureGrey2D());
 		material->setRoughness(1.0f);
 
 		ground = new StaticMesh;
@@ -59,8 +59,8 @@ void World2::onInitialize()
 		for (const auto& baseTex : baseTextures)
 		{
 			auto material = makeShared<MaterialAsset>();
-			material->albedoTexture = baseTex;
-			material->albedoMultiplier = vec3(0.5f, 0.5f, 0.5f);
+			material->setAlbedoTexture(baseTex);
+			material->setAlbedoMultiplier(vec3(0.5f, 0.5f, 0.5f));
 			material->setRoughness(1.0f);
 			baseMaterials.push_back(material);
 		}

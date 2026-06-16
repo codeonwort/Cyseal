@@ -255,8 +255,8 @@ void World1::createTestMeshes()
 		MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(planeGeometry);
 
 		auto material = makeShared<MaterialAsset>();
-		material->albedoMultiplier = vec3(0.1f);
-		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
+		material->setAlbedoMultiplier(vec3(0.1f));
+		material->setAlbedoTexture(gTextureManager->getSystemTextureWhite2D());
 		material->setPerceptualRoughness(0.005f);
 		material->setDoubleSided(true);
 
@@ -283,8 +283,8 @@ void World1::createTestMeshes()
 		MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(planeGeometry);
 
 		auto material = makeShared<MaterialAsset>();
-		material->albedoMultiplier = vec3(0.1f);
-		material->albedoTexture = albedoTexture;
+		material->setAlbedoMultiplier(vec3(0.1f));
+		material->setAlbedoTexture(albedoTexture);
 		material->setPerceptualRoughness(0.1f);
 		material->setDoubleSided(true);
 
@@ -303,11 +303,11 @@ void World1::createTestMeshes()
 		AABB localBounds = geometry->localBounds;
 
 		auto material = makeShared<MaterialAsset>();
-		material->materialID = EMaterialId::Glass;
-		material->albedoMultiplier = vec3(0.0f);
-		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
+		material->setMaterialID(EMaterialId::Glass);
+		material->setAlbedoMultiplier(vec3(0.0f));
+		material->setAlbedoTexture(gTextureManager->getSystemTextureWhite2D());
 		material->setPerceptualRoughness(0.1f);
-		material->indexOfRefraction = IoR::CrownGlass;
+		material->setIndexOfRefraction(IoR::CrownGlass);
 
 		MesoGeometryAssets geomAssets = MesoGeometryAssets::createFrom(geometry);
 

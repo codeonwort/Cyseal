@@ -212,11 +212,11 @@ private:
 		for (size_t i = 0; i < _countof(baseTextures); ++i)
 		{
 			auto material = makeShared<MaterialAsset>();
-			material->albedoTexture = baseTextures[i];
-			material->albedoMultiplier = vec3(0.9f);
+			material->setAlbedoTexture(baseTextures[i]);
+			material->setAlbedoMultiplier(vec3(0.9f));
 			material->setRoughness(0.1f + 0.1f * (float)i);
-			material->metalMask = (i % 2) ? 0.3f : 0.7f;
-			material->materialID = (i % 2) ? EMaterialId::DefaultLit : EMaterialId::Glass;
+			material->setMetalMask((i % 2) ? 0.3f : 0.7f);
+			material->setMaterialID((i % 2) ? EMaterialId::DefaultLit : EMaterialId::Glass);
 			baseMaterials.push_back(material);
 		}
 

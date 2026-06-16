@@ -35,8 +35,8 @@ void World_Specular::onInitialize()
 		ProceduralGeometry::plane(*planeGeometry, 100.0f, 100.0f, 2, 2, ProceduralGeometry::EPlaneNormal::Y);
 
 		auto material = makeShared<MaterialAsset>();
-		material->albedoMultiplier = vec3(0.05f, 0.05f, 0.05f);
-		material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
+		material->setAlbedoMultiplier(vec3(0.05f, 0.05f, 0.05f));
+		material->setAlbedoTexture(gTextureManager->getSystemTextureWhite2D());
 		material->setPerceptualRoughness(0.2f);
 
 		ground = new StaticMesh;
@@ -63,10 +63,10 @@ void World_Specular::onInitialize()
 			ProceduralGeometry::cube(*G);
 
 			auto material = makeShared<MaterialAsset>();
-			material->albedoMultiplier = params.albedo;
-			material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
+			material->setAlbedoMultiplier(params.albedo);
+			material->setAlbedoTexture(gTextureManager->getSystemTextureWhite2D());
 			material->setPerceptualRoughness(params.roughness);
-			material->metalMask = params.metalMask;
+			material->setMetalMask(params.metalMask);
 
 			auto box = new StaticMesh;
 			box->setScale(params.scale);

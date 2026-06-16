@@ -56,8 +56,8 @@ void PBRT4Scene::deallocate()
 PBRT4Scene::ToCyseal PBRT4Scene::toCyseal(PBRT4Scene* pbrtScene)
 {
 	auto fallbackMaterial = makeShared<MaterialAsset>();
-	fallbackMaterial->albedoMultiplier = vec3(1.0f, 1.0f, 1.0f);
-	fallbackMaterial->albedoTexture = gTextureManager->getSystemTextureGrey2D();
+	fallbackMaterial->setAlbedoMultiplier(vec3(1.0f, 1.0f, 1.0f));
+	fallbackMaterial->setAlbedoTexture(gTextureManager->getSystemTextureGrey2D());
 	fallbackMaterial->setRoughness(1.0f);
 
 	ToCyseal ret;
@@ -300,15 +300,13 @@ void PBRT4Loader::loadMaterials(const pbrt::PBRT4ParserOutput& parserOutput)
 
 		const std::string debugName = desc.materialName.isUnnamed() ? "__unnamed" + std::to_string(ix) : desc.materialName.name;
 
-		material->albedoMultiplier.x = desc.rgbReflectance.x;
-		material->albedoMultiplier.y = desc.rgbReflectance.y;
-		material->albedoMultiplier.z = desc.rgbReflectance.z;
+		material->setAlbedoMultiplier(desc.rgbReflectance);
 		if (desc.textureReflectance.size() > 0)
 		{
 			auto it = textureDirectiveDatabase.find(desc.textureReflectance);
 			if (it != textureDirectiveDatabase.end())
 			{
-				material->albedoTexture = it->second;
+				material->setAlbedoTexture(it->second);
 			}
 			else
 			{
@@ -316,9 +314,9 @@ void PBRT4Loader::loadMaterials(const pbrt::PBRT4ParserOutput& parserOutput)
 					debugName.c_str(), desc.textureReflectance.c_str());
 			}
 		}
-		if (material->albedoTexture == nullptr)
+		if (material->getAlbedoTexture() == nullptr)
 		{
-			material->albedoTexture = gTextureManager->getSystemTextureWhite2D();
+			material->setAlbedoTexture(gTextureManager->getSystemTextureWhite2D());
 		}
 		
 		if (desc.bUseAnisotropicRoughness)

@@ -17,26 +17,9 @@ uint32 MaterialAsset::getPipelineFreeNumber() const
 	return pipelineFreeNumber;
 }
 
-void MaterialAsset::setEmission(const vec3& value)
-{
-	bDirty = emission != value;
-	emission = value;
-}
-
-void MaterialAsset::setRoughness(float value)
-{
-	bDirty = roughness != value;
-	roughness = value;
-}
-
 float MaterialAsset::getPerceptualRoughness() const
 {
 	return Cymath::sqrt(getRoughness());
-}
-
-void MaterialAsset::setPerceptualRoughness(float value)
-{
-	setRoughness(value * value);
 }
 
 void MaterialAsset::setDoubleSided(bool value)

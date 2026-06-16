@@ -54,14 +54,14 @@ static MaterialConstants createMaterialConstants(MaterialAsset* material, uint32
 	MaterialConstants constants{};
 	if (material != nullptr)
 	{
-		constants.albedoMultiplier   = material->albedoMultiplier;
+		constants.albedoMultiplier   = material->getAlbedoMultiplier();
 		constants.roughness          = material->getRoughness();
 		constants.emission           = material->getEmission();
-		constants.metalMask          = material->metalMask;
-		constants.materialID         = (uint32)material->materialID;
-		constants.indexOfRefraction  = material->indexOfRefraction;
+		constants.metalMask          = material->getMetalMask();
+		constants.materialID         = (uint32)material->getMaterialID();
+		constants.indexOfRefraction  = material->getIndexOfRefraction();
 		constants.pipelineFreeNumber = material->getPipelineFreeNumber();
-		constants.transmittance      = material->transmittance;
+		constants.transmittance      = material->getTransmittance();
 		constants.pipelineKey        = material->getPipelineKey();
 	}
 	// Filled by GPUScene when processing gpu scene commands.
@@ -72,9 +72,9 @@ static MaterialConstants createMaterialConstants(MaterialAsset* material, uint32
 
 static Texture* getAlbedoTexture(const SharedPtr<MaterialAsset>& material)
 {
-	if (material != nullptr && material->albedoTexture != nullptr)
+	if (material != nullptr && material->getAlbedoTexture() != nullptr)
 	{
-		return material->albedoTexture->getGPUResource().get();
+		return material->getAlbedoTexture()->getGPUResource().get();
 	}
 	return nullptr;
 }

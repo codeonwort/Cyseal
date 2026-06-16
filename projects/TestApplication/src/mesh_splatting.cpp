@@ -25,10 +25,10 @@ void MeshSplatting::createResources(const CreateParams& createParams)
 	for (const auto& baseTex : baseTextures)
 	{
 		auto material = makeShared<MaterialAsset>();
-		material->albedoTexture = baseTex;
-		material->albedoMultiplier = vec3(0.5f);
+		material->setAlbedoTexture(baseTex);
+		material->setAlbedoMultiplier(vec3(0.5f));
 		material->setPerceptualRoughness((materialIx & 1) ? 0.9f : 0.01f);
-		material->metalMask = (materialIx & 1) ? 0.0f : 1.0f;
+		material->setMetalMask((materialIx & 1) ? 0.0f : 1.0f);
 		baseMaterials.push_back(material);
 
 		materialIx++;
