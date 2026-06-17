@@ -26,6 +26,11 @@ struct IndirectDiffuseInput
 	class GPUScene*            gpuScene;
 	class BilateralBlur*       bilateralBlur;
 
+	// Bilateral blur coefficients
+	float                      cPhi;
+	float                      nPhi;
+	float                      pPhi;
+
 	ConstantBufferView*        sceneUniformBuffer;
 	AccelerationStructure*     raytracingScene;
 	ShaderResourceView*        skyboxSRV;
