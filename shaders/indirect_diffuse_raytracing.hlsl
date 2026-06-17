@@ -200,9 +200,39 @@ float3 traceSun(float3 rayOrigin)
 	return 0;
 }
 
+float3 traceLightSources(float3 positionWS)
+{
+	// Only sun for now
+	return traceSun(positionWS);
+}
 
 // ---------------------------------------------------------
 // Shader stages
+
+struct TangentFrame
+{
+	float3 N, T, B;
+	float3x3 localToWorld;
+	
+	float3 transformDirection(float3 localDir)
+	{
+		return rotateVector(localDir, localToWorld);
+	}
+};
+
+TangentFrame createTangentFrame(float3 normal)
+{
+	float3 T, B;
+	computeTangentFrame(normal, T, B);
+	
+	TangentFrame frame;
+	frame.N = normal;
+	frame.T = T;
+	frame.B = B;
+	frame.localToWorld = float3x3(T, B, normal);
+	
+	return frame;
+}
 
 float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 {
@@ -213,7 +243,11 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 	currentRay.Direction = rayDir;
 	currentRay.TMin = RAYGEN_T_MIN;
 	currentRay.TMax = RAYGEN_T_MAX;
-
+	
+	// #wip: I'm missing cosine term and division by PI in various places.
+	//       Did I omitted them because they will be cancelled out after all?
+	//       or did I just do it wrong?
+	// #wip: Stackless
 	float3 reflectanceHistory[MAX_PATH_LEN + 1];
 	float3 radianceHistory[MAX_PATH_LEN + 1];
 	float pdfHistory[MAX_PATH_LEN + 1];
@@ -246,22 +280,20 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		}
 
 		// #todo: Sometimes surfaceNormal is NaN
-		float3 surfaceNormal = currentRayPayload.surfaceNormal;
-		float3 surfaceTangent, surfaceBitangent;
-		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
-		float3x3 localToWorld = float3x3(surfaceTangent, surfaceBitangent, surfaceNormal);
+		TangentFrame frame = createTangentFrame(currentRayPayload.surfaceNormal);
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
 
 		float2 randoms = getRandoms(texel, pathLen + 1);
 
 		float3 scatteredReflectance = currentRayPayload.albedo;
-		float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, pathLen + 1);
-		scatteredDir = rotateVector(scatteredDir, localToWorld);
 		float scatteredPdf = 1;
 		
+		float3 Wi = sampleRandomDirectionCosineWeighted(texel, pathLen + 1);
+		Wi = frame.transformDirection(Wi);
+		
 		// #todo: Sometimes surfaceNormal is NaN
-		if (any(isnan(surfaceNormal)) || any(isnan(scatteredDir)))
+		if (any(isnan(frame.N)) || any(isnan(Wi)))
 		{
 			scatteredPdf = 0.0;
 		}
@@ -271,15 +303,14 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			break;
 		}
 
-		float3 E = 0;
-		E += traceSun(surfacePosition);
+		float3 E = traceLightSources(surfacePosition);
 
 		radianceHistory[pathLen] = currentRayPayload.emission + E;
 		reflectanceHistory[pathLen] = scatteredReflectance;
 		pdfHistory[pathLen] = scatteredPdf;
 
-		currentRay.Origin = surfacePosition + SURFACE_NORMAL_OFFSET * surfaceNormal;
-		currentRay.Direction = scatteredDir;
+		currentRay.Origin = surfacePosition + SURFACE_NORMAL_OFFSET * frame.N;
+		currentRay.Direction = Wi;
 		//currentRay.TMin = RAYGEN_T_MIN;
 		//currentRay.TMax = RAYGEN_T_MAX;
 
@@ -307,38 +338,30 @@ void MainRaygen()
 	float3 viewDirection = normalize(positionWS - sceneUniform.cameraPosition.xyz);
 	float linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix);
 
-	float3 Wo = 0;
+	float3 Li = 0;
 	if (sceneDepth != DEVICE_Z_FAR)
 	{
 		GBUFFER0_DATATYPE gbuffer0Data = gbuffer0.Load(int3(texel, 0));
 		GBUFFER1_DATATYPE gbuffer1Data = gbuffer1.Load(int3(texel, 0));
 		GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
 
-		float3 albedo = gbufferData.albedo;
-		float3 normalWS = gbufferData.normalWS;
-		float roughness = gbufferData.roughness;
+		TangentFrame frame = createTangentFrame(gbufferData.normalWS);
+		
+		float3 relaxedPositionWS = frame.N * GBUFFER_NORMAL_OFFSET + positionWS;
 
-		float3 surfaceTangent, surfaceBitangent;
-		computeTangentFrame(normalWS, surfaceTangent, surfaceBitangent);
-
-		float3 scatteredReflectance = albedo;
-		float3 scatteredDir = sampleRandomDirectionCosineWeighted(texel, 0);
-		scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (normalWS * scatteredDir.z);
-		float scatteredPdf = 1;
-	
-		float3 relaxedPositionWS = normalWS * GBUFFER_NORMAL_OFFSET + positionWS;
-		float3 Li = traceIncomingRadiance(texel, relaxedPositionWS, scatteredDir);
-		Wo = (scatteredReflectance / scatteredPdf) * Li;
+		float3 Wi = sampleRandomDirectionCosineWeighted(texel, 0);
+		Wi = frame.transformDirection(Wi);
+		
+		Li = traceIncomingRadiance(texel, relaxedPositionWS, Wi);
 
 		// #todo: It happens :(
-		if (any(isnan(normalWS)) || any(isnan(scatteredDir)))
+		if (any(isnan(frame.N)) || any(isnan(Wi)))
 		{
-			scatteredPdf = 0.0;
-			Wo = 0;
+			Li = 0;
 		}
 	}
 	
-	raytracingTexture[texel] = float4(Wo, 1);
+	raytracingTexture[texel] = float4(Li, 1);
 }
 
 [shader("closesthit")]

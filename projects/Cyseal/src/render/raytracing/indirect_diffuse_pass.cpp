@@ -28,6 +28,7 @@
 
 static const uint32 MAX_FRAMES_IN_FLIGHT = 2;
 
+// #wip: Expose to GUI
 static const int32 BLUR_COUNT = 3;
 static float const cPhi       = 1.0f;
 static float const nPhi       = 1.0f;
