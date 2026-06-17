@@ -243,7 +243,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	// If disabled, RT_indirectDiffuse will be cleared as black
 	// so that tone mapping pass reads indirectDiffuse as zero.
 	const bool bRenderIndirectDiffuse = bSupportsRaytracing
-		&& renderOptions.indirectDiffuse != EIndirectDiffuseMode::Disabled
+		&& renderOptions.indirectDiffuse.mode != EIndirectDiffuseMode::Disabled
 		&& bRenderPathTracing == false;
 
 	// If disabled, RT_indirectSpecular will be cleared as black
@@ -705,8 +705,8 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 		IndirectDiffuseInput passInput{
 			.scene                  = scene,
-			.mode                   = renderOptions.indirectDiffuse,
-			.randomSeed             = renderOptions.indirectDiffuseRandomSeed,
+			.mode                   = renderOptions.indirectDiffuse.mode,
+			.randomSeed             = renderOptions.indirectDiffuse.randomSeed,
 			.unscaledRenderWidth    = unscaledRenderWidth,
 			.unscaledRenderHeight   = unscaledRenderHeight,
 			.sceneWidth             = sceneWidth,

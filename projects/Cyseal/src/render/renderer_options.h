@@ -239,10 +239,20 @@ struct RendererOptions
 	// Debug visualization
 	EBufferVisualizationMode   bufferVisualization = EBufferVisualizationMode::None;
 
-	// Ray tracing
+	// Ray traced shadows
 	ERayTracedShadowsMode      rayTracedShadows = ERayTracedShadowsMode::Disabled;
-	EIndirectDiffuseMode       indirectDiffuse = EIndirectDiffuseMode::Disabled;
-	uint32                     indirectDiffuseRandomSeed = 0;
+
+	// Ray traced indirect diffuse
+	struct IndirectDiffuse
+	{
+		EIndirectDiffuseMode   mode       = EIndirectDiffuseMode::Disabled;
+		uint32                 randomSeed = 0;
+		float                  cPhi       = 1.0f;
+		float                  nPhi       = 1.0f;
+		float                  pPhi       = 1.0f;
+	} indirectDiffuse;
+
+	// Ray traced indirect specular
 	EIndirectSpecularMode      indirectSpecular = EIndirectSpecularMode::Disabled;
 	EIndirectSpecularDebugMode indirectSpecularDebugMode = EIndirectSpecularDebugMode::None;
 	uint32                     indirectSpecularRandomSeed = 0;
@@ -266,7 +276,7 @@ public:
 	inline bool anyRayTracingEnabled() const
 	{
 		bool bShadows = rayTracedShadows != ERayTracedShadowsMode::Disabled;
-		bool bIndirectDiffuse = indirectDiffuse != EIndirectDiffuseMode::Disabled;
+		bool bIndirectDiffuse = indirectDiffuse.mode != EIndirectDiffuseMode::Disabled;
 		bool bIndirectSpecular = indirectSpecular != EIndirectSpecularMode::Disabled;
 		bool bPathTracing = pathTracing != EPathTracingMode::Disabled;
 		return bShadows || bIndirectDiffuse || bIndirectSpecular || bPathTracing;

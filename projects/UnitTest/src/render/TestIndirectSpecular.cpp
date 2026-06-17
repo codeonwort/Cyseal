@@ -136,7 +136,7 @@ protected:
 		RendererOptions rendererOptions{};
 		rendererOptions.finalRenderTarget = cameraColor;
 		rendererOptions.rayTracedShadows = ERayTracedShadowsMode::Disabled;
-		rendererOptions.indirectDiffuse = EIndirectDiffuseMode::Disabled;
+		rendererOptions.indirectDiffuse.mode = EIndirectDiffuseMode::Disabled;
 		rendererOptions.indirectSpecular = bForceMirror ? EIndirectSpecularMode::ForceMirror : EIndirectSpecularMode::BRDF;
 		if (frameCounter == 0) rendererOptions.indirectSpecularRandomSeed = 5982;
 		rendererOptions.pathTracing = EPathTracingMode::Disabled;

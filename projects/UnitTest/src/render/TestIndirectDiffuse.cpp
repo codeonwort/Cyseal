@@ -126,8 +126,8 @@ protected:
 		RendererOptions rendererOptions{};
 		rendererOptions.finalRenderTarget = cameraColor;
 		rendererOptions.rayTracedShadows = ERayTracedShadowsMode::Disabled;
-		rendererOptions.indirectDiffuse = bUseSTBN ? EIndirectDiffuseMode::STBNSampled : EIndirectDiffuseMode::RandomSampled;
-		if (frameCounter == 0) rendererOptions.indirectDiffuseRandomSeed = 25123;
+		rendererOptions.indirectDiffuse.mode = bUseSTBN ? EIndirectDiffuseMode::STBNSampled : EIndirectDiffuseMode::RandomSampled;
+		if (frameCounter == 0) rendererOptions.indirectDiffuse.randomSeed = 25123;
 		rendererOptions.indirectSpecular = EIndirectSpecularMode::Disabled;
 		rendererOptions.pathTracing = EPathTracingMode::Disabled;
 		if (bNeedReadback)

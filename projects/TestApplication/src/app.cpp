@@ -358,18 +358,25 @@ void TestApplication::onTick(float deltaSeconds)
 
 			if (ImGui::CollapsingHeader("Ray Tracing", sectionDefaultFlags))
 			{
-				if (ImGui::BeginTable("##Ray Tracing", 2))
+				ImGui::SeparatorText("Ray Traced Shadows");
+				if (ImGui::BeginTable("##Ray Traced Shadows", 2))
 				{
 					ImGui::TableNextRow();
-					ImGui::TableNextColumn(); ImGui::Text("Ray Traced Shadows");
-					ImGui::TableNextColumn(); ImGui::Combo("##Ray Traced Shadows", &appState.selectedRayTracedShadowsMode, getRayTracedShadowsModeNames(), (int32)ERayTracedShadowsMode::Count);
-					ImGui::TableNextRow();
-					ImGui::TableNextColumn(); ImGui::Text("Indirect Diffuse Reflection");
-					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Diffuse Reflection", &appState.selectedIndirectDiffuseMode, getIndirectDiffuseModeNames(), (int32)EIndirectDiffuseMode::Count);
+					ImGui::TableNextColumn(); ImGui::Text("Mode");
+					ImGui::TableNextColumn(); ImGui::Combo("##Ray Traced Shadows Mode", &appState.selectedRayTracedShadowsMode, getRayTracedShadowsModeNames(), (int32)ERayTracedShadowsMode::Count);
 					ImGui::EndTable();
 				}
 				appState.rendererOptions.rayTracedShadows = (ERayTracedShadowsMode)appState.selectedRayTracedShadowsMode;
-				appState.rendererOptions.indirectDiffuse = (EIndirectDiffuseMode)appState.selectedIndirectDiffuseMode;
+
+				ImGui::SeparatorText("Indirect Diffuse Reflection");
+				if (ImGui::BeginTable("##Indirect Diffuse Reflection", 2))
+				{
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::Text("Mode");
+					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Diffuse Reflection Mode", &appState.selectedIndirectDiffuseMode, getIndirectDiffuseModeNames(), (int32)EIndirectDiffuseMode::Count);
+					ImGui::EndTable();
+				}
+				appState.rendererOptions.indirectDiffuse.mode = (EIndirectDiffuseMode)appState.selectedIndirectDiffuseMode;
 
 				ImGui::SeparatorText("Indirect Specular Reflection");
 				if (ImGui::BeginTable("##Indirect Specular Reflection", 2))

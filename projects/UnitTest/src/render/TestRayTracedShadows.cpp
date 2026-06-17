@@ -122,7 +122,7 @@ protected:
 		RendererOptions rendererOptions{};
 		rendererOptions.finalRenderTarget = cameraColor;
 		rendererOptions.rayTracedShadows = ERayTracedShadowsMode::HardShadows;
-		rendererOptions.indirectDiffuse = EIndirectDiffuseMode::Disabled;
+		rendererOptions.indirectDiffuse.mode = EIndirectDiffuseMode::Disabled;
 		rendererOptions.indirectSpecular = EIndirectSpecularMode::Disabled;
 		rendererOptions.pathTracing = EPathTracingMode::Disabled;
 		if (bNeedReadback)
