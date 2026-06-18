@@ -9,6 +9,9 @@
 //#define SHADER_STAGE_CLOSESTHIT 2
 //#define SHADER_STAGE_MISS       3
 
+// #wip: Stackless
+#define STACKLESS 1
+
 // ---------------------------------------------------------
 
 #define OBJECT_ID_NONE            0xffff
@@ -247,10 +250,14 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 	// #wip: I'm missing cosine term and division by PI in various places.
 	//       Did I omitted them because they will be cancelled out after all?
 	//       or did I just do it wrong?
-	// #wip: Stackless
+#if STACKLESS
+	float3 Li = 0;
+	float3 modulation = 1; // Accumulation of (brdf * cosine_term), better name?
+#else
 	float3 reflectanceHistory[MAX_PATH_LEN + 1];
 	float3 radianceHistory[MAX_PATH_LEN + 1];
 	float pdfHistory[MAX_PATH_LEN + 1];
+#endif
 	uint pathLen = 0;
 
 	while (pathLen < MAX_PATH_LEN)
@@ -272,9 +279,15 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
+#if STACKLESS
+			Li += modulation * sampleSky(currentRay.Direction);
+			pathLen += 1;
+#else
 			radianceHistory[pathLen] = sampleSky(currentRay.Direction);
 			reflectanceHistory[pathLen] = 1;
 			pdfHistory[pathLen] = 1;
+#endif
+			
 			pathLen += 1;
 			break;
 		}
@@ -303,11 +316,20 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 			break;
 		}
 
+#if STACKLESS
+		float3 diffuseReflectance = currentRayPayload.albedo;
+		float pdf = 1;
+		float3 radiance = currentRayPayload.emission + traceLightSources(surfacePosition);
+		
+		modulation *= (diffuseReflectance) / pdf; // cosine-weighted sampling, so no cosine term
+		Li += modulation * radiance;
+#else
 		float3 E = traceLightSources(surfacePosition);
-
+		
 		radianceHistory[pathLen] = currentRayPayload.emission + E;
 		reflectanceHistory[pathLen] = scatteredReflectance;
 		pdfHistory[pathLen] = scatteredPdf;
+#endif
 
 		currentRay.Origin = surfacePosition + SURFACE_NORMAL_OFFSET * frame.N;
 		currentRay.Direction = Wi;
@@ -317,12 +339,14 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		pathLen += 1;
 	}
 
+#if !STACKLESS
 	float3 Li = 0;
 	for (uint i = 0; i < pathLen; ++i)
 	{
 		uint j = pathLen - i - 1;
 		Li = reflectanceHistory[j] * (Li + radianceHistory[j]) / pdfHistory[j];
 	}
+#endif
 
 	return Li;
 }
