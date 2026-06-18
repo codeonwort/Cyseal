@@ -46,13 +46,6 @@ bool microfacetBRDFOutputHasNaN(MicrofacetBRDFOutput output)
 	return b1 || b2 || b3 || b4;
 }
 
-// This is always confusing, M = (T B N) and it is column-major by default.
-// So mul(vector, matrix) in that order.
-float3 rotateVector(float3 v, float3x3 M)
-{
-	return mul(v, M);
-}
-
 // V   : Incoming direction
 // N   : Surface normal
 // ior : Index of Refraction (= ior_in_prev_matter / ior_in_next_matter)
@@ -212,16 +205,13 @@ namespace torranceSparrowBrdf
 
 		// Do all BRDF calculations in local space where macrosurface normal is z-axis (0, 0, 1).
 		// Pick random tangent and bitangent in xy-plane.
-		float3 worldT, worldB;
-		computeTangentFrame(surfaceNormal, worldT, worldB);
-		float3x3 localToWorld = float3x3(worldT, worldB, surfaceNormal);
-		float3x3 worldToLocal = transpose(localToWorld);
+		TangentFrame frame = computeTangentFrame(surfaceNormal);
 	
 		// 2. Find Wh and Wi from Wo.
 		
 		// Wo, Wi faces outwards. Wh is normalized half-vector.
 		float3 N = float3(0, 0, 1);
-		float3 Wo = rotateVector(-inRayDir, worldToLocal);
+		float3 Wo = frame.worldToLocalDirection(-inRayDir);
 		float3 Wh, Wi;
 		if (roughness < MIRROR_REFLECTION_ROUGHNESS)
 		{
@@ -242,7 +232,7 @@ namespace torranceSparrowBrdf
 			MicrofacetBRDFOutput output;
 			output.diffuseReflectance = 0;
 			output.specularReflectance = 0;
-			output.outRayDir = rotateVector(Wi, localToWorld);
+			output.outRayDir = frame.localToWorldDirection(Wi);
 			output.pdf = 0;
 			return output;
 		}
@@ -270,7 +260,7 @@ namespace torranceSparrowBrdf
 		
 		MicrofacetBRDFOutput output;
 		output.diffuseReflectance = (kD * diffuse) * cosTheta_i;
-		output.outRayDir = rotateVector(Wi, localToWorld);
+		output.outRayDir = frame.localToWorldDirection(Wi);
 		if (roughness < MIRROR_REFLECTION_ROUGHNESS)
 		{
 			output.specularReflectance = _f * cosTheta_i;
@@ -375,15 +365,12 @@ MicrofacetBRDFOutput legacyMicrofacetBRDF(MicrofacetBRDFInput input)
 
 	// Do all BRDF calculations in local space where macrosurface normal is z-axis (0, 0, 1).
 	// Pick random tangent and bitangent in xy-plane.
-	float3 worldT, worldB;
-	computeTangentFrame(surfaceNormal, worldT, worldB);
-	float3x3 localToWorld = float3x3(worldT, worldB, surfaceNormal);
-	float3x3 worldToLocal = transpose(localToWorld);
+	TangentFrame frame = computeTangentFrame(surfaceNormal);
 	
 	// Wo, Wi faces outwards.
 	// Wh = normalized half-vector
 	float3 N = float3(0, 0, 1);
-	float3 Wo = rotateVector(-inRayDir, worldToLocal);
+	float3 Wo = frame.worldToLocalDirection(-inRayDir);
 	float3 Wh, Wi;
 	if (roughness < MIRROR_REFLECTION_ROUGHNESS)
 	{
@@ -405,7 +392,7 @@ MicrofacetBRDFOutput legacyMicrofacetBRDF(MicrofacetBRDFInput input)
 		MicrofacetBRDFOutput output;
 		output.diffuseReflectance = 0;
 		output.specularReflectance = 0;
-		output.outRayDir = rotateVector(Wi, localToWorld);
+		output.outRayDir = frame.localToWorldDirection(Wi);
 		output.pdf = 0;
 		return output;
 	}
@@ -435,7 +422,7 @@ MicrofacetBRDFOutput legacyMicrofacetBRDF(MicrofacetBRDFInput input)
 	
 	MicrofacetBRDFOutput output;
 	output.diffuseReflectance = (kD * diffuse) * NdotWi;
-	output.outRayDir = rotateVector(Wi, localToWorld);
+	output.outRayDir = frame.localToWorldDirection(Wi);
 	if (roughness < MIRROR_REFLECTION_ROUGHNESS)
 	{
 		output.specularReflectance = kS * NdotWi;

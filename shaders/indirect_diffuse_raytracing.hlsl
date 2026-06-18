@@ -9,9 +9,6 @@
 //#define SHADER_STAGE_CLOSESTHIT 2
 //#define SHADER_STAGE_MISS       3
 
-// #wip: Stackless
-#define STACKLESS 1
-
 // ---------------------------------------------------------
 
 #define OBJECT_ID_NONE            0xffff
@@ -21,7 +18,7 @@
 // #todo: See 'Ray Tracing Gems' series.
 #define RAYGEN_T_MIN              0.001
 #define RAYGEN_T_MAX              10000.0
-#define MAX_PATH_LEN              3
+#define MAX_PATH_LEN              6
 #define SURFACE_NORMAL_OFFSET     0.001
 // Precision of world position from scene depth is bad; need more bias.
 #define GBUFFER_NORMAL_OFFSET     0.05
@@ -128,6 +125,11 @@ float2 getScreenUV(uint2 texel)
 float2 getRandoms(uint2 texel, uint bounce)
 {
 	uint first = texel.x + passUniform.renderTargetWidth * texel.y;
+	
+	// Correlation is too obvious when render resolution is multiple of RANDOM_SEQUENCE_WIDTH and/or RANDOM_SEQUENCE_HEIGHT.
+	// Try to randomize it.
+	first = first + (first & 0x3F) * (texel.x * 13 + texel.y + 19);
+	
 	uint seq0 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
 	uint seq1 = (first + bounce) % RANDOM_SEQUENCE_LENGTH;
 	float rand0 = passUniform.randFloats0[seq0 / 4][seq0 % 4];
@@ -135,7 +137,7 @@ float2 getRandoms(uint2 texel, uint bounce)
 	return float2(rand0, rand1);
 }
 
-// Return a random direction given u0, u1 in [0, 1)
+// Return a random direction given u0, u1 in [0, 1). +z is up.
 float3 cosineWeightedHemisphereSample(float u0, float u1)
 {
 	float theta = acos(sqrt(u0));
@@ -212,31 +214,6 @@ float3 traceLightSources(float3 positionWS)
 // ---------------------------------------------------------
 // Shader stages
 
-struct TangentFrame
-{
-	float3 N, T, B;
-	float3x3 localToWorld;
-	
-	float3 transformDirection(float3 localDir)
-	{
-		return rotateVector(localDir, localToWorld);
-	}
-};
-
-TangentFrame createTangentFrame(float3 normal)
-{
-	float3 T, B;
-	computeTangentFrame(normal, T, B);
-	
-	TangentFrame frame;
-	frame.N = normal;
-	frame.T = T;
-	frame.B = B;
-	frame.localToWorld = float3x3(T, B, normal);
-	
-	return frame;
-}
-
 float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 {
 	RayPayload currentRayPayload = createRayPayload();
@@ -247,17 +224,8 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 	currentRay.TMin = RAYGEN_T_MIN;
 	currentRay.TMax = RAYGEN_T_MAX;
 	
-	// #wip: I'm missing cosine term and division by PI in various places.
-	//       Did I omitted them because they will be cancelled out after all?
-	//       or did I just do it wrong?
-#if STACKLESS
 	float3 Li = 0;
 	float3 modulation = 1; // Accumulation of (brdf * cosine_term), better name?
-#else
-	float3 reflectanceHistory[MAX_PATH_LEN + 1];
-	float3 radianceHistory[MAX_PATH_LEN + 1];
-	float pdfHistory[MAX_PATH_LEN + 1];
-#endif
 	uint pathLen = 0;
 
 	while (pathLen < MAX_PATH_LEN)
@@ -279,74 +247,38 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
-#if STACKLESS
 			Li += modulation * sampleSky(currentRay.Direction);
-			pathLen += 1;
-#else
-			radianceHistory[pathLen] = sampleSky(currentRay.Direction);
-			reflectanceHistory[pathLen] = 1;
-			pdfHistory[pathLen] = 1;
-#endif
-			
 			pathLen += 1;
 			break;
 		}
 
-		// #todo: Sometimes surfaceNormal is NaN
-		TangentFrame frame = createTangentFrame(currentRayPayload.surfaceNormal);
-
+		TangentFrame frame = computeTangentFrame(currentRayPayload.surfaceNormal);
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
-
 		float2 randoms = getRandoms(texel, pathLen + 1);
-
-		float3 scatteredReflectance = currentRayPayload.albedo;
-		float scatteredPdf = 1;
 		
 		float3 Wi = sampleRandomDirectionCosineWeighted(texel, pathLen + 1);
-		Wi = frame.transformDirection(Wi);
+		Wi = frame.localToWorldDirection(Wi);
 		
 		// #todo: Sometimes surfaceNormal is NaN
 		if (any(isnan(frame.N)) || any(isnan(Wi)))
 		{
-			scatteredPdf = 0.0;
-		}
-
-		if (scatteredPdf <= 0.0)
-		{
 			break;
 		}
 
-#if STACKLESS
 		float3 diffuseReflectance = currentRayPayload.albedo;
 		float pdf = 1;
 		float3 radiance = currentRayPayload.emission + traceLightSources(surfacePosition);
 		
-		modulation *= (diffuseReflectance) / pdf; // cosine-weighted sampling, so no cosine term
+		modulation *= diffuseReflectance / pdf; // cosine-weighted sampling, so no cosine term
 		Li += modulation * radiance;
-#else
-		float3 E = traceLightSources(surfacePosition);
-		
-		radianceHistory[pathLen] = currentRayPayload.emission + E;
-		reflectanceHistory[pathLen] = scatteredReflectance;
-		pdfHistory[pathLen] = scatteredPdf;
-#endif
 
+		// Construct next ray.
 		currentRay.Origin = surfacePosition + SURFACE_NORMAL_OFFSET * frame.N;
 		currentRay.Direction = Wi;
 		//currentRay.TMin = RAYGEN_T_MIN;
 		//currentRay.TMax = RAYGEN_T_MAX;
-
 		pathLen += 1;
 	}
-
-#if !STACKLESS
-	float3 Li = 0;
-	for (uint i = 0; i < pathLen; ++i)
-	{
-		uint j = pathLen - i - 1;
-		Li = reflectanceHistory[j] * (Li + radianceHistory[j]) / pdfHistory[j];
-	}
-#endif
 
 	return Li;
 }
@@ -369,12 +301,12 @@ void MainRaygen()
 		GBUFFER1_DATATYPE gbuffer1Data = gbuffer1.Load(int3(texel, 0));
 		GBufferData gbufferData = decodeGBuffers(gbuffer0Data, gbuffer1Data);
 
-		TangentFrame frame = createTangentFrame(gbufferData.normalWS);
+		TangentFrame frame = computeTangentFrame(gbufferData.normalWS);
 		
 		float3 relaxedPositionWS = frame.N * GBUFFER_NORMAL_OFFSET + positionWS;
 
 		float3 Wi = sampleRandomDirectionCosineWeighted(texel, 0);
-		Wi = frame.transformDirection(Wi);
+		Wi = frame.localToWorldDirection(Wi);
 		
 		Li = traceIncomingRadiance(texel, relaxedPositionWS, Wi);
 

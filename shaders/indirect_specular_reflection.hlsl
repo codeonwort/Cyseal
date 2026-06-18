@@ -293,8 +293,6 @@ float4 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 
 		// #todo: Sometimes surfaceNormal is NaN
 		float3 surfaceNormal = currentRayPayload.surfaceNormal;
-		float3 surfaceTangent, surfaceBitangent;
-		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
 		

@@ -51,8 +51,8 @@ struct ClosestHitPushConstants
 // ---------------------------------------------------------
 // Global root signature
 
-ConstantBuffer<SceneUniform> sceneUniform            : register(b0, space0);
-ConstantBuffer<PassUniform> passUniform              : register(b1, space0);
+ConstantBuffer<SceneUniform>       sceneUniform      : register(b0, space0);
+ConstantBuffer<PassUniform>        passUniform       : register(b1, space0);
 RaytracingAccelerationStructure    rtScene           : register(t0, space0);
 ByteAddressBuffer                  gIndexBuffer      : register(t1, space0);
 ByteAddressBuffer                  gVertexBuffer     : register(t2, space0);
@@ -257,8 +257,6 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 
 		// #todo-pathtracing: Sometimes surfaceNormal is NaN
 		float3 surfaceNormal = currentRayPayload.surfaceNormal;
-		float3 surfaceTangent, surfaceBitangent;
-		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
 
@@ -294,7 +292,9 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		// Diffuse term only
 		float2 randoms = getRandoms(targetTexel, pathLen);
 		float3 scatteredDir = cosineWeightedHemisphereSample(randoms.x, randoms.y);
-		scatteredDir = (surfaceTangent * scatteredDir.x) + (surfaceBitangent * scatteredDir.y) + (surfaceNormal * scatteredDir.z);
+		
+		TangentFrame frame = computeTangentFrame(surfaceNormal);
+		scatteredDir = frame.localToWorldDirection(scatteredDir);
 
 		brdfOutput.diffuseReflectance = currentRayPayload.albedo;
 		brdfOutput.specularReflectance = 0.0;
@@ -377,8 +377,7 @@ float traceAmbientOcclusion(uint2 targetTexel, float3 cameraRayOrigin, float3 ca
 	while (pathLen < MAX_PATH_LEN)
 	{
 		float3 surfaceNormal = currentRayPayload.surfaceNormal;
-		float3 surfaceTangent, surfaceBitangent;
-		computeTangentFrame(surfaceNormal, surfaceTangent, surfaceBitangent);
+		TangentFrame frame = computeTangentFrame(surfaceNormal);
 
 		float3 surfacePosition = currentRayPayload.hitTime * currentRayDesc.Direction + currentRayDesc.Origin;
 		surfacePosition += SURFACE_NORMAL_OFFSET * surfaceNormal; // Slightly push toward N
@@ -387,7 +386,7 @@ float traceAmbientOcclusion(uint2 targetTexel, float3 cameraRayOrigin, float3 ca
 		float theta = randoms.x * 2.0 * PI;
 		float phi = randoms.y * PI;
 		float3 aoRayDir = float3(cos(phi) * cos(theta), sin(phi) * cos(theta), sin(theta));
-		aoRayDir = (surfaceTangent * aoRayDir.x) + (surfaceBitangent * aoRayDir.y) + (surfaceNormal * aoRayDir.z);
+		aoRayDir = frame.localToWorldDirection(aoRayDir);
 
 		RayPayload aoRayPayload = createRayPayload();
 		RayDesc aoRay;

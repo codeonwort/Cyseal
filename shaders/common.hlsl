@@ -44,11 +44,39 @@ struct Frustum3D
     Plane3D planes[6];
 };
 
-void computeTangentFrame(float3 N, out float3 T, out float3 B)
+struct TangentFrame
+{
+	float3 N, T, B;
+	float3x3 localToWorld;
+	float3x3 worldToLocal;
+	
+	float3 localToWorldDirection(float3 localDir)
+	{
+		// M = (T B N) and column-major by default, so mul(vector, matrix).
+		return mul(localDir, localToWorld);
+	}
+	float3 worldToLocalDirection(float3 worldDir)
+	{
+		// M = (T B N) and column-major by default, so mul(vector, matrix).
+		return mul(worldDir, worldToLocal);
+	}
+};
+
+// Given N (normal), compute adequate tangent and bitangent.
+TangentFrame computeTangentFrame(float3 N)
 {
     float3 v = abs(N.z) < 0.99 ? float3(0, 0, 1) : float3(1, 0, 0);
-    T = normalize(cross(v, N));
-    B = normalize(cross(N, T));
+    float3 T = normalize(cross(v, N));
+    float3 B = normalize(cross(N, T));
+	
+	TangentFrame frame;
+	frame.N = N;
+	frame.T = T;
+	frame.B = B;
+	frame.localToWorld = float3x3(T, B, N);
+	frame.worldToLocal = transpose(frame.localToWorld);
+	
+	return frame;
 }
 
 // ---------------------------------------------------------
