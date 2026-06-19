@@ -18,7 +18,7 @@
 // #todo: See 'Ray Tracing Gems' series.
 #define RAYGEN_T_MIN              0.001
 #define RAYGEN_T_MAX              10000.0
-#define MAX_PATH_LEN              6
+#define MAX_PATH_LEN              3
 #define SURFACE_NORMAL_OFFSET     0.001
 // Precision of world position from scene depth is bad; need more bias.
 #define GBUFFER_NORMAL_OFFSET     0.05
@@ -254,7 +254,6 @@ float3 traceIncomingRadiance(uint2 texel, float3 rayOrigin, float3 rayDir)
 
 		TangentFrame frame = computeTangentFrame(currentRayPayload.surfaceNormal);
 		float3 surfacePosition = currentRayPayload.hitTime * currentRay.Direction + currentRay.Origin;
-		float2 randoms = getRandoms(texel, pathLen + 1);
 		
 		float3 Wi = sampleRandomDirectionCosineWeighted(texel, pathLen + 1);
 		Wi = frame.localToWorldDirection(Wi);
