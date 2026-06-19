@@ -247,8 +247,8 @@ struct RendererOptions
 	{
 		EIndirectDiffuseMode   mode       = EIndirectDiffuseMode::Disabled;
 		uint32                 randomSeed = 0;
-		float                  cPhi       = 1.0f;
-		float                  nPhi       = 1.0f;
+		float                  cPhi       = 4.0f;
+		float                  nPhi       = 128.0f;
 		float                  pPhi       = 1.0f;
 	} indirectDiffuse;
 

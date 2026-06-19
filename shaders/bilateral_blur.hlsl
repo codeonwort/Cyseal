@@ -110,6 +110,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         float3 normal1 = neighborGBufferData.normalWS;
         float3 pos1 = getWorldPosition(neighborTexel);
 
+		// #wip: Change luminance weight according to SVGF paper
         diff = color0 - color1;
         distSq = dot(diff, diff);
         float colorWeight = min(1.0, exp(-distSq / blurUniform.cPhi));
@@ -118,10 +119,15 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         distSq = max(0.0, dot(diff, diff));
         float albedoWeight = min(1.0, exp(-distSq / blurUniform.cPhi));
 
+#if 0
         diff = normal0 - normal1;
         distSq = max(0.0, dot(diff, diff) / (stepWidth * stepWidth));
         float normalWeight = min(1.0, exp(-distSq / blurUniform.nPhi));
+#else
+		float normalWeight = pow(max(0.0, dot(normal0, normal1)), blurUniform.nPhi);
+#endif
 
+		// #wip: Change depth weight according to SVGF paper
         diff = pos0 - pos1;
         distSq = dot(diff, diff);
         float posWeight = min(1.0, exp(-distSq / blurUniform.pPhi));

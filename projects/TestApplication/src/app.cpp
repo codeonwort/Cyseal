@@ -378,7 +378,7 @@ void TestApplication::onTick(float deltaSeconds)
 					ImGui::TableNextColumn(); ImGui::Text("Denoiser cPhi"); // color weight
 					ImGui::TableNextColumn(); ImGui::SliderFloat("##Indirect Diffuse cPhi", &appState.rendererOptions.indirectDiffuse.cPhi, 0.0f, 16.0f, "%.2f");
 					ImGui::TableNextColumn(); ImGui::Text("Denoiser nPhi"); // normal weight
-					ImGui::TableNextColumn(); ImGui::SliderFloat("##Indirect Diffuse nPhi", &appState.rendererOptions.indirectDiffuse.nPhi, 0.0f, 16.0f, "%.2f");
+					ImGui::TableNextColumn(); ImGui::SliderFloat("##Indirect Diffuse nPhi", &appState.rendererOptions.indirectDiffuse.nPhi, 0.0f, 256.0f, "%.2f");
 					ImGui::TableNextColumn(); ImGui::Text("Denoiser pPhi"); // position weight
 					ImGui::TableNextColumn(); ImGui::SliderFloat("##Indirect Diffuse pPhi", &appState.rendererOptions.indirectDiffuse.pPhi, 0.0f, 16.0f, "%.2f");
 					ImGui::EndTable();

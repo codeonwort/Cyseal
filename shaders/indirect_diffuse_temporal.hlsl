@@ -124,7 +124,13 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 
 	float3 Wo = raytracingTexture.Load(int3(texel, 0)).xyz;
 	float historyCount = 0;
+	
+	// x: first raw moment of color luminance
+	// y: second raw moment of color luminance
+	// Temporal variance will be (y - x*x).
+	// If history < 4 frames after disocclusion, then estimate spatial variance with 7x7 bilateral filter.
 	float2 moments = 0;
+	
 	if (sceneDepth != DEVICE_Z_FAR)
 	{
 		moments.x = getLuminance(Wo);
@@ -146,8 +152,6 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		
 		historyCount = min(historyCount + 1, MAX_HISTORY);
 	}
-	
-	//variance = max(0.0, moments.y - moments.x * moments.x);
 	
 	currentColorTexture[texel] = float4(Wo, 1);
 	currentMomentTexture[texel] = float4(moments, historyCount, 1);
