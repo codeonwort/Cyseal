@@ -308,6 +308,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 			.inGBuffer1SRV   = passInput.gbuffer1SRV,
 			.outColorTexture = passInput.sceneColorTexture,
 			.outColorUAV     = passInput.sceneColorUAV,
+			.feedbackPhase   = 0,
 		};
 		passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, blurPassInput);
 	}

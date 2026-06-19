@@ -533,19 +533,10 @@ void IndirectDiffusePass::denoisePhase(RenderCommandList* commandList, const Fra
 	auto prevColorTexture = colorHistory.getTexture(prevFrame);
 	auto prevColorUAV     = colorHistory.getUAV(prevFrame);
 
-#if 1
-	{
-		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToPrevColor);
-
-		TextureBarrierAuto barriersBefore[] = {
-			TextureBarrierAuto::toCopySource(currColorTexture),
-			TextureBarrierAuto::toCopyDest(prevColorTexture),
-		};
-		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
-
-		commandList->copyTexture2D(currColorTexture, prevColorTexture);
-	}
-#endif
+	TextureBarrierAuto textureBarriers[] = {
+		TextureBarrierAuto::toUnorderedAccess(currColorTexture, EBarrierSync::COMPUTE_SHADING),
+	};
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 	BilateralBlurInput blurPassInput{
 		.imageWidth      = passInput.sceneWidth,
@@ -555,14 +546,15 @@ void IndirectDiffusePass::denoisePhase(RenderCommandList* commandList, const Fra
 		.nPhi            = passInput.nPhi,
 		.pPhi            = passInput.pPhi,
 		.sceneUniformCBV = passInput.sceneUniformBuffer,
-		.inColorTexture  = prevColorTexture,
-		.inColorUAV      = prevColorUAV,
+		.inColorTexture  = currColorTexture,
+		.inColorUAV      = currColorUAV,
 		.inSceneDepthSRV = passInput.sceneDepthSRV,
 		.inGBuffer0SRV   = passInput.gbuffer0SRV,
 		.inGBuffer1SRV   = passInput.gbuffer1SRV,
 		.outColorTexture = passInput.indirectDiffuseTexture,
 		.outColorUAV     = passInput.indirectDiffuseUAV,
-		//.outColorHistory = prevColorTexture, // #wip: Copy first iteration to prev color
+		// Copy the result of first iteration back to color history.
+		.feedbackPhase   = 1,
 	};
 	passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, blurPassInput);
 }

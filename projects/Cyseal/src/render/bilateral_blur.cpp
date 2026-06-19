@@ -2,6 +2,9 @@
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
 
+// #todo-renderer: scratch texture format
+#define PF_scratch EPixelFormat::R16G16B16A16_FLOAT
+
 struct BlurUniform
 {
 	float kernelAndOffset[4 * 25];
@@ -138,18 +141,19 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, const Fr
 
 		commandList->barrierAuto(0, nullptr, (uint32)uavBarriers.size(), uavBarriers.data(), 0, nullptr);
 
-		if (false && phase == 0 && passInput.outColorHistory != nullptr)
+		if (bInOutColorsAreSame == false && phase + 1 == passInput.feedbackPhase)
 		{
 			TextureBarrierAuto barriersBefore[] = {
 				TextureBarrierAuto::toCopySource(blurOutputTexture),
-				TextureBarrierAuto::toCopyDest(passInput.outColorHistory),
+				TextureBarrierAuto::toCopyDest(passInput.inColorTexture),
 			};
 			commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
-			commandList->copyTexture2D(blurOutputTexture, passInput.outColorHistory);
+			commandList->copyTexture2D(blurOutputTexture, passInput.inColorTexture);
 
 			TextureBarrierAuto barriersAfter[] = {
 				TextureBarrierAuto::toUnorderedAccess(blurOutputTexture, EBarrierSync::COMPUTE_SHADING),
+				TextureBarrierAuto::toUnorderedAccess(passInput.inColorTexture, EBarrierSync::COMPUTE_SHADING),
 			};
 			commandList->barrierAuto(0, nullptr, _countof(barriersAfter), barriersAfter, 0, nullptr);
 		}
@@ -162,14 +166,8 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, const Fr
 	if (bShouldCopyScratchToOutColor)
 	{
 		TextureBarrierAuto barriersBefore[] = {
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
-				colorScratch.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
-				passInput.outColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
+			TextureBarrierAuto::toCopySource(colorScratch.get()),
+			TextureBarrierAuto::toCopyDest(passInput.outColorTexture),
 		};
 		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
 
@@ -185,7 +183,7 @@ void BilateralBlur::resizeTexture(RenderCommandList* commandList, uint32 width, 
 	}
 
 	const TextureCreateParams colorDesc = TextureCreateParams::texture2D(
-		EPixelFormat::R32G32B32A32_FLOAT, ETextureAccessFlags::UAV, width, height, 1, 1, 0);
+		PF_scratch, ETextureAccessFlags::UAV, width, height, 1, 1, 0);
 
 	commandList->enqueueDeferredDealloc(colorScratch.release(), true);
 

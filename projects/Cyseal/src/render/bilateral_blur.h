@@ -20,7 +20,7 @@ struct BilateralBlurInput
 	ShaderResourceView*  inGBuffer1SRV;
 	Texture*             outColorTexture; // Could be same as inColorUAV
 	UnorderedAccessView* outColorUAV;
-	Texture*             outColorHistory = nullptr; // If not null, the result of first iteration is copied to this texture.
+	uint32               feedbackPhase; // If (n > 0), the result is copied back to inColorTexture after blur is applied n-th. Ignored if in/out textures are same.
 };
 
 class BilateralBlur : public SceneRenderPass
