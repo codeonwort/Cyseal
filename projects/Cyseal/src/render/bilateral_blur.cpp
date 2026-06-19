@@ -92,18 +92,17 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, const Fr
 	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(frameInfo);
 	ConstantBufferView* uniformCBV = passDescriptor.getUniformCBV(frameInfo);
 	DescriptorIndexTracker tracker;
-	UnorderedAccessView* blurInput = passInput.inColorUAV;
-	UnorderedAccessView* blurOutput = colorScratchUAV.get();
+	Texture* blurInputTexture = passInput.inColorTexture;
+	UnorderedAccessView* blurInputUAV = passInput.inColorUAV;
+	Texture* blurOutputTexture = colorScratch.get();
+	UnorderedAccessView* blurOutputUAV = colorScratchUAV.get();
 
 	std::vector<Texture*> uavBarrierTargets = { passInput.inColorTexture, colorScratch.get() };
 	if (!bInOutColorsAreSame) uavBarrierTargets.push_back(passInput.outColorTexture);
 	std::vector<TextureBarrierAuto> uavBarriers;
 	for (size_t i = 0; i < uavBarrierTargets.size(); ++i)
 	{
-		uavBarriers.push_back({
-			EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-			uavBarrierTargets[i], BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-		});
+		uavBarriers.push_back(TextureBarrierAuto::toUnorderedAccess(uavBarrierTargets[i], EBarrierSync::COMPUTE_SHADING));
 	}
 
 	bool bShouldCopyScratchToOutColor = false;
@@ -117,7 +116,8 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, const Fr
 			}
 			else
 			{
-				blurOutput = passInput.outColorUAV;
+				blurOutputTexture = passInput.outColorTexture;
+				blurOutputUAV = passInput.outColorUAV;
 			}
 		}
 
@@ -125,11 +125,11 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, const Fr
 		SPT.pushConstant("pushConstants", phase + 1);
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 		SPT.constantBuffer("blurUniform", uniformCBV);
-		SPT.rwTexture("inColorTexture", blurInput);
+		SPT.rwTexture("inColorTexture", blurInputUAV);
 		SPT.texture("inGBuffer0Texture", passInput.inGBuffer0SRV);
 		SPT.texture("inGBuffer1Texture", passInput.inGBuffer1SRV);
 		SPT.texture("inDepthTexture", passInput.inSceneDepthSRV);
-		SPT.rwTexture("outputTexture", blurOutput);
+		SPT.rwTexture("outputTexture", blurOutputUAV);
 
 		commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileHeap, &tracker);
 
@@ -138,9 +138,25 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, const Fr
 
 		commandList->barrierAuto(0, nullptr, (uint32)uavBarriers.size(), uavBarriers.data(), 0, nullptr);
 
-		auto temp = blurInput;
-		blurInput = blurOutput;
-		blurOutput = temp;
+		if (false && phase == 0 && passInput.outColorHistory != nullptr)
+		{
+			TextureBarrierAuto barriersBefore[] = {
+				TextureBarrierAuto::toCopySource(blurOutputTexture),
+				TextureBarrierAuto::toCopyDest(passInput.outColorHistory),
+			};
+			commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+
+			commandList->copyTexture2D(blurOutputTexture, passInput.outColorHistory);
+
+			TextureBarrierAuto barriersAfter[] = {
+				TextureBarrierAuto::toUnorderedAccess(blurOutputTexture, EBarrierSync::COMPUTE_SHADING),
+			};
+			commandList->barrierAuto(0, nullptr, _countof(barriersAfter), barriersAfter, 0, nullptr);
+		}
+
+		auto tempTex = blurInputTexture; auto tempUAV = blurInputUAV;
+		blurInputTexture = blurOutputTexture; blurInputUAV = blurOutputUAV;
+		blurOutputTexture = tempTex; blurOutputUAV = tempUAV;
 	}
 
 	if (bShouldCopyScratchToOutColor)

@@ -245,245 +245,34 @@ bool IndirectDiffusePass::isAvailable() const
 
 void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, const FrameInfo& frameInfo, const IndirectDiffuseInput& passInput)
 {
-	auto scene               = passInput.scene;
-	auto sceneWidth          = passInput.sceneWidth;
-	auto sceneHeight         = passInput.sceneHeight;
-	auto gpuScene            = passInput.gpuScene;
-	auto raytracingScene     = passInput.raytracingScene;
-	auto sceneUniformBuffer  = passInput.sceneUniformBuffer;
-
 	if (isAvailable() == false)
 	{
 		return;
 	}
-	if (gpuScene->getGPUSceneItemMaxCount() == 0)
+	if (passInput.gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
 		// #todo-zero-size: Release resources if any.
 		return;
 	}
-	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = gpuScene->queryMaterialDescriptors();
-
-	// -------------------------------------------------------------------
-	// Phase: Setup
 
 	if (passInput.randomSeed > 0)
 	{
 		rng.resetSeed(passInput.randomSeed);
 	}
 
-	resizeTextures(commandList, passInput.unscaledRenderWidth, passInput.unscaledRenderHeight);
-
-	const uint32 currFrame = frameInfo.frameID % 2;
-	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
-
-	actualHistoryWidth[currFrame] = passInput.sceneWidth;
-	actualHistoryHeight[currFrame] = passInput.sceneHeight;
-
-	auto currColorTexture = colorHistory.getTexture(currFrame);
-	auto prevColorTexture = colorHistory.getTexture(prevFrame);
-	auto currColorUAV     = colorHistory.getUAV(currFrame);
-	auto prevColorUAV     = colorHistory.getUAV(prevFrame);
-	auto prevColorSRV     = colorHistory.getSRV(prevFrame);
-
-	auto currMomentTexture = momentHistory.getTexture(currFrame);
-	auto prevMomentTexture = momentHistory.getTexture(prevFrame);
-	auto currMomentUAV     = momentHistory.getUAV(currFrame);
-	auto prevMomentSRV     = momentHistory.getSRV(prevFrame);
-
-	// -------------------------------------------------------------------
-	// Phase: Raytracing
-
-	// Update uniforms.
-	{
-		RayPassUniform* uboData = new RayPassUniform;
-
-		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
-		{
-			uboData->randFloats0[i] = rng.get();
-			uboData->randFloats1[i] = rng.get();
-		}
-		uboData->renderTargetWidth = sceneWidth;
-		uboData->renderTargetHeight = sceneHeight;
-		uboData->frameCounter = frameCounter;
-		uboData->mode = (uint32)passInput.mode;
-
-		auto uniformCBV = rayPassDescriptor.getUniformCBV(currFrame);
-		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
-
-		frameCounter = (frameCounter + 1) & 63;
-
-		delete uboData;
-	}
-
-	// Resize hit group shader table if needed.
-	{
-		// #todo-lod: Raytracing does not support LOD...
-		uint32 requiredRecordCount = scene->totalMeshSectionsLOD0;
-		if (requiredRecordCount > totalHitGroupShaderRecord[currFrame])
-		{
-			resizeHitGroupShaderTable(currFrame, requiredRecordCount);
-		}
-	}
-
-	commandList->setRaytracingPipelineState(RTPSO.get());
-
-	// Bind global shader parameters.
-	{
-		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(currFrame);
-
-		ShaderParameterTable SPT{};
-		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
-		SPT.constantBuffer("passUniform", uniformCBV);
-		SPT.accelerationStructure("rtScene", raytracingScene->getSRV());
-		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
-		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
-		SPT.structuredBuffer("gpuSceneBuffer", gpuScene->getGPUSceneBufferSRV());
-		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
-		SPT.texture("skybox", passInput.skyboxSRV);
-		SPT.texture("stbnTexture", stbnSRV.get());
-		SPT.texture("gbuffer0", passInput.gbuffer0SRV);
-		SPT.texture("gbuffer1", passInput.gbuffer1SRV);
-		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
-		SPT.rwTexture("raytracingTexture", raytracingUAV.get());
-		// Bindless
-		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
-
-		uint32 requiredVolatiles = SPT.totalDescriptors();
-		DescriptorHeap* volatileHeap = rayPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
-
-		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
-	}
-	
-	// Dispatch rays and issue barriers.
-	{
-		SCOPED_DRAW_EVENT(commandList, DiffuseRaytracing);
-
-		DispatchRaysDesc dispatchDesc{
-			.raygenShaderTable = raygenShaderTable.get(),
-			.missShaderTable   = missShaderTable.get(),
-			.hitGroupTable     = hitGroupShaderTable.at(currFrame),
-			.width             = sceneWidth,
-			.height            = sceneHeight,
-			.depth             = 1,
-		};
-		// #todo-indirect-diffuse: First frame is too yellow in bedroom model? Not a barrier problem?
-		commandList->dispatchRays(dispatchDesc);
-
-		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				prevColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				prevMomentTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				raytracingTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
-	}
-
-	// -------------------------------------------------------------------
-	// Phase: Temporal Reconstruction
-
-	// Update uniforms.
-	{
-		TemporalPassUniform uboData;
-
-		uboData.prevScreenSize[0] = actualHistoryWidth[prevFrame];
-		uboData.prevScreenSize[1] = actualHistoryHeight[prevFrame];
-		uboData.prevInvScreenSize[0] = 1.0f / (float)actualHistoryWidth[prevFrame];
-		uboData.prevInvScreenSize[1] = 1.0f / (float)actualHistoryHeight[prevFrame];
-
-		auto uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
-		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
-	}
-
-	// Bind global shader parameters.
-	{
-		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
-
-		ShaderParameterTable SPT{};
-		SPT.constantBuffer("sceneUniform", sceneUniformBuffer);
-		SPT.constantBuffer("passUniform", uniformCBV);
-		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
-		SPT.texture("raytracingTexture", raytracingSRV.get());
-		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
-		SPT.texture("prevColorTexture", prevColorSRV);
-		SPT.texture("prevMomentTexture", prevMomentSRV);
-		SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
-		SPT.rwTexture("currentColorTexture", currColorUAV);
-		SPT.rwTexture("currentMomentTexture", currMomentUAV);
-
-		uint32 requiredVolatiles = SPT.totalDescriptors();
-		DescriptorHeap* volatileHeap = temporalPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
-
-		commandList->setComputePipelineState(temporalPipeline.get());
-		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
-	}
-
-	// Dispatch compute and issue memory barriers.
-	{
-		SCOPED_DRAW_EVENT(commandList, DiffuseTemporalReprojection);
-
-		uint32 dispatchX = (passInput.sceneWidth + 7) / 8;
-		uint32 dispatchY = (passInput.sceneHeight + 7) / 8;
-		commandList->dispatchCompute(dispatchX, dispatchY, 1);
-		
-		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				raytracingTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				prevMomentTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
-	}
-
-	// -------------------------------------------------------------------
-	// Phase: Spatial Reconstruction
-	
-	{
-		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToPrevColor);
-
-		TextureBarrierAuto barriersBefore[] = {
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
-				currColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
-				prevColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-		};
-		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
-
-		commandList->copyTexture2D(currColorTexture, prevColorTexture);
-	}
-
-	BilateralBlurInput blurPassInput{
-		.imageWidth      = sceneWidth,
-		.imageHeight     = sceneHeight,
-		.blurCount       = BLUR_COUNT,
-		.cPhi            = passInput.cPhi,
-		.nPhi            = passInput.nPhi,
-		.pPhi            = passInput.pPhi,
-		.sceneUniformCBV = sceneUniformBuffer,
-		.inColorTexture  = prevColorTexture,
-		.inColorUAV      = prevColorUAV,
-		.inSceneDepthSRV = passInput.sceneDepthSRV,
-		.inGBuffer0SRV   = passInput.gbuffer0SRV,
-		.inGBuffer1SRV   = passInput.gbuffer1SRV,
-		.outColorTexture = passInput.indirectDiffuseTexture,
-		.outColorUAV     = passInput.indirectDiffuseUAV,
+	const PassFrameInfo passFrameInfo{
+		.currFrame = frameInfo.frameID % 2,
+		.prevFrame = (frameInfo.frameID + 1) % 2,
 	};
-	passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, blurPassInput);
+
+	prepareRaytracingResources(commandList, passFrameInfo, passInput);
+
+	actualHistoryWidth[passFrameInfo.currFrame] = passInput.sceneWidth;
+	actualHistoryHeight[passFrameInfo.currFrame] = passInput.sceneHeight;
+
+	raytracingPhase(commandList, passFrameInfo, passInput);
+	reprojectPhase(commandList, passFrameInfo, passInput);
+	denoisePhase(commandList, frameInfo, passFrameInfo, passInput);
 }
 
 void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 newUnscaledWidth, uint32 newUnscaledHeight)
@@ -570,4 +359,210 @@ void IndirectDiffusePass::resizeHitGroupShaderTable(uint32 swapchainIndex, uint3
 	}
 
 	CYLOG(LogIndirectDiffuse, Log, L"Resize hit group shader table [%u]: %u records", swapchainIndex, maxRecords);
+}
+
+void IndirectDiffusePass::prepareRaytracingResources(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectDiffuseInput& passInput)
+{
+	const uint32 resourceIndex = passFrameInfo.currFrame;
+
+	resizeTextures(commandList, passInput.unscaledRenderWidth, passInput.unscaledRenderHeight);
+
+	// Resize hit group shader table if needed.
+	// #todo-lod: Raytracing does not support LOD...
+	uint32 requiredRecordCount = passInput.scene->totalMeshSectionsLOD0;
+	if (requiredRecordCount > totalHitGroupShaderRecord[resourceIndex])
+	{
+		resizeHitGroupShaderTable(resourceIndex, requiredRecordCount);
+	}
+}
+
+void IndirectDiffusePass::raytracingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectDiffuseInput& passInput)
+{
+	SCOPED_DRAW_EVENT(commandList, DiffuseRaytracing);
+
+	uint32 sceneWidth = passInput.sceneWidth;
+	uint32 sceneHeight = passInput.sceneHeight;
+	GPUScene::MaterialDescriptorsDesc gpuSceneDesc = passInput.gpuScene->queryMaterialDescriptors();
+
+	const uint32 currFrame = passFrameInfo.currFrame;
+	const uint32 prevFrame = passFrameInfo.prevFrame;
+
+	// Update uniforms.
+	{
+		RayPassUniform* uboData = new RayPassUniform;
+
+		for (uint32 i = 0; i < RANDOM_SEQUENCE_LENGTH; ++i)
+		{
+			uboData->randFloats0[i] = rng.get();
+			uboData->randFloats1[i] = rng.get();
+		}
+		uboData->renderTargetWidth = sceneWidth;
+		uboData->renderTargetHeight = sceneHeight;
+		uboData->frameCounter = frameCounter;
+		uboData->mode = (uint32)passInput.mode;
+
+		auto uniformCBV = rayPassDescriptor.getUniformCBV(currFrame);
+		uniformCBV->writeToGPU(commandList, uboData, sizeof(RayPassUniform));
+
+		frameCounter = (frameCounter + 1) & 63;
+
+		delete uboData;
+	}
+
+	TextureBarrierAuto textureBarriers[] = {
+		TextureBarrierAuto::toUnorderedAccess(raytracingTexture.get(), EBarrierSync::COMPUTE_SHADING),
+	};
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+	// Bind global shader parameters.
+	{
+		ConstantBufferView* uniformCBV = rayPassDescriptor.getUniformCBV(currFrame);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
+		SPT.constantBuffer("passUniform", uniformCBV);
+		SPT.accelerationStructure("rtScene", passInput.raytracingScene->getSRV());
+		SPT.byteAddressBuffer("gIndexBuffer", gIndexBufferPool->getByteAddressBufferView());
+		SPT.byteAddressBuffer("gVertexBuffer", gVertexBufferPool->getByteAddressBufferView());
+		SPT.structuredBuffer("gpuSceneBuffer", passInput.gpuScene->getGPUSceneBufferSRV());
+		SPT.structuredBuffer("materials", gpuSceneDesc.constantsBufferSRV);
+		SPT.texture("skybox", passInput.skyboxSRV);
+		SPT.texture("stbnTexture", stbnSRV.get());
+		SPT.texture("gbuffer0", passInput.gbuffer0SRV);
+		SPT.texture("gbuffer1", passInput.gbuffer1SRV);
+		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+		SPT.rwTexture("raytracingTexture", raytracingUAV.get());
+		// Bindless
+		SPT.texture("albedoTextures", gpuSceneDesc.srvHeap, 0, gpuSceneDesc.srvCount);
+
+		uint32 requiredVolatiles = SPT.totalDescriptors();
+		DescriptorHeap* volatileHeap = rayPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
+
+		commandList->setRaytracingPipelineState(RTPSO.get());
+		commandList->bindRaytracingShaderParameters(RTPSO.get(), &SPT, volatileHeap);
+	}
+	
+	DispatchRaysDesc dispatchDesc{
+		.raygenShaderTable = raygenShaderTable.get(),
+		.missShaderTable   = missShaderTable.get(),
+		.hitGroupTable     = hitGroupShaderTable.at(currFrame),
+		.width             = sceneWidth,
+		.height            = sceneHeight,
+		.depth             = 1,
+	};
+	commandList->dispatchRays(dispatchDesc);
+}
+
+void IndirectDiffusePass::reprojectPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectDiffuseInput& passInput)
+{
+	SCOPED_DRAW_EVENT(commandList, DiffuseTemporalReprojection);
+
+	const uint32 currFrame = passFrameInfo.currFrame;
+	const uint32 prevFrame = passFrameInfo.prevFrame;
+
+	// Update uniforms.
+	{
+		TemporalPassUniform uboData;
+
+		uboData.prevScreenSize[0] = actualHistoryWidth[prevFrame];
+		uboData.prevScreenSize[1] = actualHistoryHeight[prevFrame];
+		uboData.prevInvScreenSize[0] = 1.0f / (float)actualHistoryWidth[prevFrame];
+		uboData.prevInvScreenSize[1] = 1.0f / (float)actualHistoryHeight[prevFrame];
+
+		auto uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
+		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
+	}
+
+	auto currColorTexture = colorHistory.getTexture(currFrame);
+	auto prevColorTexture = colorHistory.getTexture(prevFrame);
+	auto currColorUAV     = colorHistory.getUAV(currFrame);
+	auto prevColorSRV     = colorHistory.getSRV(prevFrame);
+
+	auto currMomentTexture = momentHistory.getTexture(currFrame);
+	auto prevMomentTexture = momentHistory.getTexture(prevFrame);
+	auto currMomentUAV     = momentHistory.getUAV(currFrame);
+	auto prevMomentSRV     = momentHistory.getSRV(prevFrame);
+
+	TextureBarrierAuto textureBarriers[] = {
+		TextureBarrierAuto::toShaderResource(prevColorTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(prevMomentTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(raytracingTexture.get(), EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(currColorTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(currMomentTexture, EBarrierSync::COMPUTE_SHADING),
+	};
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+	// Bind global shader parameters.
+	{
+		ConstantBufferView* temporalPassUniform = temporalPassDescriptor.getUniformCBV(currFrame);
+
+		ShaderParameterTable SPT{};
+		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
+		SPT.constantBuffer("passUniform", temporalPassUniform);
+		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+		SPT.texture("raytracingTexture", raytracingSRV.get());
+		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
+		SPT.texture("prevColorTexture", prevColorSRV);
+		SPT.texture("prevMomentTexture", prevMomentSRV);
+		SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
+		SPT.rwTexture("currentColorTexture", currColorUAV);
+		SPT.rwTexture("currentMomentTexture", currMomentUAV);
+
+		uint32 requiredVolatiles = SPT.totalDescriptors();
+		DescriptorHeap* volatileHeap = temporalPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
+
+		commandList->setComputePipelineState(temporalPipeline.get());
+		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
+	}
+
+	uint32 dispatchX = (passInput.sceneWidth + 7) / 8;
+	uint32 dispatchY = (passInput.sceneHeight + 7) / 8;
+	commandList->dispatchCompute(dispatchX, dispatchY, 1);
+}
+
+void IndirectDiffusePass::denoisePhase(RenderCommandList* commandList, const FrameInfo& frameInfo, const PassFrameInfo& passFrameInfo, const IndirectDiffuseInput& passInput)
+{
+	SCOPED_DRAW_EVENT(commandList, DiffuseDenoising);
+
+	const uint32 currFrame = passFrameInfo.currFrame;
+	const uint32 prevFrame = passFrameInfo.prevFrame;
+
+	auto currColorTexture = colorHistory.getTexture(currFrame);
+	auto currColorUAV     = colorHistory.getUAV(currFrame);
+
+	auto prevColorTexture = colorHistory.getTexture(prevFrame);
+	auto prevColorUAV     = colorHistory.getUAV(prevFrame);
+
+#if 1
+	{
+		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToPrevColor);
+
+		TextureBarrierAuto barriersBefore[] = {
+			TextureBarrierAuto::toCopySource(currColorTexture),
+			TextureBarrierAuto::toCopyDest(prevColorTexture),
+		};
+		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
+
+		commandList->copyTexture2D(currColorTexture, prevColorTexture);
+	}
+#endif
+
+	BilateralBlurInput blurPassInput{
+		.imageWidth      = passInput.sceneWidth,
+		.imageHeight     = passInput.sceneHeight,
+		.blurCount       = BLUR_COUNT,
+		.cPhi            = passInput.cPhi,
+		.nPhi            = passInput.nPhi,
+		.pPhi            = passInput.pPhi,
+		.sceneUniformCBV = passInput.sceneUniformBuffer,
+		.inColorTexture  = prevColorTexture,
+		.inColorUAV      = prevColorUAV,
+		.inSceneDepthSRV = passInput.sceneDepthSRV,
+		.inGBuffer0SRV   = passInput.gbuffer0SRV,
+		.inGBuffer1SRV   = passInput.gbuffer1SRV,
+		.outColorTexture = passInput.indirectDiffuseTexture,
+		.outColorUAV     = passInput.indirectDiffuseUAV,
+		//.outColorHistory = prevColorTexture, // #wip: Copy first iteration to prev color
+	};
+	passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, blurPassInput);
 }

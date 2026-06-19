@@ -46,6 +46,12 @@ struct IndirectDiffuseInput
 
 class IndirectDiffusePass final : public SceneRenderPass
 {
+	struct PassFrameInfo
+	{
+		uint32 currFrame;
+		uint32 prevFrame;
+	};
+
 public:
 	void initialize(RenderDevice* inDevice);
 
@@ -59,6 +65,11 @@ private:
 
 	void resizeTextures(RenderCommandList* commandList, uint32 newUnscaledWidth, uint32 newUnscaledHeight);
 	void resizeHitGroupShaderTable(uint32 resourceIndex, uint32 maxRecords);
+
+	void prepareRaytracingResources(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectDiffuseInput& passInput);
+	void raytracingPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectDiffuseInput& passInput);
+	void reprojectPhase(RenderCommandList* commandList, const PassFrameInfo& passFrameInfo, const IndirectDiffuseInput& passInput);
+	void denoisePhase(RenderCommandList* commandList, const FrameInfo& frameInfo, const PassFrameInfo& passFrameInfo, const IndirectDiffuseInput& passInput);
 
 private:
 	RenderDevice*                            device = nullptr;
