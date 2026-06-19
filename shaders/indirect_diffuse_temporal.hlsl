@@ -51,30 +51,57 @@ float getLuminance(float3 color)
 	return dot(color, float3(0.2126, 0.7152, 0.0722));
 }
 
-PrevFrameInfo getReprojectedInfo(float2 unscaledCurrentScreenUV, float2 currentScreenUV)
+PrevFrameInfo getReprojectedInfo(float2 unscaledCurrentScreenUV, float2 currentScreenUV, float currentLinearDepth, float3 currentPositionWS)
 {
 	float2 velocity = velocityMapTexture.SampleLevel(pointSampler, currentScreenUV, 0).rg;
 	float2 unscaledScreenUV = unscaledCurrentScreenUV - velocity;
-	float4 positionCS = textureUVToClipSpace(unscaledScreenUV);
-	float2 screenUV = unscaledScreenUV * float2(passUniform.prevScreenSize) * sceneUniform.unscaledScreenResolution.zw;
+	float2 fUnscaledTexel = unscaledScreenUV * float2(passUniform.prevScreenSize);
+	float2 screenUV = fUnscaledTexel * sceneUniform.unscaledScreenResolution.zw;
+
+	float3 color = prevColorTexture.SampleLevel(linearSampler, screenUV, 0).xyz;
 	
 	PrevFrameInfo info;
+	info.bValid = false;
+	
 	if (uvOutOfBounds(screenUV))
 	{
-		info.bValid = false;
 		return info;
 	}
+	
+	float2 tabDir = step(frac(fUnscaledTexel), float2(0.5, 0.5)) - 0.5;
+	float2 tabDeltaUV = tabDir * passUniform.prevInvScreenSize;
 
-	float sceneDepth = prevSceneDepthTexture.SampleLevel(pointSampler, screenUV, 0).r;
-	float3 color = prevColorTexture.SampleLevel(linearSampler, screenUV, 0).xyz;
-	float4 moments = prevMomentTexture.SampleLevel(pointSampler, screenUV, 0);
+	for (int dy = 0; dy <= 1; dy++)
+	{
+		for (int dx = 0; dx <= 1; dx++)
+		{
+			float2 tabUV = screenUV + float2(dx, dy) * tabDeltaUV;
+			float2 unscaledTabUV = tabUV * float2(passUniform.prevScreenSize) * sceneUniform.unscaledScreenResolution.zw;
+			
+			float sceneDepth = prevSceneDepthTexture.SampleLevel(pointSampler, tabUV, 0).x;
+			// Use unscaled UV because projInv was built without knowing resolution scaling.
+			// Also assume projInv is same for prev and curr frames.
+			float linearDepth = getLinearDepth(unscaledTabUV, sceneDepth, sceneUniform.projInvMatrix);
+			float4 moments = prevMomentTexture.SampleLevel(pointSampler, tabUV, 0);
+			
+			float3 positionWS = getWorldPositionFromSceneDepth(unscaledTabUV, sceneDepth, sceneUniform.prevViewProjInvMatrix);
+			
+			float depthDiff = abs(linearDepth - currentLinearDepth) / currentLinearDepth;
+			bool bReproject = (length(positionWS - currentPositionWS) <= 0.05) || (depthDiff <= 0.03);
 
-	info.bValid = true;
-	info.positionWS = clipSpaceToWorldSpace(positionCS, sceneUniform.prevViewProjInvMatrix);
-	info.linearDepth = getLinearDepth(unscaledScreenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
-	info.color = color;
-	info.historyCount = moments.z;
-	info.moments = moments.xy;
+			if (bReproject)
+			{
+				info.bValid = true;
+				info.positionWS = positionWS;
+				info.linearDepth = linearDepth;
+				info.color = color;
+				info.historyCount = moments.z;
+				info.moments = moments.xy;
+				
+				break;
+			}
+		}
+	}
 	
 	return info;
 }
@@ -91,7 +118,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	float2 unscaledScreenUV = getUnscaledScreenUV(texel);
 	float2 screenUV = unscaledScreenUV * sceneUniform.screenResolution.xy * sceneUniform.unscaledScreenResolution.zw;
 
-	float sceneDepth = sceneDepthTexture.Load(int3(texel, 0)).r;
+	float sceneDepth = sceneDepthTexture.Load(int3(texel, 0)).x;
 	float3 positionWS = getWorldPositionFromSceneDepth(unscaledScreenUV, sceneDepth, sceneUniform.viewProjInvMatrix);
 	float linearDepth = getLinearDepth(unscaledScreenUV, sceneDepth, sceneUniform.projInvMatrix);
 
@@ -103,17 +130,11 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		moments.x = getLuminance(Wo);
 		moments.y = moments.x * moments.x;
 		
-		// Temporal reprojection
-		PrevFrameInfo prevFrame = getReprojectedInfo(unscaledScreenUV, screenUV);
-		bool bTemporalReprojection = false;
-		{
-			float depthDiff = abs(prevFrame.linearDepth - linearDepth) / linearDepth;
-			bTemporalReprojection = prevFrame.bValid && depthDiff <= 0.03;
-		}
+		PrevFrameInfo prevFrame = getReprojectedInfo(unscaledScreenUV, screenUV, linearDepth, positionWS);
 		
 		float3 prevWo = 0;
 		float2 prevMoments = 0;
-		if (bTemporalReprojection)
+		if (prevFrame.bValid)
 		{
 			historyCount = prevFrame.historyCount;
 			prevWo = prevFrame.color;

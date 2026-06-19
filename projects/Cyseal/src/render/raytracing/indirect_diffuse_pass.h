@@ -18,10 +18,10 @@ struct IndirectDiffuseInput
 	EIndirectDiffuseMode       mode;
 	uint32                     randomSeed; // Ignored if zero.
 
-	uint32                     unscaledRenderWidth;
-	uint32                     unscaledRenderHeight;
-	uint32                     sceneWidth;
-	uint32                     sceneHeight;
+	uint32                     unscaledRenderWidth;  // display resolution x
+	uint32                     unscaledRenderHeight; // display resolution y
+	uint32                     sceneWidth;           // render resolution x
+	uint32                     sceneHeight;          // render resolution y
 
 	class GPUScene*            gpuScene;
 	class BilateralBlur*       bilateralBlur;
