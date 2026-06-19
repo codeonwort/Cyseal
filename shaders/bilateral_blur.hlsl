@@ -119,11 +119,12 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         distSq = max(0.0, dot(diff, diff));
         float albedoWeight = min(1.0, exp(-distSq / blurUniform.cPhi));
 
-#if 0
+#if 1
         diff = normal0 - normal1;
         distSq = max(0.0, dot(diff, diff) / (stepWidth * stepWidth));
         float normalWeight = min(1.0, exp(-distSq / blurUniform.nPhi));
 #else
+		// #wip: Produces NaN?
 		float normalWeight = pow(max(0.0, dot(normal0, normal1)), blurUniform.nPhi);
 #endif
 
