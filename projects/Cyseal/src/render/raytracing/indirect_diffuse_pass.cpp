@@ -243,16 +243,16 @@ bool IndirectDiffusePass::isAvailable() const
 	return device->getRaytracingTier() != ERaytracingTier::NotSupported;
 }
 
-void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, const FrameInfo& frameInfo, const IndirectDiffuseInput& passInput)
+IndirectDiffuseOutput IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, const FrameInfo& frameInfo, const IndirectDiffuseInput& passInput)
 {
 	if (isAvailable() == false)
 	{
-		return;
+		return IndirectDiffuseOutput{};
 	}
 	if (passInput.gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
 		// #todo-zero-size: Release resources if any.
-		return;
+		return IndirectDiffuseOutput{};
 	}
 
 	if (passInput.randomSeed > 0)
@@ -270,14 +270,14 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 	actualHistoryWidth[passFrameInfo.currFrame] = passInput.sceneWidth;
 	actualHistoryHeight[passFrameInfo.currFrame] = passInput.sceneHeight;
 
-	if (passInput.debugMode != EIndirectDiffuseDebugMode::Radiance)
-	{
-		// #wip-debugmode: Implement debug mode
-	}
-
 	raytracingPhase(commandList, passFrameInfo, passInput);
 	reprojectPhase(commandList, passFrameInfo, passInput);
 	denoisePhase(commandList, frameInfo, passFrameInfo, passInput);
+
+	return IndirectDiffuseOutput{
+		.momentTexture   = momentHistory.getTexture(passFrameInfo.currFrame),
+		.momentSRV       = momentHistory.getSRV(passFrameInfo.currFrame),
+	};
 }
 
 void IndirectDiffusePass::resizeTextures(RenderCommandList* commandList, uint32 newUnscaledWidth, uint32 newUnscaledHeight)

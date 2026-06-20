@@ -22,42 +22,49 @@
 #define MODE_INTERPOLATED_FRAME  18
 #define MODE_FRAMEGEN_DEBUG_VIEW 19
 
+// Should match with EIndirectDiffuseDebugMode
+#define INDIRECT_DIFFUSE_MODE_RADIANCE      0
+#define INDIRECT_DIFFUSE_MODE_HISTORY_COUNT 1
+#define INDIRECT_DIFFUSE_MODE_VARIANCE      2
+
 // ------------------------------------------------------------------------
 // Resource bindings
 
-struct PushConstants
+struct PassUniform
 {
-	uint modeEnum;
+	uint modeEnum; // EBufferVisualizationMode
 	uint width;
 	uint height;
+	uint indirectDiffuseDebugMode; // EIndirectDiffuseDebugMode
 	uint opticalFlowVectorPackedSize; // low 16-bit: width, high 16-bit: height
 };
 
-[[vk::push_constant]]
-ConstantBuffer<PushConstants> pushConstants      : register(b0, space0);
-
 ConstantBuffer<SceneUniform>  sceneUniform;
+ConstantBuffer<PassUniform>   passUniform;
 
-Texture2D<GBUFFER0_DATATYPE>  gbuffer0           : register(t0, space0);
-Texture2D<GBUFFER1_DATATYPE>  gbuffer1           : register(t1, space0);
-Texture2D                     sceneColor         : register(t2, space0);
-Texture2D                     shadowMask         : register(t3, space0);
-Texture2D                     indirectDiffuse    : register(t4, space0);
-Texture2D                     indirectSpecular   : register(t5, space0);
-Texture2D                     velocityMap        : register(t6, space0);
-Texture2D<uint>               visibilityBuffer   : register(t7, space0);
-Texture2D                     barycentricCoord   : register(t8, space0);
-Texture2D<GBUFFER0_DATATYPE>  visGBuffer0        : register(t9, space0);
-Texture2D<GBUFFER1_DATATYPE>  visGBuffer1        : register(t10, space0);
-Texture2D<uint>               opticalFlowVectorX : register(t11, space0);
-Texture2D<uint>               opticalFlowVectorY : register(t12, space0);
-Texture2D                     interpolatedFrame  : register(t13, space0);
+Texture2D<GBUFFER0_DATATYPE>  gbuffer0;
+Texture2D<GBUFFER1_DATATYPE>  gbuffer1;
+Texture2D                     sceneColor;
+Texture2D                     shadowMask;
+Texture2D                     indirectDiffuse;
+Texture2D                     indirectDiffuseMoment;
+Texture2D                     indirectSpecular;
+Texture2D                     velocityMap;
+Texture2D<uint>               visibilityBuffer;
+Texture2D                     barycentricCoord;
+Texture2D<GBUFFER0_DATATYPE>  visGBuffer0;
+Texture2D<GBUFFER1_DATATYPE>  visGBuffer1;
+Texture2D<uint>               opticalFlowVectorX;
+Texture2D<uint>               opticalFlowVectorY;
+Texture2D                     interpolatedFrame;
 
-SamplerState                  textureSampler     : register(s0, space0);
+SamplerState                  textureSampler;
+
+uint getIndirectDiffuseDebugMode() { return passUniform.indirectDiffuseDebugMode; }
 
 uint2 unpackOpticalFlowVectorTextureSize()
 {
-	uint xy = pushConstants.opticalFlowVectorPackedSize;
+	uint xy = passUniform.opticalFlowVectorPackedSize;
 	return uint2(xy & 0xffff, (xy >> 16) & 0xffff);
 }
 
@@ -139,7 +146,7 @@ namespace opticalFlow
 
 	int2 DisplaySize()
 	{
-		return int2(pushConstants.width, pushConstants.height);
+		return int2(passUniform.width, passUniform.height);
 	}
 
 	float4 getMotionVectorColor(float2 fMotionVector)
@@ -297,7 +304,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	
 	float2 scaledUV = fullscreenUV * sceneUniform.screenResolution.xy * sceneUniform.unscaledScreenResolution.zw;
 
-	uint modeEnum = pushConstants.modeEnum;
+	uint modeEnum = passUniform.modeEnum;
 	float4 color = float4(0.0, 0.0, 0.0, 1.0);
 
 	GBUFFER0_DATATYPE encodedGBuffer0 = gbuffer0.Load(int3(interpolants.posH.xy, 0));
@@ -342,7 +349,21 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	}
 	else if (modeEnum == MODE_INDIRECT_DIFFUSE)
 	{
-		color.rgb = indirectDiffuse.SampleLevel(textureSampler, scaledUV, 0.0).rgb;
+		uint debugMode = getIndirectDiffuseDebugMode();
+		if (debugMode == INDIRECT_DIFFUSE_MODE_RADIANCE)
+		{
+			color.rgb = indirectDiffuse.SampleLevel(textureSampler, scaledUV, 0.0).rgb;
+		}
+		else if (debugMode == INDIRECT_DIFFUSE_MODE_HISTORY_COUNT)
+		{
+			color.r = indirectDiffuseMoment.SampleLevel(textureSampler, scaledUV, 0.0).bbb / 64.0;
+		}
+		else
+		{
+			float2 moments = indirectDiffuseMoment.SampleLevel(textureSampler, scaledUV, 0.0).rg;
+			float variance = moments.y - moments.x * moments.x;
+			color.r = variance;
+		}
 	}
 	else if (modeEnum == MODE_INDIRECT_SPECULAR)
 	{
@@ -355,7 +376,7 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 	}
 	else if (modeEnum == MODE_VISIBILITY_BUFFER)
 	{
-		int2 coord = int2(fullscreenUV * float2(pushConstants.width, pushConstants.height));
+		int2 coord = int2(fullscreenUV * float2(passUniform.width, passUniform.height));
 		uint visPacked = visibilityBuffer.Load(int3(coord, 0)).r;
 		VisibilityBufferData vdata = decodeVisibilityBuffer(visPacked);
 		// My no brainer hash function

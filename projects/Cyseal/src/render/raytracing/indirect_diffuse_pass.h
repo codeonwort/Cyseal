@@ -45,6 +45,12 @@ struct IndirectDiffuseInput
 	UnorderedAccessView*       indirectDiffuseUAV;
 };
 
+struct IndirectDiffuseOutput
+{
+	Texture*            momentTexture   = nullptr;
+	ShaderResourceView* momentSRV       = nullptr;
+};
+
 class IndirectDiffusePass final : public SceneRenderPass
 {
 	struct PassFrameInfo
@@ -58,7 +64,7 @@ public:
 
 	bool isAvailable() const;
 
-	void renderIndirectDiffuse(RenderCommandList* commandList, const FrameInfo& frameInfo, const IndirectDiffuseInput& passInput);
+	IndirectDiffuseOutput renderIndirectDiffuse(RenderCommandList* commandList, const FrameInfo& frameInfo, const IndirectDiffuseInput& passInput);
 
 private:
 	void initializeRaytracingPipeline();
