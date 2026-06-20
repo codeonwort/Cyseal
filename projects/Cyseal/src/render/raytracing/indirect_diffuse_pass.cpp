@@ -270,7 +270,7 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 	actualHistoryWidth[passFrameInfo.currFrame] = passInput.sceneWidth;
 	actualHistoryHeight[passFrameInfo.currFrame] = passInput.sceneHeight;
 
-	if (passInput.debugMode != EIndirectDiffuseDebugMode::None)
+	if (passInput.debugMode != EIndirectDiffuseDebugMode::Radiance)
 	{
 		// #wip-debugmode: Implement debug mode
 	}

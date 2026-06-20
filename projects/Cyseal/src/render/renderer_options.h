@@ -66,7 +66,7 @@ enum class EIndirectDiffuseMode : uint32
 
 enum class EIndirectDiffuseDebugMode : uint32
 {
-	None             = 0,
+	Radiance         = 0,
 	HistoryCount     = 1,
 	Variance         = 2,
 
@@ -184,7 +184,7 @@ inline const char** getIndirectDiffuseDebugModeNames()
 {
 	static const char* strings[] =
 	{
-		"None",
+		"Radiance",
 		"HistoryCount",
 		"Variance",
 	};
@@ -267,7 +267,7 @@ struct RendererOptions
 	struct IndirectDiffuse
 	{
 		EIndirectDiffuseMode      mode       = EIndirectDiffuseMode::Disabled;
-		EIndirectDiffuseDebugMode debugMode  = EIndirectDiffuseDebugMode::None;
+		EIndirectDiffuseDebugMode debugMode  = EIndirectDiffuseDebugMode::Radiance;
 		uint32                    randomSeed = 0;
 		float                     cPhi       = 4.0f;
 		float                     nPhi       = 128.0f;
