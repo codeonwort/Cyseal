@@ -535,6 +535,9 @@ void IndirectDiffusePass::denoisePhase(RenderCommandList* commandList, const Fra
 	auto currColorTexture = colorHistory.getTexture(currFrame);
 	auto currColorUAV     = colorHistory.getUAV(currFrame);
 
+	auto currMomentTexture = momentHistory.getTexture(currFrame);
+	auto currMomentSRV     = momentHistory.getSRV(currFrame);
+
 	auto prevColorTexture = colorHistory.getTexture(prevFrame);
 	auto prevColorUAV     = colorHistory.getUAV(prevFrame);
 
@@ -553,6 +556,8 @@ void IndirectDiffusePass::denoisePhase(RenderCommandList* commandList, const Fra
 		.sceneUniformCBV = passInput.sceneUniformBuffer,
 		.inColorTexture  = currColorTexture,
 		.inColorUAV      = currColorUAV,
+		.inMomentTexture = currMomentTexture,
+		.inMomentSRV     = currMomentSRV,
 		.inSceneDepthSRV = passInput.sceneDepthSRV,
 		.inGBuffer0SRV   = passInput.gbuffer0SRV,
 		.inGBuffer1SRV   = passInput.gbuffer1SRV,

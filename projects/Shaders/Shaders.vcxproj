@@ -103,6 +103,7 @@
     <FxCompile Include="..\..\shaders\amd\ffx_opticalflow_scale_optical_flow_advanced_pass_v5.hlsl" />
     <FxCompile Include="..\..\shaders\base_pass.hlsl" />
     <FxCompile Include="..\..\shaders\bilateral_blur.hlsl" />
+    <FxCompile Include="..\..\shaders\bilateral_blur_init.hlsl" />
     <FxCompile Include="..\..\shaders\blit_denoiser_input.hlsl" />
     <FxCompile Include="..\..\shaders\bsdf.hlsl" />
     <FxCompile Include="..\..\shaders\buffer_visualization.hlsl" />

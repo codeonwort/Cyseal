@@ -172,11 +172,15 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 
 	auto currentColorTexture  = colorHistory.getTexture(currFrame);
 	auto prevColorTexture     = colorHistory.getTexture(prevFrame);
+
 	auto currentMomentTexture = momentHistory.getTexture(currFrame);
 	auto prevMomentTexture    = momentHistory.getTexture(prevFrame);
+
 	auto currentColorUAV      = colorHistory.getUAV(currFrame);
 	auto prevColorUAV         = colorHistory.getUAV(prevFrame);
 	auto prevColorSRV         = colorHistory.getSRV(prevFrame);
+
+	auto currentMomentSRV     = momentHistory.getSRV(currFrame);
 	auto currentMomentUAV     = momentHistory.getUAV(currFrame);
 	auto prevMomentSRV        = momentHistory.getSRV(prevFrame);
 
@@ -301,8 +305,10 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 			.nPhi            = nPhi,
 			.pPhi            = pPhi,
 			.sceneUniformCBV = passInput.sceneUniformBuffer,
-			.inColorTexture  = prevColorTexture,
+			.inColorTexture  = prevColorTexture, // #wip: See indirect diffuse
 			.inColorUAV      = prevColorUAV,
+			.inMomentTexture = currentMomentTexture,
+			.inMomentSRV     = currentMomentSRV,
 			.inSceneDepthSRV = passInput.sceneDepthSRV,
 			.inGBuffer0SRV   = passInput.gbuffer0SRV,
 			.inGBuffer1SRV   = passInput.gbuffer1SRV,

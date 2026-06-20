@@ -3,7 +3,8 @@
 #include "rhi/render_command.h"
 
 // #todo-renderer: scratch texture format
-#define PF_scratch EPixelFormat::R16G16B16A16_FLOAT
+#define PF_scratch  EPixelFormat::R16G16B16A16_FLOAT
+#define PF_variance EPixelFormat::R16_FLOAT
 
 struct BlurUniform
 {
@@ -23,6 +24,22 @@ void BilateralBlur::initialize(RenderDevice* inDevice)
 	device = inDevice;
 	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
+	initPassDescriptor.initialize(L"BilateralBlurInit", maxFramesInFlight, 0);
+	passDescriptor.initialize(L"BilateralBlur", maxFramesInFlight, sizeof(BlurUniform));
+
+	// Init pipeline
+	{
+		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "BilateralBlurInitCS");
+		shader->declarePushConstants({ { "pushConstants", 2 } });
+		shader->loadFromFile(L"bilateral_blur_init.hlsl", "mainCS");
+
+		initPipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
+			ComputePipelineDesc{ .cs = shader, .nodeMask = 0 }
+		));
+
+		delete shader;
+	}
+
 	// Blur pipeline
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "BilateralBlurCS");
@@ -35,18 +52,109 @@ void BilateralBlur::initialize(RenderDevice* inDevice)
 
 		delete shader;
 	}
-
-	passDescriptor.initialize(L"BilateralBlur", maxFramesInFlight, sizeof(BlurUniform));
 }
 
 void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, const FrameInfo& frameInfo, const BilateralBlurInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, BilateralBlur);
 
+	resizeTexture(commandList, passInput.imageWidth, passInput.imageHeight);
+
+	initPhase(commandList, frameInfo, passInput);
+	blurPhase(commandList, frameInfo, passInput);
+}
+
+void BilateralBlur::resizeTexture(RenderCommandList* commandList, uint32 width, uint32 height)
+{
+	auto nullOrWrongSize = [](const UniquePtr<Texture>& texture, uint32 width, uint32 height) -> bool {
+		return texture == nullptr
+			|| texture->getCreateParams().width != width
+			|| texture->getCreateParams().height != height;
+	};
+
+	auto createSingleMipUAV = [device = device](Texture* texture, uint32 targetMip) -> UniquePtr<UnorderedAccessView> {
+		return UniquePtr<UnorderedAccessView>(device->createUAV(texture,
+			UnorderedAccessViewDesc{
+				.format         = texture->getCreateParams().format,
+				.viewDimension  = EUAVDimension::Texture2D,
+				.texture2D      = Texture2DUAVDesc{ .mipSlice = targetMip, .planeSlice = 0 },
+			}
+		));
+	};
+
+	if (nullOrWrongSize(colorScratch, width, height))
+	{
+		commandList->enqueueDeferredDealloc(colorScratch.release(), true);
+		commandList->enqueueDeferredDealloc(colorScratchUAV.release(), true);
+
+		const TextureCreateParams colorDesc = TextureCreateParams::texture2D(
+			PF_scratch, ETextureAccessFlags::UAV, width, height, 1, 1, 0);
+
+		colorScratch = UniquePtr<Texture>(device->createTexture(colorDesc));
+		colorScratch->setDebugName(L"RT_BilateralBlurColorScratch");
+
+		colorScratchUAV = createSingleMipUAV(colorScratch.get(), 0);
+	}
+
+	for (uint32 i = 0; i < 2; ++i)
+	{
+		if (nullOrWrongSize(varianceTextures[i], width, height))
+		{
+			commandList->enqueueDeferredDealloc(varianceTextures[i].release(), true);
+			commandList->enqueueDeferredDealloc(varianceUAVs[i].release(), true);
+
+			const TextureCreateParams texDesc = TextureCreateParams::texture2D(
+				PF_variance, ETextureAccessFlags::UAV, width, height);
+
+			wchar_t debugName[128];
+			std::swprintf(debugName, _countof(debugName), L"RT_Variance_%u", i);
+
+			varianceTextures[i] = UniquePtr<Texture>(device->createTexture(texDesc));
+			varianceTextures[i]->setDebugName(debugName);
+
+			varianceUAVs[i] = createSingleMipUAV(varianceTextures[i].get(), 0);
+		}
+	}
+}
+
+void BilateralBlur::initPhase(RenderCommandList* commandList, const FrameInfo& frameInfo, const BilateralBlurInput& passInput)
+{
+	SCOPED_DRAW_EVENT(commandList, BilateralBlurInit);
+
+	const uint32 currFrame = frameInfo.frameID % 2;
+	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
+
+	auto varianceTexture = varianceTextures[currFrame].get();
+	auto varianceUAV = varianceUAVs[currFrame].get();
+
+	TextureBarrierAuto textureBarriers[] = {
+		TextureBarrierAuto::toShaderResource(passInput.inMomentTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(varianceTexture, EBarrierSync::COMPUTE_SHADING),
+	};
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+	ShaderParameterTable SPT{};
+	SPT.pushConstants("pushConstants", { passInput.imageWidth, passInput.imageHeight });
+	SPT.texture("momentTexture", passInput.inMomentSRV);
+	SPT.rwTexture("rwVarianceTexture", varianceUAV);
+
+	auto pipelineState = initPipelineState.get();
+	auto descriptorHeap = initPassDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
+
+	commandList->setComputePipelineState(pipelineState);
+	commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap);
+
+	uint32 dispatchX = (passInput.imageWidth + 7) / 8;
+	uint32 dispatchY = (passInput.imageHeight + 7) / 8;
+	commandList->dispatchCompute(dispatchX, dispatchY, 1);
+}
+
+void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& frameInfo, const BilateralBlurInput& passInput)
+{
+	SCOPED_DRAW_EVENT(commandList, BilateralBlurIteration);
+
 	CHECK(passInput.blurCount > 0);
 	const bool bInOutColorsAreSame = passInput.inColorTexture == passInput.outColorTexture;
-
-	resizeTexture(commandList, passInput.imageWidth, passInput.imageHeight);
 
 	// Resize volatile heaps if needed.
 	{
@@ -173,28 +281,4 @@ void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, const Fr
 
 		commandList->copyTexture2D(colorScratch.get(), passInput.outColorTexture);
 	}
-}
-
-void BilateralBlur::resizeTexture(RenderCommandList* commandList, uint32 width, uint32 height)
-{
-	if (colorScratch != nullptr && colorScratch->getCreateParams().width == width && colorScratch->getCreateParams().height == height)
-	{
-		return;
-	}
-
-	const TextureCreateParams colorDesc = TextureCreateParams::texture2D(
-		PF_scratch, ETextureAccessFlags::UAV, width, height, 1, 1, 0);
-
-	commandList->enqueueDeferredDealloc(colorScratch.release(), true);
-
-	colorScratch = UniquePtr<Texture>(device->createTexture(colorDesc));
-	colorScratch->setDebugName(L"RT_BilateralBlurColorScratch");
-
-	colorScratchUAV = UniquePtr<UnorderedAccessView>(device->createUAV(colorScratch.get(),
-		UnorderedAccessViewDesc{
-			.format        = colorDesc.format,
-			.viewDimension = EUAVDimension::Texture2D,
-			.texture2D     = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
-		}
-	));
 }
