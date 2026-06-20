@@ -371,10 +371,11 @@ void TestApplication::onTick(float deltaSeconds)
 				ImGui::SeparatorText("Indirect Diffuse Reflection");
 				if (ImGui::BeginTable("##Indirect Diffuse Reflection", 2))
 				{
-					// #wip: Hmm honestly no noticeable difference. Just make them constants?
 					ImGui::TableNextRow();
 					ImGui::TableNextColumn(); ImGui::Text("Mode");
 					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Diffuse Reflection Mode", &appState.selectedIndirectDiffuseMode, getIndirectDiffuseModeNames(), (int32)EIndirectDiffuseMode::Count);
+					ImGui::TableNextColumn(); ImGui::Text("Debug Mode");
+					ImGui::TableNextColumn(); ImGui::Combo("##Indirect Diffuse Reflection Debug Mode", &appState.selectedIndirectDiffuseDebugMode, getIndirectDiffuseDebugModeNames(), (int32)EIndirectDiffuseDebugMode::Count);
 					ImGui::TableNextColumn(); ImGui::Text("Denoiser cPhi"); // color weight
 					ImGui::TableNextColumn(); ImGui::SliderFloat("##Indirect Diffuse cPhi", &appState.rendererOptions.indirectDiffuse.cPhi, 0.0f, 16.0f, "%.2f");
 					ImGui::TableNextColumn(); ImGui::Text("Denoiser nPhi"); // normal weight
@@ -384,6 +385,7 @@ void TestApplication::onTick(float deltaSeconds)
 					ImGui::EndTable();
 				}
 				appState.rendererOptions.indirectDiffuse.mode = (EIndirectDiffuseMode)appState.selectedIndirectDiffuseMode;
+				appState.rendererOptions.indirectDiffuse.debugMode = (EIndirectDiffuseDebugMode)appState.selectedIndirectDiffuseDebugMode;
 
 				ImGui::SeparatorText("Indirect Specular Reflection");
 				if (ImGui::BeginTable("##Indirect Specular Reflection", 2))

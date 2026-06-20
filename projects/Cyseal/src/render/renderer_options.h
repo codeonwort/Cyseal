@@ -64,6 +64,15 @@ enum class EIndirectDiffuseMode : uint32
 	Count
 };
 
+enum class EIndirectDiffuseDebugMode : uint32
+{
+	None             = 0,
+	HistoryCount     = 1,
+	Variance         = 2,
+
+	Count
+};
+
 enum class EIndirectSpecularMode : uint32
 {
 	Disabled         = 0,
@@ -171,6 +180,18 @@ inline const char** getIndirectDiffuseModeNames()
 	return strings;
 }
 
+inline const char** getIndirectDiffuseDebugModeNames()
+{
+	static const char* strings[] =
+	{
+		"None",
+		"HistoryCount",
+		"Variance",
+	};
+	static_assert(_countof(strings) == (int)EIndirectDiffuseDebugMode::Count);
+	return strings;
+}
+
 inline const char** getIndirectSpecularModeNames()
 {
 	static const char* strings[] =
@@ -245,11 +266,12 @@ struct RendererOptions
 	// Ray traced indirect diffuse
 	struct IndirectDiffuse
 	{
-		EIndirectDiffuseMode   mode       = EIndirectDiffuseMode::Disabled;
-		uint32                 randomSeed = 0;
-		float                  cPhi       = 4.0f;
-		float                  nPhi       = 128.0f;
-		float                  pPhi       = 1.0f;
+		EIndirectDiffuseMode      mode       = EIndirectDiffuseMode::Disabled;
+		EIndirectDiffuseDebugMode debugMode  = EIndirectDiffuseDebugMode::None;
+		uint32                    randomSeed = 0;
+		float                     cPhi       = 4.0f;
+		float                     nPhi       = 128.0f;
+		float                     pPhi       = 1.0f;
 	} indirectDiffuse;
 
 	// Ray traced indirect specular

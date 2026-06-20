@@ -16,6 +16,7 @@ struct IndirectDiffuseInput
 {
 	const SceneProxy*          scene;
 	EIndirectDiffuseMode       mode;
+	EIndirectDiffuseDebugMode  debugMode;
 	uint32                     randomSeed; // Ignored if zero.
 
 	uint32                     unscaledRenderWidth;  // display resolution x

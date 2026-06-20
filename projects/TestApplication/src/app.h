@@ -17,6 +17,7 @@ struct AppState
 	int32 selectedBufferVisualizationMode   = (int32)EBufferVisualizationMode::None;
 	int32 selectedRayTracedShadowsMode      = (int32)ERayTracedShadowsMode::Disabled;
 	int32 selectedIndirectDiffuseMode       = (int32)EIndirectDiffuseMode::Disabled;
+	int32 selectedIndirectDiffuseDebugMode  = (int32)EIndirectDiffuseDebugMode::None;
 	int32 selectedIndirectSpecularMode      = (int32)EIndirectSpecularMode::Disabled;
 	int32 selectedIndirectSpecularDebugMode = (int32)EIndirectSpecularDebugMode::None;
 	int32 selectedPathTracingMode           = (int32)EPathTracingMode::Disabled;

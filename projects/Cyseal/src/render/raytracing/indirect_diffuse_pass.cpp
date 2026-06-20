@@ -270,6 +270,11 @@ void IndirectDiffusePass::renderIndirectDiffuse(RenderCommandList* commandList, 
 	actualHistoryWidth[passFrameInfo.currFrame] = passInput.sceneWidth;
 	actualHistoryHeight[passFrameInfo.currFrame] = passInput.sceneHeight;
 
+	if (passInput.debugMode != EIndirectDiffuseDebugMode::None)
+	{
+		// #wip-debugmode: Implement debug mode
+	}
+
 	raytracingPhase(commandList, passFrameInfo, passInput);
 	reprojectPhase(commandList, passFrameInfo, passInput);
 	denoisePhase(commandList, frameInfo, passFrameInfo, passInput);
