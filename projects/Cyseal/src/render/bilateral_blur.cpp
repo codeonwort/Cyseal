@@ -162,10 +162,9 @@ void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& f
 		requiredVolatiles += 1; // pushConstants
 		requiredVolatiles += 1; // sceneUniform
 		requiredVolatiles += 1; // blurUniform
-		requiredVolatiles += 1; // inColorTexture
-		requiredVolatiles += 2; // inGBuffer0Texture, inGBuffer1Texture
-		requiredVolatiles += 1; // inDepthTexture
-		requiredVolatiles += 1; // outputTexture
+		requiredVolatiles += 3; // inDepthTexture, inGBuffer0Texture, inGBuffer1Texture
+		requiredVolatiles += 2; // inColorTexture, outColorTexture
+		requiredVolatiles += 2; // inVarianceTexture, outVarianceTexture
 
 		passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles * passInput.blurCount);
 	}
@@ -200,21 +199,35 @@ void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& f
 	commandList->setComputePipelineState(pipelineState.get());
 
 	// Bind shader parameters.
-	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(frameInfo);
+	DescriptorHeap* volatileHeap   = passDescriptor.getDescriptorHeap(frameInfo);
 	ConstantBufferView* uniformCBV = passDescriptor.getUniformCBV(frameInfo);
 	DescriptorIndexTracker tracker;
-	Texture* blurInputTexture = passInput.inColorTexture;
-	UnorderedAccessView* blurInputUAV = passInput.inColorUAV;
-	Texture* blurOutputTexture = colorScratch.get();
-	UnorderedAccessView* blurOutputUAV = colorScratchUAV.get();
 
-	std::vector<Texture*> uavBarrierTargets = { passInput.inColorTexture, colorScratch.get() };
+	Texture*             blurInputTexture   = passInput.inColorTexture;
+	UnorderedAccessView* blurInputUAV       = passInput.inColorUAV;
+	Texture*             blurOutputTexture  = colorScratch.get();
+	UnorderedAccessView* blurOutputUAV      = colorScratchUAV.get();
+
+	const uint32         currFrame          = frameInfo.frameID % 2;
+	const uint32         prevFrame          = (frameInfo.frameID + 1) % 2;
+	Texture*             inVarianceTexture  = varianceTextures[currFrame].get();
+	UnorderedAccessView* inVarianceUAV      = varianceUAVs[currFrame].get();
+	Texture*             outVarianceTexture = varianceTextures[prevFrame].get();
+	UnorderedAccessView* outVarianceUAV     = varianceUAVs[prevFrame].get();
+
+	// Resources to transition to UnorderedAccess layout before dispatching shaders.
+	std::vector<Texture*> uavBarrierTargets = {
+		passInput.inColorTexture, colorScratch.get(),
+		inVarianceTexture, outVarianceTexture,
+	};
 	if (!bInOutColorsAreSame) uavBarrierTargets.push_back(passInput.outColorTexture);
+
 	std::vector<TextureBarrierAuto> uavBarriers;
 	for (size_t i = 0; i < uavBarrierTargets.size(); ++i)
 	{
 		uavBarriers.push_back(TextureBarrierAuto::toUnorderedAccess(uavBarrierTargets[i], EBarrierSync::COMPUTE_SHADING));
 	}
+	commandList->barrierAuto(0, nullptr, (uint32)uavBarriers.size(), uavBarriers.data(), 0, nullptr);
 
 	bool bShouldCopyScratchToOutColor = false;
 	for (int32 phase = 0; phase < passInput.blurCount; ++phase)
@@ -236,18 +249,25 @@ void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& f
 		SPT.pushConstant("pushConstants", phase + 1);
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 		SPT.constantBuffer("blurUniform", uniformCBV);
-		SPT.rwTexture("inColorTexture", blurInputUAV);
 		SPT.texture("inGBuffer0Texture", passInput.inGBuffer0SRV);
 		SPT.texture("inGBuffer1Texture", passInput.inGBuffer1SRV);
 		SPT.texture("inDepthTexture", passInput.inSceneDepthSRV);
-		SPT.rwTexture("outputTexture", blurOutputUAV);
+		SPT.rwTexture("inColorTexture", blurInputUAV);
+		SPT.rwTexture("inVarianceTexture", inVarianceUAV);
+		SPT.rwTexture("outColorTexture", blurOutputUAV);
+		SPT.rwTexture("outVarianceTexture", outVarianceUAV);
 
 		commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileHeap, &tracker);
 
 		uint32 groupX = (passInput.imageWidth + 7) / 8, groupY = (passInput.imageHeight + 7) / 8;
 		commandList->dispatchCompute(groupX, groupY, 1);
 
-		commandList->barrierAuto(0, nullptr, (uint32)uavBarriers.size(), uavBarriers.data(), 0, nullptr);
+		// All UAVs need to be finalized, so just issue a global barrier.
+		GlobalBarrier globalBarrier{
+			EBarrierSync::COMPUTE_SHADING, EBarrierSync::COMPUTE_SHADING,
+			EBarrierAccess::UNORDERED_ACCESS, EBarrierAccess::UNORDERED_ACCESS,
+		};
+		commandList->barrier(0, nullptr, 0, nullptr, 1, &globalBarrier);
 
 		if (bInOutColorsAreSame == false && phase + 1 == passInput.feedbackPhase)
 		{
@@ -269,6 +289,10 @@ void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& f
 		auto tempTex = blurInputTexture; auto tempUAV = blurInputUAV;
 		blurInputTexture = blurOutputTexture; blurInputUAV = blurOutputUAV;
 		blurOutputTexture = tempTex; blurOutputUAV = tempUAV;
+
+		tempTex = inVarianceTexture; tempUAV = inVarianceUAV;
+		inVarianceTexture = outVarianceTexture; inVarianceUAV = outVarianceUAV;
+		outVarianceTexture = tempTex; outVarianceUAV = tempUAV;
 	}
 
 	if (bShouldCopyScratchToOutColor)

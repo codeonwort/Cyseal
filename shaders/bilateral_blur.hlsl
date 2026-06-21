@@ -30,11 +30,13 @@ ConstantBuffer<PushConstants>  pushConstants;
 
 ConstantBuffer<SceneUniform>   sceneUniform;
 ConstantBuffer<BlurUniform>    blurUniform;
-RWTexture2D<float4>            inColorTexture;
 Texture2D<GBUFFER0_DATATYPE>   inGBuffer0Texture;
 Texture2D<GBUFFER1_DATATYPE>   inGBuffer1Texture;
 Texture2D<float>               inDepthTexture;
-RWTexture2D<float4>            outputTexture;
+RWTexture2D<float4>            inColorTexture;
+RWTexture2D<float>             inVarianceTexture;
+RWTexture2D<float4>            outColorTexture;
+RWTexture2D<float>             outVarianceTexture;
 
 // ------------------------------------------------------------------------
 // Compute shader
@@ -85,7 +87,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 
     if (blurUniform.bSkipBlur != 0)
     {
-        outputTexture[tid.xy] = float4(color0, 1.0);
+        outColorTexture[tid.xy] = float4(color0, 1.0);
         return;
     }
 
@@ -139,5 +141,5 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
     }
     float3 finalColor = sum / weightSum;
 
-    outputTexture[tid.xy] = float4(finalColor, 1.0);
+    outColorTexture[tid.xy] = float4(finalColor, 1.0);
 }
