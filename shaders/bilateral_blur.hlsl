@@ -1,8 +1,12 @@
 #include "common.hlsl"
 
 // References
-// - [Holger Dammertz] Edge Avoiding A-Trous Wavelet Transform for fast Global Illumination Filtering
-// - [AMD FidelityFX-Denoiser] Temporal reprojection logic: https://github.com/GPUOpen-Effects/FidelityFX-Denoiser/blob/master/ffx-shadows-dnsr/ffx_denoiser_shadows_tileclassification.h
+// - (Holger Dammertz, 2010) Edge Avoiding A-Trous Wavelet Transform for fast Global Illumination Filtering
+// - (Christoph Schied et al., 2017) Spatiotemporal Variance-Guided Filtering: Real-Time Reconstruction for Path-Traced Global Illumination
+// - [AMD FidelityFX-Denoiser] for temporal reprojection: https://github.com/GPUOpen-Effects/FidelityFX-Denoiser/blob/master/ffx-shadows-dnsr/ffx_denoiser_shadows_tileclassification.h
+
+// #wip: Replace weight formula with the ones presented in the SVGF paper.
+#define SVGF_WEIGHTS 1
 
 // ------------------------------------------------------------------------
 // Resource bindings
@@ -56,9 +60,14 @@ int2 clampTexel(int2 texel)
 	return clamp(texel, int2(0, 0), int2(blurUniform.textureWidth - 1, blurUniform.textureHeight - 1));
 }
 
+float loadDeviceZ(uint2 tid)
+{
+	return inDepthTexture.Load(int3(tid.xy, 0)).r;
+}
+
 float3 getWorldPosition(uint2 tid)
 {
-	float sceneDepth = inDepthTexture.Load(int3(tid.xy, 0)).r;
+	float sceneDepth = loadDeviceZ(tid);
 	float2 uv = getScreenUV(tid.xy);
 	float4 positionCS = getPositionCS(uv, sceneDepth);
 	return clipSpaceToWorldSpace(positionCS, sceneUniform.viewProjInvMatrix);
@@ -104,16 +113,18 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	float2 resolution = getScreenResolution();
 	float stepWidth = float(pushConstants.stepWidth);
 
-	float2 uv0     = (float2(tid.xy) + float2(0.5, 0.5)) / resolution;
-	float3 color0  = inColorTexture[tid.xy].xyz;
-	float  var0    = loadVariance3x3(int2(tid.xy));
-	float3 albedo0 = gbufferData.albedo;
-	float3 normal0 = gbufferData.normalWS;
-	float3 pos0    = getWorldPosition(tid.xy);
-
-	if (blurUniform.bSkipBlur != 0)
+	float2 uv0      = (float2(tid.xy) + float2(0.5, 0.5)) / resolution;
+	float3 color0   = inColorTexture[tid.xy].xyz;
+	float  var0     = loadVariance3x3(int2(tid.xy));
+	float3 albedo0  = gbufferData.albedo;
+	float3 normal0  = gbufferData.normalWS;
+	float  deviceZ0 = loadDeviceZ(tid.xy);
+	float3 pos0     = getWorldPosition(tid.xy);
+	
+	if (deviceZ0 == DEVICE_Z_FAR || blurUniform.bSkipBlur != 0)
 	{
 		outColorTexture[tid.xy] = float4(color0, 1.0);
+		outVarianceTexture[tid.xy] = 0;
 		return;
 	}
 
@@ -127,24 +138,31 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		float kernel = params.x;
 		float2 offset = params.yz;
 
-		float3 diff; float distSq;
-
 		int2 neighborTexel = clampTexel(int2(float2(tid.xy) + offset * stepWidth));
 
 		GBUFFER0_DATATYPE neighborGBuffer0Data = inGBuffer0Texture.Load(int3(neighborTexel, 0));
 		GBUFFER1_DATATYPE neighborGBuffer1Data = inGBuffer1Texture.Load(int3(neighborTexel, 0));
 		GBufferData neighborGBufferData = decodeGBuffers(neighborGBuffer0Data, neighborGBuffer1Data);
 
-		float3 color1  = inColorTexture[neighborTexel].xyz;
-		float3 albedo1 = neighborGBufferData.albedo;
-		float3 normal1 = neighborGBufferData.normalWS;
-		float3 pos1    = getWorldPosition(neighborTexel);
+		float3 color1   = inColorTexture[neighborTexel].xyz;
+		float3 albedo1  = neighborGBufferData.albedo;
+		float3 normal1  = neighborGBufferData.normalWS;
+		float  deviceZ1 = loadDeviceZ(neighborTexel);
+		float3 pos1     = getWorldPosition(neighborTexel);
+		
+		if (deviceZ1 == DEVICE_Z_FAR)
+		{
+			continue;
+		}
+		
+		const float svgf_eps = 1e-6;
+		
+		float3 diff;
+		float distSq;
 
-		// #wip: Change luminance weight according to SVGF paper
-#define SVGF_WEIGHTS 1
 #if SVGF_WEIGHTS
 		float luminanceDiff = length(color0 - color1);
-		float colorWeight = exp(-1 * luminanceDiff / (blurUniform.cPhi * sqrt(var0) + 0.01));
+		float colorWeight = exp(-1 * luminanceDiff / (blurUniform.cPhi * sqrt(var0) + svgf_eps));
 #else
 		diff = color0 - color1;
 		distSq = dot(diff, diff);
@@ -167,8 +185,10 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		float normalWeight = min(1.0, exp(-distSq / blurUniform.nPhi));
 #endif
 
-#if (0 && SVGF_WEIGHTS)
-		// #wip: Change depth weight according to SVGF paper
+#if SVGF_WEIGHTS
+		// #wip: Is this right? What is 'the local depth model using screen-space partial derivatives of clip-space depth'?
+		float gradZ = max(0.0, abs(deviceZ1 - deviceZ0) / deviceZ0);
+		float posWeight = exp(-1 * abs(deviceZ0 - deviceZ1) / (blurUniform.pPhi * length(gradZ * offset) + svgf_eps));
 #else
 		diff = pos0 - pos1;
 		distSq = dot(diff, diff);
