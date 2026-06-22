@@ -388,6 +388,8 @@ void TestApplication::onTick(float deltaSeconds)
 					ImGui::TableNextColumn(); ImGui::SliderFloat("##Indirect Diffuse nPhi", &appState.rendererOptions.indirectDiffuse.nPhi, 0.0f, 256.0f, "%.2f");
 					ImGui::TableNextColumn(); ImGui::Text("Denoiser pPhi"); // position weight
 					ImGui::TableNextColumn(); ImGui::SliderFloat("##Indirect Diffuse pPhi", &appState.rendererOptions.indirectDiffuse.pPhi, 0.0f, 16.0f, "%.2f");
+					ImGui::TableNextColumn(); ImGui::Text("Blur count");
+					ImGui::TableNextColumn(); ImGui::SliderInt("##Indirect Diffuse blurCount", &appState.rendererOptions.indirectDiffuse.blurCount, 2, 8);
 					ImGui::EndTable();
 				}
 				appState.rendererOptions.indirectDiffuse.mode = (EIndirectDiffuseMode)appState.selectedIndirectDiffuseMode;

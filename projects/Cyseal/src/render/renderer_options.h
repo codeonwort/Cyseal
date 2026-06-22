@@ -272,6 +272,7 @@ struct RendererOptions
 		float                     cPhi       = 4.0f;
 		float                     nPhi       = 128.0f;
 		float                     pPhi       = 1.0f;
+		int32                     blurCount  = 5;
 	} indirectDiffuse;
 
 	// Ray traced indirect specular

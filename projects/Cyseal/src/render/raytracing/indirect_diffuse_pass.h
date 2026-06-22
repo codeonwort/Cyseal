@@ -31,6 +31,7 @@ struct IndirectDiffuseInput
 	float                      cPhi;
 	float                      nPhi;
 	float                      pPhi;
+	int32                      blurCount;
 
 	ConstantBufferView*        sceneUniformBuffer;
 	AccelerationStructure*     raytracingScene;

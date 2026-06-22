@@ -718,6 +718,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			.cPhi                   = renderOptions.indirectDiffuse.cPhi,
 			.nPhi                   = renderOptions.indirectDiffuse.nPhi,
 			.pPhi                   = renderOptions.indirectDiffuse.pPhi,
+			.blurCount              = renderOptions.indirectDiffuse.blurCount,
 			.sceneUniformBuffer     = sceneUniformCBV,
 			.raytracingScene        = accelStructure.get(),
 			.skyboxSRV              = skyboxSRV.get(),

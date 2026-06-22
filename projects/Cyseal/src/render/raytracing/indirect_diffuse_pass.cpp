@@ -28,8 +28,6 @@
 
 static const uint32 MAX_FRAMES_IN_FLIGHT = 2;
 
-static const int32 BLUR_COUNT = 3;
-
 DEFINE_LOG_CATEGORY_STATIC(LogIndirectDiffuse);
 
 struct RayPassUniform
@@ -549,7 +547,7 @@ void IndirectDiffusePass::denoisePhase(RenderCommandList* commandList, const Fra
 	BilateralBlurInput blurPassInput{
 		.imageWidth      = passInput.sceneWidth,
 		.imageHeight     = passInput.sceneHeight,
-		.blurCount       = BLUR_COUNT,
+		.blurCount       = passInput.blurCount,
 		.cPhi            = passInput.cPhi,
 		.nPhi            = passInput.nPhi,
 		.pPhi            = passInput.pPhi,
