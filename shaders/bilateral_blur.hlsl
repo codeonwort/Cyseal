@@ -119,6 +119,8 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 
 	float3 sum = float3(0.0, 0.0, 0.0);
 	float weightSum = 0.0;
+	float nextVariance = 0.0;
+	
 	for (int i = 0; i < 25; ++i)
 	{
 		float4 params = blurUniform.kernelAndOffset[i];
@@ -157,9 +159,8 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		float albedoWeight = min(1.0, exp(-distSq / blurUniform.cPhi));
 #endif
 
-#if (0 && SVGF_WEIGHTS)
-		// #wip: Produces NaN?
-		float normalWeight = pow(max(0.0, dot(normal0, normal1)), blurUniform.nPhi);
+#if SVGF_WEIGHTS
+		float normalWeight = pow(saturate(dot(normal0, normal1)), blurUniform.nPhi);
 #else
 		diff = normal0 - normal1;
 		distSq = max(0.0, dot(diff, diff) / (stepWidth * stepWidth));
@@ -177,11 +178,13 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		float weight = colorWeight * albedoWeight * normalWeight * posWeight;
 		sum += color1 * weight * kernel;
 		weightSum += weight * kernel;
+		
+		nextVariance += kernel * kernel * weight * weight * var0;
 	}
+	
 	float3 finalColor = sum / weightSum;
+	nextVariance /= (weightSum * weightSum);
 
 	outColorTexture[tid.xy] = float4(finalColor, 1.0);
-	
-	// #wip: Filter next variance
-	outVarianceTexture[tid.xy] = var0;
+	outVarianceTexture[tid.xy] = nextVariance;
 }
