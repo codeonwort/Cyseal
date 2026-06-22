@@ -178,7 +178,8 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 #endif
 
 #if SVGF_WEIGHTS
-		float normalWeight = pow(saturate(dot(normal0, normal1)), blurUniform.nPhi);
+		// Produces NaN if too small... ensure some lower bound.
+		float normalWeight = max(pow(saturate(dot(normal0, normal1)), blurUniform.nPhi), svgf_eps);
 #else
 		diff = normal0 - normal1;
 		distSq = max(0.0, dot(diff, diff) / (stepWidth * stepWidth));
