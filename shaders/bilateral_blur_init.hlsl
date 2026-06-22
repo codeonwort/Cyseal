@@ -27,7 +27,9 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
     }
 	
 	float2 moments = momentTexture.Load(int3(tid.xy, 0)).xy;
-	float variance = moments.y - moments.x * moments.x;
+	
+	// In theory should not be negative, but it happens. Maybe precision issue?
+	float variance = max(0, moments.y - moments.x * moments.x);
 	
 	rwVarianceTexture[tid.xy] = variance;
 }

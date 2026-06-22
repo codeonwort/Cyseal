@@ -64,6 +64,31 @@ float3 getWorldPosition(uint2 tid)
     return clipSpaceToWorldSpace(positionCS, sceneUniform.viewProjInvMatrix);
 }
 
+// Load input variance with 3x3 Gaussian filter.
+float loadVariance3x3(int2 texel)
+{
+	const int2 offsets[9] =
+	{
+		{ -1, -1 }, { 0, -1 }, { +1, -1 },
+		{ -1,  0 }, { 0,  0 }, { +1,  0 },
+		{ -1, +1 }, { 0, +1 }, { +1, +1 },
+	};
+	const float weights[9] =
+	{
+		1.0 / 16.0, 2.0 / 16.0, 1.0 / 16.0,
+		2.0 / 16.0, 4.0 / 16.0, 2.0 / 16.0,
+		1.0 / 16.0, 2.0 / 16.0, 1.0 / 16.0,
+	};
+	
+	float v = 0;
+	for (int i = 0; i < 9; i++)
+	{
+		int2 xy = clampTexel(texel + offsets[i]);
+		v += weights[i] * inVarianceTexture.Load(int3(xy, 0)).x;
+	}
+	return v;
+}
+
 [numthreads(8, 8, 1)]
 void mainCS(uint3 tid : SV_DispatchThreadID)
 {
@@ -79,11 +104,12 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
     float2 resolution = getScreenResolution();
     float stepWidth = float(pushConstants.stepWidth);
 
-    float2 uv0 = (float2(tid.xy) + float2(0.5, 0.5)) / resolution;
-    float3 color0 = inColorTexture[tid.xy].xyz;
+    float2 uv0     = (float2(tid.xy) + float2(0.5, 0.5)) / resolution;
+    float3 color0  = inColorTexture[tid.xy].xyz;
+	float  var0    = loadVariance3x3(int2(tid.xy));
     float3 albedo0 = gbufferData.albedo;
     float3 normal0 = gbufferData.normalWS;
-    float3 pos0 = getWorldPosition(tid.xy);
+    float3 pos0    = getWorldPosition(tid.xy);
 
     if (blurUniform.bSkipBlur != 0)
     {
@@ -107,33 +133,46 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
         GBUFFER1_DATATYPE neighborGBuffer1Data = inGBuffer1Texture.Load(int3(neighborTexel, 0));
         GBufferData neighborGBufferData = decodeGBuffers(neighborGBuffer0Data, neighborGBuffer1Data);
 
-        float3 color1 = inColorTexture[neighborTexel].xyz;
+        float3 color1  = inColorTexture[neighborTexel].xyz;
         float3 albedo1 = neighborGBufferData.albedo;
         float3 normal1 = neighborGBufferData.normalWS;
-        float3 pos1 = getWorldPosition(neighborTexel);
+        float3 pos1    = getWorldPosition(neighborTexel);
 
 		// #wip: Change luminance weight according to SVGF paper
+#define SVGF_WEIGHTS 1
+#if SVGF_WEIGHTS
+		float luminanceDiff = length(color0 - color1);
+		float colorWeight = exp(-1 * luminanceDiff / (blurUniform.cPhi * sqrt(var0) + 0.01));
+#else
         diff = color0 - color1;
         distSq = dot(diff, diff);
         float colorWeight = min(1.0, exp(-distSq / blurUniform.cPhi));
+#endif
 
+#if SVGF_WEIGHTS
+		float albedoWeight = 1;
+#else
         diff = albedo0 - albedo1;
         distSq = max(0.0, dot(diff, diff));
         float albedoWeight = min(1.0, exp(-distSq / blurUniform.cPhi));
+#endif
 
-#if 1
+#if (0 && SVGF_WEIGHTS)
+		// #wip: Produces NaN?
+		float normalWeight = pow(max(0.0, dot(normal0, normal1)), blurUniform.nPhi);
+#else
         diff = normal0 - normal1;
         distSq = max(0.0, dot(diff, diff) / (stepWidth * stepWidth));
         float normalWeight = min(1.0, exp(-distSq / blurUniform.nPhi));
-#else
-		// #wip: Produces NaN?
-		float normalWeight = pow(max(0.0, dot(normal0, normal1)), blurUniform.nPhi);
 #endif
 
+#if (0 && SVGF_WEIGHTS)
 		// #wip: Change depth weight according to SVGF paper
+#else
         diff = pos0 - pos1;
         distSq = dot(diff, diff);
         float posWeight = min(1.0, exp(-distSq / blurUniform.pPhi));
+#endif
 
         float weight = colorWeight * albedoWeight * normalWeight * posWeight;
         sum += color1 * weight * kernel;
@@ -142,4 +181,7 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
     float3 finalColor = sum / weightSum;
 
     outColorTexture[tid.xy] = float4(finalColor, 1.0);
+	
+	// #wip: Filter next variance
+	outVarianceTexture[tid.xy] = var0;
 }

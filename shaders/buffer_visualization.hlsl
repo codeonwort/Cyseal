@@ -358,10 +358,10 @@ float4 mainPS(Interpolants interpolants) : SV_TARGET
 		{
 			color.r = indirectDiffuseMoment.SampleLevel(textureSampler, scaledUV, 0.0).bbb / 64.0;
 		}
-		else
+		else if (debugMode == INDIRECT_DIFFUSE_MODE_VARIANCE)
 		{
 			float2 moments = indirectDiffuseMoment.SampleLevel(textureSampler, scaledUV, 0.0).rg;
-			float variance = moments.y - moments.x * moments.x;
+			float variance = max(0, moments.y - moments.x * moments.x);
 			color.r = variance;
 		}
 	}
