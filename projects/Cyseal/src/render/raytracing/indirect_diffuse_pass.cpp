@@ -536,9 +536,6 @@ void IndirectDiffusePass::denoisePhase(RenderCommandList* commandList, const Fra
 	auto currMomentTexture = momentHistory.getTexture(currFrame);
 	auto currMomentSRV     = momentHistory.getSRV(currFrame);
 
-	auto prevColorTexture = colorHistory.getTexture(prevFrame);
-	auto prevColorUAV     = colorHistory.getUAV(prevFrame);
-
 	TextureBarrierAuto textureBarriers[] = {
 		TextureBarrierAuto::toUnorderedAccess(currColorTexture, EBarrierSync::COMPUTE_SHADING),
 	};
@@ -561,8 +558,7 @@ void IndirectDiffusePass::denoisePhase(RenderCommandList* commandList, const Fra
 		.inGBuffer1SRV   = passInput.gbuffer1SRV,
 		.outColorTexture = passInput.indirectDiffuseTexture,
 		.outColorUAV     = passInput.indirectDiffuseUAV,
-		// Copy the result of first iteration back to color history.
-		.feedbackPhase   = 1,
+		.feedbackPhase   = 1, // Copy the result of first iteration back to color history.
 	};
 	passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, blurPassInput);
 }

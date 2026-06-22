@@ -2,6 +2,7 @@
 #include "render/static_mesh.h"
 #include "render/gpu_scene.h"
 #include "render/bilateral_blur.h"
+#include "render/final_blit_pass.h"
 
 #include "rhi/render_device.h"
 #include "rhi/render_command.h"
@@ -26,15 +27,14 @@
 #define RANDOM_SEQUENCE_LENGTH                (64 * 64)
 
 #define PF_raytracing                         EPixelFormat::R16G16B16A16_FLOAT
-// #todo-pathtracing: rgba32f due to CopyTextureRegion. Need to blit instead of copy if wanna make it rgba16f.
-#define PF_colorHistory                       EPixelFormat::R32G32B32A32_FLOAT
+#define PF_colorHistory                       EPixelFormat::R16G16B16A16_FLOAT
 #define PF_momentHistory                      EPixelFormat::R16G16B16A16_FLOAT
 
 static const uint32 MAX_FRAMES_IN_FLIGHT = 2;
 
-static const int32 BLUR_COUNT = 3;
-static float const cPhi       = 1.0f;
-static float const nPhi       = 1.0f;
+static const int32 BLUR_COUNT = 5;
+static float const cPhi       = 4.0f;
+static float const nPhi       = 128.0f;
 static float const pPhi       = 1.0f;
 
 DEFINE_LOG_CATEGORY_STATIC(LogPathTracing);
@@ -171,29 +171,33 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
 
 	auto currentColorTexture  = colorHistory.getTexture(currFrame);
-	auto prevColorTexture     = colorHistory.getTexture(prevFrame);
-
-	auto currentMomentTexture = momentHistory.getTexture(currFrame);
-	auto prevMomentTexture    = momentHistory.getTexture(prevFrame);
-
+	auto currentColorSRV      = colorHistory.getSRV(currFrame);
 	auto currentColorUAV      = colorHistory.getUAV(currFrame);
-	auto prevColorUAV         = colorHistory.getUAV(prevFrame);
+
+	auto prevColorTexture     = colorHistory.getTexture(prevFrame);
 	auto prevColorSRV         = colorHistory.getSRV(prevFrame);
 
+	auto currentMomentTexture = momentHistory.getTexture(currFrame);
 	auto currentMomentSRV     = momentHistory.getSRV(currFrame);
 	auto currentMomentUAV     = momentHistory.getUAV(currFrame);
+
+	auto prevMomentTexture    = momentHistory.getTexture(prevFrame);
 	auto prevMomentSRV        = momentHistory.getSRV(prevFrame);
 
 	// -------------------------------------------------------------------
-	// Phase: Raytracing
+	// Phase: Raytracing Kernel
 
-	if (passInput.kernel == EPathTracingKernel::MegaKernel)
 	{
-		executeMegaKernel(commandList, frameInfo, passInput);
-	}
-	else
-	{
-		// #todo-pathtracing: Implement wavefront kernel.
+		SCOPED_DRAW_EVENT(commandList, PathTracingKernel);
+
+		if (passInput.kernel == EPathTracingKernel::MegaKernel)
+		{
+			executeMegaKernel(commandList, frameInfo, passInput);
+		}
+		else
+		{
+			// #todo-pathtracing: Implement wavefront kernel.
+		}
 	}
 
 	// -------------------------------------------------------------------
@@ -212,6 +216,17 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 
 		auto uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
+	}
+
+	{
+		TextureBarrierAuto textureBarriers[] = {
+			TextureBarrierAuto::toShaderResource(raytracingTexture.get(), EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toShaderResource(prevColorTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toShaderResource(prevMomentTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(currentColorTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toUnorderedAccess(currentMomentTexture, EBarrierSync::COMPUTE_SHADING),
+		};
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 	}
 
 	// Bind global shader parameters.
@@ -237,25 +252,12 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
 	}
 
-	// Dispatch compute and issue memory barriers.
 	{
 		SCOPED_DRAW_EVENT(commandList, TemporalReprojection);
 
 		uint32 dispatchX = (historyWidth + 7) / 8;
 		uint32 dispatchY = (historyHeight + 7) / 8;
 		commandList->dispatchCompute(dispatchX, dispatchY, 1);
-
-		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				raytracingTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::UNORDERED_ACCESS, EBarrierLayout::UnorderedAccess,
-				prevMomentTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 	}
 
 	// -------------------------------------------------------------------
@@ -263,39 +265,26 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 
 	if (passInput.mode == EPathTracingMode::Offline || passInput.mode == EPathTracingMode::RealtimeDenoising)
 	{
-		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToSceneColor);
+		SCOPED_DRAW_EVENT(commandList, BlitToSceneColor);
 
-		TextureBarrierAuto barriersBefore[] = {
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
-				currentColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
-				passInput.sceneColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
+		FinalBlitPassInput blitPassInput{
+			.sceneUniformCBV = passInput.sceneUniformBuffer,
+			.renderTarget    = passInput.sceneColorTexture,
+			.renderTargetRTV = passInput.sceneColorRTV,
+			.sourceTexture   = currentColorTexture,
+			.sourceSRV       = currentColorSRV,
 		};
-		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
-
-		commandList->copyTexture2D(currentColorTexture, passInput.sceneColorTexture);
+		passInput.blitPass->renderFinalBlit(commandList, frameInfo, blitPassInput);
 	}
 	else
 	{
-		SCOPED_DRAW_EVENT(commandList, CopyCurrentColorToPrevColor);
+		SCOPED_DRAW_EVENT(commandList, PathTracingDenoising);
 
-		TextureBarrierAuto barriersBefore[] = {
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_SOURCE, EBarrierLayout::CopySource,
-				currentColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
-			{
-				EBarrierSync::COPY, EBarrierAccess::COPY_DEST, EBarrierLayout::CopyDest,
-				prevColorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			},
+		TextureBarrierAuto textureBarriers[] = {
+			TextureBarrierAuto::toUnorderedAccess(currentColorTexture, EBarrierSync::COMPUTE_SHADING),
+			TextureBarrierAuto::toShaderResource(currentMomentTexture, EBarrierSync::COMPUTE_SHADING),
 		};
-		commandList->barrierAuto(0, nullptr, _countof(barriersBefore), barriersBefore, 0, nullptr);
-
-		commandList->copyTexture2D(currentColorTexture, prevColorTexture);
+		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 		BilateralBlurInput blurPassInput{
 			.imageWidth      = sceneWidth,
@@ -305,8 +294,8 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 			.nPhi            = nPhi,
 			.pPhi            = pPhi,
 			.sceneUniformCBV = passInput.sceneUniformBuffer,
-			.inColorTexture  = prevColorTexture, // #wip: See indirect diffuse
-			.inColorUAV      = prevColorUAV,
+			.inColorTexture  = currentColorTexture,
+			.inColorUAV      = currentColorUAV,
 			.inMomentTexture = currentMomentTexture,
 			.inMomentSRV     = currentMomentSRV,
 			.inSceneDepthSRV = passInput.sceneDepthSRV,
@@ -314,7 +303,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 			.inGBuffer1SRV   = passInput.gbuffer1SRV,
 			.outColorTexture = passInput.sceneColorTexture,
 			.outColorUAV     = passInput.sceneColorUAV,
-			.feedbackPhase   = 0,
+			.feedbackPhase   = 1, // Copy the result of first iteration back to color history.
 		};
 		passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, blurPassInput);
 	}
@@ -447,8 +436,6 @@ void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, const Fr
 
 	const uint32 currFrame  = frameInfo.frameID % 2;
 	const uint32 prevFrame  = (frameInfo.frameID + 1) % 2;
-	auto prevColorTexture   = colorHistory.getTexture(prevFrame);
-	auto prevMomentTexture  = momentHistory.getTexture(prevFrame);
 
 	// Update uniforms.
 	{
@@ -475,6 +462,11 @@ void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, const Fr
 	}
 
 	commandList->setRaytracingPipelineState(RTPSO.get());
+
+	TextureBarrierAuto textureBarriers[] = {
+		TextureBarrierAuto::toUnorderedAccess(raytracingTexture.get(), EBarrierSync::COMPUTE_SHADING),
+	};
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
 	// Bind global shader parameters.
 	{
@@ -509,18 +501,6 @@ void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, const Fr
 		.depth             = 1,
 	};
 	commandList->dispatchRays(dispatchDesc);
-
-	{
-		SCOPED_DRAW_EVENT(commandList, BarriersAfterRaytracing);
-
-		TextureBarrierAuto textureBarriers[] = {
-			{
-				EBarrierSync::COMPUTE_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-				raytracingTexture.get(), BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-			}
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
-	}
 }
 
 void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)

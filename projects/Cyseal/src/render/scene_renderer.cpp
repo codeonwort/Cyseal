@@ -45,7 +45,7 @@
 
 #define SCENE_UNIFORM_MEMORY_POOL_SIZE (64 * 1024) // 64 KiB
 #define MAX_CULL_OPERATIONS            (2 * kMaxBasePassPermutation) // depth prepass + base pass
-#define MAX_FINAL_BLIT_OPERATIONS      2 // Actual count: 2 if frame generation is enabled, 1 otherwise.
+#define MAX_BLIT_OPERATIONS            64 // Set large enough for all passes. (for present, actual count: 2 if frame generation is enabled, 1 otherwise)
 #define AVG_FRAME_TIME_WINDOW_SIZE     16
 
 static uint32 fullMipCount(uint32 width, uint32 height)
@@ -146,7 +146,7 @@ void SceneRenderer::initialize(RenderDevice* renderDevice)
 		storeHistoryPass->initialize(renderDevice);
 		opticalFlowPass->initialize(renderDevice);
 		frameGenPass->initialize(renderDevice, PF_finalSceneColor);
-		finalBlitPass->initialize(renderDevice, MAX_FINAL_BLIT_OPERATIONS);
+		finalBlitPass->initialize(renderDevice, MAX_BLIT_OPERATIONS);
 	}
 }
 
@@ -257,6 +257,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 	const bool bRenderFrameGeneration = renderOptions.bGenerateFrame && !bRenderPathTracing && bRenderToBackbuffer;
 
 	clearResourcePass->prepareForFrame(frameInfo);
+	finalBlitPass->resetBlitResources();
 
 	rebuildFrameResources(commandList, scene);
 
@@ -609,6 +610,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		if (bRenderPathTracing && !keepDenoisingResult)
 		{
 			PathTracingInput passInput{
+				.blitPass              = finalBlitPass,
 				.scene                 = scene,
 				.camera                = camera,
 				.mode                  = renderOptions.pathTracing,
@@ -623,6 +625,7 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 				.sceneUniformBuffer    = sceneUniformCBV,
 				.sceneColorTexture     = RT_pathTracing.get(),
 				.sceneColorUAV         = pathTracingUAV.get(),
+				.sceneColorRTV         = pathTracingRTV.get(),
 				.sceneDepthSRV         = sceneDepthSRV.get(),
 				.prevSceneDepthSRV     = prevSceneDepthSRV.get(),
 				.velocityMapSRV        = velocityMapSRV.get(),
@@ -1041,8 +1044,6 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 		.colorSRV     = finalSceneColorSRV.get(),
 	};
 
-	finalBlitPass->resetBlitResources();
-
 	HighFrequencyCounter interpFrameCounter;
 	float interpTimeMS = 0.0f;
 
@@ -1074,31 +1075,17 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 			};
 			commandList->rsSetViewport(finalBlitViewport);
 			commandList->rsSetScissorRect(finalBlitScissorRect);
-
-			TextureBarrierAuto barrier{
-				EBarrierSync::RENDER_TARGET, EBarrierAccess::RENDER_TARGET, EBarrierLayout::RenderTarget,
-				finalBlitTarget, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None,
-			};
-			commandList->barrierAuto(0, nullptr, 1, &barrier, 0, nullptr);
-
-			commandList->omSetRenderTarget(finalBlitRTV, nullptr);
 		}
 
 		{
 			SCOPED_DRAW_EVENT(commandList, FinalBlit);
 
-			TextureBarrierAuto textureBarriers[] = {
-				{
-					EBarrierSync::PIXEL_SHADING, EBarrierAccess::SHADER_RESOURCE, EBarrierLayout::ShaderResource,
-					presentInfo.colorTexture, BarrierSubresourceRange::allMips(), ETextureBarrierFlags::None
-				},
-			};
-			commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
-
 			FinalBlitPassInput passInput{
-				.sceneUniformCBV    = sceneUniformCBV,
-				.renderTarget       = renderOptions.finalRenderTarget,
-				.finalSceneColorSRV = presentInfo.colorSRV,
+				.sceneUniformCBV = sceneUniformCBV,
+				.renderTarget    = renderOptions.finalRenderTarget,
+				.renderTargetRTV = finalBlitRTV,
+				.sourceTexture   = presentInfo.colorTexture,
+				.sourceSRV       = presentInfo.colorSRV,
 			};
 			finalBlitPass->renderFinalBlit(commandList, frameInfo, passInput);
 		}
@@ -1628,7 +1615,7 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 	RT_pathTracing = UniquePtr<Texture>(device->createTexture(
 		TextureCreateParams::texture2D(
 			EPixelFormat::R32G32B32A32_FLOAT,
-			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV,
+			ETextureAccessFlags::SRV | ETextureAccessFlags::UAV | ETextureAccessFlags::RTV,
 			sceneWidth, sceneHeight, 1, 1, 0)));
 	RT_pathTracing->setDebugName(L"RT_PathTracing");
 
@@ -1649,6 +1636,16 @@ void SceneRenderer::recreateSceneTextures(uint32 sceneWidth, uint32 sceneHeight)
 			.format         = RT_pathTracing->getCreateParams().format,
 			.viewDimension  = EUAVDimension::Texture2D,
 			.texture2D      = Texture2DUAVDesc{ .mipSlice = 0, .planeSlice = 0 },
+		}
+	));
+	pathTracingRTV = UniquePtr<RenderTargetView>(device->createRTV(RT_pathTracing.get(),
+		RenderTargetViewDesc{
+			.format            = RT_pathTracing->getCreateParams().format,
+			.viewDimension     = ERTVDimension::Texture2D,
+			.texture2D         = Texture2DRTVDesc{
+				.mipSlice      = 0,
+				.planeSlice    = 0,
+			},
 		}
 	));
 

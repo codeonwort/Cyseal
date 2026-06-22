@@ -181,6 +181,7 @@ private:
 	UniquePtr<Texture>                     RT_pathTracing;
 	UniquePtr<ShaderResourceView>          pathTracingSRV;
 	UniquePtr<UnorderedAccessView>         pathTracingUAV;
+	UniquePtr<RenderTargetView>            pathTracingRTV;
 
 	// #todo-renderer: Temp dedicated memory and desc heap for scene uniforms
 	UniquePtr<Buffer>                      sceneUniformMemory;

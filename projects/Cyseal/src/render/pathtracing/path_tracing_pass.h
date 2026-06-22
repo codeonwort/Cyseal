@@ -16,6 +16,7 @@ class Camera;
 
 struct PathTracingInput
 {
+	class FinalBlitPass*       blitPass;
 	const SceneProxy*          scene;
 	const Camera*              camera;
 	EPathTracingMode           mode;
@@ -33,6 +34,7 @@ struct PathTracingInput
 	ConstantBufferView*        sceneUniformBuffer;
 	Texture*                   sceneColorTexture;
 	UnorderedAccessView*       sceneColorUAV;
+	RenderTargetView*          sceneColorRTV;
 	ShaderResourceView*        sceneDepthSRV;
 	ShaderResourceView*        prevSceneDepthSRV;
 	ShaderResourceView*        velocityMapSRV;

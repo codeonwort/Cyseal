@@ -84,7 +84,7 @@ void FinalBlitPass::initialize(RenderDevice* inDevice, uint32 inMaxBlitOperation
 
 void FinalBlitPass::resetBlitResources()
 {
-	descriptorIndexTracker.lastIndex = 0;
+	descriptorIndexTracker = DescriptorIndexTracker{};
 	currentBlitOperations = 0;
 }
 
@@ -93,11 +93,21 @@ void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, const FrameI
 	CHECK(currentBlitOperations < maxBlitOperationsPerFrame);
 	currentBlitOperations += 1;
 
+	std::vector<TextureBarrierAuto> textureBarriers = {
+		TextureBarrierAuto::toShaderResource(passInput.sourceTexture, EBarrierSync::PIXEL_SHADING)
+	};
+	// Can be null for present
+	if (passInput.renderTarget != nullptr)
+	{
+		textureBarriers.emplace_back(TextureBarrierAuto::toRenderTarget(passInput.renderTarget));
+	}
+	commandList->barrierAuto(0, nullptr, (uint32)textureBarriers.size(), textureBarriers.data(), 0, nullptr);
+
 	GraphicsPipelineState* pipelineState = getPipelineState(passInput.renderTarget);
 
 	ShaderParameterTable SPT{};
 	SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
-	SPT.texture("sourceTexture", passInput.finalSceneColorSRV);
+	SPT.texture("sourceTexture", passInput.sourceSRV);
 
 	uint32 requiredVolatiles = SPT.totalDescriptors() * maxBlitOperationsPerFrame;
 	DescriptorHeap* volatileHeap = passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
@@ -105,6 +115,8 @@ void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, const FrameI
 	// Assumes set by caller.
 	//commandList->rsSetViewport(passInput.viewport);
 	//commandList->rsSetScissorRect(passInput.scissorRect);
+
+	commandList->omSetRenderTarget(passInput.renderTargetRTV, nullptr);
 
 	commandList->setGraphicsPipelineState(pipelineState);
 	commandList->bindGraphicsShaderParameters(pipelineState, &SPT, volatileHeap, &descriptorIndexTracker);
