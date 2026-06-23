@@ -114,6 +114,26 @@ RayPayload createRayPayload()
 	return payload;
 }
 
+struct TracingResult
+{
+	float3 directLighting;
+	float3 indirectLighting;
+};
+
+TracingResult createTracingResult()
+{
+	TracingResult ret;
+	ret.directLighting   = 0;
+	ret.indirectLighting = 0;
+	return ret;
+}
+
+void updateTracingResult(inout TracingResult ret, float3 lighting, uint pathLen)
+{
+	if (pathLen == 0) ret.directLighting += lighting;
+	else ret.indirectLighting += lighting;
+}
+
 void generateCameraRay(uint2 texel, out float3 origin, out float3 direction)
 {
 	float2 xy = float2(texel) + 0.5;
@@ -214,8 +234,10 @@ float3 traceLightSources(float3 rayOrigin, float3 surfaceNormal)
 // ---------------------------------------------------------
 // Shader stages
 
-float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 cameraRayDir)
+TracingResult traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 cameraRayDir)
 {
+	TracingResult tracingResult = createTracingResult();
+	
 	RayPayload currentRayPayload = createRayPayload();
 	float prevIoR = IOR_AIR; // #todo-refraction: Assume primary ray is always in air.
 
@@ -225,7 +247,6 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 	currentRay.TMin = RAYGEN_T_MIN;
 	currentRay.TMax = RAYGEN_T_MAX;
 
-	float3 Li = 0;
 	float3 modulation = 1; // Accumulation of (brdf * cosine_term), better name?
 	uint pathLen = 0;
 
@@ -250,7 +271,8 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		// Hit the sky. Sample the skybox.
 		if (currentRayPayload.objectID == OBJECT_ID_NONE)
 		{
-			Li += modulation * sampleSky(currentRay.Direction);
+			float3 L_sky = modulation * sampleSky(currentRay.Direction);
+			updateTracingResult(tracingResult, L_sky, pathLen);
 			pathLen += 1;
 			break;
 		}
@@ -325,7 +347,8 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 			3. Li += modulation * E;
 		*/
 		modulation *= (brdfOutput.diffuseReflectance + brdfOutput.specularReflectance) / brdfOutput.pdf; // cosine-weighted sampling, so no cosine term
-		Li += modulation * (currentRayPayload.emission + E);
+		float3 Li = modulation * (currentRayPayload.emission + E);
+		updateTracingResult(tracingResult, Li, pathLen);
 
 		// Construct next ray.
 		currentRay.Origin = surfacePosition + nextRayOffset;
@@ -336,7 +359,7 @@ float3 traceIncomingRadiance(uint2 targetTexel, float3 cameraRayOrigin, float3 c
 		prevIoR = currentRayPayload.indexOfRefraction;
 	}
 
-	return Li;
+	return tracingResult;
 }
 
 float traceAmbientOcclusion(uint2 targetTexel, float3 cameraRayOrigin, float3 cameraRayDir)
@@ -443,9 +466,11 @@ void MainRaygen()
 	float ambientOcclusion = traceAmbientOcclusion(texel, cameraRayOrigin, cameraRayDir);
 	float3 Li = ambientOcclusion.xxx;
 #elif (TRACE_MODE == TRACE_DIFFUSE_GI || TRACE_MODE == TRACE_FULL_GI)
-	float3 Li = traceIncomingRadiance(texel, cameraRayOrigin, cameraRayDir);
+	TracingResult tracingResult = traceIncomingRadiance(texel, cameraRayOrigin, cameraRayDir);
+	float3 Li = tracingResult.directLighting + tracingResult.indirectLighting;
 #endif
 
+	// #wip: Output direct lighting and indirect lighting separately, then also filter them separately.
 	raytracingTexture[texel] = float4(Li, 1.0);
 }
 
