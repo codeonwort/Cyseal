@@ -256,8 +256,9 @@ void SceneRenderer::render(const SceneProxy* scene, const Camera* camera, const 
 
 	const bool bRenderFrameGeneration = renderOptions.bGenerateFrame && !bRenderPathTracing && bRenderToBackbuffer;
 
-	clearResourcePass->prepareForFrame(frameInfo);
-	finalBlitPass->resetBlitResources();
+	clearResourcePass->resetPerFrameResources(frameInfo);
+	bilateralBlur->resetPerFrameResources(frameInfo);
+	finalBlitPass->resetPerFrameResources(frameInfo);
 
 	rebuildFrameResources(commandList, scene);
 

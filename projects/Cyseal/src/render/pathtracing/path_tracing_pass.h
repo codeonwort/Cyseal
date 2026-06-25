@@ -83,6 +83,16 @@ private:
 	UniquePtr<Texture>                       raytracingTexture;
 	UniquePtr<ShaderResourceView>            raytracingSRV;
 	UniquePtr<UnorderedAccessView>           raytracingUAV;
+	// #wip-pathtracing: Separate history.
+#if 1
 	TextureSequence                          colorHistory;
 	TextureSequence                          momentHistory;
+#else
+	// Track and filter direct and indirect lighting separately.
+	TextureSequence                          directColorHistory;
+	TextureSequence                          directMomentHistory;
+	// direct vs indirect would look confusing to read; just use GI whether the term is accurate or not.
+	TextureSequence                          giColorHistory;
+	TextureSequence                          giMomentHistory;
+#endif
 };

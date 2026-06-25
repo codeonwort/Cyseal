@@ -82,10 +82,16 @@ void FinalBlitPass::initialize(RenderDevice* inDevice, uint32 inMaxBlitOperation
 	}
 }
 
-void FinalBlitPass::resetBlitResources()
+void FinalBlitPass::resetPerFrameResources(const FrameInfo& frameInfo)
 {
-	descriptorIndexTracker = DescriptorIndexTracker{};
+	descriptorIndexTracker.reset();
 	currentBlitOperations = 0;
+
+	// #todo-rhi: Now it's distant from actual SPT setup, more error prone.
+	uint32 requiredVolatiles = 0;
+	requiredVolatiles += 1; // sceneUniform
+	requiredVolatiles += 1; // sourceTexture
+	passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles * maxBlitOperationsPerFrame);
 }
 
 void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, const FrameInfo& frameInfo, const FinalBlitPassInput& passInput)
@@ -103,18 +109,17 @@ void FinalBlitPass::renderFinalBlit(RenderCommandList* commandList, const FrameI
 	}
 	commandList->barrierAuto(0, nullptr, (uint32)textureBarriers.size(), textureBarriers.data(), 0, nullptr);
 
-	GraphicsPipelineState* pipelineState = getPipelineState(passInput.renderTarget);
-
+	// When modified, check resetPerFrameResources() if SPT size is correct.
 	ShaderParameterTable SPT{};
 	SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 	SPT.texture("sourceTexture", passInput.sourceSRV);
 
-	uint32 requiredVolatiles = SPT.totalDescriptors() * maxBlitOperationsPerFrame;
-	DescriptorHeap* volatileHeap = passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles);
-
 	// Assumes set by caller.
 	//commandList->rsSetViewport(passInput.viewport);
 	//commandList->rsSetScissorRect(passInput.scissorRect);
+
+	GraphicsPipelineState* pipelineState = getPipelineState(passInput.renderTarget);
+	DescriptorHeap* volatileHeap = passDescriptor.getDescriptorHeap(frameInfo);
 
 	commandList->omSetRenderTarget(passInput.renderTargetRTV, nullptr);
 

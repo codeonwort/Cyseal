@@ -68,7 +68,7 @@ public:
 
 	void initialize(RenderDevice* inRenderDevice);
 
-	void prepareForFrame(const FrameInfo& frameInfo);
+	void resetPerFrameResources(const FrameInfo& frameInfo);
 
 	void enqueueClear(Texture* texture, UnorderedAccessView* uav, ClearValue clearValue);
 
@@ -78,11 +78,13 @@ public:
 private:
 	RenderDevice* device = nullptr;
 
-	UniquePtr<ComputePipelineState> pipelines[(uint32)EClearTextureDimension::Count][(uint32)EClearTextureFormat::Count];
-	VolatileDescriptorHelper passDescriptor;
-	DescriptorIndexTracker tracker;
+	uint32                            currentNumOperations = 0;
 
-	std::vector<Texture*> texturesToClear;
+	UniquePtr<ComputePipelineState>   pipelines[(uint32)EClearTextureDimension::Count][(uint32)EClearTextureFormat::Count];
+	VolatileDescriptorHelper          passDescriptor;
+	DescriptorIndexTracker            descriptorIndexTracker;
+
+	std::vector<Texture*>             texturesToClear;
 	std::vector<UnorderedAccessView*> UAVsToClear;
-	std::vector<ClearValue> clearValues;
+	std::vector<ClearValue>           clearValues;
 };

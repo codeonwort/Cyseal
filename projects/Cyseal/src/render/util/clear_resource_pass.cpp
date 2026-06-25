@@ -3,7 +3,7 @@
 #include "rhi/render_command.h"
 
 // #todo-renderer: Support arbitrary number of requests.
-static const uint32 maxTextureClearDescriptorsPerFrame = 1024;
+#define MAX_OPERATIONS_PER_FRAME 1024
 
 struct ClearResourcePushConstants
 {
@@ -86,14 +86,22 @@ void ClearResourcePass::initialize(RenderDevice* inRenderDevice)
 	}
 }
 
-void ClearResourcePass::prepareForFrame(const FrameInfo& frameInfo)
+void ClearResourcePass::resetPerFrameResources(const FrameInfo& frameInfo)
 {
-	passDescriptor.resizeDescriptorHeap(frameInfo, maxTextureClearDescriptorsPerFrame);
-	tracker = DescriptorIndexTracker{};
+	descriptorIndexTracker.reset();
+	currentNumOperations = 0;
+
+	uint32 requiredVolatiles = 0;
+	requiredVolatiles += 1; // pushConstants
+	requiredVolatiles += 1; // rwTexture
+	passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles * MAX_OPERATIONS_PER_FRAME);
 }
 
 void ClearResourcePass::enqueueClear(Texture* texture, UnorderedAccessView* uav, ClearValue clearValue)
 {
+	CHECK(currentNumOperations < MAX_OPERATIONS_PER_FRAME);
+	currentNumOperations += 1;
+
 	texturesToClear.push_back(texture);
 	UAVsToClear.push_back(uav);
 	clearValues.push_back(clearValue);
@@ -139,6 +147,7 @@ void ClearResourcePass::executeClears(RenderCommandList* commandList, const Fram
 			std::memcpy(pushConstants.clearValue, clearValue.asInt, sizeof(clearValue.asInt));
 		}
 
+		// When modified, check resetPerFrameResources() if SPT size is correct.
 		ShaderParameterTable SPT{};
 		SPT.pushConstants("pushConstants", &pushConstants, sizeof(pushConstants));
 		SPT.rwTexture("rwTexture", UAVsToClear[i]);
@@ -146,7 +155,7 @@ void ClearResourcePass::executeClears(RenderCommandList* commandList, const Fram
 		// #todo-renderer: Sort requests by dimension and format to minimize pipeline changes?
 		auto pipeline = pipelines[(uint32)dim][(uint32)format].get();
 		commandList->setComputePipelineState(pipeline);
-		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap, &tracker);
+		commandList->bindComputeShaderParameters(pipeline, &SPT, descriptorHeap, &descriptorIndexTracker);
 
 		if (dim == EClearTextureDimension::TEXTURE_DIMENSION_1D)
 		{

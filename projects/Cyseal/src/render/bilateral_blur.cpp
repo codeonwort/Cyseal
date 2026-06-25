@@ -6,6 +6,10 @@
 #define PF_scratch  EPixelFormat::R16G16B16A16_FLOAT
 #define PF_variance EPixelFormat::R16_FLOAT
 
+// This is not the max invocation count of renderBilateralBlur() per frame, probably less than that.
+// Each renderBilateralBlur() call requires N blur count, where N is given by BilateralBlurInput::blurCount.
+#define MAX_BLUR_COUNT_PER_FRAME 256
+
 struct BlurUniform
 {
 	float kernelAndOffset[4 * 25];
@@ -22,10 +26,12 @@ struct BlurUniform
 void BilateralBlur::initialize(RenderDevice* inDevice)
 {
 	device = inDevice;
+	maxBlursPerFrame = MAX_BLUR_COUNT_PER_FRAME;
+
 	const uint32 maxFramesInFlight = device->maxFramesInFlight();
 
 	initPassDescriptor.initialize(L"BilateralBlurInit", maxFramesInFlight, 0);
-	passDescriptor.initialize(L"BilateralBlur", maxFramesInFlight, sizeof(BlurUniform));
+	blurPassDescriptor.initialize(L"BilateralBlur", maxFramesInFlight, sizeof(BlurUniform));
 
 	// Init pipeline
 	{
@@ -46,7 +52,7 @@ void BilateralBlur::initialize(RenderDevice* inDevice)
 		shader->declarePushConstants({ { "pushConstants", 1} });
 		shader->loadFromFile(L"bilateral_blur.hlsl", "mainCS");
 
-		pipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
+		blurPipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
 			ComputePipelineDesc{ .cs = shader, .nodeMask = 0 }
 		));
 
@@ -54,9 +60,35 @@ void BilateralBlur::initialize(RenderDevice* inDevice)
 	}
 }
 
+void BilateralBlur::resetPerFrameResources(const FrameInfo& frameInfo)
+{
+	initDescriptorTracker.reset();
+	blurDescriptorTracker.reset();
+	currentNumBlurs = 0;
+
+	// #todo-rhi: Now it's distant from actual SPT setup, more error prone.
+	uint32 requiredVolatiles = 0;
+	requiredVolatiles += 1; // pushConstants
+	requiredVolatiles += 1; // momentTexture
+	requiredVolatiles += 1; // rwVarianceTexture
+	initPassDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles * maxBlursPerFrame);
+
+	requiredVolatiles = 0;
+	requiredVolatiles += 1; // pushConstants
+	requiredVolatiles += 1; // sceneUniform
+	requiredVolatiles += 1; // blurUniform
+	requiredVolatiles += 3; // inDepthTexture, inGBuffer0Texture, inGBuffer1Texture
+	requiredVolatiles += 2; // inColorTexture, outColorTexture
+	requiredVolatiles += 2; // inVarianceTexture, outVarianceTexture
+	blurPassDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles * maxBlursPerFrame);
+}
+
 void BilateralBlur::renderBilateralBlur(RenderCommandList* commandList, const FrameInfo& frameInfo, const BilateralBlurInput& passInput)
 {
 	SCOPED_DRAW_EVENT(commandList, BilateralBlur);
+
+	CHECK(currentNumBlurs + (uint32)passInput.blurCount <= maxBlursPerFrame);
+	currentNumBlurs += (uint32)passInput.blurCount;
 
 	resizeTexture(commandList, passInput.imageWidth, passInput.imageHeight);
 
@@ -133,16 +165,17 @@ void BilateralBlur::initPhase(RenderCommandList* commandList, const FrameInfo& f
 	};
 	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
+	// When modified, check resetPerFrameResources() if SPT size is correct.
 	ShaderParameterTable SPT{};
 	SPT.pushConstants("pushConstants", { passInput.imageWidth, passInput.imageHeight });
 	SPT.texture("momentTexture", passInput.inMomentSRV);
 	SPT.rwTexture("rwVarianceTexture", varianceUAV);
 
 	auto pipelineState = initPipelineState.get();
-	auto descriptorHeap = initPassDescriptor.resizeDescriptorHeap(frameInfo, SPT.totalDescriptors());
+	auto descriptorHeap = initPassDescriptor.getDescriptorHeap(frameInfo);
 
 	commandList->setComputePipelineState(pipelineState);
-	commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap);
+	commandList->bindComputeShaderParameters(pipelineState, &SPT, descriptorHeap, &initDescriptorTracker);
 
 	uint32 dispatchX = (passInput.imageWidth + 7) / 8;
 	uint32 dispatchY = (passInput.imageHeight + 7) / 8;
@@ -155,19 +188,6 @@ void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& f
 
 	CHECK(passInput.blurCount > 0);
 	const bool bInOutColorsAreSame = passInput.inColorTexture == passInput.outColorTexture;
-
-	// Resize volatile heaps if needed.
-	{
-		uint32 requiredVolatiles = 0;
-		requiredVolatiles += 1; // pushConstants
-		requiredVolatiles += 1; // sceneUniform
-		requiredVolatiles += 1; // blurUniform
-		requiredVolatiles += 3; // inDepthTexture, inGBuffer0Texture, inGBuffer1Texture
-		requiredVolatiles += 2; // inColorTexture, outColorTexture
-		requiredVolatiles += 2; // inVarianceTexture, outVarianceTexture
-
-		passDescriptor.resizeDescriptorHeap(frameInfo, requiredVolatiles * passInput.blurCount);
-	}
 
 	// Update uniforms.
 	{
@@ -192,16 +212,15 @@ void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& f
 		uboData.textureHeight = passInput.imageHeight;
 		uboData.bSkipBlur = (uint32)false;
 
-		auto uniformCBV = passDescriptor.getUniformCBV(frameInfo);
+		auto uniformCBV = blurPassDescriptor.getUniformCBV(frameInfo);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(BlurUniform));
 	}
 
-	commandList->setComputePipelineState(pipelineState.get());
+	commandList->setComputePipelineState(blurPipelineState.get());
 
 	// Bind shader parameters.
-	DescriptorHeap* volatileHeap   = passDescriptor.getDescriptorHeap(frameInfo);
-	ConstantBufferView* uniformCBV = passDescriptor.getUniformCBV(frameInfo);
-	DescriptorIndexTracker tracker;
+	DescriptorHeap* volatileHeap   = blurPassDescriptor.getDescriptorHeap(frameInfo);
+	ConstantBufferView* uniformCBV = blurPassDescriptor.getUniformCBV(frameInfo);
 
 	Texture*             blurInputTexture   = passInput.inColorTexture;
 	UnorderedAccessView* blurInputUAV       = passInput.inColorUAV;
@@ -245,6 +264,7 @@ void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& f
 			}
 		}
 
+		// When modified, check resetPerFrameResources() if SPT size is correct.
 		ShaderParameterTable SPT{};
 		SPT.pushConstant("pushConstants", phase + 1);
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
@@ -257,7 +277,7 @@ void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& f
 		SPT.rwTexture("outColorTexture", blurOutputUAV);
 		SPT.rwTexture("outVarianceTexture", outVarianceUAV);
 
-		commandList->bindComputeShaderParameters(pipelineState.get(), &SPT, volatileHeap, &tracker);
+		commandList->bindComputeShaderParameters(blurPipelineState.get(), &SPT, volatileHeap, &blurDescriptorTracker);
 
 		uint32 groupX = (passInput.imageWidth + 7) / 8, groupY = (passInput.imageHeight + 7) / 8;
 		commandList->dispatchCompute(groupX, groupY, 1);

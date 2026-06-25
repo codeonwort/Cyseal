@@ -47,6 +47,8 @@ struct DescriptorHeapDesc
 struct DescriptorIndexTracker
 {
 	int32 lastIndex = 0;
+
+	void reset() { lastIndex = 0; }
 };
 
 // ID3D12DescriptorHeap

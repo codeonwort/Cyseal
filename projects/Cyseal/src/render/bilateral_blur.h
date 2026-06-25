@@ -2,6 +2,7 @@
 
 #include "scene_render_pass.h"
 #include "rhi/rhi_forward.h"
+#include "rhi/descriptor_heap.h"
 #include "util/volatile_descriptor.h"
 
 struct BilateralBlurInput
@@ -31,6 +32,9 @@ class BilateralBlur : public SceneRenderPass
 public:
 	void initialize(RenderDevice* inDevice);
 
+	// Invoke every frame at the start of scene rendering.
+	void resetPerFrameResources(const FrameInfo& frameInfo);
+
 	void renderBilateralBlur(RenderCommandList* commandList, const FrameInfo& frameInfo, const BilateralBlurInput& passInput);
 
 private:
@@ -39,17 +43,23 @@ private:
 	void initPhase(RenderCommandList* commandList, const FrameInfo& frameInfo, const BilateralBlurInput& passInput);
 	void blurPhase(RenderCommandList* commandList, const FrameInfo& frameInfo, const BilateralBlurInput& passInput);
 
-	RenderDevice* device = nullptr;
+private:
+	RenderDevice*                   device = nullptr;
+
+	uint32                          maxBlursPerFrame = 0;
+	uint32                          currentNumBlurs = 0;
 
 	UniquePtr<ComputePipelineState> initPipelineState;
-	VolatileDescriptorHelper initPassDescriptor;
+	VolatileDescriptorHelper        initPassDescriptor;
+	DescriptorIndexTracker          initDescriptorTracker;
 
-	UniquePtr<ComputePipelineState> pipelineState;
-	VolatileDescriptorHelper passDescriptor;
+	UniquePtr<ComputePipelineState> blurPipelineState;
+	VolatileDescriptorHelper        blurPassDescriptor;
+	DescriptorIndexTracker          blurDescriptorTracker;
 
-	UniquePtr<Texture> colorScratch;
-	UniquePtr<UnorderedAccessView> colorScratchUAV;
+	UniquePtr<Texture>              colorScratch;
+	UniquePtr<UnorderedAccessView>  colorScratchUAV;
 
-	UniquePtr<Texture> varianceTextures[2];
-	UniquePtr<UnorderedAccessView> varianceUAVs[2];
+	UniquePtr<Texture>              varianceTextures[2];
+	UniquePtr<UnorderedAccessView>  varianceUAVs[2];
 };

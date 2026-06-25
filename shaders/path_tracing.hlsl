@@ -470,7 +470,7 @@ void MainRaygen()
 	float3 Li = tracingResult.directLighting + tracingResult.indirectLighting;
 #endif
 
-	// #wip: Output direct lighting and indirect lighting separately, then also filter them separately.
+	// #wip-pathtracing: Output direct lighting and indirect lighting separately, then also filter them separately.
 	raytracingTexture[texel] = float4(Li, 1.0);
 }
 

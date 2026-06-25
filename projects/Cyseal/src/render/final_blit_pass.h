@@ -28,7 +28,7 @@ public:
 	void initialize(RenderDevice* inRenderDevice, uint32 inMaxBlitOperationsPerFrame);
 
 	// Invoke every frame before calling renderFinalBlit().
-	void resetBlitResources();
+	void resetPerFrameResources(const FrameInfo& frameInfo);
 
 	/// - Be aware that blit source is transitioned to ShaderResource and blit target to RenderTarget.
 	/// - Does not set viewport and scissor rect. You need to set them yourself.
