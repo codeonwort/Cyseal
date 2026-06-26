@@ -51,16 +51,17 @@ struct ClosestHitPushConstants
 // ---------------------------------------------------------
 // Global root signature
 
-ConstantBuffer<SceneUniform>       sceneUniform      : register(b0, space0);
-ConstantBuffer<PassUniform>        passUniform       : register(b1, space0);
-RaytracingAccelerationStructure    rtScene           : register(t0, space0);
-ByteAddressBuffer                  gIndexBuffer      : register(t1, space0);
-ByteAddressBuffer                  gVertexBuffer     : register(t2, space0);
-StructuredBuffer<GPUSceneItem>     gpuSceneBuffer    : register(t3, space0);
-StructuredBuffer<Material>         materials         : register(t4, space0);
-TextureCube                        skybox            : register(t5, space0);
-Texture2D                          sceneDepthTexture : register(t6, space0);
-RWTexture2D<float4>                raytracingTexture : register(u0, space0);
+ConstantBuffer<SceneUniform>     sceneUniform         : register(b0, space0);
+ConstantBuffer<PassUniform>      passUniform          : register(b1, space0);
+RaytracingAccelerationStructure  rtScene              : register(t0, space0);
+ByteAddressBuffer                gIndexBuffer         : register(t1, space0);
+ByteAddressBuffer                gVertexBuffer        : register(t2, space0);
+StructuredBuffer<GPUSceneItem>   gpuSceneBuffer       : register(t3, space0);
+StructuredBuffer<Material>       materials            : register(t4, space0);
+TextureCube                      skybox               : register(t5, space0);
+Texture2D                        sceneDepthTexture    : register(t6, space0);
+RWTexture2D<float4>              rwRaytracingTexture0 : register(u0, space0);
+RWTexture2D<float4>              rwRaytracingTexture1 : register(u1, space0);
 
 // Material binding
 #define TEMP_MAX_SRVS 1024
@@ -130,7 +131,8 @@ TracingResult createTracingResult()
 
 void updateTracingResult(inout TracingResult ret, float3 lighting, uint pathLen)
 {
-	if (pathLen == 0) ret.directLighting += lighting;
+	// Primary ray is also raytracing, so pathLen = 1 is direct lighting also.
+	if (pathLen <= 1) ret.directLighting += lighting;
 	else ret.indirectLighting += lighting;
 }
 
@@ -465,13 +467,14 @@ void MainRaygen()
 #if TRACE_MODE == TRACE_AMBIENT_OCCLUSION
 	float ambientOcclusion = traceAmbientOcclusion(texel, cameraRayOrigin, cameraRayDir);
 	float3 Li = ambientOcclusion.xxx;
+	
+	rwRaytracingTexture0[texel] = float4(Li, 1.0);
 #elif (TRACE_MODE == TRACE_DIFFUSE_GI || TRACE_MODE == TRACE_FULL_GI)
 	TracingResult tracingResult = traceIncomingRadiance(texel, cameraRayOrigin, cameraRayDir);
-	float3 Li = tracingResult.directLighting + tracingResult.indirectLighting;
+	
+	rwRaytracingTexture0[texel] = float4(tracingResult.directLighting, 1.0);
+	rwRaytracingTexture1[texel] = float4(tracingResult.indirectLighting, 1.0);
 #endif
-
-	// #wip-pathtracing: Output direct lighting and indirect lighting separately, then also filter them separately.
-	raytracingTexture[texel] = float4(Li, 1.0);
 }
 
 [shader("closesthit")]

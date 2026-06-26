@@ -98,6 +98,7 @@
       <Filter>util</Filter>
     </FxCompile>
     <FxCompile Include="..\..\shaders\bilateral_blur_init.hlsl" />
+    <FxCompile Include="..\..\shaders\path_tracing_final_merge.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="amd">

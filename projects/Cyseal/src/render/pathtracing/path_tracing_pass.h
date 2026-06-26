@@ -55,8 +55,11 @@ public:
 private:
 	void initializeRaytracingPipeline();
 	void initializeTemporalPipeline();
+	void initializeFinalMergePipeline();
 
 	void executeMegaKernel(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput);
+
+	void executeFinalMerge(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput);
 
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 resourceIndex, const SceneProxy* scene);
@@ -66,7 +69,7 @@ private:
 
 	RNG<float>                               rng;
 
-	// Ray pass
+	// Raytracing pass
 	UniquePtr<RaytracingPipelineStateObject> RTPSO;
 	UniquePtr<RaytracingShaderTable>         raygenShaderTable;
 	UniquePtr<RaytracingShaderTable>         missShaderTable;
@@ -74,25 +77,27 @@ private:
 	std::vector<uint32>                      totalHitGroupShaderRecord;
 	VolatileDescriptorHelper                 rayPassDescriptor;
 
-	// Temporal pass
+	// Temporal reprojection pass
 	UniquePtr<ComputePipelineState>          temporalPipeline;
 	VolatileDescriptorHelper                 temporalPassDescriptor;
 
+	// Spatial reconstruction resources
 	uint32                                   historyWidth = 0;
 	uint32                                   historyHeight = 0;
-	UniquePtr<Texture>                       raytracingTexture;
-	UniquePtr<ShaderResourceView>            raytracingSRV;
-	UniquePtr<UnorderedAccessView>           raytracingUAV;
-	// #wip-pathtracing: Separate history.
-#if 1
-	TextureSequence                          colorHistory;
-	TextureSequence                          momentHistory;
-#else
+	// One for direct lighting; another for indirect lighting.
+	UniquePtr<Texture>                       raytracingTextures[2];
+	UniquePtr<ShaderResourceView>            raytracingSRVs[2];
+	UniquePtr<UnorderedAccessView>           raytracingUAVs[2];
 	// Track and filter direct and indirect lighting separately.
 	TextureSequence                          directColorHistory;
 	TextureSequence                          directMomentHistory;
-	// direct vs indirect would look confusing to read; just use GI whether the term is accurate or not.
 	TextureSequence                          giColorHistory;
 	TextureSequence                          giMomentHistory;
-#endif
+	// Final direct and indirect lighting results.
+	UniquePtr<Texture>                       finalTextures[2];
+	UniquePtr<UnorderedAccessView>           finalUAVs[2];
+
+	// Final merge
+	UniquePtr<ComputePipelineState>          finalMergePipeline;
+	VolatileDescriptorHelper                 finalMergePassDescriptor;
 };

@@ -20,13 +20,18 @@ struct PassUniform
 ConstantBuffer<SceneUniform> sceneUniform;
 ConstantBuffer<PassUniform>  passUniform;
 Texture2D                    sceneDepthTexture;
-Texture2D                    raytracingTexture;
+Texture2D                    raytracingTexture0; // Direct lighting component of raytracing kernel
+Texture2D                    raytracingTexture1; // Indirect lighting component of raytracing kernel
 Texture2D                    velocityMapTexture;
 Texture2D                    prevSceneDepthTexture;
-Texture2D                    prevColorTexture;
-Texture2D                    prevMomentTexture;
-RWTexture2D<float4>          currentColorTexture;
-RWTexture2D<float4>          currentMomentTexture;
+Texture2D                    prevDirectColorTexture;
+Texture2D                    prevDirectMomentTexture;
+Texture2D                    prevGiColorTexture;
+Texture2D                    prevGiMomentTexture;
+RWTexture2D<float4>          currentDirectColorTexture;
+RWTexture2D<float4>          currentDirectMomentTexture;
+RWTexture2D<float4>          currentGiColorTexture;
+RWTexture2D<float4>          currentGiMomentTexture;
 
 SamplerState linearSampler : register(s0, space0);
 SamplerState pointSampler  : register(s1, space0);
@@ -39,9 +44,12 @@ struct PrevFrameInfo
 	bool   bValid;
 	float3 positionWS;
 	float  linearDepth;
-	float3 color;
-	float  historyCount;
-	float2 moments;
+	float3 directLighting;
+	float  directHistoryCount;
+	float2 directMoments;
+	float3 giLighting;
+	float  giHistoryCount;
+	float2 giMoments;
 };
 
 float2 getScreenUV(uint2 texel)
@@ -67,16 +75,21 @@ PrevFrameInfo getReprojectedInfo(float2 currentScreenUV)
 		return info;
 	}
 
-	float sceneDepth = prevSceneDepthTexture.SampleLevel(pointSampler, screenUV, 0).x;
-	float3 color = prevColorTexture.SampleLevel(linearSampler, screenUV, 0).xyz;
-	float4 moments = prevMomentTexture.SampleLevel(pointSampler, screenUV, 0);
+	float sceneDepth        = prevSceneDepthTexture.SampleLevel(pointSampler, screenUV, 0).x;
+	float3 directLighting   = prevDirectColorTexture.SampleLevel(linearSampler, screenUV, 0).xyz;
+	float4 directMoments    = prevDirectMomentTexture.SampleLevel(pointSampler, screenUV, 0);
+	float3 giLighting       = prevGiColorTexture.SampleLevel(linearSampler, screenUV, 0).xyz;
+	float4 giMoments        = prevGiMomentTexture.SampleLevel(pointSampler, screenUV, 0);
 
-	info.bValid = true;
-	info.positionWS = clipSpaceToWorldSpace(positionCS, sceneUniform.prevViewProjInvMatrix);
-	info.linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
-	info.color = color;
-	info.historyCount = moments.z;
-	info.moments = moments.xy;
+	info.bValid             = true;
+	info.positionWS         = clipSpaceToWorldSpace(positionCS, sceneUniform.prevViewProjInvMatrix);
+	info.linearDepth        = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix); // Assume projInv is invariant
+	info.directLighting     = directLighting;
+	info.directHistoryCount = directMoments.z;
+	info.directMoments      = directMoments.xy;
+	info.giLighting         = giLighting;
+	info.giHistoryCount     = giMoments.z;
+	info.giMoments          = giMoments.xy;
 	
 	return info;
 }
@@ -96,13 +109,21 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	float3 positionWS = getWorldPositionFromSceneDepth(screenUV, sceneDepth, sceneUniform.viewProjInvMatrix);
 	float linearDepth = getLinearDepth(screenUV, sceneDepth, sceneUniform.projInvMatrix);
 
-	float3 Wo = raytracingTexture.Load(int3(texel, 0)).xyz;
-	float historyCount = 0;
-	float2 moments = 0;
+	float3 directLighting = raytracingTexture0.Load(int3(texel, 0)).xyz;
+	float  directHistoryCount = 0;
+	float2 directMoments = 0;
+	
+	float3 giLighting = raytracingTexture1.Load(int3(texel, 0)).xyz;
+	float  giHistoryCount = 0;
+	float2 giMoments = 0;
+	
 	if (sceneDepth != DEVICE_Z_FAR)
 	{
-		moments.x = getLuminance(Wo);
-		moments.y = moments.x * moments.x;
+		directMoments.x = getLuminance(directLighting);
+		directMoments.y = directMoments.x * directMoments.x;
+		
+		giMoments.x = getLuminance(giLighting);
+		giMoments.y = giMoments.x * giMoments.x;
 		
 		// Temporal reprojection
 		PrevFrameInfo prevFrame = getReprojectedInfo(screenUV);
@@ -113,27 +134,40 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 			bTemporalReprojection = prevFrame.bValid && depthDiff <= 0.03;
 		}
 		
-		float3 prevWo = 0;
-		float2 prevMoments = 0;
+		float3 prevDirectLighting = 0;
+		float2 prevDirectMoments = 0;
+		float3 prevGiLighting = 0;
+		float2 prevGiMoments = 0;
 		if (bTemporalReprojection)
 		{
-			historyCount = prevFrame.historyCount;
-			prevWo = prevFrame.color;
-			prevMoments = prevFrame.moments;
+			directHistoryCount = prevFrame.directHistoryCount;
+			prevDirectLighting = prevFrame.directLighting;
+			prevDirectMoments  = prevFrame.directMoments;
+			
+			giHistoryCount     = prevFrame.giHistoryCount;
+			prevGiLighting     = prevFrame.giLighting;
+			prevGiMoments      = prevFrame.giMoments;
 		}
 		
-		Wo = lerp(prevWo, Wo, 1.0 / (1.0 + historyCount));
-		moments = lerp(prevMoments, moments, 1.0 / (1.0 + historyCount));
+		directLighting = lerp(prevDirectLighting, directLighting, 1.0 / (1.0 + directHistoryCount));
+		directMoments = lerp(prevDirectMoments, directMoments, 1.0 / (1.0 + directHistoryCount));
+		directHistoryCount += 1;
 		
-		historyCount += 1;
+		giLighting = lerp(prevGiLighting, giLighting, 1.0 / (1.0 + giHistoryCount));
+		giMoments = lerp(prevGiMoments, giMoments, 1.0 / (1.0 + giHistoryCount));
+		giHistoryCount += 1;
+		
 		if (passUniform.bLimitHistory != 0)
 		{
-			historyCount = min(historyCount, MAX_HISTORY);
+			directHistoryCount = min(directHistoryCount, MAX_HISTORY);
+			giHistoryCount = min(giHistoryCount, MAX_HISTORY);
 		}
 	}
 
 	//variance = max(0.0, moments.y - moments.x * moments.x);
 	
-	currentColorTexture[texel] = float4(Wo, 1);
-	currentMomentTexture[texel] = float4(moments, historyCount, 1);
+	currentDirectColorTexture[texel]  = float4(directLighting, 1);
+	currentDirectMomentTexture[texel] = float4(directMoments, directHistoryCount, 1);
+	currentGiColorTexture[texel]      = float4(giLighting, 1);
+	currentGiMomentTexture[texel]     = float4(giMoments, giHistoryCount, 1);
 }

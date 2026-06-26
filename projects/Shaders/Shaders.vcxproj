@@ -126,6 +126,7 @@
     <FxCompile Include="..\..\shaders\material.hlsl" />
     <FxCompile Include="..\..\shaders\path_tracing.hlsl" />
     <FxCompile Include="..\..\shaders\indirect_specular_reflection.hlsl" />
+    <FxCompile Include="..\..\shaders\path_tracing_final_merge.hlsl" />
     <FxCompile Include="..\..\shaders\path_tracing_temporal.hlsl" />
     <FxCompile Include="..\..\shaders\raytracing_common.hlsl" />
     <FxCompile Include="..\..\shaders\ray_traced_shadows.hlsl" />
