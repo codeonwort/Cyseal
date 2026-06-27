@@ -61,6 +61,15 @@ private:
 	void executeTemporalReconstruction(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput);
 	void executeVarianceGuidedFilter(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput);
 
+	struct FinalMergeParams
+	{
+		Texture*             inputTexture0 = nullptr;
+		UnorderedAccessView* inputUAV0     = nullptr;
+		Texture*             inputTexture1 = nullptr;
+		UnorderedAccessView* inputUAV1     = nullptr;
+	};
+	void executeFinalMerge(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput, const FinalMergeParams& mergeInput);
+
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 resourceIndex, const SceneProxy* scene);
 

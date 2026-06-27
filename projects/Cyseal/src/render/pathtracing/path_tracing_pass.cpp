@@ -145,24 +145,17 @@ bool PathTracingPass::isAvailable() const
 
 void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput)
 {
-	auto sceneWidth         = passInput.sceneWidth;
-	auto sceneHeight        = passInput.sceneHeight;
-	auto gpuScene           = passInput.gpuScene;
-
 	if (isAvailable() == false)
 	{
 		return;
 	}
-	if (gpuScene->getGPUSceneItemMaxCount() == 0)
+	if (passInput.gpuScene->getGPUSceneItemMaxCount() == 0)
 	{
 		// #todo-zero-size: Release resources if any.
 		return;
 	}
 
-	// -------------------------------------------------------------------
-	// Phase: Setup
-
-	resizeTextures(commandList, sceneWidth, sceneHeight);
+	resizeTextures(commandList, passInput.sceneWidth, passInput.sceneHeight);
 
 	if (passInput.randomSeed > 0)
 	{
@@ -172,24 +165,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 	const uint32 currFrame = frameInfo.frameID % 2;
 	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
 
-	auto currentDirectColorTexture  = directColorHistory.getTexture(currFrame);
-	auto currentDirectColorSRV      = directColorHistory.getSRV(currFrame);
-	auto currentDirectColorUAV      = directColorHistory.getUAV(currFrame);
-
-	auto currentGiColorTexture      = giColorHistory.getTexture(currFrame);
-	auto currentGiColorSRV          = giColorHistory.getSRV(currFrame);
-	auto currentGiColorUAV          = giColorHistory.getUAV(currFrame);
-
-	auto currentDirectMomentTexture = directMomentHistory.getTexture(currFrame);
-	auto currentDirectMomentSRV     = directMomentHistory.getSRV(currFrame);
-	auto currentDirectMomentUAV     = directMomentHistory.getUAV(currFrame);
-
-	auto currentGiMomentTexture     = giMomentHistory.getTexture(currFrame);
-	auto currentGiMomentSRV         = giMomentHistory.getSRV(currFrame);
-	auto currentGiMomentUAV         = giMomentHistory.getUAV(currFrame);
-
-	// -------------------------------------------------------------------
-	// Phase: Raytracing Kernel
+	FinalMergeParams finalMergeParams{}; // Determined by passInput.mode
 
 	if (passInput.kernel == EPathTracingKernel::MegaKernel)
 	{
@@ -202,60 +178,25 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 
 	executeTemporalReconstruction(commandList, frameInfo, passInput);
 
-	// -------------------------------------------------------------------
-	// Phase: Spatial Reconstruction
-
-	Texture*             finalMergeInputTexture0 = nullptr;
-	UnorderedAccessView* finalMergeInputUAV0     = nullptr;
-	Texture*             finalMergeInputTexture1 = nullptr;
-	UnorderedAccessView* finalMergeInputUAV1     = nullptr;
-
 	if (passInput.mode == EPathTracingMode::Offline || passInput.mode == EPathTracingMode::RealtimeDenoising)
 	{
-		finalMergeInputTexture0 = currentDirectColorTexture;
-		finalMergeInputUAV0     = currentDirectColorUAV;
-		finalMergeInputTexture1 = currentGiColorTexture;
-		finalMergeInputUAV1     = currentGiColorUAV;
+		// Skip spatial filter and use the result of temporal reconstruction.
+		finalMergeParams.inputTexture0 = directColorHistory.getTexture(currFrame);
+		finalMergeParams.inputUAV0     = directColorHistory.getUAV(currFrame);
+		finalMergeParams.inputTexture1 = giColorHistory.getTexture(currFrame);
+		finalMergeParams.inputUAV1     = giColorHistory.getUAV(currFrame);
 	}
 	else
 	{
 		executeVarianceGuidedFilter(commandList, frameInfo, passInput);
 
-		finalMergeInputTexture0 = finalTextures[0].get();
-		finalMergeInputUAV0     = finalUAVs[0].get();
-		finalMergeInputTexture1 = finalTextures[1].get();
-		finalMergeInputUAV1     = finalUAVs[1].get();
+		finalMergeParams.inputTexture0 = finalTextures[0].get();
+		finalMergeParams.inputUAV0     = finalUAVs[0].get();
+		finalMergeParams.inputTexture1 = finalTextures[1].get();
+		finalMergeParams.inputUAV1     = finalUAVs[1].get();
 	}
-
-	// -------------------------------------------------------------------
-	// Phase: Final Merge
-
-	{
-		SCOPED_DRAW_EVENT(commandList, PathTracingFinalMerge);
-
-		TextureBarrierAuto textureBarriers[] = {
-			TextureBarrierAuto::toUnorderedAccess(finalMergeInputTexture0, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toUnorderedAccess(finalMergeInputTexture1, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toUnorderedAccess(passInput.sceneColorTexture, EBarrierSync::COMPUTE_SHADING),
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
-
-		ShaderParameterTable SPT{};
-		SPT.pushConstants("pushConstants", { passInput.sceneWidth, passInput.sceneHeight });
-		SPT.rwTexture("inputTexture0", finalMergeInputUAV0);
-		SPT.rwTexture("inputTexture1", finalMergeInputUAV1);
-		SPT.rwTexture("outputTexture", passInput.sceneColorUAV);
-
-		ComputePipelineState* pipelineState = finalMergePipeline.get();
-		DescriptorHeap* volatileHeap = finalMergePassDescriptor.resizeDescriptorHeap(currFrame, SPT.totalDescriptors());
-
-		commandList->setComputePipelineState(pipelineState);
-		commandList->bindComputeShaderParameters(pipelineState, &SPT, volatileHeap);
-
-		uint32 dispatchX = (historyWidth + 7) / 8;
-		uint32 dispatchY = (historyHeight + 7) / 8;
-		commandList->dispatchCompute(dispatchX, dispatchY, 1);
-	}
+	
+	executeFinalMerge(commandList, frameInfo, passInput, finalMergeParams);
 }
 
 void PathTracingPass::initializeRaytracingPipeline()
@@ -624,6 +565,37 @@ void PathTracingPass::executeVarianceGuidedFilter(RenderCommandList* commandList
 		.feedbackPhase   = 1, // Copy the result of first iteration back to color history.
 	};
 	passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, giBlurPassInput);
+}
+
+void PathTracingPass::executeFinalMerge(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput, const FinalMergeParams& mergeParams)
+{
+	SCOPED_DRAW_EVENT(commandList, PathTracingFinalMerge);
+
+	const uint32 currFrame = frameInfo.frameID % 2;
+	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
+
+	TextureBarrierAuto textureBarriers[] = {
+		TextureBarrierAuto::toUnorderedAccess(mergeParams.inputTexture0, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(mergeParams.inputTexture1, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(passInput.sceneColorTexture, EBarrierSync::COMPUTE_SHADING),
+	};
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+	ShaderParameterTable SPT{};
+	SPT.pushConstants("pushConstants", { passInput.sceneWidth, passInput.sceneHeight });
+	SPT.rwTexture("inputTexture0", mergeParams.inputUAV0);
+	SPT.rwTexture("inputTexture1", mergeParams.inputUAV1);
+	SPT.rwTexture("outputTexture", passInput.sceneColorUAV);
+
+	ComputePipelineState* pipelineState = finalMergePipeline.get();
+	DescriptorHeap* volatileHeap = finalMergePassDescriptor.resizeDescriptorHeap(currFrame, SPT.totalDescriptors());
+
+	commandList->setComputePipelineState(pipelineState);
+	commandList->bindComputeShaderParameters(pipelineState, &SPT, volatileHeap);
+
+	uint32 dispatchX = (historyWidth + 7) / 8;
+	uint32 dispatchY = (historyHeight + 7) / 8;
+	commandList->dispatchCompute(dispatchX, dispatchY, 1);
 }
 
 void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
