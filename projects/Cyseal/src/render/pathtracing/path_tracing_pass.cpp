@@ -219,61 +219,7 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 	}
 	else
 	{
-		SCOPED_DRAW_EVENT(commandList, PathTracingDenoising);
-
-		TextureBarrierAuto textureBarriers[] = {
-			TextureBarrierAuto::toUnorderedAccess(currentDirectColorTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toShaderResource(currentDirectMomentTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toUnorderedAccess(currentGiColorTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toShaderResource(currentGiMomentTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toUnorderedAccess(finalTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toUnorderedAccess(finalTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
-
-		// #wip: Demodulate albedo before running blur
-
-		BilateralBlurInput directBlurPassInput{
-			.imageWidth      = sceneWidth,
-			.imageHeight     = sceneHeight,
-			.blurCount       = BLUR_COUNT,
-			.cPhi            = cPhi,
-			.nPhi            = nPhi,
-			.pPhi            = pPhi,
-			.sceneUniformCBV = passInput.sceneUniformBuffer,
-			.inColorTexture  = currentDirectColorTexture,
-			.inColorUAV      = currentDirectColorUAV,
-			.inMomentTexture = currentDirectMomentTexture,
-			.inMomentSRV     = currentDirectMomentSRV,
-			.inSceneDepthSRV = passInput.sceneDepthSRV,
-			.inGBuffer0SRV   = passInput.gbuffer0SRV,
-			.inGBuffer1SRV   = passInput.gbuffer1SRV,
-			.outColorTexture = finalTextures[0].get(),
-			.outColorUAV     = finalUAVs[0].get(),
-			.feedbackPhase   = 1, // Copy the result of first iteration back to color history.
-		};
-		passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, directBlurPassInput);
-
-		BilateralBlurInput giBlurPassInput{
-			.imageWidth      = sceneWidth,
-			.imageHeight     = sceneHeight,
-			.blurCount       = BLUR_COUNT,
-			.cPhi            = cPhi,
-			.nPhi            = nPhi,
-			.pPhi            = pPhi,
-			.sceneUniformCBV = passInput.sceneUniformBuffer,
-			.inColorTexture  = currentGiColorTexture,
-			.inColorUAV      = currentGiColorUAV,
-			.inMomentTexture = currentGiMomentTexture,
-			.inMomentSRV     = currentGiMomentSRV,
-			.inSceneDepthSRV = passInput.sceneDepthSRV,
-			.inGBuffer0SRV   = passInput.gbuffer0SRV,
-			.inGBuffer1SRV   = passInput.gbuffer1SRV,
-			.outColorTexture = finalTextures[1].get(),
-			.outColorUAV     = finalUAVs[1].get(),
-			.feedbackPhase   = 1, // Copy the result of first iteration back to color history.
-		};
-		passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, giBlurPassInput);
+		executeVarianceGuidedFilter(commandList, frameInfo, passInput);
 
 		finalMergeInputTexture0 = finalTextures[0].get();
 		finalMergeInputUAV0     = finalUAVs[0].get();
@@ -604,6 +550,80 @@ void PathTracingPass::executeTemporalReconstruction(RenderCommandList* commandLi
 	uint32 dispatchX = (historyWidth + 7) / 8;
 	uint32 dispatchY = (historyHeight + 7) / 8;
 	commandList->dispatchCompute(dispatchX, dispatchY, 1);
+}
+
+void PathTracingPass::executeVarianceGuidedFilter(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput)
+{
+	SCOPED_DRAW_EVENT(commandList, PathTracingDenoising);
+
+	const uint32 currFrame = frameInfo.frameID % 2;
+	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
+
+	auto currentDirectColorTexture  = directColorHistory.getTexture(currFrame);
+	auto currentDirectColorUAV      = directColorHistory.getUAV(currFrame);
+
+	auto currentGiColorTexture      = giColorHistory.getTexture(currFrame);
+	auto currentGiColorUAV          = giColorHistory.getUAV(currFrame);
+
+	auto currentDirectMomentTexture = directMomentHistory.getTexture(currFrame);
+	auto currentDirectMomentSRV     = directMomentHistory.getSRV(currFrame);
+
+	auto currentGiMomentTexture     = giMomentHistory.getTexture(currFrame);
+	auto currentGiMomentSRV         = giMomentHistory.getSRV(currFrame);
+
+	TextureBarrierAuto textureBarriers[] = {
+		TextureBarrierAuto::toUnorderedAccess(currentDirectColorTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(currentDirectMomentTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(currentGiColorTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(currentGiMomentTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(finalTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(finalTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
+	};
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+	// #wip: Demodulate albedo before running blur
+
+	BilateralBlurInput directBlurPassInput{
+		.imageWidth      = passInput.sceneWidth,
+		.imageHeight     = passInput.sceneHeight,
+		.blurCount       = BLUR_COUNT,
+		.cPhi            = cPhi,
+		.nPhi            = nPhi,
+		.pPhi            = pPhi,
+		.sceneUniformCBV = passInput.sceneUniformBuffer,
+		.inColorTexture  = currentDirectColorTexture,
+		.inColorUAV      = currentDirectColorUAV,
+		.inMomentTexture = currentDirectMomentTexture,
+		.inMomentSRV     = currentDirectMomentSRV,
+		.inSceneDepthSRV = passInput.sceneDepthSRV,
+		.inGBuffer0SRV   = passInput.gbuffer0SRV,
+		.inGBuffer1SRV   = passInput.gbuffer1SRV,
+		.outColorTexture = finalTextures[0].get(),
+		.outColorUAV     = finalUAVs[0].get(),
+		.feedbackPhase   = 1, // Copy the result of first iteration back to color history.
+	};
+	passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, directBlurPassInput);
+
+	BilateralBlurInput giBlurPassInput{
+		.imageWidth      = passInput.sceneWidth,
+		.imageHeight     = passInput.sceneHeight,
+		.blurCount       = BLUR_COUNT,
+		.cPhi            = cPhi,
+		.nPhi            = nPhi,
+		.pPhi            = pPhi,
+		.sceneUniformCBV = passInput.sceneUniformBuffer,
+		.inColorTexture  = currentGiColorTexture,
+		.inColorUAV      = currentGiColorUAV,
+		.inMomentTexture = currentGiMomentTexture,
+		.inMomentSRV     = currentGiMomentSRV,
+		.inSceneDepthSRV = passInput.sceneDepthSRV,
+		.inGBuffer0SRV   = passInput.gbuffer0SRV,
+		.inGBuffer1SRV   = passInput.gbuffer1SRV,
+		.outColorTexture = finalTextures[1].get(),
+		.outColorUAV     = finalUAVs[1].get(),
+		.feedbackPhase   = 1, // Copy the result of first iteration back to color history.
+	};
+	passInput.bilateralBlur->renderBilateralBlur(commandList, frameInfo, giBlurPassInput);
 }
 
 void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
