@@ -59,7 +59,7 @@ private:
 
 	void executeMegaKernel(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput);
 
-	void executeFinalMerge(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput);
+	void executeTemporalReconstruction(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput);
 
 	void resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight);
 	void resizeHitGroupShaderTable(uint32 resourceIndex, const SceneProxy* scene);

@@ -175,112 +175,32 @@ void PathTracingPass::renderPathTracing(RenderCommandList* commandList, const Fr
 	auto currentDirectColorTexture  = directColorHistory.getTexture(currFrame);
 	auto currentDirectColorSRV      = directColorHistory.getSRV(currFrame);
 	auto currentDirectColorUAV      = directColorHistory.getUAV(currFrame);
-	auto prevDirectColorTexture     = directColorHistory.getTexture(prevFrame);
-	auto prevDirectColorSRV         = directColorHistory.getSRV(prevFrame);
 
 	auto currentGiColorTexture      = giColorHistory.getTexture(currFrame);
 	auto currentGiColorSRV          = giColorHistory.getSRV(currFrame);
 	auto currentGiColorUAV          = giColorHistory.getUAV(currFrame);
-	auto prevGiColorTexture         = giColorHistory.getTexture(prevFrame);
-	auto prevGiColorSRV             = giColorHistory.getSRV(prevFrame);
 
 	auto currentDirectMomentTexture = directMomentHistory.getTexture(currFrame);
 	auto currentDirectMomentSRV     = directMomentHistory.getSRV(currFrame);
 	auto currentDirectMomentUAV     = directMomentHistory.getUAV(currFrame);
-	auto prevDirectMomentTexture    = directMomentHistory.getTexture(prevFrame);
-	auto prevDirectMomentSRV        = directMomentHistory.getSRV(prevFrame);
 
 	auto currentGiMomentTexture     = giMomentHistory.getTexture(currFrame);
 	auto currentGiMomentSRV         = giMomentHistory.getSRV(currFrame);
 	auto currentGiMomentUAV         = giMomentHistory.getUAV(currFrame);
-	auto prevGiMomentTexture        = giMomentHistory.getTexture(prevFrame);
-	auto prevGiMomentSRV            = giMomentHistory.getSRV(prevFrame);
 
 	// -------------------------------------------------------------------
 	// Phase: Raytracing Kernel
 
+	if (passInput.kernel == EPathTracingKernel::MegaKernel)
 	{
-		SCOPED_DRAW_EVENT(commandList, PathTracingKernel);
-
-		if (passInput.kernel == EPathTracingKernel::MegaKernel)
-		{
-			executeMegaKernel(commandList, frameInfo, passInput);
-		}
-		else
-		{
-			// #todo-pathtracing: Implement wavefront kernel.
-		}
+		executeMegaKernel(commandList, frameInfo, passInput);
+	}
+	else
+	{
+		// #todo-pathtracing: Implement wavefront kernel.
 	}
 
-	// -------------------------------------------------------------------
-	// Phase: Temporal Reconstruction
-
-	// Update uniforms.
-	{
-		TemporalPassUniform uboData;
-
-		uboData.screenSize[0] = historyWidth;
-		uboData.screenSize[1] = historyHeight;
-		uboData.invScreenSize[0] = 1.0f / (float)historyWidth;
-		uboData.invScreenSize[1] = 1.0f / (float)historyHeight;
-		uboData.bInvalidateHistory = passInput.bCameraHasMoved && passInput.mode == EPathTracingMode::Offline;
-		uboData.bLimitHistory = passInput.mode == EPathTracingMode::Realtime;
-
-		auto uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
-		uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
-	}
-
-	{
-		TextureBarrierAuto textureBarriers[] = {
-			TextureBarrierAuto::toShaderResource(raytracingTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toShaderResource(raytracingTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toShaderResource(prevDirectColorTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toShaderResource(prevGiColorTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toShaderResource(prevDirectMomentTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toShaderResource(prevGiMomentTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toUnorderedAccess(currentDirectColorTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toUnorderedAccess(currentGiColorTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toUnorderedAccess(currentDirectMomentTexture, EBarrierSync::COMPUTE_SHADING),
-			TextureBarrierAuto::toUnorderedAccess(currentGiMomentTexture, EBarrierSync::COMPUTE_SHADING),
-		};
-		commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
-	}
-
-	// Bind global shader parameters.
-	{
-		ConstantBufferView* uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
-
-		ShaderParameterTable SPT{};
-		SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
-		SPT.constantBuffer("passUniform", uniformCBV);
-		SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
-		SPT.texture("raytracingTexture0", raytracingSRVs[0].get());
-		SPT.texture("raytracingTexture1", raytracingSRVs[1].get());
-		SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
-		SPT.texture("prevDirectColorTexture", prevDirectColorSRV);
-		SPT.texture("prevDirectMomentTexture", prevDirectMomentSRV);
-		SPT.texture("prevGiColorTexture", prevGiColorSRV);
-		SPT.texture("prevGiMomentTexture", prevGiMomentSRV);
-		SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
-		SPT.rwTexture("currentDirectColorTexture", currentDirectColorUAV);
-		SPT.rwTexture("currentDirectMomentTexture", currentDirectMomentUAV);
-		SPT.rwTexture("currentGiColorTexture", currentGiColorUAV);
-		SPT.rwTexture("currentGiMomentTexture", currentGiMomentUAV);
-
-		uint32 requiredVolatiles = SPT.totalDescriptors();
-		DescriptorHeap* volatileHeap = temporalPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
-
-		commandList->setComputePipelineState(temporalPipeline.get());
-		commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
-	}
-
-	{
-		SCOPED_DRAW_EVENT(commandList, TemporalReprojection);
-
-		uint32 dispatchX = (historyWidth + 7) / 8;
-		uint32 dispatchY = (historyHeight + 7) / 8;
-		commandList->dispatchCompute(dispatchX, dispatchY, 1);
-	}
+	executeTemporalReconstruction(commandList, frameInfo, passInput);
 
 	// -------------------------------------------------------------------
 	// Phase: Spatial Reconstruction
@@ -530,6 +450,8 @@ void PathTracingPass::initializeFinalMergePipeline()
 
 void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput)
 {
+	SCOPED_DRAW_EVENT(commandList, PathTracingMegaKernel);
+
 	auto scene              = passInput.scene;
 	auto sceneWidth         = passInput.sceneWidth;
 	auto sceneHeight        = passInput.sceneHeight;
@@ -606,9 +528,82 @@ void PathTracingPass::executeMegaKernel(RenderCommandList* commandList, const Fr
 	commandList->dispatchRays(dispatchDesc);
 }
 
-void PathTracingPass::executeFinalMerge(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput)
+void PathTracingPass::executeTemporalReconstruction(RenderCommandList* commandList, const FrameInfo& frameInfo, const PathTracingInput& passInput)
 {
-	//
+	SCOPED_DRAW_EVENT(commandList, PathTracingTemporal);
+
+	const uint32 currFrame = frameInfo.frameID % 2;
+	const uint32 prevFrame = (frameInfo.frameID + 1) % 2;
+
+	auto currentDirectColorTexture  = directColorHistory.getTexture(currFrame);
+	auto currentDirectColorUAV      = directColorHistory.getUAV(currFrame);
+	auto prevDirectColorTexture     = directColorHistory.getTexture(prevFrame);
+	auto prevDirectColorSRV         = directColorHistory.getSRV(prevFrame);
+
+	auto currentGiColorTexture      = giColorHistory.getTexture(currFrame);
+	auto currentGiColorUAV          = giColorHistory.getUAV(currFrame);
+	auto prevGiColorTexture         = giColorHistory.getTexture(prevFrame);
+	auto prevGiColorSRV             = giColorHistory.getSRV(prevFrame);
+
+	auto currentDirectMomentTexture = directMomentHistory.getTexture(currFrame);
+	auto currentDirectMomentUAV     = directMomentHistory.getUAV(currFrame);
+	auto prevDirectMomentTexture    = directMomentHistory.getTexture(prevFrame);
+	auto prevDirectMomentSRV        = directMomentHistory.getSRV(prevFrame);
+
+	auto currentGiMomentTexture     = giMomentHistory.getTexture(currFrame);
+	auto currentGiMomentUAV         = giMomentHistory.getUAV(currFrame);
+	auto prevGiMomentTexture        = giMomentHistory.getTexture(prevFrame);
+	auto prevGiMomentSRV            = giMomentHistory.getSRV(prevFrame);
+
+	TemporalPassUniform uboData{
+		.screenSize         = { historyWidth, historyHeight },
+		.invScreenSize      = { 1.0f / (float)historyWidth, 1.0f / (float)historyHeight },
+		.bInvalidateHistory = passInput.bCameraHasMoved && passInput.mode == EPathTracingMode::Offline,
+		.bLimitHistory      = passInput.mode == EPathTracingMode::Realtime,
+	};
+	auto uniformCBV = temporalPassDescriptor.getUniformCBV(currFrame);
+	uniformCBV->writeToGPU(commandList, &uboData, sizeof(TemporalPassUniform));
+
+	TextureBarrierAuto textureBarriers[] = {
+		TextureBarrierAuto::toShaderResource(raytracingTextures[0].get(), EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(raytracingTextures[1].get(), EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(prevDirectColorTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(prevGiColorTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(prevDirectMomentTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toShaderResource(prevGiMomentTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(currentDirectColorTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(currentGiColorTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(currentDirectMomentTexture, EBarrierSync::COMPUTE_SHADING),
+		TextureBarrierAuto::toUnorderedAccess(currentGiMomentTexture, EBarrierSync::COMPUTE_SHADING),
+	};
+	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
+
+	ShaderParameterTable SPT{};
+	SPT.constantBuffer("sceneUniform", passInput.sceneUniformBuffer);
+	SPT.constantBuffer("passUniform", uniformCBV);
+	SPT.texture("sceneDepthTexture", passInput.sceneDepthSRV);
+	SPT.texture("raytracingTexture0", raytracingSRVs[0].get());
+	SPT.texture("raytracingTexture1", raytracingSRVs[1].get());
+	SPT.texture("prevSceneDepthTexture", passInput.prevSceneDepthSRV);
+	SPT.texture("prevDirectColorTexture", prevDirectColorSRV);
+	SPT.texture("prevDirectMomentTexture", prevDirectMomentSRV);
+	SPT.texture("prevGiColorTexture", prevGiColorSRV);
+	SPT.texture("prevGiMomentTexture", prevGiMomentSRV);
+	SPT.texture("velocityMapTexture", passInput.velocityMapSRV);
+	SPT.rwTexture("currentDirectColorTexture", currentDirectColorUAV);
+	SPT.rwTexture("currentDirectMomentTexture", currentDirectMomentUAV);
+	SPT.rwTexture("currentGiColorTexture", currentGiColorUAV);
+	SPT.rwTexture("currentGiMomentTexture", currentGiMomentUAV);
+
+	uint32 requiredVolatiles = SPT.totalDescriptors();
+	DescriptorHeap* volatileHeap = temporalPassDescriptor.resizeDescriptorHeap(currFrame, requiredVolatiles);
+
+	commandList->setComputePipelineState(temporalPipeline.get());
+	commandList->bindComputeShaderParameters(temporalPipeline.get(), &SPT, volatileHeap);
+
+	uint32 dispatchX = (historyWidth + 7) / 8;
+	uint32 dispatchY = (historyHeight + 7) / 8;
+	commandList->dispatchCompute(dispatchX, dispatchY, 1);
 }
 
 void PathTracingPass::resizeTextures(RenderCommandList* commandList, uint32 newWidth, uint32 newHeight)
