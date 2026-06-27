@@ -8,12 +8,16 @@
 // #wip: Replace weight formula with the ones presented in the SVGF paper.
 #define SVGF_WEIGHTS 1
 
+// #wip: Overflows :(
+#define ALBEDO_MODULATION 0
+
 // ------------------------------------------------------------------------
 // Resource bindings
 
 struct PushConstants
 {
 	uint stepWidth;
+	uint phase;
 };
 
 struct BlurUniform
@@ -26,7 +30,7 @@ struct BlurUniform
 	uint textureWidth;
 	uint textureHeight;
 	uint bSkipBlur;
-	uint _pad2;
+	uint lastPhase;
 };
 
 [[vk::push_constant]]
@@ -71,6 +75,24 @@ float3 getWorldPosition(uint2 tid)
 	float2 uv = getScreenUV(tid.xy);
 	float4 positionCS = getPositionCS(uv, sceneDepth);
 	return clipSpaceToWorldSpace(positionCS, sceneUniform.viewProjInvMatrix);
+}
+
+float3 demodulateAlbedo(float3 lighting, float3 albedo)
+{
+#if ALBEDO_MODULATION
+	return lighting / (albedo + 1e-3);
+#else
+	return lighting;
+#endif
+}
+
+float3 modulateAlbedo(float3 lighting, float3 albedo)
+{
+#if ALBEDO_MODULATION
+	return lighting * (albedo + 1e-3);
+#else
+	return lighting;
+#endif
 }
 
 // Load input variance with 3x3 Gaussian filter.
@@ -127,6 +149,11 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		outVarianceTexture[tid.xy] = 0;
 		return;
 	}
+	
+	if (pushConstants.phase == 0)
+	{
+		color0 = demodulateAlbedo(color0, albedo0);
+	}
 
 	float3 sum = float3(0.0, 0.0, 0.0);
 	float weightSum = 0.0;
@@ -149,6 +176,11 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 		float3 normal1  = neighborGBufferData.normalWS;
 		float  deviceZ1 = loadDeviceZ(neighborTexel);
 		float3 pos1     = getWorldPosition(neighborTexel);
+		
+		if (pushConstants.phase == 0)
+		{
+			color1 = demodulateAlbedo(color1, albedo1);
+		}
 		
 		if (deviceZ1 == DEVICE_Z_FAR)
 		{
@@ -205,6 +237,11 @@ void mainCS(uint3 tid : SV_DispatchThreadID)
 	
 	float3 finalColor = sum / weightSum;
 	nextVariance /= (weightSum * weightSum);
+	
+	if (pushConstants.phase == blurUniform.lastPhase)
+	{
+		finalColor = modulateAlbedo(finalColor, albedo0);
+	}
 
 	outColorTexture[tid.xy] = float4(finalColor, 1.0);
 	outVarianceTexture[tid.xy] = nextVariance;

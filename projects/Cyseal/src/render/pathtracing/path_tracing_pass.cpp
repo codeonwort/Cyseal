@@ -522,8 +522,6 @@ void PathTracingPass::executeVarianceGuidedFilter(RenderCommandList* commandList
 	};
 	commandList->barrierAuto(0, nullptr, _countof(textureBarriers), textureBarriers, 0, nullptr);
 
-	// #wip: Demodulate albedo before running blur
-
 	BilateralBlurInput directBlurPassInput{
 		.imageWidth      = passInput.sceneWidth,
 		.imageHeight     = passInput.sceneHeight,

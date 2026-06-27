@@ -20,7 +20,7 @@ struct BlurUniform
 	uint32 textureWidth;
 	uint32 textureHeight;
 	uint32 bSkipBlur;
-	uint32 _pad2;
+	uint32 lastPhase;
 };
 
 void BilateralBlur::initialize(RenderDevice* inDevice)
@@ -49,7 +49,7 @@ void BilateralBlur::initialize(RenderDevice* inDevice)
 	// Blur pipeline
 	{
 		ShaderStage* shader = device->createShader(EShaderStage::COMPUTE_SHADER, "BilateralBlurCS");
-		shader->declarePushConstants({ { "pushConstants", 1} });
+		shader->declarePushConstants({ { "pushConstants", 2} });
 		shader->loadFromFile(L"bilateral_blur.hlsl", "mainCS");
 
 		blurPipelineState = UniquePtr<ComputePipelineState>(device->createComputePipelineState(
@@ -211,6 +211,7 @@ void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& f
 		uboData.textureWidth = passInput.imageWidth;
 		uboData.textureHeight = passInput.imageHeight;
 		uboData.bSkipBlur = (uint32)false;
+		uboData.lastPhase = (uint32)(passInput.blurCount - 1);
 
 		auto uniformCBV = blurPassDescriptor.getUniformCBV(frameInfo);
 		uniformCBV->writeToGPU(commandList, &uboData, sizeof(BlurUniform));
@@ -266,7 +267,7 @@ void BilateralBlur::blurPhase(RenderCommandList* commandList, const FrameInfo& f
 
 		// When modified, check resetPerFrameResources() if SPT size is correct.
 		ShaderParameterTable SPT{};
-		SPT.pushConstant("pushConstants", phase + 1);
+		SPT.pushConstants("pushConstants", { (uint32)(phase + 1), (uint32)phase });
 		SPT.constantBuffer("sceneUniform", passInput.sceneUniformCBV);
 		SPT.constantBuffer("blurUniform", uniformCBV);
 		SPT.texture("inGBuffer0Texture", passInput.inGBuffer0SRV);
